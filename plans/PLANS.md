@@ -4,15 +4,14 @@
 
 ## Active plans
 
-| ID | Title | Status | Dependencies | Specs |
-|----|-------|--------|--------------|-------|
-| [2026-10-29-assist-and-approve](2026-10-29-assist-and-approve/PLAN.md) | Refine-then-write assist, the review role, and approval commands | ready | [2026-10-29-feature-spec-alignment](archive/2026-10-29-feature-spec-alignment/PLAN.md) | feature/spec-policies, feature/configuration, feature/agent-integration, feature/tooling, architecture/agent-skills, architecture/reference-cli, architecture/file-formats, claude:feature/claude-integration, claude:architecture/claude-integration |
+_None._
 
 ## Archived plans
 
 | ID | Title | Status | Specs |
 |----|-------|--------|-------|
 | [2026-10-28-reference-cli-core](archive/2026-10-28-reference-cli-core/PLAN.md) | Reference CLI core — validate and generate commands | done | feature/tooling, feature/configuration, feature/spec-system, feature/plan-system, feature/plan-steps, feature/plan-index, feature/spec-overlays, architecture/reference-cli, architecture/file-formats, architecture/repository-layout, architecture/agent-skills |
+| [2026-10-29-assist-and-approve](archive/2026-10-29-assist-and-approve/PLAN.md) | Refine-then-write assist, the review role, and approval commands | done | feature/spec-policies, feature/configuration, feature/agent-integration, feature/tooling, architecture/agent-skills, architecture/reference-cli, architecture/file-formats, claude:feature/claude-integration, claude:architecture/claude-integration |
 | [2026-10-29-claude-harness-files](archive/2026-10-29-claude-harness-files/PLAN.md) | Claude Code harness files — skills, hooks, CLAUDE.md | done | claude:feature/claude-integration, claude:architecture/claude-integration, feature/agent-integration, architecture/agent-skills |
 | [2026-10-29-claude-instructions-and-enforcement](archive/2026-10-29-claude-instructions-and-enforcement/PLAN.md) | Claude harness — standing instructions, enforcement hooks, live view | done | claude:feature/claude-integration, claude:architecture/claude-integration, feature/agent-integration, architecture/agent-skills, architecture/file-formats |
 | [2026-10-29-claude-plugin-hardening](archive/2026-10-29-claude-plugin-hardening/PLAN.md) | Claude plugin hardening — hook guards and HANDOFF button | done | claude:architecture/claude-integration, claude:feature/claude-integration |
@@ -28,7 +27,7 @@
 ```mermaid
 graph TD
     p_2026_10_28_reference_cli_core[reference-cli-core]:::done
-    p_2026_10_29_assist_and_approve[assist-and-approve]:::ready
+    p_2026_10_29_assist_and_approve[assist-and-approve]:::done
     p_2026_10_29_claude_harness_files[claude-harness-files]:::done
     p_2026_10_29_claude_instructions_and_enforcement[claude-instructions-and-enforcement]:::done
     p_2026_10_29_claude_plugin_hardening[claude-plugin-hardening]:::done
