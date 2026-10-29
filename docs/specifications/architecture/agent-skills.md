@@ -56,8 +56,8 @@ The canonical text, versioned with the CLI (`v1`):
 This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.specplane/config.yaml`; resolve every path from it (`spec_roots`, `plans.dir`, `decisions.dir`), never assume one. `execution` says how plans run.
 
 - **Authorship**: `specs.<type>.llm_role` limits what you may do to specs of that type: `none` = do not act on them, decline and say why; `assist` = ask, suggest, and review, but do not write the spec body; `draft` = you may write a draft for review.
-- **Precedence**: when implementing, the architecture spec wins and the feature spec fills gaps; record each gap. If specs contradict each other, stop and report it; do not implement either side.
-- **Plans**: work on a plan only in its checkout (branch `plan/<id>`), one step at a time, following the plan-step workflow. HANDOFF.md in the plan folder is the source of truth for progress.
+- **Precedence**: when implementing, the architecture spec wins and the feature spec fills gaps; record each gap, assumption, or proposed spec edit as a `spec-gaps.md` entry in the plan folder. If specs contradict each other, stop and report it; do not implement either side.
+- **Plans**: work on a plan only in its checkout (branch `plan/<id>`), one step at a time, following the plan-step workflow. HANDOFF.md and `spec-gaps.md` in the plan folder are the source of truth for progress and gaps.
 - **Commits**: follow `architecture/file-formats` §8 (Conventional Commits subject plus `Specplane-*` trailers).
 - **Workflows**: <harness-specific line naming how to run the workflows, e.g. slash commands>; without them, follow the contracts in `architecture/agent-skills`.
 ```
@@ -189,16 +189,16 @@ Determine whether the session is attended (feature/spec-precedence).
 2. Parse the step files; find the next step (lowest-numbered step that is not `done` or `skipped`). Ordering check: confirm every lower-numbered step is `done` or `skipped`; if any is `pending` or `blocked`, run that one first (or report its `BLOCKED:` issue) rather than the step the user named. If it is `blocked`, report its `BLOCKED:` issue and stop. If there is none, report that all steps are done and suggest `plan-finish`.
 3. Load context: every item in the step's `context` field (spec sections by anchor, ADRs, files) plus all prior sections of HANDOFF.md.
 4. Avoid reading other files unless the listed context is insufficient; record any expansion in HANDOFF.md.
-5. Execute the tasks, following `feature/spec-precedence` (record gaps; on contradictions, stop if attended, or record `BLOCKED:` and continue with unaffected tasks if unattended).
+5. Execute the tasks, following `feature/spec-precedence` (record gaps; on contradictions, stop if attended, or record `BLOCKED:` and continue with unaffected tasks if unattended). Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>/spec-gaps.md` as a new numbered entry (`## G<n>: <case>`, the six fields and statuses of `architecture/file-formats` §4.2, `**Status**: open`): create the file on the first entry and never reuse a number. A step that would propose a spec edit it may not make itself writes a `proposal` entry; `feature-spec-proposals.md` is the archived format and is not written by new plans.
 6. Check the acceptance criteria.
 7. Set the step's `status` to `done`, or `blocked` if a blocking issue prevents the criteria from being met.
-8. Append the step's HANDOFF.md section (`architecture/file-formats` §4; `**Outcome**` matching the status; "None." for empty sections).
+8. Append the step's HANDOFF.md section (`architecture/file-formats` §4; `**Outcome**` matching the status; "None." for empty sections). The "Gaps found in specs" subsection lists each `spec-gaps.md` entry this step added by ID: `- G<n> (<kind>): <one-line summary>. See spec-gaps.md.`
 9. Commit per `architecture/file-formats` §8 with `Specplane-Workflow: step`, `Specplane-Plan`, `Specplane-Step`, and `Specplane-Agent` (plus `Specplane-Session` when the harness exposes one), e.g. `feat(search-indexer): build graph from spec links`, a bullet summary, then the trailers.
 10. If `execution.backend` is `external`, or the plan branch has an upstream, push `plan/<id>` so the next session and other machines see the step.
 
 ### Output
 
-One-paragraph summary: outcome, files changed, gaps, open issues, and the next step. Do not start the finish flow automatically after the last step; suggest it.
+One-paragraph summary: outcome, files changed, gaps (their `spec-gaps.md` IDs), open issues, and the next step. Do not start the finish flow automatically after the last step; suggest it.
 
 ---
 
@@ -220,8 +220,8 @@ If any step of the plan is not done or skipped: stop and report which.
 
 1. Identify the current plan from the git branch.
 2. Confirm with the user: "Run finish flow for `<plan-id>`?" (unattended: proceed only if the session was explicitly started to finish the plan).
-3. Invoke `specplane plan finish <id>` (readiness checks, verification, rebase, final commit, PR or merge).
-4. When verification asks for acceptance-criteria confirmation, check each criterion and state the evidence.
+3. Invoke `specplane plan finish <id>` (readiness checks, verification, rebase, final commit, PR or merge). Verification lists the open `spec-gaps.md` entries; open entries never stop the flow.
+4. When verification asks for acceptance-criteria confirmation, check each criterion and state the evidence. Report the open `spec-gaps.md` entries it listed (ID, kind, target spec) so they are reviewed, and say that they do not block the merge.
 
 ### Output
 
