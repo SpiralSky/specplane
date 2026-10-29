@@ -58,3 +58,34 @@ None.
 ### What the next step must know
 
 `skill-drift` warnings are resolved; check-sync and hook tests pass. Do not edit agent-skills without re-pinning markers.
+
+## Step 03: Harness registry and template bundling
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/harness/index.ts`: `Harness` interface, `Report` helper (Created/Updated/Skipped lines), registry with a stub `claude` entry (detect = `.claude/` exists, `install` no-op), `selectHarnesses`, `UnknownHarnessError`, `templatesDir(name)` resolved from the compiled module.
+- `packages/cli/src/commands/init.ts`: `runInit(root, opts?)` takes `{ harness, registry }`, installs selected harnesses, prints the "No `.claude/` directory found" hint otherwise; `initCommand` passes options.
+- `packages/cli/src/cli.ts`: `init --harness <name>` option (3-line change).
+- `packages/cli/package.json`: build copies `harnesses/claude/templates` to `dist/templates/claude`.
+- `packages/cli/src/harness/harness.test.ts` (fake harness tests) and one assertion adjusted in `generate.test.ts` (hint line is not a Skipped line).
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+- CHOICE: `UnknownHarnessError` lives in `harness/index.ts`, not `errors.ts`, to avoid conflicts with the concurrent cli-spec-search plan.
+- CHOICE: `--harness` selects only that harness; detection runs only when the flag is absent.
+- CHOICE: the build copy is an inline `node -e fs.cpSync` in the npm script (no extra script file).
+
+### What the next step must know
+
+Step 04 replaces the stub `install` in `claude` (ideally moving it to `src/harness/claude.ts`), using `templatesDir("claude")` and the `Report` helper, and appends "Claude Code integration files written to `.claude/`." after the lines.

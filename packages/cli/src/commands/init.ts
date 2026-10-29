@@ -4,6 +4,7 @@ import { upsertBlock } from "../agents/standing.js";
 import { CONFIG_PATH, loadConfig } from "../config.js";
 import { SpecplaneError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
+import { type Harness, NO_HARNESS_HINT, Report, selectHarnesses } from "../harness/index.js";
 
 /** Full default configuration (`feature/configuration` § Full schema with defaults). */
 export const DEFAULT_CONFIG_YAML = `# Specplane configuration. See feature/configuration for every key.
@@ -55,7 +56,11 @@ Architecture specs describe how the system is built and which feature specs they
 `;
 
 /** Scaffold a repository; returns one report line per file. */
-export function runInit(root: string): string[] {
+export function runInit(
+  root: string,
+  opts: { harness?: string; registry?: Harness[] } = {},
+): string[] {
+  const selected = selectHarnesses(root, opts.harness, opts.registry);
   const out: string[] = [];
   const rel = (p: string) => path.relative(root, p).split(path.sep).join("/");
   const createIfAbsent = (abs: string, content: string) => {
@@ -96,12 +101,16 @@ export function runInit(root: string): string[] {
   } else {
     out.push(`Skipped ${rel(path.join(plansDir, ".gitkeep"))} (plans directory is not empty)`);
   }
+  const report = new Report(root);
+  for (const h of selected) h.install(root, report);
+  out.push(...report.lines);
+  if (selected.length === 0) out.push(NO_HARNESS_HINT);
   return out;
 }
 
-export function initCommand(): void {
+export function initCommand(opts: { harness?: string } = {}): void {
   try {
-    const lines = runInit(checkoutRoot());
+    const lines = runInit(checkoutRoot(), opts);
     process.stdout.write(lines.join("\n") + "\n");
   } catch (e) {
     if (e instanceof SpecplaneError) {
