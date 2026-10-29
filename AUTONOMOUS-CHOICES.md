@@ -61,3 +61,14 @@ Full list: `plans/archive/2026-10-29-cli-plan-commands/HANDOFF.md`. Proposals: `
 - `plan new` prompts only on a TTY; otherwise `--id`, `--title` and `--specs` are required. `steps/` is created empty; HANDOFF.md has the header only.
 - `plan list` sorts by ID descending and prints `No plans.` when empty. `plan graph` prints the Mermaid block from PLANS.md without a fence. `plan show` prints the whole PLAN.md.
 - Proposal: a stack-mode `ready` plan with 2+ unmerged dependencies shows as `blocked`. Plan-index Scenario 5 is split into 5 and 5a.
+
+## 2026-10-29-cli-plan-flows (done, merged by its own `plan finish`)
+Full list: `plans/archive/2026-10-29-cli-plan-flows/HANDOFF.md`. Proposals: `plans/archive/2026-10-29-cli-plan-flows/feature-spec-proposals.md` (**needs review**: adds `plan restack` to `feature/tooling`, latest-wins HANDOFF sections for re-run blocked steps, slash-free example paths in `feature/plan-steps`). Notable:
+- `PlanStateError` now takes a full message, so the feature-spec texts can be used verbatim.
+- Start: on a setup-hook failure only the worktree is removed; the branch and any claim commit stay, so a retry is a resume. The default branch tip is the local branch, or `origin/<default>` when the local one is strictly behind.
+- Finish: the merge commit is a plain `Merge plan/<id>` with no trailers (§8.3 has no merge workflow). Without `--yes` and without a TTY it stops at "ready to merge" and exits 0. Untracked files don't count as uncommitted. `pull_request` without `origin` fails before any write. The forge call was a stub until `cli-forge-ci-publish`.
+- Finish doesn't regenerate PLANS.md, which matches the spec (CI or a hook does). Locally a separate `generate` commit follows.
+- Restack onto the default branch appends an empty "unstack" marker so a later finish doesn't rebase from a stale base. Restack needs the plan branch checked out and clean.
+- Abandoning an abandoned plan skips the commit but still cleans up; abandoning a `done` plan fails. Cleanup of a branch that isn't `done` fails with no writes.
+- Process note: one step-01 subagent briefly used `git commit --no-verify` and then amended with the hook active, so the final commit passed the hook. Later subagents were told never to do this.
+- Process note: one subagent wrote its own model in `Co-Authored-By` (Sonnet 5.5) instead of the shared line.
