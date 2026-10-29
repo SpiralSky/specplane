@@ -26,9 +26,9 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 ## Next steps
 1. Node requirement is now `>=22` (decided 2026-10-29). Licence chosen (Apache-2.0).
 2. Feature-spec proposals were applied on 2026-10-29 (`676b645`), including Rule 6 and the per-plan `spec-gaps.md` record (`9491332`, user-approved design).
-3. Create a plan to bring the architecture specs and CLI in line with the applied feature specs. Some of this already exists: `--no-fetch` on `plan list`, the stack-mode check, part of the ADR checks. Still missing: `--no-fetch` on start/finish, the `search --kind` rename, `restack --dry-run` (verify), ADR id/cycle checks, config path errors, stack-mode `blocked` display, and `spec-gaps.md` (format in `architecture/file-formats`, `validate` checks, finish-flow listing, skills writing entries, agents using `proposal` entries instead of `feature-spec-proposals.md`).
+3. Plan `2026-10-29-feature-spec-alignment` was created 2026-10-29 (`draft`, 6 steps). It aligns the architecture specs, CLI, skills, and agents with the applied feature specs. **The user sets `status: ready`**, then `specplane plan start 2026-10-29-feature-spec-alignment` and `/plan-step` in the checkout.
 4. Add a remote, then publish via a `v*` tag.
-5. Tooling gap found 2026-10-29: editing an approved base spec that an approved overlay pins needs one commit per overlay level (demote to review → commit → pin → re-approve), because `spec pin` refuses uncommitted bases and the pre-commit hook refuses stale pins.
+5. Tooling gap found 2026-10-29: editing an approved base spec that an approved overlay pins needs one commit per overlay level (demote to review → commit → pin → re-approve), because `spec pin` refuses uncommitted bases and the pre-commit hook refuses stale pins. The user chose a **separate plan**, after a `feature/tooling` change via `/spec-assist`.
 
 ## Deferred review findings (ADDRESSED 2026-10-29: see plan HANDOFFs and feature-spec-proposals.md files)
 - **reference-cli**: specify the command surface beyond the core plan:
