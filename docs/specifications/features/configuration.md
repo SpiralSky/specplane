@@ -1,7 +1,7 @@
 ---
 id: feature/configuration
 title: Configuration schema and defaults
-status: review
+status: approved
 author: mixed
 ---
 

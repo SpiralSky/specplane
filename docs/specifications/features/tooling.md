@@ -1,7 +1,7 @@
 ---
 id: feature/tooling
 title: CLI behaviour
-status: review
+status: approved
 author: mixed
 ---
 
