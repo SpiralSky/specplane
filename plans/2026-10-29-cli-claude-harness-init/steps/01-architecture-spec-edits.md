@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-claude-harness-init
 step: 1
 title: Architecture spec edits for agent skills, Claude harness, registry
-status: pending
+status: done
 context:
   - spec: architecture/agent-skills#`plan-finish`
   - spec: architecture/agent-skills#`validate`
@@ -25,10 +25,10 @@ Resolve the deferred agent-skills, claude-architecture, and harness-registry rev
 
 ## Acceptance criteria
 
-- [ ] `architecture/agent-skills`: an agent-side leak self-check (agents checking their own drafts), an ordering check, and a CLI-unavailable fallback are specified for the relevant skills; `plan-finish` and `validate` each gain a `Policy check` section.
-- [ ] `claude:architecture/claude-integration`: in § Subagent step execution the parent, not the subagent, performs the push step; § Testing describes the `settings.json` comparison in check-sync as a subset comparison, not byte-identical.
-- [ ] `architecture/reference-cli`: `src/harness/` is in the module structure; the harness registry contract names how skill directories are registered (`skillDirs`) and how freshness of the rules file is checked (byte-compare with the bundled template, warning type `freshness`).
-- [ ] Pins and skill contract markers are refreshed; validation passes (skill-drift warnings are expected until step 02).
+- [x] `architecture/agent-skills`: an agent-side leak self-check (agents checking their own drafts), an ordering check, and a CLI-unavailable fallback are specified for the relevant skills; `plan-finish` and `validate` each gain a `Policy check` section.
+- [x] `claude:architecture/claude-integration`: in § Subagent step execution the parent, not the subagent, performs the push step; § Testing describes the `settings.json` comparison in check-sync as a subset comparison, not byte-identical.
+- [x] `architecture/reference-cli`: `src/harness/` is in the module structure; the harness registry contract names how skill directories are registered (`skillDirs`) and how freshness of the rules file is checked (byte-compare with the bundled template, warning type `freshness`).
+- [x] Pins and skill contract markers are refreshed; validation passes (skill-drift warnings are expected until step 02).
 
 ## Tasks
 
