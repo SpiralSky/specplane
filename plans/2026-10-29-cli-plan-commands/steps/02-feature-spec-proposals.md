@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-plan-commands
 step: 2
 title: Feature-spec proposals for plan-status and plan-index
-status: pending
+status: done
 context:
   - spec: feature/plan-status#Transition rules for stored statuses
   - spec: feature/plan-execution#Abandoning a plan
@@ -17,8 +17,8 @@ Record the plan-status and plan-index findings as written proposals.
 
 ## Acceptance criteria
 
-- [ ] `plans/2026-10-29-cli-plan-commands/feature-spec-proposals.md` has a section per finding below.
-- [ ] No feature spec file is modified.
+- [x] `plans/2026-10-29-cli-plan-commands/feature-spec-proposals.md` has a section per finding below.
+- [x] No feature spec file is modified.
 
 ## Tasks
 
