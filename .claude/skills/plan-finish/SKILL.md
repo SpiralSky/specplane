@@ -4,7 +4,7 @@ description: Run the finish flow for the current plan. Use when the user runs /p
 argument-hint: "[plan-id]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-finish@6bc0570 -->
+<!-- specplane-contract: architecture/agent-skills#plan-finish@21e5329 -->
 
 # plan-finish
 
@@ -15,7 +15,7 @@ Runs the finish flow for the current plan (the `plan-finish` workflow integratio
 1. **Specplane configured**: if `.specplane/config.yaml` does not exist at the repository root (an `AGENTS.md` alone does not count), say "This repository is not set up for Specplane. Run `specplane init --harness claude`." and stop.
 2. **CLI availability**: run `command -v specplane`. If present, use the CLI for resolution, validation, and plan flows. If absent, follow the same rules by hand from the format and flow specs (`architecture/agent-skills` § Config resolution in skills) and say once that the CLI was not found. For `/validate` without the CLI, check frontmatter and IDs by hand against `architecture/file-formats` and label the result "manual check". For `/plan-finish` without the CLI, perform `feature/plan-execution` § Finish flow by hand, in its stated order.
 
-Resolve every spec, plan, and ADR path from config (`.specplane/config.yaml`; defaults if absent), never from hardcoded paths.
+Resolve every spec, plan, and ADR path from config (`.specplane/config.yaml`), never from hardcoded paths.
 
 ## Policy check
 
