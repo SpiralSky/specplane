@@ -14,52 +14,28 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 - **Base pins (ADR 0003)**: `based_on` pins referenced specs by git blob hash. A stale pin gives a `base-changed` warning and blocks approval. `specplane spec pin [--check]`, `specs.pin_bases: off|warn|require`, `<id>#<slug>` anchors are checked, and skills carry `<!-- specplane-contract: …@blob -->` markers.
 - **Claude harness**: Specplane never edits `CLAUDE.md`. Standing instructions go in `.claude/rules/specplane.md` plus the `AGENTS.md` managed block (`specplane:begin v1`). A policy-guard hook enforces `llm_role` (none→deny, assist→ask, draft→allow; covers NotebookEdit). The harness also adds session-context hooks, a status line, and an optional plans-pane plugin.
 - **Commits**: Conventional Commits subject plus `Specplane-Workflow/Plan/Step/Agent` trailers (`file-formats` §8). The human stays the author.
-- **Step records** live in `plans/<id>/HANDOFF.md`, not here.
+- **Step records** live in `plans/<id>/HANDOFF.md`, not here. **Gaps/assumptions/proposals** live in `plans/<id>/spec-gaps.md` with status `open | applied | rejected` (`file-formats` §4.2).
 
-## Current state (2026-10-29, autonomous completion finished)
-- **All 9 plans are `done` and merged** into `main`. No worktrees, no plan branches, no remote. Unattended run: plans were auto-approved, one subagent ran each step, and the main session confirmed the `local_merge`s. The last two plans were finished with the CLI's own `plan start` / `plan finish`.
-- **The `specplane` CLI is complete** (`packages/cli`, 211 tests): `init [--harness claude]`, `validate [--json]`, `generate [--print --live]`, `spec new/list/show/validate/pin`, `search`, `plan new/list [--live]/show/graph/start/finish/abandon/cleanup/archive/restack`, and forge (`gh`) PR support. CI workflows are in `.github/workflows/` (the publish workflow is never triggered).
-- Install: `cd packages/cli && npm run build && npm install -g --prefix ~/.local .` (a symlink to this checkout). The pre-commit hook runs `specplane validate`, so `main` must stay at 0 errors (it does: 0 errors, 18 warnings — leak-guard hits were reviewed and allow-listed; pins current; check-sync and hook tests pass).
-- **Every judgement call is in `AUTONOMOUS-CHOICES.md`**, which ends with a "Needs your decision" list: licence, publishing setup, the feature-spec proposals, leak-guard hits in feature specs, and behaviour changes worth a look.
-- The deferred review findings below were all addressed: architecture-spec fixes on the plan branches, feature-spec findings as proposals.
+## Current state (2026-10-29, feature-spec alignment merged)
+- **10 plans are `done` and merged** into `main`; no worktrees, no plan branches, no remote. The newest is `2026-10-29-feature-spec-alignment`, archived at `plans/archive/2026-10-29-feature-spec-alignment/` (6/6 steps done, merged locally with its own `plan finish`).
+- That plan aligned the architecture specs, CLI, skills, and standing instructions with the feature specs applied earlier: `spec-gaps.md` parsing/validation and finish listing, latest-HANDOFF-section rule, stack-mode `blocked`, abandon guard, `--no-fetch` on start/finish, `search --kind`, `restack --dry-run` commit listing, config spec-root path checks, ADR supersession rules, and Node 22 docs.
+- **All 4 `spec-gaps.md` entries are dispositioned**: G1–G3 `applied` (G2 `init` spec-root exemption and G3 `ConfigError` null-key texts are now in `architecture/reference-cli`), G4 `rejected` — no CLI route deletes an already-abandoned plan's branch; `feature/plan-execution` deliberately keeps it, and `git branch -D` is the documented workaround.
+- `plans/PLANS.md` was regenerated and committed after the merge. `main` is at **0 errors, 20 warnings** (reviewed leak-guard/overlay heuristics and 3 stale references in archived plans); `specplane spec pin --check` clean; `npm test` 228/228; `check-sync.sh` OK; `hooks.test.sh` 62/62.
+- **`2026-10-29-assist-and-approve` is `draft`**, 6 pending steps, dependency satisfied. **The user must set `status: ready` by hand** before it can start.
+- **Every judgement call is in `AUTONOMOUS-CHOICES.md`**, which ends with a "Needs your decision" list.
 
 ## Next steps
-1. Node requirement is now `>=22` (decided 2026-10-29). Licence chosen (Apache-2.0).
-2. Feature-spec proposals were applied on 2026-10-29 (`676b645`), including Rule 6 and the per-plan `spec-gaps.md` record (`9491332`, user-approved design).
-3. Plan `2026-10-29-feature-spec-alignment` was created 2026-10-29 (`draft`, 6 steps). It aligns the architecture specs, CLI, skills, and agents with the applied feature specs. **The user sets `status: ready`**, then `specplane plan start 2026-10-29-feature-spec-alignment` and `/plan-step` in the checkout.
-4. Add a remote, then publish via a `v*` tag.
-5. **llm_role change in progress (2026-10-29, user decision)**: the old `assist` becomes `review` (review-only); `assist` is redefined as refine-then-write (Describe → Refine → Finalise → Write after approval, `author: mixed`, status unchanged). Also added (user decision, same day, written via refine-then-write): approval commands. `feature/tooling` adds `spec approve` (re-pins overlay bases, one commit per id), `spec reopen` (reports the cascade), `plan approve`, `decision new`, and `decision accept`; `feature/agent-integration` adds the `approve`, `plan-start`, `decision-new`, `plan-status`, and `plan-abandon` integrations; `claude:feature/claude-integration` adds the slash commands, a guard rule denying agent edits to `approved`/`ready`/`accepted`, and Scenarios 6b/6c. Done: all feature-spec edits (`spec-policies`, `configuration`, `agent-integration`, `tooling`, `claude:feature/claude-integration`). In `review` because of the edits and the approval cascade: those five, plus `architecture/agent-skills`, `reference-cli`, `repository-layout`, `ci`, and `claude:architecture/claude-integration`. The feature specs were re-approved by the user (`506cfd6`, `01ddd69`; overlay re-pinned in `1b480ea`). Plan `2026-10-29-assist-and-approve` was created (`draft`, 6 steps, depends on `feature-spec-alignment`): architecture specs, the config `review` role, `spec approve`/`reopen`, `plan approve` and `decision new`/`accept`, the Claude skills and guard, then docs plus the list of specs for the user to `/approve`. Run it after `feature-spec-alignment`; the user sets `status: ready` by hand. Next step 6 (tooling gap) is covered by `spec approve`/`reopen`. The `feature-spec-alignment` plan cannot start until the feature specs are re-approved.
-6. Tooling gap found 2026-10-29: editing an approved base spec that an approved overlay pins needs one commit per overlay level (demote to review → commit → pin → re-approve), because `spec pin` refuses uncommitted bases and the pre-commit hook refuses stale pins. The user chose a **separate plan**, after a `feature/tooling` change via `/spec-assist`.
+1. Set `status: ready` in `plans/2026-10-29-assist-and-approve/PLAN.md` (the user does this; the CLI's `plan approve` arrives with this plan). Then `specplane plan start 2026-10-29-assist-and-approve` and `/plan-step` in the checkout. It carries the `review` role, refine-then-write `assist`, `spec approve`/`reopen`, `plan approve`, `decision new`/`accept`, and the five new Claude slash commands.
+2. After it merges, approve the specs still in `review` with the new `/approve` command: `architecture/agent-skills`, `architecture/reference-cli`, `architecture/repository-layout`, `architecture/ci`, `claude:architecture/claude-integration`. (`architecture/file-formats` and all feature specs are already `approved`.) The agent must not run the approval; it lists the command.
+3. **Publishing (user decisions)**: add a remote, set `repository.url`, add the `NPM_TOKEN` secret, then publish via a `v*` tag. The publish workflow exists but has never run.
+4. Decide whether to supersede `decision/0002` (it records Node ≥18; everything else is now ≥22).
+5. Later follow-ups, not covered by any active plan: `architecture/reference-cli` § `search` grouped/JSON output still differs from the CLI (one hit per line with `type`); the plugin has no icon; the 20 validate warnings have no suppression mechanism.
 
-## Deferred review findings (ADDRESSED 2026-10-29: see plan HANDOFFs and feature-spec-proposals.md files)
-- **reference-cli**: specify the command surface beyond the core plan:
-  - `spec new/list/show`, `search`, `plan new/list/show`, and `init` details;
-  - what triggers `restack`;
-  - the harness registry (`src/harness/`) and how freshness of `.claude/rules/specplane.md` is checked;
-  - one error-message pattern (`PlanStateError` vs. the feature texts), and stderr for human reports;
-  - leak-guard heuristics that miss "JSON Schema" and bare file extensions;
-  - deprecated-reference warnings for `implements`/`extends`;
-  - a backend/`where` field in plan activity;
-  - an error class for "already exists";
-  - `DEFAULT_CONFIG`, pointing to the defaults table in `feature/configuration`.
-- **agent-skills**:
-  - agent-side leak self-check, ordering check, and CLI-unavailable fallback;
-  - `plan-finish`/`validate` contracts have no Policy check section.
-- **claude architecture**:
-  - the subagent step leaves the push step unassigned (give it to the parent);
-  - check-sync describes the `settings.json` comparison as byte-identical, but it is a subset comparison.
-- **ci**:
-  - the prose and YAML triggers differ;
-  - `plans/**` and `plans/PLANS.md` are hardcoded, although `plans.dir` is configurable.
-- **file-formats**: the ID pattern allows `a//b` and needs 2+ characters after the type.
-- **Features**:
-  - plan-steps: what happens to the HANDOFF section when a `blocked` step is re-run (append, latest wins?); the example step files use `src/…` paths.
-  - plan-status: abandon wording ("any non-terminal plan"); stack mode with a `ready` plan that has 2+ unmerged dependencies.
-  - plan-index: Scenario 5 should be split in two.
-  - decisions: validation cases (id/filename, `superseded_by` missing or cyclic).
-  - spec-precedence: "both silent" has no numbered rule.
-  - configuration: errors for `worktree_dir` inside the repo and for bad `spec_roots` paths.
-  - tooling: `--no-fetch` is missing from the options list; `--type` takes different values in different commands.
+## Addressed findings (kept for traceability)
+All review findings from the first CLI/harness plans are resolved. The architecture-spec items (command surface, harness registry, error texts, leak-guard heuristics, plan activity fields, `plan-finish`/`validate` Policy checks, subagent push ownership, check-sync wording, CI triggers, ID pattern) were fixed on plan branches; feature-spec items were applied with user approval in `676b645`; and the remaining CLI/architecture alignment was completed by `2026-10-29-feature-spec-alignment`. Per-step detail is in the archived plans' `HANDOFF.md`.
 
 ## Open items
-- Plugin: the gating hooks have no `.catch` guards (validate warns about this). The pane's "Read HANDOFF" button does nothing in `claude -p`.
+- **G4 accepted limitation**: after an `abandoned` plan has been abandoned once, its `plan/<id>` branch (and any worktree) can only be removed with `git branch -D` / `git worktree remove`. The specs intentionally keep the branch on abandon and `plan cleanup` only handles `done`.
+- **Search output drift** (recorded in the alignment plan's step 03): the architecture spec describes grouped output and a `{id, kind, path, root, status, matches}` JSON shape; the CLI emits one hit per line with `type`. Needs its own plan.
+- **Warnings backlog**: 20 `validate` warnings (leak-guard and "may contradict" overlay heuristics, 3 stale references in archived plans). Reviewed and accepted; no suppression exists.
+- **Publishing metadata**: no remote/`repository.url`/`NPM_TOKEN`; plugin has no icon.
