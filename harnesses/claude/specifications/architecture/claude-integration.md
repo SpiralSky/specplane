@@ -184,7 +184,7 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
 cmd=$(jq -r '.tool_input.command // empty')
-printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(])[[:space:]]*git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+commit([[:space:]]|$)' || exit 0
+printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(])[[:space:]]*git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+commit([[:space:];&|)]|$)' || exit 0
 specplane validate >&2 && exit 0
 echo "specplane validate reported errors; fix them before committing." >&2
 exit 2
@@ -193,7 +193,7 @@ exit 2
 How it works:
 
 - Claude Code passes the tool call to the hook as JSON on stdin; the script reads the Bash command from `.tool_input.command`.
-- It matches `git commit` at the start of any line of the command or after `;`, `&`, `|`, or `(` (so `cd x && git commit` is covered), allowing global git options before `commit`: flags such as `--no-pager` or `--git-dir=<d>`, and the two-token options `-C <dir>` and `-c <key>=<value>`. Other git commands (including `git commit-tree`), and commands that merely mention "commit", do not match.
+- It matches `git commit` at the start of any line of the command or after `;`, `&`, `|`, or `(` (so `cd x && git commit` is covered), allowing global git options before `commit`: flags such as `--no-pager` or `--git-dir=<d>`, and the two-token options `-C <dir>` and `-c <key>=<value>`. `commit` must be followed by whitespace, `;`, `&`, `|`, `)`, or the end of the line. Other git commands (including `git commit-tree`), and commands that merely mention "commit", do not match.
 - Exit code `2` blocks the tool call, and the stderr text (the validation report) is shown to Claude. Exit `0` allows it. Validation warnings do not block (`specplane validate` exits 0 on warnings).
 - Validation runs in the hook's working directory (the session's current directory). Known limitation: a command that changes into another checkout first (`cd <worktree> && git commit`) is validated against the session directory, not the target checkout. Plan steps run with the session inside the plan's checkout, so this does not affect the step flow.
 

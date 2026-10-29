@@ -54,9 +54,7 @@ run_case "block: git -c user.name=x commit" 2 "$(cj 'git -c user.name=x commit')
 run_case "block: git --no-pager commit" 2 "$(cj 'git --no-pager commit')" 1
 run_case "block: two-line, second git commit" 2 "$(cj 'echo hi
 git commit -m x')" 1
-# KNOWN SPEC GAP: the spec'd regex requires whitespace or end of line after `commit`, so `(git commit)`
-# is not blocked (the closing paren follows). Recorded in HANDOFF.md; reported as xfail, not a failure.
-xfail_case "block: (git commit)" 2 "$(cj '(git commit)')" 1
+run_case "block: (git commit)" 2 "$(cj '(git commit)')" 1
 # allowed, stub fails
 run_case "allow: git commit-tree abc" 0 "$(cj 'git commit-tree abc')" 1
 run_case "allow: echo commit" 0 "$(cj 'echo commit')" 1

@@ -7,7 +7,7 @@ config="${CLAUDE_PROJECT_DIR:-.}/.specplane/config.yaml"
 [ -f "$config" ] || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 cmd=$(jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
-printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(])[[:space:]]*git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+commit([[:space:]]|$)' || exit 0
+printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(])[[:space:]]*git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+commit([[:space:];&|)]|$)' || exit 0
 subject=$(git log -1 --format=%s 2>/dev/null) || exit 0
 printf '%s\n' "$subject" | grep -Eq '^plan/[^ ]+ step [0-9]+:' || exit 0
 id=$(printf '%s\n' "$subject" | sed -n 's|^plan/\([^ ]*\) step [0-9][0-9]*:.*|\1|p')

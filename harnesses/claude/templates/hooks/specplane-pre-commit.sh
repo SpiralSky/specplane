@@ -7,7 +7,7 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
 cmd=$(jq -r '.tool_input.command // empty')
-printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(])[[:space:]]*git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+commit([[:space:]]|$)' || exit 0
+printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(])[[:space:]]*git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+commit([[:space:];&|)]|$)' || exit 0
 specplane validate >&2 && exit 0
 echo "specplane validate reported errors; fix them before committing." >&2
 exit 2
