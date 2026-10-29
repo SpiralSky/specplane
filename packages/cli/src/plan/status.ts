@@ -26,9 +26,8 @@ export interface StatusGit {
   /** True when `plan/<id>` exists locally or as `refs/remotes/origin/plan/<id>`. */
   branchExists(planId: string): boolean;
   /**
-   * Forge extension point: true when the forge reports an open PR for `plan/<id>`.
-   * Not provided yet (the forge client comes with the plan-flows plan); without it,
-   * `review` is never derived and a started plan is `in_progress`.
+   * True when the forge reports an open PR for `plan/<id>`. Absent when no forge is
+   * configured; then `review` is never derived and a started plan is `in_progress`.
    */
   hasOpenPr?(planId: string): boolean;
 }

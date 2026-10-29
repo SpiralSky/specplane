@@ -1,0 +1,23 @@
+name: Specplane validate
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # git branch checks; pin checks compare blob hashes and work with a shallow clone (a missing pinned object only omits the diff hint)
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - run: npm install -g specplane@0   # pin the major version
+
+      - name: Validate
+        run: specplane validate

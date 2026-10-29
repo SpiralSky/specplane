@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-cli-forge-ci-publish
 title: Forge integration, CI workflows, and npm publish setup
-status: ready
+status: done
 specs:
   - architecture/reference-cli
   - architecture/ci

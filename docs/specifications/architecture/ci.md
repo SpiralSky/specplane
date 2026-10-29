@@ -20,7 +20,7 @@ Two CI jobs are provided as a reference implementation. Both are expressed as Gi
 
 ## Job 1: Validate (`specplane-validate.yml`)
 
-**Trigger**: every push and pull request to `main` (and plan branches, to catch spec errors early).
+**Trigger**: every push to any branch (`branches: ["**"]`, which covers `main` and plan branches, to catch spec errors early), and every pull request targeting `main`.
 
 **Purpose**: enforce that config, specs, plans, steps, and ADRs pass every check of `specplane validate` with no errors (valid frontmatter, no dangling IDs, no dependency cycles, no duplicate ADR numbers, ordering policy respected). Stale base pins (`base-changed`), anchors, and skill drift are warnings, except that a spec with a stale pin cannot be `approved` (error). The hash comparison needs no history, so `fetch-depth: 0` is optional for these checks and only lets the message include a usable `git diff <pin> <current>`. Architecture-leak and overlay findings are warnings and never fail the job.
 
@@ -60,7 +60,7 @@ jobs:
 
 ## Job 2: Regenerate PLANS.md (`specplane-generate.yml`)
 
-**Trigger**: push to `main` only (after a plan branch is merged).
+**Trigger**: push to `main` only (after a plan branch is merged), and only when a `PLAN.md` at any path or `.specplane/config.yaml` changed (see Path filter).
 
 **Purpose**: keep `PLANS.md` fresh after plan files change on `main`. Because `PLANS.md` is derived only from committed plan files (see `feature/plan-index`), a push that changes no plan file cannot make it stale, and regeneration is deterministic.
 
@@ -72,7 +72,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "plans/**/PLAN.md"
+      - "**/PLAN.md"
       - ".specplane/config.yaml"
 
 concurrency:
@@ -105,7 +105,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add plans/PLANS.md
+          git add -A   # the fresh checkout changes only what `specplane generate` wrote
           if git diff --cached --quiet; then
             echo "PLANS.md unchanged; no commit needed."
           else
@@ -125,7 +125,7 @@ jobs:
 
 ## Path filter
 
-The regeneration job uses a `paths` filter so it only runs when the inputs of `PLANS.md` change: `PLAN.md` files (active or archived, including moves into `archive/`) and the config (which sets `plans.dir` and `dependency_mode`). Step files and branch or PR activity do not affect the committed index.
+The regeneration job uses a `paths` filter so it only runs when the inputs of `PLANS.md` change: `PLAN.md` files (active or archived, including moves into `archive/`) and the config (which sets `plans.dir` and `dependency_mode`). The filter is config-independent: `**/PLAN.md` matches a plan file under whatever `plans.dir` is configured, and the workflow never names `plans.dir` or the `PLANS.md` path (`git add -A` stages only what `specplane generate` wrote). A stray `PLAN.md` elsewhere merely triggers a run in which `specplane generate` makes no change and no commit. Step files and branch or PR activity do not affect the committed index.
 
 ---
 
@@ -151,10 +151,10 @@ The validate job runs on `branches: ["**"]` to cover all branches. Plan branches
 
 ## `.gitattributes` recommendation
 
-To prevent GitHub's linguist from counting `PLANS.md` as a Markdown document (and thus skewing language statistics), add to `.gitattributes`:
+To prevent GitHub's linguist from counting `PLANS.md` as a Markdown document (and thus skewing language statistics), add to `.gitattributes` (a pattern without a slash matches at any depth, so it follows `plans.dir`; prefix it with the directory to narrow it):
 
 ```
-plans/PLANS.md linguist-generated=true
+PLANS.md linguist-generated=true
 ```
 
 This is a cosmetic change and does not affect CI behaviour.

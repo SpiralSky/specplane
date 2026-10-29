@@ -2,6 +2,7 @@ import * as path from "node:path";
 import { buildGraph } from "../plan/graph.js";
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
+import { hasOpenPR } from "../git/forge.js";
 import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { getEffectiveStatus, getIndexStatus } from "../plan/status.js";
 import type { Config, PlanFrontmatter } from "../types.js";
@@ -18,7 +19,10 @@ export function generatePlansMd(config: Config, root: string, opts: { live?: boo
     const target = rec?.archived ? `archive/${id}/PLAN.md` : `${id}/PLAN.md`;
     return `[${id}](${target})`;
   };
-  const git = { branchExists: (id: string) => branchExists(`plan/${id}`, root) || remoteBranchExists(`plan/${id}`, root) };
+  const git = {
+    branchExists: (id: string) => branchExists(`plan/${id}`, root) || remoteBranchExists(`plan/${id}`, root),
+    hasOpenPr: (id: string) => hasOpenPR(`plan/${id}`, { cwd: root, forge: config.plans.forge }),
+  };
   const statuses = new Map(
     records.map((r) => [r.id, opts.live ? getEffectiveStatus(r.fm, byId, config, git) : getIndexStatus(r.fm, byId, config)]),
   );

@@ -194,6 +194,41 @@ test("finish: pull_request pushes the branch and prints instructions", () => {
   assert.ok(fs.existsSync(r.co), "worktree kept until cleanup");
 });
 
+/** Stub `gh` first on PATH; origin looks like GitHub but fetches/pushes resolve to the local bare repo. */
+function ghRepo(planCfg: string, ghOut: string): { r: R; env: NodeJS.ProcessEnv; log: string } {
+  const r = repo({ remote: true, merge: "pull_request", planCfg });
+  git(r.root, "config", "remote.origin.url", "https://github.com/o/r.git");
+  git(r.root, "config", `url.${r.origin}.insteadOf`, "https://github.com/o/r.git");
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-gh-"));
+  const log = path.join(bin, "calls.log");
+  fs.writeFileSync(path.join(bin, "gh"), `#!/bin/sh\nprintf '%s\\n' "$@" >> '${log}'\necho -- >> '${log}'\n[ "$1" = "--version" ] && exit 0\necho '${ghOut}'\n`, { mode: 0o755 });
+  return { r, env: { ...ENV, PATH: `${bin}${path.delimiter}${process.env.PATH}` }, log };
+}
+const finEnv = (r: R, env: NodeJS.ProcessEnv) => {
+  const x = spawnSync(process.execPath, [cli, "plan", "finish", A], { cwd: r.co, encoding: "utf8", env, input: "" });
+  return { code: x.status, out: x.stdout, err: x.stderr };
+};
+
+test("finish: pull_request with a forge pushes, opens a PR from the plan, prints the URL", () => {
+  const { r, env, log } = ghRepo("  forge: github\n", "https://github.com/o/r/pull/3");
+  const res = finEnv(r, env);
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.err, /Opened pull request: https:\/\/github\.com\/o\/r\/pull\/3/);
+  assert.equal(sha(r.origin, `plan/${A}`), sha(r.co, "HEAD"));
+  const calls = fs.readFileSync(log, "utf8");
+  assert.match(calls, /pr\ncreate\n--head\nplan\/2026-01-01-alpha\n--base\nmain\n--title\nT\n--body\n/);
+  assert.match(calls, /Plan `2026-01-01-alpha`/);
+  assert.match(calls, /- \[ \] it works/);
+});
+
+test("finish: pull_request with forge none prints manual instructions and never calls gh", () => {
+  const { r, env, log } = ghRepo("  forge: none\n", "unused");
+  const res = finEnv(r, env);
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.err, /Open a pull request from/);
+  assert.equal(fs.existsSync(log), false);
+});
+
 test("finish: pull_request without a remote fails with no writes", () => {
   const r = repo({ merge: "pull_request" });
   const head = sha(r.co, "HEAD");
