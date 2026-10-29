@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-plan-flows
 step: 3
 title: Branch and worktree writes, setup hook, error classes
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#`branch.ts`
   - spec: architecture/reference-cli#`worktree.ts`
@@ -21,11 +21,11 @@ Implement branch creation/deletion/rebase, worktree add/remove, the setup-hook r
 
 ## Acceptance criteria
 
-- [ ] `createBranch`, `deleteBranch`, `rebaseOnto` (aborts and throws `RebaseConflictError` on conflict, leaving the branch unchanged) are implemented and tested.
-- [ ] `createWorktree` reuses an existing worktree for the branch; `removeWorktree` without `force` fails on a dirty worktree and reports it.
-- [ ] `runSetupHook(cmd, cwd)` runs through the user's shell; non-zero exit throws `SetupHookError` with the spec message.
-- [ ] `PlanStateError`, `PlanNotFoundError`, `RebaseConflictError`, `SetupHookError` exist with spec messages and exit codes.
-- [ ] Tests use temp repositories.
+- [x] `createBranch`, `deleteBranch`, `rebaseOnto` (aborts and throws `RebaseConflictError` on conflict, leaving the branch unchanged) are implemented and tested.
+- [x] `createWorktree` reuses an existing worktree for the branch; `removeWorktree` without `force` fails on a dirty worktree and reports it.
+- [x] `runSetupHook(cmd, cwd)` runs through the user's shell; non-zero exit throws `SetupHookError` with the spec message.
+- [x] `PlanStateError`, `PlanNotFoundError`, `RebaseConflictError`, `SetupHookError` exist with spec messages and exit codes.
+- [x] Tests use temp repositories.
 
 ## Tasks
 

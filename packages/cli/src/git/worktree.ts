@@ -42,3 +42,31 @@ export function worktreePath(planId: string, config: Config, cwd: string = proce
   const main = mainRoot(cwd);
   return path.resolve(main, config.execution.worktree_dir, path.basename(main), planId);
 }
+
+/** Create the worktree for `planId` on `branch`; reuses an existing worktree of that branch. Returns its path. */
+export function createWorktree(
+  planId: string,
+  branch: string,
+  config: Config,
+  cwd: string = process.cwd(),
+): string {
+  const existing = listWorktrees(cwd).find((w) => w.branch === branch);
+  if (existing) return existing.path;
+  const target = worktreePath(planId, config, cwd);
+  run("git", ["worktree", "add", target, branch], { cwd });
+  return target;
+}
+
+/**
+ * Remove the worktree for `planId`. Without `force`, git refuses a dirty worktree and the
+ * resulting GitError is propagated, so uncommitted work is never discarded silently.
+ */
+export function removeWorktree(
+  planId: string,
+  config: Config,
+  opts: { force?: boolean } = {},
+  cwd: string = process.cwd(),
+): void {
+  const args = ["worktree", "remove", ...(opts.force ? ["--force"] : []), worktreePath(planId, config, cwd)];
+  run("git", args, { cwd });
+}

@@ -49,3 +49,35 @@ None.
 - The proposals file is `plans/2026-10-29-cli-plan-flows/feature-spec-proposals.md`: needs user review before any feature spec edit.
 - CHOICE: neutral example paths are slash-free names (`CONTRIBUTING.md`, `STYLE.md`), because the guard flags any path containing a slash, not only `src/`.
 - CHOICE: proposed `plan restack` errors: plan not found, "Cannot restack: `<id>` is not stacked.", and conflicts exit 1; `--dry-run` included per tooling general conventions.
+
+## Step 03: Branch and worktree writes, setup hook, error classes
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/git/branch.ts`: `createBranch`, `deleteBranch`, `rebaseOnto` (aborts and throws `RebaseConflictError` on conflict).
+- `packages/cli/src/git/worktree.ts`: `createWorktree` (reuses an existing worktree of the branch), `removeWorktree` (`--force` only with `force`).
+- `packages/cli/src/plan/hooks.ts`: `runSetupHook(cmd, cwd)` through the shell; hook output to stderr.
+- Tests: `git/write.test.ts` (temp repos, real conflicting rebase) and `plan/hooks.test.ts`.
+- The four error classes already existed in `errors.ts` with the spec texts; no change needed.
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- `rebaseOnto` in the spec has no `cwd`; the rebase checks `branch` out, so it must run in the checkout that owns the branch.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+- CHOICE: git helpers take an optional trailing `cwd` (default `process.cwd()`); `removeWorktree(planId, config, { force }, cwd)`.
+- CHOICE: `rebaseOnto` treats a failure as a conflict only if `git rebase --abort` succeeds; otherwise the original `GitError` is rethrown. `RebaseConflictError` id is the branch with `plan/` stripped.
+- CHOICE: `runSetupHook` does not remove the worktree on failure; the start flow must do that (the error message says "Worktree removed.").
+- CHOICE: the dirty-worktree refusal is git's own `GitError` (exit 2), propagated as the spec says.
