@@ -32,3 +32,23 @@ All 32 `CHOICE:` items are in `plans/archive/2026-10-28-reference-cli-core/HANDO
 - Failures go to `console.error` through an exported, replaceable `failureLog.write` sink (no plugin logging API is documented).
 - Non-interactive sessions (`isInteractive` false on `session.start`), or a `$.prompt.fill` that throws, get a "Copy HANDOFF path" button that uses `$.ui.copy`. A sentence was added to the Plans pane text in `claude:architecture/claude-integration`.
 - **Left for the user**: no LICENSE file or `license` in `plugin.json` (the directory refuses a submission for this, `LICENSE_MISSING`), and no icon. A licence is a legal choice, so none was picked.
+
+## 2026-10-29-cli-claude-harness-init (done, merged)
+Full list: `plans/archive/2026-10-29-cli-claude-harness-init/HANDOFF.md`. Notable:
+- Skill contracts now include a leak self-check (`spec-assist`, `spec-draft-architecture`, `validate`) and an ordering check (`plan-create`, `plan-step`). Without the CLI, `plan-create` and `validate` fall back to manual checks, but **`plan-finish` stops and asks the user to install the CLI** (it used to run the flow by hand).
+- In the `plan-step` subagent branch, the parent does the push (step 10).
+- `Harness` registry: `skillDirs(root)` returns repo-relative skill paths; an optional `rulesTemplate` field holds the bundled rules path. `UnknownHarnessError` lives in `harness/index.ts`.
+- `--harness` installs only the named harness; detection runs only when the flag is absent.
+- Unchanged files print `Skipped <path> (up to date)`. A `settings.json` with an unexpected structure is left untouched, the same as invalid JSON.
+- A fresh `.claude/rules/specplane.md` counts as delivering the standing block, so AGENTS.md is then optional.
+- The dogfood AGENTS.md Workflows line was refreshed by `init`.
+- The pack test installs with `--prefer-offline`, so it needs the npm cache or network.
+
+## 2026-10-29-cli-spec-search (done, merged)
+Full list: `plans/archive/2026-10-29-cli-spec-search/HANDOFF.md`. Feature-spec proposals: `plans/archive/2026-10-29-cli-spec-search/feature-spec-proposals.md` (**needs review**). Notable:
+- `spec new` without a TTY takes the title from the de-slugged slug, lowercases the slug, and writes the heading scaffold from file-formats §1.3/§1.4.
+- `search` is a case-insensitive literal match, at most 3 snippets per file, and includes archived plans. Output is `<id>  <path>:<line>  <snippet>`; `--root` excludes plans.
+- Leak guard: the bare-file-name rule uses a fixed extension list and skips `.md`. `Node.js` is not built in, so add it to `leak_guard_allow` if wanted. "JSON Schema" now warns twice in `feature/spec-policies` (lines ~180-182). The fix is to reword it or allow-list it; that's your call.
+- The deprecated-reference warning has type `reference` (file-formats §1.5 has no row for it).
+- The human `validate` report now goes to stderr; `--json` goes to stdout.
+- Merge note: rebasing onto harness-init had one test-file conflict, resolved by keeping both sides.
