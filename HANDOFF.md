@@ -16,20 +16,26 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 - **Commits**: Conventional Commits subject plus `Specplane-Workflow/Plan/Step/Agent` trailers (`file-formats` §8). The human stays the author.
 - **Step records** live in `plans/<id>/HANDOFF.md`, not here.
 
-## Current state (2026-10-29, end of session)
-- `main` @ `e52414a`, clean except this file. No remote: plans are merged locally. No worktrees.
-- Plans `2026-10-29-claude-harness-files` and `2026-10-29-claude-instructions-and-enforcement`: **done, archived** in `plans/archive/`. PLANS.md was updated by hand.
-- Pins patch applied (ADR 0003 and related spec changes). All `based_on`/contract pins match the current blobs. Verified: `hooks.test.sh` 62/62, `check-sync.sh` OK, `claude plugin validate` passes (warnings only), `claude plugin test` 9/9.
-- Specs: all 18 feature specs are `status: review` (**none approved**). Architecture specs are `draft`.
-- Remaining plan: `2026-10-28-reference-cli-core` (`draft`, 4 steps). `specplane` CLI is not built, so skills and hooks run in their no-CLI fallback.
+## Current state (2026-10-29, later session)
+- `main` clean after the OQ/step-05 commit. No remote. No worktrees.
+- Plans `2026-10-29-claude-harness-files` and `2026-10-29-claude-instructions-and-enforcement`: **done, archived**.
+- **All open questions resolved** (`docs/OPEN-QUESTIONS.md`): OQ-1 keep "Specplane" (npm name free; Specwright/Groundplan/Keel/spec-manager taken, Plane confusion accepted); OQ-5 recommended memory names, not enforced; OQ-6 warnings; OQ-7 warn; OQ-9 GitHub only, plus fully local via `local_merge` + `forge: none`; OQ-10 error.
+- OQ-5 spec text is a pending patch for the user: `docs/proposals/oq-5-memory-names.patch` (`git apply` it; feature specs are assist-only).
+- CLI-core plan now has **step 05 `05-base-pins`** (pins, `pin_bases`, anchors, skill drift, `spec pin`). PLAN.md, step 04 guidance, and PLANS.md updated to match.
+- Specs: all 18 feature specs `status: review` (**none approved**); architecture specs `draft`. `specplane` CLI not built.
+
+## Spec gaps found (recorded in step 05)
+- `architecture/file-formats` lacks the sections "Pin, anchor, and skill-contract findings" and "Skill contract comment" that `reference-cli` and `agent-skills` cite. Fixable by Claude (architecture `llm_role: draft`), but editing re-stales pins; needs a re-pin commit afterwards.
+- `feature/tooling` does not list `specplane spec pin` (defined in `feature/spec-overlays`). Needs a user-authored edit or patch.
+- "Skill directory registered by an installed harness" is undefined until the `init --harness` plan; step 05 uses a stand-in `skillDirs()`.
 
 ## Next steps
-1. **Update the CLI-core plan for pins** (gap: no step covers it). Add `pins.ts` (stale check, status/author-only normalisation, frontmatter rewrite, anchor check), the `base-changed`/missing-pin/anchor/`skill-drift` validation rules, the `specs.pin_bases` config, and the `specplane spec pin [--check]` command. Do this in step 03 (validation) or a new step, following `architecture/reference-cli` and `feature/spec-overlays#base-pins`.
-2. **User**: review and approve feature specs (`status: approved`). `plans.require_approved_specs: feature` blocks CLI-core otherwise, or the user can override it explicitly, as was done for harness-files.
-3. Set `2026-10-28-reference-cli-core` to `ready` and run `/plan-step` in a worktree (`../.specplane-worktrees/specs-framework/<id>/`).
-4. After the CLI exists, run `specplane spec pin --check` and `specplane validate`, then regenerate PLANS.md with `specplane generate`.
-5. Later: plan for `init --harness claude` (depends on CLI-core). CLI-core step 04's AGENTS.md template should reuse this repo's managed block.
+1. **User**: apply (or reject) the OQ-5 patch; optionally switch this repo's `plans.merge` to `local_merge` (there is no remote).
+2. Decide on the spec gaps above (Claude can add the two `file-formats` sections, then re-pin).
+3. **User**: approve feature specs, or explicitly override `require_approved_specs` for CLI-core.
+4. Set `2026-10-28-reference-cli-core` to `ready` and run `/plan-step` (5 steps) in a worktree (`../.specplane-worktrees/specs-framework/<id>/`).
+5. After the CLI exists: `specplane spec pin --check`, `specplane validate`, `specplane generate`.
+6. Later: plan for `init --harness claude` (depends on CLI-core); it should define harness skill-dir registration.
 
 ## Open items
 - Plugin: `.catch` guards are missing on gating hooks (validate warnings). The pane's "Read HANDOFF" button is a no-op in `claude -p`.
-- Open questions in `docs/OPEN-QUESTIONS.md` (OQ-1, 5, 6, 7, 9, 10) are still unresolved.

@@ -59,4 +59,4 @@ Implement `specplane generate` (writes `plans/PLANS.md`), `specplane init` (scaf
 - The `## Active plans` table lists plans in `plans/` but not `plans/archive/`; `## Archived plans` lists plans in `plans/archive/`. Empty sections render as `_None._`.
 - The generated `PLANS.md` starts with the `<!-- GENERATED FILE ... -->` comment line from §5.1.
 - The integration test should use an absolute path to the `specs-framework` repo root, derived from `__dirname`.
-- After this step, finish the plan by hand (the finish flow is implemented by a later plan), following `feature/plan-execution` § Finish flow: check all steps are done, run the tests, rebase onto `main`, then set `status: done`, move the folder to `plans/archive/`, commit, and open a PR.
+- Base pins, anchors, and skill drift come in step 05; the integration test here should not assert on `base-changed` or `skill-drift` findings.
