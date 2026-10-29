@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-claude-harness-files
 title: Claude Code harness files — skills, hooks, CLAUDE.md
-status: ready
+status: done
 specs:
   - claude:feature/claude-integration
   - claude:architecture/claude-integration
