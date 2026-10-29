@@ -4,8 +4,8 @@ step: 3
 title: CI workflows in this repository
 status: pending
 context:
-  - spec: architecture/ci#Job 1: Validate (`specplane-validate.yml`)
-  - spec: architecture/ci#Job 2: Regenerate PLANS.md (`specplane-generate.yml`)
+  - spec: "architecture/ci#Job 1: Validate (`specplane-validate.yml`)"
+  - spec: "architecture/ci#Job 2: Regenerate PLANS.md (`specplane-generate.yml`)"
   - spec: architecture/ci#Protected branch considerations
   - spec: architecture/ci#`.gitattributes` recommendation
   - spec: feature/plan-index#Keeping `PLANS.md` fresh

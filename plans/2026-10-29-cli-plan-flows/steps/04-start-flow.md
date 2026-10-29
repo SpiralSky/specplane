@@ -6,7 +6,7 @@ status: pending
 context:
   - spec: feature/plan-execution#Start flow
   - spec: feature/plan-execution#Execution backends
-  - spec: feature/plan-execution#Stacked plans (`dependency_mode: stack`)
+  - spec: "feature/plan-execution#Stacked plans (`dependency_mode: stack`)"
   - spec: feature/plan-execution#Start with stacking
   - spec: feature/plan-status#Status source setting
   - spec: architecture/reference-cli#Plan flows (`plan/flows.ts`)

@@ -4,8 +4,8 @@ step: 1
 title: Architecture edits for ci
 status: pending
 context:
-  - spec: architecture/ci#Job 1: Validate (`specplane-validate.yml`)
-  - spec: architecture/ci#Job 2: Regenerate PLANS.md (`specplane-generate.yml`)
+  - spec: "architecture/ci#Job 1: Validate (`specplane-validate.yml`)"
+  - spec: "architecture/ci#Job 2: Regenerate PLANS.md (`specplane-generate.yml`)"
   - spec: architecture/ci#Path filter
   - spec: architecture/ci#Protected branch considerations
   - spec: feature/plan-index#Keeping `PLANS.md` fresh
