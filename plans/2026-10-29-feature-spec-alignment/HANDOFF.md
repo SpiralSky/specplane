@@ -193,3 +193,33 @@ Open `spec-gaps.md` entries for human review (they do not block the finish flow)
 
 - All six steps are done and every check is green: `npm test` 228/228, `check-sync.sh` OK, `hooks.test.sh` 62/62, `specplane validate` 0 errors (21 warnings: reviewed leak-guard hits), `specplane spec pin --check` clean.
 - Run `specplane plan finish 2026-10-29-feature-spec-alignment` next. After it merges, plan `2026-10-29-assist-and-approve` (currently `draft`, depends on this plan) needs its `status` set to `ready` by the user before it can start.
+
+## Step 06: Docs and final check (gap dispositions)
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- Resolved the four `spec-gaps.md` entries after human review. G1, G2, and G3 are `applied`; G4 is `rejected`.
+- `architecture/reference-cli` § Config loading now records that `init` loads the config with `checkSpecRoots: false`, so it can scaffold a clean repository (G2).
+- `architecture/reference-cli` § Error classes now records that a `ConfigError` with a `null` key uses the reason as the whole message for cross-field rules whose text `feature/configuration` fixes verbatim (G3).
+- G1 needed no further edit: `architecture/reference-cli` already defines "Spec root `<name>`: path `<path>` is not a directory." for the feature scenario that left the text open.
+- G4 is declined: no CLI route is added for the branch or worktree of an already-abandoned plan. `feature/plan-execution` deliberately keeps `plan/<id>` after abandon and `plan cleanup` only deletes a `done` plan's branch; the documented route is `git branch -D` (and `--force` on the first abandon for the worktree). Removing that branch is a manual git operation.
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+None new. No entry is left `open`.
+
+### Open issues
+
+- None blocking. G4 is an accepted limitation with a manual workaround.
+
+### What the next step must know
+
+- `spec-gaps.md` has no open entries, so the finish flow will not print an "Open spec gaps" notice.
+- Run `specplane plan finish 2026-10-29-feature-spec-alignment` next (the CLI in this worktree, not the stale global install).
