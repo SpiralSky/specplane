@@ -135,6 +135,44 @@ Runs full repository validation and presents actionable results.
 2. If `specs.llm_review: true`, additionally perform the LLM review stages: the architecture-leak review of feature specs (`feature/spec-policies#3-architecture-leak-guard`) and the contradiction review of extending overlay specs (`feature/spec-overlays`). Report findings as warnings. Skip specs whose type has `llm_role: none`.
 3. If the CLI is unavailable, perform the checks by hand from the format specification, and say so.
 
+#### `approve`
+
+Approves specs, plans, and decision records, or reopens an approved spec, on the user's request.
+
+**Trigger**: the user invokes it. The agent never approves on its own initiative, and never sets `status: approved`, `status: ready`, or `status: accepted` by editing a file directly.
+
+**Contract**:
+1. For each ID the user names, determine its kind (spec, plan, or decision record) and run the matching CLI command: `spec approve`, `plan approve`, or `decision accept` (see `feature/tooling`). Several IDs are passed in the user's order.
+2. On a refusal, report the reasons and the fix for each, and stop.
+3. When the user asks to reopen a spec, run `spec reopen` and show the specs it reports as needing to be reopened too; reopen those only if the user asks.
+
+#### `plan-start`
+
+Starts a plan so its steps can run.
+
+**Contract**: equivalent to `specplane plan start <id>` (see `feature/plan-execution`). Report the checkout path. When the plan runs in a separate checkout, tell the user to open a new session there; that session is told the plan and its next step.
+
+#### `decision-new`
+
+Creates a decision record.
+
+**Contract**:
+1. Run `specplane decision new <title>`.
+2. If the user describes the decision, write the body from that description following `feature/decisions#adr-body-structure`; otherwise leave the sections for the user.
+3. Leave `status: proposed`; the user accepts the decision with the `approve` integration.
+
+#### `plan-status`
+
+Shows where plans stand.
+
+**Contract**: equivalent to `specplane plan list --live`, with each plan's next step; when run in a plan's checkout, the current plan is highlighted.
+
+#### `plan-abandon`
+
+Abandons a plan.
+
+**Contract**: ask the user to confirm, then run `specplane plan abandon <id>` (see `feature/plan-execution` § Abandoning a plan).
+
 ---
 
 ## Policy enforcement by agents
@@ -240,6 +278,12 @@ Given a repository whose `AGENTS.md` contains the team's own rules,
 When `specplane init` runs,
 Then the team's text is unchanged and the Specplane standing instructions are appended as one managed block,
 And running `specplane init` again after an upgrade replaces only that block.
+
+### Scenario 9: Agent does not approve on its own
+
+Given `feature/search` is `review` and the user says "This looks good",
+When the agent responds,
+Then it does not approve `feature/search`, and it tells the user that the `approve` integration approves it.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: feature/tooling
 title: CLI behaviour
-status: approved
+status: review
 author: mixed
 ---
 
@@ -182,6 +182,34 @@ Writes or refreshes the spec's base pins (`based_on`) to the current committed v
 - A named reference is not in the spec's `extends` or `implements` → exit 1, "`<ref-id>` is not extended or implemented by `<id>`."
 - A referenced file has uncommitted changes → exit 1, "Commit or stash changes to `<path>` first."
 
+### `specplane spec approve <id>...`
+
+Approves each spec in the order given: sets `status: approved` and commits the change. Approval is the human's decision; an agent runs this command only when the user asks for it.
+
+Before approving an extending overlay, it re-pins the overlay's bases (as `spec pin` does) when every base is approved and committed; the new pins go in the same commit.
+
+**Output**: one line per spec, `approved <id> <commit>`, or the reasons it was refused.
+
+**Commit**: subject `docs(specs): approve <id>`, trailer `Specplane-Workflow: approve` (see `feature/agent-integration#agent-made-changes-are-attributable`). The user stays the author.
+
+**Error cases** (each refuses that spec, exits 1, and stops; specs approved earlier in the same run stay approved):
+- Unknown spec ID → "Spec `<id>` not found."
+- The spec's status is not `draft` or `review` → "Spec `<id>` is `<status>`; only `draft` or `review` specs can be approved."
+- The spec file has uncommitted changes → "Commit or stash changes to `<path>` first."
+- An architecture spec implements a feature spec that is not approved, under `specs.architecture.require_approved_features` → "Cannot approve `<id>`: `<feature-id>` is `<status>`, not `approved`."
+- A base of an overlay is not approved, or a base pin is stale and cannot be refreshed → "Cannot approve `<id>`: base `<base-id>` is `<status>`." / "Cannot approve `<id>`: base `<base-id>` changed since it was pinned."
+- Validation reports errors for the spec → the errors are listed.
+
+### `specplane spec reopen <id>`
+
+Sets an approved spec back to `status: review` and commits the change (subject `docs(specs): reopen <id>`), so it can be edited outside a plan branch.
+
+**Output**: the commit, then the specs that can no longer stay approved because of it (architecture specs that implement it, overlays that extend it), each with the command that reopens it. It does not change those specs.
+
+**Error cases**:
+- Unknown spec ID → exit 1, "Spec `<id>` not found."
+- The spec is not `approved` → exit 1, "Spec `<id>` is `<status>`, not `approved`."
+
 ---
 
 ## `specplane plan`
@@ -276,6 +304,42 @@ Removes the worktree and deletes branch `plan/<id>` after the plan has merged (f
 
 Moves a `done` or `abandoned` plan's folder into `<plans.dir>/archive/` — for plans that ended while `plans.archive_done` was `false`. Errors if the plan is not `done` or `abandoned`, or is already archived. Does not touch branches or worktrees.
 
+### `specplane plan approve <id>...`
+
+Approves each plan in the order given: sets `status: ready` and commits the change (subject `docs(<plan-id>): approve plan`, trailer `Specplane-Workflow: approve`). An agent runs this command only when the user asks for it.
+
+**Error cases** (each refuses that plan, exits 1, and stops; plans approved earlier in the same run stay approved):
+- No plan with that ID → "Plan `<id>` not found."
+- The plan is not `draft` → "Plan `<id>` is `<status>`; only `draft` plans can be approved."
+- The plan folder has uncommitted changes → "Commit or stash changes to `<path>` first."
+- A spec the plan names is not approved as `plans.require_approved_specs` requires → "Cannot approve `<id>`: `<spec-id>` is `<status>`, not `approved`."
+- Validation reports errors for the plan → the errors are listed.
+
+---
+
+## `specplane decision`
+
+Subcommands for decision records (see `feature/decisions`).
+
+### `specplane decision new <title>`
+
+Creates `<decisions.dir>/<NNNN>-<slug>.md` with the next free number, `status: proposed`, and the body sections from `feature/decisions#adr-body-structure`. The slug is derived from the title.
+
+**Output**: the path of the created file.
+
+**Error cases**:
+- A file with that number and slug already exists → exit 1, "Decision `<path>` already exists."
+
+### `specplane decision accept <id>...`
+
+Accepts each ADR in the order given: sets `status: accepted` and commits the change (subject `docs(decisions): accept <id>`, trailer `Specplane-Workflow: approve`). An agent runs this command only when the user asks for it.
+
+**Error cases** (each refuses that ADR, exits 1, and stops; ADRs accepted earlier in the same run stay accepted):
+- Unknown ADR ID → "Decision `<id>` not found."
+- The ADR is not `proposed` → "Decision `<id>` is `<status>`; only `proposed` decisions can be accepted."
+- The ADR file has uncommitted changes → "Commit or stash changes to `<path>` first."
+- Validation reports errors for the ADR → the errors are listed.
+
 ---
 
 ## `specplane search <text>`
@@ -366,6 +430,31 @@ Then the output includes `feature/spec-policies` with a snippet.
 Given all specs are valid, all plans have valid frontmatter, and no cycles exist,
 When `specplane validate` is run,
 Then exit code is 0 and output is "All checks passed."
+
+### Scenario 7: Approving a base spec and its overlay in one command
+
+Given `feature/spec-policies` and its overlay `claude:feature/claude-integration` are both `review` and committed,
+When `specplane spec approve feature/spec-policies claude:feature/claude-integration` is run,
+Then two commits are made: the first approves `feature/spec-policies`; the second re-pins the overlay's base and approves it.
+
+### Scenario 8: Approval refused
+
+Given `architecture/search` implements `feature/search`, which is `review`,
+When `specplane spec approve architecture/search` is run,
+Then exit code is 1, stderr contains "Cannot approve `architecture/search`: `feature/search` is `review`, not `approved`.", and nothing is committed.
+
+### Scenario 9: Reopening a spec reports the cascade
+
+Given `feature/configuration` is `approved` and `architecture/reference-cli` (approved) implements it,
+When `specplane spec reopen feature/configuration` is run,
+Then `feature/configuration` is committed as `review`,
+And the output lists `architecture/reference-cli` with the command to reopen it, which is left unchanged.
+
+### Scenario 10: Creating a decision record
+
+Given `decision/0003` is the highest-numbered ADR,
+When `specplane decision new "Cache policy"` is run,
+Then `<decisions.dir>/0004-cache-policy.md` is created with `id: decision/0004` and `status: proposed`.
 
 ---
 

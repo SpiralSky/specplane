@@ -51,6 +51,11 @@ Project skills are the chosen mechanism for this harness because they version wi
 | `/plan-step` | `plan-step` | Execute the next step of the current plan |
 | `/plan-finish` | `plan-finish` | Run the finish flow for the current plan |
 | `/validate` | `validate` | Run `specplane validate` and summarise results |
+| `/approve` | `approve` | Approve specs, plans, or decision records by ID (`--reopen` reopens an approved spec); only when the user invokes it |
+| `/plan-start` | `plan-start` | Start a plan and say where to continue it |
+| `/decision-new` | `decision-new` | Create a decision record, optionally written from the user's description |
+| `/plan-status` | `plan-status` | Show plans with live status and next step |
+| `/plan-abandon` | `plan-abandon` | Abandon a plan after confirmation |
 
 ---
 
@@ -74,7 +79,7 @@ The parent session retains only the subagent's summary, not the step's context o
 Claude Code supports hooks — shell commands that run before or after Claude tool calls. Specplane can use hooks for:
 
 - **Pre-commit validation**: run `specplane validate` before the agent makes a git commit, and block the commit if there are errors (warnings are allowed).
-- **Policy guard**: when the agent edits a spec, apply the spec type's `llm_role` as defined in `feature/spec-policies#meaning-of-each-value`; under `review` or `assist`, ask the user to approve the exact edit. Policy is enforced when it matters instead of relying on the agent to remember it.
+- **Policy guard**: when the agent edits a spec, apply the spec type's `llm_role` as defined in `feature/spec-policies#meaning-of-each-value`; under `review` or `assist`, ask the user to approve the exact edit. Deny any agent edit that sets a spec to `approved`, a plan to `ready`, or a decision record to `accepted`; those changes go through `/approve`. Policy is enforced when it matters instead of relying on the agent to remember it.
 - **Session context**: when a session starts in a plan's checkout, tell the agent which plan it is in and which step is next.
 - **Post-step HANDOFF.md check**: verify that HANDOFF.md was updated by a step commit.
 - **Auto-generate PLANS.md**: run `specplane generate` after a plan file changes.
@@ -174,6 +179,18 @@ Then the skill offers to help (ask questions, review a draft) but does not produ
 Given `specs.feature.llm_role: assist`,
 When the user invokes `/spec-assist`, describes the feature, refines it with the agent, and confirms the Finalise summary,
 Then the skill shows the written body and writes the file only after the user approves it.
+
+### Scenario 6b: Agent cannot approve by editing
+
+Given `feature/search` is `review`,
+When the agent tries to edit it to `status: approved`,
+Then the policy guard denies the edit and points to `/approve`.
+
+### Scenario 6c: `/approve` on an overlay re-pins it
+
+Given `feature/spec-policies` is approved and committed, and `claude:feature/claude-integration` is `review` with a stale pin of it,
+When the user runs `/approve claude:feature/claude-integration`,
+Then one commit refreshes the pin and sets the overlay to `approved`.
 
 ### Scenario 7: Skill contract drift
 
