@@ -16,7 +16,7 @@ _No open questions._
 |----|----------|------------|----------------|
 | OQ-2 | Slash commands as skill files vs. bash aliases? | Project skills (`.claude/skills/<name>/SKILL.md`) | `claude:feature/claude-integration` § Slash commands; `claude:architecture/claude-integration` |
 | OQ-3 | Subagents per step by default? | Off by default; per-step opt-in via `use_subagent: true`; fresh (non-fork) subagent | `claude:feature/claude-integration` § Subagents per step |
-| OQ-4 | Which Claude Code hooks enabled by default? | Pre-commit validation only; others opt-in | `claude:feature/claude-integration` § Hooks |
+| OQ-4 | Which Claude Code hooks enabled by default? | Pre-commit validation, the policy guard, and session context (plus the status line unless one exists); others opt-in. Widened from "pre-commit only" when the enforcement plan added the guard and session context | `claude:feature/claude-integration` § Hooks |
 | OQ-8 | Step file frontmatter? | Yes — `plan`, `step`, `title`, `status`, `context`, optional `use_subagent` | `feature/plan-steps` § Step frontmatter |
 | OQ-11 | Worktree path collision across repos? | `<worktree_dir>/<repo-name>/<plan-id>/`, resolved against the main checkout | `feature/configuration` § `execution.worktree_dir`; `feature/plan-execution` |
 | OQ-6 | Architecture-leak guard: heuristic vs. hard failure? | Warnings only; a human reviewer decides | `feature/spec-policies` §3 |

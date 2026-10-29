@@ -41,7 +41,7 @@ Specplane does not create or edit `CLAUDE.md`; it belongs to the repository's ma
 
 The base spec (`feature/agent-integration`) defines which workflow integrations Specplane requires and their policy contracts. In Claude Code, each integration is exposed as a **slash command** implemented as a project skill committed to the repository.
 
-Project skills are the chosen mechanism for this harness because they version with the repository, appear automatically in the slash command menu, and are auditable markdown. Each skill references the contract it implements by anchor (for example `feature/agent-integration#plan-step`) and pins it, so the skill records which contract version it implements and `validate` warns when that contract moves. Skills add Claude Code–specific invocation detail only and must not redefine policy — they defer to the base specs.
+Project skills are the chosen mechanism for this harness because they version with the repository, appear automatically in the slash command menu, and are auditable markdown. Each skill references the contract it implements by anchor (for example, the `plan-step` contract) and pins the spec that defines it, so the skill records which contract version it implements and `validate` warns when that contract moves. Skills add Claude Code–specific invocation detail only and must not redefine policy — they defer to the base specs.
 
 | Slash command | Base integration | Description |
 |---------------|-----------------|-------------|
@@ -171,10 +171,10 @@ Then the skill offers to help (ask questions, review a draft) but does not produ
 
 ### Scenario 7: Skill contract drift
 
-Given the `/plan-step` skill pins the `plan-step` contract of `feature/agent-integration`,
-And that contract has since changed,
+Given the `/plan-step` skill pins the spec that defines the `plan-step` contract,
+And that spec has since changed,
 When the user runs `/validate`,
-Then the summary includes a `base-changed` warning for the skill, and the user is told to review the diff and re-pin.
+Then the summary includes a skill-drift warning for the skill, and the user is told to review the diff and re-pin.
 
 ---
 

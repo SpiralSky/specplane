@@ -21,7 +21,7 @@ Specplane's instructions to agents come in two parts:
   3. **Precedence rules**: architecture spec first, feature spec for gaps, stop on contradictions.
   4. **Plans and commits**: work on a plan only in its checkout, one step at a time; HANDOFF.md is the source of truth; commit messages follow the Specplane format.
   5. **Workflows**: how to invoke the workflow integrations in this harness.
-- **Workflow procedures**: the step context contract, the HANDOFF.md format, the step commit, and the common flows (start a spec, assist with a feature spec, draft an architecture spec, create a plan, execute the next step, finish a plan). These live in the workflow integrations (§ Workflow integrations), which load only when used.
+- **Workflow procedures**: the step context contract, the HANDOFF.md format, the step commit, and the common flows (assist with a feature spec, draft an architecture spec, create a plan, execute the next step, finish a plan). These live in the workflow integrations (§ Workflow integrations), which load only when used.
 
 ### Delivery without overwriting user files
 
@@ -55,7 +55,7 @@ Each harness may extend the base workflows with harness-specific features (e.g. 
 
 A **workflow integration** is a predefined, executable sequence of actions that an agent follows to complete a Specplane task. Harnesses expose these as slash commands, macros, or callable skills — the mechanism is a harness concern and is specified in the harness's overlay root.
 
-Each harness skill must record the contract it implements: a reference to the contract by anchor (for example `feature/agent-integration#plan-step`) together with a base pin for it. `validate` reports when the referenced contract has changed since the skill was last pinned, so skills no longer drift from the base specs through manual review alone.
+Each harness skill must record the contract it implements: a reference to the contract by anchor (for example, the `plan-step` contract) together with a pin of the spec that defines it. `validate` reports when that spec has changed since the skill was last pinned, so skills no longer drift from the base specs through manual review alone.
 
 All workflow integrations read configuration from `.specplane/config.yaml` and resolve all spec paths from config. An integration that hardcodes a spec path is a defect.
 
@@ -122,7 +122,7 @@ Executes the next step of a plan (see `feature/plan-steps` for "next step").
 
 Runs the finish flow for the current plan.
 
-**Contract**: equivalent to `specplane plan finish <current-plan-id>`. Runs verification, sets plan status to done, archives, rebases, opens PR (or merges locally).
+**Contract**: equivalent to `specplane plan finish <current-plan-id>` (see `feature/plan-execution` § Finish flow).
 
 #### `validate`
 
@@ -221,9 +221,9 @@ Then the agent responds: "Policy (`specs.feature.llm_role: none`) prevents me fr
 ### Scenario 7: Skill contract drift is reported
 
 Given a harness skill records the `plan-step` contract by anchor with a pin,
-And the contract in this spec has since changed,
+And the spec defining that contract has since changed,
 When `validate` runs,
-Then a `base-changed` warning names the skill and the changed spec.
+Then a skill-drift warning names the skill and the changed spec.
 
 ### Scenario 8: Existing AGENTS.md is preserved
 

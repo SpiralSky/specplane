@@ -68,7 +68,8 @@ Worktrees are removed by cleanup after the plan's branch is merged (`specplane p
 The start flow is initiated by `specplane plan start <id>`. A start is a **first start** when branch `plan/<id>` does not exist yet, and a **resume** otherwise.
 
 ```
-1. Fetch the default branch, so dependency statuses are current.
+1. Fetch the default branch, so dependency statuses are current
+   (skipped when the repository has no remote; the local default branch is used).
 
 2. Validate plan:
    a. Plan exists and has status: ready (or in_progress, when resuming with status_source: frontmatter).
@@ -123,21 +124,23 @@ The finish flow is initiated by `specplane plan finish <id>`, run in the plan's 
    set status: review in PLAN.md.
 
 4. Rebase onto the default branch:
-   a. Fetch the default branch.
-   b. Rebase plan/<id> onto it. Conflicts stop the flow and are surfaced to the
-      human; they are never resolved automatically.
+   a. Fetch the default branch (skipped when there is no remote).
+   b. Rebase plan/<id> onto it. A stacked plan (one with a stack marker commit)
+      is restacked instead, replaying only its own commits (see "Restacking").
+      Conflicts stop the flow and are surfaced to the human; they are never
+      resolved automatically.
    c. If the rebase brought in new commits, re-run 2a.
 
 5. Final commit:
    a. Set status: done in PLAN.md.
    b. If archive_done: true, move the plan folder to <plans.dir>/archive/<id>/.
-   c. Commit: "plan/<id> finish: mark done and archive".
+   c. Commit, using the finish commit format (architecture/file-formats §8).
 
 6. Merge:
    merge: pull_request → push plan/<id> and open a pull request to the default
      branch (with plans.forge: none, push and ask the human to open it).
    merge: local_merge → after human confirmation, merge plan/<id> into the default
-     branch locally.
+     branch locally (see "Local merge").
 
 7. Cleanup, once merged (immediately for local_merge; later via
    `specplane plan cleanup <id>` for pull requests):
@@ -147,6 +150,17 @@ The finish flow is initiated by `specplane plan finish <id>`, run in the plan's 
 ```
 
 Rebasing before the final commit means the pull request contains the done-and-archive commit on top of an up-to-date base. Fixes requested in review are ordinary commits on the plan branch (see `feature/plan-status`, "The `done` transition and archiving").
+
+### Local merge
+
+With `merge: local_merge`, no pull request is opened and the human's confirmation in step 6 is the review. Together with `plans.forge: none`, this is the supported fully local mode: no remote or forge is needed.
+
+- The merge runs in the main checkout, which must be on the default branch with no uncommitted changes. With the branch backend the main checkout is the plan checkout, so it first switches back to the default branch. If the main checkout is on another branch or has uncommitted changes, the flow stops before merging and says what to fix; the done commit stays on `plan/<id>`, and re-running the finish flow resumes at step 6.
+- The merge always creates a merge commit (no fast-forward), so the plan's commits stay grouped.
+- If the default branch moved after step 4, the flow stops and asks for the finish flow to be re-run, which rebases again; it never merges an un-rebased branch.
+- When a remote exists, the merged default branch is pushed.
+- Confirmation needs a human. An unattended session stops after step 5 and reports that the plan is ready to merge.
+- The `external` backend does not support `local_merge`; finishing such a plan fails with an error.
 
 ---
 
@@ -245,11 +259,21 @@ Then the branch is rebased onto main, `PLAN.md` is updated to `status: done`, th
 
 ### Scenario 5: Finish flow — tests fail
 
-Given `plans.test_command: npm test`,
+Given `plans.test_command: make test`,
 And the test command exits non-zero,
 When `specplane plan finish` runs,
-Then it stops after the verification step and reports: "Verification failed: `npm test` exited with code 1. Fix failing tests before finishing."
+Then it stops after the verification step and reports: "Verification failed: `make test` exited with code 1. Fix failing tests before finishing."
 And no commit is made.
+
+### Scenario 4a: Finish flow — local merge without a remote
+
+Given `plans.merge: local_merge` and `plans.forge: none`,
+And the repository has no remote,
+And every step of `2026-10-28-search-indexer` is `done`,
+When `specplane plan finish 2026-10-28-search-indexer` is run and the human confirms the merge,
+Then no fetch or push is attempted,
+And `plan/2026-10-28-search-indexer` is merged into main with a merge commit in the main checkout,
+And the worktree and branch are removed.
 
 ### Scenario 5a: Finish flow — step not done
 
@@ -274,10 +298,10 @@ Then only the search-indexer commits made after the recorded stack base are repl
 
 ### Scenario 7: Setup hook failure
 
-Given `setup_hook: npm install`,
-And `npm install` exits non-zero (e.g. network failure),
+Given `setup_hook: make deps`,
+And `make deps` exits non-zero (e.g. network failure),
 When the start flow runs the setup hook,
-Then the worktree is removed and start fails: "Setup hook failed: `npm install` exited with code 1. Worktree removed."
+Then the worktree is removed and start fails: "Setup hook failed: `make deps` exited with code 1. Worktree removed."
 
 ### Scenario 8: Resuming a plan in progress
 
@@ -292,6 +316,8 @@ And the dependency and spec-approval checks are skipped, so spec edits made on t
 
 - If the worktree already exists at the expected path (e.g. from a crashed previous run), the start flow reuses it rather than failing.
 - The finish flow's rebase may fail with conflicts. In this case it is surfaced to the human and not automatically resolved.
+- Starting a plan whose stored status is `draft`, `done`, or `abandoned` fails: "Cannot start plan: `<id>` is `<status>`, not `ready`."
+- Claim and abandon commits are made in the main checkout and need it on the default branch without changes to the plan's `PLAN.md`; otherwise the flow stops and says what to fix. They are pushed when a remote exists. Like `local_merge`, they write to the default branch directly, so they fail on a protected branch.
 - `merge: local_merge` with a protected main branch will fail at the git level. Teams using protected branches must use `merge: pull_request`.
 - Cleanup (branch and worktree deletion) is idempotent: running it on an already-cleaned-up plan does nothing.
 - Cleanup deletes `plan/<id>` only when the plan is `done` on the default branch. That status proves the merge regardless of merge method (git alone does not recognise a squash-merged branch as merged).

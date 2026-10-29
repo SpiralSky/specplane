@@ -52,7 +52,7 @@ plans:
   status_source: git          # git | frontmatter
   merge: pull_request         # pull_request | local_merge
   dependency_mode: wait_for_merge   # wait_for_merge | stack
-  archive_done: true          # move completed plan folders to plans/archive/
+  archive_done: true          # move completed plan folders to <plans.dir>/archive/
   setup_hook: ""              # shell command run after worktree creation; empty = skip
   test_command: ""            # shell command run by the finish flow; empty = skip
   forge: auto                 # auto | github | none
@@ -60,7 +60,7 @@ plans:
 # ── Execution backend ─────────────────────────────────────────────────────────
 execution:
   backend: worktree           # worktree | branch | external
-  worktree_dir: ../.specplane-worktrees   # where worktrees are created; relative to repo root
+  worktree_dir: ../.specplane-worktrees   # where worktrees are created; relative to the main checkout
 
 # ── Decision records ──────────────────────────────────────────────────────────
 decisions:
@@ -232,7 +232,7 @@ Controls the finish flow for plans. See `feature/plan-execution`.
 | Value | Behaviour |
 |-------|-----------|
 | `pull_request` | Finish flow opens a pull request. A human reviews and merges. |
-| `local_merge` | Finish flow requests a local merge (e.g. `git merge`). Suitable for teams without a forge or for trusted automation. |
+| `local_merge` | After the human confirms, the finish flow merges the plan branch into the default branch in the main checkout and cleans up immediately. No pull request is opened. With `plans.forge: none` this is the fully local mode: no remote or forge is needed. See `feature/plan-execution` § Local merge. |
 
 ---
 
@@ -265,7 +265,7 @@ When `true`, the plan folder is moved to `<plans.dir>/archive/<id>/` when the pl
 **Type**: string  
 **Default**: `""` (empty, no hook)
 
-A shell command run in a fresh worktree after it is created, before any step begins. Typical use: install dependencies (e.g. `npm install`). See `feature/plan-execution`.
+A shell command run in a fresh worktree after it is created, before any step begins. Typical use: install dependencies (for example, with the project's package manager). See `feature/plan-execution`.
 
 If the command exits non-zero, the worktree creation fails and the error is reported.
 
@@ -276,7 +276,7 @@ If the command exits non-zero, the worktree creation fails and the error is repo
 **Type**: string  
 **Default**: `""` (empty, no test run)
 
-A shell command run in the plan's checkout by the finish flow to verify the plan (e.g. `npm test`). A non-zero exit stops the finish flow. When empty, the finish flow reports that no test command is configured and continues. See `feature/plan-execution`.
+A shell command run in the plan's checkout by the finish flow to verify the plan (for example, the project's test suite). A non-zero exit stops the finish flow. When empty, the finish flow reports that no test command is configured and continues. See `feature/plan-execution`.
 
 ---
 
@@ -292,7 +292,9 @@ Selects the forge (code-hosting service) used to open pull requests and to deriv
 |-------|-----------|
 | `auto` | Use a supported forge if one is detected for the repository's remote and its tooling is available; otherwise behave as `none`. |
 | `github` | Use GitHub. If it is unavailable, forge operations fail with an error. |
-| `none` | No forge integration. `review` is never derived; with `merge: pull_request`, the finish flow pushes the branch and asks the human to open the pull request. |
+| `none` | No forge integration. `review` is never derived; with `merge: pull_request`, the finish flow pushes the branch and asks the human to open the pull request; with `merge: local_merge`, no forge is needed. |
+
+With `merge: local_merge`, the finish flow never opens a pull request, whatever the forge setting; a forge is still used to derive `review` if a pull request for the plan branch was opened by hand.
 
 ---
 

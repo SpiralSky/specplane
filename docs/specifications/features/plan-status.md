@@ -84,7 +84,7 @@ The `plans.status_source` config key controls how `in_progress` and `review` are
 
 **Disadvantages**:
 - Requires reading git state (branch list) and optionally forge state (PR list) on every status query.
-- Without forge integration, `review` cannot be derived; it falls back to `in_progress`.
+- Without forge integration, `review` cannot be derived; it falls back to `in_progress`. With `merge: local_merge` no pull request is opened, so a plan is shown as `in_progress` until it is merged and `done`.
 - Status is not visible in the frontmatter file itself; tools must know to compute it.
 
 ### `status_source: frontmatter`
