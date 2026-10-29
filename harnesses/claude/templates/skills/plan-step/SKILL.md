@@ -4,7 +4,7 @@ description: Execute the next step of a Specplane plan. Use when the user runs /
 argument-hint: "[plan-id] [--unattended]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-step@21e5329 -->
+<!-- specplane-contract: architecture/agent-skills#plan-step@9b59fd0 -->
 
 # plan-step
 
@@ -28,7 +28,7 @@ Read `specs.*` (authorship and `llm_role`) from config before editing any spec. 
 `$ARGUMENTS` is `[plan-id] [--unattended]`: strip `--unattended`; any remaining token is the plan ID.
 
 1. Identify the plan: the plan ID argument, else the current branch `plan/<id>`, else ask the user. If not on the plan's branch, warn before proceeding. If `origin/plan/<id>` exists, run `git fetch origin plan/<id>` first: fast-forward when it is ahead, and stop when the branches have diverged ("Another session advanced `plan/<id>`; reconcile the branches before running a step"). Only one session at a time works on a given plan.
-2. Parse the step files; find the next step (lowest-numbered step that is not `done` or `skipped`). If it is `blocked`, report its `BLOCKED:` issue and stop. If there is none, report that all steps are done and suggest `/plan-finish`.
+2. Parse the step files; find the next step (lowest-numbered step that is not `done` or `skipped`). Ordering check: confirm every lower-numbered step is `done` or `skipped`; if any is `pending` or `blocked`, run that one first (or report its `BLOCKED:` issue) rather than the step the user named. If it is `blocked`, report its `BLOCKED:` issue and stop. If there is none, report that all steps are done and suggest `/plan-finish`.
 3. Load context with `Read` (use offset/limit for large files; `Glob` to discover files): every item in the step's `context` field (spec sections by anchor, ADRs, files) plus all prior sections of `<plans.dir>/<plan-id>/HANDOFF.md` (resolve `plans.dir` from config; never assume `plans/`; the repo-root HANDOFF.md is not a plan handoff).
 4. Avoid reading other files unless the listed context is insufficient; record any expansion in `<plans.dir>/<plan-id>/HANDOFF.md`.
 5. Execute the tasks, following `feature/spec-precedence`: architecture spec first, feature spec for gaps (record each gap). On a contradiction: if attended, stop and show both passages; if unattended, do not implement the contradicted behaviour, record a `BLOCKED:` item under open issues, and continue with unaffected tasks.
@@ -38,13 +38,13 @@ Read `specs.*` (authorship and `llm_role`) from config before editing any spec. 
 9. Commit per `architecture/file-formats` §8: subject `<type>(<slug>): <summary>` (Conventional Commits type of the step's main change; `<slug>` is the plan ID without its `YYYY-MM-DD-` prefix; at most 72 characters), a blank line, a bullet summary of the changes, a blank line, then the trailers in this order: `Specplane-Workflow: step`, `Specplane-Plan: <plan-id>`, `Specplane-Step: NN`, `Specplane-Agent: $SPECPLANE_AGENT` (else `claude-code`), `Specplane-Session: $SPECPLANE_SESSION` (omit the line when unset), then the harness attribution trailer (`Co-Authored-By`). Do not set the commit author. Example: `feat(search-indexer): build graph from spec links`.
 10. If `execution.backend` is `external`, or the plan branch has an upstream, push `plan/<id>` so the next session and other machines see the step.
 
-**Subagent branch.** If the step sets `use_subagent: true`, do steps 1-2 yourself, resolve the context items to paths, then run steps 3-10 in a fresh subagent (not a `fork`, which would inherit this session's context):
+**Subagent branch.** If the step sets `use_subagent: true`, do steps 1-2 yourself, resolve the context items to paths, then run steps 3-9 in a fresh subagent (not a `fork`, which would inherit this session's context). The subagent does not push; you perform step 10 yourself after it returns:
 
 ```
 Agent({
   subagent_type: "general-purpose",
   description: "Execute plan step NN: <title>",
-  prompt: "<steps 3-10 above>\n\nPlan: <plan-id>, checkout: <path>\nStep file: <path>\nHANDOFF.md: <plans.dir>/<plan-id>/HANDOFF.md, resolved to a path\nContext items: <resolved paths, with heading anchors>\nSession mode: unattended"
+  prompt: "<steps 3-9 above>\n\nPlan: <plan-id>, checkout: <path>\nStep file: <path>\nHANDOFF.md: <plans.dir>/<plan-id>/HANDOFF.md, resolved to a path\nContext items: <resolved paths, with heading anchors>\nSession mode: unattended"
 })
 ```
 

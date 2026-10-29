@@ -30,3 +30,31 @@ None.
 ### What the next step must know
 
 Step 02 must update the six skill templates to the new contract (each skill's section in agent-skills changed, except `validate` and `plan-finish` gained Policy check sections), set the markers to `architecture/agent-skills#<skill>@<new blob7>` (take it from `git rev-parse --short=7 HEAD:docs/specifications/architecture/agent-skills.md` after the last agent-skills commit; currently `9b59fd0`), copy to `.claude/skills/`, and run `sh harnesses/claude/tests/check-sync.sh`. Do not edit agent-skills again without re-pinning.
+
+## Step 02: Update skill templates and dogfood copies
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `harnesses/claude/templates/skills/*/SKILL.md` (all six): amended per agent-skills (self-checks in spec-assist, spec-draft-architecture, validate; ordering checks in plan-create and plan-step; plan-create no-CLI validation fallback; `## Policy check` for plan-finish and validate; plan-step subagent runs steps 3-9 and the parent pushes). Markers now `@9b59fd0`.
+- `.claude/skills/*/SKILL.md`: byte-identical copies.
+- `harnesses/claude/tests/check-sync.sh`: comments already describe the settings comparison as a subset; no change needed.
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+- CHOICE: plan-finish Policy check is rendered as bullets under a `Read config.plans and config.execution` line, mirroring the spec's code block content.
+- CHOICE: the subagent prompt in plan-step covers steps 3-9; the parent does step 10.
+
+### What the next step must know
+
+`skill-drift` warnings are resolved; check-sync and hook tests pass. Do not edit agent-skills without re-pinning markers.

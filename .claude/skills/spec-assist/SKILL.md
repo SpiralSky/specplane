@@ -4,7 +4,7 @@ description: Help the user write or review a feature spec without authoring it. 
 argument-hint: "[topic]"
 disable-model-invocation: false
 ---
-<!-- specplane-contract: architecture/agent-skills#spec-assist@21e5329 -->
+<!-- specplane-contract: architecture/agent-skills#spec-assist@9b59fd0 -->
 
 # spec-assist
 
@@ -31,7 +31,8 @@ Read `specs.feature.llm_role` from config.
 2. Suggest a structure (list of section headings) based on the feature spec template in `architecture/file-formats` §1.3.
 3. For each section, ask a clarifying question to surface edge cases and acceptance scenarios.
 4. If the user provides a draft, review it for missing acceptance scenarios, ambiguous rules, and architecture-leak violations (implementation detail that is not part of the user-visible interface).
-5. Propose edits to the user's text; never write the file without explicit approval. Never use `Write` or `Edit` on a feature spec without the user's explicit approval of the exact change.
+5. Self-check every suggestion and proposed edit before showing it: it must not introduce implementation detail (the same architecture-leak test as step 4) and must not contradict the user's existing text. Rewrite or drop any that fail.
+6. Propose edits to the user's text; never write the file without explicit approval. Never use `Write` or `Edit` on a feature spec without the user's explicit approval of the exact change.
 
 ## Output
 
