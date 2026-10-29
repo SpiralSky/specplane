@@ -4,9 +4,7 @@
 
 ## Active plans
 
-| ID | Title | Status | Dependencies | Specs |
-|----|-------|--------|--------------|-------|
-| [2026-10-29-cli-forge-ci-publish](2026-10-29-cli-forge-ci-publish/PLAN.md) | Forge integration, CI workflows, and npm publish setup | ready | [2026-10-28-reference-cli-core](archive/2026-10-28-reference-cli-core/PLAN.md), [2026-10-29-cli-plan-flows](archive/2026-10-29-cli-plan-flows/PLAN.md) | architecture/reference-cli, architecture/ci, feature/plan-execution, feature/plan-status, feature/configuration, feature/plan-index, feature/tooling |
+_None._
 
 ## Archived plans
 
@@ -17,6 +15,7 @@
 | [2026-10-29-claude-instructions-and-enforcement](archive/2026-10-29-claude-instructions-and-enforcement/PLAN.md) | Claude harness — standing instructions, enforcement hooks, live view | done | claude:feature/claude-integration, claude:architecture/claude-integration, feature/agent-integration, architecture/agent-skills, architecture/file-formats |
 | [2026-10-29-claude-plugin-hardening](archive/2026-10-29-claude-plugin-hardening/PLAN.md) | Claude plugin hardening — hook guards and HANDOFF button | done | claude:architecture/claude-integration, claude:feature/claude-integration |
 | [2026-10-29-cli-claude-harness-init](archive/2026-10-29-cli-claude-harness-init/PLAN.md) | CLI init --harness claude, harness registry, and skill findings | done | claude:feature/claude-integration, claude:architecture/claude-integration, feature/agent-integration, feature/tooling, architecture/agent-skills, architecture/reference-cli |
+| [2026-10-29-cli-forge-ci-publish](archive/2026-10-29-cli-forge-ci-publish/PLAN.md) | Forge integration, CI workflows, and npm publish setup | done | architecture/reference-cli, architecture/ci, feature/plan-execution, feature/plan-status, feature/configuration, feature/plan-index, feature/tooling |
 | [2026-10-29-cli-plan-commands](archive/2026-10-29-cli-plan-commands/PLAN.md) | CLI plan commands, effective status, and live activity | done | feature/tooling, feature/plan-status, feature/plan-index, feature/plan-system, feature/plan-steps, architecture/reference-cli, architecture/file-formats |
 | [2026-10-29-cli-plan-flows](archive/2026-10-29-cli-plan-flows/PLAN.md) | CLI plan flows — start, finish, abandon, cleanup, archive, restack | done | feature/plan-execution, feature/plan-status, feature/plan-steps, feature/tooling, feature/configuration, architecture/reference-cli, architecture/file-formats |
 | [2026-10-29-cli-spec-search](archive/2026-10-29-cli-spec-search/PLAN.md) | CLI spec and search commands, validation hardening | done | feature/tooling, feature/spec-system, feature/spec-overlays, feature/spec-precedence, feature/decisions, feature/configuration, architecture/reference-cli, architecture/file-formats |
@@ -30,7 +29,7 @@ graph TD
     p_2026_10_29_claude_instructions_and_enforcement[claude-instructions-and-enforcement]:::done
     p_2026_10_29_claude_plugin_hardening[claude-plugin-hardening]:::done
     p_2026_10_29_cli_claude_harness_init[cli-claude-harness-init]:::done
-    p_2026_10_29_cli_forge_ci_publish[cli-forge-ci-publish]:::ready
+    p_2026_10_29_cli_forge_ci_publish[cli-forge-ci-publish]:::done
     p_2026_10_29_cli_plan_commands[cli-plan-commands]:::done
     p_2026_10_29_cli_plan_flows[cli-plan-flows]:::done
     p_2026_10_29_cli_spec_search[cli-spec-search]:::done
