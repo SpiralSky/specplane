@@ -15,7 +15,7 @@ import { fetchPlanBranches, getPlanActivity, remotePlanFrontmatter, remotePlanId
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
 import { getEffectiveStatus, type EffectiveStatus } from "../plan/status.js";
-import { startPlan } from "../plan/flows.js";
+import { finishPlan, startPlan } from "../plan/flows.js";
 import type { Config, PlanFrontmatter } from "../types.js";
 
 class PlanUsageError extends SpecplaneError {
@@ -229,6 +229,23 @@ export function planStartCommand(id: string): void {
     const where = r.path !== null ? `Worktree: ${r.path}` : `Branch: ${r.branch}`;
     const next = r.next ? `Next step: ${String(r.next.number).padStart(2, "0")} ${r.next.title} (${r.next.status})` : "No pending steps.";
     process.stdout.write(`${r.resumed ? "Resumed" : "Started"} ${r.planId}\n${where}\n${next}\n`);
+  } catch (e) {
+    if (!reportError(e)) throw e;
+  }
+}
+
+export async function planFinishCommand(id: string, opts: { yes?: boolean }): Promise<void> {
+  try {
+    const root = checkoutRoot();
+    const { config, warnings } = loadConfig(root);
+    for (const w of warnings) process.stderr.write(`${w.message}\n`);
+    const confirm = interactive()
+      ? async (q: string) => /^y(es)?$/i.test(await ask(`${q} [y/N] `))
+      : undefined;
+    const r = await finishPlan(id, config, root, { yes: opts.yes, confirm });
+    for (const n of r.notices) process.stderr.write(`${n}\n`);
+    const word = r.outcome === "merged" ? "Finished and merged" : r.outcome === "pushed" ? "Finished and pushed" : "Finished";
+    process.stdout.write(`${word} ${r.planId}\n`);
   } catch (e) {
     if (!reportError(e)) throw e;
   }

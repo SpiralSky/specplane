@@ -1,7 +1,8 @@
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { AmbiguousIdError, GitError, PlanNotFoundError, PlanStateError, SetupHookError, SpecNotFoundError, UnknownRootError } from "../errors.js";
-import { branchExists, createBranch, remoteBranchExists } from "../git/branch.js";
+import { branchExists, createBranch, deleteBranch, rebaseOnto, remoteBranchExists } from "../git/branch.js";
 import { cliTrailers, findLatest, formatMessage, readTrailers } from "../git/commit.js";
 import { run } from "../git/exec.js";
 import { defaultBranch, mainRoot } from "../git/repo.js";
@@ -10,6 +11,8 @@ import { TYPE_DIRS } from "../spec/resolve.js";
 import type { Config, PlanStatus } from "../types.js";
 import { fetchPlanBranches, getPlanActivity, hasRemote, lenientFrontmatter, showFile } from "./activity.js";
 import { runSetupHook } from "./hooks.js";
+import { listStepFiles, parseStep } from "./parse.js";
+import { planDir } from "./resolve.js";
 
 export interface StartResult {
   planId: string;
@@ -224,18 +227,203 @@ export function startPlan(id: string, config: Config, root: string): StartResult
 }
 
 /** Claim commit on the default branch (architecture/reference-cli § Claim commits): sets `status: in_progress`. */
-function claimPlan(id: string, planPath: string, def: string, remote: boolean, main: string): void {
+function claimPlan(id: string, planPath: string, def: string, remote: boolean, main: string, status = "in_progress"): void {
   const file = path.join(main, planPath);
   const text = fs.readFileSync(file, "utf8");
   const end = text.indexOf("\n---", 3);
-  const head = text.slice(0, end).replace(/^status:.*$/m, "status: in_progress");
+  const head = text.slice(0, end).replace(/^status:.*$/m, `status: ${status}`);
   fs.writeFileSync(file, head + text.slice(end));
   const msg = formatMessage({
     type: "chore",
     scope: "specplane",
-    summary: `claim ${id} in_progress`,
+    summary: `claim ${id} ${status}`,
     trailers: cliTrailers("claim", id),
   });
   run("git", ["commit", "-F", "-", "--", planPath], { cwd: main, input: msg });
   if (remote) run("git", ["push", "origin", def], { cwd: main });
+}
+
+export interface FinishOptions {
+  /** Auto-confirm the local merge. */
+  yes?: boolean;
+  /** Asks the human to confirm the merge; absent means no human is available (unattended). */
+  confirm?: (question: string) => Promise<boolean>;
+}
+
+export interface FinishResult {
+  planId: string;
+  /** What happened at step 6: `merged`, `pushed` (pull_request), or `ready` (merge not performed). */
+  outcome: "merged" | "pushed" | "ready";
+  prUrl: string | null;
+  /** Human-readable lines for stderr (acceptance criteria, instructions). */
+  notices: string[];
+}
+
+/** Single forge call site (a later plan adds real PR creation); null means "no forge available". */
+function openPullRequest(_branch: string, _base: string, _title: string, _body: string): string | null {
+  return null;
+}
+
+function git(args: string[], cwd: string): string {
+  return run("git", args, { cwd }).trim();
+}
+
+function clean(cwd: string): boolean {
+  return (tryRun(["status", "--porcelain", "--untracked-files=no"], cwd) ?? "").trim() === "";
+}
+
+/** Run `plans.test_command` in `cwd` (output to stderr); throws on a non-zero exit. */
+function runTests(cmd: string, cwd: string): void {
+  const r = spawnSync(cmd, { cwd, shell: true, stdio: ["ignore", 2, 2] });
+  if (r.error || r.status !== 0) {
+    throw new PlanStateError(`Verification failed: \`${cmd}\` exited with code ${r.status ?? 1}. Fix failing tests before finishing.`);
+  }
+}
+
+/** Acceptance-criteria checklist lines of a PLAN.md body. */
+function acceptanceCriteria(text: string): string[] {
+  const m = /^#{1,6}\s+Acceptance criteria\s*$([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/im.exec(text);
+  return m ? m[1].split("\n").filter((l) => /^\s*(?:[-*]|\d+\.)\s/.test(l)).map((l) => l.trim()) : [];
+}
+
+/**
+ * `specplane plan finish <id>` (feature/plan-execution § Finish flow), run in the plan's checkout `root`.
+ * Every readiness check runs before the first write. Re-running after the final commit resumes at the merge.
+ */
+export async function finishPlan(id: string, config: Config, root: string, opts: FinishOptions = {}): Promise<FinishResult> {
+  const main = mainRoot(root);
+  const def = defaultBranch(main);
+  const remote = hasRemote(main);
+  const branch = `plan/${id}`;
+  const backend = config.execution.backend;
+  const merge = config.plans.merge;
+  const notices: string[] = [];
+  const frontmatterMode = config.plans.status_source === "frontmatter";
+
+  // 1. Readiness (no writes; fetch only updates remote-tracking refs).
+  const dir = planDir(id, config, root);
+  const cur = git(["rev-parse", "--abbrev-ref", "HEAD"], root);
+  if (cur !== branch) throw new PlanStateError(`Cannot finish: the checkout is on \`${cur}\`, not \`${branch}\`.`);
+  if (!clean(root)) throw new PlanStateError("Cannot finish: the working tree has uncommitted changes. Commit or stash them first.");
+  for (const f of listStepFiles(dir)) {
+    const s = parseStep(f).frontmatter;
+    if (s.status !== "done" && s.status !== "skipped") {
+      throw new PlanStateError(`Cannot finish: step ${String(s.step).padStart(2, "0")} is \`${s.status}\`.`);
+    }
+  }
+  if (merge === "local_merge" && backend === "external") {
+    throw new PlanStateError("Cannot finish: the `external` backend does not support `local_merge`.");
+  }
+  if (merge === "pull_request" && !remote) {
+    throw new PlanStateError("Cannot finish: `merge: pull_request` needs a remote `origin` to push to.");
+  }
+  if (remote) run("git", ["fetch", "origin", def], { cwd: main });
+  const tip = defaultTip(def, main);
+  const planHere = planAt("HEAD", id, config, root);
+  if (!planHere) throw new PlanNotFoundError(id);
+  if (config.plans.dependency_mode === "stack") {
+    for (const dep of planHere.depends_on) {
+      if (planAt(tip, dep, config, main)?.status !== "done") throw new PlanStateError(`Cannot finish: dependency \`${dep}\` is not done.`);
+    }
+  }
+  const alreadyDone = planHere.status === "done";
+  const planPath = `${config.plans.dir}/${id}/PLAN.md`;
+  const claimReview = frontmatterMode && backend !== "branch" && !alreadyDone && planAt(tip, id, config, main)?.status !== "review";
+  if (claimReview) {
+    const mainBranch = tryRun(["rev-parse", "--abbrev-ref", "HEAD"], main)?.trim();
+    if (mainBranch !== def) {
+      throw new PlanStateError(`Cannot claim plan \`${id}\`: the main checkout is on \`${mainBranch}\`, not \`${def}\`. Switch to \`${def}\` and run finish again.`);
+    }
+    if ((tryRun(["status", "--porcelain", "--", planPath], main) ?? "").trim() !== "") {
+      throw new PlanStateError(`Cannot claim plan \`${id}\`: \`${planPath}\` has uncommitted changes in the main checkout. Commit or discard them and run finish again.`);
+    }
+  }
+
+  // 2. Verify.
+  const testCmd = config.plans.test_command.trim();
+  if (!alreadyDone) {
+    if (testCmd !== "") runTests(testCmd, root);
+    const crit = acceptanceCriteria(fs.readFileSync(path.join(dir, "PLAN.md"), "utf8"));
+    if (crit.length > 0) notices.push(`Acceptance criteria (confirm before merging):\n${crit.map((c) => `  ${c}`).join("\n")}`);
+  }
+
+  // 3. Claim review (frontmatter mode).
+  if (claimReview) claimPlan(id, planPath, def, remote, main, "review");
+
+  // 4. Rebase onto the default branch (restack when stacked).
+  const rebaseTip = defaultTip(def, main);
+  const marker = findLatest(branch, "stack", root);
+  const stackBase = marker ? readTrailers(marker, root).get("Specplane-Stack-Base") : undefined;
+  const before = git(["rev-parse", "HEAD"], root);
+  rebaseOnto(rebaseTip, stackBase ?? rebaseTip, branch, root);
+  if (git(["rev-parse", "HEAD"], root) !== before && testCmd !== "") runTests(testCmd, root);
+
+  // 5. Final commit.
+  if (!alreadyDone) finalCommit(id, config, root);
+
+  // 6. Merge.
+  let outcome: FinishResult["outcome"];
+  let prUrl: string | null = null;
+  if (merge === "pull_request") {
+    run("git", ["push", "-u", "--force-with-lease", "origin", branch], { cwd: root });
+    prUrl = openPullRequest(branch, def, planHere.title, `Plan \`${id}\``);
+    notices.push(
+      prUrl ? `Opened pull request: ${prUrl}` : `Pushed \`${branch}\`. Open a pull request from \`${branch}\` into \`${def}\`, then run \`specplane plan cleanup ${id}\` after it merges.`,
+    );
+    outcome = "pushed";
+  } else {
+    const ok = opts.yes === true || (opts.confirm ? await opts.confirm(`Merge \`${branch}\` into \`${def}\` now?`) : false);
+    if (!ok) {
+      notices.push(`Plan \`${id}\` is ready to merge. Run \`specplane plan finish ${id}\` again to merge it.`);
+      return { planId: id, outcome: "ready", prUrl, notices };
+    }
+    localMerge(id, branch, def, remote, backend, main);
+    cleanupMerged(id, branch, config, backend, main);
+    outcome = "merged";
+  }
+  return { planId: id, outcome, prUrl, notices };
+}
+
+/** Step 5: `status: done`, archive when configured, one `finish` commit. */
+function finalCommit(id: string, config: Config, root: string): void {
+  const dir = `${config.plans.dir}/${id}`;
+  const file = path.join(root, dir, "PLAN.md");
+  const text = fs.readFileSync(file, "utf8");
+  const end = text.indexOf("\n---", 3);
+  fs.writeFileSync(file, text.slice(0, end).replace(/^status:.*$/m, "status: done") + text.slice(end));
+  git(["add", "--", `${dir}/PLAN.md`], root);
+  if (config.plans.archive_done) {
+    const dest = `${config.plans.dir}/archive/${id}`;
+    fs.mkdirSync(path.join(root, config.plans.dir, "archive"), { recursive: true });
+    git(["mv", dir, dest], root);
+  }
+  const msg = formatMessage({ type: "chore", scope: "specplane", summary: `finish ${id}`, trailers: cliTrailers("finish", id) });
+  run("git", ["commit", "-F", "-"], { cwd: root, input: msg });
+}
+
+/** Local merge in the main checkout (feature/plan-execution § Local merge). */
+function localMerge(id: string, branch: string, def: string, remote: boolean, backend: Config["execution"]["backend"], main: string): void {
+  const resume = `The done commit stays on \`${branch}\`; run \`specplane plan finish ${id}\` again after fixing it.`;
+  if (backend === "branch") {
+    // The main checkout is the plan checkout; it is clean after the final commit.
+    run("git", ["switch", def], { cwd: main });
+  }
+  const mainBranch = git(["rev-parse", "--abbrev-ref", "HEAD"], main);
+  if (mainBranch !== def) {
+    throw new PlanStateError(`Cannot merge plan \`${id}\`: the main checkout is on \`${mainBranch}\`, not \`${def}\`. Switch to \`${def}\`. ${resume}`);
+  }
+  if (!clean(main)) {
+    throw new PlanStateError(`Cannot merge plan \`${id}\`: the main checkout has uncommitted changes. Commit or stash them. ${resume}`);
+  }
+  if (tryRun(["merge-base", "--is-ancestor", def, branch], main) === null) {
+    throw new PlanStateError(`Cannot merge plan \`${id}\`: \`${def}\` moved after the rebase. Run \`specplane plan finish ${id}\` again to rebase.`);
+  }
+  run("git", ["merge", "--no-ff", "-m", `Merge ${branch}`, branch], { cwd: main });
+  if (remote) run("git", ["push", "origin", def], { cwd: main });
+}
+
+/** Step 7 after a local merge: remove the checkout and delete the branch (each only if still present). */
+function cleanupMerged(id: string, branch: string, config: Config, backend: Config["execution"]["backend"], main: string): void {
+  if (backend === "worktree" && listWorktrees(main).some((w) => w.branch === branch)) removeWorktree(id, config, {}, main);
+  if (branchExists(branch, main)) deleteBranch(branch, main);
 }

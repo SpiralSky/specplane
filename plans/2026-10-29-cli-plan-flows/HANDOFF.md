@@ -116,3 +116,36 @@ None.
 - CHOICE: claim preconditions (main checkout on the default branch, `PLAN.md` unchanged) and the branch-backend clean-tree check run before any write, with `PlanStateError` messages.
 - CHOICE: resume prints the restack hint on stderr when the stack marker's base plan is `done` on the default tip, and continues. The base ID is parsed from the marker subject.
 - CHOICE: `plan start` prints `Started|Resumed <id>`, `Worktree: <path>` or `Branch: <name>`, and `Next step: NN <title> (<status>)` on stdout.
+
+## Step 05: plan finish and local merge
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/plan/flows.ts`: `finishPlan` (async): readiness checks, `test_command`, acceptance-criteria notice, frontmatter `review` claim, rebase/restack via `rebaseOnto`, tests re-run when the rebase moved HEAD, final `finish` commit (done + archive), `pull_request` push and `local_merge` (`--no-ff`, push, cleanup). `claimPlan` takes a status.
+- `packages/cli/src/commands/plan.ts`, `cli.ts`: `plan finish <id> [--yes]`.
+- `packages/cli/src/plan/finish.test.ts`: 13 integration tests (Scenarios 4, 4a, 5, 5a; conflict; resume; bare origin and no remote; branch and external backends; frontmatter claim).
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- `feature/plan-execution` does not say what unattended `pull_request` finish does with the criteria confirmation; criteria are printed to stderr only.
+- `architecture/file-formats` §8.3 has no workflow for the merge commit.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+- CHOICE: the merge commit uses git's default style message `Merge plan/<id>` with no Specplane trailers (no workflow exists for it in §8.3).
+- CHOICE: without `--yes` and without a TTY, finish stops after the final commit and prints "ready to merge" (exit 0); a re-run resumes (a plan already `done` on HEAD skips tests, claim and final commit, but still rebases).
+- CHOICE: `cleanupMerged` in `flows.ts` is a private minimal cleanup (worktree removal without force, branch delete); step 06 should replace it with the shared `cleanup(id)`.
+- CHOICE: the branch backend skips the frontmatter `review` claim, since the main checkout is the plan checkout; `pull_request` without a remote `origin` fails before any write.
+- CHOICE: non-stacked plans rebase via `rebaseOnto(tip, tip, branch)`; the tip is `origin/<default>` when the local default branch is strictly behind it. The merge precondition is that local default is an ancestor of the plan branch.
+- CHOICE: "no uncommitted changes" checks ignore untracked files; PR creation is a single `openPullRequest` stub returning `null`.
