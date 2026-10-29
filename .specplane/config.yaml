@@ -18,6 +18,35 @@ specs:
       - Claude Code
       - GitHub
       - Mermaid
+      # Reviewed 2026-10-29 and accepted as fine: examples, user-visible fields, and Specplane's own layout
+      - SQLite
+      - JSON Schema
+      - $ref
+      - npm
+      - pip
+      - stored_status
+      - effective_status
+      - docs/OPEN-QUESTIONS.md
+      - docs/specifications/architecture/search.md
+      - docs/specifications/features/export.md
+      - docs/specifications/features/search.md
+      - docs/specifications/features/
+      - specifications/features/search.md
+      - features/overlays/extension.md
+      - features/plan-system.md
+      - features/export.md
+      - features/search.md
+      - feature/spec-policies.md
+      - harnesses/claude/specifications/features/claude-integration.md
+      - plans/2026-10-28-search-indexer/steps/02-graph-builder.md
+      - plans/archive/2026-10-28-search-indexer/
+      - plans/2026-10-28-search-indexer/
+      - plans/archive/
+      - docs/specifications/features/INFO.md
+      - plans/2026-10-28-search-indexer/HANDOFF.md
+      - src/types/spec.ts
+      - src/graph/
+      - src/parser/
   architecture:
     authorship: either        # either user or LLM may author
     llm_role: draft           # LLM may produce the initial draft
