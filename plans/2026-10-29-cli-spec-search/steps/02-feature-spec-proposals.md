@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-spec-search
 step: 2
 title: Feature-spec proposals for tooling, decisions, configuration, precedence
-status: pending
+status: done
 context:
   - spec: feature/tooling#`specplane spec`
   - spec: feature/tooling#`specplane plan`
@@ -19,8 +19,8 @@ Record the feature-spec review findings assigned to this plan as written proposa
 
 ## Acceptance criteria
 
-- [ ] `plans/2026-10-29-cli-spec-search/feature-spec-proposals.md` has one section per finding below, each with target, problem, proposed text, reason.
-- [ ] No file under `docs/specifications/features/` or `harnesses/*/specifications/features/` is modified (`git diff --stat` shows only the proposal file and plan files).
+- [x] `plans/2026-10-29-cli-spec-search/feature-spec-proposals.md` has one section per finding below, each with target, problem, proposed text, reason.
+- [x] No file under `docs/specifications/features/` or `harnesses/*/specifications/features/` is modified (`git diff --stat` shows only the proposal file and plan files).
 
 ## Tasks
 

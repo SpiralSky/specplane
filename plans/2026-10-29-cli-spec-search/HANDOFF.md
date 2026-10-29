@@ -30,3 +30,31 @@ None. (Feature text for `PlanStateError` start/finish failures was adopted verba
 ### What the next step must know
 
 Step 02: write the feature-spec proposals file.
+
+## Step 02: Feature-spec proposals for tooling, decisions, configuration, precedence
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- Added `plans/2026-10-29-cli-spec-search/feature-spec-proposals.md`: proposals (a1) `--no-fetch` on `plan list --live`, `plan start`, `plan finish`; (a2) `--type` difference between `spec list` and `search`; (b) ADR id/filename mismatch and `superseded_by` missing/unknown/cycle validation; (c) `worktree_dir` inside the repo and `spec_roots` missing/escaping errors; (d) numbered Rule 6 for "both silent". Each has target, current text, proposed text, reason.
+- No feature spec modified.
+
+### Deviations from the plan
+
+- CHOICE: "both silent" proposed as Rule 6 (appended) so Rules 1-5 references stay valid.
+- CHOICE: `--type` difference proposed as documentation, with `--kind` rename as an alternative.
+- CHOICE: proposed severities and message texts are suggestions, marked "Needs decision" where they add behaviour.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+- Feature-spec proposals need user review (needs user review); nothing applied.
+
+### What the next step must know
+
+`feature-spec-proposals.md` needs user review before any feature spec is edited; later steps must not depend on the proposed text being applied.
