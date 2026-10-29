@@ -152,14 +152,39 @@ export async function gateDenial(
   }
 }
 
+/**
+ * "Read HANDOFF" action. Interactive sessions fill the prompt; non-interactive
+ * ones (`claude -p`), or a fill that throws, copy the path instead.
+ * Returns which route was taken.
+ */
+export async function handoffAction(
+  $: any,
+  interactive: boolean,
+  path: string,
+  surface?: unknown,
+): Promise<'fill' | 'copy'> {
+  if (interactive) {
+    try {
+      await $.prompt.fill({ text: `Read ${path}` })
+      return 'fill'
+    } catch (err) {
+      logFailure('Read HANDOFF prompt fill', err)
+    }
+  }
+  await $.ui.copy({ text: path, surface })
+  return 'copy'
+}
+
 export const register: Register = on => {
   let pollRun = 0
+  let interactiveSession = true
   let sessionCwd = ''
   let currentPlanId: string | null = null
   let nextStepFile: string | null = null
 
   on('session.start', async ($, e, next) => {
     sessionCwd = e.cwd
+    interactiveSession = (e as any).isInteractive !== false
 
     await $.command.register({
       name: 'specplane',
@@ -481,11 +506,18 @@ export const register: Register = on => {
                   {plan.checkout && (
                     <Button
                       key={`read-${plan.id}`}
-                      label="Read HANDOFF"
-                      onPress={() =>
-                        $.prompt.fill({
-                          text: `Read ${plan.checkout}/HANDOFF.md`,
-                        })
+                      label={
+                        interactiveSession
+                          ? 'Read HANDOFF'
+                          : 'Copy HANDOFF path'
+                      }
+                      onPress={press =>
+                        handoffAction(
+                          $,
+                          interactiveSession,
+                          `${plan.checkout}/HANDOFF.md`,
+                          press?.surface,
+                        )
                       }
                     />
                   )}

@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { failureLog, gateDenial } from './hooks/register'
+import { failureLog, gateDenial, handoffAction } from './hooks/register'
 
 const PANE_EVENT = {
   plugin: 'specplane',
@@ -300,4 +300,60 @@ test('gate still denies when the mode read succeeds', async () => {
     async () => 'step',
   )
   expect(denial).toMatch(/outside/)
+})
+
+test('handoffAction fills the prompt in an interactive session', async () => {
+  const calls: any[] = []
+  const $ = {
+    prompt: { fill: async (a: any) => void calls.push(['fill', a.text]) },
+    ui: { copy: async (a: any) => void calls.push(['copy', a.text]) },
+  }
+  expect(await handoffAction($, true, '/r/HANDOFF.md')).toBe('fill')
+  expect(calls).toEqual([['fill', 'Read /r/HANDOFF.md']])
+})
+
+test('handoffAction copies the path when non-interactive', async () => {
+  const calls: any[] = []
+  const $ = {
+    prompt: { fill: async () => void calls.push(['fill']) },
+    ui: { copy: async (a: any) => void calls.push(['copy', a.text]) },
+  }
+  expect(await handoffAction($, false, '/r/HANDOFF.md')).toBe('copy')
+  expect(calls).toEqual([['copy', '/r/HANDOFF.md']])
+})
+
+test('handoffAction falls back to copy when the fill throws', async () => {
+  const calls: any[] = []
+  const logs: string[] = []
+  const orig = failureLog.write
+  failureLog.write = (m: string) => void logs.push(m)
+  const $ = {
+    prompt: { fill: async () => { throw new Error('no prompt') } },
+    ui: { copy: async (a: any) => void calls.push(['copy', a.text]) },
+  }
+  try {
+    expect(await handoffAction($, true, '/r/HANDOFF.md')).toBe('copy')
+  } finally {
+    failureLog.write = orig
+  }
+  expect(calls).toEqual([['copy', '/r/HANDOFF.md']])
+  expect(logs.length).toBe(1)
+})
+
+test('pane labels the button by session interactivity', async ($, on) => {
+  const fixture: any[] = [{
+    id: 'p', status: 'in_progress', branch: 'plan/p', checkout: '/repo',
+    steps: { total: 1, done: 0, skipped: 0, blocked: 0, next: null },
+    blocked_issues: [], last_step_commit: null, ahead_of_remote: null,
+  }]
+  on('state.get', (_: any, e: any) => ({
+    value: { value: e?.key === 'expandedId' ? 'p' : fixture, version: 1 },
+  }))
+  stubSession(on)
+  on('session.start', (_: any, e: any) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: false })
+  const ui = await $.ui.mount({ ...PANE_EVENT, surface: 'terminal' })
+  const btn = await ui.find({ type: 'Button', label: /Copy HANDOFF path/ })
+  expect(btn).not.toBe(null)
+  await ui.unmount()
 })
