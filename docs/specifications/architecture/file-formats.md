@@ -1,7 +1,7 @@
 ---
 id: architecture/file-formats
 title: "File formats: frontmatter schemas, naming, markdown conventions, and templates"
-status: draft
+status: approved
 author: llm
 implements: [feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions]
 ---

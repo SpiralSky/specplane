@@ -1,7 +1,7 @@
 ---
 id: feature/decisions
 title: "Architecture Decision Records (ADRs)"
-status: review
+status: approved
 author: mixed
 ---
 

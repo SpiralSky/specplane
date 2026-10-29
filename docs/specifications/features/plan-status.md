@@ -1,7 +1,7 @@
 ---
 id: feature/plan-status
 title: "Plan status model: stored vs. derived statuses and status sources"
-status: review
+status: approved
 author: mixed
 ---
 

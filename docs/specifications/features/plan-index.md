@@ -1,7 +1,7 @@
 ---
 id: feature/plan-index
 title: "PLANS.md: plan index generation"
-status: review
+status: approved
 author: mixed
 ---
 

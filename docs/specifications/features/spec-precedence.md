@@ -1,7 +1,7 @@
 ---
 id: feature/spec-precedence
 title: Implementation precedence and gap/contradiction handling
-status: review
+status: approved
 author: mixed
 ---
 

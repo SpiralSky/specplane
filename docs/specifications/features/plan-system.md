@@ -1,7 +1,7 @@
 ---
 id: feature/plan-system
 title: "Plan system: layout, IDs, PLAN.md, and dependencies"
-status: review
+status: approved
 author: mixed
 ---
 

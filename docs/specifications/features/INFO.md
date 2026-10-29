@@ -6,19 +6,19 @@ This folder contains the feature specifications for the Specplane framework. Fea
 
 | ID | Title | Status |
 |----|-------|--------|
-| `feature/spec-system` | Spec system: roots, types, frontmatter, lifecycle, IDs | review |
-| `feature/spec-policies` | Spec policies: authorship, ordering, architecture-leak guard | review |
-| `feature/spec-precedence` | Implementation precedence and gap/contradiction handling | review |
-| `feature/spec-overlays` | Overlay spec roots: namespacing, extension, validation | review |
-| `feature/configuration` | Configuration schema and defaults | review |
-| `feature/plan-system` | Plan system: layout, IDs, PLAN.md, dependencies | review |
-| `feature/plan-status` | Plan status model: stored vs. derived, status sources | review |
-| `feature/plan-steps` | Step context contract and HANDOFF.md | review |
-| `feature/plan-index` | PLANS.md generation | review |
-| `feature/plan-execution` | Execution backends, start/finish flows, merging, stacking | review |
-| `feature/tooling` | CLI behaviour | review |
-| `feature/agent-integration` | AGENTS.md, skills, policy enforcement | review |
-| `feature/decisions` | Architecture decision records (ADRs) | review |
+| `feature/spec-system` | Spec system: roots, types, frontmatter, lifecycle, IDs | approved |
+| `feature/spec-policies` | Spec policies: authorship, ordering, architecture-leak guard | approved |
+| `feature/spec-precedence` | Implementation precedence and gap/contradiction handling | approved |
+| `feature/spec-overlays` | Overlay spec roots: namespacing, extension, validation | approved |
+| `feature/configuration` | Configuration schema and defaults | approved |
+| `feature/plan-system` | Plan system: layout, IDs, PLAN.md, dependencies | approved |
+| `feature/plan-status` | Plan status model: stored vs. derived, status sources | approved |
+| `feature/plan-steps` | Step context contract and HANDOFF.md | approved |
+| `feature/plan-index` | PLANS.md generation | approved |
+| `feature/plan-execution` | Execution backends, start/finish flows, merging, stacking | approved |
+| `feature/tooling` | CLI behaviour | approved |
+| `feature/agent-integration` | AGENTS.md, skills, policy enforcement | approved |
+| `feature/decisions` | Architecture decision records (ADRs) | approved |
 
 ## Conventions
 

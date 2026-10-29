@@ -1,7 +1,7 @@
 ---
 id: feature/spec-system
 title: "Spec system: roots, types, frontmatter, lifecycle, and IDs"
-status: review
+status: approved
 author: mixed
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: feature/spec-policies
 title: "Spec policies: authorship, ordering, and the architecture-leak guard"
-status: review
+status: approved
 author: mixed
 ---
 

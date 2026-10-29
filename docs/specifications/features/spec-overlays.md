@@ -1,7 +1,7 @@
 ---
 id: feature/spec-overlays
 title: "Overlay spec roots: namespacing, extension, and validation"
-status: review
+status: approved
 author: mixed
 ---
 

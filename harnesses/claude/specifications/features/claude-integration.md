@@ -1,7 +1,7 @@
 ---
 id: feature/claude-integration
 title: Claude Code integration
-status: review
+status: approved
 author: mixed
 extends: [feature/agent-integration, feature/plan-steps, feature/spec-policies]
 based_on: { feature/agent-integration: f0f762c, feature/plan-steps: c8cd747, feature/spec-policies: 9cfa4b8 }
