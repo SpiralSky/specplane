@@ -45,3 +45,29 @@ None.
 
 ### What the next step must know
 `plans/2026-10-29-cli-plan-commands/feature-spec-proposals.md` needs user review; until accepted, implement `plan abandon` and stack-mode status as the architecture spec and current feature text allow, and record choices.
+
+## Step 03: git/commit.ts, branch queries, worktree listing
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/git/commit.ts`: `formatMessage`, `cliTrailers`, `readTrailers`, `findLatest`, `Trailers` type.
+- `packages/cli/src/git/branch.ts`: `branchExists`, `remoteBranchExists`.
+- `packages/cli/src/git/worktree.ts`: `listWorktrees`, `parseWorktreeList`, `worktreePath`.
+- `packages/cli/src/errors.ts`: `CommitFormatError` (exit 1).
+- `packages/cli/src/git/commit.test.ts`: tests on temp repos; `npm test` passes (140).
+
+### Deviations from the plan
+None.
+
+### Gaps found in specs
+- CHOICE: git helpers take an optional trailing `cwd` (default `process.cwd()`), matching `git/repo.ts`, so tests and worktree callers can target a repo.
+- CHOICE: `formatMessage` puts known `Specplane-*` keys in §8.2 order, then any other trailer (e.g. `Co-Authored-By`) after, in insertion order.
+- CHOICE: `cliTrailers` takes an optional `env` argument for testability.
+
+### Open issues
+None.
+
+### What the next step must know
+`createBranch`, `deleteBranch`, `rebaseOnto`, `createWorktree`, `removeWorktree` are not implemented (plan-flows plan). `listWorktrees` returns the main checkout first.
