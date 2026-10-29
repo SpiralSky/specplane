@@ -105,7 +105,7 @@ export const ADR_SCHEMA = {
 
 const enumOf = (...values: string[]) => ({ type: "string", enum: values });
 const authorship = enumOf("user", "llm", "either");
-const llmRole = enumOf("assist", "draft", "none");
+const llmRole = enumOf("review", "assist", "draft", "none");
 
 export const CONFIG_SCHEMA = {
   type: "object",

@@ -1,0 +1,5 @@
+specs:
+  feature:
+    llm_role: review
+  architecture:
+    llm_role: review

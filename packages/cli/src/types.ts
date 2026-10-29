@@ -6,7 +6,7 @@ export type PlanStatus = "draft" | "ready" | "in_progress" | "review" | "done" |
 export type StepStatus = "pending" | "done" | "skipped" | "blocked";
 export type AdrStatus = "proposed" | "accepted" | "superseded" | "deprecated";
 export type Authorship = "user" | "llm" | "either";
-export type LlmRole = "assist" | "draft" | "none";
+export type LlmRole = "review" | "assist" | "draft" | "none";
 
 export interface SpecRootConfig {
   name: string;

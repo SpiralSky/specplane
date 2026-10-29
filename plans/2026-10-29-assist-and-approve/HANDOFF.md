@@ -35,3 +35,33 @@ None. No `based_on` pin references the edited specs, so the "re-pin dependants" 
 - `llm_role: review` must be accepted by the schema in `packages/cli/src/schemas.ts`; the spec now lists it in §7.1.
 - The guard spec (step 05) requires the approval check to run **before** the "not a spec → exit 0" early return, and to inspect `Write.content`, `MultiEdit.edits[].new_string`, and `Edit.new_string`.
 - `--dry-run` and the PLANS.md regeneration are agent-spec assumptions (G1, G2), not feature-spec text; steps 03 and 04 implement them.
+
+## Step 02: The review role in config, validation, init, and standing instructions
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/schemas.ts`, `packages/cli/src/types.ts`: `llm_role` is now `review | assist | draft | none` for both spec types; `LlmRole` gained `review`.
+- `packages/cli/src/commands/init.ts`: the generated config comments read `# review | assist | draft | none`; the defaults are unchanged (`assist` feature, `draft` architecture).
+- `packages/cli/src/agents/standing.ts` and the three delivery copies (`AGENTS.md` block, `.claude/rules/specplane.md`, `harnesses/claude/templates/rules/specplane.md`): the Authorship bullet now defines `review`, describes refine-then-write `assist`, and states that approval is set by the human, never by editing a file.
+- `packages/cli/src/config.test.ts` plus fixtures `review-role` and `bad-llm-role`: `review` is accepted for both types, an unknown value fails with `review, assist, draft, none` listed.
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+- The `llm_role: review` values are now accepted, but the policy guard still maps only `assist`; step 05 adds `review` and the approval check.
+
+### What the next step must know
+
+- Approved specs are still editable on a plan branch without changing `status`; the CLI commands for approval do not exist yet (step 03/04), so nothing can currently set `approved` through the CLI.
+- `npm test` is 230/230 in the worktree; `packages/cli/node_modules` was installed with `npm ci` there (the fresh worktree had none).
+- `specplane init --harness claude` reports every file up to date and `check-sync.sh` is OK after the standing-text change; the Workflows line still lists only the six existing commands — step 05 extends it with the five new ones.
