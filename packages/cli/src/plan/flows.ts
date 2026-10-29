@@ -11,6 +11,7 @@ import { createWorktree, listWorktrees, removeWorktree } from "../git/worktree.j
 import { TYPE_DIRS } from "../spec/resolve.js";
 import type { Config, PlanStatus } from "../types.js";
 import { fetchPlanBranches, getPlanActivity, hasRemote, lenientFrontmatter, showFile } from "./activity.js";
+import { formatOpenGaps, parseGaps } from "./gaps.js";
 import { runSetupHook } from "./hooks.js";
 import { listStepFiles, parseStep } from "./parse.js";
 import { listPlans, planDir } from "./resolve.js";
@@ -355,6 +356,11 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     if (testCmd !== "") runTests(testCmd, root);
     const crit = acceptanceCriteria(fs.readFileSync(path.join(dir, "PLAN.md"), "utf8"));
     if (crit.length > 0) notices.push(`Acceptance criteria (confirm before merging):\n${crit.map((c) => `  ${c}`).join("\n")}`);
+    const gapsFile = path.join(dir, "spec-gaps.md");
+    if (fs.existsSync(gapsFile)) {
+      const open = formatOpenGaps(parseGaps(gapsFile).entries);
+      if (open.length > 0) notices.push(`Open spec gaps:\n${open.map((g) => `  ${g}`).join("\n")}`);
+    }
   }
 
   // 3. Claim review (frontmatter mode).

@@ -108,6 +108,20 @@ test("finish: --no-fetch skips the fetch; pushes and merges still happen", () =>
   assert.equal(git(r.origin, "rev-parse", "main"), git(r.root, "rev-parse", "main"), "merged commit pushed");
 });
 
+test("finish: lists open spec-gaps entries without blocking", () => {
+  const r = repo();
+  fs.writeFileSync(
+    path.join(r.co, "plans", A, "spec-gaps.md"),
+    "# Spec gaps — " + A + "\n\n## G1: missing text\n\n**Kind**: assumption\n**Step**: 1\n**Case**: no message for X\n**Resolution**: used Y\n**Target spec**: `feature/x`\n**Status**: open\n\n## G2: settled\n\n**Kind**: gap\n**Step**: 1\n**Case**: Z\n**Resolution**: done\n**Target spec**: `feature/x`\n**Status**: applied\n",
+  );
+  git(r.co, "add", "-A");
+  git(r.co, "commit", "-q", "-m", "gaps");
+  const res = fin(r, "--yes");
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.err, /Open spec gaps:\n  G1 \(assumption, feature\/x\): no message for X/);
+  assert.doesNotMatch(res.err, /G2/, "only open entries are listed");
+});
+
 test("finish: step not done stops with no writes (Scenario 5a)", () => {
   const r = repo({ steps: ["done", "blocked"] });
   const head = sha(r.co, "HEAD");

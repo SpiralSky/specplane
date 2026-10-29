@@ -8,6 +8,7 @@ import { findHeading } from "../spec/slug.js";
 import { resolveSpecId } from "../spec/resolve.js";
 import type { Config, Finding, PlanFrontmatter, ValidationReport } from "../types.js";
 import { buildGraph, detectCycle } from "./graph.js";
+import { parseGaps } from "./gaps.js";
 import { listStepFiles, parsePlan, parseStep } from "./parse.js";
 import type { PlanRecord } from "./resolve.js";
 
@@ -123,9 +124,16 @@ export function validatePlans(
           at("warning", "reference", file, `Context file \`${item.file}\` does not exist (it may not exist yet).`);
         }
       }
-      if (step.status === "skipped" || step.status === "blocked") {
-        if (!(handoff.get(step.step) ?? []).includes(step.status)) {
+      const outcomes = handoff.get(step.step) ?? [];
+      if (outcomes.length === 0) {
+        if (step.status === "skipped" || step.status === "blocked") {
           at("error", "step", file, `Step ${step.step} is \`${step.status}\` but HANDOFF.md has no \`## Step ${String(step.step).padStart(2, "0")}\` section with \`**Outcome**: ${step.status}\`.`);
+        }
+      } else {
+        // Repeated sections: only the latest one is authoritative (file-formats §4.1).
+        const latest = outcomes[outcomes.length - 1];
+        if (latest !== step.status) {
+          at("error", "step", file, `Step ${step.step} is \`${step.status}\` but the latest HANDOFF.md \`## Step ${String(step.step).padStart(2, "0")}\` section has \`**Outcome**: ${latest}\`.`);
         }
       }
     }
@@ -135,6 +143,28 @@ export function validatePlans(
     }
     for (const [n, files] of numbers) {
       if (files.length > 1) at("error", "step", path.join(p.dir, "steps", files[0]), `Duplicate step number ${n}: ${files.join(", ")}.`);
+    }
+
+    // spec-gaps.md (optional; a feature-spec-proposals.md is left alone).
+    const gapsFile = path.join(p.dir, "spec-gaps.md");
+    if (fs.existsSync(gapsFile)) {
+      const { entries, problems } = parseGaps(gapsFile);
+      for (const problem of problems) {
+        out.push(finding(problem.severity, "schema", rel(gapsFile), problem.message, { plan: p.id, ...(problem.line ? { line: problem.line } : {}) }));
+      }
+      for (const gap of entries) {
+        if (gap.step !== null && !numbers.has(gap.step)) {
+          out.push(finding("error", "reference", rel(gapsFile), `spec-gaps.md: G${gap.n} Step ${gap.step} is not a step of this plan.`, { plan: p.id, line: gap.line }));
+        }
+        for (const target of gap.targets) {
+          try {
+            resolveSpecId(target, config, undefined, root);
+          } catch (e) {
+            if (!(e instanceof SpecplaneError || isParseError(e))) throw e;
+            out.push(finding("warning", "reference", rel(gapsFile), `spec-gaps.md: G${gap.n} Target spec \`${target}\` does not resolve: ${e.message}`, { plan: p.id, line: gap.line }));
+          }
+        }
+      }
     }
   }
 

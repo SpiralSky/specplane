@@ -98,3 +98,33 @@ None in this step. The stale-pin integration failure remains, deferred to step 0
 - Step 04 (`spec-gaps.md` in the CLI) has no code overlap with this step: it adds `plan/gaps.ts`, the latest-section HANDOFF check, and the finish-flow listing.
 - Rebase behaviour split: `rebaseOnto(..., { onConflict: "leave" })` is used only by restack; finish relies on the default abort.
 - `abandonPlan` no longer cleans up on a second run; any code that re-ran abandon for cleanup must use `git branch -D` (see G4).
+
+## Step 04: spec-gaps.md parsing, validation, and finish-flow listing
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- New `packages/cli/src/plan/gaps.ts`: `parseGaps(file)` returns `{ entries, problems }` for `spec-gaps.md` per `architecture/file-formats` §4.2 (`GapEntry` with `{ n, caseTitle, kind, step, case, resolution, targets, status, line }`), plus `formatOpenGaps` for the finish listing.
+- `packages/cli/src/plan/validate.ts`: the HANDOFF check now compares only the latest `## Step NN` section's `**Outcome**` with the step status for every step that has a section (repeated sections for re-run `blocked` steps are accepted); the no-section error remains for `skipped`/`blocked`. Every `<plan dir>/spec-gaps.md` is validated: heading, field order/presence, `Kind`, `Status`, ascending unique `G<n>`, `Step` being a step of the plan, and unresolved `Target spec` IDs as warnings. A `feature-spec-proposals.md` is not read.
+- `packages/cli/src/plan/flows.ts`: the finish flow lists open entries before merging as `G<n> (<kind>, <target specs>): <case>` under "Open spec gaps:"; they never stop the flow and the heading is omitted when there are none.
+- Tests: repeated HANDOFF sections (latest wins, earlier `blocked` accepted), valid/invalid `spec-gaps.md` (heading, missing fields, kind, status, step, target, ordering), an archived plan with only `feature-spec-proposals.md`, and the finish listing.
+
+### Deviations from the plan
+
+- Acceptance criterion 5 (`npm test` passes) is not ticked: 227/228 pass; the only failure is the pre-existing stale pins on `claude:architecture/claude-integration`, deferred to step 05 since step 01.
+- `parseGaps` returns findings alongside entries instead of only `GapEntry[]`, so `validate` can report every problem rather than throwing on the first.
+
+### Gaps found in specs
+
+None. The §4.2 texts cover the new checks; the two messages the spec leaves open (invalid `Kind`/`Status`, non-numeric `Step`) follow the same `spec-gaps.md: G<n> ...` pattern.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+- Step 05 edits `architecture/agent-skills` and `claude:architecture/claude-integration`, both in `review`: it must re-pin `claude:architecture/claude-integration` (the stale pins deferred since step 01) and sync `.claude/`. `spec pin --check` is expected to go green there.
+- Skills and standing instructions must write `spec-gaps.md` entries (`## G<n>: <case>` with the six fields) and must stop mentioning `feature-spec-proposals.md` as the current format.

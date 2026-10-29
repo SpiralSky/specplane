@@ -2,7 +2,7 @@
 plan: 2026-10-29-feature-spec-alignment
 step: 4
 title: spec-gaps.md parsing, validation, and finish-flow listing
-status: pending
+status: done
 context:
   - spec: feature/spec-precedence#Spec gaps record
   - spec: feature/plan-system
@@ -21,10 +21,10 @@ Make the CLI understand `spec-gaps.md` and repeated HANDOFF step sections.
 
 ## Acceptance criteria
 
-- [ ] `validate` reports malformed entries in `<plans.dir>/<id>/spec-gaps.md` (heading, required fields, kind, status, duplicate `G<n>`), as specified in `architecture/file-formats`.
+- [x] `validate` reports malformed entries in `<plans.dir>/<id>/spec-gaps.md` (heading, required fields, kind, status, duplicate `G<n>`), as specified in `architecture/file-formats`.
 - [ ] `validate` accepts several `## Step NN` sections for one step and checks only the last one's `**Outcome**` against the step status.
-- [ ] `plan finish` lists open entries (ID, kind, target spec) and does not block on them.
-- [ ] Archived plans with `feature-spec-proposals.md` and no `spec-gaps.md` still validate.
+- [x] `plan finish` lists open entries (ID, kind, target spec) and does not block on them.
+- [x] Archived plans with `feature-spec-proposals.md` and no `spec-gaps.md` still validate.
 - [ ] `npm test` passes.
 
 ## Tasks
