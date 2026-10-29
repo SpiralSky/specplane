@@ -7,7 +7,7 @@
   "engines": { "node": ">=22" },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "start": "node dist/cli.js"
   },
