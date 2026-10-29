@@ -362,7 +362,7 @@ depends_on: []
 - All `context[].spec` values must resolve to a known spec ID (warning if spec is `draft`). A value may carry a `#<heading>` anchor (e.g. `architecture/reference-cli#Config loading`). The anchor matches the first H2/H3 heading whose text — compared case-insensitively, with inline code markup and any leading section number (such as `5.` or `3.2`) removed — equals the anchor or begins with the anchor followed by a space. An anchor that matches no heading is a warning.
 - All `context[].decision` values must be ADR IDs (`decision/NNNN`) that resolve to an ADR in the configured decisions directory (`decisions.dir`).
 - All `context[].file` values: paths that do not exist at validation time produce a warning (the file may not exist yet).
-- A step with `status: skipped` or `status: blocked` must have a HANDOFF.md section for that step.
+- A step with `status: skipped` or `status: blocked` must have a HANDOFF.md section for that step whose latest section's `**Outcome**` equals the status (§4.1). A step with `status: done` whose latest section has a different `**Outcome**` is an error.
 
 ### 3.3 Step file body sections
 
@@ -434,7 +434,7 @@ None. | <Description of deviations.>
 
 ### Gaps found in specs
 
-None. | - Gap: `<spec-id>` does not specify <X>. Used <source> instead.
+None. | - G<n> (<kind>): <one-line summary>. See `spec-gaps.md`.
 
 ### Open issues
 
@@ -447,7 +447,33 @@ None. | - <Description of open issue.>
 
 The "None." token is used when a section has nothing to report. All sections are required.
 
-`**Outcome**` must equal the step's frontmatter `status` in the same commit. For `skipped`, "What changed" is "None." and "Deviations from the plan" states why the step was skipped. For `blocked`, "Open issues" contains at least one `BLOCKED:` item. When a blocked step is later resumed, a new section with the same heading is appended; earlier sections are never edited.
+For `skipped`, "What changed" is "None." and "Deviations from the plan" states why the step was skipped. For `blocked`, "Open issues" contains at least one `BLOCKED:` item. "Gaps found in specs" lists one line per `spec-gaps.md` entry (§4.2) the step added, by ID.
+
+**Repeated sections.** When a `blocked` step is run again and ends, a new section with the same `## Step NN: <step title>` heading is appended; earlier sections are never edited. A step may therefore have several sections. The **latest** section for a step (the last one in the file with that step number) is authoritative: its `**Outcome**` must equal the step's frontmatter `status` in the same commit. Earlier sections may have any outcome; an earlier `blocked` section stays as the record of why the step stopped.
+
+### 4.2 spec-gaps.md
+
+`<plans.dir>/<plan-id>/spec-gaps.md` records the plan's spec gaps, assumptions, and proposed spec edits (`feature/spec-precedence` § Spec gaps record). It is optional: the first step that records an entry creates it, and it moves with the plan when archived. Steps append entries and may change only an entry's `**Status**` afterwards.
+
+```markdown
+# Spec gaps — <plan-id>
+
+## G1: <short case>
+
+**Kind**: gap | assumption | proposal
+**Step**: NN
+**Case**: <what the specs do not cover>
+**Resolution**: <what the implementer did; for a proposal, the proposed text>
+**Target spec**: `<spec-id>`[, `<spec-id>`…]
+**Status**: open | applied | rejected
+```
+
+Rules:
+
+- Entry headings are `## G<n>: <case>`, with `n` a positive integer. Numbers are unique within the file and never reused; a declined entry keeps its number with `**Status**: rejected`. Entries appear in ascending number order; gaps in the sequence are allowed.
+- All six fields are required, one per line, in the order shown. `**Kind**` and `**Status**` take exactly one of the listed values. `**Step**` names an existing step of the plan. `**Target spec**` lists one or more spec IDs; IDs that do not resolve produce a warning.
+- Entries are added with `**Status**: open`. Open entries never block a step or the finish flow; the finish flow lists them.
+- Archived plans may instead have a `feature-spec-proposals.md` (the format before `spec-gaps.md`); it is left as is and not validated.
 
 ---
 
@@ -542,9 +568,12 @@ The output is deterministic: generating twice from the same commit produces byte
 
 ### 6.2 ADR validation rules
 
-- `id` must equal `decision/` plus the four-digit filename prefix (e.g. `decision/0002` for `0002-reference-cli-language.md`).
+- `id` must equal `decision/` plus the four-digit filename prefix (e.g. `decision/0002` for `0002-reference-cli-language.md`). A mismatch is an error: "ADR file `0003-cache-policy.md` has id `decision/0004`; the id number must match the filename."
 - Two ADR files with the same number are an error: "Duplicate ADR number `0003`: `0003-a.md`, `0003-b.md`. Renumber the later one." Numbers are chosen sequentially, so ADRs created on parallel branches can collide without a git conflict; this check (run on pull requests by CI) is what surfaces the collision before merge.
-- `status: superseded` requires a non-empty `superseded_by` that resolves to an existing ADR; a non-empty `superseded_by` requires `status: superseded`.
+- `status: superseded` with an empty or missing `superseded_by` is an error: "ADR `decision/0002` is superseded but has no `superseded_by`."
+- A `superseded_by` that does not name an existing ADR is an error: "ADR `decision/0002` is superseded by unknown ADR `decision/0009`."
+- A non-empty `superseded_by` on an ADR whose status is not `superseded` is a warning: "ADR `decision/0002` has `superseded_by` but status `accepted`."
+- Following `superseded_by` links from any ADR must not return to an ADR already in the chain (including an ADR superseded by itself). A cycle is reported once, as an error starting from its lowest-numbered ADR: "Supersession cycle: `decision/0002` -> `decision/0005` -> `decision/0002`."
 - `related_specs` entries that do not resolve produce a warning.
 
 ### 6.3 ADR template
