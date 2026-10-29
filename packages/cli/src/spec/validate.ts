@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { FrontmatterError, FrontmatterMissingError, SpecplaneError } from "../errors.js";
 import { readFrontmatter } from "../frontmatter.js";
+import { ID_PATTERN } from "../schemas.js";
 import { finding, makeReport } from "../report.js";
 import type { Config, Finding, SpecFrontmatter, SpecRootConfig, ValidationReport } from "../types.js";
 import { checkArchitectureLeak } from "./leak-guard.js";
@@ -89,7 +90,7 @@ function statusOf(file: string): string | undefined {
   }
 }
 
-const ANCHOR_REF = /(?<![\w/:#-])(?:[a-z][a-z0-9-]*:)?(?:feature|architecture)\/[a-z0-9][a-z0-9/-]*[a-z0-9]#([a-z0-9_-]+)/g;
+const ANCHOR_REF = new RegExp(`(?<![\\w/:#-])(?:[a-z][a-z0-9-]*:)?${ID_PATTERN.slice(1, -1).replace("(feature|", "(?:feature|")}#([a-z0-9_-]+)`, "g");
 
 /** Warn for `<id>#<slug>` references in the body whose slug matches no heading of the target. */
 export function checkBodyAnchors(spec: LoadedSpec, config: Config, repoRoot: string): Finding[] {
@@ -153,6 +154,16 @@ export function validateSpec(spec: LoadedSpec, config: Config, repoRoot: string)
     }
   };
 
+  const checkDeprecated = (ref: string, file: string) => {
+    try {
+      if (readFrontmatter(file).data.status === "deprecated") {
+        at("warning", "reference", `\`${fm.id}\` references deprecated spec \`${ref.split("#")[0]}\`.`);
+      }
+    } catch {
+      /* unreadable target is reported by its own validation */
+    }
+  };
+
   // 1. ID matches path-derived ID.
   if (fm.id !== spec.id) at("error", "id", `ID \`${fm.id}\` does not match path-derived ID \`${spec.id}\`.`);
 
@@ -166,7 +177,10 @@ export function validateSpec(spec: LoadedSpec, config: Config, repoRoot: string)
     for (const ref of fm.implements ?? []) {
       const r = resolve(ref, spec.root.name);
       if (r instanceof Error) at("error", "reference", `\`implements\` entry \`${ref}\` does not resolve: ${r.message}`);
-      else checkAnchor(ref, r.path);
+      else {
+        checkAnchor(ref, r.path);
+        checkDeprecated(ref, r.path);
+      }
     }
   }
 
@@ -185,7 +199,10 @@ export function validateSpec(spec: LoadedSpec, config: Config, repoRoot: string)
     }
     const r = resolve(ref, spec.root.extends);
     if (r instanceof Error) at("error", "reference", `\`extends\` entry \`${ref}\` does not resolve in the extends chain of root \`${spec.root.name}\`: ${r.message}`);
-    else checkAnchor(ref, r.path);
+    else {
+      checkAnchor(ref, r.path);
+      checkDeprecated(ref, r.path);
+    }
   }
 
   // 6. Shadowing.

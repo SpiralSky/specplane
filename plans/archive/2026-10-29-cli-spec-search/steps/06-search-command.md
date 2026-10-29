@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-spec-search
 step: 6
 title: search command
-status: pending
+status: done
 context:
   - spec: feature/tooling#`specplane search <text>`
   - spec: feature/tooling#Acceptance scenarios
@@ -18,11 +18,11 @@ Implement full-text search over spec and plan files with frontmatter filters.
 
 ## Acceptance criteria
 
-- [ ] `specplane search "architecture-leak"` lists matching spec files with the matching line as a snippet (Scenario 5 in `feature/tooling`).
-- [ ] `--type spec|plan`, `--status`, `--root` filter the results; `--json` emits an array of `{path,id,type,status,line,snippet}`.
-- [ ] Matching is case-insensitive literal text; no matches exits 0 with no output.
-- [ ] Archived plans are searched; results are sorted by path then line (deterministic).
-- [ ] Tests cover each filter and JSON output.
+- [x] `specplane search "architecture-leak"` lists matching spec files with the matching line as a snippet (Scenario 5 in `feature/tooling`).
+- [x] `--type spec|plan`, `--status`, `--root` filter the results; `--json` emits an array of `{path,id,type,status,line,snippet}`.
+- [x] Matching is case-insensitive literal text; no matches exits 0 with no output.
+- [x] Archived plans are searched; results are sorted by path then line (deterministic).
+- [x] Tests cover each filter and JSON output.
 
 ## Tasks
 

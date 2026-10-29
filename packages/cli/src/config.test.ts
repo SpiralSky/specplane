@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import * as yaml from "js-yaml";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { DEFAULT_CONFIG, loadConfig } from "./config.js";
@@ -42,4 +44,11 @@ test("root extends cycle throws ConfigError", () => {
 
 test("malformed YAML throws ConfigError", () => {
   assert.throws(() => load("bad-yaml"), ConfigError);
+});
+
+test("DEFAULT_CONFIG equals the defaults table in feature/configuration", () => {
+  const spec = readFileSync(new URL("../../../docs/specifications/features/configuration.md", import.meta.url), "utf8");
+  const m = /## Full schema with defaults\s+```yaml\n([\s\S]*?)\n```/.exec(spec);
+  assert.ok(m, "defaults block not found in feature/configuration");
+  assert.deepEqual(yaml.load(m[1], { schema: yaml.JSON_SCHEMA }), DEFAULT_CONFIG);
 });

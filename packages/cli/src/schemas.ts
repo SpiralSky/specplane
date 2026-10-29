@@ -11,6 +11,9 @@ export function createAjv(): Ajv {
   return ajv;
 }
 
+/** Spec ID pattern (architecture/file-formats §1.1); the single source for schema and code. */
+export const ID_PATTERN = "^(feature|architecture)/[a-z0-9](?:[a-z0-9-]|/(?!/))*[a-z0-9]$";
+
 const strArray = { type: "array", items: { type: "string" } };
 
 export const SPEC_COMMON_SCHEMA = {
@@ -18,7 +21,7 @@ export const SPEC_COMMON_SCHEMA = {
   required: ["id", "title", "status", "author"],
   additionalProperties: true,
   properties: {
-    id: { type: "string", pattern: "^(feature|architecture)/[a-z0-9][a-z0-9/-]*[a-z0-9]$" },
+    id: { type: "string", pattern: ID_PATTERN },
     title: { type: "string", minLength: 1 },
     status: { type: "string", enum: ["draft", "review", "approved", "deprecated"] },
     author: { type: "string", enum: ["user", "llm", "mixed"] },

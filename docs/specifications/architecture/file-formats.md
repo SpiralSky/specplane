@@ -27,8 +27,8 @@ This spec defines the exact format of every Specplane file type, including JSON 
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^(feature|architecture)/[a-z0-9][a-z0-9/-]*[a-z0-9]$",
-      "description": "Path-derived spec ID. Immutable after creation."
+      "pattern": "^(feature|architecture)/[a-z0-9](?:[a-z0-9-]|/(?!/))*[a-z0-9]$",
+      "description": "Path-derived spec ID: the type prefix, then at least two characters from a-z, 0-9, hyphen, and single slashes; it starts and ends with a letter or digit and never contains //. Immutable after creation."
     },
     "title": { "type": "string", "minLength": 1 },
     "status": {
@@ -59,6 +59,8 @@ This spec defines the exact format of every Specplane file type, including JSON 
   }
 }
 ```
+
+ID pattern: after `feature/` or `architecture/` the ID has at least two characters, made of lowercase letters, digits, hyphens, and single `/` separators; it starts and ends with a letter or digit, and `//` is never allowed. Valid: `feature/search`, `architecture/plan-system`, `feature/a1`, `feature/group/sub-topic`. Invalid: `feature/a` (one character), `feature/a//b` (empty segment), `feature/-a` and `feature/a-` (hyphen at an end), `feature/Search` (uppercase).
 
 `based_on` values are written by `specplane spec pin` (`git rev-parse HEAD:<path>`, abbreviated to at least 7 hex characters). A pin is content-addressed, so it survives rebase and squash, and `git diff <pin> <current>` shows what changed in the base. Anchors: any spec ID in `extends`, `implements`, `supersedes`, or `based_on` may carry a section anchor `<id>#<heading-slug>`; the slug is the GitHub-style slug of a heading in the referenced spec (lowercase, punctuation removed, spaces to hyphens, `-1`, `-2` suffixes for duplicates). A `based_on` key is the ID without the anchor.
 

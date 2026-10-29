@@ -108,6 +108,8 @@ The default branch is `origin/HEAD` if set, otherwise `main`, otherwise `master`
 4. Check cross-field rules (duplicate root names, undeclared or cyclic root `extends`, `worktree_dir` inside the main checkout); violations throw `ConfigError`.
 5. Deep-merge with `DEFAULT_CONFIG` (arrays replace, objects merge).
 
+`DEFAULT_CONFIG` is a literal copy of the defaults in the "Full schema with defaults" table of `feature/configuration`, with no value computed or invented in code. A test must parse that table (or a fixture generated from it) and assert deep equality with `DEFAULT_CONFIG`, so the two cannot drift.
+
 Malformed YAML throws `ConfigError`. The CLI catches `ConfigError` at the command level, prints it to stderr, and exits 1.
 
 ---
@@ -156,6 +158,7 @@ Shadowing is prevented by validation (see below), so step 3 never has to choose 
 7. Authorship consistency (warnings) per `feature/spec-policies` §1.
 8. `extends` is a string or list; each entry is checked as in 5. `based_on` keys must appear in `extends` or `implements` (error otherwise). Pins are checked per § Base pins.
 9. Anchors: for each ID carrying `#<slug>`, the slug must match a heading slug in the referenced spec → warning type `anchor`.
+10. Deprecated references: each `implements` or `extends` entry that resolves to a spec with `status: deprecated` → warning type `reference`, message "`<id>` references deprecated spec `<ref>`."
 
 `validateSpecs(config, root): ValidationReport` runs `validateSpec` on every spec in every root, then:
 
@@ -204,9 +207,10 @@ Preprocessing: remove fenced code blocks (three or more backticks or tildes); re
 Heuristics (each match → warning):
 
 1. **Paths**: `(?<![\w/])(?:\.{1,2}/|/)?[\w.-]+(?:/[\w.-]+)+\.[a-z0-9]{1,5}\b` (at least one `/` and an extension, e.g. `src/foo.ts`, `/src/foo.ts`, `./a/b.py`), plus `(?<![\w/])\.?/?[\w.-]+/[\w./-]*/(?=\s|$|[`)])` for directory paths ending in `/`.
-2. **Technology names**: case-insensitive whole-word match against a built-in list (TypeScript, JavaScript, Python, Go, Rust, Java, C++, C#, Ruby, PHP, SQLite, PostgreSQL, MySQL, MongoDB, Redis, React, Vue, Angular, Express, FastAPI, Django, Next.js, npm, pip, cargo, Docker, Kubernetes).
+2. **Technology names**: case-insensitive whole-word match against a built-in list (TypeScript, JavaScript, Python, Go, Rust, Java, C++, C#, Ruby, PHP, SQLite, PostgreSQL, MySQL, MongoDB, Redis, React, Vue, Angular, Express, FastAPI, Django, Next.js, npm, pip, cargo, Docker, Kubernetes, JSON Schema).
 3. **Code identifiers**: `\b[a-z]+(?:[A-Z][a-z0-9]+)+\b` (camelCase), `\b(?:[A-Z][a-z0-9]+){2,}\b` (PascalCase with two or more words), `\b[a-z0-9]+(?:_[a-z0-9]+)+\b` (snake_case), `\$\w+`, and `\w+\(\)`.
-4. **Schema syntax**: lines matching `^\s*(?:type|\$ref|properties|required):` outside code blocks.
+4. **Bare file names**: `(?<![\w/.-])[\w-]+(?:\.[\w-]+)*\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|rb|php|json|yaml|yml|toml|sh|sql|html|css)\b` (names like `foo.ts` or `config.yaml` with no `/`), type `path`. Exclusions, applied after the allow-list removal: matches inside a Markdown link text or target; the Specplane file names in the built-in allow list; and names ending in `.md`, which are documentation, not code. Heuristic 1 takes precedence, so a match is not reported twice.
+5. **Schema syntax**: lines matching `^\s*(?:type|\$ref|properties|required):` outside code blocks.
 
 Each warning includes `type` (`path`, `tech_name`, `identifier`, `schema_syntax`), `line`, `match`, `message`.
 
@@ -362,6 +366,44 @@ Harness live views (for example `claude:architecture/claude-integration` § Live
 
 `--live` fetches `origin` at most once per invocation (`git fetch --quiet origin 'refs/heads/plan/*:refs/remotes/origin/plan/*'`), skipped with `--no-fetch` or when there is no remote. Without `--live`, these fields come from local refs only.
 
+## Spec, search, and init commands (`commands/spec.ts`, `commands/search.ts`, `commands/init.ts`)
+
+Each command module exports a function that registers its subcommands with commander and handlers that take parsed options and return a result object; `output/human.ts` and `output/json.ts` render it. Handlers load config through `loadConfig` and surface its warnings on stderr. Texts and options are those of `feature/tooling`.
+
+### `spec new <type> <slug>`
+
+Inputs: `type` (`feature` or `architecture`), `slug`, `--root` (default `base`), `--title`, `--implements`, `--extends` (comma-separated). Resolves the root path through `spec/resolve.ts`; the file is `<root-path>/features/<slug>.md` or `<root-path>/architecture/<slug>.md` (the ID is `<type>/<slug>`). Order of checks: type (`Unknown spec type `<type>`: expected `feature` or `architecture`.`), root (`UnknownRootError`), slug is kebab-case and the ID matches the pattern in `architecture/file-formats` §1.1, existence in the root and its extends chain (`AlreadyExistsError`: "Spec `<type>/<slug>` already exists."), then for architecture specs `--implements` ("Architecture spec needs `--implements`." when absent and no TTY or still empty after prompting). The title is prompted for when absent and a TTY is attached; without a TTY it defaults to the slug with hyphens replaced by spaces and the first letter capitalised. The file is written with `status: draft`, `author: user`, the given `implements` and `extends`, and an empty body; the command then prints `Created <path>` on stdout. Exit codes: 0 success, 1 any error above.
+
+### `spec list`
+
+Inputs: `--status`, `--type`, `--root`, `--json`. Reads every spec in every root (or the named one) through `spec/parse.ts`; a spec with invalid frontmatter is skipped from the list and reported on stderr. Rows are sorted by ID, then root. Human output is one row per spec in aligned columns `id`, `title`, `status`; `--json` prints an array of `{id, title, status, author, root}` on stdout. Exit 0, or 1 for `UnknownRootError`.
+
+### `spec show <id>`
+
+Resolves `id` (optionally `<root>:<id>` or `--root`) through `spec/resolve.ts` and prints the file unchanged to stdout. Errors: `SpecNotFoundError`, `AmbiguousIdError`, `UnknownRootError`. Exit 0 or 1.
+
+### `spec validate [<id>...]`
+
+Runs `validateSpec` on the named specs, or `validateSpecs` when none are named, and produces the report described in § Validation output format (human to stderr by default, `--json` on stdout). It does not run plan, ADR, freshness, or skill-drift checks; those belong to `validate`. Exit 0 when `valid`, otherwise 1; an unknown ID is a `SpecNotFoundError` (exit 1).
+
+### `search <text>`
+
+Module `commands/search.ts`. Inputs: `text`, `--type spec|plan`, `--status`, `--root`, `--json`. Candidate files are the spec files of the selected roots and the `PLAN.md` and step files under `plans.dir` (including `archive/`). The match is a case-insensitive literal substring test per line, with no regular-expression interpretation of `text`. `--status` and `--root` filter on frontmatter (a plan's status is its stored status); `--root` implies `--type spec`. Output: one block per file, in path order, giving the ID (or plan ID and step) and, per matching line, `<line>: <trimmed line>`; at most 3 snippets per file. `--json` prints an array of `{id, kind, path, root, status, matches: [{line, text}]}`. No matches: empty output (or `[]`) and exit 0. Exit 1 only for errors (an empty `text`, unknown root).
+
+### `init`
+
+Module `commands/init.ts`; `--harness <name>` selects an entry in the harness registry. Steps, in order, each reporting one line on stdout and never overwriting:
+
+1. `.specplane/config.yaml`: written from `DEFAULT_CONFIG` when absent (`Created .specplane/config.yaml`), otherwise `Skipped .specplane/config.yaml (exists)`. Later steps use the paths of the config now on disk.
+2. `INFO.md` in each of `<spec_roots[].path>/features/` and `<spec_roots[].path>/architecture/` for the base root only: `Created <path>` or `Skipped <path> (exists)`.
+3. `<plans.dir>/.gitkeep` when `<plans.dir>` is missing or empty: `Created`; otherwise nothing is reported.
+4. `AGENTS.md` through `upsertBlock`: `Created AGENTS.md`, `Updated AGENTS.md (appended Specplane block)`, `Updated AGENTS.md`, `Unchanged AGENTS.md`, or the malformed-block `Skipped` line (§ Standing instructions).
+5. The named or detected harness's files, each reported as `Created`, `Updated`, `Unchanged`, or `Skipped` by the harness module.
+
+Idempotence: a second run on an unchanged repository creates nothing and reports only `Skipped`/`Unchanged` lines, and exits 0. `init` outside a git repository throws `NotARepoError` (exit 1) and writes nothing.
+
+---
+
 ## Standing instructions (`agents/standing.ts`)
 
 Implements `architecture/agent-skills` § Standing instructions.
@@ -417,16 +459,21 @@ Exit code is `0` when `valid: true` (warnings do not affect exit code). Exit cod
 | Class | Message pattern | Exit code |
 |-------|----------------|-----------|
 | `ConfigError` | "Config key `<key>`: <reason>" | 1 |
-| `UnknownRootError` | "Unknown root `<name>`" | 1 |
-| `SpecNotFoundError` | "Spec `<id>` not found" | 1 |
+| `UnknownRootError` | "Unknown root `<name>`." | 1 |
+| `SpecNotFoundError` | "Spec `<id>` not found." | 1 |
+| `AlreadyExistsError` | "Spec `<id>` already exists." or "Plan `<id>` already exists. Choose a different slug." | 1 |
 | `AmbiguousIdError` | "Ambiguous ID `<id>`: found in roots `<a>`, `<b>`. Use `<root>:<id>`." | 1 |
 | `FrontmatterError` | "`<file>`: <schema violation>" | 1 |
 | `FrontmatterMissingError` | "`<file>`: no frontmatter block found" | 1 |
-| `PlanNotFoundError` | "Plan `<id>` not found" | 1 |
-| `PlanStateError` | "Cannot <action> plan `<id>`: <reason>" (e.g. step not done, dependency not done) | 1 |
+| `PlanNotFoundError` | "Plan `<id>` not found." | 1 |
+| `PlanStateError` | "Cannot <action>: <reason>." with the texts of `feature/plan-execution`, e.g. "Cannot start plan: `<id>` is `<status>`, not `ready`.", "Cannot start plan: dependency `<id>` is not done.", "Cannot finish: step <NN> is `<status>`." | 1 |
 | `DependencyCycleError` | "Dependency cycle: `<a>` → `<b>` → `<a>`" | 1 |
 | `SetupHookError` | "Setup hook failed: `<cmd>` exited with code <n>. Worktree removed." | 1 |
 | `RebaseConflictError` | "Rebase of `plan/<id>` onto `<base>` has conflicts; resolve manually." | 1 |
 | `ForgeError` | "Forge operation failed: <reason>" | 2 |
 | `GitError` | "Git command failed: `<cmd>`: <stderr>" | 2 |
 | `NotARepoError` | "Not in a git repository" | 1 |
+
+Message pattern: every error message is one sentence ending in a full stop (git stderr and `<cmd>` excerpts excepted), with the entity in backticks. Where `feature/tooling` or `feature/plan-execution` gives a text, the class uses it verbatim; the feature text wins over this table (`feature/spec-precedence`). `AlreadyExistsError` is thrown by `spec new` and `plan new` before anything is written.
+
+Output streams: human-readable reports, progress lines, warnings, and errors go to stderr; data goes to stdout: `--json` output, `spec show`, `plan graph`, `--print` output, and the one-line summaries that `feature/tooling` says commands print for the files they change. Errors are printed as the message alone, prefixed by nothing, and the process exits with the class's exit code.

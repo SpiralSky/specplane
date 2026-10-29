@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-spec-search
 step: 1
 title: Architecture spec edits for the command surface and conventions
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Module structure
   - spec: architecture/reference-cli#Error classes (`errors.ts`)
@@ -24,13 +24,13 @@ Resolve the deferred reference-cli and file-formats review findings that this pl
 
 ## Acceptance criteria
 
-- [ ] `architecture/reference-cli` has sections for the `spec new/list/show/validate` and `search` commands (module, inputs, output shape, exit codes), and for `init` details (what is created, reporting lines, idempotence).
-- [ ] Error messages follow one pattern: the error-classes table uses the exact texts of `feature/tooling` ("Spec `<id>` already exists." and so on), and `PlanStateError` is reconciled with the feature texts for start/finish failures.
-- [ ] The table lists an `AlreadyExistsError` class; a note states human-readable reports and errors go to stderr, data (`--json`, `spec show`, `plan graph`) to stdout.
-- [ ] `DEFAULT_CONFIG` is described as a literal copy of the defaults table in `feature/configuration`, with a test requirement.
-- [ ] The leak guard section adds "JSON Schema" to the technology list and a bare-file-extension rule (names like `foo.ts`, `config.yaml`) with its exclusions; spec validation adds a deprecated-reference warning for `implements` and `extends`.
-- [ ] The ID pattern in `architecture/file-formats` forbids `//` and requires two or more characters after the type prefix, with examples.
-- [ ] All pins are refreshed; `specplane validate` and `specplane spec pin --check` pass.
+- [x] `architecture/reference-cli` has sections for the `spec new/list/show/validate` and `search` commands (module, inputs, output shape, exit codes), and for `init` details (what is created, reporting lines, idempotence).
+- [x] Error messages follow one pattern: the error-classes table uses the exact texts of `feature/tooling` ("Spec `<id>` already exists." and so on), and `PlanStateError` is reconciled with the feature texts for start/finish failures.
+- [x] The table lists an `AlreadyExistsError` class; a note states human-readable reports and errors go to stderr, data (`--json`, `spec show`, `plan graph`) to stdout.
+- [x] `DEFAULT_CONFIG` is described as a literal copy of the defaults table in `feature/configuration`, with a test requirement.
+- [x] The leak guard section adds "JSON Schema" to the technology list and a bare-file-extension rule (names like `foo.ts`, `config.yaml`) with its exclusions; spec validation adds a deprecated-reference warning for `implements` and `extends`.
+- [x] The ID pattern in `architecture/file-formats` forbids `//` and requires two or more characters after the type prefix, with examples.
+- [x] All pins are refreshed; `specplane validate` and `specplane spec pin --check` pass.
 
 ## Tasks
 

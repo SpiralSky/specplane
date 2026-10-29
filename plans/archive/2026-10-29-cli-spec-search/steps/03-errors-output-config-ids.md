@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-spec-search
 step: 3
 title: Error classes, stderr convention, DEFAULT_CONFIG, ID pattern
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Error classes (`errors.ts`)
   - spec: architecture/reference-cli#Config loading (`config.ts`)
@@ -22,11 +22,11 @@ Implement the conventions fixed in step 01 so the new commands, and later plans,
 
 ## Acceptance criteria
 
-- [ ] `AlreadyExistsError` exists with exit code 1 and the message pattern from `architecture/reference-cli`.
-- [ ] The top-level error handler writes errors and human reports to stderr and data to stdout; `validate --json` still writes only JSON to stdout.
-- [ ] `DEFAULT_CONFIG` equals the `feature/configuration` defaults table; a test parses the table from the spec and compares.
-- [ ] The ID regex rejects `feature//x`, `feature/x` where the slug has one character, and accepts valid IDs including `claude:feature/x`; schema and code share one constant.
-- [ ] `npm test` passes and `specplane validate` still exits 0 on this repository.
+- [x] `AlreadyExistsError` exists with exit code 1 and the message pattern from `architecture/reference-cli`.
+- [x] The top-level error handler writes errors and human reports to stderr and data to stdout; `validate --json` still writes only JSON to stdout.
+- [x] `DEFAULT_CONFIG` equals the `feature/configuration` defaults table; a test parses the table from the spec and compares.
+- [x] The ID regex rejects `feature//x`, `feature/x` where the slug has one character, and accepts valid IDs including `claude:feature/x`; schema and code share one constant.
+- [x] `npm test` passes and `specplane validate` still exits 0 on this repository.
 
 ## Tasks
 

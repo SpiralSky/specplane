@@ -96,7 +96,8 @@ export function runValidate(root: string): ValidationReport {
 
 export function validateCommand(opts: { json?: boolean }): void {
   const report = runValidate(checkoutRoot());
-  process.stdout.write(opts.json ? formatJson(report) : formatHuman(report));
+  if (opts.json) process.stdout.write(formatJson(report));
+  else process.stderr.write(formatHuman(report));
   process.exitCode = report.valid ? 0 : 1;
 }
 
