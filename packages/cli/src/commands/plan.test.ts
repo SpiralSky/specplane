@@ -88,3 +88,73 @@ test("getEffectiveStatus: forge hook derives review; non-ready statuses unchange
   assert.equal(getEffectiveStatus({ id: "a", status: "review" }, new Map(), config, git), "review");
   assert.equal(getEffectiveStatus({ id: "a", status: "ready" }, new Map(), config, { branchExists: () => true }), "in_progress");
 });
+
+// ---- plan new / show / graph ----
+import * as fs from "node:fs";
+import { CONFIG, spec } from "../test-repo.js";
+
+function newRepo(): string {
+  const root = makeRepo({
+    ".specplane/config.yaml": CONFIG.replace(/plans:[\s\S]*$/, "") + "plans:\n  dir: plans\n",
+    "specs/features/alpha.md": spec({ id: "feature/alpha", title: "A", status: "draft", author: "user" }),
+    "plans/2026-01-01-alpha/PLAN.md": plan("2026-01-01-alpha", "done").replace("feature/x", "feature/alpha"),
+    "plans/archive/2025-12-01-old/PLAN.md": plan("2025-12-01-old", "done").replace("feature/x", "feature/alpha"),
+  });
+  spawnSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+  return root;
+}
+
+test("plan new: creates draft plan, steps/, HANDOFF.md; validate passes", () => {
+  const root = newRepo();
+  const r = run(root, "plan", "new", "--id", "2026-02-01-beta", "--title", "Beta plan", "--specs", "feature/alpha", "--depends-on", "2026-01-01-alpha");
+  assert.equal(r.code, 0, r.err);
+  const dir = path.join(root, "plans/2026-02-01-beta");
+  const text = fs.readFileSync(path.join(dir, "PLAN.md"), "utf8");
+  assert.match(text, /status: draft/);
+  assert.match(text, /depends_on: \["2026-01-01-alpha"\]/);
+  assert.match(text, /## Acceptance criteria/);
+  assert.ok(fs.statSync(path.join(dir, "steps")).isDirectory());
+  assert.equal(fs.readFileSync(path.join(dir, "HANDOFF.md"), "utf8"), "# HANDOFF — 2026-02-01-beta\n");
+  assert.equal(run(root, "validate").code, 0, run(root, "validate").out + run(root, "validate").err);
+});
+
+test("plan new: existing ID, unknown spec/plan, bad ID, missing flags exit 1", () => {
+  const root = newRepo();
+  const base = ["plan", "new", "--title", "T", "--specs", "feature/alpha"];
+  const dup = run(root, ...base, "--id", "2026-01-01-alpha");
+  assert.equal(dup.code, 1);
+  assert.match(dup.err, /Plan `2026-01-01-alpha` already exists\. Choose a different slug\./);
+  assert.equal(run(root, "plan", "new", "--id", "2026-02-01-b", "--title", "T", "--specs", "feature/nope").code, 1);
+  assert.equal(run(root, ...base, "--id", "2026-02-01-b", "--depends-on", "2026-09-09-nope").code, 1);
+  assert.equal(run(root, ...base, "--id", "bad").code, 1);
+  assert.equal(run(root, ...base).code, 1);
+  assert.ok(!fs.existsSync(path.join(root, "plans/2026-02-01-b")));
+});
+
+test("plan new: self-dependency is rejected", () => {
+  const root = newRepo();
+  const r = run(root, "plan", "new", "--id", "2026-02-01-self", "--title", "T", "--specs", "feature/alpha", "--depends-on", "2026-02-01-self");
+  assert.equal(r.code, 1);
+  assert.ok(!fs.existsSync(path.join(root, "plans/2026-02-01-self")));
+});
+
+test("plan show: active and archived plans; unknown ID exits 1", () => {
+  const root = newRepo();
+  assert.equal(run(root, "plan", "show", "2026-01-01-alpha").out, fs.readFileSync(path.join(root, "plans/2026-01-01-alpha/PLAN.md"), "utf8"));
+  assert.match(run(root, "plan", "show", "2025-12-01-old").out, /id: 2025-12-01-old/);
+  const r = run(root, "plan", "show", "2030-01-01-none");
+  assert.equal(r.code, 1);
+  assert.match(r.err, /not found/);
+});
+
+test("plan graph: matches the graph in generated PLANS.md", () => {
+  const root = newRepo();
+  run(root, "plan", "new", "--id", "2026-02-01-beta", "--title", "B", "--specs", "feature/alpha", "--depends-on", "2026-01-01-alpha");
+  const g = run(root, "plan", "graph");
+  assert.equal(g.code, 0);
+  assert.match(g.out, /^graph TD/);
+  assert.match(g.out, /p_2026_01_01_alpha --> p_2026_02_01_beta/);
+  assert.equal(run(root, "generate").code, 0);
+  const md = fs.readFileSync(path.join(root, "plans/PLANS.md"), "utf8");
+  assert.ok(md.includes(g.out.trimEnd()));
+});

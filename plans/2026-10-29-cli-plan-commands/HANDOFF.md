@@ -123,3 +123,30 @@ None.
 
 ### What the next step must know
 `getPlanActivity(id, config, root)` is reusable by `plan show`. A remote-only plan with an invalid PLAN.md at the tip is skipped with a stderr note.
+
+## Step 06: plan new, show, graph
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/commands/plan.ts`, `cli.ts`: `plan new` (`--id`, `--title`, `--specs`, `--depends-on`), `plan show <id>`, `plan graph`.
+- `packages/cli/src/plan/new-template.ts`: plan ID pattern and PLAN.md template body (file-formats §2.2 sections).
+- `packages/cli/src/commands/spec.ts`: exports `ask`, `csv`, `interactive` for reuse.
+- `packages/cli/src/commands/plan.test.ts`: integration tests for the three commands; `npm test` passes (159).
+
+### Deviations from the plan
+None.
+
+### Gaps found in specs
+- CHOICE: `plan graph` extracts the Mermaid block from `generatePlansMd` (non-live), so it is identical to PLANS.md and prints without a code fence.
+- CHOICE: `plan new` prompts (slug, title, specs, dependencies) only on a TTY; otherwise `--title` and `--specs` are required, and `--id` is required (default date+slug applies only to the prompted slug).
+- CHOICE: `steps/` is created empty (git does not track it until a step exists); HANDOFF.md holds only the header line.
+- CHOICE: `plan show` prints the whole PLAN.md file including frontmatter; unknown ID uses `PlanNotFoundError`.
+- CHOICE: a self-dependency fails as an unknown plan ID; the cycle check runs on the combined graph as a safeguard.
+
+### Open issues
+None.
+
+### What the next step must know
+This is the last step; run the finish flow.

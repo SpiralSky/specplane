@@ -1,5 +1,14 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { loadConfig } from "../config.js";
-import { SpecplaneError, reportError } from "../errors.js";
+import { AlreadyExistsError, SpecplaneError, reportError } from "../errors.js";
+import { generatePlansMd } from "../generate/plans-md.js";
+import { ask, csv, interactive } from "./spec.js";
+import { resolveSpecId } from "../spec/resolve.js";
+import { buildGraph, detectCycle } from "../plan/graph.js";
+import { PlanNotFoundError } from "../errors.js";
+import { planDir } from "../plan/resolve.js";
+import { ID_RE_PLAN, planBody } from "../plan/new-template.js";
 import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { checkoutRoot } from "../git/repo.js";
 import { fetchPlanBranches, getPlanActivity, remotePlanFrontmatter, remotePlanIds, type PlanActivity } from "../plan/activity.js";
@@ -105,6 +114,105 @@ export function planListCommand(opts: PlanListOptions): void {
     const { rows, problems } = planList(opts, root, config);
     for (const p of problems) process.stderr.write(`${p}\n`);
     process.stdout.write(opts.json ? `${JSON.stringify(rows, null, 2)}\n` : formatPlanList(rows));
+  } catch (e) {
+    if (!reportError(e)) throw e;
+  }
+}
+
+export interface PlanNewOptions {
+  id?: string;
+  title?: string;
+  specs?: string;
+  dependsOn?: string;
+}
+
+/** Create a draft plan folder; returns the repository-relative PLAN.md path. */
+export async function planNew(opts: PlanNewOptions, root: string, config: Config): Promise<string> {
+  let id = opts.id?.trim();
+  if (!id) {
+    if (!interactive()) throw new PlanUsageError("`plan new` needs `--id` when not run in a terminal.");
+    const slug = (await ask("Plan slug: ")).toLowerCase();
+    id = `${new Date().toISOString().slice(0, 10)}-${slug}`;
+  }
+  if (!ID_RE_PLAN.test(id)) {
+    throw new PlanUsageError(`Invalid plan ID \`${id}\`: expected YYYY-MM-DD-<slug> with lowercase letters, digits, and hyphens.`);
+  }
+  const existing = listPlans(config, root);
+  if (existing.some((p) => p.id === id)) throw new AlreadyExistsError("Plan", id);
+
+  let title = opts.title?.trim();
+  if (!title && interactive()) title = await ask("Title: ");
+  if (!title) throw new PlanUsageError("`plan new` needs `--title`.");
+  let specs = csv(opts.specs);
+  if (specs.length === 0 && interactive()) specs = csv(await ask("Spec IDs (comma-separated): "));
+  if (specs.length === 0) throw new PlanUsageError("`plan new` needs `--specs` with at least one spec ID.");
+  let deps = csv(opts.dependsOn);
+  if (opts.dependsOn === undefined && interactive()) deps = csv(await ask("Depends on plan IDs (comma-separated, optional): "));
+
+  for (const s of specs) resolveSpecId(s, config, undefined, root);
+  const known = new Set(existing.map((p) => p.id));
+  for (const d of deps) if (!known.has(d)) throw new PlanNotFoundError(d);
+  const graph = buildGraph([
+    ...existing.map((p) => ({ id: p.id, depends_on: parsePlan(p.dir).frontmatter.depends_on })),
+    { id, depends_on: deps },
+  ]);
+  const cycle = detectCycle(graph);
+  if (cycle) throw new PlanUsageError(`Dependency cycle: ${cycle.join(" -> ")}.`);
+
+  const dir = path.join(root, config.plans.dir, id);
+  fs.mkdirSync(path.join(dir, "steps"), { recursive: true });
+  const fm = [
+    `id: ${id}`,
+    `title: ${JSON.stringify(title)}`,
+    "status: draft",
+    `specs: ${JSON.stringify(specs)}`,
+    ...(deps.length > 0 ? [`depends_on: ${JSON.stringify(deps)}`] : []),
+  ];
+  fs.writeFileSync(path.join(dir, "PLAN.md"), `---\n${fm.join("\n")}\n---\n${planBody(title)}`);
+  fs.writeFileSync(path.join(dir, "HANDOFF.md"), `# HANDOFF \u2014 ${id}\n`);
+  return path.relative(root, path.join(dir, "PLAN.md")).split(path.sep).join("/");
+}
+
+export async function planNewCommand(opts: PlanNewOptions): Promise<void> {
+  try {
+    const root = checkoutRoot();
+    const { config, warnings } = loadConfig(root);
+    for (const w of warnings) process.stderr.write(`${w.message}\n`);
+    process.stdout.write(`Created ${await planNew(opts, root, config)}\n`);
+  } catch (e) {
+    if (!reportError(e)) throw e;
+  }
+}
+
+/** PLAN.md text (frontmatter included) of an active or archived plan. */
+export function planShow(id: string, root: string, config: Config): string {
+  return fs.readFileSync(path.join(planDir(id, config, root), "PLAN.md"), "utf8");
+}
+
+export function planShowCommand(id: string): void {
+  try {
+    const root = checkoutRoot();
+    const { config, warnings } = loadConfig(root);
+    for (const w of warnings) process.stderr.write(`${w.message}\n`);
+    process.stdout.write(planShow(id, root, config));
+  } catch (e) {
+    if (!reportError(e)) throw e;
+  }
+}
+
+/** The Mermaid graph of PLANS.md, without the code fence. */
+export function planGraph(root: string, config: Config): string {
+  const md = generatePlansMd(config, root);
+  const m = /```mermaid\n([\s\S]*?)\n```/.exec(md);
+  return m ? m[1] : "";
+}
+
+export function planGraphCommand(): void {
+  try {
+    const root = checkoutRoot();
+    const { config, warnings } = loadConfig(root);
+    for (const w of warnings) process.stderr.write(`${w.message}\n`);
+    process.stdout.write(`${planGraph(root, config)}\n`);
   } catch (e) {
     if (!reportError(e)) throw e;
   }

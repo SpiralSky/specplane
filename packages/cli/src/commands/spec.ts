@@ -19,7 +19,7 @@ class SpecUsageError extends SpecplaneError {
 
 const TYPE_DIRS: Record<string, string> = { feature: "features", architecture: "architecture" };
 const toPosix = (p: string) => p.split(path.sep).join("/");
-const csv = (v: string | undefined): string[] => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+export const csv = (v: string | undefined): string[] => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
 function load(root: string): Config {
   const { config, warnings } = loadConfig(root);
@@ -37,7 +37,7 @@ function checkType(type: string): void {
   if (!(type in TYPE_DIRS)) throw new SpecUsageError(`Unknown spec type \`${type}\`: expected \`feature\` or \`architecture\`.`);
 }
 
-async function ask(question: string): Promise<string> {
+export async function ask(question: string): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stderr });
   try {
     return (await rl.question(question)).trim();
@@ -46,7 +46,7 @@ async function ask(question: string): Promise<string> {
   }
 }
 
-const interactive = () => Boolean(process.stdin.isTTY);
+export const interactive = () => Boolean(process.stdin.isTTY);
 
 /** De-slugged default title: hyphens (and slashes) to spaces, first letter capitalised. */
 export function defaultTitle(slug: string): string {

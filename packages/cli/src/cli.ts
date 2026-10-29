@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
-import { planListCommand } from "./commands/plan.js";
+import { planGraphCommand, planListCommand, planNewCommand, planShowCommand } from "./commands/plan.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
 import { specPinCommand } from "./commands/spec-pin.js";
@@ -20,7 +20,7 @@ program
   .description("Specplane reference CLI")
   .version(pkg.version);
 
-const plan = program.command("plan").description("Work with plans (list; new, show, graph, start, finish, abandon, cleanup, archive follow)");
+const plan = program.command("plan").description("Work with plans (list, new, show, graph; start, finish, abandon, cleanup, archive follow)");
 plan
   .command("list")
   .description("List plans with their effective statuses")
@@ -29,6 +29,16 @@ plan
   .option("--live", "include plan activity (branches, steps, last step commit) and remote-only plans")
   .option("--no-fetch", "with --live, do not fetch origin first")
   .action((opts) => planListCommand(opts));
+plan
+  .command("new")
+  .description("Create a draft plan folder")
+  .option("--id <id>", "full plan ID (YYYY-MM-DD-slug)")
+  .option("--title <title>", "plan title")
+  .option("--specs <ids>", "comma-separated spec IDs")
+  .option("--depends-on <ids>", "comma-separated plan IDs")
+  .action((opts) => planNewCommand(opts));
+plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
+plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());
 
 const spec = program.command("spec").description("Work with specs (new, list, show, validate, pin)");
 spec
