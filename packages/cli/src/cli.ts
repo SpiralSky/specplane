@@ -26,6 +26,8 @@ plan
   .description("List plans with their effective statuses")
   .option("--status <status>", "filter by effective status")
   .option("--json", "output JSON")
+  .option("--live", "include plan activity (branches, steps, last step commit) and remote-only plans")
+  .option("--no-fetch", "with --live, do not fetch origin first")
   .action((opts) => planListCommand(opts));
 
 const spec = program.command("spec").description("Work with specs (new, list, show, validate, pin)");
@@ -81,7 +83,8 @@ program
   .command("generate")
   .description("Generate PLANS.md")
   .option("--print", "write to stdout instead of the file")
-  .action((opts: { print?: boolean }) => generateCommand(opts));
+  .option("--live", "with --print, show effective (git-derived) statuses")
+  .action((opts: { print?: boolean; live?: boolean }) => generateCommand(opts));
 
 program
   .command("init")

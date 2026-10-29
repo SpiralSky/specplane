@@ -2,14 +2,15 @@ import * as path from "node:path";
 import { buildGraph } from "../plan/graph.js";
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
-import { getIndexStatus } from "../plan/status.js";
+import { branchExists, remoteBranchExists } from "../git/branch.js";
+import { getEffectiveStatus, getIndexStatus } from "../plan/status.js";
 import type { Config, PlanFrontmatter } from "../types.js";
 import { toMermaid } from "./mermaid.js";
 
 const HEADER = "<!-- GENERATED FILE — do not edit by hand. Regenerate with: specplane generate -->";
 
 /** Build PLANS.md (`architecture/file-formats` §5.1-5.2) from committed plan files; throws on an unparsable PLAN.md. */
-export function generatePlansMd(config: Config, root: string): string {
+export function generatePlansMd(config: Config, root: string, opts: { live?: boolean } = {}): string {
   const records = listPlans(config, root).map((r) => ({ ...r, fm: parsePlan(r.dir).frontmatter }));
   const byId = new Map<string, PlanFrontmatter>(records.map((r) => [r.id, r.fm]));
   const link = (id: string): string => {
@@ -17,7 +18,10 @@ export function generatePlansMd(config: Config, root: string): string {
     const target = rec?.archived ? `archive/${id}/PLAN.md` : `${id}/PLAN.md`;
     return `[${id}](${target})`;
   };
-  const statuses = new Map(records.map((r) => [r.id, getIndexStatus(r.fm, byId, config)]));
+  const git = { branchExists: (id: string) => branchExists(`plan/${id}`, root) || remoteBranchExists(`plan/${id}`, root) };
+  const statuses = new Map(
+    records.map((r) => [r.id, opts.live ? getEffectiveStatus(r.fm, byId, config, git) : getIndexStatus(r.fm, byId, config)]),
+  );
   const active = records.filter((r) => !r.archived);
   const archived = records.filter((r) => r.archived);
 

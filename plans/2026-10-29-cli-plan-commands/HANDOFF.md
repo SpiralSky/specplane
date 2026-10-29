@@ -97,3 +97,29 @@ None.
 
 ### What the next step must know
 `planListCommand` has no `--live`/`--no-fetch` yet; `getEffectiveStatus` takes a `StatusGit` object so the forge lookup can be added without changing callers.
+
+## Step 05: Plan activity, plan list --live, generate --print --live
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/plan/activity.ts`: `getPlanActivity`, `fetchPlanBranches` (one fetch, skipped without `origin`), `remotePlanIds`, `remotePlanFrontmatter`; step files, HANDOFF and PLAN.md read with `git show <ref>:<path>`.
+- `packages/cli/src/commands/plan.ts`, `cli.ts`: `plan list --live`, `--no-fetch`; remote-only plans included; human output gets an activity line per plan.
+- `packages/cli/src/generate/plans-md.ts`, `commands/generate.ts`: `generatePlansMd(config, root, { live })`; `generate --print --live` uses effective statuses.
+- `packages/cli/src/plan/activity.test.ts`: tests with a bare remote, local-only, remote-only, no-remote, shallow clone, worktree checkout; `npm test` passes (154).
+
+### Deviations from the plan
+None.
+
+### Gaps found in specs
+- CHOICE: `generate --live` without `--print` exits 1 with a message, so the committed `PLANS.md` never holds live statuses.
+- CHOICE: `blocked_issues` entries are the whole `BLOCKED:` line, trimmed, with a leading list bullet removed.
+- CHOICE: `steps`/`blocked_issues` read from the branch tip (local, else `origin/`), else the default branch; `next` is the lowest-numbered step that is not done or skipped; unreadable step files are ignored.
+- CHOICE: `last_step_commit.step` is null when the trailer is missing or non-numeric; `generate --live` never fetches.
+
+### Open issues
+None.
+
+### What the next step must know
+`getPlanActivity(id, config, root)` is reusable by `plan show`. A remote-only plan with an invalid PLAN.md at the tip is skipped with a stderr note.

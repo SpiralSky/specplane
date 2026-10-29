@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-plan-commands
 step: 5
 title: Plan activity, plan list --live, generate --print --live
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Plan activity (`plan list --json`)
   - spec: feature/tooling#`specplane plan list [--status <status>]`
@@ -19,11 +19,11 @@ Implement the plan activity fields and `--live`/`--no-fetch` for `plan list`, pl
 
 ## Acceptance criteria
 
-- [ ] `plan list --json --live` includes `branch, checkout, backend, where, steps, blocked_issues, last_step_commit, ahead_of_remote` per the amended spec, including plans whose branch exists only on `origin`.
-- [ ] Fetch happens at most once and is skipped with `--no-fetch` or without a remote.
-- [ ] `generate --print` writes to stdout and not the file; `--live` marks live statuses in the printed output; plain `generate` output is byte-identical to before.
-- [ ] No field throws in a repository without a remote or with a shallow history.
-- [ ] Tests with a bare remote created in a temp directory.
+- [x] `plan list --json --live` includes `branch, checkout, backend, where, steps, blocked_issues, last_step_commit, ahead_of_remote` per the amended spec, including plans whose branch exists only on `origin`.
+- [x] Fetch happens at most once and is skipped with `--no-fetch` or without a remote.
+- [x] `generate --print` writes to stdout and not the file; `--live` marks live statuses in the printed output; plain `generate` output is byte-identical to before.
+- [x] No field throws in a repository without a remote or with a shallow history.
+- [x] Tests with a bare remote created in a temp directory.
 
 ## Tasks
 
