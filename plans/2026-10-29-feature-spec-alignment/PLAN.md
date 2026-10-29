@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-feature-spec-alignment
 title: "Align architecture specs and CLI with applied feature specs"
-status: draft
+status: ready
 specs: ["feature/configuration","feature/decisions","feature/plan-index","feature/plan-status","feature/plan-steps","feature/plan-system","feature/spec-precedence","feature/tooling","architecture/reference-cli","architecture/file-formats","architecture/agent-skills","claude:feature/claude-integration","claude:architecture/claude-integration"]
 ---
 
