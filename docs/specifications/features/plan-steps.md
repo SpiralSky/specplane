@@ -69,7 +69,7 @@ The `context` list specifies what the agent must load before starting the step. 
 |--------|---------|-------------|
 | `spec:` | `spec: architecture/reference-cli#cleanup-abandon-archive` | A spec file; optional `#section` anchor narrows to a heading |
 | `decision:` | `decision: decision/0002` | An ADR by its ID |
-| `file:` | `file: src/graph/` | A file or directory path relative to the repository root |
+| `file:` | `file: CONTRIBUTING.md` | A file or directory path relative to the repository root |
 
 A `#heading` anchor names a heading in the spec; it matches the first heading whose text equals the anchor or begins with it (ignoring case, code formatting, and leading section numbers), so `#Config loading` matches a heading "Config loading (config module)". An unmatched anchor is a warning, and the agent loads the whole spec.
 
@@ -224,6 +224,8 @@ HANDOFF.md has a section per ended step:
 
 All sections are required. An empty section is written as "None." This discipline ensures HANDOFF.md is always complete, even when there is nothing to report.
 
+When a `blocked` step is run again and ends, its new entry is appended as another section with the same `## Step NN: <title>` heading; earlier entries are never edited. A step can therefore have several entries, for example one `blocked` followed by one `done`. The latest entry for a step is authoritative: its `**Outcome**` must equal the step's current status, and a reader looking for the state of that step uses the last section with that heading. The earlier `blocked` entry stays as the record of why the step was stopped.
+
 ---
 
 ## Commit convention
@@ -251,15 +253,15 @@ Specplane-Session: 6531c4f4
 
 ### Scenario 1: Agent loads only listed context
 
-Given a step's `context` lists `file: src/parser/`,
+Given a step's `context` lists `file: CONTRIBUTING.md`,
 When the agent begins the step,
-Then the agent reads `src/parser/` and HANDOFF.md, and does not read unrelated files without need.
+Then the agent reads `CONTRIBUTING.md` and HANDOFF.md, and does not read unrelated files without need.
 
 ### Scenario 2: Agent expands context and records it
 
-Given a step file lists only `src/parser/`,
-When the agent discovers it also needs `src/types/spec.ts`,
-Then the agent reads `src/types/spec.ts` and records in HANDOFF.md: "Context expanded: read `src/types/spec.ts` (not listed in step 02); step 03 context list should include it."
+Given a step file lists only `CONTRIBUTING.md`,
+When the agent discovers it also needs `STYLE.md`,
+Then the agent reads `STYLE.md` and records in HANDOFF.md: "Context expanded: read `STYLE.md` (not listed in step 02); step 03 context list should include it."
 
 ### Scenario 3: Step not complete — criteria not met
 
@@ -294,3 +296,4 @@ Then this is a signal to split into two plans with a dependency: plan A (parser)
 - A step may produce zero code changes (e.g. an investigation step that only produces a HANDOFF.md entry with findings). This is valid.
 - If a step is aborted partway through, the HANDOFF.md should record the partial state and what the re-run must start from.
 - A step file's body should not be edited once that step has started (only its `status` changes). If a step's tasks turn out to be wrong, the deviation is recorded in HANDOFF.md and the plan body may be updated to reflect the new direction. Steps that have not started yet may still be edited, for example to add context that an earlier step found was missing.
+- A step that was `blocked` and is re-run gets a new HANDOFF.md section; the earlier `blocked` section is kept unchanged and the latest section wins.

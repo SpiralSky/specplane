@@ -36,7 +36,8 @@ ready ──► abandoned
 
 With `status_source: frontmatter` the path through execution is stored as well: `ready ──► in_progress ──► review ──► done`, and `in_progress` or `review` may also move to `abandoned`.
 
-- Any stored plan may be set to `abandoned` from `draft` or `ready`.
+- A plan may be set to `abandoned` from any non-terminal stored status: `draft`, `ready`, and, with `status_source: frontmatter`, `in_progress` and `review`. With `status_source: git` the stored status of a started plan is still `ready`, so it is abandoned from `ready`.
+- Abandoning a plan whose stored status is `done` or `abandoned` fails: "Cannot abandon plan: `<id>` is `<status>`."
 - `done` is a terminal state; a done plan is not re-opened (create a new plan instead).
 - `abandoned` is a terminal state.
 
@@ -204,5 +205,5 @@ And reading `PLAN.md` on the default branch shows `in_progress`.
 
 - A plan may have `status: done` in frontmatter but its branch still exists (e.g. the branch was not deleted after merge). The effective status is still `done`; `in_progress` does not override `done`.
 - `blocked` is only derived for plans with `status: ready`. A `draft` plan with unmet dependencies is not shown as `blocked` — it is simply `draft`.
-- When `dependency_mode: stack`, the `blocked` derived status is not computed. Stacked plans may start from the dependency's branch tip (see `feature/plan-execution` for the limits).
+- When `dependency_mode: stack`, `blocked` is computed only for a `ready` plan that cannot start: it has two or more dependencies that are not done. Such a plan is displayed as `blocked`, with the message "Cannot stack on more than one unmerged dependency: <a>, <b>." A `ready` plan with at most one unmerged dependency is not `blocked`; it may start from that dependency's branch tip (see `feature/plan-execution` for the limits).
 - Derived statuses depend on the reader's git state (which branches have been fetched). Two people may see different effective statuses until they fetch; the stored status is the same for everyone.

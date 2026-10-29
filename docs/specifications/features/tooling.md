@@ -209,6 +209,7 @@ Lists plans and their effective statuses.
 - `--status <status>`: filter by effective status (stored + derived)
 - `--json`
 - `--live`: also report each plan's activity: where it runs (local checkout or remote branch only), step progress and the next step, open blockers, and the most recent step commit with the agent session that made it. Includes plans whose branches exist only on the remote, so work from other machines and cloud sessions is visible. Fetches from the remote once unless `--no-fetch` is given.
+- `--no-fetch`: with `--live`, do not fetch from the remote; use the remote-tracking refs as they are. Has no effect without `--live`.
 
 **Output** (human-readable):
 ```
@@ -228,11 +229,33 @@ Prints the Mermaid dependency graph to stdout (the same graph that appears in PL
 
 ### `specplane plan start <id>`
 
-Executes the start flow for a plan. See `feature/plan-execution`.
+Executes the start flow for a plan. See `feature/plan-execution`. When resuming a stacked plan whose base plan has since merged, prints 'Base plan `<base-id>` has merged; run `specplane plan restack <id>`.' and continues; resume never rewrites history.
+
+**Options**:
+- `--no-fetch`: do not fetch from the remote before starting; work from the local refs as they are.
 
 ### `specplane plan finish <id>`
 
 Executes the finish flow for a plan. See `feature/plan-execution`.
+
+**Options**:
+- `--no-fetch`: do not fetch from the remote during the flow; work from the local refs as they are. Pushes and pull requests are not affected.
+
+### `specplane plan restack <id>`
+
+Restacks a stacked plan: replays only the plan's own commits onto the new base. See `feature/plan-execution` § Restacking. When the base plan has merged, the new base is the default branch and the plan is no longer stacked afterwards; when the base plan's branch has been rewritten, the new base is that branch's new tip. Conflicts stop the command and are surfaced to the human; they are never resolved automatically.
+
+**Options**:
+- `--dry-run`: print the base the plan would be replayed onto and the commits that would be replayed; change nothing.
+
+**Exit codes**:
+- `0`: the plan was restacked (or was already up to date).
+- `1`: any error.
+
+**Error cases**:
+- No plan with that ID → exit 1, "Plan `<id>` not found."
+- The plan is not stacked → exit 1, "Cannot restack: `<id>` is not stacked."
+- Conflicts while replaying → exit 1, with the conflicting files listed and the checkout left mid-rebase for the human to resolve.
 
 ### `specplane plan abandon <id>`
 
@@ -262,7 +285,7 @@ Full-text search over spec and plan files, plus frontmatter filtering.
 **Arguments**: `<text>` — text to search for.
 
 **Options**:
-- `--type spec|plan`: restrict to spec or plan files
+- `--kind spec|plan`: restrict to spec files or plan files
 - `--status <status>`: filter by status
 - `--root <name>`: restrict to a spec root
 - `--json`

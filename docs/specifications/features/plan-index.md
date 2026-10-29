@@ -153,12 +153,17 @@ When `PLANS.md` is generated,
 Then plan B is shown as `ready`,
 And `specplane plan list` (or `specplane generate --print --live`) shows it as `in_progress`.
 
-### Scenario 5: PLANS.md never manually edited
+### Scenario 5: Hand edits are overwritten on generate
 
 Given a developer edits `PLANS.md` by hand,
 When `specplane generate` is run (or CI regenerates it),
-Then the manual edits are overwritten.
-And validation warns if `PLANS.md` does not match the generated version: "PLANS.md is stale; run `specplane generate` to update."
+Then the manual edits are overwritten and `PLANS.md` equals the generated version.
+
+### Scenario 5a: Validation warns when PLANS.md is stale
+
+Given `PLANS.md` differs from the version `specplane generate` would produce,
+When `specplane validate` is run,
+Then a warning is reported: "PLANS.md is stale; run `specplane generate` to update."
 
 ### Scenario 6: CI regeneration commits only when changed
 

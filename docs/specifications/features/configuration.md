@@ -86,7 +86,7 @@ Each entry:
 | `path` | string | yes | Path to the root directory, relative to the repository root. |
 | `extends` | string | no | Name of the root this root overlays. See `feature/spec-overlays`. Omit for standalone roots. |
 
-Two roots with the same `name` are a validation error. A root that `extends` an undeclared root, or a cycle of `extends` links, is a validation error.
+Two roots with the same `name` are a validation error. A root that `extends` an undeclared root, or a cycle of `extends` links, is a validation error. A root whose `path` does not exist or is not a directory is a validation error. A root whose `path` resolves outside the repository root (an absolute path, or one containing `..` that leaves the repository) is a validation error.
 
 ---
 
@@ -325,6 +325,8 @@ The actual worktree for a plan is created at `<worktree_dir>/<repo-name>/<plan-i
 
 `worktree_dir` and `<repo-name>` are always resolved against the **main checkout**, even when a command runs inside a plan worktree, so every worktree of a repository computes the same paths.
 
+A `worktree_dir` that resolves inside the main checkout is a hard error when the worktree backend is used.
+
 ---
 
 ### `decisions.dir`
@@ -367,6 +369,24 @@ Then a hard error is reported: "`plans.status_source` must be one of: `git`, `fr
 Given `spec_roots` contains two entries both named `base`,
 When Specplane reads the config,
 Then a hard error is reported: "Duplicate spec root name `base`."
+
+### Scenario 6: Worktree directory inside the repository
+
+Given `execution.worktree_dir: .worktrees` and `execution.backend: worktree`,
+When Specplane reads the config,
+Then a hard error is reported: "`execution.worktree_dir` must be outside the repository. `.worktrees` resolves to `<path>` inside it."
+
+### Scenario 7: Spec root does not exist
+
+Given `spec_roots` contains `{name: docs, path: docs/missing}` and that directory does not exist,
+When Specplane validates,
+Then an error is reported: "Spec root `docs`: path `docs/missing` does not exist."
+
+### Scenario 8: Spec root escapes the repository
+
+Given `spec_roots` contains `{name: shared, path: ../shared-specs}`,
+When Specplane reads the config,
+Then an error is reported: "Spec root `shared`: path `../shared-specs` is outside the repository."
 
 ---
 

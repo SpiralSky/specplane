@@ -60,6 +60,13 @@ related_specs: [feature/spec-system, feature/configuration]
 | `superseded_by` | string | no | ID of the ADR that replaces this one, if any. |
 | `related_specs` | list of IDs | no | Spec IDs this decision is relevant to. |
 
+### Frontmatter validation
+
+- The `id` must equal `decision/<NNNN>` where `<NNNN>` is the number in the filename. A mismatch is an error: "ADR file `0003-cache-policy.md` has id `decision/0004`; the id number must match the filename."
+- An ADR with `status: superseded` must have a `superseded_by` that names an existing ADR. A missing value is an error: "ADR `decision/0002` is superseded but has no `superseded_by`." An unknown target is an error: "ADR `decision/0002` is superseded by unknown ADR `decision/0009`."
+- `superseded_by` on an ADR whose status is not `superseded` is a warning: "ADR `decision/0002` has `superseded_by` but status `accepted`."
+- A chain of `superseded_by` links that returns to an ADR already in the chain (including an ADR superseded by itself) is an error: "Supersession cycle: `decision/0002` -> `decision/0005` -> `decision/0002`."
+
 ---
 
 ## ADR body structure
@@ -132,6 +139,18 @@ Given branch A adds `0003-cache-policy.md` and branch B adds `0003-auth-tokens.m
 And branch A has been merged,
 When validation runs on branch B's pull request,
 Then an error is reported: "Duplicate ADR number `0003`: `0003-auth-tokens.md`, `0003-cache-policy.md`. Renumber the later one."
+
+### Scenario 6: ID does not match filename
+
+Given `0003-cache-policy.md` has `id: decision/0004`,
+When `specplane validate` runs,
+Then an error is reported: "ADR file `0003-cache-policy.md` has id `decision/0004`; the id number must match the filename."
+
+### Scenario 7: Supersession cycle
+
+Given `decision/0002` has `superseded_by: decision/0005` and `decision/0005` has `superseded_by: decision/0002`,
+When `specplane validate` runs,
+Then an error is reported: "Supersession cycle: `decision/0002` -> `decision/0005` -> `decision/0002`."
 
 ---
 
