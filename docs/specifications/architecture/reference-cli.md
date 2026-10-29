@@ -63,6 +63,9 @@ src/
     commit.ts          # builds commit messages and reads trailers (file-formats §8)
   agents/
     standing.ts        # standing-instructions text and the AGENTS.md managed block
+  harness/
+    index.ts           # harness registry: detect, install, skillDirs, rulesFile
+    claude.ts          # Claude Code harness (templates, settings merge)
   generate/
     plans-md.ts        # generates PLANS.md
     mermaid.ts         # generates Mermaid dependency graph
@@ -188,7 +191,7 @@ Uncommitted edits to a base are compared as-is for the check (working tree) but 
 
 ## Skill contract drift (`spec/skill-drift.ts`)
 
-For each `SKILL.md` in a skill directory registered by an installed harness, parse the `<!-- specplane-contract: ... -->` comment; the anchor must resolve (type `skill-drift` warning otherwise) and the pin is compared against the current blob of the referenced spec exactly as for `based_on` (normalised hash; shallow-safe). Skill directories without a comment warn.
+For each `SKILL.md` in a skill directory registered by an installed harness, parse the `<!-- specplane-contract: ... -->` comment; the anchor must resolve (type `skill-drift` warning otherwise) and the pin is compared against the current blob of the referenced spec exactly as for `based_on` (normalised hash; shallow-safe). Skill directories without a comment warn. The directories come from the harness registry (`src/harness/index.ts`): each harness entry exposes `skillDirs(root): string[]`, returning the skill directories it installs (for Claude Code, `.claude/skills/*`); the `skillDirs` of all installed harnesses are scanned.
 
 ---
 
@@ -367,6 +370,7 @@ Implements `architecture/agent-skills` § Standing instructions.
 - `upsertBlock(content: string | null): { content, action: 'created' | 'appended' | 'updated' | 'unchanged' | 'malformed' }`: markers are matched as `<!-- specplane:begin v<N>` … `-->` and `<!-- specplane:end -->` on their own lines. Line endings in the existing file are preserved.
 - `init` writes `AGENTS.md` through `upsertBlock` and reports `Created`, `Updated` (appended or replaced), `Unchanged`, or `Skipped AGENTS.md (malformed specplane block; fix the markers by hand)`.
 - `validate` warns (type `freshness`) when no file in the repository root delivers the block (`AGENTS.md`, or a harness file registered by an installed harness), when a block's version is older than `STANDING_VERSION`, when its text differs from `standingText` (with the harness's Workflows line), or when it is malformed. Message: `Specplane standing instructions in <file> are missing or out of date; run specplane init.`
+- A harness registers its standing-instructions file as `rulesFile` (for Claude Code, `.claude/rules/specplane.md`). Its freshness check is a byte-compare with the bundled template; a difference is a `freshness` warning with the same message.
 
 ---
 
