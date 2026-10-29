@@ -58,7 +58,7 @@ const commitFile = (cwd: string, file: string, content: string, msg: string) => 
 const hasBranch = (r: R, id: string) => gitOk(r.root, "show-ref", "--verify", "--quiet", `refs/heads/plan/${id}`);
 const count = (r: R, ref: string) => Number(git(r.root, "rev-list", "--count", ref));
 
-test("abandon: commits on main, archives, removes worktree, keeps branch; idempotent", () => {
+test("abandon: commits on main, archives, removes worktree, keeps branch; a second abandon fails", () => {
   const r = repo();
   start(r, A);
   const res = sp(r.root, "plan", "abandon", A);
@@ -72,9 +72,10 @@ test("abandon: commits on main, archives, removes worktree, keeps branch; idempo
   assert.ok(hasBranch(r, A), "branch kept");
   const head = git(r.root, "rev-parse", "HEAD");
   const again = sp(r.root, "plan", "abandon", A, "--delete-branch");
-  assert.equal(again.code, 0, again.err);
+  assert.equal(again.code, 1, "abandoning an abandoned plan fails");
+  assert.match(again.err, /Cannot abandon plan: `2026-01-01-alpha` is `abandoned`\./);
   assert.equal(git(r.root, "rev-parse", "HEAD"), head, "no second commit");
-  assert.ok(!hasBranch(r, A), "branch deleted on request");
+  assert.ok(hasBranch(r, A), "branch kept by the failed run");
   assert.equal(git(r.root, "status", "--porcelain"), "");
 });
 
@@ -106,6 +107,11 @@ test("abandon: wrong branch and done plans fail with no writes", () => {
   res = sp(r.root, "plan", "abandon", A);
   assert.equal(res.code, 1);
   assert.match(res.err, /is `done`/);
+  fs.writeFileSync(path.join(r.root, "plans", A, "PLAN.md"), plan(A, "abandoned"));
+  git(r.root, "commit", "-qam", "abandoned");
+  res = sp(r.root, "plan", "abandon", A);
+  assert.equal(res.code, 1);
+  assert.match(res.err, /Cannot abandon plan: `2026-01-01-alpha` is `abandoned`\./);
   assert.equal(sp(r.root, "plan", "abandon", "2026-01-09-none").code, 1);
 });
 
@@ -180,6 +186,9 @@ test("restack: after a squash merge only beta's own commits are replayed (Scenar
   const before = git(r.root, "rev-parse", `plan/${B}`);
   const dry = sp(r.root, "plan", "restack", B, "--dry-run");
   assert.equal(dry.code, 0, dry.err);
+  assert.match(dry.out, /^Would restack .* onto main \(no longer stacked\)$/m);
+  assert.match(dry.out, /^[0-9a-f]{7} beta work$/m, "dry run lists the commits to replay");
+  assert.doesNotMatch(dry.out, /alpha work/, "the stack marker and base commits are not listed");
   assert.equal(git(r.root, "rev-parse", `plan/${B}`), before, "dry run changes nothing");
   const res = sp(r.root, "plan", "restack", B);
   assert.equal(res.code, 0, res.err);
@@ -219,7 +228,7 @@ test("restack: unmerged base appends a new marker; second run is a no-op", () =>
   assert.equal(git(r.root, "rev-parse", `plan/${B}`), head);
 });
 
-test("restack: conflicts are surfaced, the branch is unchanged; non-stacked plans error", () => {
+test("restack: conflicts are listed and the checkout is left mid-rebase; non-stacked plans error", () => {
   const r = stacked();
   commitFile(wtOf(r, B), "a.txt", "b-edit\n", "beta edits a");
   const wa = wtOf(r, A);
@@ -229,7 +238,10 @@ test("restack: conflicts are surfaced, the branch is unchanged; non-stacked plan
   const res = sp(r.root, "plan", "restack", B);
   assert.equal(res.code, 1);
   assert.match(res.err, /has conflicts; resolve manually/);
+  assert.match(res.err, /a\.txt/);
   assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+  assert.match(git(wtOf(r, B), "status", "--porcelain"), /^UU a\.txt$/m, "rebase left in progress");
+  git(wtOf(r, B), "rebase", "--abort");
   assert.equal(git(wtOf(r, B), "status", "--porcelain"), "");
   const plain = sp(r.root, "plan", "restack", A);
   assert.equal(plain.code, 1);

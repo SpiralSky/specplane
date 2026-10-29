@@ -96,6 +96,18 @@ test("finish: local merge without a remote (Scenarios 4, 4a)", () => {
   assert.match(res.err, /Acceptance criteria/);
 });
 
+test("finish: --no-fetch skips the fetch; pushes and merges still happen", () => {
+  const r = repo({ remote: true });
+  // The remote no longer has `main`, so any fetch fails while local refs are intact.
+  git(r.origin, "branch", "-D", "main");
+  const bad = fin(r, "--yes");
+  assert.notEqual(bad.code, 0, "a fetch failure surfaces without --no-fetch");
+  const ok = fin(r, "--yes", "--no-fetch");
+  assert.equal(ok.code, 0, ok.err);
+  assert.match(ok.out, /Finished and merged/);
+  assert.equal(git(r.origin, "rev-parse", "main"), git(r.root, "rev-parse", "main"), "merged commit pushed");
+});
+
 test("finish: step not done stops with no writes (Scenario 5a)", () => {
   const r = repo({ steps: ["done", "blocked"] });
   const head = sha(r.co, "HEAD");

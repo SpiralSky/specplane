@@ -14,7 +14,7 @@ class SearchUsageError extends SpecplaneError {
 }
 
 export interface SearchOptions {
-  type?: string;
+  kind?: string;
   status?: string;
   root?: string;
   json?: boolean;
@@ -48,15 +48,15 @@ function scanFile(abs: string, rel: string, needle: string, meta: Omit<SearchHit
 /** Case-insensitive literal search over spec files and plan files (PLAN.md, steps, HANDOFF.md, archived plans too). */
 export function search(text: string, opts: SearchOptions, root: string, config: Config): { hits: SearchHit[]; problems: string[] } {
   if (text === "") throw new SearchUsageError("Search text must not be empty.");
-  if (opts.type !== undefined && opts.type !== "spec" && opts.type !== "plan") {
-    throw new SearchUsageError(`Unknown type \`${opts.type}\`: expected \`spec\` or \`plan\`.`);
+  if (opts.kind !== undefined && opts.kind !== "spec" && opts.kind !== "plan") {
+    throw new SearchUsageError(`Unknown kind \`${opts.kind}\`: expected \`spec\` or \`plan\`.`);
   }
   if (opts.root !== undefined && !config.spec_roots.some((r) => r.name === opts.root)) throw new UnknownRootError(opts.root);
   const needle = text.toLowerCase();
   const hits: SearchHit[] = [];
   const problems: string[] = [];
 
-  if (opts.type !== "plan") {
+  if (opts.kind !== "plan") {
     const { specs, findings } = loadSpecs(config, root);
     for (const f of findings) if (f.type === "schema" && f.spec !== undefined) problems.push(`Skipped ${f.file}: ${f.message}`);
     for (const s of specs) {
@@ -67,7 +67,7 @@ export function search(text: string, opts: SearchOptions, root: string, config: 
   }
 
   // Plans belong to no spec root, so `--root` excludes them.
-  if (opts.type !== "spec" && opts.root === undefined) {
+  if (opts.kind !== "spec" && opts.root === undefined) {
     for (const p of listPlans(config, root)) {
       let status: string | null;
       try {

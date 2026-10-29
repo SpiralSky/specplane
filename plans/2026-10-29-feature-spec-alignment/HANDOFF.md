@@ -63,3 +63,38 @@ None in this step. The stale-pin integration failure remains, deferred to step 0
 - `activity.test.ts` commits `specs/.gitkeep` because git cannot track an empty spec root; a fresh clone of a repository with an empty root would otherwise fail validation.
 - ADR findings now carry the exact `feature/decisions` texts, and supersession cycles add one `adr` error per cycle (file = lowest-numbered ADR).
 - Step 03 changes `plan/status.ts`, `plan/flows.ts`, `cli.ts`, and `commands/search.ts`; nothing in this step touches them.
+
+## Step 03: Stack-mode blocked, abandon, --no-fetch, --kind, restack dry run
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/plan/status.ts`: `getIndexStatus` blocks a `ready` plan in `stack` mode only when two or more dependencies are not `done`; new `blockedReason` returns "Cannot stack on more than one unmerged dependency: `<a>`, `<b>`." in stack mode and `null` in wait-for-merge mode.
+- `packages/cli/src/commands/plan.ts`: `plan list` prints the `blockedReason` after a `blocked` status (`planList` returns a `blockedReasons` map; `--json` is unchanged); `plan restack --dry-run` prints one `<short sha> <subject>` line per commit that would be replayed.
+- `packages/cli/src/plan/flows.ts`: `startPlan` and `finishPlan` take `fetch` (`--no-fetch`) and skip the `origin` fetch; `abandonPlan` fails for `done` **and** `abandoned` with "Cannot abandon plan: `<id>` is `<status>`." and no longer treats a re-run as cleanup; `restackPlan` returns the replay commit list and leaves a conflict mid-rebase; `finishPlan`'s rebase still aborts.
+- `packages/cli/src/git/branch.ts`: `rebaseOnto` gains `onConflict: "abort" | "leave"` (default abort) and reports conflicting files.
+- `packages/cli/src/errors.ts`: `RebaseConflictError` keeps its fixed first line and appends a "Conflicting files:" list.
+- `packages/cli/src/commands/search.ts`, `cli.ts`: `search --type` renamed to `--kind` (error "Unknown kind ..."); the `SearchHit.type` JSON field is unchanged.
+- Tests: stack-mode cases in `generate.test.ts` and `plan.test.ts` (index status, PLANS.md, human `plan list` reason), `abandon` re-run failure, `--no-fetch` on start and finish, restack dry-run commit listing, and the restack conflict now asserts the mid-rebase state.
+- `plans/2026-10-29-feature-spec-alignment/spec-gaps.md`: added G4.
+
+### Deviations from the plan
+
+- Acceptance criterion 6 (`npm test` passes) is not ticked: 223/224 pass; the only failure is the pre-existing stale pins on `claude:architecture/claude-integration`, deferred to step 05 since step 01.
+- Beyond the listed tasks, the restack conflict behaviour required by `architecture/reference-cli` § Restack (left mid-rebase with conflicting files listed, unlike finish) was implemented here because it lives in the same code path; the old lifecycle test asserted the abort behaviour and was updated.
+
+### Gaps found in specs
+
+- G4 (gap): no CLI route deletes the branch of an already-abandoned plan. See `spec-gaps.md`.
+
+### Open issues
+
+- `architecture/reference-cli` § `search` also describes grouped output (one block per file, at most 3 snippets) and a `{id, kind, path, root, status, matches}` JSON shape; the CLI still emits one hit per line with `type`. This is pre-existing drift from `2026-10-29-cli-spec-search`, outside this step's task list (rename only), so it is left for a later plan.
+
+### What the next step must know
+
+- Step 04 (`spec-gaps.md` in the CLI) has no code overlap with this step: it adds `plan/gaps.ts`, the latest-section HANDOFF check, and the finish-flow listing.
+- Rebase behaviour split: `rebaseOnto(..., { onConflict: "leave" })` is used only by restack; finish relies on the default abort.
+- `abandonPlan` no longer cleans up on a second run; any code that re-ran abandon for cleanup must use `git branch -D` (see G4).

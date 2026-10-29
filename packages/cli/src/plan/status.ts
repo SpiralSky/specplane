@@ -3,6 +3,14 @@ import type { Config, PlanFrontmatter, PlanStatus } from "../types.js";
 /** Index status: stored status, except `ready` with an unmet dependency becomes `blocked`. */
 export type IndexStatus = PlanStatus | "blocked";
 
+/** Dependencies of a `ready` plan that are not `done`, in `depends_on` order. */
+function unmergedDependencies(
+  plan: Pick<PlanFrontmatter, "depends_on">,
+  plansById: Map<string, Pick<PlanFrontmatter, "status">>,
+): string[] {
+  return (plan.depends_on ?? []).filter((dep) => plansById.get(dep)?.status !== "done");
+}
+
 /** `architecture/reference-cli` § Plan status. Reads committed files only. */
 export function getIndexStatus(
   plan: Pick<PlanFrontmatter, "status" | "depends_on">,
@@ -10,12 +18,24 @@ export function getIndexStatus(
   config: Config,
 ): IndexStatus {
   if (plan.status !== "ready") return plan.status;
+  const unmerged = unmergedDependencies(plan, plansById);
   if (config.plans.dependency_mode === "wait_for_merge") {
-    for (const dep of plan.depends_on ?? []) {
-      if (plansById.get(dep)?.status !== "done") return "blocked";
-    }
+    return unmerged.length > 0 ? "blocked" : "ready";
   }
-  return "ready";
+  // Stack mode: a plan can stack on one unmerged dependency, but not two (`feature/plan-status`).
+  return unmerged.length > 1 ? "blocked" : "ready";
+}
+
+/** Text shown with a `blocked` index status (`architecture/reference-cli` § Plan status). */
+export function blockedReason(
+  plan: Pick<PlanFrontmatter, "depends_on">,
+  plansById: Map<string, Pick<PlanFrontmatter, "status">>,
+  config: Config,
+): string | null {
+  if (config.plans.dependency_mode !== "stack") return null;
+  const unmerged = unmergedDependencies(plan, plansById);
+  if (unmerged.length <= 1) return null;
+  return `Cannot stack on more than one unmerged dependency: ${unmerged.map((u) => `\`${u}\``).join(", ")}.`;
 }
 
 /** Effective status: the index status, plus the git-derived `in_progress` and `review`. */

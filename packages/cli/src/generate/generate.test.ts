@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { checkPlansMd } from "../commands/validate.js";
 import { runInit } from "../commands/init.js";
 import { loadConfig } from "../config.js";
-import { getIndexStatus } from "../plan/status.js";
+import { blockedReason, getIndexStatus } from "../plan/status.js";
 import { makeRepo } from "../test-repo.js";
 import { toMermaid } from "./mermaid.js";
 import { generatePlansMd } from "./plans-md.js";
@@ -29,7 +29,14 @@ test("getIndexStatus", () => {
   assert.equal(getIndexStatus({ status: "ready", depends_on: ["d"] }, m, config), "ready");
   assert.equal(getIndexStatus({ status: "ready" }, m, config), "ready");
   const stack = { ...config, plans: { ...config.plans, dependency_mode: "stack" as const } };
+  const two = new Map([["x", { status: "ready" as const }], ["y", { status: "ready" as const }], ["d", { status: "done" as const }]]);
   assert.equal(getIndexStatus({ status: "ready", depends_on: ["x"] }, m, stack), "ready");
+  assert.equal(getIndexStatus({ status: "ready", depends_on: ["d", "x"] }, two, stack), "ready");
+  assert.equal(getIndexStatus({ status: "ready", depends_on: ["x", "y"] }, two, stack), "blocked");
+  assert.equal(getIndexStatus({ status: "ready", depends_on: ["x", "y"] }, two, config), "blocked");
+  assert.equal(blockedReason({ depends_on: ["x", "y"] }, two, stack), "Cannot stack on more than one unmerged dependency: `x`, `y`.");
+  assert.equal(blockedReason({ depends_on: ["d", "x"] }, two, stack), null);
+  assert.equal(blockedReason({ depends_on: ["x"] }, two, config), null);
 });
 
 test("toMermaid: node classes, edges after nodes, classDefs", () => {
@@ -52,6 +59,17 @@ test("generatePlansMd: sections, blocked status, links, determinism", () => {
   assert.ok(md.includes(`| [${A}](archive/${A}/PLAN.md) | Title ${A} | done | feature/alpha |`));
   assert.ok(md.includes("p_2026_01_02_beta[beta]:::blocked"));
   assert.equal(generatePlansMd(config, root), md);
+});
+
+test("generatePlansMd: stack mode blocks a ready plan with two unmerged dependencies", () => {
+  const root = makeRepo({
+    ".specplane/config.yaml": "spec_roots:\n  - name: base\n    path: docs/specifications\nplans:\n  dependency_mode: stack\n",
+    "plans/2026-01-01-alpha/PLAN.md": plan(A, "ready"),
+    "plans/2026-01-02-beta/PLAN.md": plan(B, "ready"),
+    "plans/2026-01-03-gamma/PLAN.md": plan(C, "ready", [A, B]),
+  });
+  const md = generatePlansMd(loadConfig(root).config, root);
+  assert.match(md, new RegExp(`\\| \\[${C}\\]\\(${C}/PLAN\\.md\\) \\| Title ${C} \\| blocked \\|`));
 });
 
 test("generatePlansMd: empty sections render _None._", () => {

@@ -98,15 +98,20 @@ function revParse(ref: string, cwd: string): string {
 
 const STARTED = new Set<string>(["ready", "in_progress", "review"]);
 
+export interface StartOptions {
+  /** Commander sets this to false for `--no-fetch`. */
+  fetch?: boolean;
+}
+
 /**
  * `specplane plan start <id>` (feature/plan-execution § Start flow). All checks run before the first
  * write; `root` is the checkout the command runs in.
  */
-export function startPlan(id: string, config: Config, root: string): StartResult {
+export function startPlan(id: string, config: Config, root: string, opts: StartOptions = {}): StartResult {
   const main = mainRoot(root);
   const def = defaultBranch(main);
   const remote = hasRemote(main);
-  if (remote) {
+  if (remote && opts.fetch !== false) {
     run("git", ["fetch", "origin", def], { cwd: main });
     fetchPlanBranches(main);
   }
@@ -249,6 +254,8 @@ export interface FinishOptions {
   yes?: boolean;
   /** Asks the human to confirm the merge; absent means no human is available (unattended). */
   confirm?: (question: string) => Promise<boolean>;
+  /** Commander sets this to false for `--no-fetch`. */
+  fetch?: boolean;
 }
 
 export interface FinishResult {
@@ -320,7 +327,7 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   if (merge === "pull_request" && !remote) {
     throw new PlanStateError("Cannot finish: `merge: pull_request` needs a remote `origin` to push to.");
   }
-  if (remote) run("git", ["fetch", "origin", def], { cwd: main });
+  if (remote && opts.fetch !== false) run("git", ["fetch", "origin", def], { cwd: main });
   const tip = defaultTip(def, main);
   const planHere = planAt("HEAD", id, config, root);
   if (!planHere) throw new PlanNotFoundError(id);
@@ -527,8 +534,9 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   const rec = listPlans(config, main).find((p) => p.id === id);
   if (!rec) throw new PlanNotFoundError(id);
   const status = String(lenientFrontmatter(fs.readFileSync(rec.planFile, "utf8"))?.status ?? "unknown");
-  if (status === "done") throw new PlanStateError(`Cannot abandon plan: \`${id}\` is \`done\`.`);
-  const already = status === "abandoned";
+  if (status === "done" || status === "abandoned") {
+    throw new PlanStateError(`Cannot abandon plan: \`${id}\` is \`${status}\`.`);
+  }
   const relDir = path.relative(main, rec.dir);
   const archiveRel = `${config.plans.dir}/archive/${id}`;
   const moves = config.plans.archive_done && !rec.archived;
@@ -536,36 +544,32 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   // 1. Validate.
   const wt = planWorktree(branch, main);
   requireCleanWorktree(wt, "abandon plan", opts.force === true);
-  if (!already) {
-    const cur = git(["rev-parse", "--abbrev-ref", "HEAD"], main);
-    if (cur !== def) {
-      throw new PlanStateError(`Cannot abandon plan \`${id}\`: the main checkout is on \`${cur}\`, not \`${def}\`. Switch to \`${def}\` and run abandon again.`);
-    }
-    if ((tryRun(["status", "--porcelain", "--", relDir], main) ?? "").trim() !== "") {
-      throw new PlanStateError(`Cannot abandon plan \`${id}\`: \`${relDir}\` has uncommitted changes in the main checkout. Commit or discard them and run abandon again.`);
-    }
-    if (moves && fs.existsSync(path.join(main, archiveRel))) {
-      throw new PlanStateError(`Cannot abandon plan \`${id}\`: \`${archiveRel}\` already exists.`);
-    }
+  const cur = git(["rev-parse", "--abbrev-ref", "HEAD"], main);
+  if (cur !== def) {
+    throw new PlanStateError(`Cannot abandon plan \`${id}\`: the main checkout is on \`${cur}\`, not \`${def}\`. Switch to \`${def}\` and run abandon again.`);
+  }
+  if ((tryRun(["status", "--porcelain", "--", relDir], main) ?? "").trim() !== "") {
+    throw new PlanStateError(`Cannot abandon plan \`${id}\`: \`${relDir}\` has uncommitted changes in the main checkout. Commit or discard them and run abandon again.`);
+  }
+  if (moves && fs.existsSync(path.join(main, archiveRel))) {
+    throw new PlanStateError(`Cannot abandon plan \`${id}\`: \`${archiveRel}\` already exists.`);
   }
 
   // 2. Write.
   const result: AbandonResult = { planId: id, committed: false, archived: false, worktreeRemoved: false, branchDeleted: false };
-  if (!already) {
-    setStatus(rec.planFile, "abandoned");
-    const paths = [relDir];
-    if (moves) {
-      fs.mkdirSync(path.join(main, config.plans.dir, "archive"), { recursive: true });
-      git(["add", "--", relDir], main);
-      git(["mv", relDir, archiveRel], main);
-      paths.push(archiveRel);
-      result.archived = true;
-    }
-    const msg = formatMessage({ type: "chore", scope: "specplane", summary: `abandon ${id}`, trailers: cliTrailers("abandon", id) });
-    run("git", ["commit", "-F", "-", "--", ...paths], { cwd: main, input: msg });
-    result.committed = true;
-    if (hasRemote(main)) run("git", ["push", "origin", def], { cwd: main });
+  setStatus(rec.planFile, "abandoned");
+  const paths = [relDir];
+  if (moves) {
+    fs.mkdirSync(path.join(main, config.plans.dir, "archive"), { recursive: true });
+    git(["add", "--", relDir], main);
+    git(["mv", relDir, archiveRel], main);
+    paths.push(archiveRel);
+    result.archived = true;
   }
+  const msg = formatMessage({ type: "chore", scope: "specplane", summary: `abandon ${id}`, trailers: cliTrailers("abandon", id) });
+  run("git", ["commit", "-F", "-", "--", ...paths], { cwd: main, input: msg });
+  result.committed = true;
+  if (hasRemote(main)) run("git", ["push", "origin", def], { cwd: main });
   if (wt) {
     dropWorktree(wt, opts.force === true, main);
     result.worktreeRemoved = true;
@@ -612,6 +616,17 @@ export interface RestackResult {
   onto: string;
   /** True when the base plan has merged and the plan is no longer stacked. */
   unstacked: boolean;
+  /** Commits a dry run would replay, oldest first (empty for other outcomes). */
+  commits: { sha: string; subject: string }[];
+}
+
+/** Commits in `<upstream>..plan/<id>`, oldest first, without stack marker commits. */
+function commitsToReplay(branch: string, upstream: string, cwd: string): { sha: string; subject: string }[] {
+  const shas = run("git", ["rev-list", "--reverse", `${upstream}..${branch}`], { cwd }).trim().split("\n").filter(Boolean);
+  return shas
+    .map((sha) => ({ sha, subject: run("git", ["log", "-1", "--format=%s", sha], { cwd }).trim(), marker: readTrailers(sha, cwd).get("Specplane-Workflow") === "stack" }))
+    .filter((c) => !c.marker)
+    .map(({ sha, subject }) => ({ sha: sha.slice(0, 7), subject }));
 }
 
 /**
@@ -646,16 +661,19 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
     if (newBase === "") throw new PlanStateError(`Cannot restack: base plan \`${baseId}\` has no branch and is not done on \`${def}\`.`);
   }
   const newBaseSha = revParse(newBase, main);
-  if (!merged && newBaseSha === upstream) return { planId: id, outcome: "current", onto: newBase, unstacked: false };
+  if (!merged && newBaseSha === upstream) return { planId: id, outcome: "current", onto: newBase, unstacked: false, commits: [] };
 
   const checkout = planWorktree(branch, main) ?? (git(["rev-parse", "--abbrev-ref", "HEAD"], main) === branch ? main : null);
   if (!checkout) {
     throw new PlanStateError(`Cannot restack: \`${branch}\` is not checked out. Run \`specplane plan start ${id}\` first.`);
   }
   if (!clean(checkout)) throw new PlanStateError("Cannot restack: the working tree has uncommitted changes. Commit or stash them first.");
-  if (opts.dryRun) return { planId: id, outcome: "dry-run", onto: newBase, unstacked: merged };
+  if (opts.dryRun) {
+    return { planId: id, outcome: "dry-run", onto: newBase, unstacked: merged, commits: commitsToReplay(branch, upstream, main) };
+  }
 
-  rebaseOnto(newBase, upstream, branch, checkout);
+  // Unlike finish, a conflict leaves the checkout mid-rebase for the human (`feature/tooling`).
+  rebaseOnto(newBase, upstream, branch, checkout, { onConflict: "leave" });
   // A new marker: the next base while stacked, or a marker without a base once the plan is on the default branch.
   const trailers = { ...cliTrailers("stack", id), ...(merged ? {} : { "Specplane-Stack-Base": newBaseSha }) };
   const msg = formatMessage({
@@ -665,5 +683,5 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
     trailers,
   });
   run("git", ["commit", "--allow-empty", "-F", "-"], { cwd: checkout, input: msg });
-  return { planId: id, outcome: "restacked", onto: newBase, unstacked: merged };
+  return { planId: id, outcome: "restacked", onto: newBase, unstacked: merged, commits: [] };
 }

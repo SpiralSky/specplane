@@ -82,8 +82,11 @@ export class SetupHookError extends SpecplaneError {
 }
 export class RebaseConflictError extends SpecplaneError {
   readonly exitCode = 1;
-  constructor(id: string, base: string) {
-    super(`Rebase of \`plan/${id}\` onto \`${base}\` has conflicts; resolve manually.`);
+  constructor(id: string, base: string, files: string[] = []) {
+    super(
+      `Rebase of \`plan/${id}\` onto \`${base}\` has conflicts; resolve manually.` +
+        (files.length > 0 ? `\nConflicting files:\n${files.map((f) => `  ${f}`).join("\n")}` : ""),
+    );
   }
 }
 export class ForgeError extends SpecplaneError {

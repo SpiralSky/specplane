@@ -31,9 +31,15 @@ export function deleteBranch(name: string, cwd: string = process.cwd()): void {
   run("git", ["branch", "-D", name], { cwd });
 }
 
+export interface RebaseOptions {
+  /** What to do on conflict: abort (default, used by finish) or leave the checkout mid-rebase (restack). */
+  onConflict?: "abort" | "leave";
+}
+
 /**
  * `git rebase --onto <newBase> <upstream> <branch>`, run in `cwd` (which checks `branch` out).
- * On conflict, aborts the rebase (the branch is left unchanged) and throws RebaseConflictError.
+ * On conflict, aborts the rebase (the branch is left unchanged) unless `onConflict: "leave"`, and
+ * throws `RebaseConflictError` listing the conflicting files.
  * A failure that left no rebase in progress is rethrown as the original GitError.
  */
 export function rebaseOnto(
@@ -41,16 +47,24 @@ export function rebaseOnto(
   upstream: string,
   branch: string,
   cwd: string = process.cwd(),
+  opts: RebaseOptions = {},
 ): void {
   try {
     run("git", ["rebase", "--onto", newBase, upstream, branch], { cwd });
   } catch (e) {
     if (!(e instanceof GitError)) throw e;
+    let files: string[] = [];
+    try {
+      files = run("git", ["diff", "--name-only", "--diff-filter=U"], { cwd }).split("\n").filter(Boolean);
+    } catch {
+      files = [];
+    }
+    if (opts.onConflict === "leave") throw new RebaseConflictError(branch.replace(/^plan\//, ""), newBase, files);
     try {
       run("git", ["rebase", "--abort"], { cwd });
     } catch {
       throw e;
     }
-    throw new RebaseConflictError(branch.replace(/^plan\//, ""), newBase);
+    throw new RebaseConflictError(branch.replace(/^plan\//, ""), newBase, files);
   }
 }

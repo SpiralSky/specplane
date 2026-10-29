@@ -26,3 +26,12 @@
 **Resolution**: `ConfigError` accepts a `null` key and then uses the reason as the whole message, so cross-field errors match the feature texts exactly; JSON-schema violations keep the `Config key` prefix. The duplicate-root message was also aligned to feature Scenario 5.
 **Target spec**: `architecture/reference-cli`
 **Status**: open
+
+## G4: No branch cleanup after a plan is already abandoned
+
+**Kind**: gap
+**Step**: 03
+**Case**: `feature/plan-status` says abandoning a plan whose stored status is `abandoned` fails, but `feature/plan-execution` § Abandoning a plan keeps `plan/<id>` unless deletion is requested, and `plan cleanup` only deletes the branch of a plan that is `done` on the default branch. After the first successful abandon there is therefore no CLI route to delete the branch or a leftover worktree.
+**Resolution**: implemented the spec texts as written: a second `plan abandon` fails with "Cannot abandon plan: `<id>` is `abandoned`." (including `--delete-branch`). Deleting an abandoned plan's branch is left to `git branch -D`, as the specs do not define a command for it.
+**Target spec**: `feature/plan-status`, `feature/plan-execution`, `feature/tooling`
+**Status**: open
