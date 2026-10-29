@@ -2,5 +2,6 @@
   "name": "specplane",
   "version": "0.1.0",
   "description": "Specplane plans pane and step/spec mode for Claude Code",
+  "license": "Apache-2.0",
   "types": "./types/index.d.ts"
 }

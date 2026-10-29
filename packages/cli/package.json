@@ -2,6 +2,7 @@
   "name": "specplane",
   "version": "0.1.0",
   "description": "Reference CLI for Specplane: spec-driven development with plans, worktrees, and CI-friendly validation",
+  "license": "Apache-2.0",
   "keywords": [
     "specplane",
     "specs",

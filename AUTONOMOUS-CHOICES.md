@@ -83,7 +83,7 @@ Full list: `plans/archive/2026-10-29-cli-forge-ci-publish/HANDOFF.md`. Notable:
 ---
 
 # Needs your decision (summary)
-1. **Licence**: there is no LICENSE file and no `license` in `packages/cli/package.json` or the plugin's `plugin.json` (the plugin directory refuses a submission without one). The plugin has no icon either.
+1. ~~**Licence**~~ Resolved 2026-10-29: the user chose Apache-2.0 (official text in `LICENSE`, `packages/cli/LICENSE`, `harnesses/claude/plugin/LICENSE`, plus `license` fields). The plugin still has no icon (a warning only).
 2. **Publishing**: `repository.url` (the repo has no remote), the `NPM_TOKEN` secret, and the Node version (above).
 3. **Feature-spec proposals** (agents may not edit feature specs): `plans/archive/2026-10-29-cli-spec-search/feature-spec-proposals.md`, `…/2026-10-29-cli-plan-commands/feature-spec-proposals.md`, `…/2026-10-29-cli-plan-flows/feature-spec-proposals.md`. Until they're applied, `plan restack` exists in the CLI and the architecture spec but not in `feature/tooling`.
 4. **Leak-guard hits in feature specs**: "JSON Schema" in `feature/spec-policies`, plus the existing `src/…` examples in `feature/plan-steps`. Reword them or extend `leak_guard_allow`. `specplane validate` shows the rest of the ~55 warnings.
