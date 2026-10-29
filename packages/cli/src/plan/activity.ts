@@ -61,7 +61,7 @@ export function showFile(ref: string, file: string, cwd: string): string | null 
   return tryGit(["show", `${ref}:${file}`], cwd);
 }
 
-function lenientFrontmatter(text: string): Record<string, unknown> | null {
+export function lenientFrontmatter(text: string): Record<string, unknown> | null {
   try {
     const engines = { yaml: { parse: (s: string) => yaml.load(s, { schema: yaml.JSON_SCHEMA }) as object } };
     const data = matter(text, { engines }).data;

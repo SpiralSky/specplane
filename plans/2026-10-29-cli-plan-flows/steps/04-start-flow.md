@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-plan-flows
 step: 4
 title: plan start
-status: pending
+status: done
 context:
   - spec: feature/plan-execution#Start flow
   - spec: feature/plan-execution#Execution backends
@@ -23,12 +23,12 @@ Implement `plan start <id>` for first start and resume, for all backends, with s
 
 ## Acceptance criteria
 
-- [ ] First start creates `plan/<id>` from the default branch tip without moving any checkout, creates the worktree, runs the setup hook, and announces path and next step.
-- [ ] Dependency, approval, and plan-status checks fail before any write with the spec messages; a setup-hook failure removes the new worktree.
-- [ ] Stacking: one unmerged dependency is allowed; two or more fail with "Cannot stack on more than one unmerged dependency: <a>, <b>."; the marker commit has the specified trailers.
-- [ ] Resume re-uses the branch and worktree, skips dependency and approval checks, and tracks a remote-only branch.
-- [ ] Branch backend requires a clean tree; external backend only announces.
-- [ ] Frontmatter mode writes a claim commit on the default branch with `Specplane-Workflow: claim`.
+- [x] First start creates `plan/<id>` from the default branch tip without moving any checkout, creates the worktree, runs the setup hook, and announces path and next step.
+- [x] Dependency, approval, and plan-status checks fail before any write with the spec messages; a setup-hook failure removes the new worktree.
+- [x] Stacking: one unmerged dependency is allowed; two or more fail with "Cannot stack on more than one unmerged dependency: <a>, <b>."; the marker commit has the specified trailers.
+- [x] Resume re-uses the branch and worktree, skips dependency and approval checks, and tracks a remote-only branch.
+- [x] Branch backend requires a clean tree; external backend only announces.
+- [x] Frontmatter mode writes a claim commit on the default branch with `Specplane-Workflow: claim`.
 
 ## Tasks
 

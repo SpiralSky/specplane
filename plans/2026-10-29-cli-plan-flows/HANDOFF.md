@@ -81,3 +81,38 @@ None.
 - CHOICE: `rebaseOnto` treats a failure as a conflict only if `git rebase --abort` succeeds; otherwise the original `GitError` is rethrown. `RebaseConflictError` id is the branch with `plan/` stripped.
 - CHOICE: `runSetupHook` does not remove the worktree on failure; the start flow must do that (the error message says "Worktree removed.").
 - CHOICE: the dirty-worktree refusal is git's own `GitError` (exit 2), propagated as the spec says.
+
+## Step 04: plan start
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/plan/flows.ts`: `startPlan` (validate, then write): plan and specs read from the default branch tip via `git show`; status, dependency (wait-for-merge and stacking), and approval checks; claim commit (frontmatter mode, pushed when a remote exists); marker commit through `git commit-tree`; remote-only branch tracking; worktree/branch/external checkout; setup hook with worktree removal on failure.
+- `packages/cli/src/commands/plan.ts`, `cli.ts`: `plan start <id>` (no flags).
+- `git/exec.ts`: `run` takes an optional `input` (stdin) for `-F -`. `errors.ts`: `PlanStateError` now takes the full message. `plan/activity.ts` exports `lenientFrontmatter`; `spec/resolve.ts` exports `TYPE_DIRS`.
+- `plan/flows.test.ts`: 12 integration tests with a bare origin (Scenarios 1, 2, 3, 6, 7, 8, two-dependency stacking, backends, claim commit).
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- `PlanStateError` was specified as `Cannot <action> plan ...` in the class but the feature texts differ ("Cannot start plan: `<id>` ..."); the constructor now takes the verbatim message.
+- Start flow does not say what a resume of a `review`/`in_progress` plan accepts with `status_source: git`: stored status stays `ready` there, so only `ready` is needed.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+- CHOICE: the two-dependency error lists ids in backticks: "Cannot stack on more than one unmerged dependency: `a`, `b`."
+- CHOICE: an unstarted stack base fails with "Cannot start plan: dependency `<id>` has not been started."
+- CHOICE: the default branch tip is the local branch, or `origin/<default>` when the local one is strictly behind it; a claim commit moves the local branch, and the plan branch is cut from it.
+- CHOICE: a setup-hook failure removes only the worktree; the branch (and any claim commit) stays, so a retry is a resume. The hook runs only when the worktree is newly created.
+- CHOICE: claim preconditions (main checkout on the default branch, `PLAN.md` unchanged) and the branch-backend clean-tree check run before any write, with `PlanStateError` messages.
+- CHOICE: resume prints the restack hint on stderr when the stack marker's base plan is `done` on the default tip, and continues. The base ID is parsed from the marker subject.
+- CHOICE: `plan start` prints `Started|Resumed <id>`, `Worktree: <path>` or `Branch: <name>`, and `Next step: NN <title> (<status>)` on stdout.

@@ -15,7 +15,7 @@ export interface ResolvedSpec {
 }
 
 /** Type directory mapping; never computed by pluralising. */
-const TYPE_DIRS: Record<string, string> = { feature: "features", architecture: "architecture" };
+export const TYPE_DIRS: Record<string, string> = { feature: "features", architecture: "architecture" };
 const ID_RE = new RegExp(ID_PATTERN);
 
 /**

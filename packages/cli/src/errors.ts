@@ -59,8 +59,9 @@ export class PlanNotFoundError extends SpecplaneError {
 }
 export class PlanStateError extends SpecplaneError {
   readonly exitCode = 1;
-  constructor(action: string, id: string, reason: string) {
-    super(`Cannot ${action} plan \`${id}\`: ${reason}`);
+  /** `message` is the full text; the feature specs fix it verbatim (e.g. "Cannot start plan: `<id>` is `draft`, not `ready`."). */
+  constructor(message: string) {
+    super(message);
   }
 }
 export class DependencyCycleError extends SpecplaneError {
