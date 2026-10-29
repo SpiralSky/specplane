@@ -1,7 +1,7 @@
 ---
 id: architecture/reference-cli
 title: "Reference CLI: module structure, parsing, git integration, validation engine, and plan flows"
-status: review
+status: approved
 author: llm
 implements: [feature/tooling, feature/plan-execution, feature/plan-index, feature/configuration]
 ---
