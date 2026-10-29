@@ -32,11 +32,26 @@ Feature specs are authoritative for:
 
 ### Rule 3: Gaps must be recorded
 
-When the implementer uses the feature spec to fill a gap in the architecture spec, the gap must be recorded. The gap record goes into the step's `HANDOFF.md` (see `feature/plan-steps`), specifically in the "gaps found in specs" section.
+When the implementer uses the feature spec to fill a gap in the architecture spec, the gap must be recorded. The gap record is an entry of kind `gap` in the plan's `spec-gaps.md` (see "Spec gaps record" below); the step's `HANDOFF.md` "Gaps found in specs" section lists the entry's ID (see `feature/plan-steps`).
 
 Recording a gap allows the architecture spec to be updated to include the detail, so future implementers do not need to re-derive it from the feature spec.
 
 Gaps are informational, not blocking. The implementer proceeds with the feature spec's guidance.
+
+### Spec gaps record
+
+Each plan keeps its gap and assumption records in `<plans.dir>/<plan-id>/spec-gaps.md`, created by the first step that needs it. One file per plan keeps parallel plans from conflicting. Each entry has a heading `## G<n>: <short case>` (`n` counts from 1 within the plan and is never reused) and these fields:
+
+| Field | Content |
+|-------|---------|
+| `**Kind**` | `gap` (Rule 3), `assumption` (Rule 6), or `proposal` (a suggested spec edit the implementer may not make itself) |
+| `**Step**` | The step number that recorded the entry |
+| `**Case**` | What the specs do not cover |
+| `**Resolution**` | What the implementer did, or for a `proposal`, the proposed text |
+| `**Target spec**` | The spec ID or IDs the case should be added to |
+| `**Status**` | `open`, `applied`, or `rejected` |
+
+Entries are added with status `open`. A human (or an agent allowed to edit the target spec) changes the status once the target spec is updated or the entry is declined. Open entries never block a step or the finish flow; the finish flow lists them so they are reviewed.
 
 ### Rule 4: Contradictions are blocking
 
@@ -57,6 +72,10 @@ A plan that changes behaviour includes spec edits on its own branch. Spec and co
 
 An approved spec edited on a plan branch keeps `status: approved`: approval of the plan's pull request (or local merge) is approval of the spec edit. The spec authorship policy still applies to the edit itself — for example, under `specs.feature.llm_role: assist` the agent proposes the feature spec change and a human makes it. Spec approval requirements for starting a plan (`plans.require_approved_specs`) are checked only when the plan first starts, so a plan's own spec edits never block its resumption.
 
+### Rule 6: Cases neither spec covers
+
+When neither the architecture spec nor the feature spec addresses a case, the implementer chooses the most reasonable default and proceeds; this is not blocking. The choice is recorded as an entry of kind `assumption` in `spec-gaps.md`, naming the case, the default chosen, and the spec the case should be added to, and the step's `HANDOFF.md` lists the entry's ID. If the choice is user-visible and cannot be undone without data loss, an attended implementer asks the human first; an unattended implementer picks the least destructive option and records it.
+
 ---
 
 ## Summary table
@@ -64,8 +83,8 @@ An approved spec edited on a plan branch keeps `status: approved`: approval of t
 | Situation | Action |
 |-----------|--------|
 | Architecture spec covers the detail | Follow the architecture spec |
-| Architecture spec silent; feature spec covers it | Follow the feature spec; record the gap in HANDOFF.md |
-| Both specs silent | Make a reasonable default; record the assumption in HANDOFF.md |
+| Architecture spec silent; feature spec covers it | Rule 3: follow the feature spec; record the gap in `spec-gaps.md` |
+| Both specs silent | Rule 6: make a reasonable default; record the assumption in `spec-gaps.md` |
 | Architecture spec and feature spec contradict | Stop (attended) or block and record (unattended) |
 | Architecture spec contradicts a deprecated spec | Follow the architecture spec; note the deprecated reference for cleanup |
 
@@ -86,7 +105,8 @@ Given `architecture/validation` specifies "Check that each spec ID matches its f
 But does not specify the error message for a mismatch,
 And `feature/spec-system` Scenario 2 specifies "ID `feature/wrong-name` does not match path-derived ID `feature/search`.",
 When implementing the ID-mismatch error message,
-Then the implementer uses the message from `feature/spec-system` and records in HANDOFF.md: "Gap: `architecture/validation` does not specify the ID-mismatch error message; used `feature/spec-system` Scenario 2 text."
+Then the implementer uses the message from `feature/spec-system` and adds a `spec-gaps.md` entry of kind `gap`: case "`architecture/validation` does not specify the ID-mismatch error message", resolution "used `feature/spec-system` Scenario 2 text", target spec `architecture/validation`,
+And the step's HANDOFF.md "Gaps found in specs" section lists that entry's ID.
 
 ### Scenario 3: Contradiction in attended mode
 
@@ -109,7 +129,8 @@ And because the step's acceptance criteria include plan status, the step ends wi
 Given neither architecture nor feature spec mentions what to do when a config file is missing,
 When the implementer encounters this situation,
 Then the implementer chooses a reasonable default (e.g. use built-in defaults and emit a warning),
-And records in HANDOFF.md: "Assumption: config file missing → use defaults + warning. Neither spec addresses this case. Consider adding to `feature/configuration` and `architecture/reference-cli`."
+And adds a `spec-gaps.md` entry of kind `assumption`: case "config file missing", resolution "use defaults + warning", target specs `feature/configuration` and `architecture/reference-cli`,
+And the step's HANDOFF.md lists that entry's ID.
 
 ### Scenario 6: Spec edit included in plan branch
 

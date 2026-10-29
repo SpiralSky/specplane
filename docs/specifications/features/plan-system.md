@@ -25,6 +25,7 @@ plans/
       02-<slug>.md
       ...
     HANDOFF.md                     # appended after each step
+    spec-gaps.md                   # spec gaps and assumptions, if any
   archive/
     <done or abandoned plan folders>
 ```
@@ -36,6 +37,10 @@ plans/
 ### `HANDOFF.md`
 
 `HANDOFF.md` is created by the first step that ends (done, skipped, or blocked) and appended to by every later one. It records what each step accomplished and what the next step needs to know. It stays in the plan folder and moves with it when the plan is archived. See `feature/plan-steps`.
+
+### `spec-gaps.md`
+
+`spec-gaps.md` holds the plan's spec gaps, assumptions, and proposed spec edits, one entry each, so they can be reviewed without reading the whole handoff log. It is created by the first step that records one and moves with the plan when archived. See `feature/spec-precedence` § Spec gaps record.
 
 ---
 

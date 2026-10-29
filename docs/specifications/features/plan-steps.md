@@ -199,7 +199,7 @@ HANDOFF.md has a section per ended step:
 
 ### Gaps found in specs
 
-- `architecture/file-formats` does not specify the error message for an ID that does not match its path. Used the text from `feature/spec-system` acceptance scenario 2: "ID `<value>` does not match path-derived ID `<path-derived>`."
+- G1 (gap): `architecture/file-formats` does not specify the ID-mismatch error message; used the `feature/spec-system` Scenario 2 text. See `spec-gaps.md`.
 
 ### Open issues
 
@@ -218,7 +218,7 @@ HANDOFF.md has a section per ended step:
 | `## Step NN: <title>` | yes | Step heading, followed by `**Date**` and `**Outcome**` (`done`, `skipped`, or `blocked`, matching the step's status) |
 | `### What changed` | yes | Files changed and why, in brief bullets |
 | `### Deviations from the plan` | yes | How the implementation differed from the step's tasks, if at all. "None" if no deviations. |
-| `### Gaps found in specs` | yes | Any spec gaps encountered and how they were resolved. "None" if no gaps. |
+| `### Gaps found in specs` | yes | One line per `spec-gaps.md` entry this step added: its ID, kind, and a one-line summary. The full record is in `spec-gaps.md` (see `feature/spec-precedence`). "None" if no entries. |
 | `### Open issues` | yes | Unresolved issues, blockers (prefixed `BLOCKED:`), or follow-ups needed before or after the next step. "None" if clean. |
 | `### What the next step must know` | yes | Key facts the next session must have. Must be self-contained: the next session reads only HANDOFF.md and the step file, not the diff. |
 

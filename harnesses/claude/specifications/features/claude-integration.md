@@ -1,7 +1,7 @@
 ---
 id: feature/claude-integration
 title: Claude Code integration
-status: approved
+status: review
 author: mixed
 extends: [feature/agent-integration, feature/plan-steps, feature/spec-policies]
 based_on: { feature/agent-integration: "ec52439", feature/plan-steps: "50a7939", feature/spec-policies: "2a67f70" }
@@ -114,7 +114,7 @@ Specplane recommends the memory names below, so that sessions record the same th
 |-------------|---------|
 | `specplane-active-plan` | The active plan ID and current step number, as a pointer to the plan's `HANDOFF.md`. |
 | `specplane-open-questions` | Open questions found during step execution and not yet recorded in the plan's `HANDOFF.md`. |
-| `specplane-spec-gaps` | Spec gaps discovered and not yet filed. |
+| `specplane-spec-gaps` | Spec gaps discovered and not yet recorded in the plan's `spec-gaps.md`. |
 
 ---
 
