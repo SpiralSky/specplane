@@ -152,3 +152,31 @@ None.
 ### What the next step must know
 
 Step 06 can rely on `validate` flagging stale `.claude/rules/specplane.md`.
+
+## Step 06: End-to-end init and dogfood check
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/harness/pack.test.ts` (new): `npm pack`s the package, installs the tarball into a temp prefix, runs `init --harness claude` in a fresh git repo with pre-existing settings; asserts the file list, hook modes 0755, merged settings (user permission and statusLine kept, hooks registered), the AGENTS.md block, no CLAUDE.md, and a second run with no Created/Updated lines.
+- `AGENTS.md`: Workflows line refreshed by `init --harness claude` (it still said no slash commands were installed). A second run is then a no-op.
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+- CHOICE: the test installs with `--prefer-offline` and needs the npm cache or network for the dependencies.
+- CHOICE: the only dogfood drift was the AGENTS.md managed block; `.claude/` was already in sync.
+- check-sync, hooks.test.sh (62 passed), `validate` (0 errors) and `spec pin --check` pass; `npm test` 113 pass.
+
+### What the next step must know
+
+This is the last step; the finish flow ticks PLAN.md.
