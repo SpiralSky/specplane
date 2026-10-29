@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
+import { planListCommand } from "./commands/plan.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
 import { specPinCommand } from "./commands/spec-pin.js";
@@ -19,18 +20,13 @@ program
   .description("Specplane reference CLI")
   .version(pkg.version);
 
-// Placeholders; implemented in later steps.
-for (const [name, description] of [
-  ["plan", "Work with plans (new, list, show, graph, start, finish, abandon, cleanup, archive)"],
-] as const) {
-  program
-    .command(name)
-    .description(description)
-    .action(() => {
-      process.stderr.write(`specplane ${name}: not implemented yet\n`);
-      process.exitCode = 1;
-    });
-}
+const plan = program.command("plan").description("Work with plans (list; new, show, graph, start, finish, abandon, cleanup, archive follow)");
+plan
+  .command("list")
+  .description("List plans with their effective statuses")
+  .option("--status <status>", "filter by effective status")
+  .option("--json", "output JSON")
+  .action((opts) => planListCommand(opts));
 
 const spec = program.command("spec").description("Work with specs (new, list, show, validate, pin)");
 spec

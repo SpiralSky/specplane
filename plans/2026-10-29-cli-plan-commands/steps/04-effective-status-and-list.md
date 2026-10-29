@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-plan-commands
 step: 4
 title: Effective status and plan list
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Plan status (`plan/status.ts`)
   - spec: feature/plan-status#Effective status
@@ -19,11 +19,11 @@ Implement effective plan status derivation and the `plan list` command (without 
 
 ## Acceptance criteria
 
-- [ ] With `status_source: git`, a `ready` plan with branch `plan/<id>` is effectively `in_progress`; an abandoned or unmerged dependency yields `blocked` as specified; `done` and `abandoned` are unchanged.
-- [ ] With `status_source: frontmatter`, the stored status is used.
-- [ ] `plan list` prints the human table and the `--json` array with `id,title,stored_status,effective_status,depends_on,specs,archived`; `--status` filters on the effective status.
-- [ ] `review` is derived only from the stored status in this plan (forge comes later); the code path for a forge is a documented extension point.
-- [ ] Tests cover Scenarios 1, 2, 4, and 6 of `feature/plan-status`.
+- [x] With `status_source: git`, a `ready` plan with branch `plan/<id>` is effectively `in_progress`; an abandoned or unmerged dependency yields `blocked` as specified; `done` and `abandoned` are unchanged.
+- [x] With `status_source: frontmatter`, the stored status is used.
+- [x] `plan list` prints the human table and the `--json` array with `id,title,stored_status,effective_status,depends_on,specs,archived`; `--status` filters on the effective status.
+- [x] `review` is derived only from the stored status in this plan (forge comes later); the code path for a forge is a documented extension point.
+- [x] Tests cover Scenarios 1, 2, 4, and 6 of `feature/plan-status`.
 
 ## Tasks
 

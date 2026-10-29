@@ -71,3 +71,29 @@ None.
 
 ### What the next step must know
 `createBranch`, `deleteBranch`, `rebaseOnto`, `createWorktree`, `removeWorktree` are not implemented (plan-flows plan). `listWorktrees` returns the main checkout first.
+
+## Step 04: Effective status and plan list
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/plan/status.ts`: `getEffectiveStatus(plan, plansById, config, git)` and `StatusGit` (`branchExists`, optional `hasOpenPr` forge extension point).
+- `packages/cli/src/commands/plan.ts`: `planList`, `formatPlanList`, `planListCommand` (`--status`, `--json`; no `--live`).
+- `packages/cli/src/cli.ts`: `plan` is now a command group with `list`; other plan subcommands are not registered yet.
+- `packages/cli/src/commands/plan.test.ts`: integration tests for Scenarios 1, 2, 4, 6, frontmatter mode, JSON, filter; `npm test` passes (146).
+
+### Deviations from the plan
+None.
+
+### Gaps found in specs
+- CHOICE: `review` is never derived without `hasOpenPr`; the forge client plugs in there (documented in the interface comment).
+- CHOICE: an abandoned dependency yields `blocked` under `wait_for_merge` (not done); under `stack` it stays `ready`, and `validate` reports the error (Scenario 4 is a validation rule).
+- CHOICE: unknown `--status` value exits 1 with a `PlanUsageError`; valid values are the stored statuses plus `blocked`.
+- CHOICE: empty result prints `No plans.`.
+
+### Open issues
+None.
+
+### What the next step must know
+`planListCommand` has no `--live`/`--no-fetch` yet; `getEffectiveStatus` takes a `StatusGit` object so the forge lookup can be added without changing callers.
