@@ -1,7 +1,7 @@
 ---
 id: 2026-10-28-reference-cli-core
 title: Reference CLI core — validate and generate commands
-status: draft
+status: ready
 specs:
   - feature/tooling
   - feature/configuration

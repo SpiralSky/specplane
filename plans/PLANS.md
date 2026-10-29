@@ -6,7 +6,7 @@
 
 | ID | Title | Status | Dependencies | Specs |
 |----|-------|--------|--------------|-------|
-| [2026-10-28-reference-cli-core](2026-10-28-reference-cli-core/PLAN.md) | Reference CLI core — validate and generate commands | draft | — | feature/tooling, feature/configuration, feature/spec-system, feature/plan-system, feature/plan-steps, feature/plan-index, feature/spec-overlays, architecture/reference-cli, architecture/file-formats, architecture/repository-layout, architecture/agent-skills |
+| [2026-10-28-reference-cli-core](2026-10-28-reference-cli-core/PLAN.md) | Reference CLI core — validate and generate commands | ready | — | feature/tooling, feature/configuration, feature/spec-system, feature/plan-system, feature/plan-steps, feature/plan-index, feature/spec-overlays, architecture/reference-cli, architecture/file-formats, architecture/repository-layout, architecture/agent-skills |
 
 ## Archived plans
 
@@ -19,7 +19,7 @@
 
 ```mermaid
 graph TD
-    p_2026_10_28_reference_cli_core[reference-cli-core]:::draft
+    p_2026_10_28_reference_cli_core[reference-cli-core]:::ready
     p_2026_10_29_claude_harness_files[claude-harness-files]:::done
     p_2026_10_29_claude_instructions_and_enforcement[claude-instructions-and-enforcement]:::done
     p_2026_10_29_claude_harness_files --> p_2026_10_29_claude_instructions_and_enforcement
