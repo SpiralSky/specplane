@@ -1,4 +1,7 @@
 {
+  "permissions": {
+    "allow": ["Bash(specplane:*)"]
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -6,7 +9,24 @@
         "hooks": [
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/specplane-pre-commit.sh" }
         ]
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/specplane-policy-guard.sh" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/specplane-session-context.sh" }
+        ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/specplane-statusline.sh"
   }
 }

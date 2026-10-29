@@ -8,9 +8,9 @@ config="${CLAUDE_PROJECT_DIR:-.}/.specplane/config.yaml"
 command -v jq >/dev/null 2>&1 || exit 0
 cmd=$(jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
 printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(])[[:space:]]*git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+commit([[:space:];&|)]|$)' || exit 0
-subject=$(git log -1 --format=%s 2>/dev/null) || exit 0
-printf '%s\n' "$subject" | grep -Eq '^plan/[^ ]+ step [0-9]+:' || exit 0
-id=$(printf '%s\n' "$subject" | sed -n 's|^plan/\([^ ]*\) step [0-9][0-9]*:.*|\1|p')
+trailers=$(git log -1 --format='%(trailers:only,unfold)' 2>/dev/null) || exit 0
+printf '%s\n' "$trailers" | grep -Eq '^Specplane-Workflow:[[:space:]]*step[[:space:]]*$' || exit 0
+id=$(printf '%s\n' "$trailers" | sed -n 's/^Specplane-Plan:[[:space:]]*//p' | head -n 1 | sed 's/[[:space:]]*$//')
 [ -n "$id" ] || exit 0
 dir=$(sed -n '/^plans:/,/^[^[:space:]#]/{s/^[[:space:]]*dir:[[:space:]]*//p;}' "$config" | head -n 1 | sed 's/[[:space:]]*#.*$//; s/^["'"'"']//; s/["'"'"'][[:space:]]*$//; s/[[:space:]]*$//')
 [ -n "$dir" ] || dir=plans

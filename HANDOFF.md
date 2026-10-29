@@ -84,3 +84,29 @@ None.
 
 ### Next
 Step 02: enforcement hooks.
+
+## Step 02: Policy guard, session context, status line, and hook tests
+**Date**: 2026-10-29
+**Outcome**: done
+
+### Changes
+- Added `specplane-policy-guard.sh` (PreToolUse; `llm_role` via awk; deny/ask/allow; JSON via `jq -n --arg`), `specplane-session-context.sh` (SessionStart; `CLAUDE_ENV_FILE` exports and plan/step context) and `specplane-statusline.sh`; all POSIX sh, mode 0755, exit 0 when unable to work.
+- `specplane-handoff-check.sh` now detects the `Specplane-Workflow: step` trailer and reads the plan ID from `Specplane-Plan`.
+- `templates/settings.json` replaced with the registration JSON from the spec (all hooks, statusLine, permissions).
+- `hooks.test.sh` extended (policy guard matrix, session context, status line, trailer-based handoff cases): 60 passed, 0 failed under `sh`.
+- Dogfood copies updated in `.claude/`; `check-sync.sh` exits 0.
+
+### Gaps
+- Manual `claude -p` headless check NOT run (unattended session; cannot nest a live Claude run). Simulated instead: piping the literal task input `{"tool":"Edit","input":{...}}` to the guard exits 0 with no output, because it is not the real hook payload shape (`tool_name`/`tool_input`). With a real-shape payload for an existing feature spec under `llm_role: assist` the guard prints `permissionDecision: "ask"` (exit 0), which blocks the edit in `claude -p`. The live `claude -p` confirmation remains for a human.
+- `dash` is not installed here; tests were run under the system `sh` only.
+- Task text lists `NotebookEdit` as a guarded tool; the spec matcher is `Edit|MultiEdit|Write`, which takes precedence. The script tolerates `NotebookEdit` input but the settings do not route it.
+- `check-sync.sh` only greps `.claude/settings.json` for the pre-commit entry, not full equality.
+
+### Open issues
+None.
+
+### Spec coverage
+`claude:architecture/claude-integration` (Hooks, Testing), `architecture/file-formats` section 8 (trailers).
+
+### Next
+Step 03: live view plugin.

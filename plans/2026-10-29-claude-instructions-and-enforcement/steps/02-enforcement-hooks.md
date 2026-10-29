@@ -2,7 +2,7 @@
 plan: 2026-10-29-claude-instructions-and-enforcement
 step: 2
 title: Policy guard, session context, status line, and hook tests
-status: pending
+status: done
 use_subagent: true
 context:
   - spec: claude:architecture/claude-integration#Hooks
@@ -19,12 +19,12 @@ Add the three new hook scripts, switch the handoff check to trailers, replace th
 
 ## Acceptance criteria
 
-- [ ] `specplane-policy-guard.sh`, `specplane-session-context.sh`, and `specplane-statusline.sh` implement § Policy guard, § Session context, and § Status line; POSIX `sh`, mode 0755, exit 0 whenever they cannot do their job.
-- [ ] `specplane-handoff-check.sh` detects step commits by the `Specplane-Workflow: step` trailer and takes the plan ID from `Specplane-Plan`.
-- [ ] `templates/settings.json` equals the registration JSON in § Hooks (2-space indent, trailing newline).
-- [ ] `sh harnesses/claude/tests/hooks.test.sh` exits 0 under `sh` (and `dash` if installed) and covers every hook case in § Testing.
+- [x] `specplane-policy-guard.sh`, `specplane-session-context.sh`, and `specplane-statusline.sh` implement § Policy guard, § Session context, and § Status line; POSIX `sh`, mode 0755, exit 0 whenever they cannot do their job.
+- [x] `specplane-handoff-check.sh` detects step commits by the `Specplane-Workflow: step` trailer and takes the plan ID from `Specplane-Plan`.
+- [x] `templates/settings.json` equals the registration JSON in § Hooks (2-space indent, trailing newline).
+- [x] `sh harnesses/claude/tests/hooks.test.sh` exits 0 under `sh` (and `dash` if installed) and covers every hook case in § Testing.
 - [ ] One manual headless check is recorded in HANDOFF.md: `claude -p` asked to edit a feature spec under `llm_role: assist` does not apply the edit.
-- [ ] Dogfood copies updated; `check-sync.sh` exits 0.
+- [x] Dogfood copies updated; `check-sync.sh` exits 0.
 
 ## Tasks
 
