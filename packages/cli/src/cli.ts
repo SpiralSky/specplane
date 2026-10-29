@@ -6,6 +6,7 @@ import { reportError } from "./errors.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
 import { specPinCommand } from "./commands/spec-pin.js";
+import { searchCommand } from "./commands/search.js";
 import { validateCommand } from "./commands/validate.js";
 
 const pkg = JSON.parse(
@@ -21,7 +22,6 @@ program
 // Placeholders; implemented in later steps.
 for (const [name, description] of [
   ["plan", "Work with plans (new, list, show, graph, start, finish, abandon, cleanup, archive)"],
-  ["search", "Search specs and plans"],
 ] as const) {
   program
     .command(name)
@@ -65,6 +65,15 @@ spec
   .description("Validate one, several, or all specs")
   .option("--json", "output JSON")
   .action((ids: string[], opts: { json?: boolean }) => specValidateCommand(ids, opts));
+
+program
+  .command("search <text>")
+  .description("Search specs and plans")
+  .option("--type <type>", "restrict to spec or plan files")
+  .option("--status <status>", "filter by status")
+  .option("--root <name>", "restrict to a spec root")
+  .option("--json", "output JSON")
+  .action((text: string, opts) => searchCommand(text, opts));
 
 program
   .command("validate")

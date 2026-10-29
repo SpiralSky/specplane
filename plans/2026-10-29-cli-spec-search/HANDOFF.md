@@ -150,3 +150,33 @@ None.
 ### What the next step must know
 
 `cli.ts` edits were limited to an import and the four `spec` subcommand registrations, to ease merging with the concurrent harness plan.
+
+## Step 06: search command
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `commands/search.ts`: case-insensitive literal line search over all spec files (via `loadSpecs`) and plan files (`PLAN.md`, `steps/*.md`, `HANDOFF.md`, archived plans included); `--type`, `--status`, `--root`, `--json` (array of `{path,id,type,status,line,snippet}`); sorted by path then line; unparseable files go to stderr as "Skipped ...".
+- `cli.ts`: removed the `search` placeholder, registered `search <text>` (import plus one command block).
+- `commands/search.test.ts`: 5 tests covering each filter, JSON, archive, ordering, no-match, errors. `npm test` 121/121; `validate` on this repo: exit 0, 0 errors.
+
+### Deviations from the plan
+
+- CHOICE: human output line is `<id>  <path>:<line>  <snippet>`; the ID is shown because Scenario 5 expects `feature/spec-policies` in the output.
+- CHOICE: `line` is the 1-based line in the whole file (frontmatter included); snippet is the trimmed line, cut to 200 characters plus `...`.
+- CHOICE: plan `status` is the `PLAN.md` frontmatter value (not git-derived); step and HANDOFF hits carry the plan's ID and status.
+- CHOICE: `--root` excludes plans (they belong to no spec root); empty text, unknown `--type`, and unknown `--root` exit 1.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+This is the last step; run the finish flow.
