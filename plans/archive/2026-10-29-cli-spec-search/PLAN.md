@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-cli-spec-search
 title: CLI spec and search commands, validation hardening
-status: ready
+status: done
 specs:
   - feature/tooling
   - feature/spec-system
@@ -51,13 +51,13 @@ Add the `spec new`, `spec list`, `spec show`, `spec validate` and `search` comma
 
 ## Acceptance criteria
 
-- [ ] `specplane spec new feature foo --title Foo` creates a valid draft spec; a repeat exits 1 with "Spec `feature/foo` already exists."
-- [ ] `specplane spec list --json` and `spec show` behave as in `feature/tooling`, including ambiguous-ID errors.
-- [ ] `specplane search "architecture-leak"` returns the spec matches with snippets.
-- [ ] The leak guard warns on "JSON Schema" and on bare file names such as `config.yaml` outside the allow-list; a spec using `implements`/`extends` to a deprecated spec gets a warning.
-- [ ] The ID pattern rejects `a//b` and one-character slugs consistently in the schema and the code.
-- [ ] `plans/2026-10-29-cli-spec-search/feature-spec-proposals.md` exists and covers every feature-spec finding assigned to this plan.
-- [ ] `specplane validate` exits 0 on this repository; `npm test` passes.
+- [x] `specplane spec new feature foo --title Foo` creates a valid draft spec; a repeat exits 1 with "Spec `feature/foo` already exists."
+- [x] `specplane spec list --json` and `spec show` behave as in `feature/tooling`, including ambiguous-ID errors.
+- [x] `specplane search "architecture-leak"` returns the spec matches with snippets.
+- [x] The leak guard warns on "JSON Schema" and on bare file names such as `config.yaml` outside the allow-list; a spec using `implements`/`extends` to a deprecated spec gets a warning.
+- [x] The ID pattern rejects `a//b` and one-character slugs consistently in the schema and the code.
+- [x] `plans/2026-10-29-cli-spec-search/feature-spec-proposals.md` exists and covers every feature-spec finding assigned to this plan.
+- [x] `specplane validate` exits 0 on this repository; `npm test` passes.
 
 ## Risks
 
