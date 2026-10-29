@@ -285,6 +285,10 @@ export const register: Register = on => {
     }
     return result
   })
+    .catch(($, e, next) => {
+      logFailure('Bash gate', next.error)
+      return next(e) // fail open
+    })
 
   // Step-mode: deny Edit to prohibited paths
   on('tool.call', { tool: 'Edit' }, async ($, e, next) => {
@@ -296,6 +300,10 @@ export const register: Register = on => {
     if (denial) return { deny: denial }
     return next(e)
   })
+    .catch(($, e, next) => {
+      logFailure('Edit gate', next.error)
+      return next(e) // fail open
+    })
 
   // Step-mode: deny Write to prohibited paths
   on('tool.call', { tool: 'Write' }, async ($, e, next) => {
@@ -307,6 +315,10 @@ export const register: Register = on => {
     if (denial) return { deny: denial }
     return next(e)
   })
+    .catch(($, e, next) => {
+      logFailure('Write gate', next.error)
+      return next(e) // fail open
+    })
 
   // Step-mode: deny MultiEdit to prohibited paths
   on('tool.call', { tool: 'MultiEdit' } as any, async ($, e, next) => {
@@ -318,6 +330,10 @@ export const register: Register = on => {
     if (denial) return { deny: denial }
     return next(e)
   })
+    .catch(($, e, next) => {
+      logFailure('MultiEdit gate', next.error)
+      return next(e) // fail open
+    })
 
   // Add system-prompt section in step or spec mode
   on('prompt.compose', async ($, e, next) => {
