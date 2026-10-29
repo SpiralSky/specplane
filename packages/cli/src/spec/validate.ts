@@ -8,7 +8,8 @@ import { checkArchitectureLeak } from "./leak-guard.js";
 import { checkOverlayContradictions } from "./overlay-check.js";
 import { isInfoFile, parseSpec } from "./parse.js";
 import { resolveSpecId } from "./resolve.js";
-import { hasAnchor } from "./slug.js";
+import { checkPins } from "./pins.js";
+import { hasAnchor, headingSlugs } from "./slug.js";
 
 export interface LoadedSpec {
   /** Absolute path. */
@@ -86,6 +87,42 @@ function statusOf(file: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+const ANCHOR_REF = /(?<![\w/:#-])(?:[a-z][a-z0-9-]*:)?(?:feature|architecture)\/[a-z0-9][a-z0-9/-]*[a-z0-9]#([a-z0-9_-]+)/g;
+
+/** Warn for `<id>#<slug>` references in the body whose slug matches no heading of the target. */
+export function checkBodyAnchors(spec: LoadedSpec, config: Config, repoRoot: string): Finding[] {
+  const out: Finding[] = [];
+  const cache = new Map<string, string[] | null>();
+  let fence: string | null = null;
+  spec.body.split(/\r?\n/).forEach((line, i) => {
+    const f = /^\s*(`{3,}|~{3,})/.exec(line);
+    if (f) {
+      if (fence === null) fence = f[1][0];
+      else if (f[1][0] === fence) fence = null;
+      return;
+    }
+    if (fence !== null) return;
+    for (const m of line.matchAll(ANCHOR_REF)) {
+      const ref = m[0].slice(0, m[0].indexOf("#"));
+      const slug = m[1].replace(/-+$/, "");
+      let slugs: string[] | null | undefined = cache.get(ref);
+      if (slugs === undefined) {
+        try {
+          const t = resolveSpecId(ref, config, spec.root.name, repoRoot);
+          slugs = headingSlugs(readFrontmatter(t.path).body);
+        } catch {
+          slugs = null; // unresolvable references are not anchor findings
+        }
+        cache.set(ref, slugs);
+      }
+      if (slugs && !slugs.includes(slug)) {
+        out.push(finding("warning", "anchor", spec.rel, `\`${ref}#${slug}\` does not match a heading in \`${ref}\`.`, { spec: spec.id, line: i + 1 + spec.lineOffset }));
+      }
+    }
+  });
+  return out;
 }
 
 /** Checks 1-9 of `architecture/reference-cli` § Spec validation for one spec. */
@@ -168,13 +205,11 @@ export function validateSpec(spec: LoadedSpec, config: Config, repoRoot: string)
     at("warning", "authorship", `\`${spec.id}\` is \`author: llm\` but \`specs.${type}.authorship\` is \`user\`; a human must take over (set \`author: mixed\` or \`user\`) before the spec leaves \`draft\`.`);
   }
 
-  // 8. based_on keys must appear in extends or implements.
-  const refs = new Set([...asList(fm.extends), ...(fm.implements ?? [])].map((r) => r.split("#")[0]));
-  for (const key of Object.keys(fm.based_on ?? {})) {
-    if (!refs.has(key.split("#")[0])) {
-      at("error", "pin", `Invalid \`based_on\` entry \`${key}\` in \`${spec.id}\`: not listed in \`extends\` or \`implements\`.`);
-    }
-  }
+  // 8 (cont.). Pins: invalid keys, stale and missing pins, approval guard.
+  out.push(...checkPins(spec, config, repoRoot));
+
+  // 9 (cont.). `<id>#<slug>` references in the body.
+  out.push(...checkBodyAnchors(spec, config, repoRoot));
   return makeReport(out);
 }
 

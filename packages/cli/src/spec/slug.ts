@@ -54,8 +54,18 @@ export function findHeading(body: string, anchor: string): Heading | undefined {
   });
 }
 
+/** Slugs of every heading of `body`, with `-1`, `-2` suffixes for duplicates (GitHub rules). */
+export function headingSlugs(body: string): string[] {
+  const seen = new Map<string, number>();
+  return headings(body).map((h) => {
+    const base = slugify(h.text);
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return n === 0 ? base : `${base}-${n}`;
+  });
+}
+
 /** True when `anchor` (a heading slug or heading text) matches a heading of `body`. */
 export function hasAnchor(body: string, anchor: string): boolean {
-  const want = slugify(anchor);
-  return headings(body).some((h) => slugify(h.text) === want) || findHeading(body, anchor) !== undefined;
+  return headingSlugs(body).includes(slugify(anchor)) || findHeading(body, anchor) !== undefined;
 }

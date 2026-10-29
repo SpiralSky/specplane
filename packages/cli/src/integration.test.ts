@@ -19,3 +19,7 @@ test("generate --print emits Active plans and a Mermaid block, deterministically
   assert.match(out, /```mermaid\ngraph TD/);
   assert.equal(sp("generate", "--print"), out);
 });
+
+test("spec pin --check exits 0 on the specs-framework repository", () => {
+  assert.match(sp("spec", "pin", "--check"), /All pins are current/);
+});

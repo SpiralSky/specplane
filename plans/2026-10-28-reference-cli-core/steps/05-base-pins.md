@@ -2,7 +2,7 @@
 plan: 2026-10-28-reference-cli-core
 step: 5
 title: Base pins, section anchors, skill drift, and spec pin command
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Base pins
   - spec: architecture/reference-cli#Skill contract drift
@@ -24,17 +24,17 @@ Implement base pins (ADR 0003): the `based_on` checks in `validate`, the `specs.
 
 ## Acceptance criteria
 
-- [ ] In the `specs-framework` repo, `specplane spec pin --check` exits 0 and `specplane validate` reports no `base-changed` or `skill-drift` findings (all pins currently match).
-- [ ] After committing a change to a base spec's body, `validate` reports `base-changed` with the message from `feature/spec-overlays` § Stale pins, and `spec pin --check` exits 1.
-- [ ] A base change that touches only frontmatter `status` or `author` produces no finding.
-- [ ] When the pinned blob is missing from the object store, `base-changed` still fires and says the diff is unavailable.
-- [ ] An `approved` spec with a stale pin produces an error; with `specs.pin_bases: off` it does not.
-- [ ] Missing pins: nothing under `off`; a warning for an `extends` spec under `warn`; an error for `extends` and `implements` under `require`.
-- [ ] A `based_on` key not listed in `extends`/`implements` produces an error.
-- [ ] `<id>#<slug>` matching no heading in the referenced spec produces a warning; the `<id> § <Heading>` prose form is not checked.
-- [ ] A skill whose contract comment has a stale pin, an unresolved anchor, or no comment produces a `skill-drift` warning.
-- [ ] `specplane spec pin <id>` writes `based_on` (only that key changes; formatting and key order are preserved), prints `pinned <ref> <hash>` per entry, and refuses with "commit or stash changes to `<path>` first" when a referenced file has uncommitted changes.
-- [ ] All unit tests pass.
+- [x] In the `specs-framework` repo, `specplane spec pin --check` exits 0 and `specplane validate` reports no `base-changed` or `skill-drift` findings (all pins currently match).
+- [x] After committing a change to a base spec's body, `validate` reports `base-changed` with the message from `feature/spec-overlays` § Stale pins, and `spec pin --check` exits 1.
+- [x] A base change that touches only frontmatter `status` or `author` produces no finding.
+- [x] When the pinned blob is missing from the object store, `base-changed` still fires and says the diff is unavailable.
+- [x] An `approved` spec with a stale pin produces an error; with `specs.pin_bases: off` it does not (but see HANDOFF: the specs keep the error under `off`).
+- [x] Missing pins: nothing under `off`; a warning for an `extends` spec under `warn`; an error for `extends` and `implements` under `require`.
+- [x] A `based_on` key not listed in `extends`/`implements` produces an error.
+- [x] `<id>#<slug>` matching no heading in the referenced spec produces a warning; the `<id> § <Heading>` prose form is not checked.
+- [x] A skill whose contract comment has a stale pin, an unresolved anchor, or no comment produces a `skill-drift` warning.
+- [x] `specplane spec pin <id>` writes `based_on` (only that key changes; formatting and key order are preserved), prints `pinned <ref> <hash>` per entry, and refuses with "commit or stash changes to `<path>` first" when a referenced file has uncommitted changes.
+- [x] All unit tests pass.
 
 ## Tasks
 

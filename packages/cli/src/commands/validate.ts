@@ -11,6 +11,7 @@ import { formatJson } from "../output/json.js";
 import { listPlans } from "../plan/resolve.js";
 import { validatePlans } from "../plan/validate.js";
 import { finding, makeReport, mergeReports } from "../report.js";
+import { checkSkillDrift } from "../spec/skill-drift.js";
 import { validateSpecs } from "../spec/validate.js";
 import type { Config, ValidationReport } from "../types.js";
 
@@ -65,7 +66,7 @@ export function runValidate(root: string): ValidationReport {
   const { adrs, findings: adrLoad } = loadAdrs(config, root);
   const adrReport = validateAdrs(adrs, config, root, adrLoad);
   const plans = validatePlans(listPlans(config, root), adrs, config, root);
-  return mergeReports(configReport, specs, adrReport, plans, checkFreshness(root), checkPlansMd(config, root));
+  return mergeReports(configReport, specs, adrReport, plans, checkFreshness(root), checkPlansMd(config, root), makeReport(checkSkillDrift(config, root)));
 }
 
 export function validateCommand(opts: { json?: boolean }): void {

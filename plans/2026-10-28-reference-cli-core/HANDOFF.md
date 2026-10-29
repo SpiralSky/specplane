@@ -146,3 +146,41 @@ None. `specplane validate && specplane generate` on this checkout: exit 0, 0 err
 ### What the next step must know
 
 `checkPlansMd(config, root)` and `checkFreshness(root)` are merged in `runValidate`; step 05 should add pin/anchor/skill-drift findings there. `runInit(root)` returns report lines and is reusable for `--harness`. `src/test-repo.ts` `makeRepo` does not run `git init`; CLI-level init tests need a real git directory.
+
+## Step 05: Base pins, section anchors, skill drift, and spec pin command
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `src/git/blobs.ts` (`committedBlob`, `hasUncommittedChanges`, `readBlob`, plus `workingBlob`, `abbrev`), `src/spec/slug.ts` (`headingSlugs` with `-1`/`-2` duplicate suffixes; `hasAnchor` now uses it).
+- `src/spec/pins.ts` (`normalisedHash`, `comparePin`, `refTargets`, `checkPins`, `approveGuard`, `writePins`), `src/spec/skill-drift.ts` (`skillDirs`, `checkSkillDrift`).
+- `src/spec/validate.ts`: `based_on` key check moved into `checkPins`; new `checkBodyAnchors` for `<id>#<slug>` references in spec bodies (fenced code skipped). `src/commands/validate.ts` merges skill-drift findings.
+- `src/commands/spec-pin.ts` (`spec pin <id> [<ref-id>...]`, `spec pin --check`), registered under a `spec` command group in `src/cli.ts` (replaces the `spec` placeholder).
+- Tests: `src/spec/pins.test.ts` (real temp git repos), slug and integration tests extended; 100 tests pass.
+- Step file: status done, criteria ticked. No pins in this repo needed refreshing (`spec pin --check` exits 0).
+
+### Deviations from the plan
+
+- CHOICE: git helpers take the repo root as `cwd` (`committedBlob(relPath, cwd, ref)`), since `ref:path` needs a repo-relative path.
+- CHOICE: the "current" version of a base is the committed blob, or the working-tree file when it has uncommitted changes or is untracked (spec: working tree compared as-is for the check); `spec pin` refuses uncommitted bases.
+- CHOICE: stale pin on an `approved` spec emits both the `base-changed` warning and the "Cannot approve" error; messages use the root-qualified ID (`claude:feature/...`) for specs in an extending root.
+- CHOICE: `spec pin` merges into existing `based_on` (untouched keys kept); `writePins` writes the flow form `based_on: { k: "hash" }` on one line, inserted after `extends`/`implements`, and removes the key when given no pins.
+- CHOICE: `spec pin --check` fails on any error, any `base-changed`, or missing pins under `require`; it prints each finding then "All pins are current." when clean.
+- CHOICE: body anchor scan is strict (GitHub slug incl. duplicate suffixes); frontmatter `extends`/`implements`/`supersedes` anchors keep the lenient `hasAnchor` (slug or heading text). Unresolvable body references are not reported as anchor findings. Skill contract anchors are strict slugs.
+- CHOICE: a malformed `specplane-contract` comment is reported as "has a malformed ... comment"; a contract spec that does not resolve is reported as an unmatched anchor.
+
+### Gaps found in specs
+
+- Gap: skill discovery ("directory registered by an installed harness") is undefined until the `init --harness` plan; `skillDirs(config, root)` in `src/spec/skill-drift.ts` checks `.claude/skills/*/` and `harnesses/claude/templates/skills/*/` when present, for the later plan to replace.
+- Gap: this step's criterion "with `specs.pin_bases: off` [an approved stale spec] does not [error]" contradicts `feature/spec-overlays` (§ Base pins: under `off`, stale pins "still block approval"), `feature/configuration`, and `architecture/reference-cli`. The specs win: the error is kept under `off` (tested). Not treated as BLOCKED because the specs agree with each other.
+- Gap: `architecture/reference-cli` § Base pins does not say whether `<new>` for an uncommitted base is the working-tree hash; it is (see CHOICE).
+
+### Open issues
+
+None. Pre-existing warnings remain (leak guard, overlay heuristics, two unmatched anchors in an archived plan's step context).
+
+### What the next step must know
+
+This is the last step of the plan; finish by hand per `feature/plan-execution` § Finish flow. `runValidate` now includes pin, anchor, and skill-drift findings; `checkAllPins(config, root)` and `pinSpec(config, root, id, only)` in `src/commands/spec-pin.ts` are reusable. Plan acceptance verified with `specplane` installed via `npm install -g --prefix ~/.local .`: validate exits 0 (0 errors) and `--json` has `valid/errors/warnings`; `generate` twice prints `Unchanged` and PLANS.md is fresh; `init` in a clean temp git repo creates `docs/`, `plans/.gitkeep`, `AGENTS.md`, `.specplane/`; `spec pin --check` exits 0 here; a committed body change to `feature/agent-integration` in a temp clone gives `base-changed` and exit 1; a synthetic `src/foo.ts` fires a `path` leak warning; `npm test` passes (100).

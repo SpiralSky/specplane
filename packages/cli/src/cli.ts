@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
 import { initCommand } from "./commands/init.js";
+import { specPinCommand } from "./commands/spec-pin.js";
 import { validateCommand } from "./commands/validate.js";
 
 const pkg = JSON.parse(
@@ -17,7 +18,6 @@ program
 
 // Placeholders; implemented in later steps.
 for (const [name, description] of [
-  ["spec", "Work with specs (new, list, show, validate, pin)"],
   ["plan", "Work with plans (new, list, show, graph, start, finish, abandon, cleanup, archive)"],
   ["search", "Search specs and plans"],
 ] as const) {
@@ -29,6 +29,13 @@ for (const [name, description] of [
       process.exitCode = 1;
     });
 }
+
+const spec = program.command("spec").description("Work with specs (pin; new, list, show are not implemented yet)");
+spec
+  .command("pin [id] [refs...]")
+  .description("Write or check base pins (based_on) of a spec")
+  .option("--check", "list stale pins for all specs; exit 1 if any")
+  .action((id: string | undefined, refs: string[], opts: { check?: boolean }) => specPinCommand(id, refs, opts));
 
 program
   .command("validate")
