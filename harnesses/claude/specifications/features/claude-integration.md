@@ -4,7 +4,7 @@ title: Claude Code integration
 status: review
 author: mixed
 extends: [feature/agent-integration, feature/plan-steps, feature/spec-policies]
-based_on: { feature/agent-integration: "ec52439", feature/plan-steps: "00332af", feature/spec-policies: "2a67f70" }
+based_on: { feature/agent-integration: "9e3a0cf", feature/plan-steps: "00332af", feature/spec-policies: "beebc9c" }
 ---
 
 # Claude Code integration
