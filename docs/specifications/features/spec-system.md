@@ -53,7 +53,7 @@ A **spec root** is a directory that organises specs into two subfolders:
 ### Rules
 
 - Every spec root must have both a `features/` and an `architecture/` subfolder. Either may be empty.
-- `INFO.md` inside either subfolder is reserved for human-readable documentation (an index, conventions, notes). It is never a spec file and never has spec frontmatter. It does not hold policy.
+- `INFO.md` inside either subfolder is reserved for human-readable documentation (an index, conventions, notes). It is never a spec file and never has spec frontmatter: an `INFO.md` that starts with a frontmatter block is a validation error (it is almost always a misnamed spec). It does not hold policy.
 - The only `INFO.md` files are at `features/INFO.md` and `architecture/INFO.md` within each root; no other directory uses this convention.
 - The base spec root is declared in config. Default: `docs/specifications`.
 - Additional spec roots (overlays) are declared in config. See `feature/spec-overlays`.
@@ -101,7 +101,7 @@ Every spec file begins with YAML frontmatter. The schema is defined below.
 |-------|------|----------|---------|-------------|
 | `id` | string | yes | — | `<type>/<slug>`. Immutable after creation. |
 | `title` | string | yes | — | Human-readable name. May change; the ID does not. |
-| `status` | enum | yes | `draft` | `draft` \| `review` \| `approved` \| `deprecated` |
+| `status` | enum | yes | — | New specs start as `draft`. `draft` \| `review` \| `approved` \| `deprecated` |
 | `author` | enum | yes | — | `user` \| `llm` \| `mixed` |
 | `supersedes` | list of IDs | no | `[]` | IDs of specs this one replaces. Superseded specs are set to `deprecated`. |
 | `extends` | string or list of IDs | no | — | For overlay specs only. A single ID or a list. See `feature/spec-overlays`. |
@@ -253,11 +253,17 @@ Given branches `feat/A` and `feat/B` both create `features/export.md` with diffe
 When the branches are merged,
 Then git reports a merge conflict on `docs/specifications/features/export.md`, making the collision visible before it can be silently resolved.
 
+### Scenario 7: `INFO.md` with frontmatter
+
+Given `docs/specifications/features/INFO.md` starts with a frontmatter block,
+When validation runs,
+Then it reports an error: "`docs/specifications/features/INFO.md` has frontmatter. `INFO.md` is not a spec; rename the file if it is meant to be one."
+
 ---
 
 ## Edge cases
 
-- A spec file with no frontmatter is a validation error; the file is not treated as an `INFO.md`.
+- A spec file with no frontmatter is a validation error; the file is not treated as an `INFO.md`. Conversely, an `INFO.md` with frontmatter is an error, not a spec.
 - A spec with `status: deprecated` may still be referenced for historical traceability; the reference produces a warning, not an error.
 - Nested slugs (e.g. `features/overlays/extension.md` → `feature/overlays/extension`) are supported. Folder nesting inside `features/` or `architecture/` is allowed.
 - The `INFO.md` name is case-sensitive. `info.md` is treated as a regular spec file (and will fail validation because it lacks the required frontmatter).

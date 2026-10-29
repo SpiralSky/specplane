@@ -74,7 +74,7 @@ The date prefix makes ID collisions very unlikely when multiple plans are create
 |-------|------|----------|---------|-------------|
 | `id` | string | yes | — | The plan ID, matching the folder name. Immutable. |
 | `title` | string | yes | — | Human-readable description of the plan's goal. |
-| `status` | enum | yes | `draft` | Stored status. See `feature/plan-status`. |
+| `status` | enum | yes | — | Stored status; new plans start as `draft`. See `feature/plan-status`. |
 | `specs` | list of IDs | yes | — | Spec IDs (feature and/or architecture) this plan implements. Non-empty. |
 | `depends_on` | list of IDs | no | `[]` | Plan IDs this plan depends on. Must be done before this plan can start (default mode). |
 
@@ -85,7 +85,7 @@ The date prefix makes ID collisions very unlikely when multiple plans are create
 id: 2026-10-28-plan-index-generator
 title: Generate PLANS.md from plan frontmatter
 status: ready
-specs: [feature/plan-index, architecture/plan-index]
+specs: [feature/plan-index, architecture/reference-cli]
 depends_on: [2026-10-20-frontmatter-schema]
 ---
 ```

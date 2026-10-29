@@ -15,7 +15,7 @@ This spec is **language-agnostic**: it defines inputs, outputs, exit codes, and 
 
 ## General conventions
 
-- Every command reads `.specplane/config.yaml` from the current repository root. If the config is absent, defaults apply.
+- Every command reads `.specplane/config.yaml` from the current repository root. If the config is absent, defaults apply and a warning says so (see `feature/configuration`).
 - All relative paths are resolved relative to the repository root (the directory containing `.git`), not the current working directory.
 - Exit code `0` on success, non-zero on any error.
 - Errors are written to stderr. Normal output is written to stdout.
@@ -79,13 +79,17 @@ Creates a new spec file with the required frontmatter.
 - `--root <name>`: spec root to create in (default: `base`)
 - `--title <title>`: spec title (prompted interactively if absent)
 - `--implements <id,...>`: for architecture specs, the feature spec IDs implemented
+- `--extends <id,...>`: for overlay specs, the base spec IDs extended
+
+The new spec has `status: draft` and `author: user`.
 
 **What it creates**: a spec file with frontmatter at `<root-path>/features/<slug>.md` (type `feature`) or `<root-path>/architecture/<slug>.md` (type `architecture`).
 
 **Error cases**:
 - Spec with that ID already exists in the root or its extends chain → exit 1, "Spec `<type>/<slug>` already exists."
 - Unknown root name → exit 1, "Unknown root `<name>`."
-- Architecture spec with no `--implements` → prompts for it interactively; error if not provided.
+- Unknown type → exit 1, "Unknown spec type `<type>`: expected `feature` or `architecture`."
+- Architecture spec with no `--implements` → prompts for it interactively; if still not provided, exit 1, "Architecture spec needs `--implements`."
 
 ### `specplane spec list`
 
@@ -129,8 +133,14 @@ Validates one, several, or all specs.
 - `implements`, `supersedes`, and `extends` references resolve; overlay rules (see `feature/spec-overlays`).
 - Authorship consistency (warnings; see `feature/spec-policies` §1).
 - Ordering policy: an `approved` architecture spec whose `implements` list contains a non-approved spec is an error.
+- `architecture_reason` is present when `allow_architecture: true` (error).
+- References to `deprecated` specs (warnings) and unresolved `#section` anchors (warnings).
+- `INFO.md` files with frontmatter (error; see `feature/spec-system`).
+- Base pins (`based_on`): stale pins warn (`base-changed`) and block approval; missing pins per `specs.pin_bases` (see `feature/spec-overlays#base-pins`).
 - Architecture-leak guard heuristics (if enabled; warnings).
 - Overlay contradiction heuristics (warnings).
+
+All rules defined in the referenced feature specs are checked, whether or not listed here.
 
 The CLI runs only deterministic checks. LLM review stages (`specs.llm_review`) are performed by agents through the `validate` workflow integration (see `feature/agent-integration`).
 
@@ -152,9 +162,25 @@ The CLI runs only deterministic checks. LLM review stages (`specs.llm_review`) a
 }
 ```
 
+Each finding may also carry a `type` naming the rule that produced it (for example `base-changed`), so tools can filter findings without parsing messages.
+
 **Exit codes**:
 - `0`: valid (no errors; warnings do not affect exit code)
 - `1`: one or more errors
+
+### `specplane spec pin <id> [<ref-id>...]`
+
+Writes or refreshes the spec's base pins (`based_on`) to the current committed versions of the named references, or of all its `extends` and `implements` entries when none are named. See `feature/spec-overlays#base-pins`.
+
+**Options**:
+- `--check`: change nothing; list stale pins (and missing pins under `specs.pin_bases: require`) for all specs, and exit 1 if there are any.
+
+**Output**: one line per pin written, `pinned <ref-id> <hash>`.
+
+**Error cases**:
+- Unknown spec ID → exit 1, "Spec `<id>` not found."
+- A named reference is not in the spec's `extends` or `implements` → exit 1, "`<ref-id>` is not extended or implemented by `<id>`."
+- A referenced file has uncommitted changes → exit 1, "Commit or stash changes to `<path>` first."
 
 ---
 
@@ -276,7 +302,7 @@ Regenerates `PLANS.md` from the committed plan files (see `feature/plan-index`).
 
 **Options**:
 - `--print`: print the generated content to stdout instead of writing the file.
-- `--live`: use live effective statuses (git branches and pull requests) instead of index statuses. Only allowed with `--print`, so the committed file never contains live state.
+- `--live`: use live effective statuses (git branches and pull requests) instead of index statuses. Only allowed with `--print`, so the committed file never contains live state; `--live` alone exits 1 with "`--live` requires `--print`."
 
 ---
 

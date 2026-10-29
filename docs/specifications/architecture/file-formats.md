@@ -315,7 +315,7 @@ depends_on: []
     "use_subagent": {
       "type": "boolean",
       "default": false,
-      "description": "Harness opt-in: run this step in a subagent. See feature/agent-integration."
+      "description": "Harness opt-in: run this step in a subagent. Defined by the harness overlay spec (claude:feature/claude-integration)."
     }
   }
 }
@@ -645,7 +645,7 @@ The schema is strict so that typos are caught, but `feature/configuration` requi
 - An `additionalProperties` violation (unknown key) is a **warning**: "Unknown config key `<path>`; ignoring." The key is dropped before defaults are merged.
 - Every other violation (wrong type, invalid enum value, missing `name`/`path` in a root) is an **error**.
 
-`specs.pin_bases` controls `based_on` enforcement: `off` skips pin checks; `warn` (default) warns when a spec with `extends` has no pin for a base and when a pin is stale; `require` makes a missing pin for any `extends` or `implements` entry an error. A stale pin is always a warning (`base-changed`), except that a spec with a stale pin cannot be `approved` (error), unless `pin_bases` is `off`.
+`specs.pin_bases` sets how missing pins are reported: `off` not at all; `warn` (default) a warning when a spec with `extends` has no pin for a base; `require` an error for any unpinned `extends` or `implements` entry. Stale pins are checked under every setting: a stale pin is a warning (`base-changed`), and a spec with a stale pin cannot be `approved` (error).
 
 Cross-field rules not expressible in the schema (errors): duplicate root names; a root `extends` an undeclared root; a cycle in root `extends` chains; `execution.worktree_dir` resolving inside the repository.
 

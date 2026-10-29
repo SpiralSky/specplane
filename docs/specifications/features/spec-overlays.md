@@ -110,7 +110,7 @@ title: Plan execution — Claude Code extensions
 status: review
 author: mixed
 extends: [base:feature/plan-execution, base:feature/plan-steps]
-based_on: { base:feature/plan-execution: 0e7de32, base:feature/plan-steps: c8cd747 }
+based_on: { base:feature/plan-execution: "0e7de32", base:feature/plan-steps: "c8cd747" }
 ---
 ```
 
@@ -132,11 +132,11 @@ An extending overlay is written against the base specs as they were when it was 
 `based_on` is an optional frontmatter field on any spec: a map from a referenced spec ID to the git blob hash of that spec's file at the time the referencing spec was last reviewed against it.
 
 ```yaml
-based_on: { feature/agent-integration: 3f2a9c1, feature/plan-steps: 81bd0e4 }
+based_on: { feature/agent-integration: "3f2a9c1", feature/plan-steps: "81bd0e4" }
 ```
 
-1. Keys must be IDs listed in the spec's `extends` or `implements`.
-2. A value is an abbreviated git blob hash of at least 7 hex characters: the output of `git rev-parse HEAD:<path>` for the committed file.
+1. Keys must be IDs listed in the spec's `extends` or `implements`. Keys and list entries are compared after resolution, so a qualified key (`base:feature/x`) matches an unqualified entry that resolves to the same spec, and vice versa.
+2. A value is an abbreviated git blob hash of at least 7 hex characters, written as a quoted string (an unquoted all-digit hash would parse as a number): the output of `git rev-parse HEAD:<path>` for the committed file.
 3. The pin is content-addressed, so it survives rebases and squash merges, and `git diff <pin> <current>` shows exactly what changed in the base spec since review.
 
 ### Stale pins
@@ -159,7 +159,7 @@ Pins are optional. Config `specs.pin_bases` sets the policy:
 
 | Value | Behaviour |
 |-------|-----------|
-| `off` | Missing pins are not reported. |
+| `off` | Missing pins are not reported. Stale pins are still reported and still block approval. |
 | `warn` (default) | An overlay spec with `extends` but no pin gets a warning. |
 | `require` | A missing pin is an error, for both `extends` and `implements`. |
 
@@ -244,7 +244,7 @@ Then `claude:feature/claude-integration` resolves to the `claude` root, and `fea
 
 ### Scenario 7: Stale pin warning
 
-Given `claude:feature/claude-integration` has `based_on: { feature/agent-integration: 3f2a9c1 }`,
+Given `claude:feature/claude-integration` has `based_on: { feature/agent-integration: "3f2a9c1" }`,
 And `feature/agent-integration` has since been committed with different body text,
 When validation runs,
 Then it reports the warning `base-changed`: "`claude:feature/claude-integration` was reviewed against an older `feature/agent-integration`; review `git diff 3f2a9c1 <new>` then run `specplane spec pin claude:feature/claude-integration`."
@@ -293,7 +293,7 @@ Then the command refuses and names the file with uncommitted changes.
 
 ## Edge cases
 
-- A pin to a spec that is later renamed or moved follows the new path on the next `specplane spec pin`; until then the pin is reported as unresolvable (warning).
+- A spec file moved to another root keeps its ID only if the path-derived ID is unchanged; renaming creates a new ID (`feature/spec-system` § Spec IDs), so the referencing spec must update its `extends`/`implements` entry and re-pin. Until then the pin is reported as unresolvable (warning).
 
 - A root may extend a root that is itself an overlay (chaining). Resolution traverses the full chain in order.
 - A root may not extend itself or create a cycle in the extends chain (validation error).

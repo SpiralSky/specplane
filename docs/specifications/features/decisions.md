@@ -102,22 +102,22 @@ Do **not** write an ADR for:
 
 ### Scenario 1: Agent avoids reopening a settled debate
 
-Given `decision/0001` records "We build from scratch rather than fork OpenSpec",
+Given `decision/0001` records "We build from scratch rather than fork an existing tool",
 And `feature/spec-system` links to `decision/0001`,
-When an agent is asked "Should we base Specplane on OpenSpec?",
+When an agent is asked "Should we fork an existing tool instead?",
 Then the agent reads `decision/0001`, finds the recorded decision and reasoning, and answers "This was decided in ADR 0001: we build from scratch because [reasons]. Re-opening this would require a new ADR."
 
 ### Scenario 2: Superseded ADR
 
-Given `decision/0002` records "Use TypeScript for the CLI",
-And a later `decision/0005` records "Migrate CLI to Go",
+Given `decision/0002` records "Store the index in a single file",
+And a later `decision/0005` records "Split the index per directory",
 Then `decision/0002` has `status: superseded` and `superseded_by: decision/0005`.
 And `decision/0005` references `decision/0002` in its context section.
 
 ### Scenario 3: ADR referenced from spec
 
 Given `architecture/reference-cli` has a section linking to `decision/0002`,
-When an implementer reads `architecture/reference-cli` and wonders why TypeScript was chosen,
+When an implementer reads `architecture/reference-cli` and wonders why its implementation language was chosen,
 Then the link to `decision/0002` is present and provides the rationale.
 
 ### Scenario 4: ADR validation

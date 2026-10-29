@@ -41,10 +41,10 @@ step: 1                                  # integer; must match filename prefix
 title: Frontmatter parser
 status: pending                          # pending | done | skipped | blocked
 context:                                 # machine-readable list of items to load
-  - spec: architecture/plan-index#graph  # spec ID, optional #heading anchor
-  - decision: decision/0003              # ADR ID
+  - spec: architecture/reference-cli    # spec ID, optional #heading anchor
+  - decision: decision/0002              # ADR ID
   - file: src/graph/                     # file path or directory
-# use_subagent: true                     # harness opt-in; see feature/agent-integration
+# use_subagent: true                     # harness opt-in; defined by the harness overlay spec
 ---
 ```
 
@@ -67,8 +67,8 @@ The `context` list specifies what the agent must load before starting the step. 
 
 | Prefix | Example | Resolves to |
 |--------|---------|-------------|
-| `spec:` | `spec: architecture/plan-index#graph` | A spec file; optional `#section` anchor narrows to a heading |
-| `decision:` | `decision: decision/0003` | An ADR by its ID |
+| `spec:` | `spec: architecture/reference-cli#cleanup-abandon-archive` | A spec file; optional `#section` anchor narrows to a heading |
+| `decision:` | `decision: decision/0002` | An ADR by its ID |
 | `file:` | `file: src/graph/` | A file or directory path relative to the repository root |
 
 A `#heading` anchor names a heading in the spec; it matches the first heading whose text equals the anchor or begins with it (ignoring case, code formatting, and leading section numbers), so `#Config loading` matches a heading "Config loading (config module)". An unmatched anchor is a warning, and the agent loads the whole spec.

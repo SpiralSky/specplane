@@ -27,7 +27,7 @@ The authorship policy controls who may write a spec and what role an LLM may pla
 ### Meaning of each value
 
 **`authorship`**:
-- `user`: the spec is expected to be written by a human. An LLM-authored draft is a policy violation.
+- `user`: the spec is expected to be written by a human. An LLM-written draft may not leave `draft` until a human takes over (a warning; see below).
 - `llm`: the spec may be authored entirely by the LLM. The LLM sets `author: llm`.
 - `either`: no authorship restriction. Both humans and LLMs may author.
 
@@ -192,7 +192,7 @@ Then no warnings or errors are produced for that spec.
 
 Given `allow_architecture: true` and `architecture_reason: ""`,
 When validation runs,
-Then a hard error is produced: "`architecture_reason` must be non-empty when `allow_architecture: true`."
+Then a hard error is produced: "`architecture_reason` is required and must be non-empty when `allow_architecture: true`."
 
 ---
 
