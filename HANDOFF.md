@@ -59,3 +59,28 @@ All edits are **uncommitted in the plan worktree** (`../.specplane-worktrees/spe
 2. Make the initial commit on `main`.
 3. Resolve remaining open questions (OQ-1, 5, 6, 7, 9, 10) as needed.
 4. Set the plan to `ready` and start step 01.
+
+## Step 01: Standing instructions, AGENTS.md block, and skill commit format
+**Date**: 2026-10-29
+**Outcome**: done
+
+### Changes
+- Added `harnesses/claude/templates/rules/specplane.md` (standing text `v1`, Claude Workflows line, Claude Code section, no `paths:` frontmatter); deleted `templates/CLAUDE.md` and the root `CLAUDE.md`.
+- Replaced `AGENTS.md` with only the managed block (begin/end markers, harness-neutral Workflows line).
+- `plan-step` template: step 1 fetch/fast-forward/stop on divergence, step 9 section 8 commit with trailers, new step 10 push; subagent branch now covers steps 3-10; old `plan/<id> step NN:` format removed.
+- All six skill preconditions now check only `.specplane/config.yaml`.
+- `check-sync.sh` no longer maps `CLAUDE.md`; `templates/rules/` maps to `.claude/rules/` via the generic rule. Copied templates to `.claude/rules/` and `.claude/skills/`; `check-sync.sh` exits 0.
+- Sample commit message checked with `git interpret-trailers --parse`: trailers parse in order.
+
+### Gaps
+- The step prompt gave `Specplane-Workflow: plan-step` and `Specplane-Agent: claude`; `architecture/file-formats` section 8.2/8.3 define `step` and `<harness>[/<model>]` (e.g. `claude-code`). Architecture wins, so `step` and `claude-code` are used.
+- The step file and HANDOFF.md were edited in the worktree copies (committed on the plan branch), not the main checkout.
+
+### Open issues
+None.
+
+### Spec coverage
+`architecture/agent-skills` (Standing instructions, Delivery, plan-step), `architecture/file-formats` section 8, `claude-integration` (Files produced, Template source, Standing instructions, Shared preamble, Worktree and cloud sessions).
+
+### Next
+Step 02: enforcement hooks.

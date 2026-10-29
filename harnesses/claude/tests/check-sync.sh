@@ -20,7 +20,6 @@ while read -r f; do
   rel=${f#"$tpl"/}
   case "$rel" in
     settings.json) continue ;;
-    CLAUDE.md) dest="$root/CLAUDE.md" ;;
     *) dest="$root/.claude/$rel" ;;
   esac
   check "$f" "$dest"
