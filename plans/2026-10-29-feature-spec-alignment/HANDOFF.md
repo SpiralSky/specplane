@@ -159,3 +159,37 @@ None. `specplane validate` has 0 errors (22 warnings: the pre-existing leak-guar
 
 - Step 06 covers README/help text and the final checks. `plans/PLANS.md` must be regenerated (`specplane generate`) as part of the final check; it is the only validation warning that is a real to-do.
 - The `spec-gaps.md` list of this plan has G1–G4; step 06 should not need new entries.
+
+## Step 06: Docs and final check
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `README.md`: plan folders list `spec-gaps.md`; a gap-records bullet explains `gap`/`assumption`/`proposal` entries and that finish lists open ones; Node.js 22+; CLI table now shows `--no-fetch`, `--kind spec|plan`, and `restack --dry-run`.
+- `packages/cli/README.md`: Node.js 22+, Apache-2.0 licence link, quick-start examples for `search --kind` and `restack --dry-run`, and a note that plans keep `spec-gaps.md` next to `HANDOFF.md`.
+- `packages/cli/src/cli.ts`: `plan finish` help says it lists open `spec-gaps.md` entries.
+- `plans/PLANS.md` regenerated (it now shows this plan as `in_progress` with the stack-mode status rules).
+
+### Deviations from the plan
+
+- None beyond doc accuracy fixes found while updating the README (Node version and licence were stale from earlier decisions).
+
+### Gaps found in specs
+
+None new. This plan's `spec-gaps.md` still has four open entries, listed under "Open issues".
+
+### Open issues
+
+Open `spec-gaps.md` entries for human review (they do not block the finish flow):
+
+- G1 (assumption): no message text for a spec root path that is not a directory.
+- G2 (assumption): `init` opts out of the missing-spec-root check so it can scaffold a clean repository.
+- G3 (assumption): cross-field config errors use the feature texts verbatim; `ConfigError` accepts a `null` key.
+- G4 (gap): no CLI route deletes the branch of an already-abandoned plan.
+
+### What the next step must know
+
+- All six steps are done and every check is green: `npm test` 228/228, `check-sync.sh` OK, `hooks.test.sh` 62/62, `specplane validate` 0 errors (21 warnings: reviewed leak-guard hits), `specplane spec pin --check` clean.
+- Run `specplane plan finish 2026-10-29-feature-spec-alignment` next. After it merges, plan `2026-10-29-assist-and-approve` (currently `draft`, depends on this plan) needs its `status` set to `ready` by the user before it can start.

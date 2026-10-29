@@ -41,7 +41,7 @@ plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => p
 plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").action((id, opts) => planStartCommand(id, opts));
 plan
   .command("finish <id>")
-  .description("Finish a plan: tests, rebase, done and archive commit, merge")
+  .description("Finish a plan: tests, rebase, done and archive commit, merge (lists open spec-gaps.md entries)")
   .option("--yes", "confirm the local merge without asking")
   .option("--no-fetch", "do not fetch origin during the flow")
   .action((id, opts) => planFinishCommand(id, opts));

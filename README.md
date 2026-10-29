@@ -65,6 +65,7 @@ plans/
   2026-10-29-cli-spec-search/
     PLAN.md                     # goal, scope, linked specs, depends_on
     HANDOFF.md                  # progress log: the source of truth for "where are we"
+    spec-gaps.md                # gap, assumption, and proposal records (created when needed)
     steps/
       01-architecture-spec-edits.md
       02-feature-spec-proposals.md
@@ -74,6 +75,7 @@ plans/
 
 - **Lifecycle:** `draft → ready → in_progress → review → done`, or `abandoned`. By default `in_progress` and `review` are worked out from git and the forge (branch and PR state) rather than written into the files. That way, progress doesn't require commits to `main`.
 - **Steps** list in their frontmatter exactly which spec sections they need as context. A step can be marked `blocked` when an unattended agent hits a contradiction.
+- **Gap records:** when the architecture spec is silent, the step records a `gap`, `assumption`, or `proposal` entry in the plan's `spec-gaps.md` and lists its ID in `HANDOFF.md`. The finish flow lists open entries for review; they never block the merge.
 - **The finish flow** checks readiness, runs your test command, rebases, commits the "done + archive" change, then opens a PR or merges locally, and cleans up the worktree.
 - **Stacking:** a plan may build on one unmerged dependency. `plan restack` moves it onto the new base once the dependency changes.
 
@@ -83,7 +85,7 @@ Every commit Specplane makes follows Conventional Commits and carries `Specplane
 
 ## Install
 
-Requirements: **Node.js 20+** and **git**. The `gh` CLI is optional, for GitHub PR support.
+Requirements: **Node.js 22+** and **git**. The `gh` CLI is optional, for GitHub PR support.
 
 ```sh
 git clone <this-repo> specplane
@@ -112,17 +114,17 @@ specplane plan finish <plan-id>     # tests, rebase, archive, merge
 | `specplane init [--harness claude]` | Set up Specplane in a repository, and optionally install an agent harness. |
 | `specplane validate [--json]` | Validate the whole repository (it also runs as a pre-commit hook). |
 | `specplane generate [--print] [--live]` | Regenerate `plans/PLANS.md`. |
-| `specplane search <text>` | Search specs and plans. |
+| `specplane search <text> [--kind spec\|plan]` | Search specs and plans. |
 | `specplane spec new <type> <slug>` | Create a draft spec. |
 | `specplane spec list` / `show <id>` | List specs, or print one. |
 | `specplane spec validate [ids...]` | Validate one, several or all specs. |
 | `specplane spec pin [--check]` | Write or check base pins (`based_on`). |
 | `specplane plan new` | Create a draft plan folder. |
-| `specplane plan list [--live]` | List plans with their effective statuses. |
+| `specplane plan list [--live] [--no-fetch]` | List plans with their effective statuses and activity. |
 | `specplane plan show <id>` / `graph` | Print a plan, or the Mermaid dependency graph. |
-| `specplane plan start <id>` | Start or resume a plan: branch, worktree and setup hook. |
-| `specplane plan finish <id>` | Run the finish flow. |
-| `specplane plan restack <id>` | Rebase a stacked plan onto its new base. |
+| `specplane plan start <id> [--no-fetch]` | Start or resume a plan: branch, worktree and setup hook. |
+| `specplane plan finish <id> [--no-fetch]` | Run the finish flow. |
+| `specplane plan restack <id> [--dry-run]` | Rebase a stacked plan onto its new base; `--dry-run` lists the commits that would be replayed. |
 | `specplane plan abandon` / `cleanup` / `archive <id>` | Wind a plan down and tidy up afterwards. |
 
 Run `specplane <command> --help` for the options of each command.
@@ -192,7 +194,7 @@ docs/
     architecture/               architecture specs: how it is built
   decisions/                    architecture decision records (ADRs)
   OPEN-QUESTIONS.md             design questions and their resolutions
-packages/cli/                   the reference CLI (TypeScript, Node 20+)
+packages/cli/                   the reference CLI (TypeScript, Node 22+)
 harnesses/claude/
   specifications/               Claude Code–specific specs (overlay on the base specs)
   templates/                    files that `init --harness claude` installs
