@@ -2,7 +2,7 @@
 id: decision/0004
 title: "Raise the Node.js baseline to 22 LTS"
 date: 2026-10-29
-status: proposed
+status: accepted
 superseded_by: ""
 related_specs: [architecture/reference-cli]
 ---
