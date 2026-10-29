@@ -2,7 +2,7 @@
 plan: 2026-10-28-reference-cli-core
 step: 2
 title: Config loader, spec/plan/step parsers, and ID resolver
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Repository roots
   - spec: architecture/reference-cli#Config loading
@@ -22,20 +22,20 @@ Implement `git/exec.ts`, `git/repo.ts`, `config.ts`, `spec/resolve.ts`, `spec/pa
 
 ## Acceptance criteria
 
-- [ ] `loadConfig()` returns the default config when `.specplane/config.yaml` is absent.
-- [ ] `loadConfig()` merges a partial config with defaults correctly.
-- [ ] `loadConfig()` throws `ConfigError` for an invalid enum value.
-- [ ] `loadConfig()` returns an "Unknown config key" warning (not an error) for an unknown key, and drops it.
-- [ ] `mainRoot()` returns the main checkout's root when called from inside a linked worktree.
-- [ ] `resolveSpecId('feature/spec-system', config)` returns the correct absolute path when the file exists.
-- [ ] `resolveSpecId` throws `SpecNotFoundError` for an unknown ID.
-- [ ] `resolveSpecId` throws `UnknownRootError` for a qualified ID naming an undeclared root.
-- [ ] `resolveSpecId` without `fromRoot` throws `AmbiguousIdError` when two sibling overlay roots both contain the ID, and resolves via the extends chain when `fromRoot` is given.
-- [ ] Architecture specs resolve to `<root>/architecture/<slug>.md` (not `architectures/`).
-- [ ] `parseSpec(filePath)` returns a typed `SpecFrontmatter` for all test fixtures.
-- [ ] `parseSpec` throws `FrontmatterError` for a missing required field.
-- [ ] `parsePlan(planDir)` and `parseStep(stepFile)` return typed objects for all test fixtures.
-- [ ] All unit tests pass.
+- [x] `loadConfig()` returns the default config when `.specplane/config.yaml` is absent.
+- [x] `loadConfig()` merges a partial config with defaults correctly.
+- [x] `loadConfig()` throws `ConfigError` for an invalid enum value.
+- [x] `loadConfig()` returns an "Unknown config key" warning (not an error) for an unknown key, and drops it.
+- [x] `mainRoot()` returns the main checkout's root when called from inside a linked worktree.
+- [x] `resolveSpecId('feature/spec-system', config)` returns the correct absolute path when the file exists.
+- [x] `resolveSpecId` throws `SpecNotFoundError` for an unknown ID.
+- [x] `resolveSpecId` throws `UnknownRootError` for a qualified ID naming an undeclared root.
+- [x] `resolveSpecId` without `fromRoot` throws `AmbiguousIdError` when two sibling overlay roots both contain the ID, and resolves via the extends chain when `fromRoot` is given.
+- [x] Architecture specs resolve to `<root>/architecture/<slug>.md` (not `architectures/`).
+- [x] `parseSpec(filePath)` returns a typed `SpecFrontmatter` for all test fixtures.
+- [x] `parseSpec` throws `FrontmatterError` for a missing required field.
+- [x] `parsePlan(planDir)` and `parseStep(stepFile)` return typed objects for all test fixtures.
+- [x] All unit tests pass.
 
 ## Tasks
 

@@ -17,36 +17,41 @@ export interface SpecRootConfig {
 export interface Config {
   spec_roots: SpecRootConfig[];
   specs: {
-    llm_review?: boolean;
+    llm_review: boolean;
     pin_bases: "off" | "warn" | "require";
     feature: {
-      authorship?: Authorship;
-      llm_role?: LlmRole;
-      forbid_architecture?: boolean;
-      leak_guard_allow?: string[];
+      authorship: Authorship;
+      llm_role: LlmRole;
+      forbid_architecture: boolean;
+      leak_guard_allow: string[];
     };
     architecture: {
-      authorship?: Authorship;
-      llm_role?: LlmRole;
-      require_approved_features?: boolean;
+      authorship: Authorship;
+      llm_role: LlmRole;
+      require_approved_features: boolean;
     };
   };
   plans: {
     dir: string;
-    require_approved_specs?: "none" | "feature" | "feature_and_architecture";
-    status_source?: "git" | "frontmatter";
-    merge?: "pull_request" | "local_merge";
-    dependency_mode?: "wait_for_merge" | "stack";
-    archive_done?: boolean;
-    setup_hook?: string;
-    test_command?: string;
-    forge?: "auto" | "github" | "none";
+    require_approved_specs: "none" | "feature" | "feature_and_architecture";
+    status_source: "git" | "frontmatter";
+    merge: "pull_request" | "local_merge";
+    dependency_mode: "wait_for_merge" | "stack";
+    archive_done: boolean;
+    setup_hook: string;
+    test_command: string;
+    forge: "auto" | "github" | "none";
   };
   execution: {
-    backend?: "worktree" | "branch" | "external";
-    worktree_dir?: string;
+    backend: "worktree" | "branch" | "external";
+    worktree_dir: string;
   };
   decisions: { dir: string };
+}
+
+/** Non-fatal diagnostic produced while loading configuration. */
+export interface Warning {
+  message: string;
 }
 
 export interface SpecFrontmatter {

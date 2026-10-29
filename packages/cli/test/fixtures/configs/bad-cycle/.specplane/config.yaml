@@ -1,0 +1,7 @@
+spec_roots:
+  - name: a
+    path: x
+    extends: b
+  - name: b
+    path: y
+    extends: a

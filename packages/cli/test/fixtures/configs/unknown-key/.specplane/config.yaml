@@ -1,0 +1,4 @@
+plans:
+  merge: local_merge
+  frobnicate: true
+mystery: 1
