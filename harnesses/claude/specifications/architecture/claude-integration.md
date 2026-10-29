@@ -5,8 +5,8 @@ status: approved
 author: llm
 implements: [claude:feature/claude-integration, feature/agent-integration]
 based_on:
-  claude:feature/claude-integration: a86f42c
-  feature/agent-integration: f0f762c
+  claude:feature/claude-integration: "ba58789"
+  feature/agent-integration: "ec52439"
 ---
 
 # Claude Code integration implementation
