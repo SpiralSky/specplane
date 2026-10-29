@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SpecplaneError } from "../errors.js";
+import { claude } from "./claude.js";
 
 /** Collects the `Created`/`Updated`/`Skipped` lines printed by `init`. */
 export class Report {
@@ -35,6 +36,8 @@ export interface Harness {
   skillDirs(root: string): string[];
   /** Repo-relative standing-instructions file (for the freshness check). */
   rulesFile: string;
+  /** Harness-specific Workflows line for the standing instructions (default: neutral). */
+  workflowsLine?: string;
 }
 
 export class UnknownHarnessError extends SpecplaneError {
@@ -49,15 +52,6 @@ export function templatesDir(name: string): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(here, "..", "templates", name);
 }
-
-// Stub: completed in step 04 (install copies templates and merges settings).
-const claude: Harness = {
-  name: "claude",
-  detect: (root) => fs.existsSync(path.join(root, ".claude")),
-  install: () => {},
-  skillDirs: (root) => [path.join(root, ".claude", "skills")],
-  rulesFile: ".claude/rules/specplane.md",
-};
 
 export const HARNESSES: Harness[] = [claude];
 

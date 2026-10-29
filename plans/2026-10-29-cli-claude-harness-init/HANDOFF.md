@@ -89,3 +89,35 @@ None.
 ### What the next step must know
 
 Step 04 replaces the stub `install` in `claude` (ideally moving it to `src/harness/claude.ts`), using `templatesDir("claude")` and the `Report` helper, and appends "Claude Code integration files written to `.claude/`." after the lines.
+
+## Step 04: Claude installer and settings merge
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/harness/claude.ts` (new): `claude` harness with `install` (template copy: Created/Updated/Skipped lines, hooks chmod 0755, final "Claude Code integration files written to `.claude/`." line) and exported `mergeSettings` implementing § Settings merge.
+- `packages/cli/src/harness/index.ts`: stub removed, imports `claude`; `Harness` gains optional `workflowsLine`.
+- `packages/cli/src/commands/init.ts`: AGENTS.md block uses the selected harness's Workflows line.
+- `packages/cli/src/commands/validate.ts`: freshness check accepts the neutral line or any harness line.
+- `packages/cli/src/harness/harness.test.ts`: tests for absent, invalid, already registered, partial, kept statusLine, idempotence, mode, CLAUDE.md untouched.
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- Spec does not say how `validate` freshness treats an AGENTS.md block with the Claude Workflows line; handled below.
+
+### Open issues
+
+- CHOICE: freshness check passes if AGENTS.md matches the neutral line or any registered harness's line.
+- CHOICE: unchanged template files report `Skipped <path> (up to date)`; mode is enforced on hooks even when content matches.
+- CHOICE: a settings file with unexpected structure (non-object `hooks`/`permissions`, non-array event lists) is treated like invalid JSON (skipped, untouched).
+- CHOICE: an added `statusLine` counts as an entry in `(<n> entries added)`; "Kept existing statusLine" line precedes the Updated/Skipped line.
+
+### What the next step must know
+
+`HARNESSES` now contains the full claude harness; `workflowsLine` is the hook for other harnesses.

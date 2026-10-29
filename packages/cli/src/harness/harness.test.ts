@@ -41,3 +41,90 @@ test("harness: --harness and detection call install; neither prints hint", () =>
 test("harness: claude templates resolve from the compiled module", () => {
   assert.ok(fs.existsSync(path.join(templatesDir("claude"), "settings.json")));
 });
+
+// --- Claude installer and settings merge ---
+import { mergeSettings } from "./claude.js";
+import { claude } from "./claude.js";
+
+const tpl = (): Record<string, unknown> =>
+  JSON.parse(fs.readFileSync(path.join(templatesDir("claude"), "settings.json"), "utf8"));
+const merged = (existing: string | null) => mergeSettings(existing, tpl());
+
+test("claude merge: absent file writes the template", () => {
+  const r = merged(null);
+  assert.deepEqual(JSON.parse(r.content!), tpl());
+  assert.ok(r.content!.endsWith("}\n"));
+});
+
+test("claude merge: invalid JSON is reported and not clobbered", () => {
+  const root = makeRepo({ ".claude/settings.json": "{ nope" });
+  const lines = runInit(root, { harness: "claude" });
+  assert.ok(lines.includes("Skipped .claude/settings.json (invalid JSON; add the Specplane registration by hand)"));
+  assert.equal(fs.readFileSync(path.join(root, ".claude/settings.json"), "utf8"), "{ nope");
+});
+
+test("claude merge: already registered adds nothing, no duplicates", () => {
+  const first = merged("{}");
+  assert.equal(first.added, 5);
+  const again = merged(first.content);
+  assert.equal(again.added, 0);
+  assert.equal(again.content, null);
+});
+
+test("claude merge: partial registration adds only the missing entries and keeps other keys", () => {
+  const existing = JSON.stringify({
+    model: "x",
+    permissions: { allow: ["Bash(ls:*)"] },
+    hooks: {
+      PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "/a/specplane-pre-commit.sh" }] }],
+      Stop: [{ hooks: [{ type: "command", command: "other.sh" }] }],
+    },
+  });
+  const r = merged(existing);
+  const out = JSON.parse(r.content!);
+  assert.equal(out.model, "x");
+  assert.deepEqual(out.permissions.allow, ["Bash(ls:*)", "Bash(specplane:*)"]);
+  assert.equal(out.hooks.PreToolUse.length, 2);
+  assert.equal(out.hooks.SessionStart.length, 1);
+  assert.equal(out.hooks.Stop.length, 1);
+  assert.deepEqual(Object.keys(out).slice(0, 2), ["model", "permissions"]);
+  assert.equal(r.added, 4);
+});
+
+test("claude merge: existing statusLine is kept", () => {
+  const sl = { type: "command", command: "mine.sh" };
+  const r = merged(JSON.stringify({ statusLine: sl }));
+  assert.deepEqual(JSON.parse(r.content!).statusLine, sl);
+  assert.ok(r.notes[0].startsWith("Kept existing statusLine"));
+  assert.equal(r.added, 4);
+});
+
+test("claude install: files created, hooks executable, idempotent, CLAUDE.md untouched", () => {
+  const root = makeRepo({ "CLAUDE.md": "mine\n", ".claude/settings.local.json": "{}" });
+  const first = runInit(root, { harness: "claude" });
+  assert.ok(first.includes("Created .claude/skills/plan-step/SKILL.md"));
+  assert.ok(first.includes("Created .claude/rules/specplane.md"));
+  assert.ok(first.includes("Created .claude/settings.json"));
+  assert.equal(first.at(-1), "Claude Code integration files written to `.claude/`.");
+  const hook = path.join(root, ".claude/hooks/specplane-pre-commit.sh");
+  assert.equal(fs.statSync(hook).mode & 0o777, 0o755);
+  assert.equal(fs.readFileSync(path.join(root, "CLAUDE.md"), "utf8"), "mine\n");
+  assert.equal(fs.readFileSync(path.join(root, ".claude/settings.local.json"), "utf8"), "{}");
+  assert.match(fs.readFileSync(path.join(root, "AGENTS.md"), "utf8"), /`\/spec-assist`/);
+
+  fs.writeFileSync(path.join(root, ".claude/rules/specplane.md"), "changed");
+  fs.chmodSync(hook, 0o644);
+  const second = runInit(root, { harness: "claude" });
+  assert.ok(second.includes("Updated .claude/rules/specplane.md"));
+  assert.ok(second.includes("Skipped .claude/skills/plan-step/SKILL.md (up to date)"));
+  assert.ok(second.includes("Skipped .claude/settings.json (already registered)"));
+  assert.equal(fs.statSync(hook).mode & 0o777, 0o755);
+  const third = runInit(root, { harness: "claude" });
+  assert.ok(!third.some((l) => l.startsWith("Created") || l.startsWith("Updated")));
+});
+
+test("claude install: detection by .claude/ directory", () => {
+  const root = makeRepo({ ".claude/keep": "" });
+  assert.ok(claude.detect(root));
+  assert.ok(runInit(root).includes("Created .claude/hooks/specplane-statusline.sh"));
+});

@@ -81,7 +81,7 @@ export function runInit(
 
   const agents = path.join(root, "AGENTS.md");
   const existing = fs.existsSync(agents) ? fs.readFileSync(agents, "utf8") : null;
-  const res = upsertBlock(existing);
+  const res = upsertBlock(existing, selected.find((h) => h.workflowsLine)?.workflowsLine);
   if (res.action === "malformed") {
     out.push("Skipped AGENTS.md (malformed specplane block; fix the begin/end markers by hand)");
   } else if (res.action === "unchanged") {

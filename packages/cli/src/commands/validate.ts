@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { checkStanding } from "../agents/standing.js";
+import { HARNESSES } from "../harness/index.js";
 import { CONFIG_PATH, loadConfig } from "../config.js";
 import { loadAdrs, validateAdrs } from "../decisions/validate.js";
 import { ConfigError, FrontmatterError, FrontmatterMissingError } from "../errors.js";
@@ -20,7 +21,9 @@ export function checkFreshness(root: string): ValidationReport {
   const file = "AGENTS.md";
   const abs = path.join(root, file);
   const content = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null;
-  const state = checkStanding(content);
+  const lines = [undefined, ...HARNESSES.map((h) => h.workflowsLine)];
+  const states = lines.map((l) => checkStanding(content, l));
+  const state = states.includes("ok") ? "ok" : states[0];
   if (state === "ok") return makeReport([], [file]);
   const detail = state === "malformed" ? " (malformed specplane block)" : "";
   return makeReport(
