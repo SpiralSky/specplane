@@ -27,7 +27,7 @@ plans:
   dir: plans
   require_approved_specs: feature  # plans require approved feature specs to start
   status_source: git               # derive in_progress/review from git branch/PR state
-  merge: pull_request              # finish flow opens a PR
+  merge: local_merge               # no remote: finish flow merges locally
   dependency_mode: wait_for_merge  # dependent plans wait until dependency branch is merged
   archive_done: true               # move completed plans into plans/archive/
   setup_hook: ""                   # no install step needed for this markdown-only repo

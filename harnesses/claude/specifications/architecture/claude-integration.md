@@ -367,14 +367,15 @@ A subagent cannot ask the user questions mid-step, so subagent steps always run 
 
 ## Memory integration
 
-Pending OQ-5; this section follows its proposed default (recommended, never enforced or validated).
+The memory names are recommendations from `claude:feature/claude-integration` (OQ-5, resolved); Specplane never enforces or validates them.
 
 Skills never read or write Claude Code memory; HANDOFF.md and the plan files remain the source of truth. When a user or agent chooses to record Specplane state in memory, the recommended entries are:
 
 | Memory name | Type | Content |
 |-------------|------|---------|
 | `specplane-active-plan` | project | Active plan ID, checkout path, and the last completed step number. Points to HANDOFF.md for details. |
-| `specplane-open-gaps` | project | Spec gaps or open questions found during steps and not yet filed in a spec or `OPEN-QUESTIONS.md`. |
+| `specplane-open-questions` | project | Open questions found during steps and not yet recorded in the plan's HANDOFF.md. |
+| `specplane-spec-gaps` | project | Spec gaps found during steps and not yet filed in a spec or `OPEN-QUESTIONS.md`. |
 
 A memory entry that disagrees with the plan files is stale; the plan files win.
 

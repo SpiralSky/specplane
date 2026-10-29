@@ -106,13 +106,15 @@ The plugin only adds visibility and tightens existing rules. Without it, every r
 
 ## Memory integration
 
-Claude Code has a persistent memory system. Specplane-related memories to consider recording:
+Claude Code has a persistent memory system. Memory is per-user and is never the source of truth: a plan's progress lives in its `HANDOFF.md`, and memory only points to it.
 
-- The active plan ID and current step number.
-- Open questions found during step execution.
-- Spec gaps discovered and not yet filed.
+Specplane recommends the memory names below, so that sessions record the same things in the same place. They are recommendations only; Specplane does not enforce or validate them.
 
-> **Open question OQ-5** (see `docs/OPEN-QUESTIONS.md`): Should Specplane define a standard set of memory keys for Claude Code integration, or leave memory entirely to the user's preference? Proposed default: define a recommended set in this spec, but do not enforce it.
+| Memory name | Records |
+|-------------|---------|
+| `specplane-active-plan` | The active plan ID and current step number, as a pointer to the plan's `HANDOFF.md`. |
+| `specplane-open-questions` | Open questions found during step execution and not yet recorded in the plan's `HANDOFF.md`. |
+| `specplane-spec-gaps` | Spec gaps discovered and not yet filed. |
 
 ---
 
@@ -178,10 +180,6 @@ Then the summary includes a `base-changed` warning for the skill, and the user i
 
 ## Open questions
 
-IDs refer to `docs/OPEN-QUESTIONS.md`.
+None. IDs refer to `docs/OPEN-QUESTIONS.md`.
 
-| ID | Question | Proposed default |
-|----|----------|-----------------|
-| OQ-5 | Standard memory keys for Claude Code? | Define recommended set, do not enforce |
-
-Resolved: OQ-2 (skills vs. bash aliases — § Slash commands), OQ-3 (subagents per step — § Subagents per step), OQ-4 (default hooks — § Hooks).
+Resolved: OQ-2 (skills vs. bash aliases — § Slash commands), OQ-3 (subagents per step — § Subagents per step), OQ-4 (default hooks — § Hooks), OQ-5 (memory names — § Memory integration).
