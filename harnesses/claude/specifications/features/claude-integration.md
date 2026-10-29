@@ -74,7 +74,7 @@ The parent session retains only the subagent's summary, not the step's context o
 Claude Code supports hooks — shell commands that run before or after Claude tool calls. Specplane can use hooks for:
 
 - **Pre-commit validation**: run `specplane validate` before the agent makes a git commit, and block the commit if there are errors (warnings are allowed).
-- **Policy guard**: when the agent edits a spec, apply the spec type's `llm_role` as defined in `feature/spec-policies#meaning-of-each-value`; under `assist`, ask the user to approve the exact edit. Policy is enforced when it matters instead of relying on the agent to remember it.
+- **Policy guard**: when the agent edits a spec, apply the spec type's `llm_role` as defined in `feature/spec-policies#meaning-of-each-value`; under `review` or `assist`, ask the user to approve the exact edit. Policy is enforced when it matters instead of relying on the agent to remember it.
 - **Session context**: when a session starts in a plan's checkout, tell the agent which plan it is in and which step is next.
 - **Post-step HANDOFF.md check**: verify that HANDOFF.md was updated by a step commit.
 - **Auto-generate PLANS.md**: run `specplane generate` after a plan file changes.
@@ -153,7 +153,7 @@ And a new Claude Code session still has the standing instructions and the list o
 
 ### Scenario 4: Policy guard asks before a feature-spec edit
 
-Given `specs.feature.llm_role: assist`,
+Given `specs.feature.llm_role: review` or `assist`,
 When the agent tries to edit a feature spec,
 Then Claude Code asks the user to approve that exact edit before it is applied.
 
@@ -163,11 +163,17 @@ Given plan `2026-10-28-search-indexer` has step 01 done and step 02 pending,
 When a new Claude Code session starts in that plan's worktree,
 Then the agent is told it is in that plan and that step 02 is next, before the user types anything.
 
-### Scenario 6: Skill refuses to draft feature spec under `llm_role: assist`
+### Scenario 6: Skill refuses to draft feature spec under `llm_role: review`
 
-Given `specs.feature.llm_role: assist`,
+Given `specs.feature.llm_role: review`,
 When the user invokes `/spec-assist` and asks "Write the feature spec for search",
 Then the skill offers to help (ask questions, review a draft) but does not produce the spec body.
+
+### Scenario 6a: Skill writes a finalised feature spec under `llm_role: assist`
+
+Given `specs.feature.llm_role: assist`,
+When the user invokes `/spec-assist`, describes the feature, refines it with the agent, and confirms the Finalise summary,
+Then the skill shows the written body and writes the file only after the user approves it.
 
 ### Scenario 7: Skill contract drift
 

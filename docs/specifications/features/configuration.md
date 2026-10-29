@@ -1,7 +1,7 @@
 ---
 id: feature/configuration
 title: Configuration schema and defaults
-status: approved
+status: review
 author: mixed
 ---
 
@@ -36,13 +36,13 @@ specs:
   pin_bases: warn             # off | warn | require — base pins (based_on)
   feature:
     authorship: user          # user | llm | either
-    llm_role: assist          # assist | draft | none
+    llm_role: assist          # review | assist | draft | none
     forbid_architecture: true # enable the architecture-leak guard
     leak_guard_allow: []      # terms that are part of this project's user-visible interface
 
   architecture:
     authorship: either        # user | llm | either
-    llm_role: draft           # assist | draft | none
+    llm_role: draft           # review | assist | draft | none
     require_approved_features: true  # block approval until feature specs are approved
 
 # ── Plan settings ─────────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ Controls who is expected to author feature specs. See `feature/spec-policies` §
 
 **Type**: enum  
 **Default**: `assist`  
-**Allowed values**: `assist` | `draft` | `none`
+**Allowed values**: `review` | `assist` | `draft` | `none`
 
 Controls what role an LLM agent may play in writing feature specs. See `feature/spec-policies` §1.
 
@@ -166,7 +166,7 @@ Controls who is expected to author architecture specs. See `feature/spec-policie
 
 **Type**: enum  
 **Default**: `draft`  
-**Allowed values**: `assist` | `draft` | `none`
+**Allowed values**: `review` | `assist` | `draft` | `none`
 
 Controls what role an LLM agent may play in writing architecture specs. See `feature/spec-policies` §1.
 

@@ -1,7 +1,7 @@
 ---
 id: feature/agent-integration
 title: "Agent integration: agent instructions, skills, and policy enforcement"
-status: approved
+status: review
 author: mixed
 ---
 
@@ -63,18 +63,20 @@ All workflow integrations read configuration from `.specplane/config.yaml` and r
 
 #### `spec-assist`
 
-Assists a user in writing a feature spec without authoring it.
+Helps a user write a feature spec.
 
-**Trigger**: user requests help with a feature spec; `specs.feature.llm_role: assist`.
+**Trigger**: user requests help with a feature spec.
 
 **Contract**:
-1. Ask the user what the spec is about and who it is for.
-2. Suggest a structure (sections) without writing content.
-3. Ask clarifying questions to uncover edge cases and acceptance criteria.
-4. Review a draft the user has written, noting gaps, ambiguity, and architectural language.
-5. Must not produce the full spec body unprompted.
+- Under `specs.feature.llm_role: assist`, follow refine-then-write (`feature/spec-policies#refine-then-write-llm_role-assist`): Describe, Refine, Finalise, then Write after the user approves the text.
+- Under `specs.feature.llm_role: review`:
+  1. Ask the user what the spec is about and who it is for.
+  2. Suggest a structure (sections) without writing content.
+  3. Ask clarifying questions to uncover edge cases and acceptance criteria.
+  4. Review a draft the user has written, noting gaps, ambiguity, and architectural language.
+  5. Never write the spec body.
 
-**Policy enforcement**: if `specs.feature.llm_role: none`, the integration declines and explains the policy.
+**Policy enforcement**: under `draft`, the integration may also draft on request; under `none`, it declines and explains the policy.
 
 #### `spec-draft-architecture`
 
@@ -88,7 +90,7 @@ Drafts an architecture spec from approved feature specs.
 3. Mark gaps with a `<!-- GAP: ... -->` comment.
 4. Create the file at the correct path resolved from config.
 
-**Policy enforcement**: if `llm_role: assist`, review a draft instead of producing one; if `none`, decline.
+**Policy enforcement**: if `llm_role: assist`, follow refine-then-write instead of drafting from the feature specs alone; if `review`, review a draft instead of producing one; if `none`, decline.
 
 #### `plan-create`
 
@@ -143,7 +145,8 @@ Agents must enforce Specplane policies when acting within a repository. This sec
 
 | Config | Agent behaviour |
 |--------|----------------|
-| `authorship: user`, `llm_role: assist` | Agent may not draft spec body. It offers to assist (ask questions, review). |
+| `authorship: user`, `llm_role: review` | Agent may not write the spec body. It asks questions, suggests changes and reviews, and applies only edits the user has approved exactly. |
+| `authorship: user`, `llm_role: assist` | Agent writes the body only after Describe, Refine and Finalise, and only once the user approves the text. Sets `author: mixed`; never changes `status`. |
 | `authorship: user`, `llm_role: draft` | Agent may produce a `draft` with `author: llm`; it notes that a human must revise it (setting `author: mixed` or `user`) before it moves to `review`. |
 | `authorship: user`, `llm_role: none` | Agent may not edit or suggest changes to the spec body. Read-only. |
 | `authorship: llm` | Agent may author. Sets `author: llm`. |
@@ -181,11 +184,17 @@ A Model Context Protocol (MCP) server wrapping the Specplane CLI is planned as a
 
 ## Acceptance scenarios
 
-### Scenario 1: Agent asked to draft a feature spec under `llm_role: assist`
+### Scenario 1: Agent asked to draft a feature spec under `llm_role: review`
+
+Given `specs.feature.llm_role: review`,
+When the user says "Write a feature spec for the search feature",
+Then the agent responds: "I can't author this spec (policy: `specs.feature.llm_role: review`), but I can help you write it. What should the search feature do?"
+
+### Scenario 1a: Agent asked to write a feature spec under `llm_role: assist` without a description
 
 Given `specs.feature.llm_role: assist`,
-When the user says "Write a feature spec for the search feature",
-Then the agent responds: "I can't author this spec (policy: `specs.feature.llm_role: assist`), but I can help you write it. What should the search feature do?"
+When the user says "Write a feature spec for the search feature" without describing it,
+Then the agent asks what the feature should do and writes nothing until the content is finalised.
 
 ### Scenario 2: Agent drafts an architecture spec
 
