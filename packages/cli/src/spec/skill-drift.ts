@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { SpecplaneError } from "../errors.js";
+import { type Harness, HARNESSES, skillDirsIn } from "../harness/index.js";
 import { readFrontmatter } from "../frontmatter.js";
 import { finding } from "../report.js";
 import type { Config, Finding } from "../types.js";
@@ -12,26 +13,25 @@ const CONTRACT = /<!--\s*specplane-contract:\s*(\S+?)#(\S+?)@([0-9a-fA-F]{7,40})
 const CONTRACT_ANY = /<!--\s*specplane-contract:/;
 
 /**
- * Skill directories (repo-relative, POSIX) to check. Until harnesses are installable
- * (`init --harness`), these are the Specplane-owned skill locations of the Claude harness
- * overlay; replace this function when harness registration exists.
+ * Skill directories (repo-relative, POSIX): those of every installed harness (registry `skillDirs`)
+ * and, in a repository that ships harnesses, `harnesses/<name>/templates/skills/*`.
  */
-export function skillDirs(_config: Config, root: string): string[] {
-  const out: string[] = [];
-  for (const base of [".claude/skills", "harnesses/claude/templates/skills"]) {
-    const abs = path.join(root, base);
-    if (!fs.existsSync(abs)) continue;
-    for (const e of fs.readdirSync(abs, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      if (e.isDirectory() && fs.existsSync(path.join(abs, e.name, "SKILL.md"))) out.push(`${base}/${e.name}`);
+export function skillDirs(root: string, registry: Harness[] = HARNESSES): string[] {
+  const out = new Set<string>();
+  for (const h of registry) if (h.detect(root)) for (const d of h.skillDirs(root)) out.add(d);
+  const hroot = path.join(root, "harnesses");
+  if (fs.existsSync(hroot)) {
+    for (const e of fs.readdirSync(hroot, { withFileTypes: true })) {
+      if (e.isDirectory()) for (const d of skillDirsIn(root, `harnesses/${e.name}/templates/skills`)) out.add(d);
     }
   }
-  return out;
+  return [...out].sort((a, b) => a.localeCompare(b));
 }
 
 /** Contract drift findings (type `skill-drift`, warnings) for every skill. */
-export function checkSkillDrift(config: Config, root: string): Finding[] {
+export function checkSkillDrift(config: Config, root: string, registry: Harness[] = HARNESSES): Finding[] {
   const out: Finding[] = [];
-  for (const dir of skillDirs(config, root)) {
+  for (const dir of skillDirs(root, registry)) {
     const rel = `${dir}/SKILL.md`;
     const skill = path.basename(dir);
     const warn = (message: string) => out.push(finding("warning", "skill-drift", rel, message));

@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type Harness, Report, templatesDir } from "./index.js";
+import { type Harness, Report, skillDirsIn, templatesDir } from "./index.js";
 
 /** Workflows line for the standing instructions when the Claude harness is installed. */
 export const CLAUDE_WORKFLOWS_LINE =
@@ -150,6 +150,7 @@ export const claude: Harness = {
     installSettings(root, report, tplDir);
     report.add("Claude Code integration files written to `.claude/`.");
   },
-  skillDirs: (root) => [path.join(root, ".claude", "skills")],
+  skillDirs: (root) => skillDirsIn(root, ".claude/skills"),
   rulesFile: ".claude/rules/specplane.md",
+  rulesTemplate: "rules/specplane.md",
 };

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { test } from "node:test";
 import { runValidate } from "./commands/validate.js";
 import { formatHuman } from "./output/human.js";
@@ -244,4 +246,18 @@ test("output formats", () => {
   const human = formatHuman(r);
   assert.match(human, /Checking feature\/alpha\.\.\. 1 warning\n  \[warning\] feature\/alpha:9: Possible architecture detail \(tech_name\): "TypeScript"/);
   assert.match(human, /Summary: \d+ files checked, 0 errors, \d+ warnings?\n$/);
+});
+
+test("rules freshness: missing or differing warns; matching does not", async () => {
+  const { templatesDir } = await import("./harness/index.js");
+  const { upsertBlock } = await import("./agents/standing.js");
+  const tpl = fs.readFileSync(path.join(templatesDir("claude"), "rules", "specplane.md"), "utf8");
+  const rules = (f: Record<string, string>) => run(f).warnings.filter((w) => w.type === "freshness" && w.file === ".claude/rules/specplane.md");
+  const agents = { "AGENTS.md": upsertBlock(null).content };
+  assert.equal(rules({ ...agents, ".claude/settings.json": "{}" }).length, 1); // missing
+  assert.equal(rules({ ...agents, ".claude/rules/specplane.md": tpl + "x" }).length, 1); // differs
+  assert.equal(rules({ ...agents, ".claude/rules/specplane.md": tpl }).length, 0); // matches
+  assert.equal(rules(agents).length, 0); // harness not installed
+  // the rules file satisfies standing-instruction freshness without AGENTS.md
+  assert.ok(!run({ ".claude/rules/specplane.md": tpl }).warnings.some((w) => w.type === "freshness" && w.file === "AGENTS.md"));
 });

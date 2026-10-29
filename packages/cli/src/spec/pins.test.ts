@@ -172,3 +172,16 @@ test("skill drift: stale pin, unresolved anchor, missing comment", () => {
   assert.match(found[1].message, /has no `specplane-contract` comment/);
   assert.match(found[2].message, /pinned at `abcdef1`, which has changed/);
 });
+
+test("skill drift: scans harness templates and registry dirs, only for installed harnesses", () => {
+  const root = repo({});
+  const mk = (base: string) => {
+    fs.mkdirSync(path.join(root, base, "x"), { recursive: true });
+    fs.writeFileSync(path.join(root, base, "x", "SKILL.md"), "---\nname: x\n---\n# x\n");
+  };
+  mk(".claude/skills");
+  mk("harnesses/claude/templates/skills");
+  const files = (reg?: Parameters<typeof checkSkillDrift>[2]) => checkSkillDrift(load(root), root, reg).map((f) => f.file);
+  assert.deepEqual(files(), [".claude/skills/x/SKILL.md", "harnesses/claude/templates/skills/x/SKILL.md"]);
+  assert.deepEqual(files([]), ["harnesses/claude/templates/skills/x/SKILL.md"]); // no installed harness
+});

@@ -121,3 +121,34 @@ None.
 ### What the next step must know
 
 `HARNESSES` now contains the full claude harness; `workflowsLine` is the hook for other harnesses.
+
+## Step 05: Replace skillDirs stand-in; rules freshness check
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/spec/skill-drift.ts`: stand-in `skillDirs()` replaced by a registry-based one (installed harnesses' `skillDirs(root)` plus `harnesses/*/templates/skills/*`); `checkSkillDrift` takes an optional registry.
+- `packages/cli/src/harness/index.ts`: `skillDirsIn` helper, optional `rulesTemplate` field; `claude.ts` returns per-skill dirs `.claude/skills/<name>` and sets `rulesTemplate`.
+- `packages/cli/src/commands/validate.ts`: `checkFreshness` adds the rules-file byte-compare (warning `freshness` on the rules file) and accepts a fresh rules file as delivering the standing block.
+- Tests in `validate.test.ts` and `spec/pins.test.ts`.
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- The spec gives `rulesFile` but not where the bundled template lives; added `rulesTemplate`.
+
+### Open issues
+
+- CHOICE: `rulesTemplate` is an optional Harness field (path relative to `templatesDir(name)`); harnesses without it skip the rules check.
+- CHOICE: `skillDirs(root)` returns repo-relative POSIX per-skill dirs (previously absolute base dir stub).
+- CHOICE: the standing check is satisfied by AGENTS.md or a byte-fresh rules file of a detected harness; a stale rules file warns on itself, and AGENTS.md only warns if neither delivers.
+- `validate` on this repo: 0 errors, no freshness or skill-drift warnings.
+
+### What the next step must know
+
+Step 06 can rely on `validate` flagging stale `.claude/rules/specplane.md`.

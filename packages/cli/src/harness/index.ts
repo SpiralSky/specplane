@@ -32,12 +32,25 @@ export interface Harness {
   detect(root: string): boolean;
   /** Write the harness files, recording one report line per file. */
   install(root: string, report: Report): void;
-  /** Directories holding installed skills (for skill contract drift checks). */
+  /** Repo-relative POSIX directories of the installed skills, one per skill (skill contract drift checks). */
   skillDirs(root: string): string[];
   /** Repo-relative standing-instructions file (for the freshness check). */
   rulesFile: string;
+  /** Path of the bundled rules template relative to `templatesDir(name)`; enables the rules-file freshness check. */
+  rulesTemplate?: string;
   /** Harness-specific Workflows line for the standing instructions (default: neutral). */
   workflowsLine?: string;
+}
+
+/** Skill directories (`<base>/<name>`, repo-relative POSIX) under `base` that contain a `SKILL.md`. */
+export function skillDirsIn(root: string, base: string): string[] {
+  const abs = path.join(root, base);
+  if (!fs.existsSync(abs)) return [];
+  return fs
+    .readdirSync(abs, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && fs.existsSync(path.join(abs, e.name, "SKILL.md")))
+    .map((e) => `${base}/${e.name}`)
+    .sort();
 }
 
 export class UnknownHarnessError extends SpecplaneError {
