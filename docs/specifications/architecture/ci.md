@@ -46,7 +46,7 @@ jobs:
         with:
           node-version: "20"
 
-      - run: npm install -g specplane@0   # pin the major version; package name per OQ-1
+      - run: npm install -g specplane@0   # pin the major version
 
       - name: Validate
         run: specplane validate

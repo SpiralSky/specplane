@@ -177,6 +177,37 @@ implements: [feature/<slug>]
 <How errors are detected, represented, and propagated.>
 ```
 
+### 1.5 Pin, anchor, and skill-contract findings
+
+Messages for the findings defined in `feature/spec-overlays#base-pins` and `architecture/agent-skills` § Keeping skills in sync with specs. `<ref>` is the referenced spec ID as written; `<pin>` and `<new>` are abbreviated blob hashes.
+
+| Type | Severity | Condition | Message |
+|------|----------|-----------|---------|
+| `base-changed` | warning | Pin differs from the current blob (after normalisation) | "`<id>` was reviewed against an older `<ref>`; review `git diff <pin> <new>` then run `specplane spec pin <id>`." |
+| `base-changed` | warning | As above, pinned blob missing locally | The same message, followed by " (diff unavailable: `<pin>` is not in the local object store)." |
+| `base-changed` | error | Stale pin on an `approved` spec | "Cannot approve `<id>`: base `<ref>` changed since it was pinned." |
+| `pin` | warning (`warn`) / error (`require`) | Missing pin per `specs.pin_bases` | "`<id>` has no `based_on` pin for `<ref>`; run `specplane spec pin <id>`." |
+| `pin` | warning | Pinned spec cannot be resolved | "`<id>` pins `<ref>`, which does not resolve; update `extends`/`implements` and re-pin." |
+| `pin` | error | Key not in `extends`/`implements`, or value not a 7–40 character hex string | "Invalid `based_on` entry `<key>` in `<id>`: <reason>." |
+| `anchor` | warning | `#<slug>` matches no heading slug in the referenced spec | "`<ref>#<slug>` does not match a heading in `<ref>`." |
+| `skill-drift` | warning | Contract pin differs from the spec's current blob | "Skill `<skill>` implements `<contract>` pinned at `<pin>`, which has changed; review `git diff <pin> <new>`, update the skill, then update its contract comment." |
+| `skill-drift` | warning | Contract anchor does not resolve | "Skill `<skill>`: contract anchor `<contract>` does not match a heading." |
+| `skill-drift` | warning | No contract comment | "Skill `<skill>` has no `specplane-contract` comment (§1.6)." |
+
+### 1.6 Skill contract comment
+
+Each harness skill file records the contract it implements in one HTML comment, on its own line, directly after the skill's frontmatter:
+
+```
+<!-- specplane-contract: <spec-id>#<slug>@<blob> -->
+```
+
+- `<spec-id>`: the spec defining the contract (currently always `architecture/agent-skills`); qualified IDs are allowed.
+- `<slug>`: the GitHub-style heading slug of the contract's section.
+- `<blob>`: abbreviated git blob hash (7–40 hex characters) of the spec file when the skill was last reviewed against it, compared after the same `status`/`author` normalisation as `based_on` pins.
+
+Only the first such comment in a file is read. Harness tools update the hash by hand or by tooling; `specplane spec pin` does not rewrite skill files.
+
 ---
 
 ## 2. Plan files
@@ -663,6 +694,7 @@ Every commit Specplane makes, and every commit an agent makes while following a 
 Specplane-Workflow: <workflow>
 Specplane-Plan: <plan-id>
 Specplane-Step: <NN>
+Specplane-Stack-Base: <sha>
 Specplane-Agent: <harness>/<model>
 Specplane-Session: <session-id>
 <harness attribution trailer, e.g. Co-Authored-By>
@@ -672,7 +704,7 @@ Specplane-Session: <session-id>
 
 - `<type>`: one of `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `perf`, `style`, `chore`. A step commit takes the type of its main change; housekeeping commits made by the CLI use `chore`.
 - `<scope>`: for commits in a plan, the plan's slug (its ID without the `YYYY-MM-DD-` prefix); for CLI housekeeping, `specplane`; otherwise optional.
-- `<summary>`: imperative, lower-case start, no trailing period; the whole subject is at most 72 characters.
+- `<summary>`: imperative, lower-case start, no trailing period; the whole subject is at most 72 characters. CLI housekeeping subjects (§8.3) are exempt: they embed full plan IDs, which are never shortened.
 - `<body>`: optional; for step commits, a bullet summary of the changes.
 
 ### 8.2 Trailers
@@ -697,7 +729,7 @@ Harness attribution trailers (`Co-Authored-By:`) follow the harness's own conven
 | `Specplane-Workflow` | Made by | Branch | Subject |
 |----------------------|---------|--------|---------|
 | `step` | agent (`plan-step`) | `plan/<id>` | `<type>(<slug>): <summary>` |
-| `plan-create` | agent (`plan-create`) or `specplane plan new` | any | `docs(<slug>): create plan` |
+| `plan-create` | agent (`plan-create`) | any | `docs(<slug>): create plan` |
 | `spec` | agent (`spec-draft-architecture`, approved `spec-assist` edits) | any | `docs(specs): <summary>` |
 | `claim` | CLI start/finish (frontmatter mode) | default | `chore(specplane): claim <id> <status>` |
 | `stack` | CLI start/restack (empty commit) | `plan/<id>` | `chore(specplane): stack <id> on <base-id>` |

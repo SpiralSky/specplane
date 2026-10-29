@@ -29,7 +29,7 @@ This spec defines the complete directory and file structure of a Specplane-manag
         <slug>.md            # architecture specs
     decisions/               # decisions.dir (default); created with the first ADR
       <NNNN>-<slug>.md       # architecture decision records
-    OPEN-QUESTIONS.md        # unresolved design questions (optional)
+    OPEN-QUESTIONS.md        # design questions and their resolutions (optional)
   plans/
     PLANS.md                 # GENERATED; never hand-edit
     <plan-id>/
@@ -111,7 +111,7 @@ plans/PLANS.md linguist-generated=true
 - `plans/PLANS.md` is up to date after `specplane generate` or CI runs, and is byte-identical for the same set of plan files.
 - `plans/archive/` and the decisions directory may be absent until first used; tools create them on demand and treat absence as empty.
 - No plan folder contains another plan folder; the only nested structure within `plans/` is `archive/`.
-- `INFO.md` files are never parsed as specs. They are read-only documentation.
+- `INFO.md` files are never parsed as specs. They are read-only documentation; one with frontmatter is a validation error.
 - Spec files outside `features/` or `architecture/` within a spec root are ignored by Specplane (no error, no validation).
 
 ---

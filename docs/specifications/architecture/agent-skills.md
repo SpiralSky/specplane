@@ -28,7 +28,8 @@ Every skill contract has these parts, and every harness packaging keeps them in 
 Skills must never hardcode paths. Every path to a spec, plan, or ADR is resolved from config:
 
 ```
-1. Load config from .specplane/config.yaml at the repository root (defaults if absent).
+1. Load config from .specplane/config.yaml at the repository root. If it is absent,
+   the skill does nothing and suggests `specplane init` (feature/agent-integration).
 2. For each spec ID referenced:
    a. Apply the ID resolution rules (feature/spec-overlays; implemented in
       architecture/reference-cli § Spec resolution).
@@ -241,7 +242,7 @@ The grouped summary. Warnings from LLM review are labelled as such.
 
 ## Keeping skills in sync with specs
 
-Each skill declares the contract it implements with a contract pin: `<!-- specplane-contract: architecture/agent-skills#<skill-slug>@<blob7> -->`, where the anchor is the skill's section in this spec (e.g. `#plan-step`) and the hash is the blob of this file when the skill was last reviewed (format in `architecture/file-formats` § Skill contract comment). Skills reference contract sections by anchor, not by prose.
+Each skill declares the contract it implements with a contract pin: `<!-- specplane-contract: architecture/agent-skills#<skill-slug>@<blob7> -->`, where the anchor is the skill's section in this spec (e.g. `#plan-step`) and the hash is the blob of this file when the skill was last reviewed (format in `architecture/file-formats` §1.6). Skills reference contract sections by anchor, not by prose.
 
 `specplane validate` warns (type `skill-drift`) when a pin no longer matches the current blob of the spec, when the anchor does not resolve, or when a skill has no contract comment (`architecture/reference-cli` § Skill contract drift). Changes that only touch the spec's frontmatter `status`/`author` are ignored. After reviewing `git diff <pin> <current>` and updating the skill, refresh the pin to the committed blob (`specplane spec pin architecture/agent-skills` for the spec's own pins; skill comments are updated by hand to the new `git rev-parse HEAD:<path>` value). Because a pin must name a committed blob to be diffable, pins are refreshed in a commit after the spec change.
 

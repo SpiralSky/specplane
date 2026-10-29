@@ -16,7 +16,7 @@ The reference CLI (`specplane`) is a TypeScript command-line tool distributed vi
 
 - **Language**: TypeScript (Node.js ≥ 18). See `decision/0002`.
 - **Package manager**: npm.
-- **Distribution**: npm package (`specplane` or scoped `@specplane/cli`; see `docs/OPEN-QUESTIONS.md` OQ-1).
+- **Distribution**: npm package `specplane` (OQ-1, resolved).
 - **YAML parsing**: `js-yaml` (battle-tested, MIT, no dependencies).
 - **Markdown parsing**: `gray-matter` for frontmatter extraction; body is treated as opaque text for most operations.
 - **JSON Schema validation**: `ajv` (AJV v8) with `ajv-formats` (for the ADR `date` field).
@@ -136,7 +136,7 @@ Shadowing is prevented by validation (see below), so step 3 never has to choose 
 3. Validate against the common frontmatter schema, then the type-specific addition (feature or architecture), using AJV.
 4. Return the typed frontmatter and body.
 
-`INFO.md` files (exact, case-sensitive name) at `features/INFO.md` or `architecture/INFO.md` are skipped.
+`INFO.md` files (exact, case-sensitive name) at `features/INFO.md` or `architecture/INFO.md` are not parsed as specs. One that starts with a `---` frontmatter block is an error (type `schema`; message in `feature/spec-system` Scenario 7, OQ-10).
 
 ---
 
@@ -175,7 +175,7 @@ Shadowing is prevented by validation (see below), so step 3 never has to choose 
 `spec/pins.ts`:
 
 - `normalisedHash(text)` — hash of the spec text with frontmatter `status:` and `author:` lines removed, so changes that only touch those keys are not base changes.
-- `checkPins(spec, config): Finding[]` — for each `based_on` entry, compare the pin with the current committed blob. If equal, fine. Otherwise read both blobs: if the pinned object is missing, warn without a diff (the hash comparison itself never needs history); if both normalise to the same hash, ignore. Else emit `base-changed` with the message in `file-formats` § Pin, anchor, and skill-contract findings. Missing pins follow `specs.pin_bases`.
+- `checkPins(spec, config): Finding[]` — for each `based_on` entry, compare the pin with the current committed blob. If equal, fine. Otherwise read both blobs: if the pinned object is missing, warn without a diff (the hash comparison itself never needs history); if both normalise to the same hash, ignore. Else emit `base-changed` with the message in `architecture/file-formats` §1.5. Missing pins follow `specs.pin_bases`.
 - `approveGuard`: a spec with a stale pin that is `approved` → error "Cannot approve `<id>`: base `<ref>` changed since it was pinned."
 - `writePins(file, pins)` — rewrites only the `based_on` key in the frontmatter, preserving other formatting and key order; inserts the key after `extends`/`implements` when absent.
 
@@ -296,8 +296,8 @@ Selected by `plans.forge`. With `auto`, GitHub is used when the `origin` remote 
 
 Implements `architecture/file-formats` §8.
 
-- `formatMessage({ type, scope, summary, body?, trailers }): string` — subject, optional body, then one trailer paragraph in §8.2 order. Throws `CommitFormatError` if the subject exceeds 72 characters (the caller shortens the summary, never the plan ID in trailers).
-- `cliTrailers(workflow, planId): Trailers` — `Specplane-Workflow` and `Specplane-Plan`, plus `Specplane-Agent` from `$SPECPLANE_AGENT` and `Specplane-Session` from `$SPECPLANE_SESSION` when set and non-empty. Harnesses set these variables for agent sessions (for Claude Code, see `claude:architecture/claude-integration` § Environment); a human running the CLI by hand gets neither.
+- `formatMessage({ type, scope, summary, body?, trailers }): string` — subject, optional body, then one trailer paragraph in §8.2 order. Throws `CommitFormatError` if the subject exceeds 72 characters (the caller shortens the summary, never the plan ID in trailers), except for CLI housekeeping subjects (`chore(specplane): …`), which are exempt (§8.1).
+- `cliTrailers(workflow, planId): Trailers` — `Specplane-Workflow` and `Specplane-Plan`, plus `Specplane-Agent` from `$SPECPLANE_AGENT` and `Specplane-Session` from `$SPECPLANE_SESSION` when set and non-empty. Harnesses set these variables for agent sessions (for Claude Code, see `claude:architecture/claude-integration` § Session context); a human running the CLI by hand gets neither.
 - `readTrailers(ref): Map<string, string>` — `git log -1 --format=%(trailers:only,unfold) <ref>`, parsed with `git interpret-trailers --parse` semantics (last value wins for repeated keys).
 - `findLatest(branch, workflow): sha | null` — `git log --format=%H%x00%(trailers:key=Specplane-Workflow,valueonly) <branch>`, first match.
 
@@ -402,7 +402,7 @@ Summary: 3 files checked, 0 errors, 1 warning
 }
 ```
 
-Every finding has `file`, `message`, `severity`, and `type`; `spec` (or `plan`, `adr`) and `line` are present when applicable. `type` values: `config`, `schema`, `id`, `reference`, `authorship`, `ordering`, `path`, `tech_name`, `identifier`, `schema_syntax`, `overlay`, `base-changed`, `anchor`, `skill-drift`, `plan`, `step`, `adr`, `freshness`.
+Every finding has `file`, `message`, `severity`, and `type`; `spec` (or `plan`, `adr`) and `line` are present when applicable. `type` values: `config`, `schema`, `id`, `reference`, `authorship`, `ordering`, `path`, `tech_name`, `identifier`, `schema_syntax`, `overlay`, `base-changed`, `pin`, `anchor`, `skill-drift`, `plan`, `step`, `adr`, `freshness`.
 
 Exit code is `0` when `valid: true` (warnings do not affect exit code). Exit code `1` when `valid: false`.
 

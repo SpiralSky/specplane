@@ -397,8 +397,8 @@ If the harness is neither requested nor detected, `init` creates only the base f
 Implemented by a plan that depends on the reference CLI core plan (not by the plan that produces the templates):
 
 - `src/harness/index.ts`: a registry of harnesses, each `{ name, detect(root): boolean, install(root, report): void }`. `init --harness <name>` with an unknown name exits 1 listing the known names.
-- `src/harness/claude.ts`: `detect` = `.claude/` exists; `install` copies the bundled templates (skip if the target exists), sets hook scripts executable, and performs § Settings merge.
-- The package build copies `harnesses/claude/templates/` to `packages/cli/dist/templates/claude/`; `install` resolves templates relative to the compiled module.
+- `src/harness/claude.ts`: `detect` = `.claude/` exists; `install` copies the bundled templates (creating absent files and overwriting Specplane-owned files that differ, as above), sets hook scripts executable, and performs § Settings merge.
+- The package build copies `harnesses/claude/templates/` to the package's `dist/templates/claude/`; `install` resolves templates relative to the compiled module.
 
 ---
 
