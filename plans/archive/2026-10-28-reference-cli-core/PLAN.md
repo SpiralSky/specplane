@@ -1,7 +1,7 @@
 ---
 id: 2026-10-28-reference-cli-core
 title: Reference CLI core — validate and generate commands
-status: ready
+status: done
 specs:
   - feature/tooling
   - feature/configuration
@@ -66,15 +66,15 @@ This plan delivers a working, installable CLI that can validate a Specplane repo
 
 ## Acceptance criteria
 
-- [ ] `npm install -g .` (from the CLI package) installs `specplane` globally.
-- [ ] `specplane validate` run in this repository exits 0 and reports no errors (warnings are acceptable).
-- [ ] `specplane validate --json` produces valid JSON matching the schema in `architecture/reference-cli`.
-- [ ] `specplane generate` writes `plans/PLANS.md` with a status table and Mermaid graph.
-- [ ] `specplane init` in a clean git repo creates the expected directories and files.
-- [ ] All unit tests pass (`npm test`).
-- [ ] `specplane spec pin --check` exits 0 in this repository, and a committed change to a pinned base spec produces a `base-changed` warning.
-- [ ] The architecture-leak heuristic fires a warning on a synthetic feature spec containing a path like `src/foo.ts`.
-- [ ] Running `specplane generate` twice produces byte-identical output, and `specplane validate` reports `plans/PLANS.md` as fresh afterwards.
+- [x] `npm install -g .` (from the CLI package) installs `specplane` globally.
+- [x] `specplane validate` run in this repository exits 0 and reports no errors (warnings are acceptable).
+- [x] `specplane validate --json` produces valid JSON matching the schema in `architecture/reference-cli`.
+- [x] `specplane generate` writes `plans/PLANS.md` with a status table and Mermaid graph.
+- [x] `specplane init` in a clean git repo creates the expected directories and files.
+- [x] All unit tests pass (`npm test`).
+- [x] `specplane spec pin --check` exits 0 in this repository, and a committed change to a pinned base spec produces a `base-changed` warning.
+- [x] The architecture-leak heuristic fires a warning on a synthetic feature spec containing a path like `src/foo.ts`.
+- [x] Running `specplane generate` twice produces byte-identical output, and `specplane validate` reports `plans/PLANS.md` as fresh afterwards.
 
 ## Risks
 
