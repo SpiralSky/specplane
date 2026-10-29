@@ -47,6 +47,7 @@ src/
     resolve.ts         # resolves plan IDs to folder paths (active or archived)
     parse.ts           # reads and validates PLAN.md and step frontmatter
     validate.ts        # plan- and step-level validation rules
+    gaps.ts            # parses and validates a plan's spec-gaps.md
     status.ts          # computes index and effective plan status
     graph.ts           # builds the dependency graph; detects cycles
     flows.ts           # start, finish, abandon, cleanup, archive, restack
@@ -105,7 +106,9 @@ The default branch is `origin/HEAD` if set, otherwise `main`, otherwise `master`
 1. Read `<checkoutRoot>/.specplane/config.yaml` if it exists; otherwise use `DEFAULT_CONFIG` and emit the "No `.specplane/config.yaml` found; using defaults." warning.
 2. Validate against the JSON Schema in `architecture/file-formats` §7.1 with AJV (`allErrors: true`).
 3. Map violations per §7.2: `additionalProperties` violations become "Unknown config key" warnings and the keys are dropped; all other violations throw `ConfigError`.
-4. Check cross-field rules (duplicate root names, undeclared or cyclic root `extends`, `worktree_dir` inside the main checkout); violations throw `ConfigError`.
+4. Check cross-field rules (duplicate root names, undeclared or cyclic root `extends`, spec root paths, `worktree_dir` inside the main checkout); violations throw `ConfigError`. Texts are those of `feature/configuration` § Acceptance scenarios:
+   - Spec root paths, checked in this order: an absolute `path`, or one that `path.resolve(root, path)` places outside `root` → "Spec root `<name>`: path `<path>` is outside the repository."; a missing path → "Spec root `<name>`: path `<path>` does not exist."; an existing non-directory → "Spec root `<name>`: path `<path>` is not a directory." Paths are checked against the checkout root, without following symlinks.
+   - `worktree_dir`: only when `execution.backend` is `worktree`, a `worktree_dir` that resolves (against `mainRoot()`) to the main checkout root or a path inside it → "`execution.worktree_dir` must be outside the repository. `<worktree_dir>` resolves to `<absolute path>` inside it." With the `branch` or `external` backend the value is not checked.
 5. Deep-merge with `DEFAULT_CONFIG` (arrays replace, objects merge).
 
 `DEFAULT_CONFIG` is a literal copy of the defaults in the "Full schema with defaults" table of `feature/configuration`, with no value computed or invented in code. A test must parse that table (or a fixture generated from it) and assert deep equality with `DEFAULT_CONFIG`, so the two cannot drift.
@@ -227,13 +230,14 @@ Each warning includes `type` (`path`, `tech_name`, `identifier`, `schema_syntax`
 - `in_progress`/`review` stored while `status_source: git` → warning.
 - Dangling `depends_on` → error; dependency on an `abandoned` plan → error; cycles (via `graph.ts`) → error.
 - `specs` entries resolve (no root context) → error if not; deprecated → warning.
-- Steps: contiguous numbering from 1; `context` references (`spec` with anchor, `decision`, `file`) per §3.2; `skipped`/`blocked` steps have a HANDOFF.md section with the matching `**Outcome**`.
+- Steps: contiguous numbering from 1; `context` references (`spec` with anchor, `decision`, `file`) per §3.2; HANDOFF.md outcomes per §3.2 and §4.1. `handoffOutcomes(file)` returns, per step number, the outcomes of its sections in file order; only the last one is compared with the step's `status` (latest entry wins). A `skipped`/`blocked` step without a section, or any step whose latest section's `**Outcome**` differs from its `status`, is an error: "Step <n> is `<status>` but the latest HANDOFF.md `## Step NN` section has `**Outcome**: <outcome>`." (or, with no section, the existing "has no `## Step NN` section" text). Earlier sections are not checked.
+- `spec-gaps.md` (`plan/gaps.ts`): when `<plan dir>/spec-gaps.md` exists, `parseGaps(file): GapEntry[]` reads each `## G<n>: <case>` heading and its `**Field**: value` lines (`{ n, caseTitle, kind, step, case, resolution, targets, status, line }`). Checks per `architecture/file-formats` §4.2, all errors except unresolved targets: a heading that is not `G<n>: …` ("`spec-gaps.md`: heading `<heading>` must be `## G<n>: <case>`."), duplicate or descending numbers ("`spec-gaps.md`: entry G<n> is duplicated or out of order."), a missing field ("`spec-gaps.md`: G<n> has no `**<Field>**`."), a `Kind` or `Status` outside its set, a `Step` that is not a step of the plan; a `Target spec` ID that does not resolve (without root context) is a warning. A `feature-spec-proposals.md` is ignored.
 
 ---
 
 ## ADR validation (`decisions/`)
 
-`listAdrs(config, root)` reads `<decisions.dir>/NNNN-*.md` (absent directory = no ADRs). `validateAdrs` applies `architecture/file-formats` §6.2: ID–filename match, duplicate numbers (error), `superseded_by` consistency (error), unresolved `related_specs` (warning).
+`listAdrs(config, root)` reads `<decisions.dir>/NNNN-*.md` (absent directory = no ADRs). `validateAdrs` applies `architecture/file-formats` §6.2 with its message texts: ID–filename match (error), duplicate numbers (error), `superseded` without `superseded_by` (error), `superseded_by` naming an unknown ADR (error), `superseded_by` on a non-`superseded` ADR (warning), supersession cycles (error), unresolved `related_specs` (warning). Cycle detection follows `superseded_by` from each ADR in number order, marking visited ADRs; a revisit within the current chain reports the chain from the ADR where it re-enters, rotated to start at the lowest-numbered ADR in the cycle, so each cycle is reported once.
 
 ---
 
@@ -243,7 +247,10 @@ Each warning includes `type` (`path`, `tech_name`, `identifier`, `schema_syntax`
 
 1. If stored status is not `ready`: return it.
 2. If `dependency_mode: wait_for_merge` and any `depends_on` plan is not `done`: return `blocked`.
-3. Return `ready`.
+3. If `dependency_mode: stack` and two or more `depends_on` plans are not `done`: return `blocked` (`feature/plan-status`). A plan with at most one such dependency is not `blocked` in stack mode.
+4. Return `ready`.
+
+`blockedReason(plan, plansById, config): string | null` gives the text shown with a `blocked` status: in stack mode "Cannot stack on more than one unmerged dependency: `<a>`, `<b>`." (dependency IDs in backticks, in `depends_on` order), the same text the start flow's stacking check throws; in wait-for-merge mode `null` (the dependencies are listed instead). `plan list` prints it after a `blocked` status, and the start flow throws it.
 
 `getEffectiveStatus(plan, plansById, config, git): EffectiveStatus` — used by `plan list`, `plan show`, and `generate --print --live`:
 
@@ -318,7 +325,7 @@ These implement `feature/plan-execution`. Every flow validates everything it nee
 
 ### Start
 
-1. `git fetch origin <default>` (skipped when there is no remote).
+1. `git fetch origin <default>` (skipped when there is no remote, or with `--no-fetch`, which uses the local refs as they are).
 2. Load the plan from the default branch's tip (`git show <default>:<path>`), so the main checkout's working state does not matter. First start = `!branchExists('plan/<id>') && !remoteBranchExists('plan/<id>')`.
 3. First start: check dependencies (wait-for-merge, or the stacking rule) and `require_approved_specs`, resolving each spec without root context.
 4. Frontmatter mode, first start: claim commit (see below) setting `in_progress`.
@@ -334,9 +341,9 @@ A claim commit must land on the default branch without disturbing anyone's check
 Runs in the plan's checkout. Steps follow `feature/plan-execution` § Finish flow:
 
 1. Check the branch, a clean `git status --porcelain`, all steps `done`/`skipped`, and (when stacked) the base plan is `done` on the default branch.
-2. Run `test_command` (shell, `cwd` = checkout); present acceptance criteria.
+2. Run `test_command` (shell, `cwd` = checkout); present acceptance criteria and the open `spec-gaps.md` entries (`parseGaps`, `**Status**: open`), one line each: `G<n> (<kind>, <target specs>): <case>`, under the heading "Open spec gaps:". Open entries never stop the flow; with none, the heading is omitted.
 3. Frontmatter mode: claim `review`.
-4. Fetch; if stacked, `rebaseOnto(<default>, <latest marker sha>, 'plan/<id>')`; else `git rebase <default>`. A conflict throws `RebaseConflictError` (the rebase is aborted, leaving the branch unchanged). Re-run tests if the rebase applied new commits.
+4. Fetch (skipped with `--no-fetch`; pushes and pull requests in step 6 are unaffected); if stacked, `rebaseOnto(<default>, <latest marker sha>, 'plan/<id>')`; else `git rebase <default>`. A conflict throws `RebaseConflictError` (the rebase is aborted, leaving the branch unchanged). Re-run tests if the rebase applied new commits.
 5. Final commit: set `status: done`; if `archive_done`, `git mv <plans.dir>/<id> <plans.dir>/archive/<id>`; commit `chore(specplane): finish <id>` (`Specplane-Workflow: finish`).
 6. `pull_request`: `git push -u origin plan/<id>`, then `createPR` (or print instructions when it returns `null`). `local_merge`: ask for confirmation, then in the main checkout `git merge --no-ff plan/<id>`.
 7. After a local merge, run cleanup.
@@ -344,16 +351,20 @@ Runs in the plan's checkout. Steps follow `feature/plan-execution` § Finish flo
 ### Cleanup, abandon, archive
 
 - `cleanup(id)`: remove the worktree (or switch the branch-backend checkout back to the default branch); delete `plan/<id>` only if the plan's `PLAN.md` on the default branch has `status: done`. Each part is skipped if already done.
-- `abandon(id, { deleteBranch, force })`: edit `PLAN.md` on the default branch to `abandoned`, `git mv` to archive if `archive_done`, commit `chore(specplane): abandon <id>` (`Specplane-Workflow: abandon`) in the main checkout (same preconditions as a claim commit); remove the worktree; delete the branch only if requested.
+- `abandon(id, { deleteBranch, force })`: fails with `PlanStateError` ("Cannot abandon plan: `<id>` is `<status>`.") when the stored status on the default branch is `done` or `abandoned`; any other stored status (`draft`, `ready`, and in frontmatter mode `in_progress`/`review`) may be abandoned. Otherwise edit `PLAN.md` on the default branch to `abandoned`, `git mv` to archive if `archive_done`, commit `chore(specplane): abandon <id>` (`Specplane-Workflow: abandon`) in the main checkout (same preconditions as a claim commit); remove the worktree; delete the branch only if requested.
 - `archive(id)`: for a `done` or `abandoned` plan not yet archived, `git mv` it to the archive and commit `chore(specplane): archive <id>` (`Specplane-Workflow: archive`) in the current checkout.
 
 ### Restack
 
-`restack(id)`: find the newest marker commit on `plan/<id>` (`findLatest('plan/<id>', 'stack')`), take its `Specplane-Stack-Base` trailer as `upstream`, and call `rebaseOnto(newBase, upstream, 'plan/<id>')`, where `newBase` is the default branch if the base plan is done, else `plan/<base-id>`. In the latter case, append a new marker recording the new base tip. A plan with no stack marker fails with `PlanStateError` ("Cannot restack: `<id>` is not stacked.").
+`restack(id)`: find the newest marker commit on `plan/<id>` (`findLatest('plan/<id>', 'stack')`), take its `Specplane-Stack-Base` trailer as `upstream`, and call `rebaseOnto(newBase, upstream, 'plan/<id>')`, where `newBase` is the default branch if the base plan is done, else `plan/<base-id>`. After the rebase it appends an empty marker commit: `chore(specplane): stack <id> on <base-id>` with a `Specplane-Stack-Base` trailer recording the new base tip while still stacked, or `chore(specplane): unstack <id> from <base-id>` without that trailer once the base plan is done. Output: "Restacked <id> onto <newBase>", plus " (no longer stacked)" in the latter case; "<id> is already on the tip of <newBase>" when there is nothing to replay (outcome `current`, nothing changes).
+
+Errors, checked before any write: an unknown ID → `PlanNotFoundError`; no stack marker → `PlanStateError` ("Cannot restack: `<id>` is not stacked."); a marker without a base plan, a base plan with no branch that is not done, `plan/<id>` not checked out, or a dirty working tree → `PlanStateError` with the texts in `plan/flows.ts`. A conflict while replaying fails with `RebaseConflictError` listing the conflicting files and leaves the checkout mid-rebase for the human to resolve (`feature/tooling`); unlike the finish flow, the rebase is not aborted.
+
+`restack(id, { dryRun: true })` runs the same checks, computes `newBase` and `upstream` the same way, and changes nothing. Output: "Would restack <id> onto <newBase>" (plus " (no longer stacked)" when the base is done), followed by one line per commit that would be replayed, oldest first: `<short sha> <subject>` for each commit of `git rev-list --reverse <upstream>..plan/<id>` that is not a stack marker.
 
 Restack triggers (a restack is the only operation that rewrites a stacked plan's history, so each trigger is explicit or part of a flow the user started):
 
-1. **Explicit**: `specplane plan restack <id>`. `feature/tooling` does not yet list this command; it is an extension documented here and depends on the proposal made in the `cli-plan-flows` plan (step 02).
+1. **Explicit**: `specplane plan restack <id> [--dry-run]` (`feature/tooling` § `specplane plan restack`).
 2. **Finish step 4**: the finish flow restacks a stacked plan automatically (see Finish).
 3. **Resume (message only)**: when `plan start <id>` resumes a stacked plan whose base plan is now done on the default branch, it prints "Base plan `<base-id>` has merged; run `specplane plan restack <id>`." and continues. Resume never rewrites history.
 
@@ -418,7 +429,7 @@ Runs `validateSpec` on the named specs, or `validateSpecs` when none are named, 
 
 ### `search <text>`
 
-Module `commands/search.ts`. Inputs: `text`, `--type spec|plan`, `--status`, `--root`, `--json`. Candidate files are the spec files of the selected roots and the `PLAN.md` and step files under `plans.dir` (including `archive/`). The match is a case-insensitive literal substring test per line, with no regular-expression interpretation of `text`. `--status` and `--root` filter on frontmatter (a plan's status is its stored status); `--root` implies `--type spec`. Output: one block per file, in path order, giving the ID (or plan ID and step) and, per matching line, `<line>: <trimmed line>`; at most 3 snippets per file. `--json` prints an array of `{id, kind, path, root, status, matches: [{line, text}]}`. No matches: empty output (or `[]`) and exit 0. Exit 1 only for errors (an empty `text`, unknown root).
+Module `commands/search.ts`. Inputs: `text`, `--kind spec|plan`, `--status`, `--root`, `--json`. (`--kind`, not `--type`, so it does not clash with `spec list --type feature|architecture`; `feature/tooling`.) Candidate files are the spec files of the selected roots and the `PLAN.md` and step files under `plans.dir` (including `archive/`). The match is a case-insensitive literal substring test per line, with no regular-expression interpretation of `text`. `--status` and `--root` filter on frontmatter (a plan's status is its stored status); `--root` implies `--kind spec`. Output: one block per file, in path order, giving the ID (or plan ID and step) and, per matching line, `<line>: <trimmed line>`; at most 3 snippets per file. `--json` prints an array of `{id, kind, path, root, status, matches: [{line, text}]}`. No matches: empty output (or `[]`) and exit 0. Exit 1 only for errors (an empty `text`, unknown root).
 
 ### `init`
 
