@@ -89,7 +89,7 @@ Nothing needs to be added to `.gitignore`: worktrees live outside the main check
 Recommend adding to `.gitattributes` so forges collapse `PLANS.md` in diffs and exclude it from language statistics:
 
 ```
-plans/PLANS.md linguist-generated=true
+PLANS.md linguist-generated=true
 ```
 
 ---

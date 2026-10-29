@@ -1,15 +1,38 @@
 {
   "name": "specplane",
   "version": "0.1.0",
-  "description": "Reference CLI for Specplane",
+  "description": "Reference CLI for Specplane: spec-driven development with plans, worktrees, and CI-friendly validation",
+  "keywords": [
+    "specplane",
+    "specs",
+    "spec-driven",
+    "planning",
+    "cli",
+    "agents"
+  ],
+  "repository": {
+    "type": "git",
+    "directory": "packages/cli"
+  },
   "type": "module",
-  "bin": { "specplane": "./dist/cli.js" },
-  "engines": { "node": ">=22" },
-  "files": ["dist"],
+  "bin": {
+    "specplane": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.js",
+    "!dist/fixtures.js",
+    "!dist/test-repo.js",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\" && node -e \"require('fs').cpSync('../../harnesses/claude/templates','dist/templates/claude',{recursive:true})\"",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "ajv": "^8",

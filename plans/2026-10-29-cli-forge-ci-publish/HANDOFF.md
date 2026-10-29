@@ -85,3 +85,35 @@ None.
 
 - CHOICE: used the `architecture/ci` form `PLANS.md linguist-generated=true` (matches at any depth); added no merge attribute.
 - `actionlint` is not installed; validation is the js-yaml unit test. `npm test` passes (211 tests).
+
+## Step 04: npm package and publish workflow
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/package.json`: keywords, `repository` (directory only), `engines.node >=20` (was >=22), `files` (`dist`, minus `*.test.js`, `fixtures.js`, `test-repo.js`, plus `README.md`), `prepack` runs the build. No `license` field.
+- `packages/cli/README.md`: install, quick start, requirements (Node 20, git 2.32, optional `gh`), note that `specplane@0` resolves only after the first publish.
+- `.github/workflows/specplane-publish.yml`: triggers only on `v*` tags, `npm publish --provenance` with `id-token: write`.
+- `docs/specifications/architecture/repository-layout.md`: `.gitattributes` line now `PLANS.md linguist-generated=true`, matching `architecture/ci`.
+
+### Deviations from the plan
+
+- The `license` field is omitted by instruction; the first acceptance criterion is therefore not fully met.
+
+### Gaps found in specs
+
+- `architecture/reference-cli` says Node >= 18; the step and CI say 20. Used 20; the spec line was not edited.
+
+### Open issues
+
+- OPEN (user): choose a licence, add a LICENSE file and the `license` field.
+- OPEN (user): set the `repository.url` (no git remote exists) and an `NPM_TOKEN` secret (or npm trusted publishing).
+
+### What the next step must know
+
+- CHOICE: engines `>=20` to match CI and the step.
+- CHOICE: `dist/templates/claude` is already copied by the build, so it ships in the tarball (15 entries); `npm pack --dry-run` shows 63 files, no tests or sources.
+- CHOICE: workflow uses `NODE_AUTH_TOKEN` from `secrets.NPM_TOKEN` with provenance.
+- `npm test` passes (211); `validate` 0 errors; pins current.
