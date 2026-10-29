@@ -74,7 +74,7 @@ export function runInit(
   };
 
   createIfAbsent(path.join(root, CONFIG_PATH), DEFAULT_CONFIG_YAML);
-  const { config } = loadConfig(root);
+  const { config } = loadConfig(root, { checkSpecRoots: false });
   const base = config.spec_roots.find((r) => r.name === "base") ?? config.spec_roots[0];
   createIfAbsent(path.join(root, base.path, "features", "INFO.md"), FEATURES_INFO);
   createIfAbsent(path.join(root, base.path, "architecture", "INFO.md"), ARCHITECTURE_INFO);

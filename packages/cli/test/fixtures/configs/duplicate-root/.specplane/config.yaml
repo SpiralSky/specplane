@@ -1,0 +1,5 @@
+spec_roots:
+  - name: base
+    path: .
+  - name: base
+    path: .

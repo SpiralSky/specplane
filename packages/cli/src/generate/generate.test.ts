@@ -89,6 +89,14 @@ test("init: creates files, preserves AGENTS.md text, idempotent", () => {
   loadConfig(root); // generated default config is valid
 });
 
+test("init: scaffolds spec roots that do not exist yet", () => {
+  const root = makeRepo({}, { createSpecRoots: false });
+  const lines = runInit(root);
+  assert.ok(lines.includes("Created .specplane/config.yaml"));
+  assert.ok(lines.includes("Created docs/specifications/features/INFO.md"));
+  assert.ok(fs.statSync(path.join(root, "docs/specifications")).isDirectory());
+});
+
 test("init: uses existing config paths and skips non-empty plans dir", () => {
   const root = makeRepo({
     ".specplane/config.yaml": "spec_roots:\n  - name: base\n    path: specs\nplans:\n  dir: work\n",

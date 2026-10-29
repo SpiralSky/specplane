@@ -28,6 +28,7 @@ const live = (root: string, ...extra: string[]) =>
 function repo(): string {
   const root = makeRepo({
     ".specplane/config.yaml": "spec_roots:\n  - name: base\n    path: specs\nplans:\n  dir: plans\n",
+    "specs/.gitkeep": "",
     [`plans/${ID}/PLAN.md`]: plan(ID),
     [`plans/${ID}/steps/01-a.md`]: step(1, "pending"),
     [`plans/${ID}/steps/02-b.md`]: step(2, "pending"),

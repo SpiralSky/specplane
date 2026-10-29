@@ -8,3 +8,21 @@
 **Resolution**: `architecture/reference-cli` § Config loading uses "Spec root `<name>`: path `<path>` is not a directory.", following the Scenario 7 pattern.
 **Target spec**: `feature/configuration`
 **Status**: open
+
+## G2: `init` on a repository whose spec roots do not exist yet
+
+**Kind**: assumption
+**Step**: 02
+**Case**: `architecture/reference-cli` config loading requires every `spec_roots[].path` to exist, but `init` is the command that creates those directories and must work in a clean repository (`feature/tooling` Scenario 1).
+**Resolution**: `loadConfig` takes an internal `checkSpecRoots: false` option that only `init` uses; every other caller keeps the check. `init` then creates the base root through its normal `INFO.md` scaffolding.
+**Target spec**: `architecture/reference-cli`
+**Status**: open
+
+## G3: Cross-field config errors use the feature texts verbatim
+
+**Kind**: assumption
+**Step**: 02
+**Case**: `feature/configuration` fixes whole-sentence texts for cross-field errors (Scenarios 5–8), while the `ConfigError` pattern in `architecture/reference-cli` § Error classes prefixes `Config key `<key>`:`.
+**Resolution**: `ConfigError` accepts a `null` key and then uses the reason as the whole message, so cross-field errors match the feature texts exactly; JSON-schema violations keep the `Config key` prefix. The duplicate-root message was also aligned to feature Scenario 5.
+**Target spec**: `architecture/reference-cli`
+**Status**: open

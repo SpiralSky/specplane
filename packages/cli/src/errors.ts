@@ -9,8 +9,12 @@ export abstract class SpecplaneError extends Error {
 
 export class ConfigError extends SpecplaneError {
   readonly exitCode = 1;
-  constructor(key: string, reason: string) {
-    super(`Config key \`${key}\`: ${reason}`);
+  /**
+   * `key` is a config path (schema violations). Pass `null` when a feature spec fixes the
+   * whole message verbatim (cross-field rules, `feature/configuration` acceptance scenarios).
+   */
+  constructor(key: string | null, reason: string) {
+    super(key === null ? reason : `Config key \`${key}\`: ${reason}`);
   }
 }
 export class UnknownRootError extends SpecplaneError {

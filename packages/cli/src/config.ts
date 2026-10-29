@@ -65,10 +65,18 @@ function dropKey(data: unknown, segments: string[], key: string): void {
   if (isObject(cur)) delete cur[key];
 }
 
-function checkCrossFields(config: Config, root: string): void {
+export interface LoadConfigOptions {
+  /**
+   * `init` scaffolds a repository whose spec roots do not exist yet, so it turns this off
+   * (`architecture/reference-cli` init step 2). Defaults to `true`.
+   */
+  checkSpecRoots?: boolean;
+}
+
+function checkCrossFields(config: Config, root: string, opts: LoadConfigOptions): void {
   const names = new Set<string>();
   for (const r of config.spec_roots) {
-    if (names.has(r.name)) throw new ConfigError("spec_roots", `duplicate root name \`${r.name}\``);
+    if (names.has(r.name)) throw new ConfigError(null, `Duplicate spec root name \`${r.name}\`.`);
     names.add(r.name);
   }
   const byName = new Map(config.spec_roots.map((r) => [r.name, r]));
@@ -84,15 +92,41 @@ function checkCrossFields(config: Config, root: string): void {
       seen.add(next);
     }
   }
-  let main = root;
-  try {
-    main = mainRoot(root);
-  } catch (e) {
-    if (!(e instanceof NotARepoError)) throw e;
+  if (opts.checkSpecRoots !== false) {
+    for (const r of config.spec_roots) {
+      const abs = path.resolve(root, r.path);
+      const rel = path.relative(root, abs);
+      const outside = path.isAbsolute(r.path) || rel === ".." || rel.startsWith(`..${path.sep}`);
+      if (outside) {
+        throw new ConfigError(null, `Spec root \`${r.name}\`: path \`${r.path}\` is outside the repository.`);
+      }
+      let stat: fs.Stats;
+      try {
+        stat = fs.statSync(abs);
+      } catch {
+        throw new ConfigError(null, `Spec root \`${r.name}\`: path \`${r.path}\` does not exist.`);
+      }
+      if (!stat.isDirectory()) {
+        throw new ConfigError(null, `Spec root \`${r.name}\`: path \`${r.path}\` is not a directory.`);
+      }
+    }
   }
-  const rel = path.relative(main, path.resolve(main, config.execution.worktree_dir));
-  if (rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel))) {
-    throw new ConfigError("execution.worktree_dir", "must not resolve inside the repository");
+  if (config.execution.backend === "worktree") {
+    let main = root;
+    try {
+      main = mainRoot(root);
+    } catch (e) {
+      if (!(e instanceof NotARepoError)) throw e;
+    }
+    const abs = path.resolve(main, config.execution.worktree_dir);
+    const rel = path.relative(main, abs);
+    const inside = rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
+    if (inside) {
+      throw new ConfigError(
+        null,
+        `\`execution.worktree_dir\` must be outside the repository. \`${config.execution.worktree_dir}\` resolves to \`${abs}\` inside it.`,
+      );
+    }
   }
 }
 
@@ -100,7 +134,7 @@ function checkCrossFields(config: Config, root: string): void {
  * Load `<root>/.specplane/config.yaml` (root = checkout root), validate it, and merge with defaults.
  * Unknown keys become warnings and are dropped; other violations throw ConfigError.
  */
-export function loadConfig(root: string): { config: Config; warnings: Warning[] } {
+export function loadConfig(root: string, opts: LoadConfigOptions = {}): { config: Config; warnings: Warning[] } {
   const file = path.join(root, CONFIG_PATH);
   const warnings: Warning[] = [];
   let raw: unknown = {};
@@ -129,6 +163,6 @@ export function loadConfig(root: string): { config: Config; warnings: Warning[] 
   }
 
   const config = merge(DEFAULT_CONFIG, raw) as Config;
-  checkCrossFields(config, root);
+  checkCrossFields(config, root, opts);
   return { config, warnings };
 }

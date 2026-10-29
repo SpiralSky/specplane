@@ -217,10 +217,28 @@ test("ADR rules: duplicate number, id mismatch, superseded_by, related_specs", (
   });
   const e = msgs(r, "errors").join("\n");
   assert.match(e, /Duplicate ADR number `0003`: `0003-a.md`, `0003-b.md`\. Renumber the later one\./);
-  assert.match(e, /does not match path-derived ID `decision\/0004`/);
-  assert.match(e, /`decision\/0099` does not resolve/);
-  assert.match(e, /requires `status: superseded`/);
-  assert.ok(r.warnings.some((w) => w.type === "adr"));
+  assert.match(e, /ADR file `0004-c\.md` has id `decision\/0005`; the id number must match the filename\./);
+  assert.match(e, /ADR `decision\/0006` is superseded by unknown ADR `decision\/0099`\./);
+  assert.ok(
+    r.warnings.some(
+      (w) => w.message === "ADR `decision/0007` has `superseded_by` but status `accepted`.",
+    ),
+  );
+  assert.ok(
+    r.warnings.some((w) => w.message === "ADR `decision/0008` references unknown spec `feature/none`."),
+  );
+});
+
+test("ADR supersession cycle is reported once from its lowest-numbered ADR", () => {
+  const r = run({
+    "decisions/0001-a.md": adr("0001"),
+    "decisions/0002-b.md": adr("0002", { status: "superseded", superseded_by: "decision/0005" }),
+    "decisions/0005-e.md": adr("0005", { status: "superseded", superseded_by: "decision/0002" }),
+  });
+  const cycles = r.errors.filter((e) => e.message.startsWith("Supersession cycle:"));
+  assert.equal(cycles.length, 1);
+  assert.equal(cycles[0].message, "Supersession cycle: `decision/0002` -> `decision/0005` -> `decision/0002`.");
+  assert.equal(cycles[0].file, "decisions/0002-b.md");
 });
 
 test("freshness: missing AGENTS.md warns; current block does not", async () => {
@@ -233,6 +251,17 @@ test("config errors become a config finding", () => {
   const r = runValidate(makeRepo({ ".specplane/config.yaml": "plans: {merge: nope}\n" }));
   assert.equal(r.valid, false);
   assert.equal(r.errors[0].type, "config");
+});
+
+test("config: a missing spec root is a config error", () => {
+  const root = makeRepo(
+    { ".specplane/config.yaml": "spec_roots:\n  - name: base\n    path: specs\n" },
+    { createSpecRoots: false },
+  );
+  const r = runValidate(root);
+  assert.ok(
+    r.errors.some((e) => e.type === "config" && e.message === "Spec root `base`: path `specs` does not exist."),
+  );
 });
 
 test("output formats", () => {
