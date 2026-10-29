@@ -1,10 +1,10 @@
 ---
 id: architecture/claude-integration
 title: Claude Code integration implementation
-status: review
+status: approved
 author: llm
 implements: [claude:feature/claude-integration, feature/agent-integration]
-based_on: { "claude:feature/claude-integration": "208500d", feature/agent-integration: "ec52439" }
+based_on: { "claude:feature/claude-integration": "e9ac125", feature/agent-integration: "ec52439" }
 ---
 
 # Claude Code integration implementation
