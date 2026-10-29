@@ -11,7 +11,7 @@
 - `architecture/file-formats` §1.1: ID pattern now `^(feature|architecture)/[a-z0-9](?:[a-z0-9-]|/(?!/))*[a-z0-9]$` with prose and valid/invalid examples.
 - Step file ticked and set to done.
 
-### Decisions
+### Deviations from the plan
 
 - CHOICE: `spec new` without a TTY defaults the title to the de-slugged slug instead of failing.
 - CHOICE: bare-file-name rule covers a fixed extension list and excludes `.md` names, allow-listed Specplane names, and link text/targets.
@@ -19,7 +19,7 @@
 - CHOICE: deprecated-reference warning uses type `reference`.
 - Pins: `specplane spec pin --check` reported all current after the edit (no overlay or skill pins the edited sections), so no refresh was needed.
 
-### Gaps and contradictions
+### Gaps found in specs
 
 None. (Feature text for `PlanStateError` start/finish failures was adopted verbatim; the architecture was corrected.)
 
@@ -27,6 +27,6 @@ None. (Feature text for `PlanStateError` start/finish failures was adopted verba
 
 - The restack trigger, harness registry, and plan activity `where` field findings belong to later plans.
 
-### Next step
+### What the next step must know
 
 Step 02: write the feature-spec proposals file.
