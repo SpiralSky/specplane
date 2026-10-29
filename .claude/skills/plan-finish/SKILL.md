@@ -4,7 +4,7 @@ description: Run the finish flow for the current plan. Use when the user runs /p
 argument-hint: "[plan-id]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-finish@a8e55f4 -->
+<!-- specplane-contract: architecture/agent-skills#plan-finish@a94912d -->
 
 # plan-finish
 

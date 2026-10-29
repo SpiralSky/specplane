@@ -1,14 +1,14 @@
 ---
 name: spec-draft-architecture
-description: Draft an architecture spec from one or more feature specs. Use when the user runs /spec-draft-architecture.
+description: Draft an architecture spec from feature specs, or review an architecture draft. Use when the user runs /spec-draft-architecture.
 argument-hint: "[feature-spec-id ...]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#spec-draft-architecture@a8e55f4 -->
+<!-- specplane-contract: architecture/agent-skills#spec-draft-architecture@a94912d -->
 
 # spec-draft-architecture
 
-Drafts an architecture spec from feature specs (the `spec-draft-architecture` workflow integration).
+Drafts an architecture spec from feature specs (the `spec-draft-architecture` workflow integration). Under `assist` it follows refine-then-write; under `review` it reviews an existing draft instead of producing one.
 
 ## Preconditions
 
@@ -22,7 +22,8 @@ Resolve every spec, plan, and ADR path from config (`.specplane/config.yaml`), n
 Read `specs.architecture.llm_role` from config.
 
 - `none`: decline.
-- `assist`: review an existing architecture draft instead of producing one.
+- `review`: review-only mode. Review a draft the user wrote (the review-only steps of `/spec-assist`) and write nothing.
+- `assist`: refine-then-write mode. The feature specs read in steps 1-3 are the input to Describe and Refine, and Write uses the finalised content: `author: mixed`, `status` unchanged, and the file written only after the user approves the text.
 - `draft`: proceed.
 
 ## Steps
@@ -30,11 +31,11 @@ Read `specs.architecture.llm_role` from config.
 1. Identify the feature specs to implement: from `$ARGUMENTS`, otherwise ask the user.
 2. Read each feature spec (resolve its path from config) and any ADRs listed in their text or whose `related_specs` include them.
 3. Check each feature spec's status. Warn about any that are not `approved`; note that the architecture spec cannot be approved until they are when `specs.architecture.require_approved_features: true`.
-4. Produce a draft using the template in `architecture/file-formats` §1.4.
+4. Produce a draft using the template in `architecture/file-formats` §1.4. Under `assist`, first run Describe -> Refine -> Finalise with the user, treating the feature specs as the starting description, and produce the body only from the finalised content.
 5. Mark any place where the feature specs leave the architecture open with `<!-- GAP: <description> -->`.
-6. Set `author: llm`, `status: draft`, and the `implements` list.
+6. Set `author: llm`, `status: draft`, and the `implements` list. Under `assist`, set `author: mixed` and leave `status` unchanged instead.
 7. Before writing, self-check the draft: every `implements` entry resolves, every feature-spec requirement is covered or marked with a GAP, and no section contradicts a feature spec (the architecture spec wins only where the feature spec is silent). Fix or mark with a GAP anything that fails.
-8. Write the draft with `Write` to `<root.path>/architecture/<slug>.md` (root from config; `base` unless the user names another).
+8. Write the draft with `Write` to `<root.path>/architecture/<slug>.md` (root from config; `base` unless the user names another). Under `assist`, show the text and write the file only after the user approves it.
 
 ## Output
 

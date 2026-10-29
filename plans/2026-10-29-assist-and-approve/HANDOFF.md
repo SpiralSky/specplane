@@ -128,3 +128,35 @@ The worker's first cut gated the overlay path on `spec.root.extends` (the *root*
 - `PLANS.md` is regenerated inside `plan approve`; the CLI `generate` command and CI use the same function, so there is no drift.
 - `plan approve` refuses plans that are not `draft`; this plan is already `ready`, so it can only be exercised on a new plan.
 - `npm test` is 254/254. Step 05 is the last code step: five skills, the guard, and `.claude` sync.
+
+## Step 05: Claude skills, policy guard, and .claude sync
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `harnesses/claude/templates/skills/spec-assist/SKILL.md` and `spec-draft-architecture/SKILL.md`: `assist` runs Describe -> Refine -> Finalise -> Write (file written only after the user approves the text, `author: mixed`, `status` unchanged); `review` is review-only; `draft` may draft on request; `none` declines.
+- Five new skills: `approve` (`<id>... [--reopen]`, model invocation disabled), `plan-start`, `decision-new`, `plan-status` (model-invocable), `plan-abandon`; each with the shared preamble, the contract sections, and a contract pin.
+- `templates/hooks/specplane-policy-guard.sh`: an approval check runs before the type-based early return. A spec, `PLAN.md`, step file, or ADR whose edited text sets `approved`/`ready`/`accepted` is denied, except when the file already has that status (an unchanged status is not an approval); `review` now maps to `ask` like `assist`.
+- `templates/rules/specplane.md` and `AGENTS.md`: the Workflows line lists all eleven commands.
+- All eleven contract pins re-pinned to `a94912d`, the committed blob of `architecture/agent-skills` at step 04.
+- `.claude/` re-synced from the templates; `packages/cli/src/harness/claude.ts` and `pack.test.ts` updated for the new skill list and Workflows line.
+
+### Deviations from the plan
+
+The worker's guard matched a `status:` line without comparing it to the existing file, so rewriting an already-approved spec with `Write` would have been denied. Corrected to read the existing status and allow an unchanged value, as `claude:architecture/claude-integration` requires. `AGENTS.md` was updated by me rather than the worker, because the plan-step contract gives the agent that file and the worker was told not to touch it.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+- The guard cannot see `Bash` edits (`sed -i`, redirection); unchanged from the spec, and the standing instructions cover them.
+- `NotebookEdit` has no `new_string`, so the approval check cannot see notebook content; the role check still applies through the file read.
+
+### What the next step must know
+
+- Checks at this point: `npm test` 254/254, `hooks.test.sh` 73/73, `check-sync.sh` OK, `validate` 0 errors / 21 warnings (the 21st is the worktree lacking `.claude/settings.local.json`; the main checkout has 20), `spec pin --check` clean, no `skill-drift` warnings remain.
+- Step 06 updates READMEs/`--help`/the maintainers' slash-command table and lists the still-`review` specs for the user; all specs are currently `approved`, so that list will be empty unless something is reopened.

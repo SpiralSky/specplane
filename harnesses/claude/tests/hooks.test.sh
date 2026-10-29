@@ -198,6 +198,39 @@ EOJ
 )
 case "$out" in *"Policy (specs.feature.llm_role: none) forbids editing feature specs. Tell the user instead."*) report "guard: deny reason text" 1 ;; *) report "guard: deny reason text" 0 ;; esac
 
+# approval check: specs, PLAN.md/steps, and ADRs cannot be approved by an edit
+pge() { # file new_string (Edit)
+  "$JQ" -n --arg f "$1" --arg n "$2" '{tool_name:"Edit",tool_input:{file_path:$f,new_string:$n}}'
+}
+pgm() { # file new_string (MultiEdit)
+  "$JQ" -n --arg f "$1" --arg n "$2" '{tool_name:"MultiEdit",tool_input:{file_path:$f,edits:[{old_string:"status: draft",new_string:$n}]}}'
+}
+d="$tmp/pg-review"; pg_proj "$d" review review
+mkdir -p "$d/specs" "$d/plans/x/steps" "$d/decisions"
+printf -- '---\nid: feature/x\nstatus: review\n---\nbody\n' > "$d/specs/f1.md"
+printf -- '---\nplan: x\nstatus: draft\n---\n' > "$d/plans/x/PLAN.md"
+printf -- '---\nplan: x\nstep: 1\nstatus: pending\n---\n' > "$d/plans/x/steps/01-a.md"
+printf -- '---\nid: decision/0001\nstatus: proposed\n---\n' > "$d/decisions/0001-first.md"
+pg "guard: approval denies spec status approved (Edit)" "$d" "$(pge specs/f1.md 'status: approved')" deny
+pg "guard: approval denies spec status approved (MultiEdit)" "$d" "$(pgm specs/f1.md 'status: approved')" deny
+pg "guard: approval denies PLAN.md status ready" "$d" "$(pge plans/x/PLAN.md 'status: ready')" deny
+pg "guard: approval denies step file status ready" "$d" "$(pge plans/x/steps/01-a.md 'status: ready')" deny
+pg "guard: approval denies ADR status accepted" "$d" "$(pge decisions/0001-first.md 'status: accepted')" deny
+pg "guard: review: normal spec edit asks" "$d" "$(pge specs/f1.md 'body changed')" ask
+pg "guard: review: status unchanged is not an approval edit" "$d" "$(pge specs/f1.md 'body changed\nstatus: review')" ask
+pg "guard: assist: normal spec edit asks" "$tmp/pg-assist" "$(pge specs/f1.md 'body changed')" ask
+pg "guard: draft: Write new spec with status approved denied" "$tmp/pg-draft" "$(pgj Write specs/new-approved.md "$(printf -- '---\nid: feature/new\nstatus: approved\n---\n')")" deny
+out=$(PATH="$ORIG_PATH" CLAUDE_PROJECT_DIR="$d" sh "$hooks/specplane-policy-guard.sh" 2>/dev/null <<EOJ
+$(pge specs/f1.md 'status: approved')
+EOJ
+)
+case "$out" in *"Approval is the user's decision: run /approve <id> instead of editing status."*) report "guard: approval reason text" 1 ;; *) report "guard: approval reason text" 0 ;; esac
+out=$(PATH="$ORIG_PATH" CLAUDE_PROJECT_DIR="$d" sh "$hooks/specplane-policy-guard.sh" 2>/dev/null <<EOJ
+$(pge specs/f1.md 'body changed')
+EOJ
+)
+case "$out" in *"Policy (specs.feature.llm_role: review): the user must approve this exact edit."*) report "guard: review ask reason text" 1 ;; *) report "guard: review ask reason text" 0 ;; esac
+
 # ---- session context and status line ----
 sc_repo="$tmp/screpo"; mkdir -p "$sc_repo/.specplane" "$sc_repo/plans/x/steps"
 printf 'plans:\n  dir: plans\n' > "$sc_repo/.specplane/config.yaml"
