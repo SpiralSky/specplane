@@ -2,7 +2,7 @@
 plan: 2026-10-29-claude-harness-files
 step: 1
 title: Skill templates
-status: pending
+status: done
 use_subagent: true
 context:
   - spec: claude:architecture/claude-integration#Skill file format
@@ -20,12 +20,12 @@ Write the six skill templates under `harnesses/claude/templates/skills/<name>/SK
 
 ## Acceptance criteria
 
-- [ ] Six files exist: `spec-assist`, `spec-draft-architecture`, `plan-create`, `plan-step`, `plan-finish`, `validate`.
-- [ ] Each has frontmatter `name`, `description`, and the `argument-hint` / `disable-model-invocation` values from the per-skill table (omit `argument-hint` for `validate`).
-- [ ] Each body has, in order: H1 title, purpose paragraph, `## Preconditions` (the shared preamble), `## Policy check` (write "None." where the contract has none), `## Steps`, `## Output`.
-- [ ] Steps restate every step of the matching `architecture/agent-skills` contract in the same order, adding only Claude Code detail from the per-skill table; no hardcoded spec/plan paths except as config-default examples.
-- [ ] `plan-step` includes: session-mode detection (§ Session mode) stated at the start of its output; the `use_subagent: true` branch with the exact Agent call shape from § Subagent step execution (fresh `general-purpose` subagent, paths not contents, unattended); `$ARGUMENTS` handling for `[plan-id] [--unattended]`.
-- [ ] `spec-assist` refuses to produce a feature spec body under `llm_role: assist` (feature scenario 4).
+- [x] Six files exist: `spec-assist`, `spec-draft-architecture`, `plan-create`, `plan-step`, `plan-finish`, `validate`.
+- [x] Each has frontmatter `name`, `description`, and the `argument-hint` / `disable-model-invocation` values from the per-skill table (omit `argument-hint` for `validate`).
+- [x] Each body has, in order: H1 title, purpose paragraph, `## Preconditions` (the shared preamble), `## Policy check` (write "None." where the contract has none), `## Steps`, `## Output`.
+- [x] Steps restate every step of the matching `architecture/agent-skills` contract in the same order, adding only Claude Code detail from the per-skill table; no hardcoded spec/plan paths except as config-default examples.
+- [x] `plan-step` includes: session-mode detection (§ Session mode) stated at the start of its output; the `use_subagent: true` branch with the exact Agent call shape from § Subagent step execution (fresh `general-purpose` subagent, paths not contents, unattended); `$ARGUMENTS` handling for `[plan-id] [--unattended]`.
+- [x] `spec-assist` refuses to produce a feature spec body under `llm_role: assist` (feature scenario 4).
 
 ## Tasks
 
