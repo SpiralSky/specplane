@@ -37,3 +37,38 @@ None.
 - The `## Preconditions` text is byte-identical across all six files (the two checks plus one path-resolution sentence); `check-sync.sh` or any later edit must keep them identical.
 - Frontmatter `argument-hint` values are quoted YAML strings (e.g. `"[plan-id] [--unattended]"`) because they start with `[`.
 - No files outside the listed context were read.
+
+## Step 02: Hook scripts, settings fragment, and hook tests
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `harnesses/claude/templates/hooks/specplane-pre-commit.sh`: copied verbatim from the architecture spec; mode 0755.
+- `harnesses/claude/templates/hooks/specplane-handoff-check.sh`: optional PostToolUse hook; warns on stdout when a `plan/<id> step NN:` commit lacks `<plans.dir>/<id>/HANDOFF.md`; header holds the registration snippet; always exits 0.
+- `harnesses/claude/templates/hooks/specplane-generate.sh`: optional PostToolUse hook; runs `specplane generate` for `*/PLAN.md` paths; header holds the registration snippet; always exits 0.
+- `harnesses/claude/templates/settings.json`: the spec'd registration JSON.
+- `harnesses/claude/tests/hooks.test.sh`: 22 passing cases plus 1 xfail, all temp state under `mktemp -d`.
+- `plans/2026-10-29-claude-harness-files/steps/02-hooks-and-tests.md`: criteria ticked, status `done`.
+
+### Deviations from the plan
+
+- The test for `(git commit)` is reported as `xfail` rather than run as a pass/fail case (see Gaps). All other spec'd cases are ordinary `run_case` checks.
+
+### Gaps found in specs
+
+- Gap: `claude:architecture/claude-integration` § Testing lists `(git commit)` as blocked, but the spec'd pre-commit regex requires whitespace or end of line after `commit`, so the closing `)` makes it not match (exit 0, not 2). Regex left unchanged as instructed. Likely fix: `commit([[:space:]);]|$)` or similar, in the spec and script together.
+- Gap: the spec does not say where `specplane generate` output goes in the generate hook; used stderr. It also does not give the exact `sed` for reading `plans.dir`; used a range `sed` on the `plans:` block with default `plans`.
+
+### Open issues
+
+- The `(git commit)` regex/spec mismatch above must be resolved (spec edit plus script and test promotion from `xfail_case` to `run_case`). Not marked BLOCKED because the other criteria are met.
+
+### What the next step must know
+
+- `dash` is not installed here, so tests were run under `sh` (bash) only; `jq` was available.
+- `hooks.test.sh` prints `XPASS` if the `(git commit)` gap is ever fixed; then switch it to `run_case`.
+- The handoff-check hook runs `git log`/`git show` in the hook's cwd, and reads config from `$CLAUDE_PROJECT_DIR`.
+- Hook scripts and `settings.json` are in `templates/`; dogfood copies under `.claude/` and `check-sync.sh` do not exist yet. Scripts are mode 100755.
+- No files outside the listed context were read.
