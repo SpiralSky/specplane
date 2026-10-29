@@ -2,7 +2,7 @@
 plan: 2026-10-28-reference-cli-core
 step: 1
 title: TypeScript project scaffold and dependencies
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli
   - decision: decision/0002
@@ -15,11 +15,11 @@ Create the TypeScript project scaffold for the `specplane` CLI: `package.json`, 
 
 ## Acceptance criteria
 
-- [ ] `npm install` completes without errors.
-- [ ] `npm run build` compiles TypeScript to `dist/` without type errors.
-- [ ] `node dist/cli.js --version` prints a version string (e.g. `0.1.0`).
-- [ ] Directory structure under `src/` matches `architecture/reference-cli` §Module structure exactly.
-- [ ] `npm test` runs (even if there are no tests yet) and exits 0.
+- [x] `npm install` completes without errors.
+- [x] `npm run build` compiles TypeScript to `dist/` without type errors.
+- [x] `node dist/cli.js --version` prints a version string (e.g. `0.1.0`).
+- [x] Directory structure under `src/` matches `architecture/reference-cli` §Module structure exactly.
+- [x] `npm test` runs (even if there are no tests yet) and exits 0.
 
 ## Tasks
 
