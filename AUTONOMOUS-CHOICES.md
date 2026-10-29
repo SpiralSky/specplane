@@ -52,3 +52,12 @@ Full list: `plans/archive/2026-10-29-cli-spec-search/HANDOFF.md`. Feature-spec p
 - The deprecated-reference warning has type `reference` (file-formats §1.5 has no row for it).
 - The human `validate` report now goes to stderr; `--json` goes to stdout.
 - Merge note: rebasing onto harness-init had one test-file conflict, resolved by keeping both sides.
+
+## 2026-10-29-cli-plan-commands (done, merged)
+Full list: `plans/archive/2026-10-29-cli-plan-commands/HANDOFF.md`. Proposals: `plans/archive/2026-10-29-cli-plan-commands/feature-spec-proposals.md` (**needs review**). Notable:
+- Plan activity gains `backend` and `where`. `where` is `local` when a local branch exists, `remote` when only the `origin/` branch exists, and `none` otherwise.
+- `review` is never derived without a forge (`hasOpenPr`). An abandoned dependency means `blocked` under `wait_for_merge`; under `stack` it is a validate error.
+- `generate --live` requires `--print`, so live statuses never reach the committed PLANS.md. `generate --live` never fetches.
+- `plan new` prompts only on a TTY; otherwise `--id`, `--title` and `--specs` are required. `steps/` is created empty; HANDOFF.md has the header only.
+- `plan list` sorts by ID descending and prints `No plans.` when empty. `plan graph` prints the Mermaid block from PLANS.md without a fence. `plan show` prints the whole PLAN.md.
+- Proposal: a stack-mode `ready` plan with 2+ unmerged dependencies shows as `blocked`. Plan-index Scenario 5 is split into 5 and 5a.
