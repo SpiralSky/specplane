@@ -2,7 +2,7 @@
 plan: 2026-10-29-claude-harness-files
 step: 2
 title: Hook scripts, settings fragment, and hook tests
-status: pending
+status: done
 use_subagent: true
 context:
   - spec: claude:architecture/claude-integration#Hooks
@@ -17,12 +17,12 @@ Write the three hook scripts and the settings registration fragment under `harne
 
 ## Acceptance criteria
 
-- [ ] `templates/hooks/specplane-pre-commit.sh` matches the script in § Pre-commit validation exactly.
-- [ ] `templates/hooks/specplane-handoff-check.sh` and `templates/hooks/specplane-generate.sh` implement the § Optional hooks table, each with a header comment containing its registration snippet; both always exit 0 and are no-ops without `.specplane/config.yaml`.
-- [ ] All three scripts are POSIX `sh` (no bashisms) and have mode 0755 in git (`git update-index --chmod=+x` if needed).
-- [ ] `templates/settings.json` equals the registration JSON in § Pre-commit validation (2-space indent, trailing newline).
-- [ ] `sh harnesses/claude/tests/hooks.test.sh` exits 0 and covers every case in § Testing for the hook scripts; it creates all temp state under `mktemp -d` and cleans up.
-- [ ] The tests are run once with `sh` and pass; if `dash` is installed, they also pass under `dash`.
+- [x] `templates/hooks/specplane-pre-commit.sh` matches the script in § Pre-commit validation exactly.
+- [x] `templates/hooks/specplane-handoff-check.sh` and `templates/hooks/specplane-generate.sh` implement the § Optional hooks table, each with a header comment containing its registration snippet; both always exit 0 and are no-ops without `.specplane/config.yaml`.
+- [x] All three scripts are POSIX `sh` (no bashisms) and have mode 0755 in git (`git update-index --chmod=+x` if needed).
+- [x] `templates/settings.json` equals the registration JSON in § Pre-commit validation (2-space indent, trailing newline).
+- [x] `sh harnesses/claude/tests/hooks.test.sh` exits 0 and covers every case in § Testing for the hook scripts; it creates all temp state under `mktemp -d` and cleans up.
+- [x] The tests are run once with `sh` and pass; if `dash` is installed, they also pass under `dash`.
 
 ## Tasks
 

@@ -57,6 +57,9 @@ src/
     branch.ts          # branch existence, creation, deletion, rebase
     worktree.ts        # worktree path resolution, creation, removal
     forge.ts           # optional: PR creation and open-PR detection
+    commit.ts          # builds commit messages and reads trailers (file-formats §8)
+  agents/
+    standing.ts        # standing-instructions text and the AGENTS.md managed block
   generate/
     plans-md.ts        # generates PLANS.md
     mermaid.ts         # generates Mermaid dependency graph
@@ -254,6 +257,17 @@ Selected by `plans.forge`. With `auto`, GitHub is used when the `origin` remote 
 - `createPR(branch, base, title, body): string | null` — `gh pr create --head <branch> --base <base> --title <title> --body <body>`; returns the PR URL.
 - `getOpenPR(branch): string | null` — `gh pr list --head <branch> --state open --json url`.
 
+### `commit.ts`
+
+Implements `architecture/file-formats` §8.
+
+- `formatMessage({ type, scope, summary, body?, trailers }): string` — subject, optional body, then one trailer paragraph in §8.2 order. Throws `CommitFormatError` if the subject exceeds 72 characters (the caller shortens the summary, never the plan ID in trailers).
+- `cliTrailers(workflow, planId): Trailers` — `Specplane-Workflow` and `Specplane-Plan`, plus `Specplane-Agent` from `$SPECPLANE_AGENT` and `Specplane-Session` from `$SPECPLANE_SESSION` when set and non-empty. Harnesses set these variables for agent sessions (for Claude Code, see `claude:architecture/claude-integration` § Environment); a human running the CLI by hand gets neither.
+- `readTrailers(ref): Map<string, string>` — `git log -1 --format=%(trailers:only,unfold) <ref>`, parsed with `git interpret-trailers --parse` semantics (last value wins for repeated keys).
+- `findLatest(branch, workflow): sha | null` — `git log --format=%H%x00%(trailers:key=Specplane-Workflow,valueonly) <branch>`, first match.
+
+Every commit made by `plan/flows.ts` goes through `formatMessage`; empty commits use `git commit-tree -F -` with the message on stdin.
+
 ---
 
 ## Plan flows (`plan/flows.ts`)
@@ -266,12 +280,12 @@ These implement `feature/plan-execution`. Every flow validates everything it nee
 2. Load the plan from the default branch's tip (`git show <default>:<path>`), so the main checkout's working state does not matter. First start = `!branchExists('plan/<id>') && !remoteBranchExists('plan/<id>')`.
 3. First start: check dependencies (wait-for-merge, or the stacking rule) and `require_approved_specs`, resolving each spec without root context.
 4. Frontmatter mode, first start: claim commit (see below) setting `in_progress`.
-5. First start: `createBranch('plan/<id>', base)`, where `base` is the default branch tip, or the tip of `plan/<base-id>` when stacking. When stacking, the marker commit is created without touching any checkout: `git commit-tree <base>^{tree} -p <base> -m "plan/<id> stack: based on plan/<base-id> at <base>"`, and the new branch points at that commit instead. On resume, a remote-only branch is first tracked locally (`git branch --track plan/<id> origin/plan/<id>`).
+5. First start: `createBranch('plan/<id>', base)`, where `base` is the default branch tip, or the tip of `plan/<base-id>` when stacking. When stacking, the marker commit is created without touching any checkout: `git commit-tree <base>^{tree} -p <base> -F -` with message `chore(specplane): stack <id> on <base-id>` and trailers `Specplane-Workflow: stack`, `Specplane-Plan: <id>`, `Specplane-Stack-Base: <base sha>`, and the new branch points at that commit instead. On resume, a remote-only branch is first tracked locally (`git branch --track plan/<id> origin/plan/<id>`).
 6. Check out per backend. Worktree: `createWorktree`, then run `setup_hook` via the user's shell (`sh -c` / `cmd /c`) with `cwd` = the worktree; on failure `removeWorktree(..., { force: true })` (the worktree is fresh, so nothing is lost) and throw `SetupHookError`. Branch: require `git status --porcelain` to be empty, then `git switch plan/<id>`.
 
 ### Claim commits (frontmatter mode)
 
-A claim commit must land on the default branch without disturbing anyone's checkout. It is made in the main checkout and requires that checkout to be on the default branch with no changes to the plan's `PLAN.md`; otherwise the flow stops with instructions. It edits only the `status:` line, commits `plan/<id>: claim <status>`, and pushes when a remote exists.
+A claim commit must land on the default branch without disturbing anyone's checkout. It is made in the main checkout and requires that checkout to be on the default branch with no changes to the plan's `PLAN.md`; otherwise the flow stops with instructions. It edits only the `status:` line, commits `chore(specplane): claim <id> <status>` (`Specplane-Workflow: claim`), and pushes when a remote exists.
 
 ### Finish
 
@@ -281,19 +295,43 @@ Runs in the plan's checkout. Steps follow `feature/plan-execution` § Finish flo
 2. Run `test_command` (shell, `cwd` = checkout); present acceptance criteria.
 3. Frontmatter mode: claim `review`.
 4. Fetch; if stacked, `rebaseOnto(<default>, <latest marker sha>, 'plan/<id>')`; else `git rebase <default>`. A conflict throws `RebaseConflictError` (the rebase is aborted, leaving the branch unchanged). Re-run tests if the rebase applied new commits.
-5. Final commit: set `status: done`; if `archive_done`, `git mv <plans.dir>/<id> <plans.dir>/archive/<id>`; commit.
+5. Final commit: set `status: done`; if `archive_done`, `git mv <plans.dir>/<id> <plans.dir>/archive/<id>`; commit `chore(specplane): finish <id>` (`Specplane-Workflow: finish`).
 6. `pull_request`: `git push -u origin plan/<id>`, then `createPR` (or print instructions when it returns `null`). `local_merge`: ask for confirmation, then in the main checkout `git merge --no-ff plan/<id>`.
 7. After a local merge, run cleanup.
 
 ### Cleanup, abandon, archive
 
 - `cleanup(id)`: remove the worktree (or switch the branch-backend checkout back to the default branch); delete `plan/<id>` only if the plan's `PLAN.md` on the default branch has `status: done`. Each part is skipped if already done.
-- `abandon(id, { deleteBranch, force })`: edit `PLAN.md` on the default branch to `abandoned`, `git mv` to archive if `archive_done`, commit in the main checkout (same preconditions as a claim commit); remove the worktree; delete the branch only if requested.
-- `archive(id)`: for a `done` or `abandoned` plan not yet archived, `git mv` it to the archive and commit in the current checkout.
+- `abandon(id, { deleteBranch, force })`: edit `PLAN.md` on the default branch to `abandoned`, `git mv` to archive if `archive_done`, commit `chore(specplane): abandon <id>` (`Specplane-Workflow: abandon`) in the main checkout (same preconditions as a claim commit); remove the worktree; delete the branch only if requested.
+- `archive(id)`: for a `done` or `abandoned` plan not yet archived, `git mv` it to the archive and commit `chore(specplane): archive <id>` (`Specplane-Workflow: archive`) in the current checkout.
 
 ### Restack
 
-`restack(id)`: find the newest marker commit on `plan/<id>` (`git log --format=%H%x00%s plan/<id>` filtered by the marker subject), take its recorded sha as `upstream`, and call `rebaseOnto(newBase, upstream, 'plan/<id>')`, where `newBase` is the default branch if the base plan is done, else `plan/<base-id>`. In the latter case, append a new marker recording the new base tip.
+`restack(id)`: find the newest marker commit on `plan/<id>` (`findLatest('plan/<id>', 'stack')`), take its `Specplane-Stack-Base` trailer as `upstream`, and call `rebaseOnto(newBase, upstream, 'plan/<id>')`, where `newBase` is the default branch if the base plan is done, else `plan/<base-id>`. In the latter case, append a new marker recording the new base tip.
+
+### Plan activity (`plan list --json`)
+
+Harness live views (for example `claude:architecture/claude-integration` § Live view) read plan activity from `specplane plan list --json --live` instead of parsing git themselves. Each plan object adds:
+
+| Field | Source |
+|-------|--------|
+| `branch` | `plan/<id>` if it exists locally or on `origin`, else `null` |
+| `checkout` | worktree path from `git worktree list --porcelain`, else `null` (branch-only, remote-only, or external) |
+| `steps` | `{ total, done, skipped, blocked, next }` from the step files at the branch tip (`git show <branch>:<path>`), else from the default branch; `next` is `{ number, title, status }` or `null` |
+| `blocked_issues` | `BLOCKED:` lines from HANDOFF.md at the branch tip |
+| `last_step_commit` | newest commit on the branch with `Specplane-Workflow: step`: `{ sha, time, step, agent, session }` from its trailers, else `null` |
+| `ahead_of_remote` | commits on the local branch not on `origin/plan/<id>` (`null` without a remote branch) |
+
+`--live` fetches `origin` at most once per invocation (`git fetch --quiet origin 'refs/heads/plan/*:refs/remotes/origin/plan/*'`), skipped with `--no-fetch` or when there is no remote. Without `--live`, these fields come from local refs only.
+
+## Standing instructions (`agents/standing.ts`)
+
+Implements `architecture/agent-skills` § Standing instructions.
+
+- `STANDING_VERSION = 'v1'` and `standingText(workflowsLine)`: the canonical text; the base uses the harness-neutral Workflows line.
+- `upsertBlock(content: string | null): { content, action: 'created' | 'appended' | 'updated' | 'unchanged' | 'malformed' }`: markers are matched as `<!-- specplane:begin v<N>` … `-->` and `<!-- specplane:end -->` on their own lines. Line endings in the existing file are preserved.
+- `init` writes `AGENTS.md` through `upsertBlock` and reports `Created`, `Updated` (appended or replaced), `Unchanged`, or `Skipped AGENTS.md (malformed specplane block; fix the markers by hand)`.
+- `validate` warns (type `freshness`) when no file in the repository root delivers the block (`AGENTS.md`, or a harness file registered by an installed harness), when a block's version is older than `STANDING_VERSION`, when its text differs from `standingText` (with the harness's Workflows line), or when it is malformed. Message: `Specplane standing instructions in <file> are missing or out of date; run specplane init.`
 
 ---
 

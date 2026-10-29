@@ -8,6 +8,7 @@
 |----|-------|--------|--------------|-------|
 | [2026-10-28-reference-cli-core](2026-10-28-reference-cli-core/PLAN.md) | Reference CLI core — validate and generate commands | draft | — | feature/tooling, feature/configuration, feature/spec-system, feature/plan-system, feature/plan-steps, feature/plan-index, architecture/reference-cli, architecture/file-formats, architecture/repository-layout |
 | [2026-10-29-claude-harness-files](2026-10-29-claude-harness-files/PLAN.md) | Claude Code harness files — skills, hooks, CLAUDE.md | ready | — | claude:feature/claude-integration, claude:architecture/claude-integration, feature/agent-integration, architecture/agent-skills |
+| [2026-10-29-claude-instructions-and-enforcement](2026-10-29-claude-instructions-and-enforcement/PLAN.md) | Claude harness — standing instructions, enforcement hooks, live view | draft | 2026-10-29-claude-harness-files | claude:feature/claude-integration, claude:architecture/claude-integration, feature/agent-integration, architecture/agent-skills, architecture/file-formats |
 
 ## Archived plans
 
@@ -19,6 +20,8 @@ _None._
 graph TD
     p_2026_10_28_reference_cli_core[reference-cli-core]:::draft
     p_2026_10_29_claude_harness_files[claude-harness-files]:::ready
+    p_2026_10_29_claude_instructions_and_enforcement[claude-instructions-and-enforcement]:::draft
+    p_2026_10_29_claude_harness_files --> p_2026_10_29_claude_instructions_and_enforcement
     classDef draft fill:#f9fafb,color:#374151,stroke:#d1d5db
     classDef ready fill:#22c55e,color:#fff
     classDef blocked fill:#ef4444,color:#fff

@@ -1,41 +1,45 @@
 ---
 id: feature/agent-integration
-title: "Agent integration: AGENTS.md, skills, and policy enforcement"
+title: "Agent integration: agent instructions, skills, and policy enforcement"
 status: review
 author: mixed
 ---
 
-# Agent integration: AGENTS.md, skills, and policy enforcement
+# Agent integration: agent instructions, skills, and policy enforcement
 
 This spec defines how Specplane integrates with AI agents: what instructions they follow, what skills (or slash commands) they execute, and how they enforce Specplane policies.
 
 ---
 
-## AGENTS.md
+## Agent instructions
 
-`AGENTS.md` is a tool-agnostic markdown file at the repository root. It describes the Specplane workflow to any AI agent that reads it, regardless of the agent harness being used.
+Specplane's instructions to agents come in two parts:
 
-### Contents of AGENTS.md
+- **Standing instructions**: a short text the agent has in every session, because some rules apply even when no workflow is running. It covers only:
+  1. **Finding things**: Specplane is in use; read the config before acting on specs or plans, and resolve paths from it.
+  2. **Authorship policies**: what each `llm_role` value permits.
+  3. **Precedence rules**: architecture spec first, feature spec for gaps, stop on contradictions.
+  4. **Plans and commits**: work on a plan only in its checkout, one step at a time; HANDOFF.md is the source of truth; commit messages follow the Specplane format.
+  5. **Workflows**: how to invoke the workflow integrations in this harness.
+- **Workflow procedures**: the step context contract, the HANDOFF.md format, the step commit, and the common flows (start a spec, assist with a feature spec, draft an architecture spec, create a plan, execute the next step, finish a plan). These live in the workflow integrations (§ Workflow integrations), which load only when used.
 
-`AGENTS.md` must cover:
+### Delivery without overwriting user files
 
-1. **The Specplane model** — what specs and plans are, the format, and the lifecycle.
-2. **Authorship policies** — what the agent may and may not do for each spec type (from the config's `authorship` and `llm_role` settings). The agent reads config to know the current policy; `AGENTS.md` explains the meaning.
-3. **The step context contract** — what the agent must load at the start of a step, how to use HANDOFF.md.
-4. **Precedence rules** — architecture spec first, feature spec for gaps, stop on contradictions.
-5. **How to write a step commit** — one commit per step, message format.
-6. **Common flows**: how to start a spec, assist with a feature spec, draft an architecture spec, create a plan, execute the next step, finish a plan.
-7. **How to find things**: how to resolve spec IDs from config, how to find plans.
+Instruction files such as `AGENTS.md` and `CLAUDE.md` belong to the repository's maintainers. Specplane must never overwrite or reorder their content.
 
-### What AGENTS.md must NOT do
+- A harness delivers the standing instructions through a file Specplane owns, when the harness supports one (for example a rules directory). Specplane may overwrite its own files on update.
+- `AGENTS.md` is the harness-neutral fallback. Specplane writes the standing instructions there as a single **managed block** with clear begin and end markers. It changes only the text between the markers, and it appends the block when the file has none.
+- Users may write anything outside the block, including their own rules for agents.
+
+### What the standing instructions must NOT do
 
 - Hardcode paths. Paths are always resolved from config.
-- Duplicate policy. It references `feature/spec-policies` and `feature/spec-precedence` rather than redefining the rules.
-- Contain implementation detail. It is a workflow guide, not a spec.
+- Duplicate policy. They reference `feature/spec-policies` and `feature/spec-precedence` rather than redefining the rules.
+- Contain procedures. Procedures belong to the workflow integrations.
 
-### Harness-specific agent instruction files
+### Agent-made changes are attributable
 
-Harness-specific files (e.g. `CLAUDE.md` for Claude Code, `.cursorrules` for Cursor) may exist and should point to `AGENTS.md` for Specplane workflow details. They may add harness-specific guidance (e.g. which slash commands to use) without duplicating the core workflow.
+Every commit an agent makes in a Specplane workflow identifies the workflow, the plan and step (when there is one), and the agent session that made it, without replacing the human's or bot account's git identity. A reviewer can tell from history alone which session produced which step, even when steps run on different machines.
 
 ---
 
@@ -212,10 +216,18 @@ Given `specs.feature.llm_role: none`,
 When the user says "Can you check my feature spec for issues?",
 Then the agent responds: "Policy (`specs.feature.llm_role: none`) prevents me from reviewing this spec."
 
+### Scenario 7: Existing AGENTS.md is preserved
+
+Given a repository whose `AGENTS.md` contains the team's own rules,
+When `specplane init` runs,
+Then the team's text is unchanged and the Specplane standing instructions are appended as one managed block,
+And running `specplane init` again after an upgrade replaces only that block.
+
 ---
 
 ## Edge cases
 
-- `AGENTS.md` is a living document. When Specplane adds new policies, `AGENTS.md` must be updated. `specplane validate` warns if `AGENTS.md` does not mention every top-level config section (`spec_roots`, `specs`, `plans`, `execution`, `decisions`) — a cheap signal, not a full content check.
-- An agent running in a repository without Specplane configured (no `.specplane/config.yaml`, no `AGENTS.md`) should not attempt to apply Specplane policies. The skills are designed to be no-ops or to prompt for initialisation in this case.
+- The standing instructions are versioned with Specplane. When Specplane adds new policies, re-running `specplane init` updates them; `specplane validate` warns when they are missing or older than the installed Specplane.
+- A user who edits inside the managed block loses those edits on the next update; the block's begin marker says so.
+- An agent running in a repository without Specplane configured (no `.specplane/config.yaml`) should not attempt to apply Specplane policies. The skills are designed to be no-ops or to prompt for initialisation in this case.
 - Skills must be idempotent: running `plan-step` after the last step is complete reports that and changes nothing; running it on a `blocked` step reports the blocker and changes nothing.

@@ -12,6 +12,8 @@ context:
   - spec: architecture/file-formats#PLANS.md
   - spec: feature/configuration
   - spec: architecture/repository-layout
+  - spec: architecture/agent-skills#Standing instructions
+  - file: packages/cli/src/agents/
   - file: packages/cli/src/plan/
   - file: packages/cli/src/generate/
   - file: packages/cli/src/commands/
@@ -28,7 +30,7 @@ Implement `specplane generate` (writes `plans/PLANS.md`), `specplane init` (scaf
 - [ ] The generated Mermaid graph has correct colour-coded node classes for each status.
 - [ ] `specplane generate --print` writes to stdout instead of the file.
 - [ ] `specplane init` in a clean temp git directory creates the expected directories and files without error.
-- [ ] `specplane init` does not overwrite existing files; reports each file it skips.
+- [ ] `specplane init` does not overwrite existing files except the `AGENTS.md` managed block; with an existing `AGENTS.md`, text outside the block is byte-identical after two runs; reports each file it creates, updates, or skips.
 - [ ] Running `specplane validate && specplane generate` in the `specs-framework` repo exits 0.
 - [ ] All unit tests pass.
 
@@ -42,9 +44,9 @@ Implement `specplane generate` (writes `plans/PLANS.md`), `specplane init` (scaf
    - Find the checkout root; use the existing config's paths if a config exists, else the defaults.
    - Write `.specplane/config.yaml` if absent, from the full default config in `feature/configuration` § Full schema with defaults.
    - Write `features/INFO.md` and `architecture/INFO.md` in the base root if absent.
-   - Write `AGENTS.md` if absent (covering the topics in `feature/agent-integration` § Contents of AGENTS.md, and mentioning every top-level config section).
+   - Write the `AGENTS.md` managed block with `upsertBlock` from `src/agents/standing.ts` (create, append, update, or report malformed).
    - Write `<plans.dir>/.gitkeep` if the plans directory is empty.
-   - Print one line per file: "Created <path>" or "Skipped <path> (already exists)".
+   - Print one line per file: "Created <path>", "Updated <path> (...)", or "Skipped <path> (...)".
 6. Wire `generate` and `init` commands into `src/cli.ts`.
 7. Write integration test in `packages/cli/test/integration.test.ts`:
    - Run `specplane validate` in the `specs-framework` repo root (use `child_process.execSync`).

@@ -17,22 +17,21 @@ See `feature/agent-integration` (base) for the general agent integration model. 
 
 Claude Code is an AI coding assistant that operates in a terminal, reads files from the repository, and executes shell commands. In the Specplane context, Claude Code:
 
-- Reads `AGENTS.md` (and this spec's instructions via `CLAUDE.md`) for workflow guidance.
+- Receives the Specplane standing instructions in every session, and workflow procedures through slash commands.
 - Executes Specplane CLI commands.
 - Writes spec and plan files directly.
 - Runs plan steps by reading the step file and HANDOFF.md, executing tasks, and committing.
 
 ---
 
-## CLAUDE.md
+## Standing instructions
 
-A `CLAUDE.md` file at the repository root provides Claude Code–specific instructions. It must:
+Claude Code receives the standing instructions (`feature/agent-integration` § Agent instructions) from a Specplane-owned project rules file that Claude Code loads in every session. The file:
 
-1. Point to `AGENTS.md` for the general Specplane workflow.
-2. List the available Specplane slash commands (skills).
-3. Specify any Claude Code–specific conventions (e.g. which tools to prefer, permission notes).
+1. Contains the standing instructions, with the Specplane slash commands as the way to run workflows.
+2. Adds a few Claude Code–specific conventions (which tools to prefer, commit attribution).
 
-`CLAUDE.md` must not duplicate content from `AGENTS.md`. It is a short pointer and supplement.
+Specplane does not create or edit `CLAUDE.md`; it belongs to the repository's maintainers. Because the rules file is Specplane-owned, upgrading Specplane updates it without touching user content.
 
 ---
 
@@ -73,10 +72,33 @@ The parent session retains only the subagent's summary, not the step's context o
 Claude Code supports hooks — shell commands that run before or after Claude tool calls. Specplane can use hooks for:
 
 - **Pre-commit validation**: run `specplane validate` before the agent makes a git commit, and block the commit if there are errors (warnings are allowed).
+- **Policy guard**: when the agent edits a spec, apply the spec type's `llm_role`: refuse under `none`, ask the user to approve the exact edit under `assist`, allow under `draft`. Policy is enforced when it matters instead of relying on the agent to remember it.
+- **Session context**: when a session starts in a plan's checkout, tell the agent which plan it is in and which step is next.
 - **Post-step HANDOFF.md check**: verify that HANDOFF.md was updated by a step commit.
 - **Auto-generate PLANS.md**: run `specplane generate` after a plan file changes.
 
-**Defaults**: only pre-commit validation is enabled by Specplane's Claude Code setup. The other hooks are documented and opt-in. Hooks are registered in Claude Code's project settings, which the user may also edit directly.
+A **status line** shows the current plan, step progress, and blockers when the session is in a plan checkout.
+
+**Defaults**: pre-commit validation, the policy guard, and session context are enabled by Specplane's Claude Code setup; the status line is enabled unless the user already has one. The other hooks are documented and opt-in. Hooks are registered in Claude Code's project settings, which the user may also edit directly.
+
+---
+
+## Sessions in worktrees and the cloud
+
+A Claude Code session works on one plan, one step at a time, whether it runs in a local worktree, as a subagent, or as a cloud session. Several sessions may work on different plans in parallel; only one works on a given plan at a time. A session that finds its plan advanced elsewhere stops rather than overwriting that work. Sessions on other machines publish each finished step, so the next session and the live view see it.
+
+Everything required for this (standing instructions, slash commands, hooks) works in cloud sessions. The live view and Specplane mode below are optional local additions.
+
+---
+
+## Live view and Specplane mode (optional)
+
+An optional Claude Code plugin adds:
+
+- **Live view**: a panel beside the chat listing active plans across all worktrees, remote branches, and cloud sessions, with step progress, the next step, blockers, and which agent session made the last step. It is read-only and offers the command to continue a plan in its checkout.
+- **Specplane mode**: a session mode (`step`, `spec`, or off). `step` mode, entered automatically in a plan checkout, keeps the agent's edits inside the checkout and the current step and shows the step's acceptance-criteria progress. `spec` mode shows the authorship policy and spec templates while writing specs.
+
+The plugin only adds visibility and tightens existing rules. Without it, every rule still holds.
 
 ---
 
@@ -118,13 +140,26 @@ And a spec file has a frontmatter error,
 When the agent attempts to commit,
 Then the hook runs, finds the error, and the commit is blocked with the validation error message.
 
-### Scenario 3: CLAUDE.md points to AGENTS.md
+### Scenario 3: CLAUDE.md is left alone
 
-Given a repository with Specplane initialised for Claude Code,
-When a user reads `CLAUDE.md`,
-Then it references `AGENTS.md` for the Specplane workflow and lists the available slash commands.
+Given a repository with its own `CLAUDE.md`,
+When `specplane init --harness claude` runs,
+Then `CLAUDE.md` is unchanged,
+And a new Claude Code session still has the standing instructions and the list of slash commands.
 
-### Scenario 4: Skill refuses to draft feature spec under `llm_role: assist`
+### Scenario 4: Policy guard asks before a feature-spec edit
+
+Given `specs.feature.llm_role: assist`,
+When the agent tries to edit a feature spec,
+Then Claude Code asks the user to approve that exact edit before it is applied.
+
+### Scenario 5: Fresh session in a plan worktree
+
+Given plan `2026-10-28-search-indexer` has step 01 done and step 02 pending,
+When a new Claude Code session starts in that plan's worktree,
+Then the agent is told it is in that plan and that step 02 is next, before the user types anything.
+
+### Scenario 6: Skill refuses to draft feature spec under `llm_role: assist`
 
 Given `specs.feature.llm_role: assist`,
 When the user invokes `/spec-assist` and asks "Write the feature spec for search",
