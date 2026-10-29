@@ -1,0 +1,6 @@
+{
+  "name": "specplane",
+  "version": "0.1.0",
+  "description": "Specplane plans pane and step/spec mode for Claude Code",
+  "types": "./types/index.d.ts"
+}

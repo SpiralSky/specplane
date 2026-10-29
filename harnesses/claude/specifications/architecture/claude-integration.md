@@ -4,6 +4,9 @@ title: Claude Code integration implementation
 status: draft
 author: llm
 implements: [claude:feature/claude-integration, feature/agent-integration]
+based_on:
+  claude:feature/claude-integration: a86f42c
+  feature/agent-integration: f0f762c
 ---
 
 # Claude Code integration implementation
@@ -40,7 +43,7 @@ AGENTS.md                         # managed block written by base `specplane ini
 
 Skills in `.claude/skills/<name>/SKILL.md` are Claude Code's current skill format; each is invocable as `/<name>`. (The older `.claude/commands/<name>.md` location still works but is not used.) `.claude/settings.local.json` is never read or written.
 
-**User-owned files are not edited.** Specplane never writes `CLAUDE.md`. Everything above except `AGENTS.md` and `.claude/settings.json` is a Specplane-owned file that `init` may overwrite; `AGENTS.md` changes only inside its managed block (`architecture/agent-skills` § Delivery) and `settings.json` only by § Settings merge.
+**User-owned files are not edited.** Specplane never writes `CLAUDE.md`. Everything above except `AGENTS.md` and `.claude/settings.json` is a Specplane-owned file that `init` may overwrite; `AGENTS.md` changes only inside its managed block (`architecture/agent-skills#delivery`) and `settings.json` only by § Settings merge.
 
 Everything above is plain repository content, so it also applies in Claude Code cloud sessions, which load the repository's `.claude/` hooks, rules, and skills but do not install plugins. The optional plugin (§ Live view and Specplane mode) is a local-only addition and nothing depends on it.
 
@@ -62,7 +65,7 @@ harnesses/claude/
     check-sync.sh                 # template ↔ dogfood copy check
 ```
 
-Paths under `templates/` mirror their install paths under `.claude/` (`templates/skills/plan-step/SKILL.md` → `.claude/skills/plan-step/SKILL.md`; `templates/rules/specplane.md` → `.claude/rules/specplane.md`). Templates contain no placeholders: skills and hooks resolve every path from config at run time (`architecture/agent-skills` § Config resolution in skills), so the same bytes work in every repository.
+Paths under `templates/` mirror their install paths under `.claude/` (`templates/skills/plan-step/SKILL.md` → `.claude/skills/plan-step/SKILL.md`; `templates/rules/specplane.md` → `.claude/rules/specplane.md`). Templates contain no placeholders: skills and hooks resolve every path from config at run time (`architecture/agent-skills#config-resolution-in-skills`), so the same bytes work in every repository.
 
 The CLI package bundles `harnesses/<name>/templates/` at build time (see § `specplane init` output). The Specplane repository dogfoods the harness: its own `.claude/skills/`, `.claude/hooks/`, and `.claude/rules/specplane.md` are byte-identical copies of the templates, enforced by `check-sync.sh`. Its `CLAUDE.md`, if any, is the maintainers' own file.
 
@@ -72,7 +75,7 @@ The CLI package bundles `harnesses/<name>/templates/` at build time (see § `spe
 
 Claude Code loads every file in `.claude/rules/` at session start (a rule without `paths:` frontmatter applies to the whole session), so this file delivers the standing instructions without touching `CLAUDE.md`. It has no `paths:` frontmatter: the rules must hold before Claude touches any spec file.
 
-`templates/rules/specplane.md` is the canonical standing text (`architecture/agent-skills` § Standing instructions, `v1`) followed by a short Claude Code section, about 20 lines in all:
+`templates/rules/specplane.md` is the canonical standing text (`architecture/agent-skills#standing-instructions`, `v1`) followed by a short Claude Code section, about 20 lines in all:
 
 ```markdown
 <!-- specplane:standing v1 — installed by `specplane init --harness claude`; overwritten on update -->
@@ -86,7 +89,7 @@ Claude Code loads every file in `.claude/rules/` at session start (a rule withou
 - Commits: put `Specplane-Agent: $SPECPLANE_AGENT` and `Specplane-Session: $SPECPLANE_SESSION` in the trailers when those variables are set.
 ```
 
-**Interaction with `AGENTS.md`.** Claude Code reads `AGENTS.md` only when the repository has no `CLAUDE.md` (or when the user imports it). In that case Claude sees the standing text twice (rules file and `AGENTS.md` block); the duplicate is a few lines and is accepted. `validate` counts `.claude/rules/specplane.md` as a delivery file for the standing instructions (`architecture/reference-cli` § Standing instructions).
+**Interaction with `AGENTS.md`.** Claude Code reads `AGENTS.md` only when the repository has no `CLAUDE.md` (or when the user imports it). In that case Claude sees the standing text twice (rules file and `AGENTS.md` block); the duplicate is a few lines and is accepted. `validate` counts `.claude/rules/specplane.md` as a delivery file for the standing instructions (`architecture/reference-cli#standing-instructions-agentsstandingts`).
 
 Permission notes that used to live in `CLAUDE.md` move to `settings.json`: § Settings merge adds `Bash(specplane:*)` to `permissions.allow`.
 
@@ -94,7 +97,7 @@ Permission notes that used to live in `CLAUDE.md` move to `settings.json`: § Se
 
 ## Skill file format
 
-Each `SKILL.md` has Claude Code skill frontmatter followed by the contract sections from `architecture/agent-skills`, in the same order:
+Each `SKILL.md` has Claude Code skill frontmatter, then a contract comment on the first line after the frontmatter, then the contract sections from `architecture/agent-skills`, in the same order:
 
 ```markdown
 ---
@@ -103,6 +106,8 @@ description: <one sentence: what it does and when to use it>
 argument-hint: <optional; see table>
 disable-model-invocation: <true|false; see table>
 ---
+
+<!-- specplane-contract: architecture/agent-skills#<skill-name>@<blob7> -->
 
 # <skill-name>
 
@@ -146,7 +151,7 @@ The body restates the contract from `architecture/agent-skills` and adds only Cl
 Every skill begins with the same two checks:
 
 1. **Specplane configured**: if `.specplane/config.yaml` does not exist at the repository root (an `AGENTS.md` alone does not count; many repositories have one without Specplane), say "This repository is not set up for Specplane. Run `specplane init --harness claude`." and stop (`feature/agent-integration`: skills are no-ops without Specplane).
-2. **CLI availability**: run `command -v specplane`. If present, use the CLI for resolution, validation, and plan flows. If absent, follow the same rules by hand from the format and flow specs (`architecture/agent-skills` § Config resolution in skills) and say once that the CLI was not found. For `/validate` without the CLI, check frontmatter and IDs by hand against `architecture/file-formats` and label the result "manual check". For `/plan-finish` without the CLI, perform `feature/plan-execution` § Finish flow by hand, in its stated order.
+2. **CLI availability**: run `command -v specplane`. If present, use the CLI for resolution, validation, and plan flows. If absent, follow the same rules by hand from the format and flow specs (`architecture/agent-skills#config-resolution-in-skills`) and say once that the CLI was not found. For `/validate` without the CLI, check frontmatter and IDs by hand against `architecture/file-formats` and label the result "manual check". For `/plan-finish` without the CLI, perform `feature/plan-execution` § Finish flow by hand, in its stated order.
 
 ### Session mode (attended vs. unattended)
 
@@ -194,10 +199,10 @@ How it works:
 
 ### Policy guard (enabled by default)
 
-`.claude/hooks/specplane-policy-guard.sh` enforces `specs.<type>.llm_role` at the moment Claude edits a spec, so authorship policy does not depend on the model remembering an instruction. PreToolUse, matcher `Edit|MultiEdit|Write`.
+`.claude/hooks/specplane-policy-guard.sh` enforces `specs.<type>.llm_role` at the moment Claude edits a spec, so authorship policy does not depend on the model remembering an instruction. PreToolUse, matcher `Edit|MultiEdit|Write|NotebookEdit`.
 
 1. No-op (exit 0) without `.specplane/config.yaml` or `jq`.
-2. Spec type: read the frontmatter `id:` of the target — from `.tool_input.content` for `Write`, else from the file at `.tool_input.file_path` (first `---` block only). The type is the ID's prefix when it is `feature/` or `architecture/` (an optional `<root>:` qualifier is stripped). Anything else (plans, ADRs, code, files without frontmatter) → exit 0. A spec's type comes from its own ID, so no spec root needs resolving.
+2. Spec type: read the frontmatter `id:` of the target — from `.tool_input.content` for `Write`, else from the file at `.tool_input.file_path` (`.tool_input.notebook_path` for `NotebookEdit`; first `---` block only). The type is the ID's prefix when it is `feature/` or `architecture/` (an optional `<root>:` qualifier is stripped). Anything else (plans, ADRs, code, files without frontmatter) → exit 0. A spec's type comes from its own ID, so no spec root needs resolving.
 3. `llm_role`: read `specs.<type>.llm_role` from the config with `awk` (the `llm_role:` key inside the `<type>:` block inside the top-level `specs:` block, comments stripped); default `assist` for `feature`, `draft` for `architecture`.
 4. Decision, printed as PreToolUse JSON on stdout with exit 0:
    - `none` → `permissionDecision: "deny"`, reason `Policy (specs.<type>.llm_role: none) forbids editing <type> specs. Tell the user instead.`
@@ -241,7 +246,7 @@ Registration (`templates/settings.json`):
         ]
       },
       {
-        "matcher": "Edit|MultiEdit|Write",
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit",
         "hooks": [
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/specplane-policy-guard.sh" }
         ]
@@ -409,4 +414,4 @@ Implemented by a plan that depends on the reference CLI core plan (not by the pl
 - Settings merge is tested with the CLI (`src/harness/claude.ts`): absent file, invalid JSON, already registered, partial registration, existing `statusLine`.
 - The plugin has its own tests (`harnesses/claude/plugin/`, run with `claude plugin test`): mode switching, the `step`-mode edit denials, and pane rows built from a fixture `plan list --json` output.
 - `harnesses/claude/tests/check-sync.sh` diffs each file under `templates/` against its installed path in the Specplane repository (per § Template source) and exits 1 listing any difference or missing file.
-- Skill content is reviewed by hand against `architecture/agent-skills` (`architecture/agent-skills` § Keeping skills in sync with specs).
+- Skill content is checked for drift by `specplane validate` through the contract comment (`architecture/agent-skills#keeping-skills-in-sync-with-specs`); the content itself is still reviewed by hand when a pin goes stale.

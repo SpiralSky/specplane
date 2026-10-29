@@ -104,7 +104,8 @@ Every spec file begins with YAML frontmatter. The schema is defined below.
 | `status` | enum | yes | `draft` | `draft` \| `review` \| `approved` \| `deprecated` |
 | `author` | enum | yes | — | `user` \| `llm` \| `mixed` |
 | `supersedes` | list of IDs | no | `[]` | IDs of specs this one replaces. Superseded specs are set to `deprecated`. |
-| `extends` | string | no | — | For overlay specs only. See `feature/spec-overlays`. |
+| `extends` | string or list of IDs | no | — | For overlay specs only. A single ID or a list. See `feature/spec-overlays`. |
+| `based_on` | map of ID → git blob hash | no | — | Pins each referenced spec (keys from `extends` or `implements`) to the blob at last review. Stale pins warn and block approval. See `feature/spec-overlays#base-pins`. |
 
 ### Additional fields for feature specs only
 
@@ -209,6 +210,7 @@ draft ──► review ──► approved ──► deprecated
 - `review` → `approved`: a human approves it. An LLM agent never sets `approved`.
 - `approved` → `deprecated`: only when a superseding spec is also approved, or when the feature is explicitly removed.
 - An architecture spec cannot be `approved` unless all specs in its `implements` list are `approved` (configurable; see `feature/spec-policies`).
+- A spec with a stale `based_on` pin cannot be `approved` until the base change is reviewed and the pin refreshed (see `feature/spec-overlays#base-pins`).
 - Editing an approved spec as part of a plan does not change its status; the plan's review approves the edit. See `feature/spec-precedence` Rule 5.
 
 ---

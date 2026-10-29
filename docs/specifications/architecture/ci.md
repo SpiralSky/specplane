@@ -22,7 +22,7 @@ Two CI jobs are provided as a reference implementation. Both are expressed as Gi
 
 **Trigger**: every push and pull request to `main` (and plan branches, to catch spec errors early).
 
-**Purpose**: enforce that config, specs, plans, steps, and ADRs pass every check of `specplane validate` with no errors (valid frontmatter, no dangling IDs, no dependency cycles, no duplicate ADR numbers, ordering policy respected). Architecture-leak and overlay findings are warnings and never fail the job.
+**Purpose**: enforce that config, specs, plans, steps, and ADRs pass every check of `specplane validate` with no errors (valid frontmatter, no dangling IDs, no dependency cycles, no duplicate ADR numbers, ordering policy respected). Stale base pins (`base-changed`), anchors, and skill drift are warnings, except that a spec with a stale pin cannot be `approved` (error). The hash comparison needs no history, so `fetch-depth: 0` is optional for these checks and only lets the message include a usable `git diff <pin> <current>`. Architecture-leak and overlay findings are warnings and never fail the job.
 
 **Steps**:
 
@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history for git branch checks
+          fetch-depth: 0   # git branch checks; pin checks compare blob hashes and work with a shallow clone (a missing pinned object only omits the diff hint)
 
       - uses: actions/setup-node@v4
         with:

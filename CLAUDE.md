@@ -1,10 +1,6 @@
-# Specplane — Claude Code harness
+# Specplane — maintainers' Claude Code notes
 
-This repository uses Specplane for spec and plan management.
-
-## Workflow
-
-See [AGENTS.md](AGENTS.md) for the full Specplane workflow. Policy lives in `.specplane/config.yaml`; read it before acting on specs or plans.
+This is the maintainers' own file; Specplane never writes or ships a `CLAUDE.md`. Standing Specplane instructions live in `.claude/rules/specplane.md` and `AGENTS.md`; read `.specplane/config.yaml` before acting on specs or plans.
 
 ## Slash commands
 
@@ -17,13 +13,12 @@ See [AGENTS.md](AGENTS.md) for the full Specplane workflow. Policy lives in `.sp
 | `/plan-finish` | Run the finish flow for the current plan |
 | `/validate` | Run `specplane validate` and summarise results |
 
-## Conventions
+## Maintainers' conventions
 
-- Read spec and plan files with `Read` (use offset/limit for large specs); find files with `Glob`, not `ls`/`find`.
-- HANDOFF.md is the source of truth for plan progress; memory is only a pointer to it.
+- The repo-root `HANDOFF.md` is the human session log; a plan's progress lives in `<plans.dir>/<plan-id>/HANDOFF.md`.
+- `.claude/` is the dogfood install of `harnesses/claude/templates/`; edit the templates and copy them over, then run `sh harnesses/claude/tests/check-sync.sh`.
+- Hook tests: `sh harnesses/claude/tests/hooks.test.sh`.
 
 ## Permissions
 
-The following commands require approval on first use and are safe to allow for this project:
-- `Bash(specplane:*)`
-- `Bash(git worktree:*)`, `Bash(git branch:*)`, `Bash(git switch:*)`
+Safe to allow for this project: `Bash(specplane:*)`, `Bash(git worktree:*)`, `Bash(git branch:*)`, `Bash(git switch:*)`.

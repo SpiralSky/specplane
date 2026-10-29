@@ -2,7 +2,7 @@
 plan: 2026-10-29-claude-instructions-and-enforcement
 step: 1
 title: Standing instructions, AGENTS.md block, and skill commit format
-status: pending
+status: done
 use_subagent: true
 context:
   - spec: architecture/agent-skills#Standing instructions
@@ -22,13 +22,13 @@ Deliver the standing instructions through `.claude/rules/specplane.md` and the `
 
 ## Acceptance criteria
 
-- [ ] `templates/rules/specplane.md` is the `v1` standing text with the Claude Workflows line and the § Standing instructions Claude Code section; about 20 lines.
-- [ ] `templates/CLAUDE.md` is deleted; this repository's root `CLAUDE.md` is deleted.
-- [ ] This repository's `AGENTS.md` is exactly the managed block from `architecture/agent-skills` § Delivery with the harness-neutral Workflows line.
-- [ ] The `plan-step` template follows `architecture/agent-skills` § plan-step steps 1 (fetch, fast-forward, stop on divergence), 9 (§8 commit with trailers, using `$SPECPLANE_AGENT`/`$SPECPLANE_SESSION` when set), and 10 (push when external or upstream exists).
-- [ ] No template mentions the old `plan/<id> step NN:` subject format.
-- [ ] Every skill's precondition checks only `.specplane/config.yaml` (not `AGENTS.md`).
-- [ ] `check-sync.sh` maps `templates/rules/` to `.claude/rules/`, no longer checks `CLAUDE.md`, and exits 0 after the dogfood copies are updated.
+- [x] `templates/rules/specplane.md` is the `v1` standing text with the Claude Workflows line and the § Standing instructions Claude Code section; about 20 lines.
+- [x] `templates/CLAUDE.md` is deleted; this repository's root `CLAUDE.md` is deleted.
+- [x] This repository's `AGENTS.md` is exactly the managed block from `architecture/agent-skills` § Delivery with the harness-neutral Workflows line.
+- [x] The `plan-step` template follows `architecture/agent-skills` § plan-step steps 1 (fetch, fast-forward, stop on divergence), 9 (§8 commit with trailers, using `$SPECPLANE_AGENT`/`$SPECPLANE_SESSION` when set), and 10 (push when external or upstream exists).
+- [x] No template mentions the old `plan/<id> step NN:` subject format.
+- [x] Every skill's precondition checks only `.specplane/config.yaml` (not `AGENTS.md`).
+- [x] `check-sync.sh` maps `templates/rules/` to `.claude/rules/`, no longer checks `CLAUDE.md`, and exits 0 after the dogfood copies are updated.
 
 ## Tasks
 

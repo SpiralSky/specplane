@@ -3,11 +3,13 @@ id: feature/claude-integration
 title: Claude Code integration
 status: review
 author: mixed
+extends: [feature/agent-integration, feature/plan-steps, feature/spec-policies]
+based_on: { feature/agent-integration: f0f762c, feature/plan-steps: c8cd747, feature/spec-policies: 9cfa4b8 }
 ---
 
 # Claude Code integration
 
-This spec describes features of Specplane that are specific to Claude Code as the agent harness. It is an overlay spec in the `claude` root; it describes additional capabilities beyond those in the base spec set.
+This spec describes features of Specplane that are specific to Claude Code as the agent harness. It is an extending overlay spec in the `claude` root: it extends `feature/agent-integration`, `feature/plan-steps`, and `feature/spec-policies`, adding Claude Code–specific capabilities without contradicting them. Its `based_on` pins record the versions of those specs it was last reviewed against; `validate` warns when one changes.
 
 See `feature/agent-integration` (base) for the general agent integration model. This spec adds Claude Code–specific details.
 
@@ -26,7 +28,7 @@ Claude Code is an AI coding assistant that operates in a terminal, reads files f
 
 ## Standing instructions
 
-Claude Code receives the standing instructions (`feature/agent-integration` § Agent instructions) from a Specplane-owned project rules file that Claude Code loads in every session. The file:
+Claude Code receives the standing instructions (`feature/agent-integration#agent-instructions`) from a Specplane-owned project rules file that Claude Code loads in every session. The file:
 
 1. Contains the standing instructions, with the Specplane slash commands as the way to run workflows.
 2. Adds a few Claude Code–specific conventions (which tools to prefer, commit attribution).
@@ -39,7 +41,7 @@ Specplane does not create or edit `CLAUDE.md`; it belongs to the repository's ma
 
 The base spec (`feature/agent-integration`) defines which workflow integrations Specplane requires and their policy contracts. In Claude Code, each integration is exposed as a **slash command** implemented as a project skill committed to the repository.
 
-Project skills are the chosen mechanism for this harness because they version with the repository, appear automatically in the slash command menu, and are auditable markdown. Each skill restates the workflow contract from the base specs and adds Claude Code–specific invocation detail. Skills must not redefine policy — they defer to the base specs.
+Project skills are the chosen mechanism for this harness because they version with the repository, appear automatically in the slash command menu, and are auditable markdown. Each skill references the contract it implements by anchor (for example `feature/agent-integration#plan-step`) and pins it, so the skill records which contract version it implements and `validate` warns when that contract moves. Skills add Claude Code–specific invocation detail only and must not redefine policy — they defer to the base specs.
 
 | Slash command | Base integration | Description |
 |---------------|-----------------|-------------|
@@ -72,7 +74,7 @@ The parent session retains only the subagent's summary, not the step's context o
 Claude Code supports hooks — shell commands that run before or after Claude tool calls. Specplane can use hooks for:
 
 - **Pre-commit validation**: run `specplane validate` before the agent makes a git commit, and block the commit if there are errors (warnings are allowed).
-- **Policy guard**: when the agent edits a spec, apply the spec type's `llm_role`: refuse under `none`, ask the user to approve the exact edit under `assist`, allow under `draft`. Policy is enforced when it matters instead of relying on the agent to remember it.
+- **Policy guard**: when the agent edits a spec, apply the spec type's `llm_role` as defined in `feature/spec-policies#meaning-of-each-value`; under `assist`, ask the user to approve the exact edit. Policy is enforced when it matters instead of relying on the agent to remember it.
 - **Session context**: when a session starts in a plan's checkout, tell the agent which plan it is in and which step is next.
 - **Post-step HANDOFF.md check**: verify that HANDOFF.md was updated by a step commit.
 - **Auto-generate PLANS.md**: run `specplane generate` after a plan file changes.
@@ -164,6 +166,13 @@ Then the agent is told it is in that plan and that step 02 is next, before the u
 Given `specs.feature.llm_role: assist`,
 When the user invokes `/spec-assist` and asks "Write the feature spec for search",
 Then the skill offers to help (ask questions, review a draft) but does not produce the spec body.
+
+### Scenario 7: Skill contract drift
+
+Given the `/plan-step` skill pins the `plan-step` contract of `feature/agent-integration`,
+And that contract has since changed,
+When the user runs `/validate`,
+Then the summary includes a `base-changed` warning for the skill, and the user is told to review the diff and re-pin.
 
 ---
 

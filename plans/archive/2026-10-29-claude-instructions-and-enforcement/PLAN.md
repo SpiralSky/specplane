@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-claude-instructions-and-enforcement
 title: Claude harness — standing instructions, enforcement hooks, live view
-status: ready
+status: done
 specs:
   - claude:feature/claude-integration
   - claude:architecture/claude-integration
@@ -43,11 +43,11 @@ Rework the Claude Code harness files so Specplane never edits user-owned instruc
 
 ## Acceptance criteria
 
-- [ ] No template or dogfood file writes to or depends on `CLAUDE.md`; `AGENTS.md` in this repository is exactly the `v1` managed block.
-- [ ] `sh harnesses/claude/tests/hooks.test.sh` exits 0 and covers every hook case in `claude:architecture/claude-integration` § Testing.
-- [ ] `sh harnesses/claude/tests/check-sync.sh` exits 0 (templates ↔ `.claude/`, including `rules/`).
-- [ ] The `plan-step` skill's commit instructions produce a message that `git interpret-trailers --parse` reads as the §8.2 trailers.
-- [ ] `claude plugin validate harnesses/claude/plugin` and `claude plugin test harnesses/claude/plugin` pass.
+- [x] No template or dogfood file writes to or depends on `CLAUDE.md`; `AGENTS.md` in this repository is exactly the `v1` managed block.
+- [x] `sh harnesses/claude/tests/hooks.test.sh` exits 0 and covers every hook case in `claude:architecture/claude-integration` § Testing.
+- [x] `sh harnesses/claude/tests/check-sync.sh` exits 0 (templates ↔ `.claude/`, including `rules/`).
+- [x] The `plan-step` skill's commit instructions produce a message that `git interpret-trailers --parse` reads as the §8.2 trailers.
+- [x] `claude plugin validate harnesses/claude/plugin` and `claude plugin test harnesses/claude/plugin` pass.
 
 ## Risks
 

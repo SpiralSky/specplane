@@ -4,6 +4,7 @@ description: Create a new Specplane plan interactively. Use when the user runs /
 argument-hint: "[goal]"
 disable-model-invocation: true
 ---
+<!-- specplane-contract: architecture/agent-skills#plan-create@6bc0570 -->
 
 # plan-create
 
@@ -11,7 +12,7 @@ Creates a new plan interactively (the `plan-create` workflow integration).
 
 ## Preconditions
 
-1. **Specplane configured**: if neither `.specplane/config.yaml` nor `AGENTS.md` exists at the repository root, say "This repository is not set up for Specplane. Run `specplane init --harness claude`." and stop.
+1. **Specplane configured**: if `.specplane/config.yaml` does not exist at the repository root (an `AGENTS.md` alone does not count), say "This repository is not set up for Specplane. Run `specplane init --harness claude`." and stop.
 2. **CLI availability**: run `command -v specplane`. If present, use the CLI for resolution, validation, and plan flows. If absent, follow the same rules by hand from the format and flow specs (`architecture/agent-skills` § Config resolution in skills) and say once that the CLI was not found. For `/validate` without the CLI, check frontmatter and IDs by hand against `architecture/file-formats` and label the result "manual check". For `/plan-finish` without the CLI, perform `feature/plan-execution` § Finish flow by hand, in its stated order.
 
 Resolve every spec, plan, and ADR path from config (`.specplane/config.yaml`; defaults if absent), never from hardcoded paths.
@@ -28,7 +29,7 @@ Use `AskUserQuestion` for the slug, spec, and dependency choices when it is avai
 2. Ask for the specs and dependencies; resolve each spec ID (no root context) and plan ID. Reject unknown IDs, abandoned dependencies, and dependency cycles.
 3. Draft the PLAN.md body sections (`architecture/file-formats` §2.2) with the user.
 4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths).
-5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`) and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new` when available.
+5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`), an empty `<plans.dir>/<id>/HANDOFF.md` (header only; `/plan-step` appends step sections), and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new` when available.
 6. Run validation on the new plan.
 
 ## Output
