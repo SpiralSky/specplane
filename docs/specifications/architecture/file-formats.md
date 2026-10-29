@@ -650,7 +650,7 @@ related_specs: []
           "additionalProperties": false,
           "properties": {
             "authorship":          { "type": "string", "enum": ["user","llm","either"] },
-            "llm_role":            { "type": "string", "enum": ["assist","draft","none"] },
+            "llm_role":            { "type": "string", "enum": ["review","assist","draft","none"] },
             "forbid_architecture": { "type": "boolean" },
             "leak_guard_allow":    { "type": "array", "items": { "type": "string" } }
           }
@@ -660,7 +660,7 @@ related_specs: []
           "additionalProperties": false,
           "properties": {
             "authorship":                 { "type": "string", "enum": ["user","llm","either"] },
-            "llm_role":                   { "type": "string", "enum": ["assist","draft","none"] },
+            "llm_role":                   { "type": "string", "enum": ["review","assist","draft","none"] },
             "require_approved_features":  { "type": "boolean" }
           }
         }
@@ -762,6 +762,7 @@ Harness attribution trailers (`Co-Authored-By:`) follow the harness's own conven
 | `step` | agent (`plan-step`) | `plan/<id>` | `<type>(<slug>): <summary>` |
 | `plan-create` | agent (`plan-create`) | any | `docs(<slug>): create plan` |
 | `spec` | agent (`spec-draft-architecture`, approved `spec-assist` edits) | any | `docs(specs): <summary>` |
+| `approve` | CLI `spec approve`, `spec reopen`, `plan approve`, `decision accept` | any | `docs(specs): approve <id>`, `docs(specs): reopen <id>`, `docs(<plan-id>): approve plan`, `docs(decisions): accept <id>` |
 | `claim` | CLI start/finish (frontmatter mode) | default | `chore(specplane): claim <id> <status>` |
 | `stack` | CLI start/restack (empty commit) | `plan/<id>` | `chore(specplane): stack <id> on <base-id>` |
 | `finish` | CLI finish (done + archive) | `plan/<id>` | `chore(specplane): finish <id>` |

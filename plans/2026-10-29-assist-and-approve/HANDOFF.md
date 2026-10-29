@@ -1,1 +1,37 @@
 # HANDOFF — 2026-10-29-assist-and-approve
+
+> **Standing user instruction (recorded 2026-10-29):** the agent decides open questions itself and verifies them at the plan merge (`/plan-finish`), rather than pausing for a decision mid-plan. After the last plan is done, the user will do a full review of the codebase and the workflow as a whole and make final amendments then; the general structure is to be treated as solid until that review. Record this note in every later HANDOFF.md as well.
+
+## Step 01: Architecture spec edits for the review and assist roles and approval commands
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `docs/specifications/architecture/agent-skills.md`: standing-instructions text now names `review`, describes refine-then-write `assist`, and states that `approved`/`ready`/`accepted` are set by the human, never by editing a file. `spec-assist` rewritten with a `review` mode (review-only) and an `assist` mode (Describe → Refine → Finalise → Write, `author: mixed`, status unchanged); `spec-draft-architecture` gained the same `assist` split. New contracts `approve`, `plan-start`, `decision-new`, `plan-status`, `plan-abandon`, each with Purpose / Policy check / Steps / Output.
+- `docs/specifications/architecture/reference-cli.md`: new § Spec approval and decision commands covering `spec approve` (status, committed, `require_approved_features`, overlay re-pin in the same commit, one commit per id, stop at first refusal), `spec reopen` (report-only dependant list, not transitive), `plan approve` (regenerates PLANS.md in the same commit), `decision new` (next free `NNNN`, slug from title), `decision accept`; shared rules for refusals, `--dry-run`, and in-place `status:` rewriting. Module structure gained `commands/decision.ts` and the new subcommands. Error table gained `SpecStateError`, `ApprovalRefusedError`, `DecisionNotFoundError`, `DecisionStateError`, `UncommittedChangesError`, and the `plan approve` text on `PlanStateError`.
+- `docs/specifications/architecture/file-formats.md`: §7.1 `llm_role` enums now `["review","assist","draft","none"]` for both spec types; §8.3 gained the `approve` workflow with the four subjects (`docs(specs): approve|reopen <id>`, `docs(<plan-id>): approve plan`, `docs(decisions): accept <id>`).
+- `harnesses/claude/specifications/architecture/claude-integration.md`: files-produced list and the Workflows line gained the five new skills; per-skill frontmatter table gained `approve` (`<id>... [--reopen]`, `disable-model-invocation: true`), `plan-start`, `decision-new`, `plan-status` (`false`), `plan-abandon`; policy guard rewritten with an approval check that runs before the type early-return and applies under every `llm_role`, plus `review` mapped to ask.
+- `plans/2026-10-29-assist-and-approve/spec-gaps.md`: G1 (`--dry-run` on the approval commands), G2 (`plan approve` regenerates PLANS.md).
+
+### Deviations from the plan
+
+None. No `based_on` pin references the edited specs, so the "re-pin dependants" criterion is satisfied without a re-pin commit; the skill contract markers that pin `agent-skills` are refreshed in step 05 as the task says.
+
+### Gaps found in specs
+
+- G1 (assumption): `--dry-run` on the approval commands. See `spec-gaps.md`.
+- G2 (assumption): `plan approve` regenerates PLANS.md in the same commit. See `spec-gaps.md`.
+
+### Open issues
+
+- `specplane validate` now reports 12 `skill-drift` warnings (5 skill templates and their `.claude/skills/` copies pin `architecture/agent-skills` at `a8e55f4`). Expected: step 05 updates the skills and their pins. Baseline was 20 warnings; 0 errors throughout.
+- `spec reopen` is specified as report-only (direct dependants only). Cascade was considered and rejected for this plan: `feature/tooling` fixes "It does not change those specs", and a `--cascade` flag would need a feature-spec edit the agent may not make (`llm_role: assist`). Raise it at the final review if wanted.
+
+### What the next step must know
+
+- The canonical standing-instructions text in `architecture/agent-skills` changed; `.claude/rules/specplane.md`, `AGENTS.md`, and `harnesses/claude/templates/rules/specplane.md` must match it byte-for-byte (step 02, `check-sync.sh`).
+- `llm_role: review` must be accepted by the schema in `packages/cli/src/schemas.ts`; the spec now lists it in §7.1.
+- The guard spec (step 05) requires the approval check to run **before** the "not a spec → exit 0" early return, and to inspect `Write.content`, `MultiEdit.edits[].new_string`, and `Edit.new_string`.
+- `--dry-run` and the PLANS.md regeneration are agent-spec assumptions (G1, G2), not feature-spec text; steps 03 and 04 implement them.

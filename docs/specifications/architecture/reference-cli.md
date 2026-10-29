@@ -72,8 +72,9 @@ src/
     mermaid.ts         # generates Mermaid dependency graph
   commands/
     init.ts
-    spec.ts            # spec new | list | show | validate | pin
-    plan.ts            # plan new | list | show | graph | start | finish | abandon | cleanup | archive | restack
+    spec.ts            # spec new | list | show | validate | pin | approve | reopen
+    plan.ts            # plan new | list | show | graph | start | finish | approve | abandon | cleanup | archive | restack
+    decision.ts        # decision new | accept
     search.ts
     validate.ts
     generate.ts
@@ -446,6 +447,52 @@ Idempotence: a second run on an unchanged repository creates nothing and reports
 
 ---
 
+## Spec approval and decision commands (`commands/spec.ts`, `commands/decision.ts`)
+
+These implement `feature/tooling` § `specplane spec approve`, § `specplane spec reopen`, § `specplane plan approve`, and § `specplane decision`. They share the refusals and the commit format:
+
+- Every refusal prints its one-sentence reason to stderr, exits 1, and stops the run; specs, plans, or ADRs changed earlier in the same run keep their new status.
+- Each successful change is committed through `formatMessage` with `Specplane-Workflow: approve` (`architecture/file-formats` §8.3), the CLI trailers from `cliTrailers` (no `Specplane-Plan`), and the subject `feature/tooling` gives. The status line is rewritten in place, as `writePins` rewrites `based_on`, so no other frontmatter or body byte changes.
+- Validation errors found by the command's own checks are printed as the report of § Validation output format and the command exits 1 without committing.
+- `--dry-run` prints, per ID, the change it would make and the commit subject, then changes and commits nothing.
+
+### `spec approve <id>...`
+
+Inputs: one or more spec IDs, `--dry-run`. Per ID, in the order given:
+
+1. Resolve the ID (`spec/resolve.ts`); an unknown ID is `SpecNotFoundError`.
+2. The status must be `draft` or `review`, else `SpecStateError` with the text in `feature/tooling`.
+3. The file must be committed (`hasUncommittedChanges`) → `UncommittedChangesError`.
+4. Under `specs.architecture.require_approved_features`, an architecture spec whose `implements` names a spec that is not `approved` → `ApprovalRefusedError`.
+5. For an extending overlay, re-pin its bases (`committedBlob` of each, written with `writePins`) when every base is `approved` and committed; a base that is not approved, or a stale pin whose base has uncommitted changes, → `ApprovalRefusedError` with the corresponding `feature/tooling` text. The new pins go in the same commit.
+6. Write `status: approved`, stage the spec and any re-pinned `based_on`, and commit `docs(specs): approve <id>`.
+7. Print `approved <id> <short sha>`.
+
+### `spec reopen <id>`
+
+Inputs: one spec ID, `--dry-run`.
+
+1. Resolve the ID; an unknown ID is `SpecNotFoundError`.
+2. The status must be `approved`, else `SpecStateError` with the text in `feature/tooling`.
+3. The file must be committed → `UncommittedChangesError`.
+4. Write `status: review` and commit `docs(specs): reopen <id>`.
+5. Compute the direct dependants that can no longer stay approved: approved architecture specs whose `implements` contains the ID, and overlays (`extends` or `based_on`) naming it. The check is not transitive: a dependant of a dependant is reported when that dependant is reopened, not now. Nothing else changes.
+6. Print `reopened <id> <short sha>`, then one line per dependant: `<dep-id> <dep-status> — reopen with: specplane spec reopen <dep-id>`.
+
+### `plan approve <id>...`
+
+Inputs: one or more plan IDs, `--dry-run`. Per ID, in the order given: resolve (`plan/resolve.ts`; unknown → `PlanNotFoundError`); the stored status must be `draft` (`PlanStateError`); the plan folder must be committed (`UncommittedChangesError`); each spec the plan names must satisfy `plans.require_approved_specs` (`ApprovalRefusedError`); then `status: ready` is written to `PLAN.md`, PLANS.md is regenerated as `generate` does, and both are committed as `docs(<plan-id>): approve plan`. Prints `approved <id> <short sha>`.
+
+### `decision new <title>`
+
+Inputs: `title`. The slug is `slugify(title)` (`spec/slug.ts`). The number is the highest existing `NNNN` in `<decisions.dir>` plus one, starting at `0001`. The file `<decisions.dir>/<NNNN>-<slug>.md` is written with `id: decision/<NNNN>`, the title, `status: proposed`, `date` (today, `YYYY-MM-DD`), and the body headings of `feature/decisions#adr-body-structure` with empty sections; an existing file is `AlreadyExistsError` with the text in `feature/tooling`. Prints the path on stdout. Exit 0 or 1.
+
+### `decision accept <id>...`
+
+Inputs: one or more ADR IDs, `--dry-run`. Per ID, in the order given: resolve (`decisions/parse.ts`; unknown → `DecisionNotFoundError`); the status must be `proposed` (`DecisionStateError`); the file must be committed (`UncommittedChangesError`); then `status: accepted` and a commit `docs(decisions): accept <id>`. `validateAdrs` errors for that ADR refuse the acceptance. Prints `accepted <id> <short sha>`.
+
+---
+
 ## Standing instructions (`agents/standing.ts`)
 
 Implements `architecture/agent-skills` § Standing instructions.
@@ -508,7 +555,12 @@ Exit code is `0` when `valid: true` (warnings do not affect exit code). Exit cod
 | `FrontmatterError` | "`<file>`: <schema violation>" | 1 |
 | `FrontmatterMissingError` | "`<file>`: no frontmatter block found" | 1 |
 | `PlanNotFoundError` | "Plan `<id>` not found." | 1 |
-| `PlanStateError` | "Cannot <action>: <reason>." with the texts of `feature/plan-execution`, e.g. "Cannot start plan: `<id>` is `<status>`, not `ready`.", "Cannot start plan: dependency `<id>` is not done.", "Cannot stack on more than one unmerged dependency: `<a>`, `<b>`.", "Cannot finish: step <NN> is `<status>`.", "Cannot restack: `<id>` is not stacked." | 1 |
+| `SpecStateError` | "Spec `<id>` is `<status>`; only `draft` or `review` specs can be approved." or "Spec `<id>` is `<status>`, not `approved`." | 1 |
+| `ApprovalRefusedError` | "Cannot approve `<id>`: `<spec-id>` is `<status>`, not `approved`." or "Cannot approve `<id>`: base `<base-id>` is `<status>`." or "Cannot approve `<id>`: base `<base-id>` changed since it was pinned." | 1 |
+| `DecisionNotFoundError` | "Decision `<id>` not found." | 1 |
+| `DecisionStateError` | "Decision `<id>` is `<status>`; only `proposed` decisions can be accepted." | 1 |
+| `UncommittedChangesError` | "Commit or stash changes to `<path>` first." | 1 |
+| `PlanStateError` | "Cannot <action>: <reason>." with the texts of `feature/plan-execution`, e.g. "Cannot start plan: `<id>` is `<status>`, not `ready`.", "Cannot start plan: dependency `<id>` is not done.", "Cannot stack on more than one unmerged dependency: `<a>`, `<b>`.", "Cannot finish: step <NN> is `<status>`.", "Cannot restack: `<id>` is not stacked."; also "Plan `<id>` is `<status>`; only `draft` plans can be approved." | 1 |
 | `DependencyCycleError` | "Dependency cycle: `<a>` → `<b>` → `<a>`" | 1 |
 | `SetupHookError` | "Setup hook failed: `<cmd>` exited with code <n>. Worktree removed." | 1 |
 | `RebaseConflictError` | "Rebase of `plan/<id>` onto `<base>` has conflicts; resolve manually." | 1 |

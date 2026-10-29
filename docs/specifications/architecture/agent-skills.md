@@ -55,7 +55,7 @@ The canonical text, versioned with the CLI (`v1`):
 
 This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.specplane/config.yaml`; resolve every path from it (`spec_roots`, `plans.dir`, `decisions.dir`), never assume one. `execution` says how plans run.
 
-- **Authorship**: `specs.<type>.llm_role` limits what you may do to specs of that type: `none` = do not act on them, decline and say why; `assist` = ask, suggest, and review, but do not write the spec body; `draft` = you may write a draft for review.
+- **Authorship**: `specs.<type>.llm_role` limits what you may do to specs of that type: `none` = do not act on them, decline and say why; `review` = ask, suggest, and review, but do not write the spec body; `assist` = write the body only after the user finalises the content and approves the text (refine-then-write); `draft` = you may write a draft for review. Setting a spec to `approved`, a plan to `ready`, or a decision record to `accepted` is the human's decision: never do it by editing a file.
 - **Precedence**: when implementing, the architecture spec wins and the feature spec fills gaps; record each gap, assumption, or proposed spec edit as a `spec-gaps.md` entry in the plan folder. If specs contradict each other, stop and report it; do not implement either side.
 - **Plans**: work on a plan only in its checkout (branch `plan/<id>`), one step at a time, following the plan-step workflow. HANDOFF.md and `spec-gaps.md` in the plan folder are the source of truth for progress and gaps.
 - **Commits**: follow `architecture/file-formats` §8 (Conventional Commits subject plus `Specplane-*` trailers).
@@ -84,29 +84,43 @@ A harness delivers the standing instructions through a file it owns whenever the
 
 ### Purpose
 
-Helps the user write a feature spec without authoring it. Implements `spec-assist`.
+Helps the user write a feature spec. Implements `spec-assist`. The mode follows `specs.feature.llm_role` (`feature/spec-policies` §1): refine-then-write under `assist`, review-only under `review`.
 
 ### Policy check
 
 ```
 Read config.specs.feature.llm_role
 If llm_role == "none": decline and explain
-If llm_role == "assist": proceed (help mode)
-If llm_role == "draft": drafting is permitted; default to help mode unless the user asks for a draft
+If llm_role == "review": review-only mode
+If llm_role == "assist": refine-then-write mode
+If llm_role == "draft": drafting is permitted; default to refine-then-write unless the user asks for a draft
 ```
 
 ### Steps
 
-1. Ask the user what the spec should be about, and who it is for.
-2. Suggest a structure (list of section headings) based on the feature spec template in `architecture/file-formats` §1.3.
-3. For each section, ask a clarifying question to surface edge cases and acceptance scenarios.
-4. If the user provides a draft, review it: missing acceptance scenarios, ambiguous rules, and architecture-leak violations (implementation detail that is not part of the user-visible interface).
-5. Self-check every suggestion and proposed edit before showing it: it must not introduce implementation detail (the same architecture-leak test as step 4) and must not contradict the user's existing text. Rewrite or drop any that fail.
-6. Propose edits to the user's text; never write the file without explicit approval.
+Refine-then-write (`assist`), following `feature/spec-policies#refine-then-write-llm_role-assist`:
+
+1. **Describe**: ask the user to describe the feature in their own words. Write nothing to the spec.
+2. **Refine**: discuss the description to find issues — gaps, ambiguous rules, contradictions with other specs, missing edge cases and acceptance scenarios, and architecture leaks. Raise each issue with a suggested resolution; the user decides. Repeat until no issue is open or the user chooses to stop.
+3. **Finalise**: summarise the agreed content (rules, scenarios, the decision on each issue, and anything left open). The user confirms the summary is final.
+4. **Write**: write the body from the finalised content only, using the feature spec template in `architecture/file-formats` §1.3, and show it to the user. Write the file only after the user approves the text; mark every detail filled in as an assumption to confirm.
+5. Set `author: mixed` and leave `status` unchanged. Never set it to `approved`.
+6. Before writing, self-check the body: no implementation detail (the architecture-leak test) and no contradiction with the user's agreed content. Rewrite or drop any passage that fails.
+
+Review-only (`review`):
+
+1. Ask the user what the spec is about and who it is for.
+2. Suggest a structure (list of section headings) without writing content.
+3. Ask clarifying questions to surface edge cases and acceptance scenarios.
+4. Review a draft the user has written: missing acceptance scenarios, ambiguous rules, and architecture-leak violations (implementation detail that is not part of the user-visible interface).
+5. Self-check every suggestion and proposed edit before showing it: it must not introduce implementation detail and must not contradict the user's existing text. Rewrite or drop any that fail.
+6. Propose edits as text; never write the spec body, and apply only an exact edit the user approves.
+
+Under `draft`, the agent may also produce a `draft` with `author: llm` when the user asks.
 
 ### Output
 
-Summary of suggested additions and changes. The user approves, and the agent applies only what was approved.
+Refine-then-write: the written body and its path, after approval, with the assumptions listed. Review-only: a summary of suggested additions and changes, applied only where the user approved them.
 
 ---
 
@@ -114,16 +128,19 @@ Summary of suggested additions and changes. The user approves, and the agent app
 
 ### Purpose
 
-Drafts an architecture spec from feature specs. Implements `spec-draft-architecture`.
+Drafts an architecture spec from feature specs. Implements `spec-draft-architecture`. Under `assist` it follows refine-then-write (`feature/spec-policies` §1) instead of drafting from the feature specs alone; under `review` it reviews an existing draft instead of producing one.
 
 ### Policy check
 
 ```
 Read config.specs.architecture.llm_role
 If llm_role == "none": decline
-If llm_role == "assist": review an existing draft instead of producing one
+If llm_role == "review": review-only mode (spec-assist review steps)
+If llm_role == "assist": refine-then-write mode
 If llm_role == "draft": proceed
 ```
+
+Under `assist`, the feature specs read in step 1 are the input to Describe and Refine, and Write uses the finalised content: `author: mixed`, `status` unchanged, and the file written only after the user approves the text. Under `review`, the agent reviews a draft the user wrote and writes nothing.
 
 ### Steps
 
@@ -255,6 +272,134 @@ If the CLI is unavailable: say so, do not claim the repository is valid, and per
 ### Output
 
 The grouped summary. Warnings from LLM review are labelled as such.
+
+---
+
+## `approve`
+
+### Purpose
+
+Approves specs, plans, and decision records, and reopens approved specs, on the user's request. Implements `approve`. Approval is the human's decision; the agent never runs this on its own initiative and never changes a `status` field by editing a file (`feature/agent-integration` § `approve`).
+
+### Policy check
+
+```
+No spec body is edited: approval changes only the `status:` line, through the CLI.
+If the CLI is unavailable: stop and tell the user to install it; this integration is not reimplemented by hand.
+Only when the user asks: never approve or accept during other work.
+```
+
+### Steps
+
+1. Parse `$ARGUMENTS` in the user's order: `--reopen` marks reopen mode; every other token is an ID.
+2. Resolve each ID's kind: a spec (through `spec/resolve.ts`), a plan (through `plan/resolve.ts`), or a decision record (`decision/<NNNN>`, through `decisions/parse.ts`).
+3. Run the matching command: `specplane spec approve <id>`, `specplane plan approve <id>`, or `specplane decision accept <id>`; several IDs of one kind may go in one command, which stops at the first refusal.
+4. On a refusal, report the reason and the fix for that ID and stop. Do not retry another way and do not edit frontmatter directly.
+5. In reopen mode, run `specplane spec reopen <id>` and show the specs it reports as no longer able to stay approved; reopen one only when the user asks for it.
+
+### Output
+
+One line per ID: the commit that approved it, or the refusal and its fix. In reopen mode, the reopen commit and the reported dependants with their commands.
+
+---
+
+## `plan-start`
+
+### Purpose
+
+Starts a plan so its steps can run. Implements `plan-start`.
+
+### Policy check
+
+```
+Read config.execution.backend (worktree, branch, or external).
+```
+
+### Steps
+
+1. Identify the plan: the ID argument, else the current branch `plan/<id>`, else ask the user.
+2. Run `specplane plan start <id>`; it performs the checks of `feature/plan-execution` § Start flow.
+3. Report the checkout path and the next step.
+4. When the backend puts the plan in another checkout (`worktree`, `external`), tell the user to open a new session there: that session is told the plan and its next step by the harness. Do not run a step in a session whose checkout differs from the plan's.
+
+### Output
+
+The outcome, the checkout path, and the next step.
+
+---
+
+## `decision-new`
+
+### Purpose
+
+Creates a decision record. Implements `decision-new`.
+
+### Policy check
+
+```
+The record starts as `status: proposed`; accepting it is the `approve` integration.
+Write the body only from the user's description: do not invent alternatives, consequences, or decisions.
+```
+
+### Steps
+
+1. Run `specplane decision new "<title>"` and keep the reported path.
+2. If the user describes the decision, write the body sections from `feature/decisions#adr-body-structure` from that description only, marking anything left open as open.
+3. Otherwise leave the sections for the user to fill in.
+
+### Output
+
+The created path and the sections still open.
+
+---
+
+## `plan-status`
+
+### Purpose
+
+Shows where plans stand. Implements `plan-status`.
+
+### Policy check
+
+```
+Read config only; this integration changes nothing.
+```
+
+### Steps
+
+1. Run `specplane plan list --live` (without the CLI, read `PLAN.md` and step files by hand).
+2. When the session is in a plan's checkout (branch `plan/<id>`), highlight that plan.
+3. Summarise per plan: effective status, step progress, next step, `where`, and any `BLOCKED:` items.
+4. Point out plans that need attention: a next step that is blocked, or a stacked plan whose base has merged (`feature/plan-execution` § Restacking).
+
+### Output
+
+The summary, current plan first when there is one.
+
+---
+
+## `plan-abandon`
+
+### Purpose
+
+Abandons a plan. Implements `plan-abandon`.
+
+### Policy check
+
+```
+Read config.plans. Abandoning keeps the branch and worktree unless the user asks for deletion (feature/plan-execution).
+Unattended: do not proceed; report the plan that would be abandoned instead.
+```
+
+### Steps
+
+1. Identify the plan: the ID argument, else the current branch.
+2. Show what is being abandoned: stored status, step progress, branch, and checkout. Ask the user to confirm.
+3. Run `specplane plan abandon <id>`; add the branch-deletion option only when the user asks for it.
+
+### Output
+
+The result, and the documented manual cleanup for a branch that is kept (`git branch -D plan/<id>`).
 
 ---
 
