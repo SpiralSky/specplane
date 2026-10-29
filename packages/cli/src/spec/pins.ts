@@ -87,7 +87,7 @@ export const displayId = (spec: LoadedSpec): string =>
   spec.root.extends !== undefined ? `${spec.root.name}:${spec.id}` : spec.id;
 
 /** Find the target a `based_on` key refers to (compared after resolution). */
-function matchKey(key: string, targets: RefTarget[], spec: LoadedSpec, config: Config, repoRoot: string): RefTarget | undefined {
+export function matchKey(key: string, targets: RefTarget[], spec: LoadedSpec, config: Config, repoRoot: string): RefTarget | undefined {
   const exact = targets.find((t) => t.ref === key.split("#")[0]);
   if (exact) return exact;
   for (const from of [spec.root.extends, spec.root.name]) {

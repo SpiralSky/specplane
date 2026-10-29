@@ -41,7 +41,8 @@ export function formatMessage(parts: CommitParts): string {
 
 /** Trailers the CLI adds to its own commits; agent and session only when the env vars are non-empty. */
 export function cliTrailers(workflow: string, planId: string, env: NodeJS.ProcessEnv = process.env): Trailers {
-  const t: Trailers = { "Specplane-Workflow": workflow, "Specplane-Plan": planId };
+  const t: Trailers = { "Specplane-Workflow": workflow };
+  if (planId) t["Specplane-Plan"] = planId;
   if (env.SPECPLANE_AGENT) t["Specplane-Agent"] = env.SPECPLANE_AGENT;
   if (env.SPECPLANE_SESSION) t["Specplane-Session"] = env.SPECPLANE_SESSION;
   return t;

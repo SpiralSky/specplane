@@ -61,6 +61,26 @@ export class PlanNotFoundError extends SpecplaneError {
     super(`Plan \`${id}\` not found.`);
   }
 }
+export class SpecStateError extends SpecplaneError {
+  readonly exitCode = 1;
+  /** `message` is the full text from `feature/tooling` (for example "Spec `<id>` is `<status>`, not `approved`."). */
+  constructor(message: string) {
+    super(message);
+  }
+}
+export class ApprovalRefusedError extends SpecplaneError {
+  readonly exitCode = 1;
+  /** `message` is the full text from `feature/tooling` (for example "Cannot approve `<id>`: ..."). */
+  constructor(message: string) {
+    super(message);
+  }
+}
+export class UncommittedChangesError extends SpecplaneError {
+  readonly exitCode = 1;
+  constructor(path: string) {
+    super(`Commit or stash changes to \`${path}\` first.`);
+  }
+}
 export class PlanStateError extends SpecplaneError {
   readonly exitCode = 1;
   /** `message` is the full text; the feature specs fix it verbatim (e.g. "Cannot start plan: `<id>` is `draft`, not `ready`."). */

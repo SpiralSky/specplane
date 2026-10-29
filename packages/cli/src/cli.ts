@@ -7,6 +7,7 @@ import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, pla
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
 import { specPinCommand } from "./commands/spec-pin.js";
+import { specApproveCommand, specReopenCommand } from "./commands/spec-approve.js";
 import { searchCommand } from "./commands/search.js";
 import { validateCommand } from "./commands/validate.js";
 
@@ -64,7 +65,17 @@ plan
   .action((id, opts) => planRestackCommand(id, opts));
 plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());
 
-const spec = program.command("spec").description("Work with specs (new, list, show, validate, pin)");
+const spec = program.command("spec").description("Work with specs (new, list, show, validate, pin, approve, reopen)");
+spec
+  .command("approve <ids...>")
+  .description("Approve specs and commit the status change")
+  .option("--dry-run", "report the planned changes and commits")
+  .action((ids: string[], opts: { dryRun?: boolean }) => specApproveCommand(ids, opts));
+spec
+  .command("reopen <id>")
+  .description("Set an approved spec back to review")
+  .option("--dry-run", "report the planned change and commit")
+  .action((id: string, opts: { dryRun?: boolean }) => specReopenCommand(id, opts));
 spec
   .command("pin [id] [refs...]")
   .description("Write or check base pins (based_on) of a spec")

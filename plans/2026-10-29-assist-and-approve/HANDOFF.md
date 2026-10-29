@@ -65,3 +65,35 @@ None.
 - Approved specs are still editable on a plan branch without changing `status`; the CLI commands for approval do not exist yet (step 03/04), so nothing can currently set `approved` through the CLI.
 - `npm test` is 230/230 in the worktree; `packages/cli/node_modules` was installed with `npm ci` there (the fresh worktree had none).
 - `specplane init --harness claude` reports every file up to date and `check-sync.sh` is OK after the standing-text change; the Workflows line still lists only the six existing commands — step 05 extends it with the five new ones.
+
+## Step 03: spec approve and spec reopen
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/commands/spec-approve.ts` (new): `specApproveCommand`/`specReopenCommand`. Approve runs per-ID checks in order (status, committed, `require_approved_features`, overlay bases), re-pins an extending overlay's bases in the same commit, rewrites only the `status:` line, validates, and commits one ID at a time; reopen sets `review`, commits, and prints the direct dependants without touching them. `--dry-run` on both.
+- `packages/cli/src/errors.ts`: `SpecStateError`, `ApprovalRefusedError`, `UncommittedChangesError` with the reference-cli message patterns.
+- `packages/cli/src/commands/spec-approve.test.ts` (new): Scenarios 7–9 plus the six refusal cases, restore-on-validation-error, trailers, and `--dry-run`.
+- `packages/cli/src/cli.ts`: `approve <ids...>` / `reopen <id>` registration; `spec.ts` exported `load`; `spec/pins.ts` exported `matchKey`; `git/commit.ts` omits `Specplane-Plan` when the plan ID is empty.
+- `docs/specifications/architecture/reference-cli.md`: `cliTrailers` now says the plan trailer is omitted when `planId` is empty (the approval commands have no plan), matching the implementation.
+
+### Deviations from the plan
+
+The worker's first cut gated the overlay path on `spec.root.extends` (the *root* chain) and re-pinned every reference; corrected to frontmatter `extends` only, with the pin call limited to the extends refs, so a base-root spec that only `implements` is not treated as an overlay. `--dry-run` wording (`would approve …`) is not fixed by any spec.
+
+### Gaps found in specs
+
+- G1 (assumption): `--dry-run` on the approval commands. See `spec-gaps.md`. (Implemented here.)
+
+### Open issues
+
+- `spec reopen` is report-only and non-transitive, as specified.
+
+### What the next step must know
+
+- `spec approve` refuses already-`approved` specs, so after this plan's specs were approved by hand it can only be exercised on a `draft`/`review` spec.
+- `pinSpec(config, root, id, refs)` takes the refs to pin; passing `[]` pins every reference (use it only for whole-spec re-pins).
+- Step 04 adds `plan approve` and the `decision` group; reuse `commitChange`'s pattern (trailer `approve`, `cliTrailers("approve", "")`) for them.
+- `npm test` is 240/240; `spec --help` lists `approve` and `reopen`.

@@ -21,7 +21,7 @@ const TYPE_DIRS: Record<string, string> = { feature: "features", architecture: "
 const toPosix = (p: string) => p.split(path.sep).join("/");
 export const csv = (v: string | undefined): string[] => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
-function load(root: string): Config {
+export function load(root: string): Config {
   const { config, warnings } = loadConfig(root);
   for (const w of warnings) process.stderr.write(`${w.message}\n`);
   return config;

@@ -313,7 +313,7 @@ Selected by `plans.forge`. With `auto`, GitHub is used when the `origin` remote 
 Implements `architecture/file-formats` §8.
 
 - `formatMessage({ type, scope, summary, body?, trailers }): string` — subject, optional body, then one trailer paragraph in §8.2 order. Throws `CommitFormatError` if the subject exceeds 72 characters (the caller shortens the summary, never the plan ID in trailers), except for CLI housekeeping subjects (`chore(specplane): …`), which are exempt (§8.1).
-- `cliTrailers(workflow, planId): Trailers` — `Specplane-Workflow` and `Specplane-Plan`, plus `Specplane-Agent` from `$SPECPLANE_AGENT` and `Specplane-Session` from `$SPECPLANE_SESSION` when set and non-empty. Harnesses set these variables for agent sessions (for Claude Code, see `claude:architecture/claude-integration` § Session context); a human running the CLI by hand gets neither.
+- `cliTrailers(workflow, planId): Trailers` — `Specplane-Workflow` and, when `planId` is non-empty, `Specplane-Plan` (`architecture/file-formats` §8.2 requires the plan trailer only when the commit is in a plan; the approval commands have none), plus `Specplane-Agent` from `$SPECPLANE_AGENT` and `Specplane-Session` from `$SPECPLANE_SESSION` when set and non-empty. Harnesses set these variables for agent sessions (for Claude Code, see `claude:architecture/claude-integration` § Session context); a human running the CLI by hand gets neither.
 - `readTrailers(ref): Map<string, string>` — `git log -1 --format=%(trailers:only,unfold) <ref>`, parsed with `git interpret-trailers --parse` semantics (last value wins for repeated keys).
 - `findLatest(branch, workflow): sha | null` — `git log --format=%H%x00%(trailers:key=Specplane-Workflow,valueonly) <branch>`, first match.
 
