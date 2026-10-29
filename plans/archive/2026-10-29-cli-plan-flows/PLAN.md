@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-cli-plan-flows
 title: CLI plan flows — start, finish, abandon, cleanup, archive, restack
-status: ready
+status: done
 specs:
   - feature/plan-execution
   - feature/plan-status
