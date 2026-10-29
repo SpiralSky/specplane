@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-plan-flows
 step: 2
 title: Feature-spec proposals for tooling and plan-steps
-status: pending
+status: done
 context:
   - spec: feature/tooling#`specplane plan`
   - spec: feature/plan-steps#Step grouping guidance
@@ -17,8 +17,8 @@ Record the feature findings assigned to this plan as proposals.
 
 ## Acceptance criteria
 
-- [ ] The proposal file covers: (a) adding `specplane plan restack <id>` to `feature/tooling` (with exit codes and errors); (b) `feature/plan-steps`: what happens to the HANDOFF section when a `blocked` step is re-run (append a new section, latest wins; align with `architecture/file-formats` §4.1); (c) `feature/plan-steps` example step files use `src/...` paths, which trip the leak guard; propose neutral paths.
-- [ ] No feature spec file is modified.
+- [x] The proposal file covers: (a) adding `specplane plan restack <id>` to `feature/tooling` (with exit codes and errors); (b) `feature/plan-steps`: what happens to the HANDOFF section when a `blocked` step is re-run (append a new section, latest wins; align with `architecture/file-formats` §4.1); (c) `feature/plan-steps` example step files use `src/...` paths, which trip the leak guard; propose neutral paths.
+- [x] No feature spec file is modified.
 
 ## Tasks
 
