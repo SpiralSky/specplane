@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { FrontmatterError, FrontmatterMissingError, SpecplaneError } from "../errors.js";
 import { readFrontmatter } from "../frontmatter.js";
+import { ID_PATTERN } from "../schemas.js";
 import { finding, makeReport } from "../report.js";
 import type { Config, Finding, SpecFrontmatter, SpecRootConfig, ValidationReport } from "../types.js";
 import { checkArchitectureLeak } from "./leak-guard.js";
@@ -89,7 +90,7 @@ function statusOf(file: string): string | undefined {
   }
 }
 
-const ANCHOR_REF = /(?<![\w/:#-])(?:[a-z][a-z0-9-]*:)?(?:feature|architecture)\/[a-z0-9][a-z0-9/-]*[a-z0-9]#([a-z0-9_-]+)/g;
+const ANCHOR_REF = new RegExp(`(?<![\\w/:#-])(?:[a-z][a-z0-9-]*:)?${ID_PATTERN.slice(1, -1).replace("(feature|", "(?:feature|")}#([a-z0-9_-]+)`, "g");
 
 /** Warn for `<id>#<slug>` references in the body whose slug matches no heading of the target. */
 export function checkBodyAnchors(spec: LoadedSpec, config: Config, repoRoot: string): Finding[] {

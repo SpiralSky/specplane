@@ -58,3 +58,34 @@ None.
 ### What the next step must know
 
 `feature-spec-proposals.md` needs user review before any feature spec is edited; later steps must not depend on the proposed text being applied.
+
+## Step 03: Error classes, stderr convention, DEFAULT_CONFIG, ID pattern
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `errors.ts`: `AlreadyExistsError(kind, id)` (exit 1, spec/plan texts from the architecture table) and `reportError()` helper; `cli.ts` wraps `parse` and routes `SpecplaneError` to stderr with the class exit code.
+- `validate` human report now goes to stderr; `--json` stays on stdout.
+- `ID_PATTERN` constant in `schemas.ts` (file-formats §1.1 pattern) shared by the JSON Schema, `spec/resolve.ts`, and the body-anchor regex in `spec/validate.ts`.
+- Tests: DEFAULT_CONFIG vs the yaml block parsed from `feature/configuration` (`config.test.ts`), ID edge cases and qualified IDs (`id-pattern.test.ts`), `AlreadyExistsError` (`errors.test.ts`).
+- `npm test` 105/105; validate on this repo: 0 errors.
+
+### Deviations from the plan
+
+- CHOICE: `claude:feature/x` is accepted by the resolver (root prefix split before the ID check), not by the raw ID pattern, which covers unqualified IDs only.
+- CHOICE: `AlreadyExistsError` takes `("Spec" | "Plan", id)` to select the message.
+- CHOICE: existing commands keep their local catch blocks; the top-level handler is a fallback for errors they do not catch.
+
+### Gaps found in specs
+
+None. `DEFAULT_CONFIG` already matched the table; the test now enforces it.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+Use `reportError` and `AlreadyExistsError` in new commands; human reports go to stderr, data to stdout.

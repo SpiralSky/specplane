@@ -2,6 +2,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import { AmbiguousIdError, SpecNotFoundError, UnknownRootError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
+import { ID_PATTERN } from "../schemas.js";
 import type { Config, SpecRootConfig } from "../types.js";
 
 export interface ResolvedSpec {
@@ -15,7 +16,7 @@ export interface ResolvedSpec {
 
 /** Type directory mapping; never computed by pluralising. */
 const TYPE_DIRS: Record<string, string> = { feature: "features", architecture: "architecture" };
-const ID_RE = /^(feature|architecture)\/[a-z0-9][a-z0-9/-]*[a-z0-9]$/;
+const ID_RE = new RegExp(ID_PATTERN);
 
 /**
  * Resolve a spec ID to a file. `repoRoot` is the checkout root that `spec_roots` paths are

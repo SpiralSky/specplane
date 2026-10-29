@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
+import { reportError } from "./errors.js";
 import { initCommand } from "./commands/init.js";
 import { specPinCommand } from "./commands/spec-pin.js";
 import { validateCommand } from "./commands/validate.js";
@@ -55,4 +56,8 @@ program
   .option("--harness <name>", "also install the named agent harness (e.g. claude)")
   .action((opts: { harness?: string }) => initCommand(opts));
 
-program.parse(process.argv);
+try {
+  program.parse(process.argv);
+} catch (e) {
+  if (!reportError(e)) throw e;
+}

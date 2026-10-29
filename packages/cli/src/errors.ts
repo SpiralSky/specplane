@@ -45,6 +45,12 @@ export class FrontmatterMissingError extends SpecplaneError {
     super(`\`${file}\`: no frontmatter block found`);
   }
 }
+export class AlreadyExistsError extends SpecplaneError {
+  readonly exitCode = 1;
+  constructor(kind: "Spec" | "Plan", id: string) {
+    super(kind === "Plan" ? `Plan \`${id}\` already exists. Choose a different slug.` : `Spec \`${id}\` already exists.`);
+  }
+}
 export class PlanNotFoundError extends SpecplaneError {
   readonly exitCode = 1;
   constructor(id: string) {
@@ -92,4 +98,12 @@ export class NotARepoError extends SpecplaneError {
   constructor() {
     super("Not in a git repository");
   }
+}
+
+/** Print a SpecplaneError message to stderr and set its exit code; return false for other errors. */
+export function reportError(e: unknown): boolean {
+  if (!(e instanceof SpecplaneError)) return false;
+  process.stderr.write(`${e.message}\n`);
+  process.exitCode = e.exitCode;
+  return true;
 }
