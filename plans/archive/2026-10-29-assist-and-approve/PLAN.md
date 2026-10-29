@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-assist-and-approve
 title: "Refine-then-write assist, the review role, and approval commands"
-status: ready
+status: done
 specs: ["feature/spec-policies","feature/configuration","feature/agent-integration","feature/tooling","architecture/agent-skills","architecture/reference-cli","architecture/file-formats","claude:feature/claude-integration","claude:architecture/claude-integration"]
 depends_on: ["2026-10-29-feature-spec-alignment"]
 ---
@@ -40,10 +40,10 @@ The feature specs approved on 2026-10-29 (`506cfd6`, `01ddd69`) split `llm_role:
 
 ## Acceptance criteria
 
-- [ ] `tooling` Scenarios 7–10 and `spec-policies`/`agent-integration` policy scenarios have tests in `packages/cli` with the feature-spec message texts.
-- [ ] Config with `llm_role: review` validates; the guard asks under `review` and `assist`, and denies agent edits that approve.
-- [ ] `/spec-assist` runs refine-then-write under `assist` and review-only under `review`; the five new slash commands exist in the templates and in `.claude/`.
-- [ ] `npm test`, `sh harnesses/claude/tests/check-sync.sh`, and `sh harnesses/claude/tests/hooks.test.sh` pass; `specplane validate` has 0 errors and `specplane spec pin --check` is clean.
+- [x] `tooling` Scenarios 7–10 and `spec-policies`/`agent-integration` policy scenarios have tests in `packages/cli` with the feature-spec message texts.
+- [x] Config with `llm_role: review` validates; the guard asks under `review` and `assist`, and denies agent edits that approve.
+- [x] `/spec-assist` runs refine-then-write under `assist` and review-only under `review`; the five new slash commands exist in the templates and in `.claude/`.
+- [x] `npm test`, `sh harnesses/claude/tests/check-sync.sh`, and `sh harnesses/claude/tests/hooks.test.sh` pass; `specplane validate` has 0 errors and `specplane spec pin --check` is clean.
 
 ## Risks
 

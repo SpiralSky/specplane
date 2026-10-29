@@ -29,6 +29,23 @@ test("invalid enum value throws ConfigError", () => {
   assert.throws(() => load("bad-enum"), (e) => e instanceof ConfigError && /plans\.merge/.test(e.message));
 });
 
+test("llm_role review is accepted for both spec types", () => {
+  const { config, warnings } = load("review-role");
+  assert.equal(config.specs.feature.llm_role, "review");
+  assert.equal(config.specs.architecture.llm_role, "review");
+  assert.deepEqual(warnings, []);
+});
+
+test("unknown llm_role fails and lists the allowed values", () => {
+  assert.throws(
+    () => load("bad-llm-role"),
+    (e) =>
+      e instanceof ConfigError &&
+      /specs\.feature\.llm_role/.test(e.message) &&
+      /review, assist, draft, none/.test(e.message),
+  );
+});
+
 test("unknown keys warn and are dropped", () => {
   const { config, warnings } = load("unknown-key");
   assert.deepEqual(warnings.map((w) => w.message).sort(), [

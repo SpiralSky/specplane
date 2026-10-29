@@ -4,7 +4,7 @@ description: Create a new Specplane plan interactively. Use when the user runs /
 argument-hint: "[goal]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-create@a8e55f4 -->
+<!-- specplane-contract: architecture/agent-skills#plan-create@a94912d -->
 
 # plan-create
 

@@ -19,12 +19,12 @@ specs:
   pin_bases: warn             # off | warn | require
   feature:
     authorship: user          # user | llm | either
-    llm_role: assist          # assist | draft | none
+    llm_role: assist          # review | assist | draft | none
     forbid_architecture: true # enable the architecture-leak guard
     leak_guard_allow: []      # terms that are part of this project's user-visible interface
   architecture:
     authorship: either        # user | llm | either
-    llm_role: draft           # assist | draft | none
+    llm_role: draft           # review | assist | draft | none
     require_approved_features: true  # block approval until feature specs are approved
 
 plans:

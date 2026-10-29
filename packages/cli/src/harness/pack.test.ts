@@ -40,7 +40,19 @@ test("packed tarball installs and `init --harness claude` works end to end", () 
     for (const f of [
       "rules/specplane.md",
       "settings.json",
-      ...["spec-assist", "spec-draft-architecture", "plan-create", "plan-step", "plan-finish", "validate"].map((s) => `skills/${s}/SKILL.md`),
+      ...[
+        "spec-assist",
+        "spec-draft-architecture",
+        "plan-create",
+        "plan-step",
+        "plan-finish",
+        "validate",
+        "approve",
+        "plan-start",
+        "decision-new",
+        "plan-status",
+        "plan-abandon",
+      ].map((s) => `skills/${s}/SKILL.md`),
       ...["pre-commit", "policy-guard", "session-context", "statusline", "handoff-check", "generate"].map((h) => `hooks/specplane-${h}.sh`),
     ]) {
       assert.ok(files.includes(f), `missing ${f}`);

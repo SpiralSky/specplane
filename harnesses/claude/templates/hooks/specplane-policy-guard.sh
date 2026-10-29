@@ -1,6 +1,8 @@
 #!/bin/sh
-# PreToolUse hook (matcher: Edit|MultiEdit|Write|NotebookEdit): enforce specs.<type>.llm_role on spec edits.
-# none -> deny; assist -> ask (blocks in non-interactive sessions); draft -> allow.
+# PreToolUse hook (matcher: Edit|MultiEdit|Write|NotebookEdit): enforce specs.<type>.llm_role on spec edits
+# and keep approval with the user (never let an edit set approved/ready/accepted).
+# none -> deny; review, assist -> ask (blocks in non-interactive sessions); draft -> allow.
+# Approval check -> deny for specs, PLAN.md/steps/*.md, and ADRs.
 # Exits 0 whenever it cannot do its job.
 root="${CLAUDE_PROJECT_DIR:-.}"
 config="$root/.specplane/config.yaml"
@@ -11,6 +13,12 @@ tool=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null) || exit 0
 case "$tool" in Edit|MultiEdit|Write|NotebookEdit) ;; *) exit 0 ;; esac
 file=$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' 2>/dev/null)
 content=$(printf '%s' "$input" | jq -r '.tool_input.content // empty' 2>/dev/null)
+# Text the edit writes: Write content, each MultiEdit new_string, Edit new_string.
+new_texts=$(printf '%s' "$input" | jq -r '
+  if .tool_name == "Write" then (.tool_input.content // empty)
+  elif .tool_name == "Edit" then (.tool_input.new_string // empty)
+  elif .tool_name == "MultiEdit" then ((.tool_input.edits // [])[] | .new_string // empty)
+  else empty end' 2>/dev/null)
 if [ "$tool" = Write ] && [ -n "$content" ]; then
   text=$content
 else
@@ -23,9 +31,46 @@ id=$(printf '%s\n' "$text" | awk '
   NR==1 && $0 !~ /^---[[:space:]]*$/ { exit }
   NR>1 && /^---[[:space:]]*$/ { exit }
   NR>1 && /^id:/ { sub(/^id:[[:space:]]*/, ""); sub(/[[:space:]]*#.*$/, ""); gsub(/["'"'"']/, ""); sub(/[[:space:]]+$/, ""); print; exit }')
+sid=${id#*:}
+cfg_dir() { # $1 top-level key -> its dir value (default handled by caller)
+  sed -n "/^$1:/,/^[^[:space:]#]/{s/^[[:space:]]*dir:[[:space:]]*//p;}" "$config" 2>/dev/null | head -n 1 \
+    | sed 's/[[:space:]]*#.*$//; s/^["'"'"']//; s/["'"'"'][[:space:]]*$//; s/[[:space:]]*$//'
+}
+pdir=$(cfg_dir plans); [ -n "$pdir" ] || pdir=plans
+ddir=$(cfg_dir decisions); [ -n "$ddir" ] || ddir=decisions
+case "$file" in
+  "") fpath= ;;
+  /*) fpath=$file ;;
+  *) fpath="$root/$file" ;;
+esac
+# Approval check: before the type-based early return, and under every llm_role.
+approval=0
+case "$sid" in feature/*|architecture/*) approval=1 ;; esac
+[ -n "$fpath" ] && case "$fpath" in
+  "$root/$pdir"/*/PLAN.md|"$root/$pdir"/*/steps/*.md) approval=1 ;;
+  "$root/$ddir"/[0-9][0-9][0-9][0-9]-*.md) approval=1 ;;
+esac
+if [ "$approval" = 1 ]; then
+  new_status=$(printf '%s\n' "$new_texts" \
+    | sed -n 's/^[[:space:]]*status:[[:space:]]*\([^[:space:]#]*\).*$/\1/p' | tail -n 1 | tr -d "\"'")
+  old_status=""
+  if [ -n "$fpath" ] && [ -f "$fpath" ]; then
+    old_status=$(sed -n '/^---[[:space:]]*$/,/^---[[:space:]]*$/s/^status:[[:space:]]*\([^[:space:]#]*\).*$/\1/p' "$fpath" 2>/dev/null | head -n 1 | tr -d "\"'")
+  fi
+  case "$new_status" in
+    approved|ready|accepted)
+      # An edit that leaves the existing status in place is not an approval.
+      if [ "$new_status" != "$old_status" ]; then
+        jq -n --arg d deny \
+          --arg r "Approval is the user's decision: run /approve <id> instead of editing status." \
+          '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:$d,permissionDecisionReason:$r}}'
+        exit 0
+      fi
+      ;;
+  esac
+fi
 [ -n "$id" ] || exit 0
-id=${id#*:}
-case "$id" in
+case "$sid" in
   feature/*) type=feature; default=assist ;;
   architecture/*) type=architecture; default=draft ;;
   *) exit 0 ;;
@@ -45,9 +90,9 @@ case "$role" in
   none)
     decision=deny
     reason="Policy (specs.$type.llm_role: none) forbids editing $type specs. Tell the user instead." ;;
-  assist)
+  review|assist)
     decision=ask
-    reason="Policy (specs.$type.llm_role: assist): the user must approve this exact edit." ;;
+    reason="Policy (specs.$type.llm_role: $role): the user must approve this exact edit." ;;
   *) exit 0 ;;
 esac
 jq -n --arg d "$decision" --arg r "$reason" \

@@ -2,7 +2,7 @@
 plan: 2026-10-29-assist-and-approve
 step: 2
 title: The review role in config, validation, init, and standing instructions
-status: pending
+status: done
 context:
   - spec: feature/configuration
   - spec: feature/spec-policies#Meaning of each value
@@ -22,11 +22,11 @@ Make `review` a valid `llm_role` everywhere the CLI reads or writes it, and desc
 
 ## Acceptance criteria
 
-- [ ] Config with `specs.feature.llm_role: review` or `specs.architecture.llm_role: review` validates; an unknown value still fails with the allowed values listed.
-- [ ] `init` keeps the defaults (`assist` for feature, `draft` for architecture); the generated config comments list `review | assist | draft | none`.
-- [ ] The standing instructions (`.claude/rules/specplane.md` source and the `AGENTS.md` block) describe `review` and the refine-then-write `assist`.
-- [ ] The LLM-review stage of the leak guard runs under `review` (it is skipped only under `none`).
-- [ ] `npm test` passes.
+- [x] Config with `specs.feature.llm_role: review` or `specs.architecture.llm_role: review` validates; an unknown value still fails with the allowed values listed.
+- [x] `init` keeps the defaults (`assist` for feature, `draft` for architecture); the generated config comments list `review | assist | draft | none`.
+- [x] The standing instructions (`.claude/rules/specplane.md` source and the `AGENTS.md` block) describe `review` and the refine-then-write `assist`.
+- [x] The LLM-review stage of the leak guard runs under `review` (it is skipped only under `none`) — already true: the `/validate` skill skips only `none`, and no CLI code gates on `llm_role`; verified, no change needed.
+- [x] `npm test` passes.
 
 ## Tasks
 

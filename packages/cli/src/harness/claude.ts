@@ -4,7 +4,7 @@ import { type Harness, Report, skillDirsIn, templatesDir } from "./index.js";
 
 /** Workflows line for the standing instructions when the Claude harness is installed. */
 export const CLAUDE_WORKFLOWS_LINE =
-  "`/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`; without them, follow the contracts in `architecture/agent-skills`.";
+  "`/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`, `/approve`, `/plan-start`, `/decision-new`, `/plan-status`, `/plan-abandon`; without them, follow the contracts in `architecture/agent-skills`.";
 
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);

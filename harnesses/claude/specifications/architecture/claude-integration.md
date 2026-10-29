@@ -26,6 +26,11 @@ Files installed into a target repository:
     plan-step/SKILL.md
     plan-finish/SKILL.md
     validate/SKILL.md
+    approve/SKILL.md
+    plan-start/SKILL.md
+    decision-new/SKILL.md
+    plan-status/SKILL.md
+    plan-abandon/SKILL.md
   rules/
     specplane.md                  # standing instructions (Specplane-owned; overwritten on update)
   hooks/
@@ -78,7 +83,7 @@ Claude Code loads every file in `.claude/rules/` at session start (a rule withou
 ```markdown
 <!-- specplane:standing v1 — installed by `specplane init --harness claude`; overwritten on update -->
 <standing instructions text, with this Workflows line:>
-- **Workflows**: `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`.
+- **Workflows**: `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`, `/approve`, `/plan-start`, `/decision-new`, `/plan-status`, `/plan-abandon`.
 
 ### Claude Code
 - Read spec and plan files with `Read` (offset/limit for large specs); find files with `Glob`.
@@ -145,6 +150,11 @@ The `plan-step` and `plan-finish` skills write and read `<plans.dir>/<plan-id>/s
 | `plan-step` | `[plan-id] [--unattended]` | `true` | Session-mode detection (below); subagent execution when the step sets `use_subagent: true`; writes `spec-gaps.md` entries with `Write`/`Edit` and lists their IDs in HANDOFF.md. |
 | `plan-finish` | `[plan-id]` | `true` | Confirms with `AskUserQuestion` in attended sessions; reports the open `spec-gaps.md` entries the CLI lists. |
 | `validate` | — | `false` | Read-only; may run whenever validation results are relevant. |
+| `approve` | `<id>... [--reopen]` | `true` | Runs `spec approve`, `plan approve`, or `decision accept` by resolved kind; shows each refusal with its fix; never edits `status` itself. |
+| `plan-start` | `[plan-id]` | `true` | Runs the start flow; when the backend is a worktree, tells the user to open a new session in the checkout it reports. |
+| `decision-new` | `[title]` | `true` | Creates the record with `specplane decision new`; writes the body only from the user's description; leaves `status: proposed`. |
+| `plan-status` | — | `false` | Read-only (`specplane plan list --live`); may run whenever plan state is relevant. |
+| `plan-abandon` | `[plan-id]` | `true` | Confirms with `AskUserQuestion`; asks before deleting the branch. |
 
 ### Shared preamble (`## Preconditions`)
 
@@ -199,17 +209,19 @@ How it works:
 
 ### Policy guard (enabled by default)
 
-`.claude/hooks/specplane-policy-guard.sh` enforces `specs.<type>.llm_role` at the moment Claude edits a spec, so authorship policy does not depend on the model remembering an instruction. PreToolUse, matcher `Edit|MultiEdit|Write|NotebookEdit`.
+`.claude/hooks/specplane-policy-guard.sh` enforces `specs.<type>.llm_role` at the moment Claude edits a spec, and keeps approval with the human, so policy does not depend on the model remembering an instruction. PreToolUse, matcher `Edit|MultiEdit|Write|NotebookEdit`.
 
 1. No-op (exit 0) without `.specplane/config.yaml` or `jq`.
-2. Spec type: read the frontmatter `id:` of the target — from `.tool_input.content` for `Write`, else from the file at `.tool_input.file_path` (`.tool_input.notebook_path` for `NotebookEdit`; first `---` block only). The type is the ID's prefix when it is `feature/` or `architecture/` (an optional `<root>:` qualifier is stripped). Anything else (plans, ADRs, code, files without frontmatter) → exit 0. A spec's type comes from its own ID, so no spec root needs resolving.
-3. `llm_role`: read `specs.<type>.llm_role` from the config with `awk` (the `llm_role:` key inside the `<type>:` block inside the top-level `specs:` block, comments stripped); default `assist` for `feature`, `draft` for `architecture`.
-4. Decision, printed as PreToolUse JSON on stdout with exit 0:
+2. Spec type: read the frontmatter `id:` of the target — from `.tool_input.content` for `Write`, else from the file at `.tool_input.file_path` (`.tool_input.notebook_path` for `NotebookEdit`; first `---` block only). The type is the ID's prefix when it is `feature/` or `architecture/` (an optional `<root>:` qualifier is stripped).
+3. **Approval check**, before the type-based early return: when the target is a spec, a `PLAN.md` or step file (`<plans.dir>/<id>/PLAN.md`, `<plans.dir>/<id>/steps/*.md`), or an ADR (`<decisions.dir>/NNNN-*.md`), and the edit sets `status: approved`, `status: ready`, or `status: accepted`, deny: `permissionDecision: "deny"`, reason `Approval is the user's decision: run /approve <id> instead of editing status.` The new text is `.tool_input.content` for `Write`, each `.edits[].new_string` for `MultiEdit`, and `.tool_input.new_string` for `Edit`; a new file written with one of those statuses is denied the same way, and an edit that leaves the status unchanged is not affected. This check applies under every `llm_role`, including `draft`.
+4. Targets that are not specs, plans, or ADRs → exit 0. A spec's type comes from its own ID, so no spec root needs resolving.
+5. `llm_role`: read `specs.<type>.llm_role` from the config with `awk` (the `llm_role:` key inside the `<type>:` block inside the top-level `specs:` block, comments stripped); default `assist` for `feature`, `draft` for `architecture`.
+6. Decision for specs, printed as PreToolUse JSON on stdout with exit 0:
    - `none` → `permissionDecision: "deny"`, reason `Policy (specs.<type>.llm_role: none) forbids editing <type> specs. Tell the user instead.`
-   - `assist` → `permissionDecision: "ask"`, reason `Policy (specs.<type>.llm_role: assist): the user must approve this exact edit.` The user sees the edit and decides; in a non-interactive session the ask cannot be granted, which blocks the edit as intended.
+   - `review` or `assist` → `permissionDecision: "ask"`, reason `Policy (specs.<type>.llm_role: <role>): the user must approve this exact edit.` The user sees the edit and decides; in a non-interactive session the ask cannot be granted, which blocks the edit as intended.
    - `draft`, or any other value → exit 0 with no output (normal permission handling).
 
-The guard does not see edits made through `Bash` (`sed -i`, redirection); the standing instructions cover those. It complements `spec-assist`'s rule (approve the exact change) rather than replacing it.
+The guard does not see edits made through `Bash` (`sed -i`, redirection); the standing instructions cover those. It complements `spec-assist`'s approval rule rather than replacing it.
 
 ### Session context (enabled by default)
 

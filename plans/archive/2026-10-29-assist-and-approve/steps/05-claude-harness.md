@@ -2,7 +2,7 @@
 plan: 2026-10-29-assist-and-approve
 step: 5
 title: Claude skills, policy guard, and .claude sync
-status: pending
+status: done
 context:
   - spec: claude:feature/claude-integration
   - spec: claude:architecture/claude-integration
@@ -20,11 +20,11 @@ Expose the new roles and commands in Claude Code: the reworked `/spec-assist`, f
 
 ## Acceptance criteria
 
-- [ ] `/spec-assist` runs Describe → Refine → Finalise → Write under `assist` (writes only after approval, `author: mixed`, status unchanged) and review-only under `review`; `/spec-draft-architecture` follows the same split.
-- [ ] New skills `approve` (`disable-model-invocation: true`, supports `--reopen`), `plan-start`, `decision-new`, `plan-status`, `plan-abandon`, each with a contract marker.
-- [ ] The guard hook asks under `review` and `assist`, and denies agent edits that set `status: approved`, `ready`, or `accepted`; `hooks.test.sh` covers both.
-- [ ] `specplane init --harness claude` installs the new skills; the templates are copied to `.claude/`; `check-sync.sh` and `hooks.test.sh` pass.
-- [ ] Contract markers re-pinned; `specplane validate` has 0 errors.
+- [x] `/spec-assist` runs Describe → Refine → Finalise → Write under `assist` (writes only after approval, `author: mixed`, status unchanged) and review-only under `review`; `/spec-draft-architecture` follows the same split.
+- [x] New skills `approve` (`disable-model-invocation: true`, supports `--reopen`), `plan-start`, `decision-new`, `plan-status`, `plan-abandon`, each with a contract marker.
+- [x] The guard hook asks under `review` and `assist`, and denies agent edits that set `status: approved`, `ready`, or `accepted`; `hooks.test.sh` covers both.
+- [x] `specplane init --harness claude` installs the new skills; the templates are copied to `.claude/`; `check-sync.sh` and `hooks.test.sh` pass.
+- [x] Contract markers re-pinned; `specplane validate` has 0 errors.
 
 ## Tasks
 
