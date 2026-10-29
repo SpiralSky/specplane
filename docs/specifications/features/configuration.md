@@ -33,6 +33,7 @@ spec_roots:
 # ── Spec policies ─────────────────────────────────────────────────────────────
 specs:
   llm_review: false           # agents add LLM review to leak-guard and overlay checks
+  pin_bases: warn             # off | warn | require — base pins (based_on)
   feature:
     authorship: user          # user | llm | either
     llm_role: assist          # assist | draft | none
@@ -95,6 +96,21 @@ Two roots with the same `name` are a validation error. A root that `extends` an 
 **Default**: `false`
 
 When `true`, agents running the `validate` workflow integration add an LLM review stage to the checks that heuristics cannot settle: the architecture-leak guard (see `feature/spec-policies` §3) and overlay contradiction detection (see `feature/spec-overlays`). LLM review is performed by the agent, never by the CLI; its findings are warnings. The review is skipped for spec types whose `llm_role` is `none`.
+
+---
+
+### `specs.pin_bases`
+
+**Type**: `off` | `warn` | `require`  
+**Default**: `warn`
+
+Controls base pins (`based_on`; see `feature/spec-overlays#base-pins`). Stale pins are always reported and block approval; this key only sets how missing pins are reported.
+
+| Value | Missing pin |
+|-------|-------------|
+| `off` | Not reported. |
+| `warn` | Warning for an overlay spec whose `extends` entries are not pinned. |
+| `require` | Error for any unpinned `extends` or `implements` entry. |
 
 ---
 

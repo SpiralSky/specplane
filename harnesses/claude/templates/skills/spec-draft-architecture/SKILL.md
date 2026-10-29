@@ -4,6 +4,7 @@ description: Draft an architecture spec from one or more feature specs. Use when
 argument-hint: "[feature-spec-id ...]"
 disable-model-invocation: true
 ---
+<!-- specplane-contract: architecture/agent-skills#spec-draft-architecture@6bc0570 -->
 
 # spec-draft-architecture
 

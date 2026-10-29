@@ -4,6 +4,7 @@ description: Run the finish flow for the current plan. Use when the user runs /p
 argument-hint: "[plan-id]"
 disable-model-invocation: true
 ---
+<!-- specplane-contract: architecture/agent-skills#plan-finish@6bc0570 -->
 
 # plan-finish
 
@@ -26,6 +27,7 @@ None.
 2. Confirm with the user: "Run finish flow for `<plan-id>`?" In attended sessions use `AskUserQuestion`. In unattended sessions proceed only if the session was explicitly started to finish the plan.
 3. Invoke `specplane plan finish <id>` (readiness checks, verification, rebase, final commit, PR or merge).
 4. When verification asks for acceptance-criteria confirmation, check each criterion and state the evidence.
+5. The plan's handoff log is `<plans.dir>/<plan-id>/HANDOFF.md` (resolve `plans.dir` from config); it is committed on the plan branch and moves with the plan when archived. Do not touch the repo-root HANDOFF.md.
 
 ## Output
 

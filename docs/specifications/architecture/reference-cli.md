@@ -40,6 +40,8 @@ src/
     parse.ts           # reads and validates spec frontmatter
     validate.ts        # runs all spec validation checks
     leak-guard.ts      # architecture-leak heuristic checks
+    pins.ts            # based_on pins: stale check, normalised hashing, frontmatter rewrite, anchors
+    slug.ts            # GitHub-style heading slugs
     overlay-check.ts   # overlay contradiction heuristics
   plan/
     resolve.ts         # resolves plan IDs to folder paths (active or archived)
@@ -57,6 +59,7 @@ src/
     branch.ts          # branch existence, creation, deletion, rebase
     worktree.ts        # worktree path resolution, creation, removal
     forge.ts           # optional: PR creation and open-PR detection
+    blobs.ts           # blob hashes of committed files; blob contents
     commit.ts          # builds commit messages and reads trailers (file-formats §8)
   agents/
     standing.ts        # standing-instructions text and the AGENTS.md managed block
@@ -65,7 +68,7 @@ src/
     mermaid.ts         # generates Mermaid dependency graph
   commands/
     init.ts
-    spec.ts            # spec new | list | show | validate
+    spec.ts            # spec new | list | show | validate | pin
     plan.ts            # plan new | list | show | graph | start | finish | abandon | cleanup | archive
     search.ts
     validate.ts
@@ -148,12 +151,44 @@ Shadowing is prevented by validation (see below), so step 3 never has to choose 
 5. `extends`: error if the spec's root is standalone; the referenced spec must resolve within the root's extends chain.
 6. Shadowing: error if the spec's ID also exists in any root of its root's extends chain.
 7. Authorship consistency (warnings) per `feature/spec-policies` §1.
+8. `extends` is a string or list; each entry is checked as in 5. `based_on` keys must appear in `extends` or `implements` (error otherwise). Pins are checked per § Base pins.
+9. Anchors: for each ID carrying `#<slug>`, the slug must match a heading slug in the referenced spec → warning type `anchor`.
 
 `validateSpecs(config, root): ValidationReport` runs `validateSpec` on every spec in every root, then:
 
 - **Ordering policy**: if `specs.architecture.require_approved_features`, each `approved` architecture spec whose `implements` contains a non-approved spec → error "Cannot approve `<arch>`: `<feature>` is `<status>`, not `<approved>`."
 - **Leak guard**: on feature specs when `specs.feature.forbid_architecture` and the spec does not set `allow_architecture`.
 - **Overlay contradiction heuristics** (`spec/overlay-check.ts`): for each spec with `extends`, compare sentences containing "must not"/"never"/"may not" in either spec against sentences in the other that share at least two significant nouns; each match is a warning "may contradict". No LLM is involved.
+
+---
+
+## Base pins (`spec/pins.ts`, `git/blobs.ts`, `spec/slug.ts`)
+
+`git/blobs.ts`:
+
+- `committedBlob(path, ref = 'HEAD'): string | null` — `git rev-parse <ref>:<path>`; null if the path is not committed.
+- `hasUncommittedChanges(path): boolean` — `git status --porcelain -- <path>`.
+- `readBlob(hash): string | null` — `git cat-file -p <hash>`; null if the object is missing (shallow clone).
+
+`spec/slug.ts`: `slugify(heading)` follows GitHub: lowercase, remove characters other than letters, digits, spaces, hyphens, and underscores, spaces to hyphens; `headingSlugs(markdown)` returns the slugs of a document with `-1`, `-2` suffixes for duplicates. Fenced code blocks are skipped.
+
+`spec/pins.ts`:
+
+- `normalisedHash(text)` — hash of the spec text with frontmatter `status:` and `author:` lines removed, so changes that only touch those keys are not base changes.
+- `checkPins(spec, config): Finding[]` — for each `based_on` entry, compare the pin with the current committed blob. If equal, fine. Otherwise read both blobs: if the pinned object is missing, warn without a diff (the hash comparison itself never needs history); if both normalise to the same hash, ignore. Else emit `base-changed` with the message in `file-formats` § Pin, anchor, and skill-contract findings. Missing pins follow `specs.pin_bases`.
+- `approveGuard`: a spec with a stale pin that is `approved` → error "Cannot approve `<id>`: base `<ref>` changed since it was pinned."
+- `writePins(file, pins)` — rewrites only the `based_on` key in the frontmatter, preserving other formatting and key order; inserts the key after `extends`/`implements` when absent.
+
+Uncommitted edits to a base are compared as-is for the check (working tree) but `spec pin` refuses them.
+
+### `spec pin`
+
+- `specplane spec pin <id> [<ref-id>...]` — set pins for all of the spec's `extends` and `implements` entries, or only the listed ones, to `committedBlob` of each referenced file (abbreviated to 7+ characters, longer if ambiguous). Errors if a referenced file has uncommitted changes ("commit or stash changes to `<path>` first"). Prints `pinned <ref> <hash>` per entry.
+- `specplane spec pin --check` — runs the pin checks only; exit 1 if any pin is stale or missing under `require`.
+
+## Skill contract drift (`spec/skill-drift.ts`)
+
+For each `SKILL.md` in a skill directory registered by an installed harness, parse the `<!-- specplane-contract: ... -->` comment; the anchor must resolve (type `skill-drift` warning otherwise) and the pin is compared against the current blob of the referenced spec exactly as for `based_on` (normalised hash; shallow-safe). Skill directories without a comment warn.
 
 ---
 
@@ -367,7 +402,7 @@ Summary: 3 files checked, 0 errors, 1 warning
 }
 ```
 
-Every finding has `file`, `message`, `severity`, and `type`; `spec` (or `plan`, `adr`) and `line` are present when applicable. `type` values: `config`, `schema`, `id`, `reference`, `authorship`, `ordering`, `path`, `tech_name`, `identifier`, `schema_syntax`, `overlay`, `plan`, `step`, `adr`, `freshness`.
+Every finding has `file`, `message`, `severity`, and `type`; `spec` (or `plan`, `adr`) and `line` are present when applicable. `type` values: `config`, `schema`, `id`, `reference`, `authorship`, `ordering`, `path`, `tech_name`, `identifier`, `schema_syntax`, `overlay`, `base-changed`, `anchor`, `skill-drift`, `plan`, `step`, `adr`, `freshness`.
 
 Exit code is `0` when `valid: true` (warnings do not affect exit code). Exit code `1` when `valid: false`.
 

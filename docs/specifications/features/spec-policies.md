@@ -198,6 +198,8 @@ Then a hard error is produced: "`architecture_reason` must be non-empty when `al
 
 ## Edge cases
 
+- Approval is also blocked by a stale base pin (`based_on`); that rule is defined in `feature/spec-overlays#base-pins`, not here.
+
 - The ordering policy only constrains approved architecture specs. Creating an architecture spec before its feature specs exist is allowed; the check fires only once it is `approved`.
 - The heuristic guard does not scan `INFO.md` files; those are free-form documentation.
 - The LLM-review stage of the guard is skipped when `specs.feature.llm_role: none` (reviewing is a form of suggesting changes, which that role forbids).

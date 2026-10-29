@@ -4,6 +4,7 @@ description: Help the user write or review a feature spec without authoring it. 
 argument-hint: "[topic]"
 disable-model-invocation: false
 ---
+<!-- specplane-contract: architecture/agent-skills#spec-assist@6bc0570 -->
 
 # spec-assist
 

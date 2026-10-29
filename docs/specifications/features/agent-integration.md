@@ -55,6 +55,8 @@ Each harness may extend the base workflows with harness-specific features (e.g. 
 
 A **workflow integration** is a predefined, executable sequence of actions that an agent follows to complete a Specplane task. Harnesses expose these as slash commands, macros, or callable skills — the mechanism is a harness concern and is specified in the harness's overlay root.
 
+Each harness skill must record the contract it implements: a reference to the contract by anchor (for example `feature/agent-integration#plan-step`) together with a base pin for it. `validate` reports when the referenced contract has changed since the skill was last pinned, so skills no longer drift from the base specs through manual review alone.
+
 All workflow integrations read configuration from `.specplane/config.yaml` and resolve all spec paths from config. An integration that hardcodes a spec path is a defect.
 
 ### Required workflow integrations
@@ -128,7 +130,7 @@ Runs full repository validation and presents actionable results.
 
 **Contract**:
 1. Invoke the CLI validate command, parse its JSON output, and summarise errors and warnings grouped by category, with a suggested fix for each error.
-2. If `specs.llm_review: true`, additionally perform the LLM review stages: the architecture-leak review of feature specs (`feature/spec-policies` §3) and the contradiction review of extending overlay specs (`feature/spec-overlays`). Report findings as warnings. Skip specs whose type has `llm_role: none`.
+2. If `specs.llm_review: true`, additionally perform the LLM review stages: the architecture-leak review of feature specs (`feature/spec-policies#3-architecture-leak-guard`) and the contradiction review of extending overlay specs (`feature/spec-overlays`). Report findings as warnings. Skip specs whose type has `llm_role: none`.
 3. If the CLI is unavailable, perform the checks by hand from the format specification, and say so.
 
 ---
@@ -216,7 +218,14 @@ Given `specs.feature.llm_role: none`,
 When the user says "Can you check my feature spec for issues?",
 Then the agent responds: "Policy (`specs.feature.llm_role: none`) prevents me from reviewing this spec."
 
-### Scenario 7: Existing AGENTS.md is preserved
+### Scenario 7: Skill contract drift is reported
+
+Given a harness skill records the `plan-step` contract by anchor with a pin,
+And the contract in this spec has since changed,
+When `validate` runs,
+Then a `base-changed` warning names the skill and the changed spec.
+
+### Scenario 8: Existing AGENTS.md is preserved
 
 Given a repository whose `AGENTS.md` contains the team's own rules,
 When `specplane init` runs,

@@ -97,7 +97,7 @@ author: mixed
 ---
 ```
 
-This spec has no counterpart in the base root. It is valid only in the context where the `claude` root applies.
+This spec has no counterpart in the base root. It is valid only in the context where the `claude` root applies. A spec that builds on base specs should be an extending overlay instead, so that changes to those base specs are tracked (see "Base pins").
 
 ### Extending overlay specs
 
@@ -109,16 +109,65 @@ id: feature/claude/plan-execution
 title: Plan execution — Claude Code extensions
 status: review
 author: mixed
-extends: base:feature/plan-execution
+extends: [base:feature/plan-execution, base:feature/plan-steps]
+based_on: { base:feature/plan-execution: 0e7de32, base:feature/plan-steps: c8cd747 }
 ---
 ```
 
-The `extends` field names the spec being extended (qualified or unqualified). The extending spec:
+The `extends` field names the spec or specs being extended: a single ID or a list (qualified or unqualified). The extending spec:
 
 - **Adds** capabilities, scenarios, or rules beyond what the base spec defines.
-- **Must not contradict** any claim in the base spec.
+- **Must not contradict** any claim in any spec it extends. Contradiction checks run once per extended spec.
 
-A contradiction between an overlay spec and the spec it extends is a **defect**: the overlay must not be approved while a contradiction is known. Because contradictions in natural language cannot be detected reliably by automation, validation reports suspected contradictions as warnings and a human reviewer decides (see below).
+A contradiction between an overlay spec and a spec it extends is a **defect**: the overlay must not be approved while a contradiction is known. Because contradictions in natural language cannot be detected reliably by automation, validation reports suspected contradictions as warnings and a human reviewer decides (see below).
+
+---
+
+## Base pins
+
+An extending overlay is written against the base specs as they were when it was last reviewed. Base specs change; without a record of what the overlay was reviewed against, the overlay drifts silently. A **base pin** records it.
+
+### The `based_on` field
+
+`based_on` is an optional frontmatter field on any spec: a map from a referenced spec ID to the git blob hash of that spec's file at the time the referencing spec was last reviewed against it.
+
+```yaml
+based_on: { feature/agent-integration: 3f2a9c1, feature/plan-steps: 81bd0e4 }
+```
+
+1. Keys must be IDs listed in the spec's `extends` or `implements`.
+2. A value is an abbreviated git blob hash of at least 7 hex characters: the output of `git rev-parse HEAD:<path>` for the committed file.
+3. The pin is content-addressed, so it survives rebases and squash merges, and `git diff <pin> <current>` shows exactly what changed in the base spec since review.
+
+### Stale pins
+
+A pin is **stale** when the referenced file's current committed blob differs from the pin.
+
+1. `validate` reports the warning `base-changed`: "`claude:feature/claude-integration` was reviewed against an older `feature/agent-integration`; review `git diff 3f2a9c1 <new>` then run `specplane spec pin claude:feature/claude-integration`."
+2. A change to the referenced spec that touches only its frontmatter `status` or `author` is ignored: no warning.
+3. If the pinned blob is not in the local object store (for example, a shallow clone), the warning still fires on a hash mismatch, but says the diff is unavailable.
+4. A spec with a stale pin cannot be set `approved` (validation error), the same as a known contradiction: the base change must be reviewed first.
+
+### Commands and configuration
+
+| Command | Behaviour |
+|---------|-----------|
+| `specplane spec pin <id> [<ref-id>...]` | Writes or refreshes pins to the current committed blobs of the named references (all of the spec's `extends` and `implements` when none are named). Refuses for a referenced file with uncommitted changes. |
+| `specplane spec pin --check` | Lists stale pins. Exit code 1 if any. |
+
+Pins are optional. Config `specs.pin_bases` sets the policy:
+
+| Value | Behaviour |
+|-------|-----------|
+| `off` | Missing pins are not reported. |
+| `warn` (default) | An overlay spec with `extends` but no pin gets a warning. |
+| `require` | A missing pin is an error, for both `extends` and `implements`. |
+
+Pinning records that a human reviewed the base change; running `specplane spec pin` is how the reviewer says so.
+
+### Section references
+
+A spec may reference a section of another spec as `<id>#<heading-slug>`, where the slug is the GitHub-style slug of the heading text (for example `feature/spec-policies#meaning-of-each-value`). `validate` warns when the slug matches no heading in the referenced spec, which catches renamed sections. The prose form `<id> § <Heading>` remains allowed but is not checked; the anchor form is recommended.
 
 ---
 
@@ -130,7 +179,12 @@ A contradiction between an overlay spec and the spec it extends is a **defect**:
 | `extends` must reference a spec in the root's extends chain | Error | The referenced spec must exist in a root the overlay extends (qualified or unqualified). |
 | An overlay spec must not shadow a spec in its extends chain | Error | See "No shadowing". |
 | Root `extends` must name a declared root and must not form a cycle | Error | See `feature/configuration`. |
-| Extending spec must not contradict its base spec | Warning (suspected) | Detected by heuristics and optional LLM review; a human confirms. |
+| Extending spec must not contradict any spec it extends | Warning (suspected) | Detected by heuristics and optional LLM review, per extended spec; a human confirms. |
+| `based_on` keys must be IDs in the spec's `extends` or `implements` | Error | See "Base pins". |
+| Pin differs from the referenced file's current blob | Warning (`base-changed`) | Ignored when only `status`/`author` changed. |
+| Spec with a stale pin set to `approved` | Error | Review the base change and re-pin first. |
+| Missing pin | Off / warning / error | Per `specs.pin_bases`. |
+| `<id>#<slug>` matches no heading in the referenced spec | Warning | `<id> § <Heading>` is not checked. |
 | No tool, skill, or agent instruction may hardcode spec paths | Design rule | Paths are always resolved from config. This is enforced by convention and code review, not automated checks. |
 
 ### Contradiction detection
@@ -188,7 +242,58 @@ Then `claude:feature/claude-integration` resolves to the `claude` root, and `fea
 
 ---
 
+### Scenario 7: Stale pin warning
+
+Given `claude:feature/claude-integration` has `based_on: { feature/agent-integration: 3f2a9c1 }`,
+And `feature/agent-integration` has since been committed with different body text,
+When validation runs,
+Then it reports the warning `base-changed`: "`claude:feature/claude-integration` was reviewed against an older `feature/agent-integration`; review `git diff 3f2a9c1 <new>` then run `specplane spec pin claude:feature/claude-integration`."
+
+### Scenario 8: Status-only base change is ignored
+
+Given a pinned spec whose referenced spec's only committed change is `status: review` to `status: approved`,
+When validation runs,
+Then no `base-changed` warning is reported.
+
+### Scenario 9: Approval blocked by a stale pin
+
+Given `claude:feature/claude-integration` has a stale pin,
+When a user sets it to `status: approved` and validation runs,
+Then validation reports an error: the base change in `feature/agent-integration` must be reviewed and the spec re-pinned first.
+And after `specplane spec pin claude:feature/claude-integration` the error no longer appears.
+
+### Scenario 10: Extending several specs
+
+Given an overlay spec has `extends: [feature/agent-integration, feature/plan-steps]`,
+When validation runs,
+Then both IDs are resolved via the extends chain,
+And contradiction warnings are evaluated against each extended spec separately.
+
+### Scenario 11: Renamed section anchor
+
+Given a spec references `feature/spec-policies#meaning-of-each-value`,
+And that heading has been renamed,
+When validation runs,
+Then a warning is reported that the anchor matches no heading in `feature/spec-policies`.
+
+### Scenario 12: Shallow clone
+
+Given a shallow clone in which a pinned blob is not available locally,
+And the referenced spec's current blob differs from the pin,
+When validation runs,
+Then the `base-changed` warning is still reported, and states that the diff is unavailable.
+
+### Scenario 13: Refusing to pin uncommitted base changes
+
+Given `feature/agent-integration` has uncommitted changes,
+When the user runs `specplane spec pin claude:feature/claude-integration`,
+Then the command refuses and names the file with uncommitted changes.
+
+---
+
 ## Edge cases
+
+- A pin to a spec that is later renamed or moved follows the new path on the next `specplane spec pin`; until then the pin is reported as unresolvable (warning).
 
 - A root may extend a root that is itself an overlay (chaining). Resolution traverses the full chain in order.
 - A root may not extend itself or create a cycle in the extends chain (validation error).

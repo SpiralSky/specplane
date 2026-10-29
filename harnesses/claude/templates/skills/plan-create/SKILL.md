@@ -4,6 +4,7 @@ description: Create a new Specplane plan interactively. Use when the user runs /
 argument-hint: "[goal]"
 disable-model-invocation: true
 ---
+<!-- specplane-contract: architecture/agent-skills#plan-create@6bc0570 -->
 
 # plan-create
 
@@ -28,7 +29,7 @@ Use `AskUserQuestion` for the slug, spec, and dependency choices when it is avai
 2. Ask for the specs and dependencies; resolve each spec ID (no root context) and plan ID. Reject unknown IDs, abandoned dependencies, and dependency cycles.
 3. Draft the PLAN.md body sections (`architecture/file-formats` §2.2) with the user.
 4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths).
-5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`) and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new` when available.
+5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`), an empty `<plans.dir>/<id>/HANDOFF.md` (header only; `/plan-step` appends step sections), and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new` when available.
 6. Run validation on the new plan.
 
 ## Output

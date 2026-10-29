@@ -1,5 +1,5 @@
 #!/bin/sh
-# PreToolUse hook (matcher: Edit|MultiEdit|Write): enforce specs.<type>.llm_role on spec edits.
+# PreToolUse hook (matcher: Edit|MultiEdit|Write|NotebookEdit): enforce specs.<type>.llm_role on spec edits.
 # none -> deny; assist -> ask (blocks in non-interactive sessions); draft -> allow.
 # Exits 0 whenever it cannot do its job.
 root="${CLAUDE_PROJECT_DIR:-.}"
@@ -9,7 +9,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat) || exit 0
 tool=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null) || exit 0
 case "$tool" in Edit|MultiEdit|Write|NotebookEdit) ;; *) exit 0 ;; esac
-file=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+file=$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' 2>/dev/null)
 content=$(printf '%s' "$input" | jq -r '.tool_input.content // empty' 2>/dev/null)
 if [ "$tool" = Write ] && [ -n "$content" ]; then
   text=$content

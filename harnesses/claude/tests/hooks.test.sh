@@ -172,6 +172,11 @@ for role in none assist draft absent; do
   pg "guard[$role]: Edit file claude:feature/x" "$d" "$(pgj Edit "$d/specs/f2.md" '')" $ef
   pg "guard[$role]: Edit file architecture/x" "$d" "$(pgj Edit specs/a1.md '')" $ea
 done
+d="$tmp/pg-none"
+printf '{"cells":[],"metadata":{},"nbformat":4,"nbformat_minor":5}\n' > "$d/spec.ipynb"
+pg "guard[none]: NotebookEdit uses notebook_path (no spec id) -> none" "$d" "$("$JQ" -n '{tool_name:"NotebookEdit",tool_input:{notebook_path:"spec.ipynb"}}')" none
+printf -- '---\nid: feature/nb\n---\nbody\n' > "$d/nb-spec.md"
+pg "guard[none]: NotebookEdit notebook_path reaches spec check" "$d" "$("$JQ" -n '{tool_name:"NotebookEdit",tool_input:{notebook_path:"nb-spec.md"}}')" deny
 d="$tmp/pg-assist"
 printf -- '---\nid: plan/x\n---\n' > "$d/plan.md"
 printf -- '---\nid: decision/0001\n---\n' > "$d/adr.md"
