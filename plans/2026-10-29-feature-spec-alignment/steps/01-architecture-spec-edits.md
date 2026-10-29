@@ -2,7 +2,7 @@
 plan: 2026-10-29-feature-spec-alignment
 step: 1
 title: Architecture spec edits for reference-cli and file-formats
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli
   - spec: architecture/file-formats
@@ -20,9 +20,9 @@ Specify in the architecture specs everything the applied feature-spec changes re
 
 ## Acceptance criteria
 
-- [ ] `architecture/file-formats` has a `spec-gaps.md` section (entry heading `## G<n>: <case>`, fields, kinds, statuses, unique and never-reused numbers) and §4 states that a re-run step appends a section with the same heading, latest wins.
-- [ ] §6.2 matches `feature/decisions` § Frontmatter validation (id/filename, `superseded_by` warning, cycles).
-- [ ] `architecture/reference-cli` covers: spec root path checks and the `worktree_dir` message; ADR checks; stack-mode `blocked` in `plan/status.ts`; abandon from `done`/`abandoned` fails; `--no-fetch` on start and finish; `search --kind`; `restack --dry-run` output; `spec-gaps.md` parsing, validation, and the finish-flow listing.
+- [x] `architecture/file-formats` has a `spec-gaps.md` section (entry heading `## G<n>: <case>`, fields, kinds, statuses, unique and never-reused numbers) and §4 states that a re-run step appends a section with the same heading, latest wins.
+- [x] §6.2 matches `feature/decisions` § Frontmatter validation (id/filename, `superseded_by` warning, cycles).
+- [x] `architecture/reference-cli` covers: spec root path checks and the `worktree_dir` message; ADR checks; stack-mode `blocked` in `plan/status.ts`; abandon from `done`/`abandoned` fails; `--no-fetch` on start and finish; `search --kind`; `restack --dry-run` output; `spec-gaps.md` parsing, validation, and the finish-flow listing.
 - [ ] `specplane spec pin` refreshed for dependants; `specplane spec pin --check` and `specplane validate` pass.
 
 ## Tasks
