@@ -52,3 +52,25 @@ test("reports body line numbers", () => {
 test("configured allow terms are removed", () => {
   assert.deepEqual(types("Use Docker with Widget", ["Docker"]), []);
 });
+
+test("JSON Schema is a tech name, except in code fences or the allow list", () => {
+  assert.deepEqual(types("Validated with a JSON Schema."), ["tech_name:JSON Schema"]);
+  assert.deepEqual(types("```\nJSON Schema\n```\n"), []);
+  assert.deepEqual(types("Uses JSON Schema.", ["JSON Schema"]), []);
+});
+
+test("bare file names with code extensions are path warnings", () => {
+  assert.deepEqual(types("Edit foo.ts and config.yaml."), ["path:foo.ts", "path:config.yaml"]);
+  assert.deepEqual(types("See src/foo.ts"), ["path:src/foo.ts"]);
+});
+
+test("bare file name exclusions", () => {
+  assert.deepEqual(types("```\nfoo.ts\n```\n"), []);
+  assert.deepEqual(types("Use foo.ts", ["foo.ts"]), []);
+  assert.deepEqual(types("Run on Node.js", ["Node.js"]), []);
+  assert.deepEqual(types("Such as e.g. this, or README.md."), []);
+  assert.deepEqual(types("[foo.ts](x/y)"), []);
+  assert.deepEqual(types("[text](foo.ts)"), []);
+  assert.deepEqual(types("See PLAN.md and AGENTS.md"), []);
+  assert.deepEqual(types("Uses Next.js"), ["tech_name:Next.js"]);
+});

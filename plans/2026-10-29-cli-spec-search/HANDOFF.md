@@ -89,3 +89,32 @@ None.
 ### What the next step must know
 
 Use `reportError` and `AlreadyExistsError` in new commands; human reports go to stderr, data to stdout.
+
+## Step 04: Leak-guard heuristics and deprecated-reference warnings
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `spec/leak-guard.ts`: "JSON Schema" added to the tech-name list; bare-file-name heuristic (`path` type) with exclusions for code fences, link text and targets, allow-list, `.md` names, tech names (for example Next.js), and matches already inside a heuristic 1 path.
+- `spec/validate.ts`: `implements`/`extends` entries resolving to a `deprecated` spec warn (type `reference`, "`<id>` references deprecated spec `<ref>`.").
+- Tests added in `leak-guard.test.ts` and `validate.test.ts`; `npm test` 110/110.
+- `specplane validate` on this repo: exit 0, 0 errors; 62 warnings against 60 before, so 2 new.
+
+### Deviations from the plan
+
+- CHOICE: `Node.js` is not in the built-in allow list (the spec limits it to Specplane names); it is covered by a project `leak_guard_allow` entry, otherwise it warns as a bare `.js` name.
+- CHOICE: the deprecated message follows `architecture/reference-cli` rule 10, since `file-formats` §1.5 defines no such row.
+
+### Gaps found in specs
+
+`file-formats` §1.5 does not list the deprecated-reference finding; rule 10 of `reference-cli` is the only definition.
+
+### Open issues
+
+- Feature-spec proposal for the user: `feature/spec-policies` lines 180 and 182 mention "JSON Schema" (2 new `tech_name` warnings); reword or add to `leak_guard_allow`. No feature spec was edited.
+
+### What the next step must know
+
+Validate output now has 62 warnings on this repo; none of the new ones are errors.

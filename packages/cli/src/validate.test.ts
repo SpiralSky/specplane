@@ -261,3 +261,20 @@ test("rules freshness: missing or differing warns; matching does not", async () 
   // the rules file satisfies standing-instruction freshness without AGENTS.md
   assert.ok(!run({ ".claude/rules/specplane.md": tpl }).warnings.some((w) => w.type === "freshness" && w.file === "AGENTS.md"));
 });
+
+test("deprecated reference: extends warns, exit status unaffected", () => {
+  const r = run({
+    "specs/features/alpha.md": feat("feature/alpha", { status: "deprecated" }),
+    "ext-specs/features/beta.md": feat("feature/beta", { extends: "feature/alpha" }),
+  });
+  assert.ok(msgs(r, "warnings").includes("reference: `feature/beta` references deprecated spec `feature/alpha`."));
+  assert.equal(r.errors.filter((e) => e.type === "reference").length, 0);
+});
+
+test("non-deprecated reference gives no deprecated warning", () => {
+  const r = run({
+    "specs/features/alpha.md": feat("feature/alpha"),
+    "ext-specs/features/beta.md": feat("feature/beta", { extends: "feature/alpha" }),
+  });
+  assert.ok(!r.warnings.some((w) => w.message.includes("deprecated")));
+});

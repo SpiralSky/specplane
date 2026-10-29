@@ -24,7 +24,7 @@ const BUILTIN_NAMES = [
 const TECH_NAMES = [
   "TypeScript", "JavaScript", "Python", "Go", "Rust", "Java", "C++", "C#", "Ruby", "PHP", "SQLite",
   "PostgreSQL", "MySQL", "MongoDB", "Redis", "React", "Vue", "Angular", "Express", "FastAPI",
-  "Django", "Next.js", "npm", "pip", "cargo", "Docker", "Kubernetes",
+  "Django", "Next.js", "npm", "pip", "cargo", "Docker", "Kubernetes", "JSON Schema",
 ];
 const CASE_SENSITIVE = new Set(["Go", "Express"]);
 
@@ -33,6 +33,7 @@ const blank = (s: string) => s.replace(/[^\n]/g, " ");
 
 const PATH_FILE = /(?<![\w/])(?:\.{1,2}\/|\/)?[\w.-]+(?:\/[\w.-]+)+\.[a-z0-9]{1,5}\b/g;
 const PATH_DIR = /(?<![\w/])\.?\/?[\w.-]+\/[\w./-]*\/(?=\s|$|[`)])/g;
+const BARE_FILE = /(?<![\w/.-])[\w-]+(?:\.[\w-]+)*\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|rb|php|json|yaml|yml|toml|sh|sql|html|css)\b/g;
 const IDENTS = [
   /\b[a-z]+(?:[A-Z][a-z0-9]+)+\b/g,
   /\b(?:[A-Z][a-z0-9]+){2,}\b/g,
@@ -42,7 +43,7 @@ const IDENTS = [
 ];
 
 /** Blank fenced code blocks and link targets, preserving line numbers. */
-function preprocess(body: string, allow: string[]): string {
+function preprocess(body: string, allow: string[], linkText = false): string {
   const out: string[] = [];
   let fence: string | null = null;
   for (const line of body.split("\n")) {
@@ -53,7 +54,9 @@ function preprocess(body: string, allow: string[]): string {
       out.push(blank(line));
     } else out.push(fence === null ? line : blank(line));
   }
-  let text = out.join("\n").replace(/\]\([^)\n]*\)/g, (m) => "]" + blank(m.slice(1)));
+  let text = out.join("\n");
+  if (linkText) text = text.replace(/\[([^\]\n]*)\](?=\([^)\n]*\))/g, (_m, t: string) => "[" + blank(t) + "]");
+  text = text.replace(/\]\([^)\n]*\)/g, (m) => "]" + blank(m.slice(1)));
   const terms = [...new Set([...allow, ...BUILTIN_NAMES])].filter((t) => t !== "").sort((a, b) => b.length - a.length);
   for (const t of terms) {
     text = text.replace(new RegExp(`(?<![\\w])${esc(t)}(?![\\w])`, "g"), blank);
@@ -67,6 +70,7 @@ function techRegex(name: string): RegExp {
 
 export function checkArchitectureLeak(body: string, allow: string[]): LeakWarning[] {
   const lines = preprocess(body, allow).split("\n");
+  const bareLines = preprocess(body, allow, true).split("\n");
   const seen = new Set<string>();
   const out: LeakWarning[] = [];
   const add = (type: LeakType, line: number, match: string, label: string) => {
@@ -78,6 +82,11 @@ export function checkArchitectureLeak(body: string, allow: string[]): LeakWarnin
   lines.forEach((text, i) => {
     const n = i + 1;
     for (const re of [PATH_FILE, PATH_DIR]) for (const m of text.matchAll(re)) add("path", n, m[0], "");
+    for (const m of (bareLines[i] ?? "").matchAll(BARE_FILE)) {
+      if (/\.md$/i.test(m[0]) || TECH_NAMES.some((t) => t.toLowerCase() === m[0].toLowerCase())) continue;
+      if (out.some((w) => w.type === "path" && w.line === n && w.match.includes(m[0]))) continue;
+      add("path", n, m[0], "");
+    }
     for (const name of TECH_NAMES) for (const m of text.matchAll(techRegex(name))) add("tech_name", n, m[0], "");
     const techs = new Set(out.filter((w) => w.type === "tech_name" && w.line === n).map((w) => w.match.toLowerCase()));
     for (const re of IDENTS) for (const m of text.matchAll(re)) if (!techs.has(m[0].toLowerCase())) add("identifier", n, m[0], "");

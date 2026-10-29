@@ -154,6 +154,16 @@ export function validateSpec(spec: LoadedSpec, config: Config, repoRoot: string)
     }
   };
 
+  const checkDeprecated = (ref: string, file: string) => {
+    try {
+      if (readFrontmatter(file).data.status === "deprecated") {
+        at("warning", "reference", `\`${fm.id}\` references deprecated spec \`${ref.split("#")[0]}\`.`);
+      }
+    } catch {
+      /* unreadable target is reported by its own validation */
+    }
+  };
+
   // 1. ID matches path-derived ID.
   if (fm.id !== spec.id) at("error", "id", `ID \`${fm.id}\` does not match path-derived ID \`${spec.id}\`.`);
 
@@ -167,7 +177,10 @@ export function validateSpec(spec: LoadedSpec, config: Config, repoRoot: string)
     for (const ref of fm.implements ?? []) {
       const r = resolve(ref, spec.root.name);
       if (r instanceof Error) at("error", "reference", `\`implements\` entry \`${ref}\` does not resolve: ${r.message}`);
-      else checkAnchor(ref, r.path);
+      else {
+        checkAnchor(ref, r.path);
+        checkDeprecated(ref, r.path);
+      }
     }
   }
 
@@ -186,7 +199,10 @@ export function validateSpec(spec: LoadedSpec, config: Config, repoRoot: string)
     }
     const r = resolve(ref, spec.root.extends);
     if (r instanceof Error) at("error", "reference", `\`extends\` entry \`${ref}\` does not resolve in the extends chain of root \`${spec.root.name}\`: ${r.message}`);
-    else checkAnchor(ref, r.path);
+    else {
+      checkAnchor(ref, r.path);
+      checkDeprecated(ref, r.path);
+    }
   }
 
   // 6. Shadowing.
