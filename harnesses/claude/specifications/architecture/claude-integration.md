@@ -131,7 +131,7 @@ disable-model-invocation: <true|false; see table>
 <What the agent says or produces.>
 ```
 
-The body restates the contract from `architecture/agent-skills` and adds only Claude Code–specific detail. It must not change policy. `$ARGUMENTS` in the body receives the text the user typed after the command.
+The body restates the contract from `architecture/agent-skills` and adds only Claude Code–specific detail. It must not change policy. `$ARGUMENTS` in the body receives the text the user typed after the command. Skills split `$ARGUMENTS` on whitespace; tokens starting with `--` are flags (`--unattended`), and the first remaining token is the positional argument (`plan-id`, `topic`, or `goal`; for `spec-draft-architecture`, all remaining tokens are spec IDs). Skills whose contract has no policy check write "None." under `## Policy check`.
 
 ### Per-skill frontmatter and Claude Code detail
 
@@ -220,8 +220,8 @@ Registration (`templates/settings.json`):
 
 | Script | Event / matcher | Action |
 |--------|-----------------|--------|
-| `specplane-handoff-check.sh` | `PostToolUse` / `Bash` | If the command was a `git commit` (same pattern as the pre-commit hook) and `git log -1 --format=%s` matches `^plan/[^ ]+ step [0-9]+:`, take `<id>` from that subject and check `git show --name-only --format= HEAD` for `<plans.dir>/<id>/HANDOFF.md` (plans dir from `.specplane/config.yaml`, default `plans`, read with a `grep`/`sed` on the `dir:` key under `plans:`). If absent, print `Warning: step commit did not update <path>.` to stdout. Always exits 0. |
-| `specplane-generate.sh` | `PostToolUse` / `Edit\|Write` | If `.tool_input.file_path` ends in `/PLAN.md` and `specplane` is installed, run `specplane generate`. Always exits 0. |
+| `specplane-handoff-check.sh` | `PostToolUse` / `Bash` | If the command was a `git commit` (same pattern as the pre-commit hook) and `git log -1 --format=%s` matches `^plan/[^ ]+ step [0-9]+:`, take `<id>` from that subject and check `git show --name-only --format= HEAD` for `<plans.dir>/<id>/HANDOFF.md` (plans dir from `.specplane/config.yaml`: the first `dir:` key inside the top-level `plans:` block, read with `sed`; default `plans`). If absent, print `Warning: step commit did not update <path>.` to stdout. Always exits 0. |
+| `specplane-generate.sh` | `PostToolUse` / `Edit\|Write` | If `.tool_input.file_path` ends in `/PLAN.md` and `specplane` is installed, run `specplane generate`, sending its output to stderr. Always exits 0. |
 
 Registration snippets (documented in each script's header comment):
 
