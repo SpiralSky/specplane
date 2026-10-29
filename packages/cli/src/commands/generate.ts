@@ -5,11 +5,16 @@ import { SpecplaneError } from "../errors.js";
 import { generatePlansMd, plansMdPath } from "../generate/plans-md.js";
 import { checkoutRoot } from "../git/repo.js";
 
-export function generateCommand(opts: { print?: boolean }): void {
+export function generateCommand(opts: { print?: boolean; live?: boolean }): void {
   try {
     const root = checkoutRoot();
     const { config } = loadConfig(root);
-    const content = generatePlansMd(config, root);
+    if (opts.live && !opts.print) {
+      process.stderr.write("--live requires --print: the committed PLANS.md never contains live statuses.\n");
+      process.exitCode = 1;
+      return;
+    }
+    const content = generatePlansMd(config, root, { live: opts.live });
     if (opts.print) {
       process.stdout.write(content);
       return;

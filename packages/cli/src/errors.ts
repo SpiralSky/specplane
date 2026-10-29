@@ -107,3 +107,9 @@ export function reportError(e: unknown): boolean {
   process.exitCode = e.exitCode;
   return true;
 }
+export class CommitFormatError extends SpecplaneError {
+  readonly exitCode = 1;
+  constructor(reason: string) {
+    super(`Invalid commit message: ${reason}`);
+  }
+}

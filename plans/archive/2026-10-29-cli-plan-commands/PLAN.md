@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-cli-plan-commands
 title: CLI plan commands, effective status, and live activity
-status: ready
+status: done
 specs:
   - feature/tooling
   - feature/plan-status
@@ -49,13 +49,13 @@ Add the read-side plan commands: `plan new`, `plan list`, `plan show`, `plan gra
 
 ## Acceptance criteria
 
-- [ ] `specplane plan list` shows stored and effective statuses; `--status blocked` filters by effective status (Scenario 4 of `feature/tooling`).
-- [ ] `plan list --json --live` returns the activity fields of `architecture/reference-cli` § Plan activity, including remote-only plans and the backend field added in step 01.
-- [ ] `generate --print --live` prints the index with live statuses and never writes the file; plain `generate` stays deterministic.
-- [ ] `plan new` creates a valid PLAN.md (draft) and `steps/`; an existing ID exits 1 with the exact text.
-- [ ] `plan show` and `plan graph` print as specified.
-- [ ] `plans/2026-10-29-cli-plan-commands/feature-spec-proposals.md` covers plan-status and plan-index findings.
-- [ ] `npm test` passes; `specplane validate` exits 0.
+- [x] `specplane plan list` shows stored and effective statuses; `--status blocked` filters by effective status (Scenario 4 of `feature/tooling`).
+- [x] `plan list --json --live` returns the activity fields of `architecture/reference-cli` § Plan activity, including remote-only plans and the backend field added in step 01.
+- [x] `generate --print --live` prints the index with live statuses and never writes the file; plain `generate` stays deterministic.
+- [x] `plan new` creates a valid PLAN.md (draft) and `steps/`; an existing ID exits 1 with the exact text.
+- [x] `plan show` and `plan graph` print as specified.
+- [x] `plans/2026-10-29-cli-plan-commands/feature-spec-proposals.md` covers plan-status and plan-index findings.
+- [x] `npm test` passes; `specplane validate` exits 0.
 
 ## Risks
 

@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-plan-commands
 step: 6
 title: plan new, show, graph
-status: pending
+status: done
 context:
   - spec: feature/tooling#`specplane plan new`
   - spec: feature/tooling#`specplane plan show <id>`
@@ -21,11 +21,11 @@ Implement `plan new`, `plan show`, and `plan graph`.
 
 ## Acceptance criteria
 
-- [ ] `plan new --id <id> --title T --specs a,b --depends-on c` creates `PLAN.md` (status `draft`, template body), an empty `steps/`, and a header-only `HANDOFF.md`; the result passes `validate`.
-- [ ] An existing ID exits 1 with "Plan `<id>` already exists. Choose a different slug."; unknown spec or plan IDs and cycles are rejected.
-- [ ] `plan show <id>` prints the PLAN.md of an active or archived plan; unknown ID exits 1.
-- [ ] `plan graph` prints the same Mermaid graph as PLANS.md.
-- [ ] Tests for each command.
+- [x] `plan new --id <id> --title T --specs a,b --depends-on c` creates `PLAN.md` (status `draft`, template body), an empty `steps/`, and a header-only `HANDOFF.md`; the result passes `validate`.
+- [x] An existing ID exits 1 with "Plan `<id>` already exists. Choose a different slug."; unknown spec or plan IDs and cycles are rejected.
+- [x] `plan show <id>` prints the PLAN.md of an active or archived plan; unknown ID exits 1.
+- [x] `plan graph` prints the same Mermaid graph as PLANS.md.
+- [x] Tests for each command.
 
 ## Tasks
 

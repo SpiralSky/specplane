@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-plan-commands
 step: 3
 title: git/commit.ts, branch queries, worktree listing
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Git and forge integration (`git/`)
   - spec: architecture/reference-cli#`commit.ts`
@@ -18,11 +18,11 @@ Implement the git helpers the read-side commands need: commit message formatting
 
 ## Acceptance criteria
 
-- [ ] `formatMessage` produces subject, body, and trailers in the file-formats order and throws `CommitFormatError` over 72 characters, except `chore(specplane): ...` subjects.
-- [ ] `cliTrailers` includes `Specplane-Agent` and `Specplane-Session` only when the env vars are set and non-empty.
-- [ ] `readTrailers` and `findLatest` return the right values on a temp repo with repeated keys (last wins).
-- [ ] `branchExists`, `remoteBranchExists`, and a `listWorktrees()` parser of `git worktree list --porcelain` are tested.
-- [ ] Unit tests pass.
+- [x] `formatMessage` produces subject, body, and trailers in the file-formats order and throws `CommitFormatError` over 72 characters, except `chore(specplane): ...` subjects.
+- [x] `cliTrailers` includes `Specplane-Agent` and `Specplane-Session` only when the env vars are set and non-empty.
+- [x] `readTrailers` and `findLatest` return the right values on a temp repo with repeated keys (last wins).
+- [x] `branchExists`, `remoteBranchExists`, and a `listWorktrees()` parser of `git worktree list --porcelain` are tested.
+- [x] Unit tests pass.
 
 ## Tasks
 

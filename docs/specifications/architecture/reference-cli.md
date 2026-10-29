@@ -358,13 +358,37 @@ Harness live views (for example `claude:architecture/claude-integration` § Live
 | Field | Source |
 |-------|--------|
 | `branch` | `plan/<id>` if it exists locally or on `origin`, else `null` |
-| `checkout` | worktree path from `git worktree list --porcelain`, else `null` (branch-only, remote-only, or external) |
+| `backend` | `execution.backend` from config: `worktree`, `branch`, or `external` |
+| `where` | `local` when `plan/<id>` exists as a local branch; `remote` when it exists only as `refs/remotes/origin/plan/<id>`; `none` when neither exists (not started) |
+| `checkout` | path of the worktree whose checked-out branch is `refs/heads/plan/<id>`, from `git worktree list --porcelain`, else `null`. For the `worktree` backend this is the plan's worktree; for the `branch` backend it is the main checkout's root while that checkout is on `plan/<id>`, and `null` otherwise; always `null` when `where` is not `local` and for the `external` backend |
 | `steps` | `{ total, done, skipped, blocked, next }` from the step files at the branch tip (`git show <branch>:<path>`), else from the default branch; `next` is `{ number, title, status }` or `null` |
 | `blocked_issues` | `BLOCKED:` lines from HANDOFF.md at the branch tip |
 | `last_step_commit` | newest commit on the branch with `Specplane-Workflow: step`: `{ sha, time, step, agent, session }` from its trailers, else `null` |
 | `ahead_of_remote` | commits on the local branch not on `origin/plan/<id>` (`null` without a remote branch) |
 
 `--live` fetches `origin` at most once per invocation (`git fetch --quiet origin 'refs/heads/plan/*:refs/remotes/origin/plan/*'`), skipped with `--no-fetch` or when there is no remote. Without `--live`, these fields come from local refs only.
+
+## Plan commands (`commands/plan.ts`)
+
+Read-side plan commands; the registration pattern is that of the spec commands below. Handlers load config through `loadConfig`, read plans from the checkout root through `plan/resolve.ts` and `plan/parse.ts` (active and `archive/`), and surface config warnings on stderr. Texts and options are those of `feature/tooling` § `specplane plan`. Start, finish, abandon, cleanup, and archive are specified under § Plan flows.
+
+### `plan new`
+
+Inputs: `--id`, `--title`, `--specs` and `--depends-on` (comma-separated). Without `--id`, the ID is `<today as YYYY-MM-DD>-<slug>`, where the slug is prompted for (a TTY is required, otherwise the command fails with "Plan ID needed: pass `--id`."). The ID must match the pattern in `architecture/file-formats` §1.1. Checks, in order: ID format, existence in `plans.dir` or its `archive/` (`AlreadyExistsError`: "Plan `<id>` already exists. Choose a different slug."), then each `--specs` ID resolves and each `--depends-on` ID is an existing plan (`SpecNotFoundError` or `PlanNotFoundError`). The title is prompted for when absent and a TTY is attached; otherwise it defaults to the slug with hyphens replaced by spaces and the first letter capitalised. Writes `<plans.dir>/<id>/PLAN.md` with `status: draft`, the given `specs` and `depends_on`, and the body headings of `architecture/file-formats` §4, plus an empty `steps/` directory (containing `.gitkeep`). It then prints `Created <path>` on stdout. Exit codes: 0 success, 1 any error above.
+
+### `plan list`
+
+Inputs: `--status`, `--json`, `--live`, `--no-fetch`. Computes `getEffectiveStatus` for every plan (active and archived; an unparsable plan is skipped and reported on stderr) and sorts rows by ID descending. `--status` filters on the effective status. Human output is aligned columns `id`, `title`, effective status; with `--live` a second line per plan with activity (step progress, next step, `where`, blockers). `--json` prints an array of `{id, title, stored_status, effective_status, depends_on, specs, archived}`, and with `--live` each object also carries the fields of § Plan activity. `--live` also lists plans whose branch exists only on the remote and not on the default branch, with `stored_status` taken from `PLAN.md` at the branch tip. Exit 0, or 1 for a `--status` value that is not a plan status.
+
+### `plan show <id>`
+
+Resolves `id` through `plan/resolve.ts` (active or archived) and prints its `PLAN.md` unchanged to stdout. Errors: `PlanNotFoundError`. Exit 0 or 1.
+
+### `plan graph`
+
+Builds the graph with `buildGraph` over all active plans and prints `toMermaid` output (the block of `architecture/file-formats` §5.2, without the surrounding PLANS.md prose) to stdout, with effective statuses for the node classes. A dependency cycle throws `DependencyCycleError`. Exit 0, or 1 on a cycle.
+
+---
 
 ## Spec, search, and init commands (`commands/spec.ts`, `commands/search.ts`, `commands/init.ts`)
 

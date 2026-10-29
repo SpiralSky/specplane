@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-plan-commands
 step: 1
 title: Architecture spec edits for plan commands and activity
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Plan status (`plan/status.ts`)
   - spec: architecture/reference-cli#Plan activity (`plan list --json`)
@@ -19,9 +19,9 @@ Specify the `plan new/list/show/graph` command sections and add a backend/`where
 
 ## Acceptance criteria
 
-- [ ] `architecture/reference-cli` has sections for `plan new`, `plan list`, `plan show`, `plan graph` (module, inputs, outputs, exit codes).
-- [ ] The plan-activity table adds `backend` (`worktree|branch|external`, from config) and `where` (`local|remote|none`) fields, with how each is derived; `checkout` semantics are clarified for the branch backend.
-- [ ] Pins are refreshed; `specplane validate` and `spec pin --check` pass.
+- [x] `architecture/reference-cli` has sections for `plan new`, `plan list`, `plan show`, `plan graph` (module, inputs, outputs, exit codes).
+- [x] The plan-activity table adds `backend` (`worktree|branch|external`, from config) and `where` (`local|remote|none`) fields, with how each is derived; `checkout` semantics are clarified for the branch backend.
+- [x] Pins are refreshed; `specplane validate` and `spec pin --check` pass.
 
 ## Tasks
 
