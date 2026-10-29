@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { AmbiguousIdError, GitError, PlanNotFoundError, PlanStateError, SetupHookError, SpecNotFoundError, UnknownRootError } from "../errors.js";
+import { createPR } from "../git/forge.js";
 import { branchExists, createBranch, deleteBranch, rebaseOnto, remoteBranchExists } from "../git/branch.js";
 import { cliTrailers, findLatest, formatMessage, readTrailers } from "../git/commit.js";
 import { run } from "../git/exec.js";
@@ -259,11 +260,6 @@ export interface FinishResult {
   notices: string[];
 }
 
-/** Single forge call site (a later plan adds real PR creation); null means "no forge available". */
-function openPullRequest(_branch: string, _base: string, _title: string, _body: string): string | null {
-  return null;
-}
-
 function git(args: string[], cwd: string): string {
   return run("git", args, { cwd }).trim();
 }
@@ -278,6 +274,13 @@ function runTests(cmd: string, cwd: string): void {
   if (r.error || r.status !== 0) {
     throw new PlanStateError(`Verification failed: \`${cmd}\` exited with code ${r.status ?? 1}. Fix failing tests before finishing.`);
   }
+}
+
+/** PR body built from the plan: summary line plus the acceptance criteria checklist. */
+function prBody(id: string, title: string, criteria: string[]): string {
+  const lines = [`Plan \`${id}\`: ${title}`];
+  if (criteria.length > 0) lines.push("", "## Acceptance criteria", "", ...criteria);
+  return lines.join("\n");
 }
 
 /** Acceptance-criteria checklist lines of a PLAN.md body. */
@@ -358,7 +361,8 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   rebaseOnto(rebaseTip, stackBase ?? rebaseTip, branch, root);
   if (git(["rev-parse", "HEAD"], root) !== before && testCmd !== "") runTests(testCmd, root);
 
-  // 5. Final commit.
+  // 5. Final commit (the PLAN.md may move to the archive, so read the criteria first).
+  const criteria = acceptanceCriteria(fs.readFileSync(path.join(dir, "PLAN.md"), "utf8"));
   if (!alreadyDone) finalCommit(id, config, root);
 
   // 6. Merge.
@@ -366,7 +370,7 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   let prUrl: string | null = null;
   if (merge === "pull_request") {
     run("git", ["push", "-u", "--force-with-lease", "origin", branch], { cwd: root });
-    prUrl = openPullRequest(branch, def, planHere.title, `Plan \`${id}\``);
+    prUrl = createPR(branch, def, planHere.title, prBody(id, planHere.title, criteria), { cwd: root, forge: config.plans.forge });
     notices.push(
       prUrl ? `Opened pull request: ${prUrl}` : `Pushed \`${branch}\`. Open a pull request from \`${branch}\` into \`${def}\`, then run \`specplane plan cleanup ${id}\` after it merges.`,
     );

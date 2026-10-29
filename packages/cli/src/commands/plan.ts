@@ -9,6 +9,7 @@ import { buildGraph, detectCycle } from "../plan/graph.js";
 import { PlanNotFoundError } from "../errors.js";
 import { planDir } from "../plan/resolve.js";
 import { ID_RE_PLAN, planBody } from "../plan/new-template.js";
+import { hasOpenPR } from "../git/forge.js";
 import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { checkoutRoot } from "../git/repo.js";
 import { fetchPlanBranches, getPlanActivity, remotePlanFrontmatter, remotePlanIds, type PlanActivity } from "../plan/activity.js";
@@ -72,6 +73,7 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
   const byId = new Map(parsed.map((p) => [p.fm.id, p.fm]));
   const git = {
     branchExists: (id: string) => branchExists(`plan/${id}`, root) || remoteBranchExists(`plan/${id}`, root),
+    hasOpenPr: (id: string) => hasOpenPR(`plan/${id}`, { cwd: root, forge: config.plans.forge }),
   };
   const rows: (PlanListRow | LivePlanListRow)[] = parsed
     .map(({ fm, archived }) => ({
