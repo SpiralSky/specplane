@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-claude-instructions-and-enforcement
 title: Claude harness — standing instructions, enforcement hooks, live view
-status: draft
+status: ready
 specs:
   - claude:feature/claude-integration
   - claude:architecture/claude-integration
