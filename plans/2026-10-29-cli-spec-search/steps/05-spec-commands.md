@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-spec-search
 step: 5
 title: spec new, list, show, validate
-status: pending
+status: done
 context:
   - spec: feature/tooling#`specplane spec`
   - spec: feature/tooling#`specplane spec new <type> <slug>`
@@ -24,12 +24,12 @@ Implement `specplane spec new`, `list`, `show`, and `validate [<id>...]`.
 
 ## Acceptance criteria
 
-- [ ] `spec new feature <slug> --title T` writes a draft spec with `author: user` that passes `validate`; `spec new architecture` without `--implements` exits 1 with "Architecture spec needs `--implements`." (non-interactive) .
-- [ ] Existing ID, unknown root, and unknown type each exit 1 with the exact texts in `feature/tooling`.
-- [ ] `spec list` filters by `--status`, `--type`, `--root` and prints the table or `--json` array with `id,title,status,author,root`.
-- [ ] `spec show <id>` prints the file; an ambiguous ID exits 1 with the `<root>:<id>` hint; `--root` qualifies it.
-- [ ] `spec validate` with no arguments equals the spec part of `validate`; with IDs it checks only those; `--json` matches the validation output format.
-- [ ] Tests cover each command, including an overlay root.
+- [x] `spec new feature <slug> --title T` writes a draft spec with `author: user` that passes `validate`; `spec new architecture` without `--implements` exits 1 with "Architecture spec needs `--implements`." (non-interactive) .
+- [x] Existing ID, unknown root, and unknown type each exit 1 with the exact texts in `feature/tooling`.
+- [x] `spec list` filters by `--status`, `--type`, `--root` and prints the table or `--json` array with `id,title,status,author,root`.
+- [x] `spec show <id>` prints the file; an ambiguous ID exits 1 with the `<root>:<id>` hint; `--root` qualifies it.
+- [x] `spec validate` with no arguments equals the spec part of `validate`; with IDs it checks only those; `--json` matches the validation output format.
+- [x] Tests cover each command, including an overlay root.
 
 ## Tasks
 

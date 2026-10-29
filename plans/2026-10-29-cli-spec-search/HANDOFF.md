@@ -118,3 +118,35 @@ Use `reportError` and `AlreadyExistsError` in new commands; human reports go to 
 ### What the next step must know
 
 Validate output now has 62 warnings on this repo; none of the new ones are errors.
+
+## Step 05: spec new, list, show, validate
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `commands/spec.ts`: `spec new`, `list`, `show`, `validate [<id>...]` (handlers return values; `*Command` wrappers print and call `reportError`); wired into `cli.ts` under the existing `spec` command.
+- `errors.ts`: `UnknownRootError`, `SpecNotFoundError`, `PlanNotFoundError` messages now end in a full stop, matching `feature/tooling` and the error table.
+- `commands/spec.test.ts`: spawns the built CLI in a temp git repo with a base and an overlay root; covers every command, error texts, filters, JSON, ambiguity. `npm test` 116/116; `validate` on this repo: 0 errors.
+
+### Deviations from the plan
+
+- CHOICE: `spec new` body is the heading scaffold of the file-formats §1.3/§1.4 templates (H1 plus section headings, no placeholder prose), not an empty body.
+- CHOICE: unknown type and invalid slug use a local `SpecUsageError` in `commands/spec.ts` (exit 1) rather than a new shared error class.
+- CHOICE: `spec validate <id>...` runs `validateSpecs` and keeps only findings located in the named files, so cross-spec checks (ordering, leak guard, overlay) apply to the named specs too.
+- CHOICE: `spec show --root R <id>` is equivalent to `R:<id>` (exact root, no extends-chain walk).
+- CHOICE: `spec list` notes unparseable specs on stderr ("Skipped <file>: ...") and omits them.
+- CHOICE: `spec new` uppercase slug is lowercased; `--root` defaults to `base` even if config has no such root (then `Unknown root`).
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+- No TTY prompt test (stdin is not a TTY in tests); the prompt path is untested.
+
+### What the next step must know
+
+`cli.ts` edits were limited to an import and the four `spec` subcommand registrations, to ease merging with the concurrent harness plan.

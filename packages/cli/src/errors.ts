@@ -16,13 +16,13 @@ export class ConfigError extends SpecplaneError {
 export class UnknownRootError extends SpecplaneError {
   readonly exitCode = 1;
   constructor(name: string) {
-    super(`Unknown root \`${name}\``);
+    super(`Unknown root \`${name}\`.`);
   }
 }
 export class SpecNotFoundError extends SpecplaneError {
   readonly exitCode = 1;
   constructor(id: string) {
-    super(`Spec \`${id}\` not found`);
+    super(`Spec \`${id}\` not found.`);
   }
 }
 export class AmbiguousIdError extends SpecplaneError {
@@ -54,7 +54,7 @@ export class AlreadyExistsError extends SpecplaneError {
 export class PlanNotFoundError extends SpecplaneError {
   readonly exitCode = 1;
   constructor(id: string) {
-    super(`Plan \`${id}\` not found`);
+    super(`Plan \`${id}\` not found.`);
   }
 }
 export class PlanStateError extends SpecplaneError {
