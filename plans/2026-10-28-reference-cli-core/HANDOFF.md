@@ -72,3 +72,42 @@ None.
 ### What the next step must know
 
 Parsers throw typed errors (`FrontmatterError`, `FrontmatterMissingError`); validation code should catch them and convert to findings. `readFrontmatter` in `src/frontmatter.ts` is the shared reader. Schemas and `validator()`/`describeErrors()` are in `src/schemas.ts`. Test helper `fixture(...parts)` in `src/fixtures.js` resolves paths under `test/fixtures` (config fixtures are directories with `.specplane/config.yaml`). `loadConfig` calls `mainRoot()` for the `worktree_dir` check and falls back to the given root outside a git repo.
+
+## Step 03: Validation engine and validate command
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `src/spec/validate.ts`: `loadSpecs`, `validateSpec` (checks 1-9), `validateSpecs` (ordering policy, leak guard, overlay heuristics, INFO.md rule).
+- `src/spec/leak-guard.ts`, `src/spec/overlay-check.ts`, `src/spec/slug.ts` (slugs, `headings`, `findHeading`, `hasAnchor`).
+- `src/plan/graph.ts` (`buildGraph`, `detectCycle`), `src/plan/validate.ts` (`validatePlans`, `handoffOutcomes`), `src/decisions/validate.ts` (`loadAdrs`, `validateAdrs`).
+- `src/agents/standing.ts` (`STANDING_VERSION`, `standingText`, `upsertBlock`, `findBlock`, `checkStanding`), `src/report.ts` (finding/report helpers), `src/output/human.ts`, `src/output/json.ts`, `src/commands/validate.ts`, `validate [--json]` wired in `src/cli.ts`.
+- Tests: `leak-guard`, `slug`, `graph`, `standing` unit tests and `src/validate.test.ts` (end-to-end over temp repos built by `src/test-repo.ts`); 78 tests pass.
+- Step file: status done, criteria ticked.
+
+### Deviations from the plan
+
+- CHOICE: `validatePlans(plans, adrs, config, root)` drops the `specs` parameter (specs are resolved by ID from disk) and adds `root`; `validateSpec(spec, config, repoRoot)` takes a `LoadedSpec` and returns a `ValidationReport`; `buildGraph` takes `{id, depends_on}` objects (`PlanRecord` has no `depends_on`).
+- CHOICE: `ValidationReport` gains optional `checked: string[]` (subjects for the human "Checking X... OK" lines); JSON output omits it.
+- CHOICE: leak guard tech names `Go` and `Express` match case-sensitively (the case-insensitive rule would flag the words "go" and "express"); an identifier match equal to a `tech_name` match on the same line is suppressed (otherwise `TypeScript` warns twice).
+- CHOICE: built-in leak-guard allow list also contains the config enum values `local_merge`, `pull_request`, `wait_for_merge`, `in_progress`, `feature_and_architecture`, plus the snake_case config/frontmatter names.
+- CHOICE: overlay heuristic treats "significant nouns" as lowercase words of 4+ letters minus a stop list (no POS tagging), skips pairs where both sentences are negated, and reports one match per negated sentence. It is noisy on this repo (warnings only).
+- CHOICE: freshness check only inspects `AGENTS.md` (against the harness-neutral Workflows line); no harness registry exists until `init` (step 04), so harness-owned delivery files are not yet recognised. Pin freshness (`base-changed`, missing-pin, `pin_bases`) and skill drift are not implemented here; only the `based_on` key rule is.
+- CHOICE: `skipped`/`blocked` steps without a matching HANDOFF.md section, missing/duplicate step numbers, unresolved spec/decision context, and unresolved plan `specs` are errors; missing context files, draft context specs, unmatched anchors and deprecated plan specs are warnings. Step contiguity uses the filename prefixes.
+- CHOICE: unresolved/ambiguous IDs in plan `specs` and step context are resolved with no root context; an ambiguous ID is reported as an error.
+
+### Gaps found in specs
+
+- Gap: `architecture/reference-cli` § Spec validation check 9 says anchors are "heading slugs" while `file-formats` §3.2 matches heading text; `hasAnchor` accepts either.
+- Gap: the spec does not say how an `extends` entry is resolved when the overlay root is standalone beyond "error"; used the root's `extends` parent as `fromRoot`.
+- Gap: severity of HANDOFF-section and numbering findings is unspecified (see CHOICE above); `type` `step` is used for step-file findings and `plan` for plan-level (cycle, stored status).
+
+### Open issues
+
+None. `specplane validate` on this checkout: exit 0, 0 errors, 53 warnings (leak-guard path/tech_name/identifier on feature specs, overlay "may contradict", unmatched anchors in other plans' step contexts).
+
+### What the next step must know
+
+`runValidate(root)` in `src/commands/validate.ts` merges config, spec, ADR, plan and freshness reports; step 04 adds PLANS.md freshness there (use `mergeReports`/`finding` from `src/report.ts`). `src/agents/standing.ts` exports `upsertBlock(content, workflowsLine?)` for `init`. `src/test-repo.ts` `makeRepo` builds temp repos for tests (config uses `ext` root extending `base`, decisions dir `decisions`). Spec IDs in tests need at least two characters after the `/`.

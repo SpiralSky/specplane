@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
+import { validateCommand } from "./commands/validate.js";
 
 const pkg = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -17,7 +18,6 @@ for (const [name, description] of [
   ["spec", "Work with specs (new, list, show, validate, pin)"],
   ["plan", "Work with plans (new, list, show, graph, start, finish, abandon, cleanup, archive)"],
   ["search", "Search specs and plans"],
-  ["validate", "Validate the repository"],
   ["generate", "Generate PLANS.md"],
   ["init", "Initialise Specplane in a repository"],
 ] as const) {
@@ -29,5 +29,11 @@ for (const [name, description] of [
       process.exitCode = 1;
     });
 }
+
+program
+  .command("validate")
+  .description("Validate the repository")
+  .option("--json", "output JSON")
+  .action((opts: { json?: boolean }) => validateCommand(opts));
 
 program.parse(process.argv);

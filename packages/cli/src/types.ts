@@ -124,4 +124,6 @@ export interface ValidationReport {
   valid: boolean;
   errors: Finding[];
   warnings: Finding[];
+  /** Subjects (spec IDs, plan IDs, ADR IDs, files) that were checked; human output only. */
+  checked?: string[];
 }

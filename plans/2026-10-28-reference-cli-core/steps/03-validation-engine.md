@@ -2,7 +2,7 @@
 plan: 2026-10-28-reference-cli-core
 step: 3
 title: Validation engine and validate command
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Spec validation
   - spec: architecture/reference-cli#Architecture-leak guard
@@ -27,17 +27,17 @@ Implement the full `specplane validate` command: config findings, spec frontmatt
 
 ## Acceptance criteria
 
-- [ ] `specplane validate` run in the `specs-framework` repo exits 0 with no errors.
-- [ ] `specplane validate --json` outputs valid JSON matching the schema in `architecture/reference-cli` §Validation output format.
-- [ ] A spec with a mismatched ID produces an error: "ID `X` does not match path-derived ID `Y`."
-- [ ] A feature spec containing the string `src/foo.ts` produces a warning of type `path`; the same string inside a fenced code block or listed in `leak_guard_allow` produces none.
-- [ ] A feature spec containing "TypeScript" produces a warning of type `tech_name`; one mentioning the config key `status_source` produces none.
-- [ ] An `approved` architecture spec with a non-approved spec in `implements` produces an `ordering` error; a `draft` one produces nothing.
-- [ ] An overlay spec with the same ID as a base spec produces a shadowing error.
-- [ ] Two ADRs numbered `0003` produce a duplicate-number error.
-- [ ] A plan with a dependency cycle produces an error.
-- [ ] A step file with `step: 3` in a file named `02-foo.md` produces an error.
-- [ ] All unit tests pass.
+- [x] `specplane validate` run in the `specs-framework` repo exits 0 with no errors.
+- [x] `specplane validate --json` outputs valid JSON matching the schema in `architecture/reference-cli` §Validation output format.
+- [x] A spec with a mismatched ID produces an error: "ID `X` does not match path-derived ID `Y`."
+- [x] A feature spec containing the string `src/foo.ts` produces a warning of type `path`; the same string inside a fenced code block or listed in `leak_guard_allow` produces none.
+- [x] A feature spec containing "TypeScript" produces a warning of type `tech_name`; one mentioning the config key `status_source` produces none.
+- [x] An `approved` architecture spec with a non-approved spec in `implements` produces an `ordering` error; a `draft` one produces nothing.
+- [x] An overlay spec with the same ID as a base spec produces a shadowing error.
+- [x] Two ADRs numbered `0003` produce a duplicate-number error.
+- [x] A plan with a dependency cycle produces an error.
+- [x] A step file with `step: 3` in a file named `02-foo.md` produces an error.
+- [x] All unit tests pass.
 
 ## Tasks
 
