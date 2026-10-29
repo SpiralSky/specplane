@@ -4,7 +4,7 @@ title: Claude Code integration implementation
 status: review
 author: llm
 implements: [claude:feature/claude-integration, feature/agent-integration]
-based_on: { "claude:feature/claude-integration": "e9ac125", feature/agent-integration: "ec52439" }
+based_on: { "claude:feature/claude-integration": "d3406ae", feature/agent-integration: "9e3a0cf" }
 ---
 
 # Claude Code integration implementation
@@ -131,6 +131,8 @@ disable-model-invocation: <true|false; see table>
 
 The body restates the contract from `architecture/agent-skills` and adds only Claude Code–specific detail. It must not change policy. `$ARGUMENTS` in the body receives the text the user typed after the command. Skills split `$ARGUMENTS` on whitespace; tokens starting with `--` are flags (`--unattended`), and the first remaining token is the positional argument (`plan-id`, `topic`, or `goal`; for `spec-draft-architecture`, all remaining tokens are spec IDs). Skills whose contract has no policy check write "None." under `## Policy check`.
 
+The `plan-step` and `plan-finish` skills write and read `<plans.dir>/<plan-id>/spec-gaps.md` exactly as `architecture/agent-skills` defines it; the gap record is harness-neutral, so no Claude-specific file or command is involved, and a proposal is a `spec-gaps.md` `proposal` entry rather than a `feature-spec-proposals.md` file.
+
 ### Per-skill frontmatter and Claude Code detail
 
 `disable-model-invocation: true` means Claude never runs the skill on its own initiative; only the user's `/<name>` invokes it. Every skill that writes files, commits, or runs a plan flow sets it.
@@ -140,8 +142,8 @@ The body restates the contract from `architecture/agent-skills` and adds only Cl
 | `spec-assist` | `[topic]` | `false` | Never uses `Write`/`Edit` on a feature spec without the user's explicit approval of the exact change. |
 | `spec-draft-architecture` | `[feature-spec-id ...]` | `true` | Writes the draft with `Write`; lists GAP markers in the output. |
 | `plan-create` | `[goal]` | `true` | Uses `AskUserQuestion` for the slug, spec, and dependency choices when available. |
-| `plan-step` | `[plan-id] [--unattended]` | `true` | Session-mode detection (below); subagent execution when the step sets `use_subagent: true`. |
-| `plan-finish` | `[plan-id]` | `true` | Confirms with `AskUserQuestion` in attended sessions. |
+| `plan-step` | `[plan-id] [--unattended]` | `true` | Session-mode detection (below); subagent execution when the step sets `use_subagent: true`; writes `spec-gaps.md` entries with `Write`/`Edit` and lists their IDs in HANDOFF.md. |
+| `plan-finish` | `[plan-id]` | `true` | Confirms with `AskUserQuestion` in attended sessions; reports the open `spec-gaps.md` entries the CLI lists. |
 | `validate` | — | `false` | Read-only; may run whenever validation results are relevant. |
 
 ### Shared preamble (`## Preconditions`)

@@ -193,6 +193,72 @@ test("skipped and blocked steps need a matching HANDOFF section", () => {
   assert.deepEqual(ok.errors, []);
 });
 
+test("HANDOFF repeated sections: only the latest outcome is checked", () => {
+  const files = {
+    ...base,
+    "plans/2026-01-01-p1/PLAN.md": PLAN("2026-01-01-p1"),
+    "plans/2026-01-01-p1/steps/01-a.md": STEP("2026-01-01-p1", 1, { status: "done" }),
+  };
+  const handoff = (...outcomes: string[]) =>
+    `# HANDOFF — 2026-01-01-p1\n\n${outcomes.map((o) => `## Step 01: S\n\n**Date**: 2026-01-01\n**Outcome**: ${o}\n`).join("\n")}`;
+  const ok = run({ ...files, "plans/2026-01-01-p1/HANDOFF.md": handoff("blocked", "done") });
+  assert.deepEqual(ok.errors, [], "an earlier blocked section stays valid once the step is re-run");
+  const bad = run({ ...files, "plans/2026-01-01-p1/HANDOFF.md": handoff("done", "blocked") });
+  assert.ok(bad.errors.some((e) => e.message === "Step 1 is `done` but the latest HANDOFF.md `## Step 01` section has `**Outcome**: blocked`."));
+});
+
+const GAP = (n: number, fields: Record<string, string> = {}) => {
+  const all: Record<string, string> = {
+    Kind: "gap", Step: "1", Case: "the case", Resolution: "the resolution", "Target spec": "`feature/alpha`", Status: "open", ...fields,
+  };
+  return `## G${n}: case ${n}\n\n${Object.entries(all).filter(([, v]) => v !== "").map(([k, v]) => `**${k}**: ${v}`).join("\n")}\n`;
+};
+
+test("spec-gaps.md: valid entries pass; format, kind, status, step and target are checked", () => {
+  const files = {
+    ...base,
+    "plans/2026-01-01-p1/PLAN.md": PLAN("2026-01-01-p1"),
+    "plans/2026-01-01-p1/steps/01-a.md": STEP("2026-01-01-p1", 1),
+  };
+  const valid = run({ ...files, "plans/2026-01-01-p1/spec-gaps.md": `# Spec gaps — 2026-01-01-p1\n\n${GAP(1)}\n${GAP(2, { Kind: "proposal", Status: "applied" })}\n` });
+  assert.deepEqual(valid.errors, []);
+  const bad = run({
+    ...files,
+    "plans/2026-01-01-p1/spec-gaps.md": [
+      "# Spec gaps",
+      GAP(1, { Kind: "note", Status: "wip", Step: "9", "Target spec": "`feature/missing`" }),
+      GAP(2, { Resolution: "", "Target spec": "" }),
+      "## Not a gap heading\n",
+    ].join("\n"),
+  });
+  const errs = bad.errors.map((e) => e.message);
+  assert.ok(errs.includes("spec-gaps.md: heading `Not a gap heading` must be `## G<n>: <case>`."));
+  assert.ok(errs.includes("spec-gaps.md: G1 has Kind `note`; expected gap, assumption, proposal."));
+  assert.ok(errs.includes("spec-gaps.md: G1 has Status `wip`; expected open, applied, rejected."));
+  assert.ok(errs.includes("spec-gaps.md: G1 Step 9 is not a step of this plan."));
+  assert.ok(errs.includes("spec-gaps.md: G2 has no **Resolution**."));
+  assert.ok(errs.includes("spec-gaps.md: G2 has no **Target spec**."));
+  assert.ok(bad.warnings.some((w) => w.message.includes("G1 Target spec `feature/missing` does not resolve")));
+});
+
+test("spec-gaps.md: out-of-order numbers are errors; an archived feature-spec-proposals.md is ignored", () => {
+  const files = {
+    ...base,
+    "plans/2026-01-01-p1/PLAN.md": PLAN("2026-01-01-p1"),
+    "plans/2026-01-01-p1/steps/01-a.md": STEP("2026-01-01-p1", 1),
+  };
+  const r = run({ ...files, "plans/2026-01-01-p1/spec-gaps.md": `${GAP(2)}\n${GAP(1)}\n` });
+  assert.ok(r.errors.some((e) => e.message === "spec-gaps.md: entry G1 is duplicated or out of order."));
+  const archived = run({
+    ...base,
+    "plans/archive/2026-01-01-p1/PLAN.md": PLAN("2026-01-01-p1", { status: "done" }),
+    "plans/archive/2026-01-01-p1/steps/01-a.md": STEP("2026-01-01-p1", 1, { status: "done" }),
+    "plans/archive/2026-01-01-p1/HANDOFF.md": "# HANDOFF — 2026-01-01-p1\n\n## Step 01: S\n\n**Date**: 2026-01-01\n**Outcome**: done\n",
+    "plans/archive/2026-01-01-p1/feature-spec-proposals.md": "## P1: anything\n\nfree form\n",
+  });
+  assert.deepEqual(archived.errors, []);
+});
+
 test("plan specs: unresolved is an error, deprecated warns", () => {
   const r = run({
     ...base,
@@ -217,10 +283,28 @@ test("ADR rules: duplicate number, id mismatch, superseded_by, related_specs", (
   });
   const e = msgs(r, "errors").join("\n");
   assert.match(e, /Duplicate ADR number `0003`: `0003-a.md`, `0003-b.md`\. Renumber the later one\./);
-  assert.match(e, /does not match path-derived ID `decision\/0004`/);
-  assert.match(e, /`decision\/0099` does not resolve/);
-  assert.match(e, /requires `status: superseded`/);
-  assert.ok(r.warnings.some((w) => w.type === "adr"));
+  assert.match(e, /ADR file `0004-c\.md` has id `decision\/0005`; the id number must match the filename\./);
+  assert.match(e, /ADR `decision\/0006` is superseded by unknown ADR `decision\/0099`\./);
+  assert.ok(
+    r.warnings.some(
+      (w) => w.message === "ADR `decision/0007` has `superseded_by` but status `accepted`.",
+    ),
+  );
+  assert.ok(
+    r.warnings.some((w) => w.message === "ADR `decision/0008` references unknown spec `feature/none`."),
+  );
+});
+
+test("ADR supersession cycle is reported once from its lowest-numbered ADR", () => {
+  const r = run({
+    "decisions/0001-a.md": adr("0001"),
+    "decisions/0002-b.md": adr("0002", { status: "superseded", superseded_by: "decision/0005" }),
+    "decisions/0005-e.md": adr("0005", { status: "superseded", superseded_by: "decision/0002" }),
+  });
+  const cycles = r.errors.filter((e) => e.message.startsWith("Supersession cycle:"));
+  assert.equal(cycles.length, 1);
+  assert.equal(cycles[0].message, "Supersession cycle: `decision/0002` -> `decision/0005` -> `decision/0002`.");
+  assert.equal(cycles[0].file, "decisions/0002-b.md");
 });
 
 test("freshness: missing AGENTS.md warns; current block does not", async () => {
@@ -233,6 +317,17 @@ test("config errors become a config finding", () => {
   const r = runValidate(makeRepo({ ".specplane/config.yaml": "plans: {merge: nope}\n" }));
   assert.equal(r.valid, false);
   assert.equal(r.errors[0].type, "config");
+});
+
+test("config: a missing spec root is a config error", () => {
+  const root = makeRepo(
+    { ".specplane/config.yaml": "spec_roots:\n  - name: base\n    path: specs\n" },
+    { createSpecRoots: false },
+  );
+  const r = runValidate(root);
+  assert.ok(
+    r.errors.some((e) => e.type === "config" && e.message === "Spec root `base`: path `specs` does not exist."),
+  );
 });
 
 test("output formats", () => {

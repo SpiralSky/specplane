@@ -15,7 +15,7 @@ import { checkoutRoot } from "../git/repo.js";
 import { fetchPlanBranches, getPlanActivity, remotePlanFrontmatter, remotePlanIds, type PlanActivity } from "../plan/activity.js";
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
-import { getEffectiveStatus, type EffectiveStatus } from "../plan/status.js";
+import { blockedReason, getEffectiveStatus, type EffectiveStatus } from "../plan/status.js";
 import { abandonPlan, archivePlan, cleanupPlan, finishPlan, restackPlan, startPlan } from "../plan/flows.js";
 import type { Config, PlanFrontmatter } from "../types.js";
 
@@ -46,7 +46,7 @@ export interface PlanListRow {
 export type LivePlanListRow = PlanListRow & PlanActivity;
 
 /** Rows sorted by ID descending, plus notes for plans that could not be parsed. */
-export function planList(opts: PlanListOptions, root: string, config: Config): { rows: (PlanListRow | LivePlanListRow)[]; problems: string[] } {
+export function planList(opts: PlanListOptions, root: string, config: Config): { rows: (PlanListRow | LivePlanListRow)[]; problems: string[]; blockedReasons: Map<string, string> } {
   if (opts.status !== undefined && !STATUSES.includes(opts.status)) {
     throw new PlanUsageError(`Unknown plan status \`${opts.status}\`: expected one of ${STATUSES.join(", ")}.`);
   }
@@ -71,6 +71,11 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
     }
   }
   const byId = new Map(parsed.map((p) => [p.fm.id, p.fm]));
+  const blockedReasons = new Map<string, string>();
+  for (const p of parsed) {
+    const reason = blockedReason(p.fm, byId, config);
+    if (reason !== null) blockedReasons.set(p.fm.id, reason);
+  }
   const git = {
     branchExists: (id: string) => branchExists(`plan/${id}`, root) || remoteBranchExists(`plan/${id}`, root),
     hasOpenPr: (id: string) => hasOpenPR(`plan/${id}`, { cwd: root, forge: config.plans.forge }),
@@ -88,7 +93,7 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
     }))
     .filter((r) => opts.status === undefined || r.effective_status === opts.status)
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
-  return { rows, problems };
+  return { rows, problems, blockedReasons };
 }
 
 function activityLine(r: LivePlanListRow): string {
@@ -100,12 +105,15 @@ function activityLine(r: LivePlanListRow): string {
   return `  ${parts.join(", ")}\n`;
 }
 
-export function formatPlanList(rows: (PlanListRow | LivePlanListRow)[]): string {
+export function formatPlanList(rows: (PlanListRow | LivePlanListRow)[], blockedReasons: Map<string, string> = new Map()): string {
   if (rows.length === 0) return "No plans.\n";
   const w1 = Math.max(...rows.map((r) => r.id.length));
   const w2 = Math.max(...rows.map((r) => r.title.length));
   return rows
-    .map((r) => `${r.id.padEnd(w1)}  ${r.title.padEnd(w2)}  ${r.effective_status}\n` + ("where" in r ? activityLine(r) : ""))
+    .map((r) => {
+      const reason = r.effective_status === "blocked" ? blockedReasons.get(r.id) : undefined;
+      return `${r.id.padEnd(w1)}  ${r.title.padEnd(w2)}  ${r.effective_status}${reason ? `  ${reason}` : ""}\n` + ("where" in r ? activityLine(r) : "");
+    })
     .join("");
 }
 
@@ -114,9 +122,9 @@ export function planListCommand(opts: PlanListOptions): void {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    const { rows, problems } = planList(opts, root, config);
+    const { rows, problems, blockedReasons } = planList(opts, root, config);
     for (const p of problems) process.stderr.write(`${p}\n`);
-    process.stdout.write(opts.json ? `${JSON.stringify(rows, null, 2)}\n` : formatPlanList(rows));
+    process.stdout.write(opts.json ? `${JSON.stringify(rows, null, 2)}\n` : formatPlanList(rows, blockedReasons));
   } catch (e) {
     if (!reportError(e)) throw e;
   }
@@ -221,12 +229,12 @@ export function planGraphCommand(): void {
   }
 }
 
-export function planStartCommand(id: string): void {
+export function planStartCommand(id: string, opts: { fetch?: boolean } = {}): void {
   try {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    const r = startPlan(id, config, root);
+    const r = startPlan(id, config, root, opts);
     for (const n of r.notices) process.stderr.write(`${n}\n`);
     const where = r.path !== null ? `Worktree: ${r.path}` : `Branch: ${r.branch}`;
     const next = r.next ? `Next step: ${String(r.next.number).padStart(2, "0")} ${r.next.title} (${r.next.status})` : "No pending steps.";
@@ -236,7 +244,7 @@ export function planStartCommand(id: string): void {
   }
 }
 
-export async function planFinishCommand(id: string, opts: { yes?: boolean }): Promise<void> {
+export async function planFinishCommand(id: string, opts: { yes?: boolean; fetch?: boolean }): Promise<void> {
   try {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
@@ -244,7 +252,7 @@ export async function planFinishCommand(id: string, opts: { yes?: boolean }): Pr
     const confirm = interactive()
       ? async (q: string) => /^y(es)?$/i.test(await ask(`${q} [y/N] `))
       : undefined;
-    const r = await finishPlan(id, config, root, { yes: opts.yes, confirm });
+    const r = await finishPlan(id, config, root, { yes: opts.yes, confirm, fetch: opts.fetch });
     for (const n of r.notices) process.stderr.write(`${n}\n`);
     const word = r.outcome === "merged" ? "Finished and merged" : r.outcome === "pushed" ? "Finished and pushed" : "Finished";
     process.stdout.write(`${word} ${r.planId}\n`);
@@ -267,7 +275,7 @@ function withConfig(fn: (root: string, config: Config) => void): void {
 export function planAbandonCommand(id: string, opts: { deleteBranch?: boolean; force?: boolean }): void {
   withConfig((root, config) => {
     const r = abandonPlan(id, config, root, opts);
-    const parts = [r.committed ? (r.archived ? "committed and archived" : "committed") : "already abandoned"];
+    const parts = [r.archived ? "committed and archived" : "committed"];
     if (r.worktreeRemoved) parts.push("worktree removed");
     if (r.branchDeleted) parts.push("branch deleted");
     process.stdout.write(`Abandoned ${r.planId} (${parts.join(", ")})\n`);
@@ -300,5 +308,8 @@ export function planRestackCommand(id: string, opts: { dryRun?: boolean }): void
         ? `${r.planId} is already on the tip of ${r.onto}`
         : `${r.outcome === "dry-run" ? "Would restack" : "Restacked"} ${r.planId} onto ${r.onto}${r.unstacked ? " (no longer stacked)" : ""}`;
     process.stdout.write(`${text}\n`);
+    if (r.outcome === "dry-run") {
+      for (const c of r.commits) process.stdout.write(`${c.sha} ${c.subject}\n`);
+    }
   });
 }

@@ -43,11 +43,11 @@ test("search no match exits 0 with no output", () => {
   assert.equal(r.out, "");
 });
 
-test("search --type and --status and --root filters", () => {
+test("search --kind and --status and --root filters", () => {
   const root = repo();
-  assert.deepEqual([...new Set(json(root, "needle-plan", "--type", "plan").map((h) => h.type))], ["plan"]);
-  assert.equal(json(root, "architecture-leak", "--type", "plan").length, 0);
-  assert.deepEqual([...new Set(json(root, "architecture-leak", "--type", "spec").map((h) => h.id))], ["feature/beta", "feature/alpha"]);
+  assert.deepEqual([...new Set(json(root, "needle-plan", "--kind", "plan").map((h) => h.type))], ["plan"]);
+  assert.equal(json(root, "architecture-leak", "--kind", "plan").length, 0);
+  assert.deepEqual([...new Set(json(root, "architecture-leak", "--kind", "spec").map((h) => h.id))], ["feature/beta", "feature/alpha"]);
   assert.deepEqual(json(root, "architecture-leak", "--status", "approved").map((h) => h.id), ["feature/beta"]);
   assert.deepEqual(json(root, "needle-plan", "--status", "done").map((h) => h.id), ["p-old"]);
   assert.deepEqual(json(root, "architecture-leak", "--root", "ext").map((h) => h.id), ["feature/beta"]);
@@ -61,7 +61,7 @@ test("search --json fields, archived plans, deterministic order", () => {
   assert.equal(hits[0].status, "done");
 });
 
-test("search unknown root and type exit 1", () => {
+test("search unknown kind and root exit 1", () => {
   assert.equal(run(repo(), "x", "--root", "nope").code, 1);
-  assert.equal(run(repo(), "x", "--type", "adr").code, 1);
+  assert.equal(run(repo(), "x", "--kind", "adr").code, 1);
 });

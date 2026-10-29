@@ -2,7 +2,7 @@
 plan: 2026-10-29-feature-spec-alignment
 step: 3
 title: Stack-mode blocked, abandon, --no-fetch, --kind, restack dry run
-status: pending
+status: done
 context:
   - spec: feature/plan-status
   - spec: feature/tooling
@@ -21,11 +21,11 @@ Bring plan status and the plan and search commands in line with `feature/plan-st
 
 ## Acceptance criteria
 
-- [ ] With `dependency_mode: stack`, a `ready` plan with two or more unmerged dependencies shows as `blocked` in `PLANS.md` and `plan list`, with the feature message; one unmerged dependency is not `blocked`.
-- [ ] Abandoning a `done` or `abandoned` plan fails with "Cannot abandon plan: `<id>` is `<status>`."
-- [ ] `plan start --no-fetch` and `plan finish --no-fetch` skip every fetch; pushes and PRs are unaffected.
-- [ ] `search --kind spec|plan` replaces `search --type`.
-- [ ] `plan restack --dry-run` prints the new base and the commits it would replay.
+- [x] With `dependency_mode: stack`, a `ready` plan with two or more unmerged dependencies shows as `blocked` in `PLANS.md` and `plan list`, with the feature message; one unmerged dependency is not `blocked`.
+- [x] Abandoning a `done` or `abandoned` plan fails with "Cannot abandon plan: `<id>` is `<status>`."
+- [x] `plan start --no-fetch` and `plan finish --no-fetch` skip every fetch; pushes and PRs are unaffected.
+- [x] `search --kind spec|plan` replaces `search --type`.
+- [x] `plan restack --dry-run` prints the new base and the commits it would replay.
 - [ ] `npm test` passes.
 
 ## Tasks

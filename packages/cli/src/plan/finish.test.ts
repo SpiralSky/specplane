@@ -96,6 +96,32 @@ test("finish: local merge without a remote (Scenarios 4, 4a)", () => {
   assert.match(res.err, /Acceptance criteria/);
 });
 
+test("finish: --no-fetch skips the fetch; pushes and merges still happen", () => {
+  const r = repo({ remote: true });
+  // The remote no longer has `main`, so any fetch fails while local refs are intact.
+  git(r.origin, "branch", "-D", "main");
+  const bad = fin(r, "--yes");
+  assert.notEqual(bad.code, 0, "a fetch failure surfaces without --no-fetch");
+  const ok = fin(r, "--yes", "--no-fetch");
+  assert.equal(ok.code, 0, ok.err);
+  assert.match(ok.out, /Finished and merged/);
+  assert.equal(git(r.origin, "rev-parse", "main"), git(r.root, "rev-parse", "main"), "merged commit pushed");
+});
+
+test("finish: lists open spec-gaps entries without blocking", () => {
+  const r = repo();
+  fs.writeFileSync(
+    path.join(r.co, "plans", A, "spec-gaps.md"),
+    "# Spec gaps — " + A + "\n\n## G1: missing text\n\n**Kind**: assumption\n**Step**: 1\n**Case**: no message for X\n**Resolution**: used Y\n**Target spec**: `feature/x`\n**Status**: open\n\n## G2: settled\n\n**Kind**: gap\n**Step**: 1\n**Case**: Z\n**Resolution**: done\n**Target spec**: `feature/x`\n**Status**: applied\n",
+  );
+  git(r.co, "add", "-A");
+  git(r.co, "commit", "-q", "-m", "gaps");
+  const res = fin(r, "--yes");
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.err, /Open spec gaps:\n  G1 \(assumption, feature\/x\): no message for X/);
+  assert.doesNotMatch(res.err, /G2/, "only open entries are listed");
+});
+
 test("finish: step not done stops with no writes (Scenario 5a)", () => {
   const r = repo({ steps: ["done", "blocked"] });
   const head = sha(r.co, "HEAD");

@@ -9,8 +9,12 @@ export abstract class SpecplaneError extends Error {
 
 export class ConfigError extends SpecplaneError {
   readonly exitCode = 1;
-  constructor(key: string, reason: string) {
-    super(`Config key \`${key}\`: ${reason}`);
+  /**
+   * `key` is a config path (schema violations). Pass `null` when a feature spec fixes the
+   * whole message verbatim (cross-field rules, `feature/configuration` acceptance scenarios).
+   */
+  constructor(key: string | null, reason: string) {
+    super(key === null ? reason : `Config key \`${key}\`: ${reason}`);
   }
 }
 export class UnknownRootError extends SpecplaneError {
@@ -78,8 +82,11 @@ export class SetupHookError extends SpecplaneError {
 }
 export class RebaseConflictError extends SpecplaneError {
   readonly exitCode = 1;
-  constructor(id: string, base: string) {
-    super(`Rebase of \`plan/${id}\` onto \`${base}\` has conflicts; resolve manually.`);
+  constructor(id: string, base: string, files: string[] = []) {
+    super(
+      `Rebase of \`plan/${id}\` onto \`${base}\` has conflicts; resolve manually.` +
+        (files.length > 0 ? `\nConflicting files:\n${files.map((f) => `  ${f}`).join("\n")}` : ""),
+    );
   }
 }
 export class ForgeError extends SpecplaneError {

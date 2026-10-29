@@ -80,6 +80,21 @@ test("plan list: JSON fields, sorting, archived, --status filter, human table", 
   assert.equal(run(root, "plan", "list", "--status", "bogus").code, 1);
 });
 
+test("plan list: stack mode blocks two unmerged dependencies and prints the reason", () => {
+  const root = makeRepo({
+    ".specplane/config.yaml": "spec_roots:\n  - name: base\n    path: specs\nplans:\n  dir: plans\n  dependency_mode: stack\n",
+    "plans/2026-01-01-alpha/PLAN.md": plan("2026-01-01-alpha", "ready"),
+    "plans/2026-01-02-beta/PLAN.md": plan("2026-01-02-beta", "ready"),
+    "plans/2026-01-03-gamma/PLAN.md": plan("2026-01-03-gamma", "ready", "depends_on: [2026-01-01-alpha, 2026-01-02-beta]\n"),
+  });
+  spawnSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+  spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "init"], { cwd: root });
+  assert.equal(eff(root)["2026-01-03-gamma"], "blocked");
+  const h = run(root, "plan", "list");
+  assert.equal(h.code, 0, h.err);
+  assert.match(h.out, /^2026-01-03-gamma {2}T 2026-01-03-gamma {2}blocked {2}Cannot stack on more than one unmerged dependency: `2026-01-01-alpha`, `2026-01-02-beta`\.$/m);
+});
+
 test("getEffectiveStatus: forge hook derives review; non-ready statuses unchanged", () => {
   const config = { plans: { status_source: "git", dependency_mode: "wait_for_merge" } } as Config;
   const git = { branchExists: () => true, hasOpenPr: () => true };

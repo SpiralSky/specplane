@@ -66,6 +66,17 @@ function repo(o: Opts = {}): { root: string; wt: string; origin: string } {
 const branchExists = (root: string, b: string) => spawnSync("git", ["show-ref", "--verify", "--quiet", `refs/heads/${b}`], { cwd: root }).status === 0;
 const wtPath = (r: { root: string; wt: string }, id: string) => path.join(r.wt, path.basename(r.root), id);
 
+test("start: --no-fetch skips the fetch and works from local refs", () => {
+  const r = repo();
+  // The remote no longer has `main`, so any fetch fails while local refs are intact.
+  git(r.origin, "branch", "-D", "main");
+  const bad = spawnSync(process.execPath, [cli, "plan", "start", A], { cwd: r.root, encoding: "utf8", env: ENV });
+  assert.notEqual(bad.status, 0, "a fetch failure surfaces without --no-fetch");
+  const ok = spawnSync(process.execPath, [cli, "plan", "start", A, "--no-fetch"], { cwd: r.root, encoding: "utf8", env: ENV });
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(branchExists(r.root, `plan/${A}`), true);
+});
+
 test("start: first start creates branch and worktree, runs hook, announces (Scenario 1)", () => {
   const r = repo({ planCfg: '  setup_hook: "echo hooked > hook.txt"\n' });
   const head = git(r.root, "rev-parse", "main");

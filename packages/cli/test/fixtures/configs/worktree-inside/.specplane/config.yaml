@@ -1,0 +1,6 @@
+spec_roots:
+  - name: base
+    path: docs/specifications
+execution:
+  backend: worktree
+  worktree_dir: .worktrees
