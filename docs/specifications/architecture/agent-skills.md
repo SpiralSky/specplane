@@ -1,7 +1,7 @@
 ---
 id: architecture/agent-skills
 title: "Agent skills: config resolution and harness-neutral prompt contracts"
-status: review
+status: approved
 author: llm
 implements: [feature/agent-integration]
 ---
