@@ -1,0 +1,3 @@
+# HANDOFF — 2026-10-29-claude-harness-files
+
+> **Start note (2026-10-29)**: Started at the user's explicit direction while every feature spec in `specs` was still `status: review`. This overrides `plans.require_approved_specs: feature`; spec statuses were not changed. Before starting, `claude:architecture/claude-integration` was completed and reviewed. The CLI is not yet built: skills and hooks must work without `specplane` on `PATH`, and validation is by hand. Steps run as fresh subagents (`use_subagent: true`), unattended, in the worktree `../.specplane-worktrees/specs-framework/2026-10-29-claude-harness-files/`.

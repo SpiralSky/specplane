@@ -1,0 +1,37 @@
+# Specplane configuration for the Specplane framework repository itself.
+# This repo dogfoods the framework: it uses Specplane to track its own spec and plan work.
+
+spec_roots:
+  - name: base
+    path: docs/specifications
+  - name: claude
+    path: harnesses/claude/specifications
+    extends: base
+
+specs:
+  feature:
+    authorship: user          # feature specs require human authorship by default
+    llm_role: assist          # LLM may suggest edits and ask questions, but not draft
+    forbid_architecture: true # architecture-leak guard enabled
+    leak_guard_allow:         # names that are part of Specplane's user-visible interface
+      - specplane
+      - Claude Code
+      - GitHub
+      - Mermaid
+  architecture:
+    authorship: either        # either user or LLM may author
+    llm_role: draft           # LLM may produce the initial draft
+    require_approved_features: true  # cannot approve arch spec until its feature specs are approved
+
+plans:
+  dir: plans
+  require_approved_specs: feature  # plans require approved feature specs to start
+  status_source: git               # derive in_progress/review from git branch/PR state
+  merge: pull_request              # finish flow opens a PR
+  dependency_mode: wait_for_merge  # dependent plans wait until dependency branch is merged
+  archive_done: true               # move completed plans into plans/archive/
+  setup_hook: ""                   # no install step needed for this markdown-only repo
+
+execution:
+  backend: worktree                # use git worktrees for parallel plan execution
+  worktree_dir: ../.specplane-worktrees
