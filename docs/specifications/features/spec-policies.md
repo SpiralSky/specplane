@@ -1,7 +1,7 @@
 ---
 id: feature/spec-policies
 title: "Spec policies: authorship, ordering, and the architecture-leak guard"
-status: approved
+status: review
 author: mixed
 ---
 
@@ -20,9 +20,9 @@ The authorship policy controls who may write a spec and what role an LLM may pla
 | Config key | Applies to | Type | Default | Allowed values |
 |---|---|---|---|---|
 | `specs.feature.authorship` | Feature specs | enum | `user` | `user` \| `llm` \| `either` |
-| `specs.feature.llm_role` | Feature specs | enum | `assist` | `assist` \| `draft` \| `none` |
+| `specs.feature.llm_role` | Feature specs | enum | `assist` | `review` \| `assist` \| `draft` \| `none` |
 | `specs.architecture.authorship` | Architecture specs | enum | `either` | `user` \| `llm` \| `either` |
-| `specs.architecture.llm_role` | Architecture specs | enum | `draft` | `assist` \| `draft` \| `none` |
+| `specs.architecture.llm_role` | Architecture specs | enum | `draft` | `review` \| `assist` \| `draft` \| `none` |
 
 ### Meaning of each value
 
@@ -32,13 +32,23 @@ The authorship policy controls who may write a spec and what role an LLM may pla
 - `either`: no authorship restriction. Both humans and LLMs may author.
 
 **`llm_role`**:
-- `assist`: the LLM may suggest edits, ask clarifying questions, and flag issues, but must not draft the spec from scratch.
+- `review`: the LLM may ask clarifying questions, suggest edits, and flag issues, but must not write the spec body. It applies a suggested edit only after the user approves that exact change.
+- `assist`: the LLM writes the spec body from the user's description, following the refine-then-write flow below. It must not write body text before the user has finalised the content, and must not add requirements the user did not agree to.
 - `draft`: the LLM may produce an initial draft for human review. The `author` field is set to `llm` or `mixed` depending on subsequent human edits.
 - `none`: the LLM must not edit, review, or suggest changes to the spec body. It may read it (for example, to implement it).
 
+### Refine-then-write (`llm_role: assist`)
+
+1. **Describe**: the user describes the feature in their own words. The LLM writes nothing to the spec yet.
+2. **Refine**: the LLM and the user discuss the description to find issues: gaps, ambiguous rules, contradictions with other specs, missing edge cases and acceptance scenarios, and architecture leaks. The LLM raises each issue and suggests a resolution; the user decides. This repeats until no issues are open or the user chooses to stop.
+3. **Finalise**: the LLM summarises the agreed content (rules, scenarios, the decision on each issue, and anything left open). The user confirms the summary is final.
+4. **Write**: the LLM writes the spec body from the finalised content only and shows it to the user, marking any detail it had to fill in as an assumption to confirm. The file is written only after the user approves the text. The LLM sets `author: mixed` and does not change `status`.
+
+Revising an existing spec follows the same flow: the user's requested change is the description, and Write produces the revised text.
+
 ### Interaction between `authorship` and `llm_role`
 
-The `authorship` setting constrains who the final author is. The `llm_role` setting constrains what the LLM may do during the writing process. A spec with `authorship: user` and `llm_role: assist` means: a human must be the author, but the LLM may help during writing. A spec with `authorship: user` and `llm_role: none` means: the LLM is a read-only observer.
+The `authorship` setting constrains who the final author is. The `llm_role` setting constrains what the LLM may do during the writing process. A spec with `authorship: user` and `llm_role: review` means: a human writes the spec and the LLM may help. With `llm_role: assist`, the human decides the content and the LLM writes the text, so `author: mixed` is consistent with `authorship: user`. A spec with `authorship: user` and `llm_role: none` means: the LLM is a read-only observer.
 
 ### The `author` frontmatter field
 
@@ -156,9 +166,22 @@ The guard applies only to feature specs; architecture specs exist to hold archit
 
 ### Scenario 1: LLM attempts to draft a feature spec under `authorship: user`
 
-Given `specs.feature.authorship: user` and `specs.feature.llm_role: assist`,
+Given `specs.feature.authorship: user` and `specs.feature.llm_role: review`,
 When an LLM agent attempts to create a new feature spec file with content from scratch,
 Then the agent must refuse to draft the spec body and instead offer to assist (ask questions, suggest structure, review drafts).
+
+### Scenario 1a: Writing without a description under `llm_role: assist`
+
+Given `specs.feature.llm_role: assist`,
+When the user asks "Write the feature spec for search" without describing the feature,
+Then the agent asks the user to describe it and writes nothing.
+
+### Scenario 1b: Writing a finalised spec under `llm_role: assist`
+
+Given `specs.feature.llm_role: assist`,
+And the user has confirmed the Finalise summary and approved the written text,
+When the agent writes the spec file,
+Then the file has `author: mixed` and its `status` is unchanged.
 
 ### Scenario 2: LLM drafts an architecture spec
 
