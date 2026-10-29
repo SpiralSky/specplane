@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-assist-and-approve
 title: "Refine-then-write assist, the review role, and approval commands"
-status: draft
+status: ready
 specs: ["feature/spec-policies","feature/configuration","feature/agent-integration","feature/tooling","architecture/agent-skills","architecture/reference-cli","architecture/file-formats","claude:feature/claude-integration","claude:architecture/claude-integration"]
 depends_on: ["2026-10-29-feature-spec-alignment"]
 ---
