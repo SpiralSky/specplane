@@ -4,7 +4,7 @@ description: Execute the next step of a Specplane plan. Use when the user runs /
 argument-hint: "[plan-id] [--unattended]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-step@9b59fd0 -->
+<!-- specplane-contract: architecture/agent-skills#plan-step@a8e55f4 -->
 
 # plan-step
 
@@ -31,10 +31,10 @@ Read `specs.*` (authorship and `llm_role`) from config before editing any spec. 
 2. Parse the step files; find the next step (lowest-numbered step that is not `done` or `skipped`). Ordering check: confirm every lower-numbered step is `done` or `skipped`; if any is `pending` or `blocked`, run that one first (or report its `BLOCKED:` issue) rather than the step the user named. If it is `blocked`, report its `BLOCKED:` issue and stop. If there is none, report that all steps are done and suggest `/plan-finish`.
 3. Load context with `Read` (use offset/limit for large files; `Glob` to discover files): every item in the step's `context` field (spec sections by anchor, ADRs, files) plus all prior sections of `<plans.dir>/<plan-id>/HANDOFF.md` (resolve `plans.dir` from config; never assume `plans/`; the repo-root HANDOFF.md is not a plan handoff).
 4. Avoid reading other files unless the listed context is insufficient; record any expansion in `<plans.dir>/<plan-id>/HANDOFF.md`.
-5. Execute the tasks, following `feature/spec-precedence`: architecture spec first, feature spec for gaps (record each gap). On a contradiction: if attended, stop and show both passages; if unattended, do not implement the contradicted behaviour, record a `BLOCKED:` item under open issues, and continue with unaffected tasks.
+5. Execute the tasks, following `feature/spec-precedence`: architecture spec first, feature spec for gaps (record each gap). Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>/spec-gaps.md` as a new numbered entry (`## G<n>: <case>`, the six fields of `architecture/file-formats` §4.2, `**Status**: open`): create the file on the first entry and never reuse a number. A proposed spec edit the agent may not make itself is a `proposal` entry; do not write `feature-spec-proposals.md`. On a contradiction: if attended, stop and show both passages; if unattended, do not implement the contradicted behaviour, record a `BLOCKED:` item under open issues, and continue with unaffected tasks.
 6. Check the acceptance criteria and tick each met checkbox in the step file.
 7. Set the step's `status` to `done`, or `blocked` if a blocking issue prevents the criteria from being met.
-8. Append the step's section to `<plans.dir>/<plan-id>/HANDOFF.md` (`architecture/file-formats` §4.1: `## Step NN: <title>`, `**Date**`, `**Outcome**` equal to the status, all five subsections, "None." for empty ones). Never edit earlier sections.
+8. Append the step's section to `<plans.dir>/<plan-id>/HANDOFF.md` (`architecture/file-formats` §4.1: `## Step NN: <title>`, `**Date**`, `**Outcome**` equal to the status, all five subsections, "None." for empty ones). In "Gaps found in specs", list each `spec-gaps.md` entry this step added by ID (`- G<n> (<kind>): <summary>. See spec-gaps.md.`). Never edit earlier sections.
 9. Commit per `architecture/file-formats` §8: subject `<type>(<slug>): <summary>` (Conventional Commits type of the step's main change; `<slug>` is the plan ID without its `YYYY-MM-DD-` prefix; at most 72 characters), a blank line, a bullet summary of the changes, a blank line, then the trailers in this order: `Specplane-Workflow: step`, `Specplane-Plan: <plan-id>`, `Specplane-Step: NN`, `Specplane-Agent: $SPECPLANE_AGENT` (else `claude-code`), `Specplane-Session: $SPECPLANE_SESSION` (omit the line when unset), then the harness attribution trailer (`Co-Authored-By`). Do not set the commit author. Example: `feat(search-indexer): build graph from spec links`.
 10. If `execution.backend` is `external`, or the plan branch has an upstream, push `plan/<id>` so the next session and other machines see the step.
 
@@ -52,4 +52,4 @@ Pass paths, not file contents; the subagent reads them itself. Run one subagent 
 
 ## Output
 
-Start with the detected session mode. Then one paragraph: outcome, files changed, gaps, open issues, and the next step. Do not start the finish flow automatically after the last step; suggest `/plan-finish`.
+Start with the detected session mode. Then one paragraph: outcome, files changed, gaps (their `spec-gaps.md` IDs), open issues, and the next step. Do not start the finish flow automatically after the last step; suggest `/plan-finish`.

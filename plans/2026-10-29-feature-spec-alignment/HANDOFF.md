@@ -128,3 +128,34 @@ None.
 
 - Step 05 edits `architecture/agent-skills` and `claude:architecture/claude-integration`, both in `review`: it must re-pin `claude:architecture/claude-integration` (the stale pins deferred since step 01) and sync `.claude/`. `spec pin --check` is expected to go green there.
 - Skills and standing instructions must write `spec-gaps.md` entries (`## G<n>: <case>` with the six fields) and must stop mentioning `feature-spec-proposals.md` as the current format.
+
+## Step 05: Skills and standing instructions record spec-gaps.md entries
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `docs/specifications/architecture/agent-skills.md`: `plan-step` step 5 now requires a numbered `spec-gaps.md` entry for every gap, assumption, or proposed spec edit (six §4.2 fields, status `open`, no number reuse; `proposal` replaces `feature-spec-proposals.md`), step 8 lists the added IDs in HANDOFF.md, and the output names them; `plan-finish` step 3/4 reports the open entries the CLI lists and says they do not block. The standing-instructions text (Precedence and Plans bullets) points at `spec-gaps.md`.
+- `harnesses/claude/specifications/architecture/claude-integration.md`: records that the two plan skills write/read the same harness-neutral gap record and never create `feature-spec-proposals.md`; per-skill table updated.
+- `harnesses/claude/templates/skills/plan-step/SKILL.md`, `plan-finish/SKILL.md`: same rules in the Claude wording.
+- `harnesses/claude/templates/rules/specplane.md`, `packages/cli/src/agents/standing.ts`, the repo's `AGENTS.md` managed block, and `.claude/rules/specplane.md`: standing text now says to record gaps as `spec-gaps.md` entries and calls HANDOFF.md plus `spec-gaps.md` the source of truth.
+- All six skill contract markers moved from `@9b59fd0` to the new `architecture/agent-skills` blob `@a8e55f4`; `specplane spec pin claude:architecture/claude-integration` re-pinned `claude:feature/claude-integration` (`d3406ae`) and `feature/agent-integration` (`9e3a0cf`).
+- `.claude/skills/` and `.claude/rules/specplane.md` re-synced from the templates.
+
+### Deviations from the plan
+
+- None. The standing text changed without a version bump: `checkStanding` compares the text, not only `vN`, and `validate` reports `AGENTS.md` as OK.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+None. `specplane validate` has 0 errors (22 warnings: the pre-existing leak-guard findings and the out-of-date `PLANS.md`); `spec pin --check` is now clean, closing the failure deferred since step 01.
+
+### What the next step must know
+
+- Step 06 covers README/help text and the final checks. `plans/PLANS.md` must be regenerated (`specplane generate`) as part of the final check; it is the only validation warning that is a real to-do.
+- The `spec-gaps.md` list of this plan has G1–G4; step 06 should not need new entries.

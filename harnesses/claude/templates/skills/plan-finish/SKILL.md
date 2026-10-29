@@ -4,7 +4,7 @@ description: Run the finish flow for the current plan. Use when the user runs /p
 argument-hint: "[plan-id]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-finish@9b59fd0 -->
+<!-- specplane-contract: architecture/agent-skills#plan-finish@a8e55f4 -->
 
 # plan-finish
 
@@ -28,8 +28,8 @@ Read `config.plans` and `config.execution` before finishing.
 
 1. Identify the plan: the plan ID in `$ARGUMENTS`, else the current git branch `plan/<id>`.
 2. Confirm with the user: "Run finish flow for `<plan-id>`?" In attended sessions use `AskUserQuestion`. In unattended sessions proceed only if the session was explicitly started to finish the plan.
-3. Invoke `specplane plan finish <id>` (readiness checks, verification, rebase, final commit, PR or merge).
-4. When verification asks for acceptance-criteria confirmation, check each criterion and state the evidence.
+3. Invoke `specplane plan finish <id>` (readiness checks, verification, rebase, final commit, PR or merge). Verification lists the open `spec-gaps.md` entries; open entries never stop the flow.
+4. When verification asks for acceptance-criteria confirmation, check each criterion and state the evidence. Report the open `<plans.dir>/<plan-id>/spec-gaps.md` entries it listed (ID, kind, target spec) so they are reviewed, and say that they do not block the merge.
 5. The plan's handoff log is `<plans.dir>/<plan-id>/HANDOFF.md` (resolve `plans.dir` from config); it is committed on the plan branch and moves with the plan when archived. Do not touch the repo-root HANDOFF.md.
 
 ## Output

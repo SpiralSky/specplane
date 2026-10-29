@@ -2,7 +2,7 @@
 plan: 2026-10-29-feature-spec-alignment
 step: 5
 title: Skills and standing instructions record spec-gaps.md entries
-status: pending
+status: done
 context:
   - spec: architecture/agent-skills
   - spec: claude:architecture/claude-integration
@@ -19,10 +19,10 @@ Make every workflow record gaps, assumptions, and proposals in `spec-gaps.md`, a
 
 ## Acceptance criteria
 
-- [ ] `architecture/agent-skills` `plan-step` and `plan-finish` contracts describe writing and listing `spec-gaps.md` entries; `proposal` entries replace `feature-spec-proposals.md`.
-- [ ] `claude:architecture/claude-integration` matches; the Claude templates and the standing instructions (`.claude/rules/specplane.md`, the `AGENTS.md` block) follow.
-- [ ] Skill contract markers re-pinned; `.claude/` synced; `check-sync.sh` and `hooks.test.sh` pass.
-- [ ] `npm test` and `specplane validate` pass.
+- [x] `architecture/agent-skills` `plan-step` and `plan-finish` contracts describe writing and listing `spec-gaps.md` entries; `proposal` entries replace `feature-spec-proposals.md`.
+- [x] `claude:architecture/claude-integration` matches; the Claude templates and the standing instructions (`.claude/rules/specplane.md`, the `AGENTS.md` block) follow.
+- [x] Skill contract markers re-pinned; `.claude/` synced; `check-sync.sh` and `hooks.test.sh` pass.
+- [x] `npm test` and `specplane validate` pass.
 
 ## Tasks
 

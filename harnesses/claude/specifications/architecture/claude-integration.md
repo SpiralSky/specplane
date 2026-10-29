@@ -4,7 +4,7 @@ title: Claude Code integration implementation
 status: review
 author: llm
 implements: [claude:feature/claude-integration, feature/agent-integration]
-based_on: { "claude:feature/claude-integration": "e9ac125", feature/agent-integration: "ec52439" }
+based_on: { "claude:feature/claude-integration": "d3406ae", feature/agent-integration: "9e3a0cf" }
 ---
 
 # Claude Code integration implementation
