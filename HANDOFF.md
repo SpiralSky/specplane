@@ -24,7 +24,7 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 - **`2026-10-29-assist-and-approve` was approved by hand** (`6f02019`, `status: ready`) because `plan approve` only lands in step 04. It runs in the worktree `../.specplane-worktrees/specs-framework/2026-10-29-assist-and-approve` on branch `plan/2026-10-29-assist-and-approve`.
 - **Step 01 is `done`** (`48c61b0`): the architecture specs now specify the `review` role, refine-then-write `assist`, and the approval commands. `validate` there: 0 errors, 33 warnings (12 new `skill-drift` warnings until step 05 refreshes the skill pins). Two assumption entries, G1/G2, are open in the plan's `spec-gaps.md`.
 - **Step 02 is `done`** (`d1e2e5e`): `review` accepted in the config schema/types, `init` comments, and the standing instructions (three delivery copies); 230/230 tests. **Next step: 03** (`spec-approve-reopen`).
-- **Subagents are unavailable**: the OpenRouter key is out of credits (`402` on every dispatch), so remaining steps run inline in the main session.
+- **Subagents are available again**: all 8 agents in `~/.pi/agent/agents/` now pin `deepseek/deepseek-flash` (pi's global default provider/model), replacing the exhausted OpenRouter ids (`z-ai/glm-5.3*`, `anthropic/claude-sonnet-5.5`). `~/.pi/agent/AGENTS.md` and `settings.json` (`compactionSummarizer`) were updated to match. Do not point agents back at `openrouter/...` without checking credits first.
 
 ## Next steps
 1. Run steps 02–06 of `2026-10-29-assist-and-approve` one at a time (`/plan-step`), then `/plan-finish`. Note the temporary `skill-drift` warnings are cleared by step 05.
