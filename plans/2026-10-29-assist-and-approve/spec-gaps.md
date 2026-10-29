@@ -17,3 +17,12 @@
 **Resolution**: Specified that `plan approve` regenerates PLANS.md as `generate` does and commits both files, so `PLANS.md` never shows a stale stored status between the approval and CI. Implemented in step 04.
 **Target spec**: `feature/tooling`
 **Status**: open
+
+## G3: `decision new`'s "already exists" refusal is unreachable
+
+**Kind**: gap
+**Step**: 04
+**Case**: `feature/tooling` gives `decision new` an error case "Decision `<path>` already exists.", but it also fixes the number as the highest existing `NNNN` in `<decisions.dir>` plus one. With that rule the target path is new by construction, so the refusal can never fire (an unparseable `0001-x.md` only pushes the next number to `0002`).
+**Resolution**: Numbering follows the spec (highest existing `NNNN` file, parsed or not); the existing-path check is kept as a defensive guard but is not reachable, and the test asserts the numbering rule instead.
+**Target spec**: `feature/tooling`
+**Status**: open

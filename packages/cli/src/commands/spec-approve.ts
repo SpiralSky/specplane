@@ -7,6 +7,7 @@ import {
   UncommittedChangesError,
   reportError,
 } from "../errors.js";
+import { writeStatus } from "../frontmatter.js";
 import { abbrev, hasUncommittedChanges } from "../git/blobs.js";
 import { cliTrailers, formatMessage } from "../git/commit.js";
 import { run } from "../git/exec.js";
@@ -21,20 +22,6 @@ import { load } from "./spec.js";
 import { pinSpec } from "./spec-pin.js";
 
 const toPosix = (p: string) => p.split(path.sep).join("/");
-
-/** Rewrite only the frontmatter `status:` line, preserving line endings and every other byte. */
-function writeStatus(file: string, status: string): void {
-  const text = fs.readFileSync(file, "utf8");
-  const eol = text.includes("\r\n") ? "\r\n" : "\n";
-  const lines = text.split(/\r?\n/);
-  const end = lines.findIndex((l, i) => i > 0 && /^---[ \t]*$/.test(l));
-  const at = lines.findIndex((l, i) => i > 0 && i < end && /^status\s*:/.test(l));
-  if (!/^---[ \t]*$/.test(lines[0] ?? "") || end === -1 || at === -1) {
-    throw new Error(`\`${file}\`: no frontmatter status found`);
-  }
-  lines[at] = `status: ${status}`;
-  fs.writeFileSync(file, lines.join(eol));
-}
 
 /** Load the resolved spec and every loaded spec, for status and reference lookups. */
 function loadOne(rawId: string, config: Config, root: string): { spec: LoadedSpec; specs: LoadedSpec[] } {

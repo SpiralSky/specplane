@@ -4,6 +4,8 @@ import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
 import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand } from "./commands/plan.js";
+import { planApproveCommand } from "./commands/plan-approve.js";
+import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
 import { specPinCommand } from "./commands/spec-pin.js";
@@ -21,7 +23,7 @@ program
   .description("Specplane reference CLI")
   .version(pkg.version);
 
-const plan = program.command("plan").description("Work with plans (list, new, show, graph, start, finish, abandon, cleanup, archive, restack)");
+const plan = program.command("plan").description("Work with plans (list, new, show, graph, start, approve, finish, abandon, cleanup, archive, restack)");
 plan
   .command("list")
   .description("List plans with their effective statuses")
@@ -64,6 +66,11 @@ plan
   .option("--dry-run", "check and report without rewriting history")
   .action((id, opts) => planRestackCommand(id, opts));
 plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());
+plan
+  .command("approve <ids...>")
+  .description("Approve plans and commit the status change")
+  .option("--dry-run", "report the planned changes and commits")
+  .action((ids: string[], opts: { dryRun?: boolean }) => planApproveCommand(ids, opts));
 
 const spec = program.command("spec").description("Work with specs (new, list, show, validate, pin, approve, reopen)");
 spec
@@ -108,6 +115,14 @@ spec
   .description("Validate one, several, or all specs")
   .option("--json", "output JSON")
   .action((ids: string[], opts: { json?: boolean }) => specValidateCommand(ids, opts));
+
+const decision = program.command("decision").description("Work with decision records (new, accept)");
+decision.command("new <title>").description("Create a proposed decision record").action((title: string) => decisionNewCommand(title));
+decision
+  .command("accept <ids...>")
+  .description("Accept decision records and commit the status change")
+  .option("--dry-run", "report the planned changes and commits")
+  .action((ids: string[], opts: { dryRun?: boolean }) => decisionAcceptCommand(ids, opts));
 
 program
   .command("search <text>")

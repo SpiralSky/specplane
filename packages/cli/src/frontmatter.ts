@@ -26,3 +26,17 @@ export function readFrontmatter(filePath: string): { data: Record<string, unknow
     throw new FrontmatterError(filePath, `invalid YAML frontmatter: ${(e as Error).message.split("\n")[0]}`);
   }
 }
+
+/** Rewrite only the frontmatter `status:` line, preserving line endings and every other byte. */
+export function writeStatus(file: string, status: string): void {
+  const text = fs.readFileSync(file, "utf8");
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const lines = text.split(/\r?\n/);
+  const end = lines.findIndex((l, i) => i > 0 && /^---[ \t]*$/.test(l));
+  const at = lines.findIndex((l, i) => i > 0 && i < end && /^status\s*:/.test(l));
+  if (!/^---[ \t]*$/.test(lines[0] ?? "") || end === -1 || at === -1) {
+    throw new Error(`\`${file}\`: no frontmatter status found`);
+  }
+  lines[at] = `status: ${status}`;
+  fs.writeFileSync(file, lines.join(eol));
+}

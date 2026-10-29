@@ -97,3 +97,34 @@ The worker's first cut gated the overlay path on `spec.root.extends` (the *root*
 - `pinSpec(config, root, id, refs)` takes the refs to pin; passing `[]` pins every reference (use it only for whole-spec re-pins).
 - Step 04 adds `plan approve` and the `decision` group; reuse `commitChange`'s pattern (trailer `approve`, `cliTrailers("approve", "")`) for them.
 - `npm test` is 240/240; `spec --help` lists `approve` and `reopen`.
+
+## Step 04: plan approve, decision new, and decision accept
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/commands/plan-approve.ts` (new): `plan approve` checks stored status, committed plan folder, `plans.require_approved_specs`, and plan validation, then writes `status: ready` and regenerates `PLANS.md` in the same commit (`docs(<plan-id>): approve plan`, trailer `approve`). `--dry-run`.
+- `packages/cli/src/commands/decision.ts` (new): `decision new <title>` (next free `NNNN` from the directory listing, `slugify` name, proposed ADR with the four body headings) and `decision accept <id>...` (status, committed, per-ADR validation, `docs(decisions): accept <id>`). `--dry-run` on accept.
+- `packages/cli/src/errors.ts`: `DecisionNotFoundError`, `DecisionStateError`; `AlreadyExistsError` handles decision records.
+- `packages/cli/src/frontmatter.ts` (new): shared `writeStatus`, now used by the spec and plan/ADR commands.
+- `packages/cli/src/commands/plan-approve.test.ts`, `decision.test.ts` (new): 14 tests (Scenario 10, refusals, PLANS.md in the same commit, `--dry-run`).
+
+### Deviations from the plan
+
+`decision new` numbering was corrected to read the directory listing (the spec says the highest existing `NNNN`), and its test now asserts the spec rule rather than the unreachable refusal (G3).
+
+### Gaps found in specs
+
+- G3 (gap): `decision new`'s "already exists" refusal is unreachable. See `spec-gaps.md`.
+
+### Open issues
+
+- G3 implies the documented error case should either be dropped from `feature/tooling` or the numbering rule changed to "next number not used by a valid ADR"; the user decides at the final review.
+
+### What the next step must know
+
+- `PLANS.md` is regenerated inside `plan approve`; the CLI `generate` command and CI use the same function, so there is no drift.
+- `plan approve` refuses plans that are not `draft`; this plan is already `ready`, so it can only be exercised on a new plan.
+- `npm test` is 254/254. Step 05 is the last code step: five skills, the guard, and `.claude` sync.
