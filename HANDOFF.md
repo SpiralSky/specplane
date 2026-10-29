@@ -23,7 +23,8 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 - **All 20 specs are now `approved`** and committed on `main` (`44a18df`, `b6ee1cf`, `dd829a6`, `f6a9012`, `bbf4d19`) — the five architecture specs that were in `review` were approved at the user's explicit request, and `plans/PLANS.md` was regenerated. Writes that set `approved`/`ready`/`accepted` are the user's decision; from step 05 of this plan the Claude harness guard denies them for the agent.
 - **`2026-10-29-assist-and-approve` was approved by hand** (`6f02019`, `status: ready`) because `plan approve` only lands in step 04. It runs in the worktree `../.specplane-worktrees/specs-framework/2026-10-29-assist-and-approve` on branch `plan/2026-10-29-assist-and-approve`.
 - **Step 01 is `done`** (`48c61b0`): the architecture specs now specify the `review` role, refine-then-write `assist`, and the approval commands. `validate` there: 0 errors, 33 warnings (12 new `skill-drift` warnings until step 05 refreshes the skill pins). Two assumption entries, G1/G2, are open in the plan's `spec-gaps.md`.
-- **Next step: 02** (`config-and-policy`).
+- **Step 02 is `done`** (`d1e2e5e`): `review` accepted in the config schema/types, `init` comments, and the standing instructions (three delivery copies); 230/230 tests. **Next step: 03** (`spec-approve-reopen`).
+- **Subagents are unavailable**: the OpenRouter key is out of credits (`402` on every dispatch), so remaining steps run inline in the main session.
 
 ## Next steps
 1. Run steps 02–06 of `2026-10-29-assist-and-approve` one at a time (`/plan-step`), then `/plan-finish`. Note the temporary `skill-drift` warnings are cleared by step 05.
