@@ -14,7 +14,7 @@ The reference CLI (`specplane`) is a TypeScript command-line tool distributed vi
 
 ## Technology choices
 
-- **Language**: TypeScript (Node.js ≥ 18). See `decision/0002`.
+- **Language**: TypeScript (Node.js ≥ 22). See `decision/0002`.
 - **Package manager**: npm.
 - **Distribution**: npm package `specplane` (OQ-1, resolved).
 - **YAML parsing**: `js-yaml` (battle-tested, MIT, no dependencies).

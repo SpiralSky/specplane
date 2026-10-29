@@ -20,7 +20,7 @@
     "specplane": "./dist/cli.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "files": [
     "dist",
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22",
     "typescript": "^5"
   }
 }
