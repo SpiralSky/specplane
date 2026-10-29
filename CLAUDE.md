@@ -6,12 +6,17 @@ This is the maintainers' own file; Specplane never writes or ships a `CLAUDE.md`
 
 | Command | Purpose |
 |---------|---------|
-| `/spec-assist` | Help write a feature spec (does not draft it) |
+| `/spec-assist` | Write a feature spec with the user (refine-then-write under `assist`; review-only under `review`) |
 | `/spec-draft-architecture` | Draft an architecture spec from feature specs |
 | `/plan-create` | Create a new plan |
 | `/plan-step` | Execute the next step of the current plan |
 | `/plan-finish` | Run the finish flow for the current plan |
 | `/validate` | Run `specplane validate` and summarise results |
+| `/approve` | Approve specs, plans, or decision records by ID; `--reopen` reopens a spec. User-invoked only |
+| `/plan-start` | Start a plan and report where to continue it |
+| `/decision-new` | Create a decision record, optionally written from your description |
+| `/plan-status` | Show plans with live status and the next step |
+| `/plan-abandon` | Abandon a plan after confirmation |
 
 ## Maintainers' conventions
 

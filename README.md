@@ -119,13 +119,16 @@ specplane plan finish <plan-id>     # tests, rebase, archive, merge
 | `specplane spec list` / `show <id>` | List specs, or print one. |
 | `specplane spec validate [ids...]` | Validate one, several or all specs. |
 | `specplane spec pin [--check]` | Write or check base pins (`based_on`). |
+| `specplane spec approve <id>...` / `reopen <id>` | Approve specs (re-pinning an overlay's bases) or set one back to `review`; `--dry-run` prints the plan. |
 | `specplane plan new` | Create a draft plan folder. |
 | `specplane plan list [--live] [--no-fetch]` | List plans with their effective statuses and activity. |
 | `specplane plan show <id>` / `graph` | Print a plan, or the Mermaid dependency graph. |
+| `specplane plan approve <id>...` | Set a `draft` plan to `ready` and regenerate `PLANS.md`; `--dry-run` prints the plan. |
 | `specplane plan start <id> [--no-fetch]` | Start or resume a plan: branch, worktree and setup hook. |
 | `specplane plan finish <id> [--no-fetch]` | Run the finish flow. |
 | `specplane plan restack <id> [--dry-run]` | Rebase a stacked plan onto its new base; `--dry-run` lists the commits that would be replayed. |
 | `specplane plan abandon` / `cleanup` / `archive <id>` | Wind a plan down and tidy up afterwards. |
+| `specplane decision new <title>` / `accept <id>...` | Create a decision record with the next free number, or accept a `proposed` one. |
 
 Run `specplane <command> --help` for the options of each command.
 
@@ -141,11 +144,11 @@ spec_roots:
 specs:
   feature:
     authorship: user        # humans write feature specs
-    llm_role: assist        # none | assist | draft: what agents may do
+    llm_role: assist        # review | assist | draft | none: what agents may do
     forbid_architecture: true
   architecture:
     authorship: either
-    llm_role: draft
+    llm_role: draft         # review | assist | draft | none
     require_approved_features: true
 
 plans:
@@ -168,8 +171,8 @@ specplane init --harness claude
 
 This installs everything into your repository's `.claude/` folder. It is all plain repository content, so it also works in Claude Code cloud sessions.
 
-- **Slash commands:** `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`.
-- **Policy guard hook:** enforces `llm_role` on every edit. `none` denies the edit, `assist` asks you first, and `draft` allows it.
+- **Slash commands:** `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`, `/approve`, `/plan-start`, `/decision-new`, `/plan-status`, `/plan-abandon`.
+- **Policy guard hook:** enforces `llm_role` on every edit. `none` denies the edit; `review` and `assist` ask you first; `draft` allows it. It also denies any agent edit that sets a spec to `approved`, a plan to `ready`, or a decision record to `accepted` — those go through `/approve`.
 - **Session context hook:** in a plan checkout, tells the agent which plan and step it is on.
 - **Pre-commit validation** and a **status line**.
 - **Standing instructions** in `.claude/rules/specplane.md` and a managed block in `AGENTS.md`. Specplane never edits your `CLAUDE.md`.

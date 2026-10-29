@@ -160,3 +160,38 @@ None.
 
 - Checks at this point: `npm test` 254/254, `hooks.test.sh` 73/73, `check-sync.sh` OK, `validate` 0 errors / 21 warnings (the 21st is the worktree lacking `.claude/settings.local.json`; the main checkout has 20), `spec pin --check` clean, no `skill-drift` warnings remain.
 - Step 06 updates READMEs/`--help`/the maintainers' slash-command table and lists the still-`review` specs for the user; all specs are currently `approved`, so that list will be empty unless something is reopened.
+
+## Step 06: Docs, final check, and the approval list
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `README.md`: the CLI reference gained `spec approve`/`reopen`, `plan approve`, and `decision new`/`accept`; the harness section lists all eleven slash commands and describes the policy guard (review/assist ask; status edits to approved/ready/accepted denied); the config excerpt lists `review | assist | draft | none`.
+- `packages/cli/README.md`: quick-start examples for approve, reopen, plan approve, and decision new.
+- `CLAUDE.md`: the maintainers' slash-command table gained the five new commands with their purposes.
+- `--help` text already lists the new subcommands (`spec`, `plan`, and the new `decision` group); no change was needed.
+- `PLAN.md`: all plan-level acceptance criteria ticked.
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+None added by this step. Open entries from earlier steps:
+
+- G1 (assumption): `--dry-run` on the approval commands. See `spec-gaps.md`.
+- G2 (assumption): `plan approve` regenerates `PLANS.md` in the same commit. See `spec-gaps.md`.
+- G3 (gap): `decision new`'s "already exists" refusal is unreachable. See `spec-gaps.md`.
+
+### Open issues
+
+- **Approval list: empty.** All 20 specs are `approved` (the five in `review` were approved by hand on 2026-10-29 before the plan started), so there is no `/approve` command for the user to run after this plan merges. If the user reopens any spec during the final review, approve it with `/approve <id>`.
+- Three open `spec-gaps.md` entries (G1-G3) do not block the finish flow; they are for the user's final review.
+
+### What the next step must know
+
+- This was the last step; run `/plan-finish`. It runs `npm test` (no `plans.test_command` is set), rebases, commits `done` + archive, and merges locally.
+- Verified here: `npm test` 254/254, `hooks.test.sh` 73/73, `check-sync.sh` OK, `validate` 0 errors / 21 warnings (20 in the main checkout; the extra is the worktree lacking `.claude/settings.local.json`), `spec pin --check` clean.

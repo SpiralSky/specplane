@@ -19,6 +19,10 @@ specplane validate                # check specs, plans, and decisions
 specplane plan list               # show plans with effective status
 specplane search worktree --kind plan   # search plans only
 specplane plan restack <id> --dry-run   # show the commits a restack would replay
+specplane spec approve architecture/search # approve a spec, re-pinning an overlay's bases
+specplane spec reopen architecture/search  # approved -> review, reports the dependants
+specplane plan approve 2026-10-29-search   # draft plan -> ready, PLANS.md regenerated
+specplane decision new "Cache policy"      # create decisions/0004-cache-policy.md (proposed)
 specplane generate                # regenerate PLANS.md
 ```
 
