@@ -16,26 +16,18 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 - **Commits**: Conventional Commits subject plus `Specplane-Workflow/Plan/Step/Agent` trailers (`file-formats` §8). The human stays the author.
 - **Step records** live in `plans/<id>/HANDOFF.md`, not here.
 
-## Current state (2026-10-29, spec-approval session)
-- `main` clean. No remote. No worktrees. `plans.merge: local_merge` (forge stays `auto`, which acts as `none` without a remote).
-- **All 20 specs are `approved`** (14 feature, 6 architecture). The user told me to apply the OQ-5 patch, fix issues, and approve them. That was done after a three-part review (core features, plan/agent features, architecture). All must-fix findings were fixed in commits `d188bb9`..`75afbd9`.
-- The fixes include:
-  - a `local_merge` section and scenario in `feature/plan-execution`;
-  - restacking at finish, and skipping fetch when there is no remote;
-  - the OQ-10 `INFO.md` error;
-  - `spec pin` added to `feature/tooling`;
-  - the pin_bases semantics aligned (stale pins always block approval);
-  - `file-formats` §1.5 (finding messages, including a new `pin` type) and §1.6 (skill contract comment);
-  - CLI housekeeping subjects exempted from the 72-character limit;
-  - skill-contract wording aligned to `architecture/agent-skills` with a `skill-drift` warning;
-  - OQ-4 recorded as the widened hook defaults.
-- Pins are refreshed: `claude:feature/claude-integration`, `claude:architecture/claude-integration`, and the skill `specplane-contract` comments (`@21e5329`). check-sync and hook tests pass.
-- Plans `claude-harness-files` and `claude-instructions-and-enforcement` are done and archived. The CLI-core plan (`2026-10-28-reference-cli-core`, 5 steps) is still `draft`. Step 05 guidance no longer lists the closed gaps. `specplane` CLI is not built yet.
+## Current state (2026-10-29, autonomous completion session)
+- The user asked for the whole repo to be completed unattended: plans are auto-approved (`ready`), one subagent runs each plan step, and the main session acts as the confirming human for `local_merge`. Every judgement call is listed in `AUTONOMOUS-CHOICES.md` (details in each plan's `HANDOFF.md`, items marked `CHOICE:`).
+- All 20 specs are `approved`. Feature specs are never edited by agents (`llm_role: assist`); feature-spec findings go to `feature-spec-proposals.md` files in plan folders.
+- **Done and merged**: `2026-10-28-reference-cli-core` (the `specplane` CLI in `packages/cli`: `validate`, `generate`, `init`, `spec pin`; 100 tests) and `2026-10-29-claude-plugin-hardening`. Earlier: `claude-harness-files`, `claude-instructions-and-enforcement`.
+- CLI install: `cd packages/cli && npm run build && npm install -g --prefix ~/.local .` (this is a symlink, so a rebuild updates it). With `specplane` on PATH, the pre-commit hook runs `specplane validate` on the main checkout, so `main` must stay at 0 errors.
+- **In progress**: `2026-10-29-cli-spec-search` (worktree under `../.specplane-worktrees/specs-framework/`).
+- Open for the user: the plugin has no LICENSE (the plugin directory refuses a submission without one), and there is no icon.
 
 ## Next steps
-1. Set `2026-10-28-reference-cli-core` to `ready` and run `/plan-step` in a worktree (`../.specplane-worktrees/specs-framework/<id>/`). Finish with `local_merge`.
-2. After the CLI exists, run `specplane spec pin --check`, `specplane validate`, and `specplane generate`. Expect the CLI to surface anything the hand review missed.
-3. The remaining work is planned (all `ready`, created 2026-10-29, run sequentially via `wait_for_merge`): `cli-spec-search` -> `cli-plan-commands` -> `cli-plan-flows` -> `cli-forge-ci-publish`; `cli-claude-harness-init` (after CLI core); `claude-plugin-hardening` (independent). Each plan's step 01 is an architecture-spec edit that closes the deferred findings below; feature-spec findings become `feature-spec-proposals.md` files in the plan folders for the user to review.
+1. Run the remaining plans in order, one step per subagent, and finish each by hand with `local_merge` (`plan finish` arrives with `cli-plan-flows`): `cli-spec-search` → `cli-plan-commands` → `cli-plan-flows` → `cli-forge-ci-publish`, plus `cli-claude-harness-init`, which depends only on core.
+2. After each merge: `specplane validate`, `specplane spec pin --check`, `specplane generate`.
+3. At the end: the user reviews `AUTONOMOUS-CHOICES.md` and the `feature-spec-proposals.md` files.
 
 ## Deferred review findings (should-fix/nits, not blocking; fix as spec edits on the relevant plan branch)
 - **reference-cli**: specify the command surface beyond the core plan:
