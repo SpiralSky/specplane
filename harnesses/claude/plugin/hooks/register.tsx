@@ -120,14 +120,71 @@ async function loadPlans(
   }
 }
 
+/** Log sink for fail-open notes; replaceable so tests can capture it. */
+export const failureLog = {
+  write: (msg: string): void => console.error(msg),
+}
+
+function logFailure(label: string, err: unknown): void {
+  failureLog.write(
+    `specplane: ${label} hook failed, allowing: ${err instanceof Error ? err.message : String(err)}`,
+  )
+}
+
+/**
+ * Shared step-mode gate for Edit/Write/MultiEdit. Never rejects: any failure
+ * is logged and treated as "no denial" (fail open, like the shell hooks).
+ */
+export async function gateDenial(
+  $: any,
+  e: any,
+  label: string,
+  ctx: { cwd: string; planId: string | null; nextStep: string | null },
+  readMode: () => Promise<SpecplaneMode> = () => read($, mode),
+): Promise<string | null> {
+  try {
+    const currentMode = await readMode()
+    if (currentMode !== 'step') return null
+    return stepModeDenial(e?.file_path ?? '', ctx.cwd, ctx.planId, ctx.nextStep)
+  } catch (err) {
+    logFailure(label, err)
+    return null
+  }
+}
+
+/**
+ * "Read HANDOFF" action. Interactive sessions fill the prompt; non-interactive
+ * ones (`claude -p`), or a fill that throws, copy the path instead.
+ * Returns which route was taken.
+ */
+export async function handoffAction(
+  $: any,
+  interactive: boolean,
+  path: string,
+  surface?: unknown,
+): Promise<'fill' | 'copy'> {
+  if (interactive) {
+    try {
+      await $.prompt.fill({ text: `Read ${path}` })
+      return 'fill'
+    } catch (err) {
+      logFailure('Read HANDOFF prompt fill', err)
+    }
+  }
+  await $.ui.copy({ text: path, surface })
+  return 'copy'
+}
+
 export const register: Register = on => {
   let pollRun = 0
+  let interactiveSession = true
   let sessionCwd = ''
   let currentPlanId: string | null = null
   let nextStepFile: string | null = null
 
   on('session.start', async ($, e, next) => {
     sessionCwd = e.cwd
+    interactiveSession = (e as any).isInteractive !== false
 
     await $.command.register({
       name: 'specplane',
@@ -179,7 +236,11 @@ export const register: Register = on => {
     // Poll every 60 s; fetch from remote on every 5th run
     $.clock.every(60_000, async () => {
       pollRun++
-      await loadPlans($, sessionCwd, pollRun % 5 !== 0)
+      try {
+        await loadPlans($, sessionCwd, pollRun % 5 !== 0)
+      } catch (err) {
+        failureLog.write(`specplane: poll failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
     })
 
     void $.ui.open({ id: PANE, title: 'Specplane' })
@@ -213,48 +274,77 @@ export const register: Register = on => {
   // Refresh plan data after git commit or push
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const result = await next(e)
-    const cmd = (e as any).command ?? ''
-    if (/\bgit\s+(commit|push)\b/.test(cmd)) {
-      pollRun = 0 // next poll will fetch
-      await loadPlans($, sessionCwd, false)
+    try {
+      const cmd = (e as any).command ?? ''
+      if (/\bgit\s+(commit|push)\b/.test(cmd)) {
+        pollRun = 0 // next poll will fetch
+        await loadPlans($, sessionCwd, false)
+      }
+    } catch (err) {
+      failureLog.write(`specplane: Bash refresh failed: ${err instanceof Error ? err.message : String(err)}`)
     }
     return result
   })
+    .catch(($, e, next) => {
+      logFailure('Bash gate', next.error)
+      return next(e) // fail open
+    })
 
   // Step-mode: deny Edit to prohibited paths
   on('tool.call', { tool: 'Edit' }, async ($, e, next) => {
-    const currentMode = await read($, mode)
-    if (currentMode !== 'step') return next(e)
-    const filePath = (e as any).file_path ?? ''
-    const denial = stepModeDenial(filePath, sessionCwd, currentPlanId, nextStepFile)
+    const denial = await gateDenial($, e, 'Edit', {
+      cwd: sessionCwd,
+      planId: currentPlanId,
+      nextStep: nextStepFile,
+    })
     if (denial) return { deny: denial }
     return next(e)
   })
+    .catch(($, e, next) => {
+      logFailure('Edit gate', next.error)
+      return next(e) // fail open
+    })
 
   // Step-mode: deny Write to prohibited paths
   on('tool.call', { tool: 'Write' }, async ($, e, next) => {
-    const currentMode = await read($, mode)
-    if (currentMode !== 'step') return next(e)
-    const filePath = (e as any).file_path ?? ''
-    const denial = stepModeDenial(filePath, sessionCwd, currentPlanId, nextStepFile)
+    const denial = await gateDenial($, e, 'Write', {
+      cwd: sessionCwd,
+      planId: currentPlanId,
+      nextStep: nextStepFile,
+    })
     if (denial) return { deny: denial }
     return next(e)
   })
+    .catch(($, e, next) => {
+      logFailure('Write gate', next.error)
+      return next(e) // fail open
+    })
 
   // Step-mode: deny MultiEdit to prohibited paths
   on('tool.call', { tool: 'MultiEdit' } as any, async ($, e, next) => {
-    const currentMode = await read($, mode)
-    if (currentMode !== 'step') return next(e)
-    const filePath = (e as any).file_path ?? ''
-    const denial = stepModeDenial(filePath, sessionCwd, currentPlanId, nextStepFile)
+    const denial = await gateDenial($, e, 'MultiEdit', {
+      cwd: sessionCwd,
+      planId: currentPlanId,
+      nextStep: nextStepFile,
+    })
     if (denial) return { deny: denial }
     return next(e)
   })
+    .catch(($, e, next) => {
+      logFailure('MultiEdit gate', next.error)
+      return next(e) // fail open
+    })
 
   // Add system-prompt section in step or spec mode
   on('prompt.compose', async ($, e, next) => {
     const result = await next(e)
-    const currentMode = await read($, mode)
+    let currentMode: SpecplaneMode
+    try {
+      currentMode = await read($, mode)
+    } catch (err) {
+      failureLog.write(`specplane: prompt.compose failed, no section added: ${err instanceof Error ? err.message : String(err)}`)
+      return result
+    }
 
     if (currentMode === 'step' && currentPlanId && nextStepFile) {
       let criteria = ''
@@ -432,11 +522,18 @@ export const register: Register = on => {
                   {plan.checkout && (
                     <Button
                       key={`read-${plan.id}`}
-                      label="Read HANDOFF"
-                      onPress={() =>
-                        $.prompt.fill({
-                          text: `Read ${plan.checkout}/HANDOFF.md`,
-                        })
+                      label={
+                        interactiveSession
+                          ? 'Read HANDOFF'
+                          : 'Copy HANDOFF path'
+                      }
+                      onPress={press =>
+                        handoffAction(
+                          $,
+                          interactiveSession,
+                          `${plan.checkout}/HANDOFF.md`,
+                          press?.surface,
+                        )
                       }
                     />
                   )}

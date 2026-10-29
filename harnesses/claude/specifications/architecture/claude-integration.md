@@ -330,7 +330,7 @@ The plugin never keeps its own copy of plan state. It runs `specplane plan list 
 A pane titled **Specplane** beside the chat, opened with `/specplane`:
 
 - One row per plan that is `in_progress` or `review`, or that has a branch: plan slug; where it runs (worktree path, `remote` when only `origin/plan/<id>` exists, `external`); `step <done>/<total>` and the next step's title; age of the last step commit with its `Specplane-Agent` and a short `Specplane-Session`; `⚠ <n> blocked` from `blocked_issues`; `↑<n>` when `ahead_of_remote` > 0.
-- Selecting a row expands its blocked issues and the next step's acceptance criteria. Buttons copy the command to continue in that checkout (`cd <checkout> && claude /plan-step`), or put `Read <HANDOFF.md path>` into the prompt.
+- Selecting a row expands its blocked issues and the next step's acceptance criteria. Buttons copy the command to continue in that checkout (`cd <checkout> && claude /plan-step`), or put `Read <HANDOFF.md path>` into the prompt. In a non-interactive session (`claude -p`), where the prompt cannot be filled, the second button is labelled "Copy HANDOFF path" and copies the path instead.
 - The pane is read-only: it never starts, finishes, or edits plans.
 
 ### Specplane mode

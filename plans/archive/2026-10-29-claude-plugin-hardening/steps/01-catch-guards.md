@@ -2,7 +2,7 @@
 plan: 2026-10-29-claude-plugin-hardening
 step: 1
 title: Rejection guards for gating hooks
-status: pending
+status: done
 context:
   - spec: claude:architecture/claude-integration#Specplane mode
   - spec: claude:architecture/claude-integration#Testing
@@ -16,10 +16,10 @@ Make every gating hook in the plugin safe against rejected promises.
 
 ## Acceptance criteria
 
-- [ ] Each gating hook (the `step`-mode edit denials and similar) returns a result even when its internal promise rejects; the failure mode is allow plus a logged message, matching the shell hooks' fail-open rule.
-- [ ] No unhandled rejection is possible from the registered handlers.
-- [ ] Tests inject a rejecting dependency and assert allow plus log.
-- [ ] Whatever `validate` reports about the guards is clean.
+- [x] Each gating hook (the `step`-mode edit denials and similar) returns a result even when its internal promise rejects; the failure mode is allow plus a logged message, matching the shell hooks' fail-open rule.
+- [x] No unhandled rejection is possible from the registered handlers.
+- [x] Tests inject a rejecting dependency and assert allow plus log.
+- [x] Whatever `validate` reports about the guards is clean.
 
 ## Tasks
 

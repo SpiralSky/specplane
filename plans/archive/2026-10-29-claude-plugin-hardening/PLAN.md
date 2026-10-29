@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-claude-plugin-hardening
 title: Claude plugin hardening — hook guards and HANDOFF button
-status: ready
+status: done
 specs:
   - claude:architecture/claude-integration
   - claude:feature/claude-integration
@@ -34,9 +34,9 @@ Fix the two open plugin items: add rejection handling to the plugin's gating hoo
 
 ## Acceptance criteria
 
-- [ ] Every promise-returning gating hook handler in the plugin handles rejection and fails open (allows the tool call) with a logged note; `specplane validate` no longer warns about missing `.catch` guards.
-- [ ] In `claude -p` (no prompt buffer), the pane does not offer a dead button: it shows the HANDOFF path as text, or injects the read request in a way that works; interactive behaviour is unchanged.
-- [ ] `claude plugin test` passes with the new cases.
+- [x] Every promise-returning gating hook handler in the plugin handles rejection and fails open (allows the tool call) with a logged note; `specplane validate` no longer warns about missing `.catch` guards.
+- [x] In `claude -p` (no prompt buffer), the pane does not offer a dead button: it shows the HANDOFF path as text, or injects the read request in a way that works; interactive behaviour is unchanged.
+- [x] `claude plugin test` passes with the new cases.
 
 ## Risks
 
