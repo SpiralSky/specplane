@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
-import { planGraphCommand, planListCommand, planNewCommand, planShowCommand } from "./commands/plan.js";
+import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand } from "./commands/plan.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
 import { specPinCommand } from "./commands/spec-pin.js";
@@ -20,7 +20,7 @@ program
   .description("Specplane reference CLI")
   .version(pkg.version);
 
-const plan = program.command("plan").description("Work with plans (list, new, show, graph; start, finish, abandon, cleanup, archive follow)");
+const plan = program.command("plan").description("Work with plans (list, new, show, graph, start, finish, abandon, cleanup, archive, restack)");
 plan
   .command("list")
   .description("List plans with their effective statuses")
@@ -38,6 +38,29 @@ plan
   .option("--depends-on <ids>", "comma-separated plan IDs")
   .action((opts) => planNewCommand(opts));
 plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
+plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").action((id) => planStartCommand(id));
+plan
+  .command("finish <id>")
+  .description("Finish a plan: tests, rebase, done and archive commit, merge")
+  .option("--yes", "confirm the local merge without asking")
+  .action((id, opts) => planFinishCommand(id, opts));
+plan
+  .command("abandon <id>")
+  .description("Abandon a plan: mark it abandoned, remove its worktree")
+  .option("--delete-branch", "also delete branch plan/<id>")
+  .option("--force", "remove the worktree even if it has uncommitted changes")
+  .action((id, opts) => planAbandonCommand(id, opts));
+plan
+  .command("cleanup <id>")
+  .description("Remove the worktree and delete plan/<id> once the plan is done on the default branch")
+  .option("--force", "remove the worktree even if it has uncommitted changes")
+  .action((id, opts) => planCleanupCommand(id, opts));
+plan.command("archive <id>").description("Move a done or abandoned plan into the archive").action((id) => planArchiveCommand(id));
+plan
+  .command("restack <id>")
+  .description("Rebase a stacked plan's own commits onto its new base")
+  .option("--dry-run", "check and report without rewriting history")
+  .action((id, opts) => planRestackCommand(id, opts));
 plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());
 
 const spec = program.command("spec").description("Work with specs (new, list, show, validate, pin)");

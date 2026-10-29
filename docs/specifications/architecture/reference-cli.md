@@ -63,7 +63,7 @@ src/
     commit.ts          # builds commit messages and reads trailers (file-formats §8)
   agents/
     standing.ts        # standing-instructions text and the AGENTS.md managed block
-  harness/
+  harness/             # implemented by the harness plan, not the plan-flows plan
     index.ts           # harness registry: detect, install, skillDirs, rulesFile
     claude.ts          # Claude Code harness (templates, settings merge)
   generate/
@@ -72,7 +72,7 @@ src/
   commands/
     init.ts
     spec.ts            # spec new | list | show | validate | pin
-    plan.ts            # plan new | list | show | graph | start | finish | abandon | cleanup | archive
+    plan.ts            # plan new | list | show | graph | start | finish | abandon | cleanup | archive | restack
     search.ts
     validate.ts
     generate.ts
@@ -349,7 +349,13 @@ Runs in the plan's checkout. Steps follow `feature/plan-execution` § Finish flo
 
 ### Restack
 
-`restack(id)`: find the newest marker commit on `plan/<id>` (`findLatest('plan/<id>', 'stack')`), take its `Specplane-Stack-Base` trailer as `upstream`, and call `rebaseOnto(newBase, upstream, 'plan/<id>')`, where `newBase` is the default branch if the base plan is done, else `plan/<base-id>`. In the latter case, append a new marker recording the new base tip.
+`restack(id)`: find the newest marker commit on `plan/<id>` (`findLatest('plan/<id>', 'stack')`), take its `Specplane-Stack-Base` trailer as `upstream`, and call `rebaseOnto(newBase, upstream, 'plan/<id>')`, where `newBase` is the default branch if the base plan is done, else `plan/<base-id>`. In the latter case, append a new marker recording the new base tip. A plan with no stack marker fails with `PlanStateError` ("Cannot restack: `<id>` is not stacked.").
+
+Restack triggers (a restack is the only operation that rewrites a stacked plan's history, so each trigger is explicit or part of a flow the user started):
+
+1. **Explicit**: `specplane plan restack <id>`. `feature/tooling` does not yet list this command; it is an extension documented here and depends on the proposal made in the `cli-plan-flows` plan (step 02).
+2. **Finish step 4**: the finish flow restacks a stacked plan automatically (see Finish).
+3. **Resume (message only)**: when `plan start <id>` resumes a stacked plan whose base plan is now done on the default branch, it prints "Base plan `<base-id>` has merged; run `specplane plan restack <id>`." and continues. Resume never rewrites history.
 
 ### Plan activity (`plan list --json`)
 
@@ -490,7 +496,7 @@ Exit code is `0` when `valid: true` (warnings do not affect exit code). Exit cod
 | `FrontmatterError` | "`<file>`: <schema violation>" | 1 |
 | `FrontmatterMissingError` | "`<file>`: no frontmatter block found" | 1 |
 | `PlanNotFoundError` | "Plan `<id>` not found." | 1 |
-| `PlanStateError` | "Cannot <action>: <reason>." with the texts of `feature/plan-execution`, e.g. "Cannot start plan: `<id>` is `<status>`, not `ready`.", "Cannot start plan: dependency `<id>` is not done.", "Cannot finish: step <NN> is `<status>`." | 1 |
+| `PlanStateError` | "Cannot <action>: <reason>." with the texts of `feature/plan-execution`, e.g. "Cannot start plan: `<id>` is `<status>`, not `ready`.", "Cannot start plan: dependency `<id>` is not done.", "Cannot stack on more than one unmerged dependency: `<a>`, `<b>`.", "Cannot finish: step <NN> is `<status>`.", "Cannot restack: `<id>` is not stacked." | 1 |
 | `DependencyCycleError` | "Dependency cycle: `<a>` → `<b>` → `<a>`" | 1 |
 | `SetupHookError` | "Setup hook failed: `<cmd>` exited with code <n>. Worktree removed." | 1 |
 | `RebaseConflictError` | "Rebase of `plan/<id>` onto `<base>` has conflicts; resolve manually." | 1 |
