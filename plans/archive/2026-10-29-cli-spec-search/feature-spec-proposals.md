@@ -1,5 +1,7 @@
 # Feature-spec proposals — 2026-10-29-cli-spec-search
 
+**Applied 2026-10-29** (user-approved, pasted verbatim): (a1); (a2) as the `--kind` rename; (b) with the proposed severities; (c); (d) with a user change: records go to a per-plan `spec-gaps.md` instead of HANDOFF.md.
+
 Feature specs are `llm_role: assist`, so these are proposals only. Nothing here has been applied; each needs user review. Each proposal stands alone. Behaviour that needs a decision not yet approved is marked "Needs decision".
 
 ## (a) `feature/tooling`: `--no-fetch` and the two `--type` options

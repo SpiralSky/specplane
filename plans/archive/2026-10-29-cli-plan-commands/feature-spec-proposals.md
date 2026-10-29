@@ -1,5 +1,7 @@
 # Feature-spec proposals: plan-status and plan-index
 
+**Applied 2026-10-29** (user-approved, pasted verbatim): (a), (b), (c).
+
 Status: needs user review. Feature specs are `llm_role: assist`, so none of these edits has been applied. Each section gives the target, the current text, the problem, the proposed replacement, and the reason.
 
 ## (a) `feature/plan-status`: abandon from which stored statuses
