@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-claude-harness-init
 step: 5
 title: Replace skillDirs stand-in; rules freshness check
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Skill contract drift (`spec/skill-drift.ts`)
   - spec: architecture/reference-cli#Standing instructions (`agents/standing.ts`)
@@ -20,11 +20,11 @@ Replace the stand-in `skillDirs()` with the registry and add the rules-file fres
 
 ## Acceptance criteria
 
-- [ ] `skill-drift` finds skills through registered harness `skillDirs` (installed harnesses and, in this repository, `harnesses/*/templates/skills/`), and the stand-in function is deleted.
-- [ ] `validate` warns with type `freshness` when an installed harness's rules file is missing or differs from the bundled template, and not when it matches.
-- [ ] Standing-instruction freshness accepts the block in `AGENTS.md` or a harness file registered by an installed harness.
-- [ ] Tests cover both warnings and their absence.
-- [ ] `specplane validate` on this repository shows neither warning.
+- [x] `skill-drift` finds skills through registered harness `skillDirs` (installed harnesses and, in this repository, `harnesses/*/templates/skills/`), and the stand-in function is deleted.
+- [x] `validate` warns with type `freshness` when an installed harness's rules file is missing or differs from the bundled template, and not when it matches.
+- [x] Standing-instruction freshness accepts the block in `AGENTS.md` or a harness file registered by an installed harness.
+- [x] Tests cover both warnings and their absence.
+- [x] `specplane validate` on this repository shows neither warning.
 
 ## Tasks
 

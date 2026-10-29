@@ -3,7 +3,7 @@ name: validate
 description: Run full Specplane repository validation and summarise the results. Use when the user runs /validate or when validation results are relevant.
 disable-model-invocation: false
 ---
-<!-- specplane-contract: architecture/agent-skills#validate@21e5329 -->
+<!-- specplane-contract: architecture/agent-skills#validate@9b59fd0 -->
 
 # validate
 
@@ -18,7 +18,9 @@ Resolve every spec, plan, and ADR path from config (`.specplane/config.yaml`), n
 
 ## Policy check
 
-None.
+Read `config.specs.llm_review` and `config.specs.<type>.llm_role`.
+
+If the CLI is unavailable: say so, do not claim the repository is valid, and perform only the LLM review of step 3 (when enabled) plus manual frontmatter checks from `architecture/file-formats`.
 
 ## Steps
 
@@ -27,7 +29,8 @@ None.
 3. If `specs.llm_review: true`:
    a. For each feature spec (skipped if `specs.feature.llm_role: none`, or if the spec sets `allow_architecture: true`), ask: "Does this text describe how something is implemented (architecture) rather than what it does (behaviour)? List any suspect passages." Each passage becomes a warning.
    b. For each overlay spec with `extends`, read it together with its base spec and ask whether it adds to or contradicts the base. Each suspected contradiction becomes a warning quoting both passages.
-4. Present a summary: "N errors, M warnings", with a suggested fix for each error (e.g. for an ID mismatch: "Rename the file or update the `id:` field").
+4. Self-check LLM-review findings before reporting: drop any passage that on re-reading does not describe implementation and any contradiction that cannot be quoted from both texts.
+5. Present a summary: "N errors, M warnings", with a suggested fix for each error (e.g. for an ID mismatch: "Rename the file or update the `id:` field").
 
 ## Output
 

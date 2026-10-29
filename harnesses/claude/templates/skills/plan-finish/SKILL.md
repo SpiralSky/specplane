@@ -4,7 +4,7 @@ description: Run the finish flow for the current plan. Use when the user runs /p
 argument-hint: "[plan-id]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-finish@21e5329 -->
+<!-- specplane-contract: architecture/agent-skills#plan-finish@9b59fd0 -->
 
 # plan-finish
 
@@ -19,7 +19,10 @@ Resolve every spec, plan, and ADR path from config (`.specplane/config.yaml`), n
 
 ## Policy check
 
-None.
+Read `config.plans` and `config.execution` before finishing.
+
+- If the CLI is unavailable: stop and tell the user to install it; the flow is not reimplemented by hand.
+- If any step of the plan is not `done` or `skipped`: stop and report which.
 
 ## Steps
 

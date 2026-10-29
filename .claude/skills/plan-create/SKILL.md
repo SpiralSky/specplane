@@ -4,7 +4,7 @@ description: Create a new Specplane plan interactively. Use when the user runs /
 argument-hint: "[goal]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-create@21e5329 -->
+<!-- specplane-contract: architecture/agent-skills#plan-create@9b59fd0 -->
 
 # plan-create
 
@@ -28,9 +28,9 @@ Use `AskUserQuestion` for the slug, spec, and dependency choices when it is avai
 1. Ask for the goal (use `$ARGUMENTS` if given) and title; propose a slug (2-4 words) and the ID `<today>-<slug>`. Confirm it does not exist.
 2. Ask for the specs and dependencies; resolve each spec ID (no root context) and plan ID. Reject unknown IDs, abandoned dependencies, and dependency cycles.
 3. Draft the PLAN.md body sections (`architecture/file-formats` §2.2) with the user.
-4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths).
+4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths). Ordering check: confirm that each step depends only on earlier steps (nothing a step needs is produced by a later one) and reorder before showing the proposal if not.
 5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`), an empty `<plans.dir>/<id>/HANDOFF.md` (header only; `/plan-step` appends step sections), and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new` when available.
-6. Run validation on the new plan.
+6. Run validation on the new plan. Without the CLI, apply `architecture/file-formats` §2 by hand (create the files, check IDs and dependencies manually) and tell the user validation was not run.
 
 ## Output
 

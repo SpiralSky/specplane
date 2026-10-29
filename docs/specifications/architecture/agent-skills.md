@@ -101,7 +101,8 @@ If llm_role == "draft": drafting is permitted; default to help mode unless the u
 2. Suggest a structure (list of section headings) based on the feature spec template in `architecture/file-formats` §1.3.
 3. For each section, ask a clarifying question to surface edge cases and acceptance scenarios.
 4. If the user provides a draft, review it: missing acceptance scenarios, ambiguous rules, and architecture-leak violations (implementation detail that is not part of the user-visible interface).
-5. Propose edits to the user's text; never write the file without explicit approval.
+5. Self-check every suggestion and proposed edit before showing it: it must not introduce implementation detail (the same architecture-leak test as step 4) and must not contradict the user's existing text. Rewrite or drop any that fail.
+6. Propose edits to the user's text; never write the file without explicit approval.
 
 ### Output
 
@@ -132,7 +133,8 @@ If llm_role == "draft": proceed
 4. Produce a draft using the template in `architecture/file-formats` §1.4.
 5. Mark any place where the feature specs leave the architecture open with `<!-- GAP: <description> -->`.
 6. Set `author: llm`, `status: draft`, and the `implements` list.
-7. Write to `<root.path>/architecture/<slug>.md` (root from config; `base` unless the user names another).
+7. Before writing, self-check the draft: every `implements` entry resolves, every feature-spec requirement is covered or marked with a GAP, and no section contradicts a feature spec (the architecture spec wins only where the feature spec is silent). Fix or mark with a GAP anything that fails.
+8. Write to `<root.path>/architecture/<slug>.md` (root from config; `base` unless the user names another).
 
 ### Output
 
@@ -158,9 +160,9 @@ Specs below the requirement → warn (the plan can be created, but not started, 
 1. Ask for the goal and title; propose a slug (2–4 words) and the ID `<today>-<slug>`. Confirm it does not exist.
 2. Ask for the specs and dependencies; resolve each spec ID (no root context) and plan ID. Reject unknown IDs, abandoned dependencies, and dependency cycles.
 3. Draft the PLAN.md body sections (`architecture/file-formats` §2.2) with the user.
-4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths).
+4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths). Ordering check: confirm that each step depends only on earlier steps (nothing a step needs is produced by a later one) and reorder before showing the proposal if not.
 5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`) and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new` when available.
-6. Run validation on the new plan.
+6. Run validation on the new plan. Without the CLI, apply `architecture/file-formats` §2 by hand (create the files, check IDs and dependencies manually) and tell the user validation was not run.
 
 ### Output
 
@@ -184,7 +186,7 @@ Determine whether the session is attended (feature/spec-precedence).
 ### Steps
 
 1. Identify the plan: from the current branch `plan/<id>`, or from the user. If not on the plan's branch, warn before proceeding. If `origin/plan/<id>` exists, fetch it first: fast-forward when it is ahead, and stop when the branches have diverged ("Another session advanced `plan/<id>`; reconcile the branches before running a step"). Several sessions (worktrees, cloud runs) may work on a repository, but only one at a time on a given plan.
-2. Parse the step files; find the next step (lowest-numbered step that is not `done` or `skipped`). If it is `blocked`, report its `BLOCKED:` issue and stop. If there is none, report that all steps are done and suggest `plan-finish`.
+2. Parse the step files; find the next step (lowest-numbered step that is not `done` or `skipped`). Ordering check: confirm every lower-numbered step is `done` or `skipped`; if any is `pending` or `blocked`, run that one first (or report its `BLOCKED:` issue) rather than the step the user named. If it is `blocked`, report its `BLOCKED:` issue and stop. If there is none, report that all steps are done and suggest `plan-finish`.
 3. Load context: every item in the step's `context` field (spec sections by anchor, ADRs, files) plus all prior sections of HANDOFF.md.
 4. Avoid reading other files unless the listed context is insufficient; record any expansion in HANDOFF.md.
 5. Execute the tasks, following `feature/spec-precedence` (record gaps; on contradictions, stop if attended, or record `BLOCKED:` and continue with unaffected tasks if unattended).
@@ -206,6 +208,14 @@ One-paragraph summary: outcome, files changed, gaps, open issues, and the next s
 
 Runs the finish flow for the current plan. Implements `plan-finish`.
 
+### Policy check
+
+```
+Read config.plans and config.execution before finishing.
+If the CLI is unavailable: stop and tell the user to install it; the flow is not reimplemented by hand.
+If any step of the plan is not done or skipped: stop and report which.
+```
+
 ### Steps
 
 1. Identify the current plan from the git branch.
@@ -225,6 +235,13 @@ The result: PR URL, merge confirmation, or the error that stopped the flow and w
 
 Runs full repository validation and presents actionable results. Implements `validate`.
 
+### Policy check
+
+```
+Read config.specs.llm_review and config.specs.<type>.llm_role.
+If the CLI is unavailable: say so, do not claim the repository is valid, and perform only the LLM review of step 3 (when enabled) plus manual frontmatter checks from architecture/file-formats.
+```
+
 ### Steps
 
 1. Run `specplane validate --json`.
@@ -232,7 +249,8 @@ Runs full repository validation and presents actionable results. Implements `val
 3. If `specs.llm_review: true`:
    a. For each feature spec (skipped if `specs.feature.llm_role: none`, or if the spec sets `allow_architecture: true`), ask: "Does this text describe how something is implemented (architecture) rather than what it does (behaviour)? List any suspect passages." Each passage becomes a warning.
    b. For each overlay spec with `extends`, read it together with its base spec and ask whether it adds to or contradicts the base. Each suspected contradiction becomes a warning quoting both passages.
-4. Present a summary: "N errors, M warnings", with a suggested fix for each error (e.g. for an ID mismatch: "Rename the file or update the `id:` field").
+4. Self-check LLM-review findings before reporting: drop any passage that on re-reading does not describe implementation and any contradiction that cannot be quoted from both texts.
+5. Present a summary: "N errors, M warnings", with a suggested fix for each error (e.g. for an ID mismatch: "Rename the file or update the `id:` field").
 
 ### Output
 

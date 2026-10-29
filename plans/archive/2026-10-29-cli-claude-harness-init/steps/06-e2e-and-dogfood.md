@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-claude-harness-init
 step: 6
 title: End-to-end init and dogfood check
-status: pending
+status: done
 context:
   - spec: claude:feature/claude-integration#Acceptance scenarios
   - spec: claude:architecture/claude-integration#Testing
@@ -17,10 +17,10 @@ Verify `init --harness claude` from the packed package and on this repository.
 
 ## Acceptance criteria
 
-- [ ] An integration test installs the packed tarball into a temp prefix, runs `init --harness claude` in a fresh git repo, and asserts the file list, modes, merged settings, and the AGENTS.md block.
-- [ ] A second run reports no `Updated` lines.
-- [ ] Running `specplane init --harness claude` in this repository leaves `git status` clean, and `check-sync.sh`, `hooks.test.sh`, `specplane validate`, and `specplane spec pin --check` all pass.
-- [ ] Any template difference found is fixed in the templates and the dogfood copies together.
+- [x] An integration test installs the packed tarball into a temp prefix, runs `init --harness claude` in a fresh git repo, and asserts the file list, modes, merged settings, and the AGENTS.md block.
+- [x] A second run reports no `Updated` lines.
+- [x] Running `specplane init --harness claude` in this repository leaves `git status` clean, and `check-sync.sh`, `hooks.test.sh`, `specplane validate`, and `specplane spec pin --check` all pass.
+- [x] Any template difference found is fixed in the templates and the dogfood copies together.
 
 ## Tasks
 

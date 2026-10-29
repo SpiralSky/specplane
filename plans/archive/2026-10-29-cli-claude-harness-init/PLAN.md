@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-cli-claude-harness-init
 title: CLI init --harness claude, harness registry, and skill findings
-status: ready
+status: done
 specs:
   - claude:feature/claude-integration
   - claude:architecture/claude-integration
@@ -46,13 +46,13 @@ Implement `specplane init --harness claude`: the harness registry, template bund
 
 ## Acceptance criteria
 
-- [ ] `specplane init --harness claude` in an empty git repository writes every file in `claude:architecture/claude-integration` § Files produced, hooks are mode 0755, and settings are merged without removing existing entries.
-- [ ] Re-running `init` reports `Skipped`/`Unchanged` for identical files and `Updated` for differing Specplane-owned ones; `CLAUDE.md` is never touched.
-- [ ] An unknown harness name exits 1 listing known names; with `.claude/` present, `init` detects the harness without the flag.
-- [ ] Skill drift and standing-instruction freshness use the registry; the stand-in `skillDirs()` is gone.
-- [ ] `specplane validate` warns when `.claude/rules/specplane.md` differs from the bundled template.
-- [ ] The updated skill templates and `.claude/` copies pass `harnesses/claude/tests/check-sync.sh` and `hooks.test.sh`.
-- [ ] `npm test` passes; running `init --harness claude` in this repository changes nothing.
+- [x] `specplane init --harness claude` in an empty git repository writes every file in `claude:architecture/claude-integration` § Files produced, hooks are mode 0755, and settings are merged without removing existing entries.
+- [x] Re-running `init` reports `Skipped`/`Unchanged` for identical files and `Updated` for differing Specplane-owned ones; `CLAUDE.md` is never touched.
+- [x] An unknown harness name exits 1 listing known names; with `.claude/` present, `init` detects the harness without the flag.
+- [x] Skill drift and standing-instruction freshness use the registry; the stand-in `skillDirs()` is gone.
+- [x] `specplane validate` warns when `.claude/rules/specplane.md` differs from the bundled template.
+- [x] The updated skill templates and `.claude/` copies pass `harnesses/claude/tests/check-sync.sh` and `hooks.test.sh`.
+- [x] `npm test` passes; running `init --harness claude` in this repository changes nothing.
 
 ## Risks
 

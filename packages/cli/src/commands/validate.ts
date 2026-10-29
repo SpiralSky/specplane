@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { checkStanding } from "../agents/standing.js";
+import { type Harness, HARNESSES, templatesDir } from "../harness/index.js";
 import { CONFIG_PATH, loadConfig } from "../config.js";
 import { loadAdrs, validateAdrs } from "../decisions/validate.js";
 import { ConfigError, FrontmatterError, FrontmatterMissingError } from "../errors.js";
@@ -15,18 +16,42 @@ import { checkSkillDrift } from "../spec/skill-drift.js";
 import { validateSpecs } from "../spec/validate.js";
 import type { Config, ValidationReport } from "../types.js";
 
-/** Standing-instructions freshness check (type `freshness`). */
-export function checkFreshness(root: string): ValidationReport {
+const STANDING_MSG = (file: string, detail = "") =>
+  `Specplane standing instructions in ${file} are missing or out of date; run specplane init.${detail}`;
+
+/** True when the harness's rules file exists and equals its bundled template. */
+function rulesFresh(h: Harness, root: string): boolean {
+  if (!h.rulesTemplate) return false;
+  const abs = path.join(root, h.rulesFile);
+  const tpl = path.join(templatesDir(h.name), h.rulesTemplate);
+  return fs.existsSync(abs) && fs.existsSync(tpl) && fs.readFileSync(abs).equals(fs.readFileSync(tpl));
+}
+
+/**
+ * Standing-instructions freshness (type `freshness`): the block in `AGENTS.md` or a fresh rules file of an
+ * installed harness satisfies it; each installed harness's rules file must also match its bundled template.
+ */
+export function checkFreshness(root: string, registry: Harness[] = HARNESSES): ValidationReport {
   const file = "AGENTS.md";
   const abs = path.join(root, file);
   const content = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null;
-  const state = checkStanding(content);
-  if (state === "ok") return makeReport([], [file]);
-  const detail = state === "malformed" ? " (malformed specplane block)" : "";
-  return makeReport(
-    [finding("warning", "freshness", file, `Specplane standing instructions in ${file} are missing or out of date; run specplane init.${detail}`)],
-    [file],
-  );
+  const installed = registry.filter((h) => h.detect(root));
+  const lines = [undefined, ...registry.map((h) => h.workflowsLine)];
+  const states = lines.map((l) => checkStanding(content, l));
+  const state = states.includes("ok") ? "ok" : states[0];
+  const findings = [];
+  const files = [file];
+  for (const h of installed) {
+    if (!h.rulesTemplate) continue;
+    files.push(h.rulesFile);
+    if (!rulesFresh(h, root)) findings.push(finding("warning", "freshness", h.rulesFile, STANDING_MSG(h.rulesFile)));
+  }
+  const delivered = installed.some((h) => rulesFresh(h, root));
+  if (state !== "ok" && !delivered) {
+    const detail = state === "malformed" ? " (malformed specplane block)" : "";
+    findings.unshift(finding("warning", "freshness", file, STANDING_MSG(file, detail)));
+  }
+  return makeReport(findings, files);
 }
 
 /** PLANS.md freshness: the committed file must equal the generated one (type `freshness`). */

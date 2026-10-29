@@ -4,7 +4,7 @@ description: Draft an architecture spec from one or more feature specs. Use when
 argument-hint: "[feature-spec-id ...]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#spec-draft-architecture@21e5329 -->
+<!-- specplane-contract: architecture/agent-skills#spec-draft-architecture@9b59fd0 -->
 
 # spec-draft-architecture
 
@@ -33,7 +33,8 @@ Read `specs.architecture.llm_role` from config.
 4. Produce a draft using the template in `architecture/file-formats` §1.4.
 5. Mark any place where the feature specs leave the architecture open with `<!-- GAP: <description> -->`.
 6. Set `author: llm`, `status: draft`, and the `implements` list.
-7. Write the draft with `Write` to `<root.path>/architecture/<slug>.md` (root from config; `base` unless the user names another).
+7. Before writing, self-check the draft: every `implements` entry resolves, every feature-spec requirement is covered or marked with a GAP, and no section contradicts a feature spec (the architecture spec wins only where the feature spec is silent). Fix or mark with a GAP anything that fails.
+8. Write the draft with `Write` to `<root.path>/architecture/<slug>.md` (root from config; `base` unless the user names another).
 
 ## Output
 

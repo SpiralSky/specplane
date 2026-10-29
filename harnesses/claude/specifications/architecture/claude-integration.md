@@ -359,7 +359,7 @@ Agent({
 })
 ```
 
-The prompt passes **paths**, not file contents; the subagent reads them itself, so the parent never loads them. The parent performs steps 1–2 of the contract and resolves the step's context items to paths before launching; the subagent loads them (step 3). The subagent commits and appends to HANDOFF.md as normal, and returns a summary with the outcome (`done` or `blocked`). The parent session reports that summary and does not re-read the step's diff. The parent runs one subagent at a time: steps of a plan are sequential.
+The prompt passes **paths**, not file contents; the subagent reads them itself, so the parent never loads them. The parent performs steps 1–2 of the contract and resolves the step's context items to paths before launching; the subagent loads them (step 3). The subagent commits and appends to HANDOFF.md as normal, and returns a summary with the outcome (`done` or `blocked`). It does not push: the parent performs the push (`plan-step` step 10) after the subagent returns, when `execution.backend` is `external` or the branch has an upstream. The parent reports the summary and does not re-read the step's diff. The parent runs one subagent at a time: steps of a plan are sequential.
 
 A subagent cannot ask the user questions mid-step, so subagent steps always run in unattended mode for contradiction handling (see `feature/spec-precedence`).
 
@@ -396,7 +396,7 @@ If the harness is neither requested nor detected, `init` creates only the base f
 
 Implemented by a plan that depends on the reference CLI core plan (not by the plan that produces the templates):
 
-- `src/harness/index.ts`: a registry of harnesses, each `{ name, detect(root): boolean, install(root, report): void }`. `init --harness <name>` with an unknown name exits 1 listing the known names.
+- `src/harness/index.ts`: a registry of harnesses, each `{ name, detect(root): boolean, install(root, report): void, skillDirs(root): string[], rulesFile: string }` (`skillDirs` feeds `architecture/reference-cli` § Skill contract drift; `rulesFile` feeds its standing-instructions freshness check). `init --harness <name>` with an unknown name exits 1 listing the known names.
 - `src/harness/claude.ts`: `detect` = `.claude/` exists; `install` copies the bundled templates (creating absent files and overwriting Specplane-owned files that differ, as above), sets hook scripts executable, and performs § Settings merge.
 - The package build copies `harnesses/claude/templates/` to the package's `dist/templates/claude/`; `install` resolves templates relative to the compiled module.
 
@@ -414,5 +414,5 @@ Implemented by a plan that depends on the reference CLI core plan (not by the pl
   - Optional hooks: the generate hook runs the stub only for a `PLAN.md` path; the handoff check warns for a commit with `Specplane-Workflow: step` trailers that lacks HANDOFF.md (in a temp git repo), and is silent for other commits. Both always exit 0.
 - Settings merge is tested with the CLI (`src/harness/claude.ts`): absent file, invalid JSON, already registered, partial registration, existing `statusLine`.
 - The plugin has its own tests (`harnesses/claude/plugin/`, run with `claude plugin test`): mode switching, the `step`-mode edit denials, and pane rows built from a fixture `plan list --json` output.
-- `harnesses/claude/tests/check-sync.sh` diffs each file under `templates/` against its installed path in the Specplane repository (per § Template source) and exits 1 listing any difference or missing file.
+- `harnesses/claude/tests/check-sync.sh` diffs each file under `templates/` against its installed path in the Specplane repository (per § Template source) and exits 1 listing any difference or missing file. The `settings.json` comparison is a subset comparison, not byte-identical: every registration in the template must be present in the installed `.claude/settings.json`, which may contain further user entries.
 - Skill content is checked for drift by `specplane validate` through the contract comment (`architecture/agent-skills#keeping-skills-in-sync-with-specs`); the content itself is still reviewed by hand when a pin goes stale.

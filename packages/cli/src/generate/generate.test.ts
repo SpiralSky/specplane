@@ -81,7 +81,10 @@ test("init: creates files, preserves AGENTS.md text, idempotent", () => {
   const after1 = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
   assert.ok(after1.startsWith("# Mine\n\nhand-written\n"));
   const second = runInit(root);
-  assert.ok(second.every((l) => l.startsWith("Skipped")), second.join("\n"));
+  assert.ok(
+    second.filter((l) => !l.startsWith("No `.claude/`")).every((l) => l.startsWith("Skipped")),
+    second.join("\n"),
+  );
   assert.equal(fs.readFileSync(path.join(root, "AGENTS.md"), "utf8"), after1);
   loadConfig(root); // generated default config is valid
 });

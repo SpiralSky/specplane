@@ -52,6 +52,7 @@ program
 program
   .command("init")
   .description("Initialise Specplane in a repository")
-  .action(() => initCommand());
+  .option("--harness <name>", "also install the named agent harness (e.g. claude)")
+  .action((opts: { harness?: string }) => initCommand(opts));
 
 program.parse(process.argv);
