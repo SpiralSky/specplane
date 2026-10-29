@@ -1,4 +1,4 @@
-# Session handoff — spec review and fixes (2026-10-28)
+# Session handoff — 2026-10-29
 
 ## Goal
 Cross-spec review of all Specplane specs, ADRs, and the first plan; fix every issue found.
@@ -18,11 +18,37 @@ Cross-spec review of all Specplane specs, ADRs, and the first plan; fix every is
 - **New config keys**: `specs.llm_review`, `specs.feature.leak_guard_allow`, `plans.test_command`, `plans.forge`, `decisions.dir`. Unknown keys → warnings (schema severity mapping in `file-formats` §7.2).
 - **Claude harness**: `.claude/skills/<name>/SKILL.md`; fixed pre-commit hook (stdin JSON, exit 2); fresh (non-fork) subagents. `architecture/agent-skills` is now harness-neutral.
 
+## 2026-10-29 — Plan merged, next plan ready
+
+**Plan `2026-10-29-claude-harness-files` is done and merged to main.**
+- Commit `f9fd282`. Branch deleted. Worktree removed.
+- All arch and feature specs updated (standing instructions, commit trailers, policy guard, session context hooks, live view plugin, `plan list --live`, worktree/cloud session rules).
+- `2026-10-29-claude-instructions-and-enforcement` is now `ready` (3 steps; depends on harness-files ✓).
+
+**Next**: start plan `2026-10-29-claude-instructions-and-enforcement` — produces the new enforcement hooks, rules file, and updated templates. Run `/plan-step` in a new worktree.
+
+**Open items** (from previous sessions, still unresolved):
+- `feature/agent-integration` doesn't define the step-commit message format for AGENTS.md; now moot (the format is in `file-formats §8`).
+- Later: plan for `init --harness claude` (depends on `2026-10-28-reference-cli-core`); CLI-core step 04's AGENTS.md template should reuse this repo's AGENTS.md.
+
+---
+
 ## 2026-10-29 — Claude harness spec completed, plan started
 - `claude:architecture/claude-integration` completed: template source (`harnesses/claude/templates/`), skill frontmatter (`argument-hint`, `disable-model-invocation`), shared preconditions (no-op without Specplane; CLI-absent fallback), attended/unattended rule for Claude Code, hardened pre-commit hook (`-c k=v`, missing `jq`, non-Specplane repos), optional hook scripts, settings merge, memory (OQ-5 proposed default), `init` CLI modules (`src/harness/`, later plan), tests. `architecture/repository-layout` notes `templates/` and `tests/`.
 - New plan `2026-10-29-claude-harness-files` (3 steps, `use_subagent: true`), set `ready` at the user's direction despite feature specs in `review` (override recorded in the plan's HANDOFF.md).
 - Initial commit made on `main`; `.gitignore` excludes `.claude/settings.local.json`. Plan runs in worktree `../.specplane-worktrees/specs-framework/2026-10-29-claude-harness-files/` on `plan/2026-10-29-claude-harness-files`.
+- **All 3 steps done** on the plan branch (commits 2d62c45, f2a5266, d0f1045 regex fix for `(git commit)`, ffb7285, ea894c8 step gaps folded into the Claude arch spec). Hook tests 23/23, `check-sync.sh` OK. Branch not pushed; finish flow not run.
+- Next: review the branch, then run the finish flow by hand (`feature/plan-execution` § Finish flow; no remote, so merge locally instead of a PR) and `git worktree remove`. After merge, a new session in this repo picks up `/plan-step` etc. and the pre-commit hook (no-op until `specplane` is installed).
+- Open for the user: `feature/agent-integration` doesn't define the step-commit message format for AGENTS.md (AGENTS.md uses the plan-step skill's format); AGENTS.md is 82 lines (step aimed for 100–150).
 - Later: a plan for `init --harness claude` (depends on `2026-10-28-reference-cli-core`); core step 04's AGENTS.md template should reuse this repo's AGENTS.md.
+
+## 2026-10-29 (later) — agent instructions, commit format, enforcement redesign
+All edits are **uncommitted in the plan worktree** (`../.specplane-worktrees/specs-framework/2026-10-29-claude-harness-files/`), on top of the unmerged plan branch.
+- **Decisions**: Specplane never edits user-owned `CLAUDE.md`. Standing instructions (about 20 lines: config, llm_role meanings, precedence, plans/commits, workflows) go in `.claude/rules/specplane.md` (Claude) plus an `AGENTS.md` managed block (`<!-- specplane:begin v1 … -->`); procedures live only in skills. Authorship policy is enforced by a PreToolUse **policy guard** hook (none→deny, assist→ask, draft→allow). A SessionStart hook scopes each session to its plan and step, and a status line is added. Commits use a Conventional Commits subject plus `Specplane-Workflow/Plan/Step/Agent/Session` trailers. The author stays the human; tools read trailers (restack finds the marker by trailer). Plugin (plans pane + `step`/`spec` mode) is optional and local-only (cloud sessions don't install plugins).
+- **Architecture specs edited**: `file-formats` §8 (new), `agent-skills` (§ Standing instructions, plan-step steps 1/9/10), `reference-cli` (`git/commit.ts`, `agents/standing.ts`, § Plan activity for `plan list --live`, flow commit messages), `ci`, `claude:architecture/claude-integration` (rules file, hooks, settings merge, § Worktree and cloud sessions, § Live view and Specplane mode, tests).
+- **Feature specs NOT edited** (`llm_role: assist`): suggested changes are in `docs/proposals/2026-10-29-feature-spec-changes.patch` (agent-integration, plan-steps, plan-execution, tooling, claude feature spec). Apply with `git apply` after review.
+- **Plans**: new `2026-10-29-claude-instructions-and-enforcement` (draft, 3 steps, depends on harness-files); CLI-core steps 03/04 updated for `agents/standing.ts` and the managed block. PLANS.md updated by hand.
+- Next: review the arch diff and the patch → apply the patch → commit on the plan branch → finish harness-files plan → set the new plan ready.
 
 ## Current state (as of 2026-10-28)
 - Feature specs: `status: review` (none approved yet). Architecture specs: `draft`. Plan `2026-10-28-reference-cli-core`: `draft`, steps updated to match.
