@@ -149,3 +149,36 @@ None.
 - CHOICE: the branch backend skips the frontmatter `review` claim, since the main checkout is the plan checkout; `pull_request` without a remote `origin` fails before any write.
 - CHOICE: non-stacked plans rebase via `rebaseOnto(tip, tip, branch)`; the tip is `origin/<default>` when the local default branch is strictly behind it. The merge precondition is that local default is an ancestor of the plan branch.
 - CHOICE: "no uncommitted changes" checks ignore untracked files; PR creation is a single `openPullRequest` stub returning `null`.
+
+## Step 06: abandon, cleanup, archive, restack
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/plan/flows.ts`: `abandonPlan`, `cleanupPlan`, `archivePlan`, `restackPlan`; `finishPlan` now calls the shared `cleanupPlan` (private `cleanupMerged` removed).
+- `packages/cli/src/commands/plan.ts`, `cli.ts`: `plan abandon <id> [--delete-branch] [--force]`, `plan cleanup <id> [--force]`, `plan archive <id>`, `plan restack <id> [--dry-run]`.
+- `packages/cli/src/plan/lifecycle.test.ts`: 8 integration tests in temp repos (abandon, idempotence, dirty worktree and `--force`, cleanup, archive, Scenario 6a squash restack, unmerged-base restack, conflict).
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- Restack onto the default branch leaves the old marker (with its `Specplane-Stack-Base`) as the newest marker, which would make a later `finish` or `restack` rebase from a stale base; the spec adds a marker only for the unmerged case.
+- `feature/tooling` does not say what `abandon` does for an already-abandoned plan, or `cleanup` for a plan that is not `done` with no branch.
+
+### Open issues
+
+None.
+
+### Notes for next step
+
+This was the last step; run `/plan-finish`.
+- CHOICE: after restacking onto the default branch, an empty marker `chore(specplane): unstack <id> from <base-id>` (`Specplane-Workflow: stack`, no `Specplane-Stack-Base`) is appended; a marker without a base means "not stacked", so a second restack errors and the resume hint disappears.
+- CHOICE: restack needs `plan/<id>` checked out (a worktree, or the main checkout) and clean; otherwise `PlanStateError` pointing to `plan start`. A restack with an unchanged unmerged base reports "already on the tip" and appends no marker.
+- CHOICE: `abandon` of an already-abandoned plan skips the commit but still removes the worktree and honours `--delete-branch`; of a `done` plan it fails ("Cannot abandon plan: `<id>` is `done`.").
+- CHOICE: `cleanup` with an existing `plan/<id>` that is not `done` on the default branch fails with no writes; with no branch it is a no-op (error only when the plan is also unknown). Dirty worktrees refuse without `--force` before any write. A branch-backend checkout on `plan/<id>` is switched to the default branch first.
+- CHOICE: `archive` refuses when the plan folder has uncommitted changes or the archive target exists.

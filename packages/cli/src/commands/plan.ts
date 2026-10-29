@@ -15,7 +15,7 @@ import { fetchPlanBranches, getPlanActivity, remotePlanFrontmatter, remotePlanId
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
 import { getEffectiveStatus, type EffectiveStatus } from "../plan/status.js";
-import { finishPlan, startPlan } from "../plan/flows.js";
+import { abandonPlan, archivePlan, cleanupPlan, finishPlan, restackPlan, startPlan } from "../plan/flows.js";
 import type { Config, PlanFrontmatter } from "../types.js";
 
 class PlanUsageError extends SpecplaneError {
@@ -249,4 +249,54 @@ export async function planFinishCommand(id: string, opts: { yes?: boolean }): Pr
   } catch (e) {
     if (!reportError(e)) throw e;
   }
+}
+
+function withConfig(fn: (root: string, config: Config) => void): void {
+  try {
+    const root = checkoutRoot();
+    const { config, warnings } = loadConfig(root);
+    for (const w of warnings) process.stderr.write(`${w.message}\n`);
+    fn(root, config);
+  } catch (e) {
+    if (!reportError(e)) throw e;
+  }
+}
+
+export function planAbandonCommand(id: string, opts: { deleteBranch?: boolean; force?: boolean }): void {
+  withConfig((root, config) => {
+    const r = abandonPlan(id, config, root, opts);
+    const parts = [r.committed ? (r.archived ? "committed and archived" : "committed") : "already abandoned"];
+    if (r.worktreeRemoved) parts.push("worktree removed");
+    if (r.branchDeleted) parts.push("branch deleted");
+    process.stdout.write(`Abandoned ${r.planId} (${parts.join(", ")})\n`);
+  });
+}
+
+export function planCleanupCommand(id: string, opts: { force?: boolean }): void {
+  withConfig((root, config) => {
+    const r = cleanupPlan(id, config, root, opts);
+    const parts: string[] = [];
+    if (r.worktreeRemoved) parts.push("worktree removed");
+    if (r.branchSwitched) parts.push("checkout switched to the default branch");
+    if (r.branchDeleted) parts.push("branch deleted");
+    process.stdout.write(`Cleaned up ${r.planId}${parts.length ? ` (${parts.join(", ")})` : " (nothing to do)"}\n`);
+  });
+}
+
+export function planArchiveCommand(id: string): void {
+  withConfig((root, config) => {
+    const r = archivePlan(id, config, root);
+    process.stdout.write(`Archived ${r.planId} to ${r.to}\n`);
+  });
+}
+
+export function planRestackCommand(id: string, opts: { dryRun?: boolean }): void {
+  withConfig((root, config) => {
+    const r = restackPlan(id, config, root, opts);
+    const text =
+      r.outcome === "current"
+        ? `${r.planId} is already on the tip of ${r.onto}`
+        : `${r.outcome === "dry-run" ? "Would restack" : "Restacked"} ${r.planId} onto ${r.onto}${r.unstacked ? " (no longer stacked)" : ""}`;
+    process.stdout.write(`${text}\n`);
+  });
 }
