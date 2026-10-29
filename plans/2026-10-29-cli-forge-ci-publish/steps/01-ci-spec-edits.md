@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-forge-ci-publish
 step: 1
 title: Architecture edits for ci
-status: pending
+status: done
 context:
   - spec: "architecture/ci#Job 1: Validate (`specplane-validate.yml`)"
   - spec: "architecture/ci#Job 2: Regenerate PLANS.md (`specplane-generate.yml`)"
@@ -19,9 +19,9 @@ Fix the ci review findings in the spec before writing workflows.
 
 ## Acceptance criteria
 
-- [ ] The prose triggers (which events and branches each job runs on) match the YAML in the spec.
-- [ ] No workflow text hardcodes `plans/**` or `plans/PLANS.md`: the spec states a config-independent approach (for example run on any markdown or `.specplane/config.yaml` change and let `specplane generate` no-op) or a documented snippet the user adjusts to `plans.dir`.
-- [ ] Pins refreshed; validation passes.
+- [x] The prose triggers (which events and branches each job runs on) match the YAML in the spec.
+- [x] No workflow text hardcodes `plans/**` or `plans/PLANS.md`: the spec states a config-independent approach (for example run on any markdown or `.specplane/config.yaml` change and let `specplane generate` no-op) or a documented snippet the user adjusts to `plans.dir`.
+- [x] Pins refreshed; validation passes.
 
 ## Tasks
 
