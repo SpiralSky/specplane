@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    // NodeNext requires explicit .js extensions on relative imports in TypeScript source
+    // (e.g. `import { x } from "./errors.js"`), as Node ESM resolves the emitted files.
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}

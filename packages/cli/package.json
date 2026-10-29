@@ -1,0 +1,26 @@
+{
+  "name": "specplane",
+  "version": "0.1.0",
+  "description": "Reference CLI for Specplane",
+  "type": "module",
+  "bin": { "specplane": "./dist/cli.js" },
+  "engines": { "node": ">=22" },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test \"dist/**/*.test.js\"",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "ajv": "^8",
+    "ajv-formats": "^3",
+    "commander": "^12",
+    "gray-matter": "^4",
+    "js-yaml": "^4"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4",
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}
