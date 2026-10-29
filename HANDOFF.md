@@ -24,9 +24,11 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 - The deferred review findings below were all addressed: architecture-spec fixes on the plan branches, feature-spec findings as proposals.
 
 ## Next steps
-1. The user reviews `AUTONOMOUS-CHOICES.md` → "Needs your decision".
-2. Apply accepted feature-spec proposals (the user writes them, or uses `/spec-assist`), then `specplane validate` and `specplane spec pin --check`.
-3. Choose a licence, add a remote, then publish via a `v*` tag.
+1. Node requirement is now `>=22` (decided 2026-10-29). Licence chosen (Apache-2.0).
+2. Feature-spec proposals were applied on 2026-10-29 (commit `676b645`), except Rule 6 in `feature/spec-precedence`: the user chose a separate per-plan `spec-gaps.md` record, and its draft text needs approval.
+3. Create a plan to bring the architecture specs and CLI in line with the applied feature specs. Some of this already exists: `--no-fetch` on `plan list`, the stack-mode check, part of the ADR checks. Still missing: `--no-fetch` on start/finish, the `search --kind` rename, `restack --dry-run` (verify), ADR id/cycle checks, config path errors, stack-mode `blocked` display, and `spec-gaps.md` once it is approved.
+4. Add a remote, then publish via a `v*` tag.
+5. Tooling gap found 2026-10-29: editing an approved base spec that an approved overlay pins needs one commit per overlay level (demote to review → commit → pin → re-approve), because `spec pin` refuses uncommitted bases and the pre-commit hook refuses stale pins.
 
 ## Deferred review findings (ADDRESSED 2026-10-29: see plan HANDOFFs and feature-spec-proposals.md files)
 - **reference-cli**: specify the command surface beyond the core plan:
