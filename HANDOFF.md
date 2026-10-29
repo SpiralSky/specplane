@@ -16,20 +16,19 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 - **Commits**: Conventional Commits subject plus `Specplane-Workflow/Plan/Step/Agent` trailers (`file-formats` §8). The human stays the author.
 - **Step records** live in `plans/<id>/HANDOFF.md`, not here.
 
-## Current state (2026-10-29, autonomous completion session)
-- The user asked for the whole repo to be completed unattended: plans are auto-approved (`ready`), one subagent runs each plan step, and the main session acts as the confirming human for `local_merge`. Every judgement call is listed in `AUTONOMOUS-CHOICES.md` (details in each plan's `HANDOFF.md`, items marked `CHOICE:`).
-- All 20 specs are `approved`. Feature specs are never edited by agents (`llm_role: assist`); feature-spec findings go to `feature-spec-proposals.md` files in plan folders.
-- **Done and merged**: `2026-10-28-reference-cli-core`, `2026-10-29-claude-plugin-hardening`, `2026-10-29-cli-claude-harness-init`, `2026-10-29-cli-spec-search`, `2026-10-29-cli-plan-commands`. Earlier: `claude-harness-files`, `claude-instructions-and-enforcement`. The CLI in `packages/cli` has `validate`, `generate [--print --live]`, `init [--harness claude]`, `spec new/list/show/validate/pin`, `search`, and `plan new/list [--live]/show/graph` (159 tests).
-- CLI install: `cd packages/cli && npm run build && npm install -g --prefix ~/.local .` (this is a symlink, so a rebuild updates it). With `specplane` on PATH, the pre-commit hook runs `specplane validate` on the main checkout, so `main` must stay at 0 errors.
-- **In progress**: `2026-10-29-cli-plan-flows`, then `2026-10-29-cli-forge-ci-publish` (worktree under `../.specplane-worktrees/specs-framework/`).
-- Open for the user: the plugin has no LICENSE (the plugin directory refuses a submission without one), and there is no icon.
+## Current state (2026-10-29, autonomous completion finished)
+- **All 9 plans are `done` and merged** into `main`. No worktrees, no plan branches, no remote. Unattended run: plans were auto-approved, one subagent ran each step, and the main session confirmed the `local_merge`s. The last two plans were finished with the CLI's own `plan start` / `plan finish`.
+- **The `specplane` CLI is complete** (`packages/cli`, 211 tests): `init [--harness claude]`, `validate [--json]`, `generate [--print --live]`, `spec new/list/show/validate/pin`, `search`, `plan new/list [--live]/show/graph/start/finish/abandon/cleanup/archive/restack`, and forge (`gh`) PR support. CI workflows are in `.github/workflows/` (the publish workflow is never triggered).
+- Install: `cd packages/cli && npm run build && npm install -g --prefix ~/.local .` (a symlink to this checkout). The pre-commit hook runs `specplane validate`, so `main` must stay at 0 errors (it does: 0 errors, ~55 warnings; pins current; check-sync and hook tests pass).
+- **Every judgement call is in `AUTONOMOUS-CHOICES.md`**, which ends with a "Needs your decision" list: licence, publishing setup, the feature-spec proposals, leak-guard hits in feature specs, and behaviour changes worth a look.
+- The deferred review findings below were all addressed: architecture-spec fixes on the plan branches, feature-spec findings as proposals.
 
 ## Next steps
-1. Run the remaining plans in order, one step per subagent, and finish each with `local_merge` (by hand until `plan finish` exists): `cli-plan-flows` → `cli-forge-ci-publish`.
-2. After each merge: `specplane validate`, `specplane spec pin --check`, `specplane generate`.
-3. At the end: the user reviews `AUTONOMOUS-CHOICES.md` and the `feature-spec-proposals.md` files.
+1. The user reviews `AUTONOMOUS-CHOICES.md` → "Needs your decision".
+2. Apply accepted feature-spec proposals (the user writes them, or uses `/spec-assist`), then `specplane validate` and `specplane spec pin --check`.
+3. Choose a licence, add a remote, then publish via a `v*` tag.
 
-## Deferred review findings (should-fix/nits, not blocking; fix as spec edits on the relevant plan branch)
+## Deferred review findings (ADDRESSED 2026-10-29: see plan HANDOFFs and feature-spec-proposals.md files)
 - **reference-cli**: specify the command surface beyond the core plan:
   - `spec new/list/show`, `search`, `plan new/list/show`, and `init` details;
   - what triggers `restack`;

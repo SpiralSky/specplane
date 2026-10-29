@@ -72,3 +72,19 @@ Full list: `plans/archive/2026-10-29-cli-plan-flows/HANDOFF.md`. Proposals: `pla
 - Abandoning an abandoned plan skips the commit but still cleans up; abandoning a `done` plan fails. Cleanup of a branch that isn't `done` fails with no writes.
 - Process note: one step-01 subagent briefly used `git commit --no-verify` and then amended with the hook active, so the final commit passed the hook. Later subagents were told never to do this.
 - Process note: one subagent wrote its own model in `Co-Authored-By` (Sonnet 5.5) instead of the shared line.
+
+## 2026-10-29-cli-forge-ci-publish (done, merged by `plan finish`)
+Full list: `plans/archive/2026-10-29-cli-forge-ci-publish/HANDOFF.md`. Notable:
+- Forge functions take a trailing `{cwd, forge}` argument. GitHub detection reads the raw `remote.origin.url` (`insteadOf` is ignored). Status queries treat forge errors as "no PR"; `createPR` errors propagate. The PR body (plan ID + acceptance criteria) is built before the archive move.
+- CI: the generate workflow filters on `**/PLAN.md` plus `.specplane/config.yaml` and stages with `git add -A` after `specplane generate`, so it never names `plans/`. `.gitattributes` is `PLANS.md linguist-generated=true` with no merge attribute (the step criterion said "merge setting"; `architecture/ci` doesn't). `architecture/repository-layout` was aligned.
+- `engines.node` is `>=20` (CI uses 20), but `architecture/reference-cli` still says `>=18`, and the test script's `dist/**` glob needs Node 21+ to *run tests*. Pick one and align the spec.
+- The published package excludes test helpers. The publish workflow runs on `v*` tags with `--provenance` and `secrets.NPM_TOKEN`. It was never triggered, and `npm publish` was never run.
+
+---
+
+# Needs your decision (summary)
+1. **Licence**: there is no LICENSE file and no `license` in `packages/cli/package.json` or the plugin's `plugin.json` (the plugin directory refuses a submission without one). The plugin has no icon either.
+2. **Publishing**: `repository.url` (the repo has no remote), the `NPM_TOKEN` secret, and the Node version (above).
+3. **Feature-spec proposals** (agents may not edit feature specs): `plans/archive/2026-10-29-cli-spec-search/feature-spec-proposals.md`, `…/2026-10-29-cli-plan-commands/feature-spec-proposals.md`, `…/2026-10-29-cli-plan-flows/feature-spec-proposals.md`. Until they're applied, `plan restack` exists in the CLI and the architecture spec but not in `feature/tooling`.
+4. **Leak-guard hits in feature specs**: "JSON Schema" in `feature/spec-policies`, plus the existing `src/…` examples in `feature/plan-steps`. Reword them or extend `leak_guard_allow`. `specplane validate` shows the rest of the ~55 warnings.
+5. **Behaviour changes worth a look**: `plan-finish` without the CLI now stops instead of running by hand; severities set to error for HANDOFF-section and step-numbering findings; a step criterion about `pin_bases: off` was overridden by the specs (stale pins always block approval).
