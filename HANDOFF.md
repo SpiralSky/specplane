@@ -110,3 +110,30 @@ None.
 
 ### Next
 Step 03: live view plugin.
+
+## Step 03: Optional plugin — plans pane and Specplane mode
+**Date**: 2026-10-29
+**Outcome**: done
+
+### Changes
+- New `harnesses/claude/plugin/` with `.claude-plugin/plugin.json`, `hooks/hooks.json`, `hooks/register.tsx`, `types/index.d.ts`, `plugin.test.tsx`.
+- Plans pane (`/specplane`): one row per active plan with location, step progress, age, blocked count, ahead-of-remote; expandable row shows blocked issues, next step, copy-command and Read-HANDOFF buttons.
+- Specplane mode: `step` auto-entered on `plan/<id>` branch (denies Edit/Write/MultiEdit outside checkout, to PLAN.md, to other step files; band shows step NN: criteria X/Y); `spec` adds authorship policy section; `off` no-op.
+- Data source: `specplane plan list --json --live` polled every 60 s (fetch every 5th run); fallback to local step files without CLI.
+- `claude plugin validate` passes with warnings only (gating hooks without `.catch`; no LICENSE for marketplace).
+- `claude plugin test` passes 9/9 (mode switching, step denials, pane fixture rows).
+- Plugin copied to dev-mods for hot-reload after restart.
+
+### Gaps
+- `.catch` guards not added to gating hooks (warnings from validate; lower risk since hooks exit 0 on all errors).
+- `ui.status` set in `session.start` but no stub for it in the test framework (likely a no-op call).
+- Pane `Read HANDOFF` button uses `$.prompt.fill` which requires an interactive session; in `claude -p` it is a no-op.
+
+### Open issues
+None.
+
+### Spec coverage
+`claude:architecture/claude-integration` (Live view and Specplane mode, Worktree and cloud sessions), `architecture/reference-cli` (Plan activity), `architecture/file-formats` §8.
+
+### Next
+All 3 steps done. Run `/plan-finish`.

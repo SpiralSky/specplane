@@ -2,7 +2,7 @@
 plan: 2026-10-29-claude-instructions-and-enforcement
 step: 3
 title: Optional plugin — plans pane and Specplane mode
-status: pending
+status: done
 context:
   - spec: claude:architecture/claude-integration#Live view and Specplane mode (optional plugin)
   - spec: claude:architecture/claude-integration#Worktree and cloud sessions
@@ -15,11 +15,11 @@ Build the optional Claude Code plugin in `harnesses/claude/plugin/`: the Specpla
 
 ## Acceptance criteria
 
-- [ ] `claude plugin validate harnesses/claude/plugin` reports no errors; the module type-checks.
-- [ ] The pane renders rows from a fixture `plan list --json --live` output (worktree, remote-only, blocked, ahead-of-remote cases) and, without the CLI, from the current checkout's step files.
-- [ ] `step` mode is entered at session start on a `plan/<id>` branch; it denies edits outside the checkout, to other steps' files, and to `PLAN.md`, and shows the criteria band.
-- [ ] `spec` mode adds the policy section and status text; `off` changes nothing.
-- [ ] `claude plugin test harnesses/claude/plugin` passes, covering the cases above.
+- [x] `claude plugin validate harnesses/claude/plugin` reports no errors; the module type-checks.
+- [x] The pane renders rows from a fixture `plan list --json --live` output (worktree, remote-only, blocked, ahead-of-remote cases) and, without the CLI, from the current checkout's step files.
+- [x] `step` mode is entered at session start on a `plan/<id>` branch; it denies edits outside the checkout, to other steps' files, and to `PLAN.md`, and shows the criteria band.
+- [x] `spec` mode adds the policy section and status text; `off` changes nothing.
+- [x] `claude plugin test harnesses/claude/plugin` passes, covering the cases above.
 
 ## Tasks
 
