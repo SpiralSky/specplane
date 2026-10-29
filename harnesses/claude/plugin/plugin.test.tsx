@@ -1,4 +1,5 @@
 import { expect, test } from 'claude-code/testing'
+import { failureLog, gateDenial } from './hooks/register'
 
 const PANE_EVENT = {
   plugin: 'specplane',
@@ -267,4 +268,36 @@ test('off mode changes nothing', async ($, on) => {
   const engine = await ui.find({ type: 'Text', text: /engine/ })
   expect(engine?.text).toBe('engine')
   await ui.unmount()
+})
+
+for (const tool of ['Edit', 'Write', 'MultiEdit']) {
+  test(`${tool} gate fails open and logs when the mode read rejects`, async () => {
+    const logs: string[] = []
+    const orig = failureLog.write
+    failureLog.write = (m: string) => { logs.push(m) }
+    try {
+      const denial = await gateDenial(
+        {},
+        { file_path: '/other/repo/file.ts' },
+        tool,
+        { cwd: '/repo', planId: 'p', nextStep: null },
+        () => Promise.reject(new Error('state unavailable')),
+      )
+      expect(denial).toBe(null)
+    } finally {
+      failureLog.write = orig
+    }
+    expect(logs.join('\n')).toMatch(new RegExp(`specplane: ${tool} hook failed, allowing: state unavailable`))
+  })
+}
+
+test('gate still denies when the mode read succeeds', async () => {
+  const denial = await gateDenial(
+    {},
+    { file_path: '/other/repo/file.ts' },
+    'Edit',
+    { cwd: '/repo', planId: 'p', nextStep: null },
+    async () => 'step',
+  )
+  expect(denial).toMatch(/outside/)
 })
