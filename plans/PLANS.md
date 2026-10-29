@@ -6,6 +6,7 @@
 
 | ID | Title | Status | Dependencies | Specs |
 |----|-------|--------|--------------|-------|
+| [2026-10-29-assist-and-approve](2026-10-29-assist-and-approve/PLAN.md) | Refine-then-write assist, the review role, and approval commands | draft | [2026-10-29-feature-spec-alignment](2026-10-29-feature-spec-alignment/PLAN.md) | feature/spec-policies, feature/configuration, feature/agent-integration, feature/tooling, architecture/agent-skills, architecture/reference-cli, architecture/file-formats, claude:feature/claude-integration, claude:architecture/claude-integration |
 | [2026-10-29-feature-spec-alignment](2026-10-29-feature-spec-alignment/PLAN.md) | Align architecture specs and CLI with applied feature specs | draft | — | feature/configuration, feature/decisions, feature/plan-index, feature/plan-status, feature/plan-steps, feature/plan-system, feature/spec-precedence, feature/tooling, architecture/reference-cli, architecture/file-formats, architecture/agent-skills, claude:feature/claude-integration, claude:architecture/claude-integration |
 
 ## Archived plans
@@ -27,6 +28,7 @@
 ```mermaid
 graph TD
     p_2026_10_28_reference_cli_core[reference-cli-core]:::done
+    p_2026_10_29_assist_and_approve[assist-and-approve]:::draft
     p_2026_10_29_claude_harness_files[claude-harness-files]:::done
     p_2026_10_29_claude_instructions_and_enforcement[claude-instructions-and-enforcement]:::done
     p_2026_10_29_claude_plugin_hardening[claude-plugin-hardening]:::done
@@ -36,6 +38,7 @@ graph TD
     p_2026_10_29_cli_plan_flows[cli-plan-flows]:::done
     p_2026_10_29_cli_spec_search[cli-spec-search]:::done
     p_2026_10_29_feature_spec_alignment[feature-spec-alignment]:::draft
+    p_2026_10_29_feature_spec_alignment --> p_2026_10_29_assist_and_approve
     p_2026_10_29_claude_harness_files --> p_2026_10_29_claude_instructions_and_enforcement
     p_2026_10_28_reference_cli_core --> p_2026_10_29_cli_claude_harness_init
     p_2026_10_28_reference_cli_core --> p_2026_10_29_cli_forge_ci_publish
