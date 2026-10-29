@@ -56,3 +56,32 @@ None.
 - CHOICE: GitHub detection reads raw `remote.origin.url` via `git config` (not `remote get-url`, which applies `insteadOf`; tests rely on this).
 - CHOICE: status queries (`hasOpenPR`) swallow forge errors and report no PR, so `plan list` never fails on auth or network problems; `createPR` errors propagate.
 - CHOICE: the PR body is built before the final commit because `archive_done` moves PLAN.md.
+
+## Step 03: CI workflows in this repository
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `.github/workflows/specplane-validate.yml` and `specplane-generate.yml`: copied from the corrected `architecture/ci` YAML.
+- `.gitattributes`: `PLANS.md linguist-generated=true`.
+- `packages/cli/src/workflows.test.ts`: parses both workflows with js-yaml and asserts triggers, path filter, commit-if-changed logic, trailers, and the `.gitattributes` line.
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- The step's acceptance criterion says "merge setting" for `.gitattributes`, but `architecture/ci` recommends only `linguist-generated=true`; no merge attribute is specified.
+- `architecture/repository-layout` still shows `plans/PLANS.md linguist-generated=true`, while `architecture/ci` uses slash-free `PLANS.md`.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+- CHOICE: used the `architecture/ci` form `PLANS.md linguist-generated=true` (matches at any depth); added no merge attribute.
+- `actionlint` is not installed; validation is the js-yaml unit test. `npm test` passes (211 tests).

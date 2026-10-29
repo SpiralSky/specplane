@@ -1,0 +1,46 @@
+name: Regenerate PLANS.md
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/PLAN.md"
+      - ".specplane/config.yaml"
+
+concurrency:
+  group: specplane-generate
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to commit PLANS.md back to main
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - run: npm install -g specplane@0
+
+      - name: Regenerate
+        run: specplane generate
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A   # the fresh checkout changes only what `specplane generate` wrote
+          if git diff --cached --quiet; then
+            echo "PLANS.md unchanged; no commit needed."
+          else
+            git commit -m "chore(specplane): regenerate PLANS.md [skip ci]" \
+              --trailer "Specplane-Workflow: generate" --trailer "Specplane-Agent: ci"
+            git push
+          fi

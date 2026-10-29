@@ -2,7 +2,7 @@
 plan: 2026-10-29-cli-forge-ci-publish
 step: 3
 title: CI workflows in this repository
-status: pending
+status: done
 context:
   - spec: "architecture/ci#Job 1: Validate (`specplane-validate.yml`)"
   - spec: "architecture/ci#Job 2: Regenerate PLANS.md (`specplane-generate.yml`)"
@@ -19,10 +19,10 @@ Create the validate and generate workflows and `.gitattributes` as specified.
 
 ## Acceptance criteria
 
-- [ ] `.github/workflows/specplane-validate.yml` and `specplane-generate.yml` exist and match the corrected spec.
-- [ ] The generate job commits only when `PLANS.md` changed, and its commit message follows `file-formats` §8 housekeeping rules.
-- [ ] `.gitattributes` has the recommended `PLANS.md` merge setting.
-- [ ] Workflows parse as valid YAML (check with a YAML parser or `actionlint` if available).
+- [x] `.github/workflows/specplane-validate.yml` and `specplane-generate.yml` exist and match the corrected spec.
+- [x] The generate job commits only when `PLANS.md` changed, and its commit message follows `file-formats` §8 housekeeping rules.
+- [x] `.gitattributes` has the recommended `PLANS.md` merge setting.
+- [x] Workflows parse as valid YAML (check with a YAML parser or `actionlint` if available).
 
 ## Tasks
 
