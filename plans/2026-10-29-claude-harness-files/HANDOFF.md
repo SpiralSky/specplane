@@ -72,3 +72,37 @@ None.
 - The handoff-check hook runs `git log`/`git show` in the hook's cwd, and reads config from `$CLAUDE_PROJECT_DIR`.
 - Hook scripts and `settings.json` are in `templates/`; dogfood copies under `.claude/` and `check-sync.sh` do not exist yet. Scripts are mode 100755.
 - No files outside the listed context were read.
+
+## Step 03: CLAUDE.md template, sync check, AGENTS.md, and dogfood install
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `harnesses/claude/templates/CLAUDE.md`: new template, verbatim from § CLAUDE.md structure.
+- `harnesses/claude/tests/check-sync.sh`: new POSIX `sh` check; maps templates to install paths, skips `settings.json`, checks `.claude/settings.json` mentions `specplane-pre-commit.sh`; exits 1 listing differences or missing files.
+- `AGENTS.md`: new repository-neutral workflow guide (82 lines) covering all seven required topics; paths come from config.
+- `.claude/skills/`, `.claude/hooks/` (mode 0755), `CLAUDE.md`: byte-identical copies of the templates.
+- `.claude/settings.json`: created from the template (Settings merge rule 1).
+- `plans/2026-10-29-claude-harness-files/steps/03-claude-md-and-dogfood.md`: criteria ticked, status `done`.
+
+### Deviations from the plan
+
+- `AGENTS.md` is 82 lines, below the 100-150 line aim, to stay a short neutral guide rather than restating policy.
+
+### Gaps found in specs
+
+- Gap: `feature/agent-integration` does not specify the step-commit message format for `AGENTS.md`. Used the format from the `plan-step` skill template (`plan/<id> step NN: <slug>` plus bullets).
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+- Both scripts pass: `check-sync.sh` exits 0; `hooks.test.sh` reports 23 passed, 0 failed. Step 02's `(git commit)` open issue is resolved by commit d0f1045.
+- `.claude/settings.local.json` was not created or touched.
+- `AGENTS.md` is intended to be reused as the `init` template by the reference CLI core plan; it names no repository-specific plans or specs.
+- Any future edit to a template must be copied to its install path, or `check-sync.sh` fails.
+- No files outside the listed context were read (plus the skill/hook templates and settings.json template).

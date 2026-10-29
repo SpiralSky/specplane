@@ -2,7 +2,7 @@
 plan: 2026-10-29-claude-harness-files
 step: 3
 title: CLAUDE.md template, sync check, AGENTS.md, and dogfood install
-status: pending
+status: done
 use_subagent: true
 context:
   - spec: claude:architecture/claude-integration#CLAUDE.md structure
@@ -22,12 +22,12 @@ Write `templates/CLAUDE.md` and `tests/check-sync.sh`, write this repository's `
 
 ## Acceptance criteria
 
-- [ ] `harnesses/claude/templates/CLAUDE.md` matches § CLAUDE.md structure.
-- [ ] `harnesses/claude/tests/check-sync.sh` (POSIX `sh`) maps each `templates/` file to its install path per § Template source, diffs it, and exits 1 listing differences or missing files; it skips `templates/settings.json` (merged, not copied) but checks that `.claude/settings.json` contains `specplane-pre-commit.sh`.
-- [ ] `.claude/skills/`, `.claude/hooks/` (mode 0755), and `CLAUDE.md` at the repo root are byte-identical copies of the templates; `sh harnesses/claude/tests/check-sync.sh` exits 0.
-- [ ] `.claude/settings.json` is created per § Settings merge (it is absent today); `.claude/settings.local.json` is unchanged.
-- [ ] `AGENTS.md` at the repo root covers all seven topics in `feature/agent-integration` § Contents of AGENTS.md, mentions `spec_roots`, `specs`, `plans`, `execution`, and `decisions`, references `feature/spec-policies` and `feature/spec-precedence` instead of restating them, and hardcodes no paths (it says paths come from config, giving defaults only as examples).
-- [ ] `sh harnesses/claude/tests/hooks.test.sh` still exits 0.
+- [x] `harnesses/claude/templates/CLAUDE.md` matches § CLAUDE.md structure.
+- [x] `harnesses/claude/tests/check-sync.sh` (POSIX `sh`) maps each `templates/` file to its install path per § Template source, diffs it, and exits 1 listing differences or missing files; it skips `templates/settings.json` (merged, not copied) but checks that `.claude/settings.json` contains `specplane-pre-commit.sh`.
+- [x] `.claude/skills/`, `.claude/hooks/` (mode 0755), and `CLAUDE.md` at the repo root are byte-identical copies of the templates; `sh harnesses/claude/tests/check-sync.sh` exits 0.
+- [x] `.claude/settings.json` is created per § Settings merge (it is absent today); `.claude/settings.local.json` is unchanged.
+- [x] `AGENTS.md` at the repo root covers all seven topics in `feature/agent-integration` § Contents of AGENTS.md, mentions `spec_roots`, `specs`, `plans`, `execution`, and `decisions`, references `feature/spec-policies` and `feature/spec-precedence` instead of restating them, and hardcodes no paths (it says paths come from config, giving defaults only as examples).
+- [x] `sh harnesses/claude/tests/hooks.test.sh` still exits 0.
 
 ## Tasks
 
