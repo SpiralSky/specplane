@@ -35,7 +35,7 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 ## Next steps
 1. Set `2026-10-28-reference-cli-core` to `ready` and run `/plan-step` in a worktree (`../.specplane-worktrees/specs-framework/<id>/`). Finish with `local_merge`.
 2. After the CLI exists, run `specplane spec pin --check`, `specplane validate`, and `specplane generate`. Expect the CLI to surface anything the hand review missed.
-3. Later, write the plan for `init --harness claude` (it depends on CLI-core). It should define harness skill-dir registration; step 05 uses a stand-in `skillDirs()`.
+3. The remaining work is planned (all `ready`, created 2026-10-29, run sequentially via `wait_for_merge`): `cli-spec-search` -> `cli-plan-commands` -> `cli-plan-flows` -> `cli-forge-ci-publish`; `cli-claude-harness-init` (after CLI core); `claude-plugin-hardening` (independent). Each plan's step 01 is an architecture-spec edit that closes the deferred findings below; feature-spec findings become `feature-spec-proposals.md` files in the plan folders for the user to review.
 
 ## Deferred review findings (should-fix/nits, not blocking; fix as spec edits on the relevant plan branch)
 - **reference-cli**: specify the command surface beyond the core plan:
