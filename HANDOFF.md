@@ -1,6 +1,8 @@
 # Session handoff
 
-> **Standing instruction from the user**: read this file and continue the work. When you finish a milestone, rewrite this file (goal, decisions, current state, next steps, and this instruction) and tell the user. The user then starts a new session. Repeat until the project is complete.
+> **Standing instruction from the user (2026-10-29)**: read this file and continue the work. When you finish a milestone, rewrite this file (goal, decisions, current state, next steps, and this instruction) and tell the user. The user then starts a new session. Repeat until the project is complete.
+>
+> **Standing instruction (2026-10-29, later)**: the agent decides open questions itself and verifies them at the plan merge (`/plan-finish`) instead of pausing mid-plan. After the last plan is done, the user will do a full review of the codebase and of the workflow as a whole and make final amendments then; the general structure is to be treated as solid until that review. Also recorded in `plans/2026-10-29-assist-and-approve/HANDOFF.md`, and to be repeated in every later plan HANDOFF.
 
 ## Goal
 Build Specplane, a spec and plan management framework, in this repo: specs → plans → reference CLI → Claude harness (`init --harness claude`).
@@ -16,20 +18,24 @@ Build Specplane, a spec and plan management framework, in this repo: specs → p
 - **Commits**: Conventional Commits subject plus `Specplane-Workflow/Plan/Step/Agent` trailers (`file-formats` §8). The human stays the author.
 - **Step records** live in `plans/<id>/HANDOFF.md`, not here. **Gaps/assumptions/proposals** live in `plans/<id>/spec-gaps.md` with status `open | applied | rejected` (`file-formats` §4.2).
 
-## Current state (2026-10-29, feature-spec alignment merged)
-- **10 plans are `done` and merged** into `main`; no worktrees, no plan branches, no remote. The newest is `2026-10-29-feature-spec-alignment`, archived at `plans/archive/2026-10-29-feature-spec-alignment/` (6/6 steps done, merged locally with its own `plan finish`).
-- That plan aligned the architecture specs, CLI, skills, and standing instructions with the feature specs applied earlier: `spec-gaps.md` parsing/validation and finish listing, latest-HANDOFF-section rule, stack-mode `blocked`, abandon guard, `--no-fetch` on start/finish, `search --kind`, `restack --dry-run` commit listing, config spec-root path checks, ADR supersession rules, and Node 22 docs.
-- **All 4 `spec-gaps.md` entries are dispositioned**: G1–G3 `applied` (G2 `init` spec-root exemption and G3 `ConfigError` null-key texts are now in `architecture/reference-cli`), G4 `rejected` — no CLI route deletes an already-abandoned plan's branch; `feature/plan-execution` deliberately keeps it, and `git branch -D` is the documented workaround.
-- `plans/PLANS.md` was regenerated and committed after the merge. `main` is at **0 errors, 20 warnings** (reviewed leak-guard/overlay heuristics and 3 stale references in archived plans); `specplane spec pin --check` clean; `npm test` 228/228; `check-sync.sh` OK; `hooks.test.sh` 62/62.
-- **`2026-10-29-assist-and-approve` is `draft`**, 6 pending steps, dependency satisfied. **The user must set `status: ready` by hand** before it can start.
-- **Every judgement call is in `AUTONOMOUS-CHOICES.md`**, which ends with a "Needs your decision" list.
+## Current state (2026-10-29, `2026-10-29-assist-and-approve` in progress)
+- **10 plans are `done` and merged** into `main`; the newest is `2026-10-29-feature-spec-alignment`, archived. `main` was at 0 errors / 20 warnings before this plan.
+- **All 20 specs are now `approved`** and committed on `main` (`44a18df`, `b6ee1cf`, `dd829a6`, `f6a9012`, `bbf4d19`) — the five architecture specs that were in `review` were approved at the user's explicit request, and `plans/PLANS.md` was regenerated. Writes that set `approved`/`ready`/`accepted` are the user's decision; from step 05 of this plan the Claude harness guard denies them for the agent.
+- **`2026-10-29-assist-and-approve` was approved by hand** (`6f02019`, `status: ready`) because `plan approve` only lands in step 04. It runs in the worktree `../.specplane-worktrees/specs-framework/2026-10-29-assist-and-approve` on branch `plan/2026-10-29-assist-and-approve`.
+- **Step 01 is `done`** (`48c61b0`): the architecture specs now specify the `review` role, refine-then-write `assist`, and the approval commands. `validate` there: 0 errors, 33 warnings (12 new `skill-drift` warnings until step 05 refreshes the skill pins). Two assumption entries, G1/G2, are open in the plan's `spec-gaps.md`.
+- **Next step: 02** (`config-and-policy`).
 
 ## Next steps
-1. Set `status: ready` in `plans/2026-10-29-assist-and-approve/PLAN.md` (the user does this; the CLI's `plan approve` arrives with this plan). Then `specplane plan start 2026-10-29-assist-and-approve` and `/plan-step` in the checkout. It carries the `review` role, refine-then-write `assist`, `spec approve`/`reopen`, `plan approve`, `decision new`/`accept`, and the five new Claude slash commands.
-2. After it merges, approve the specs still in `review` with the new `/approve` command: `architecture/agent-skills`, `architecture/reference-cli`, `architecture/repository-layout`, `architecture/ci`, `claude:architecture/claude-integration`. (`architecture/file-formats` and all feature specs are already `approved`.) The agent must not run the approval; it lists the command.
+1. Run steps 02–06 of `2026-10-29-assist-and-approve` one at a time (`/plan-step`), then `/plan-finish`. Note the temporary `skill-drift` warnings are cleared by step 05.
+2. After the plan merges, the user's **full codebase and workflow review** (see the standing instruction above) decides the open items below.
 3. **Publishing (user decisions)**: add a remote, set `repository.url`, add the `NPM_TOKEN` secret, then publish via a `v*` tag. The publish workflow exists but has never run.
 4. Decide whether to supersede `decision/0002` (it records Node ≥18; everything else is now ≥22).
-5. Later follow-ups, not covered by any active plan: `architecture/reference-cli` § `search` grouped/JSON output still differs from the CLI (one hit per line with `type`); the plugin has no icon; the 20 validate warnings have no suppression mechanism.
+5. Later follow-ups: `architecture/reference-cli` § `search` grouped/JSON output still differs from the CLI (one hit per line with `type`); the plugin has no icon; the 20 validate warnings (now more, temporarily) have no suppression mechanism.
+
+## Open questions the agent decided (verify at `/plan-finish` and at the user's final review)
+- **`spec reopen` stays report-only** (direct dependants, not transitive). `feature/tooling` fixes "It does not change those specs"; a `--cascade` flag would need a feature-spec edit the agent may not make. Revisit at the final review.
+- **`--dry-run` on the approval commands** (G1) and **`plan approve` regenerating PLANS.md in the same commit** (G2) are architecture-spec assumptions where `feature/tooling` is silent.
+- **`/approve` stays user-only** (`disable-model-invocation: true`); the user may amend the workflow later.
 
 ## Addressed findings (kept for traceability)
 All review findings from the first CLI/harness plans are resolved. The architecture-spec items (command surface, harness registry, error texts, leak-guard heuristics, plan activity fields, `plan-finish`/`validate` Policy checks, subagent push ownership, check-sync wording, CI triggers, ID pattern) were fixed on plan branches; feature-spec items were applied with user approval in `676b645`; and the remaining CLI/architecture alignment was completed by `2026-10-29-feature-spec-alignment`. Per-step detail is in the archived plans' `HANDOFF.md`.
