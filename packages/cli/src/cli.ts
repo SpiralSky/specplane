@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
+import { generateCommand } from "./commands/generate.js";
+import { initCommand } from "./commands/init.js";
 import { validateCommand } from "./commands/validate.js";
 
 const pkg = JSON.parse(
@@ -18,8 +20,6 @@ for (const [name, description] of [
   ["spec", "Work with specs (new, list, show, validate, pin)"],
   ["plan", "Work with plans (new, list, show, graph, start, finish, abandon, cleanup, archive)"],
   ["search", "Search specs and plans"],
-  ["generate", "Generate PLANS.md"],
-  ["init", "Initialise Specplane in a repository"],
 ] as const) {
   program
     .command(name)
@@ -35,5 +35,16 @@ program
   .description("Validate the repository")
   .option("--json", "output JSON")
   .action((opts: { json?: boolean }) => validateCommand(opts));
+
+program
+  .command("generate")
+  .description("Generate PLANS.md")
+  .option("--print", "write to stdout instead of the file")
+  .action((opts: { print?: boolean }) => generateCommand(opts));
+
+program
+  .command("init")
+  .description("Initialise Specplane in a repository")
+  .action(() => initCommand());
 
 program.parse(process.argv);

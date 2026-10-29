@@ -2,7 +2,7 @@
 plan: 2026-10-28-reference-cli-core
 step: 4
 title: Generate command, init command, and integration tests
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Plan status
   - spec: architecture/reference-cli#Dependency graph
@@ -25,14 +25,14 @@ Implement `specplane generate` (writes `plans/PLANS.md`), `specplane init` (scaf
 
 ## Acceptance criteria
 
-- [ ] `specplane generate` writes `plans/PLANS.md` matching `architecture/file-formats` §5.1–5.2, using index statuses (no git state) and no timestamp.
-- [ ] Running `specplane generate` twice yields byte-identical output; `specplane validate` warns when the committed `PLANS.md` differs from the generated one.
-- [ ] The generated Mermaid graph has correct colour-coded node classes for each status.
-- [ ] `specplane generate --print` writes to stdout instead of the file.
-- [ ] `specplane init` in a clean temp git directory creates the expected directories and files without error.
-- [ ] `specplane init` does not overwrite existing files except the `AGENTS.md` managed block; with an existing `AGENTS.md`, text outside the block is byte-identical after two runs; reports each file it creates, updates, or skips.
-- [ ] Running `specplane validate && specplane generate` in the `specs-framework` repo exits 0.
-- [ ] All unit tests pass.
+- [x] `specplane generate` writes `plans/PLANS.md` matching `architecture/file-formats` §5.1–5.2, using index statuses (no git state) and no timestamp.
+- [x] Running `specplane generate` twice yields byte-identical output; `specplane validate` warns when the committed `PLANS.md` differs from the generated one.
+- [x] The generated Mermaid graph has correct colour-coded node classes for each status.
+- [x] `specplane generate --print` writes to stdout instead of the file.
+- [x] `specplane init` in a clean temp git directory creates the expected directories and files without error.
+- [x] `specplane init` does not overwrite existing files except the `AGENTS.md` managed block; with an existing `AGENTS.md`, text outside the block is byte-identical after two runs; reports each file it creates, updates, or skips.
+- [x] Running `specplane validate && specplane generate` in the `specs-framework` repo exits 0.
+- [x] All unit tests pass.
 
 ## Tasks
 

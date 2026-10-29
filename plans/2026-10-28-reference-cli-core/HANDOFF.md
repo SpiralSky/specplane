@@ -111,3 +111,38 @@ None. `specplane validate` on this checkout: exit 0, 0 errors, 53 warnings (leak
 ### What the next step must know
 
 `runValidate(root)` in `src/commands/validate.ts` merges config, spec, ADR, plan and freshness reports; step 04 adds PLANS.md freshness there (use `mergeReports`/`finding` from `src/report.ts`). `src/agents/standing.ts` exports `upsertBlock(content, workflowsLine?)` for `init`. `src/test-repo.ts` `makeRepo` builds temp repos for tests (config uses `ext` root extending `base`, decisions dir `decisions`). Spec IDs in tests need at least two characters after the `/`.
+
+## Step 04: Generate command, init command, and integration tests
+
+**Date**: 2026-10-29
+**Outcome**: done
+
+### What changed
+
+- `src/plan/status.ts` (`getIndexStatus`, `IndexStatus`), `src/generate/mermaid.ts` (`toMermaid`, `nodeKey`, `slugOf`), `src/generate/plans-md.ts` (`generatePlansMd`, `plansMdPath`).
+- `src/commands/generate.ts` (`generate [--print]`, writes only when content differs), `src/commands/init.ts` (`init`, `runInit`, `DEFAULT_CONFIG_YAML`), both wired in `src/cli.ts`.
+- `src/commands/validate.ts`: `checkPlansMd` adds a `freshness` warning when `PLANS.md` differs from the generated output (or is missing while plans exist).
+- Tests: `src/generate/generate.test.ts` (status, mermaid, plans-md, freshness, init) and `src/integration.test.ts` (validate and `generate --print` against this repo); 87 tests pass. Generated `plans/PLANS.md` is byte-identical to the hand-written one, so it is unchanged.
+
+### Deviations from the plan
+
+- CHOICE: the integration test lives at `src/integration.test.ts`, not `test/integration.test.ts`, because `tsconfig` compiles only `src` and `npm test` runs `dist/**/*.test.js`. The repo root is derived from `dist/` (three levels up).
+- CHOICE: `getIndexStatus` treats a dependency missing from `plansById` as not done (`blocked`).
+- CHOICE: `generatePlansMd(config, root)` has no `live` option yet (belongs to the live-status plan); it throws if a PLAN.md is unparsable, and the freshness check then stays silent (plan validation reports it).
+- CHOICE: Dependencies are listed sorted by ID, comma-separated links; the Specs column keeps frontmatter order. Mermaid nodes carry labels in node lines and edges use keys only.
+- CHOICE: freshness warns for a missing `PLANS.md` only when at least one plan exists.
+- CHOICE: `generate` prints `Wrote <path>` or `Unchanged <path>`; `init` skips (reports) a malformed `AGENTS.md` block and an up-to-date block, and prints `Skipped plans/.gitkeep` when the plans directory is non-empty.
+- CHOICE: `init` writes the full default config with `merge: pull_request` as in the spec's schema, and short boilerplate `INFO.md` texts (no frontmatter). Not-a-repo exits 1 with "Not in a git repository". `--harness` is not implemented (out of scope for this step).
+
+### Gaps found in specs
+
+- Gap: `architecture/reference-cli` gives `generatePlansMd(config, root, { live })`; the step omits `live`, so it is deferred.
+- Gap: the spec does not define the content of `features/INFO.md` and `architecture/INFO.md`, or whether config comments are kept in the generated default.
+
+### Open issues
+
+None. `specplane validate && specplane generate` on this checkout: exit 0, 0 errors, 53 warnings; two `generate` runs are byte-identical.
+
+### What the next step must know
+
+`checkPlansMd(config, root)` and `checkFreshness(root)` are merged in `runValidate`; step 05 should add pin/anchor/skill-drift findings there. `runInit(root)` returns report lines and is reusable for `--harness`. `src/test-repo.ts` `makeRepo` does not run `git init`; CLI-level init tests need a real git directory.
