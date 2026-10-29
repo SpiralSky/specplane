@@ -2,8 +2,8 @@
 id: decision/0002
 title: Use TypeScript (Node.js) for the reference CLI
 date: 2026-10-28
-status: accepted
-superseded_by: ""
+status: superseded
+superseded_by: decision/0004
 related_specs: [architecture/reference-cli]
 ---
 
