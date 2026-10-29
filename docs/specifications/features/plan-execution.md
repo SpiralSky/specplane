@@ -180,8 +180,8 @@ When `dependency_mode: stack`, a dependent plan may start before its dependency 
    "Cannot stack on more than one unmerged dependency: <a>, <b>."
    If all dependencies are done, the plan starts from the default branch as usual.
 2. Create branch plan/<this-id> from the tip of plan/<base-id>.
-3. Record the stack base: an empty marker commit on plan/<this-id> whose message is
-   "plan/<this-id> stack: based on plan/<base-id> at <commit>".
+3. Record the stack base: an empty marker commit on plan/<this-id> that names
+   plan/<base-id> and the base commit (message format: architecture/file-formats §8).
 ```
 
 ### Restacking

@@ -228,15 +228,21 @@ All sections are required. An empty section is written as "None." This disciplin
 
 ## Commit convention
 
-Each step ends with **one commit** (or a small, cohesive group of commits) referencing the plan ID and step number.
+Each step ends with **one commit** (or a small, cohesive group of commits). The message has a conventional, human-readable subject and machine-readable fields naming the workflow, plan ID, step number, and the agent session that made it. The exact format is defined in `architecture/file-formats` §8 and is shared by every commit Specplane or an agent makes in a Specplane workflow.
 
-Recommended commit message format:
+Example:
 ```
-plan/2026-10-28-plan-index-generator step 01: frontmatter parser
+feat(plan-index-generator): frontmatter parser
 
 - Implement parseSpecFrontmatter
 - Add FrontmatterError type
 - 14 unit tests
+
+Specplane-Workflow: step
+Specplane-Plan: 2026-10-28-plan-index-generator
+Specplane-Step: 01
+Specplane-Agent: claude-code/claude-opus-5-5
+Specplane-Session: 6531c4f4
 ```
 
 ---

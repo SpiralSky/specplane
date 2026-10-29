@@ -635,3 +635,68 @@ The schema is strict so that typos are caught, but `feature/configuration` requi
 - Every other violation (wrong type, invalid enum value, missing `name`/`path` in a root) is an **error**.
 
 Cross-field rules not expressible in the schema (errors): duplicate root names; a root `extends` an undeclared root; a cycle in root `extends` chains; `execution.worktree_dir` resolving inside the repository.
+
+---
+
+## 8. Commit messages
+
+Every commit Specplane makes, and every commit an agent makes while following a Specplane workflow, uses this format: a [Conventional Commits](https://www.conventionalcommits.org/) subject, an optional body, and git trailers that carry the machine-readable data.
+
+```
+<type>(<scope>): <summary>
+
+<body>
+
+Specplane-Workflow: <workflow>
+Specplane-Plan: <plan-id>
+Specplane-Step: <NN>
+Specplane-Agent: <harness>/<model>
+Specplane-Session: <session-id>
+<harness attribution trailer, e.g. Co-Authored-By>
+```
+
+### 8.1 Subject and body
+
+- `<type>`: one of `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `perf`, `style`, `chore`. A step commit takes the type of its main change; housekeeping commits made by the CLI use `chore`.
+- `<scope>`: for commits in a plan, the plan's slug (its ID without the `YYYY-MM-DD-` prefix); for CLI housekeeping, `specplane`; otherwise optional.
+- `<summary>`: imperative, lower-case start, no trailing period; the whole subject is at most 72 characters.
+- `<body>`: optional; for step commits, a bullet summary of the changes.
+
+### 8.2 Trailers
+
+Trailers are the last paragraph of the message, in `git interpret-trailers` format, in the order shown. Tools read them, never the subject, so the subject stays free-form for humans.
+
+| Trailer | Required | Value |
+|---------|----------|-------|
+| `Specplane-Workflow` | yes | The workflow that made the commit (§8.3). Identifies the commit kind. |
+| `Specplane-Plan` | when in a plan | Plan ID. |
+| `Specplane-Step` | `step` only | Two-digit step number. |
+| `Specplane-Stack-Base` | `stack` only | Full SHA of the base plan's tip the branch is stacked on. |
+| `Specplane-Agent` | when an agent made the commit | `<harness>[/<model>]`, e.g. `claude-code/claude-opus-5-5`, or `claude-code` when the model is unknown; `ci` for CI jobs; absent for humans and for the CLI run by hand. |
+| `Specplane-Session` | no | The harness's session or run ID, when it exposes one. Lets tools group commits from one agent session (one worktree or cloud run). |
+
+Harness attribution trailers (`Co-Authored-By:`) follow the harness's own convention and come after the Specplane trailers.
+
+**Identity.** Specplane never sets the commit author or committer. They come from the checkout's git config: the human's identity locally, or the bot account a CI job or cloud environment configures. The agent and workflow are identified by trailers, so attribution, signing, and CLA checks keep working and every agent run stays distinguishable.
+
+### 8.3 Workflows
+
+| `Specplane-Workflow` | Made by | Branch | Subject |
+|----------------------|---------|--------|---------|
+| `step` | agent (`plan-step`) | `plan/<id>` | `<type>(<slug>): <summary>` |
+| `plan-create` | agent (`plan-create`) or `specplane plan new` | any | `docs(<slug>): create plan` |
+| `spec` | agent (`spec-draft-architecture`, approved `spec-assist` edits) | any | `docs(specs): <summary>` |
+| `claim` | CLI start/finish (frontmatter mode) | default | `chore(specplane): claim <id> <status>` |
+| `stack` | CLI start/restack (empty commit) | `plan/<id>` | `chore(specplane): stack <id> on <base-id>` |
+| `finish` | CLI finish (done + archive) | `plan/<id>` | `chore(specplane): finish <id>` |
+| `abandon` | CLI abandon | default | `chore(specplane): abandon <id>` |
+| `archive` | CLI archive | current | `chore(specplane): archive <id>` |
+| `generate` | CI job or hook | default | `chore(specplane): regenerate PLANS.md [skip ci]` |
+
+A step that needs a small group of commits gives each the `step` trailers; the last one includes the step file and the HANDOFF.md section.
+
+### 8.4 Reading commits
+
+- Commit kind: `git log --format='%H%x00%(trailers:key=Specplane-Workflow,valueonly)' <ref>`.
+- All trailers of one commit: `git log -1 --format='%(trailers:only,unfold)' <sha>`.
+- A commit without a `Specplane-Workflow` trailer is not a Specplane commit, whatever its subject says.

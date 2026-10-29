@@ -109,12 +109,13 @@ jobs:
           if git diff --cached --quiet; then
             echo "PLANS.md unchanged; no commit needed."
           else
-            git commit -m "chore: regenerate PLANS.md [skip ci]"
+            git commit -m "chore(specplane): regenerate PLANS.md [skip ci]" \
+              --trailer "Specplane-Workflow: generate" --trailer "Specplane-Agent: ci"
             git push
           fi
 ```
 
-**`[skip ci]`**: the commit message includes `[skip ci]` to prevent this push from re-triggering the generate job (avoiding an infinite loop on CI systems that do not filter their own commits).
+**Message**: follows `architecture/file-formats` §8 (`Specplane-Workflow: generate`, `Specplane-Agent: ci`; `--trailer` needs git ≥ 2.32, which hosted runners provide). **`[skip ci]`**: the commit message includes `[skip ci]` to prevent this push from re-triggering the generate job (avoiding an infinite loop on CI systems that do not filter their own commits).
 
 **Idempotence**: generation is deterministic, so if no plan file changed in a way that affects the index, `PLANS.md` is byte-identical and no commit is made.
 

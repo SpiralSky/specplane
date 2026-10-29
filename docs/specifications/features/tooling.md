@@ -40,13 +40,14 @@ Scaffolds the repository for Specplane use.
 docs/specifications/features/INFO.md       (if absent)
 docs/specifications/architecture/INFO.md   (if absent)
 plans/.gitkeep                             (if plans/ is empty, so the directory is tracked)
-AGENTS.md                                  (agent workflow instructions, if absent)
+AGENTS.md                                  (Specplane standing instructions, as a managed block)
 ```
 
 The `archive/` folder and the decisions directory are created on first use.
 
 **Behaviour**:
-- Does not overwrite existing files. Reports each file it creates vs. each it skips.
+- Does not overwrite existing files, except Specplane's own: the managed block in `AGENTS.md` (created, appended, or updated; text outside it is untouched) and harness files the harness's overlay declares Specplane-owned. Reports each file it creates, updates, or skips.
+- Re-running `init` after upgrading Specplane updates the standing instructions and harness files.
 - Does not create a `.git` directory or initialise git.
 
 **Exit codes**:
@@ -57,7 +58,7 @@ The `archive/` folder and the decisions directory are created on first use.
 ```
 Created .specplane/config.yaml
 Created docs/specifications/features/INFO.md
-Skipped AGENTS.md (already exists)
+Updated AGENTS.md (appended Specplane block)
 ```
 
 ---
@@ -181,6 +182,7 @@ Lists plans and their effective statuses.
 **Options**:
 - `--status <status>`: filter by effective status (stored + derived)
 - `--json`
+- `--live`: also report each plan's activity: where it runs (local checkout or remote branch only), step progress and the next step, open blockers, and the most recent step commit with the agent session that made it. Includes plans whose branches exist only on the remote, so work from other machines and cloud sessions is visible. Fetches from the remote once unless `--no-fetch` is given.
 
 **Output** (human-readable):
 ```
@@ -188,7 +190,7 @@ Lists plans and their effective statuses.
 2026-10-20-frontmatter-schema    Frontmatter schema     done
 ```
 
-**JSON output**: array of objects with fields `id`, `title`, `stored_status`, `effective_status`, `depends_on`, `specs`, `archived`.
+**JSON output**: array of objects with fields `id`, `title`, `stored_status`, `effective_status`, `depends_on`, `specs`, `archived`; with `--live`, also the activity fields defined in `architecture/reference-cli` § Plan activity.
 
 ### `specplane plan show <id>`
 
@@ -255,7 +257,7 @@ Validates the entire repository: all specs, all plans, config, and cross-referen
 - Dangling or deprecated spec IDs in plans.
 - ADR rules: IDs, duplicate numbers, `superseded_by`, `related_specs` (see `feature/decisions`).
 - PLANS.md freshness (warning if it differs from what `specplane generate` would write).
-- AGENTS.md freshness (warning if it does not mention every top-level config section; see `feature/agent-integration`).
+- Standing-instructions freshness (warning if the Specplane standing instructions are missing, malformed, or older than the installed Specplane; see `feature/agent-integration`).
 
 **Options**:
 - `--json`

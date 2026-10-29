@@ -10,6 +10,8 @@ context:
   - spec: architecture/reference-cli#ADR validation
   - spec: architecture/reference-cli#Dependency graph
   - spec: architecture/reference-cli#Validation output format
+  - spec: architecture/reference-cli#Standing instructions (`agents/standing.ts`)
+  - spec: architecture/agent-skills#Standing instructions
   - spec: feature/spec-policies
   - spec: feature/spec-system
   - spec: feature/plan-system
@@ -49,7 +51,7 @@ Implement the full `specplane validate` command: config findings, spec frontmatt
    - Validate dangling `depends_on` IDs (reference to non-existent plan = error).
 4. Implement `src/plan/validate.ts` per `architecture/reference-cli` § Plan parsing and validation, including step `context` resolution (spec IDs with `#heading` anchors via `findHeading`, `decision/NNNN` IDs, file paths as warnings) and HANDOFF.md entries for skipped/blocked steps.
 4a. Implement `src/decisions/validate.ts` per `architecture/file-formats` §6.2.
-5. Implement `src/commands/validate.ts`: wire together config warnings, `validateSpecs`, plan and ADR validation, and the AGENTS.md section check; merge results; output via `src/output/human.ts` or `src/output/json.ts`.
+5. Implement `src/commands/validate.ts`: wire together config warnings, `validateSpecs`, plan and ADR validation, and the standing-instructions freshness check (implement `src/agents/standing.ts` per `architecture/reference-cli` § Standing instructions and `architecture/agent-skills` § Standing instructions; `init` reuses it in step 04); merge results; output via `src/output/human.ts` or `src/output/json.ts`.
 6. Implement `src/output/human.ts` and `src/output/json.ts` matching the formats in `architecture/reference-cli` §Validation output format.
 7. Write unit tests for: leak guard (each type, plus each exclusion), overlay rules, ordering policy, cycle detection (no cycle, simple cycle, multi-node cycle), step contiguity (missing step, duplicate step number), anchors, ADR rules.
 8. Wire `validate` command into `src/cli.ts`.
