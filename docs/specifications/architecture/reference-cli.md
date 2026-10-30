@@ -485,7 +485,7 @@ Inputs: one or more plan IDs, `--dry-run`. Per ID, in the order given: resolve (
 
 ### `decision new <title>`
 
-Inputs: `title`. The slug is `slugify(title)` (`spec/slug.ts`). The number is the highest existing `NNNN` in `<decisions.dir>` plus one, starting at `0001`. The file `<decisions.dir>/<NNNN>-<slug>.md` is written with `id: decision/<NNNN>`, the title, `status: proposed`, `date` (today, `YYYY-MM-DD`), and the body headings of `feature/decisions#adr-body-structure` with empty sections; an existing file is `AlreadyExistsError` with the text in `feature/tooling`. Prints the path on stdout. Exit 0 or 1.
+Inputs: `title`. The slug is `slugify(title)` (`spec/slug.ts`). The number is the highest existing `NNNN` in `<decisions.dir>` plus one, starting at `0001`. The file `<decisions.dir>/<NNNN>-<slug>.md` is written with `id: decision/<NNNN>`, the title, `status: proposed`, `date` (today, `YYYY-MM-DD`), and the body headings of `feature/decisions#adr-body-structure` with empty sections; an existing file is `AlreadyExistsError` with the text in `feature/tooling`. Because the number is the highest existing plus one, the target path is new by construction: the existing-file check is a defensive guard that the numbering rule makes unreachable, kept so the command can never overwrite an ADR. Prints the path on stdout. Exit 0 or 1.
 
 ### `decision accept <id>...`
 
