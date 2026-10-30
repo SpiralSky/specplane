@@ -124,3 +124,35 @@ None.
 ### What the next step must know
 
 Skills now create files via spec new / plan new; any further agent-skills.md edit needs the skill pins re-moved (git hash-object, 7 chars). Step files are still hand-written (G9). The spec new scaffold already matched the templates, so no CLI behaviour change was needed.
+
+## Step 05: Harness docs — operations table, model invocation, manual finish
+
+**Date**: 2026-10-30
+**Outcome**: done
+
+### What changed
+
+- `docs/specifications/architecture/agent-skills.md`: operations table, standing-instruction routing note, plan-finish manual mode, restack pointer
+- `harnesses/claude/specifications/architecture/claude-integration.md`: disable-model-invocation rule, plan-finish manual mode
+- `harnesses/claude/specifications/features/claude-integration.md`: /plan-finish description (G10)
+- `harnesses/claude/templates/skills/*/SKILL.md, .claude/skills copies`: plan-finish manual sequence, shared preamble, pins moved to c01fd20
+- `AGENTS.md`: routing table outside the managed block
+- `packages/cli/src/commands/plan.ts, packages/cli/src/plan/lifecycle.test.ts`: plan list --live restack notice and test
+- `plans/2026-10-30-plan-primitives/spec-gaps.md`: G10-G11
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- G10 (proposal): step 5 edits the approved `claude:feature/claude-integration`. See `spec-gaps.md`.
+- G11 (assumption): `plan list --live` names restack as a stderr notice. See `spec-gaps.md`.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+Last step: run /plan-finish. The feature spec edit was committed separately (G10). Skills were all re-pinned to c01fd20; claude architecture spec re-pinned to the feature spec.

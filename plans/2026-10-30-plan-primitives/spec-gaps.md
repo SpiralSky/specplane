@@ -71,3 +71,19 @@
 **Resolution**: `plan-create` writes the step files by hand and says so; the CLI is not extended (adding step scaffolding is new capability, out of scope for an adoption step). `reference-cli` § `spec new` now describes the scaffold. A `plan new --step` or `plan step new` command could be a later plan.
 **Target spec**: architecture/reference-cli
 **Status**: open
+
+## G10: step 5 edits the approved `claude:feature/claude-integration`
+**Kind**: proposal
+**Step**: 5
+**Case**: Task 3 asks for the `/plan-finish` row of § Slash commands in `claude:feature/claude-integration` to mention manual mode. That spec is `status: approved`, `author: mixed`, under `llm_role: assist`, so the text should be user-finalised. The agent made the one-cell description edit because the step names it, in its own commit (`Specplane-Workflow: spec`), so it can be reverted alone.
+**Resolution**: Review the cell ("Run the finish flow for the current plan; without the CLI, prints the manual merge sequence") and revert commit if not wanted; the architecture spec carries the full behaviour.
+**Target spec**: claude:feature/claude-integration
+**Status**: open
+
+## G11: `plan list --live` names restack as a stderr notice
+**Kind**: assumption
+**Step**: 5
+**Case**: The criterion says `plan status` output names `specplane plan restack <id>` when a stacked base merged, but neither `plan list` nor its JSON has a field for it, and the human lines are per plan on stdout.
+**Resolution**: `plan list --live` prints the same notice the start-resume path uses ("Base plan `<base-id>` has merged; run `specplane plan restack <id>`.") on stderr, once per such plan, skipping done, abandoned, archived plans and plans without a local branch. The JSON is unchanged. `reference-cli` was not edited beyond what agent-skills § plan-status says.
+**Target spec**: architecture/reference-cli
+**Status**: open

@@ -4,7 +4,7 @@ title: Claude Code integration implementation
 status: approved
 author: llm
 implements: [claude:feature/claude-integration, feature/agent-integration]
-based_on: { "claude:feature/claude-integration": "d3406ae", feature/agent-integration: "9e3a0cf" }
+based_on: { "claude:feature/claude-integration": "e511a6f", feature/agent-integration: "9e3a0cf" }
 ---
 
 # Claude Code integration implementation
@@ -148,7 +148,7 @@ The `plan-step` and `plan-finish` skills write and read `<plans.dir>/<plan-id>/s
 | `spec-draft-architecture` | `[feature-spec-id ...]` | `true` | Writes the draft with `Write`; lists GAP markers in the output. |
 | `plan-create` | `[goal]` | `true` | Uses `AskUserQuestion` for the slug, spec, and dependency choices when available. |
 | `plan-step` | `[plan-id] [--unattended]` | `true` | Session-mode detection (below); subagent execution when the step sets `use_subagent: true`; writes `spec-gaps.md` entries with `Write`/`Edit` and lists their IDs in HANDOFF.md. |
-| `plan-finish` | `[plan-id]` | `true` | Confirms with `AskUserQuestion` in attended sessions; reports the open `spec-gaps.md` entries the CLI lists. |
+| `plan-finish` | `[plan-id]` | `true` | Confirms with `AskUserQuestion` in attended sessions; reports the open `spec-gaps.md` entries the CLI lists. Without the CLI it prints the manual local-merge or push-and-PR sequence, labelled "manual mode: no stale-base or divergence checks", instead of stopping. |
 | `validate` | — | `false` | Read-only; may run whenever validation results are relevant. |
 | `approve` | `<id>... [--reopen]` | `true` | Runs `spec approve`, `plan approve`, or `decision accept` by resolved kind; shows each refusal with its fix; never edits `status` itself. |
 | `plan-start` | `[plan-id]` | `true` | Runs the start flow; when the backend is a worktree, tells the user to open a new session in the checkout it reports. |
@@ -156,12 +156,14 @@ The `plan-step` and `plan-finish` skills write and read `<plans.dir>/<plan-id>/s
 | `plan-status` | — | `false` | Read-only (`specplane plan list --live`); may run whenever plan state is relevant. |
 | `plan-abandon` | `[plan-id]` | `true` | Confirms with `AskUserQuestion`; asks before deleting the branch. |
 
+**Rule for `disable-model-invocation`.** `false` only for read-only or analysis skills (`spec-assist`, `plan-status`, `validate`), which Claude may run whenever they are relevant. `true` for any skill that writes files, commits, merges, or spends quota. Hiding a skill from the model does not hide the CLI: the project instructions route natural-language plan requests to `specplane plan <op>` (`architecture/agent-skills` § Standing instructions, routing table).
+
 ### Shared preamble (`## Preconditions`)
 
 Every skill begins with the same two checks:
 
 1. **Specplane configured**: if `.specplane/config.yaml` does not exist at the repository root (an `AGENTS.md` alone does not count; many repositories have one without Specplane), say "This repository is not set up for Specplane. Run `specplane init --harness claude`." and stop (`feature/agent-integration`: skills are no-ops without Specplane).
-2. **CLI availability**: run `command -v specplane`. If present, use the CLI for resolution, validation, and plan flows. If absent, follow the same rules by hand from the format and flow specs (`architecture/agent-skills#config-resolution-in-skills`) and say once that the CLI was not found. For `/validate` without the CLI, check frontmatter and IDs by hand against `architecture/file-formats` and label the result "manual check". `/plan-finish` without the CLI stops and tells the user to install it.
+2. **CLI availability**: run `command -v specplane`. If present, use the CLI for resolution, validation, and plan flows. If absent, follow the same rules by hand from the format and flow specs (`architecture/agent-skills#config-resolution-in-skills`) and say once that the CLI was not found. For `/validate` without the CLI, check frontmatter and IDs by hand against `architecture/file-formats` and label the result "manual check". `/plan-finish` without the CLI runs its manual mode (labelled "manual mode: no stale-base or divergence checks").
 
 ### Session mode (attended vs. unattended)
 

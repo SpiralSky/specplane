@@ -2,7 +2,7 @@
 plan: 2026-10-30-plan-primitives
 step: 5
 title: "Harness docs — operations table, model invocation, manual finish"
-status: pending
+status: done
 context:
   - spec: architecture/agent-skills#Standing instructions
   - spec: architecture/agent-skills#plan-finish
@@ -22,21 +22,21 @@ project instructions, then implement the one behaviour change (`/plan-finish` ma
 
 ## Acceptance criteria
 
-- [ ] `architecture/agent-skills` has an operations table: every CLI operation → skill, CLI-only, or
+- [x] `architecture/agent-skills` has an operations table: every CLI operation → skill, CLI-only, or
       not user-facing, with a one-line reason. It lists `plan next`, `plan step-done`, `plan restack`,
       `plan cleanup`, `plan archive`, `spec new`, `spec pin`, `generate`, `search`.
-- [ ] `claude:architecture/claude-integration` states the `disable-model-invocation` rule next to the
+- [x] `claude:architecture/claude-integration` states the `disable-model-invocation` rule next to the
       existing table: `false` only for read-only/analysis skills; `true` for anything that writes,
       commits, merges, or spends quota. `spec-assist`, `plan-status`, `validate` stay `false`.
-- [ ] The project instructions carry a routing table outside the managed `specplane:begin/end` block:
+- [x] The project instructions carry a routing table outside the managed `specplane:begin/end` block:
       "user asks to start/step/finish/status a plan → run `specplane plan <op>`; do not hand-edit plan
       files". This makes natural-language requests work even though the skills stay non-invocable.
-- [ ] `/plan-finish` without the CLI prints the manual local-merge sequence (tests → rebase → archive
+- [x] `/plan-finish` without the CLI prints the manual local-merge sequence (tests → rebase → archive
       → merge → delete branch/worktree) with the exact git commands and the `Specplane-Workflow:
       finish` trailer shape, labelled "manual mode: no stale-base or divergence checks", instead of
       stopping. `pull_request` merges print the push + open-PR variant.
-- [ ] `plan status` output names the `specplane plan restack <id>` command when a stacked base merged.
-- [ ] `specplane validate` and `npm test` pass; contract pins re-pinned; skill drift check is clean.
+- [x] `plan status` output names the `specplane plan restack <id>` command when a stacked base merged.
+- [x] `specplane validate` and `npm test` pass; contract pins re-pinned; skill drift check is clean.
 
 ## Tasks
 

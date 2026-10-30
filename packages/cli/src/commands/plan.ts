@@ -18,7 +18,7 @@ import { stepDone, type StepDoneOptions } from "../plan/step-done.js";
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
 import { blockedReason, getEffectiveStatus, type EffectiveStatus } from "../plan/status.js";
-import { abandonPlan, archivePlan, cleanupPlan, finishPlan, restackPlan, startPlan } from "../plan/flows.js";
+import { abandonPlan, archivePlan, cleanupPlan, finishPlan, mergedStackBase, restackPlan, startPlan } from "../plan/flows.js";
 import type { Config, PlanFrontmatter } from "../types.js";
 
 class PlanUsageError extends SpecplaneError {
@@ -98,6 +98,13 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
     }))
     .filter((r) => opts.status === undefined || r.effective_status === opts.status)
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
+  if (opts.live) {
+    for (const r of rows) {
+      if (r.archived || r.effective_status === "done" || r.effective_status === "abandoned" || !branchExists(`plan/${r.id}`, root)) continue;
+      const baseId = mergedStackBase(r.id, config, root);
+      if (baseId) notices.push(`Base plan \`${baseId}\` has merged; run \`specplane plan restack ${r.id}\`.`);
+    }
+  }
   return { rows, problems, blockedReasons, notices };
 }
 
