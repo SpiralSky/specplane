@@ -12,7 +12,7 @@ import { ID_RE_PLAN, planBody } from "../plan/new-template.js";
 import { hasOpenPR } from "../git/forge.js";
 import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { checkoutRoot } from "../git/repo.js";
-import { fetchPlanBranches, getPlanActivity, remotePlanFrontmatter, remotePlanIds, type PlanActivity } from "../plan/activity.js";
+import { fetchPlanBranches, getPlanActivity, hasRemote, remotePlanFrontmatter, remotePlanIds, type PlanActivity } from "../plan/activity.js";
 import { formatNext, planNext } from "../plan/next.js";
 import { stepDone, type StepDoneOptions } from "../plan/step-done.js";
 import { parsePlan } from "../plan/parse.js";
@@ -48,11 +48,12 @@ export interface PlanListRow {
 export type LivePlanListRow = PlanListRow & PlanActivity;
 
 /** Rows sorted by ID descending, plus notes for plans that could not be parsed. */
-export function planList(opts: PlanListOptions, root: string, config: Config): { rows: (PlanListRow | LivePlanListRow)[]; problems: string[]; blockedReasons: Map<string, string> } {
+export function planList(opts: PlanListOptions, root: string, config: Config): { rows: (PlanListRow | LivePlanListRow)[]; problems: string[]; blockedReasons: Map<string, string>; notices: string[] } {
   if (opts.status !== undefined && !STATUSES.includes(opts.status)) {
     throw new PlanUsageError(`Unknown plan status \`${opts.status}\`: expected one of ${STATUSES.join(", ")}.`);
   }
   const problems: string[] = [];
+  const notices: string[] = [];
   const parsed: { fm: PlanFrontmatter; archived: boolean }[] = [];
   for (const rec of listPlans(config, root)) {
     try {
@@ -63,7 +64,9 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
     }
   }
   if (opts.live) {
-    if (opts.fetch !== false) fetchPlanBranches(root);
+    if (opts.fetch !== false && hasRemote(root) && !fetchPlanBranches(root)) {
+      notices.push("notice: could not fetch origin; showing local refs");
+    }
     const known = new Set(parsed.map((p) => p.fm.id));
     for (const id of remotePlanIds(root)) {
       if (known.has(id)) continue;
@@ -95,7 +98,7 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
     }))
     .filter((r) => opts.status === undefined || r.effective_status === opts.status)
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
-  return { rows, problems, blockedReasons };
+  return { rows, problems, blockedReasons, notices };
 }
 
 function activityLine(r: LivePlanListRow): string {
@@ -103,6 +106,7 @@ function activityLine(r: LivePlanListRow): string {
   const parts = [`steps ${s.done + s.skipped}/${s.total}`];
   if (s.next) parts.push(`next ${s.next.number} ${s.next.title} (${s.next.status})`);
   parts.push(`where ${r.where}`);
+  if (r.backend === "worktree" && r.checkout) parts.push(`checkout ${r.checkout}`);
   if (r.blocked_issues.length > 0) parts.push(`blockers: ${r.blocked_issues.join("; ")}`);
   return `  ${parts.join(", ")}\n`;
 }
@@ -124,7 +128,8 @@ export function planListCommand(opts: PlanListOptions): void {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    const { rows, problems, blockedReasons } = planList(opts, root, config);
+    const { rows, problems, blockedReasons, notices } = planList(opts, root, config);
+    for (const n of notices) process.stderr.write(`${n}\n`);
     for (const p of problems) process.stderr.write(`${p}\n`);
     process.stdout.write(opts.json ? `${JSON.stringify(rows, null, 2)}\n` : formatPlanList(rows, blockedReasons));
   } catch (e) {
@@ -231,16 +236,27 @@ export function planGraphCommand(): void {
   }
 }
 
-export function planStartCommand(id: string, opts: { fetch?: boolean } = {}): void {
+export function planStartCommand(id: string, opts: { fetch?: boolean; json?: boolean } = {}): void {
   try {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
     const r = startPlan(id, config, root, opts);
     for (const n of r.notices) process.stderr.write(`${n}\n`);
+    if (opts.json) {
+      process.stdout.write(`${JSON.stringify({ ...r, checkout: r.path }, null, 2)}\n`);
+      return;
+    }
     const where = r.path !== null ? `Worktree: ${r.path}` : `Branch: ${r.branch}`;
+    const lines = [`${r.resumed ? "Resumed" : "Started"} ${r.planId}`, `Backend: ${r.backend} (checkout ${r.resumed && r.backend !== "external" ? "resumed" : r.backend === "external" ? "not needed" : "created"})`, where];
     const next = r.next ? `Next step: ${String(r.next.number).padStart(2, "0")} ${r.next.title} (${r.next.status})` : "No pending steps.";
-    process.stdout.write(`${r.resumed ? "Resumed" : "Started"} ${r.planId}\n${where}\n${next}\n`);
+    lines.push(next);
+    if (r.backend === "external") {
+      lines.push("The environment runs the finish flow itself; do not run `specplane plan finish` locally.");
+    } else if (r.nextCommand) {
+      lines.push(`Open a session: ${r.nextCommand}`);
+    }
+    process.stdout.write(`${lines.join("\n")}\n`);
   } catch (e) {
     if (!reportError(e)) throw e;
   }

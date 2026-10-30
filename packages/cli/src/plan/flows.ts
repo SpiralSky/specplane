@@ -24,6 +24,8 @@ export interface StartResult {
   resumed: boolean;
   /** Worktree path (worktree backend), otherwise null. */
   path: string | null;
+  /** Copy-pasteable command that opens the working session (`cd <path> && claude`); null for `external`. */
+  nextCommand: string | null;
   next: { number: number; title: string; status: string } | null;
   /** Messages for stderr (e.g. the base plan has merged). */
   notices: string[];
@@ -236,7 +238,8 @@ export function startPlan(id: string, config: Config, root: string, opts: StartO
   }
 
   const next = getPlanActivity(id, config, main).steps.next;
-  return { planId: id, branch, backend, resumed: !first, path: checkout, next, notices };
+  const nextCommand = backend === "worktree" && checkout !== null ? `cd ${checkout} && claude` : backend === "branch" ? "claude" : null;
+  return { planId: id, branch, backend, resumed: !first, path: checkout, nextCommand, next, notices };
 }
 
 /** Claim commit on the default branch (architecture/reference-cli § Claim commits): sets `status: in_progress`. */

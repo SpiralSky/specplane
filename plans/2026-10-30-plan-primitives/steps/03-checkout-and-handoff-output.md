@@ -2,7 +2,7 @@
 plan: 2026-10-30-plan-primitives
 step: 3
 title: "Checkout in status and start output; degraded fetch"
-status: pending
+status: done
 context:
   - spec: feature/plan-execution#Execution backends
   - spec: feature/plan-execution#Start flow
@@ -25,20 +25,20 @@ session" in prose, and nothing notices that the operator is standing in the wron
 
 ## Acceptance criteria
 
-- [ ] `plan list --live` prints the `checkout` column (absolute path); it stays blank for
+- [x] `plan list --live` prints the `checkout` column (absolute path); it stays blank for
       `branch`/`external` backends where no per-plan checkout exists.
-- [ ] `plan start` output states whether the checkout was **created** or **resumed** (the flow already
+- [x] `plan start` output states whether the checkout was **created** or **resumed** (the flow already
       returns `resumed` and `backend`), names the backend, and for `worktree` prints one copy-pasteable
       line: `cd <checkout> && claude`.
-- [ ] With `execution.backend: external`, `plan start` prints that the environment runs the finish flow
+- [x] With `execution.backend: external`, `plan start` prints that the environment runs the finish flow
       itself and that `specplane plan finish` must not be run locally.
-- [ ] `fetchPlanBranches` failure (remote configured, fetch fails) during `--live` prints exactly one
+- [x] `fetchPlanBranches` failure (remote configured, fetch fails) during `--live` prints exactly one
       notice to stderr and the command still exits 0 using local refs; `--no-fetch` stays silent.
-- [ ] `/plan-status` shows `checkout` per plan, highlights the plan whose checkout the session is in,
+- [x] `/plan-status` shows `checkout` per plan, highlights the plan whose checkout the session is in,
       and warns once when the session is on branch `plan/<id>` but `cwd` is not that plan's `checkout`
       (no warning when `checkout` is null).
-- [ ] `/plan-start` replaces its "open a new session" prose with the exact command from the CLI output.
-- [ ] `specplane validate` and `npm test` pass; contract pins re-pinned.
+- [x] `/plan-start` replaces its "open a new session" prose with the exact command from the CLI output.
+- [x] `specplane validate` and `npm test` pass; contract pins re-pinned.
 
 ## Tasks
 

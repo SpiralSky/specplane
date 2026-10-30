@@ -3,7 +3,7 @@ name: plan-status
 description: Show where Specplane plans stand, with progress and the next step. Use when the user runs /plan-status or plan state is relevant.
 disable-model-invocation: false
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-status@396f26e -->
+<!-- specplane-contract: architecture/agent-skills#plan-status@82404ea -->
 
 # plan-status
 
@@ -23,8 +23,8 @@ Read config only; this integration changes nothing.
 ## Steps
 
 1. Run `specplane plan list --live` (without the CLI, read `PLAN.md` and step files by hand).
-2. When the session is in a plan's checkout (branch `plan/<id>`), highlight that plan.
-3. Summarise per plan: effective status, step progress, next step, `where`, and any `BLOCKED:` items.
+2. When the session is in a plan's checkout (branch `plan/<id>`), highlight that plan. If `cwd` is not that plan's `checkout` (compare real paths; skip when `checkout` is null), warn once and name the `cd <checkout>` line.
+3. Summarise per plan: effective status, step progress, next step, `where`, `checkout`, and any `BLOCKED:` items.
 4. Point out plans that need attention: a next step that is blocked, or a stacked plan whose base has merged (`feature/plan-execution` § Restacking).
 
 ## Output

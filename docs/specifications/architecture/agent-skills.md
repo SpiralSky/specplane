@@ -320,12 +320,12 @@ Read config.execution.backend (worktree, branch, or external).
 
 1. Identify the plan: the ID argument, else the current branch `plan/<id>`, else ask the user.
 2. Run `specplane plan start <id>`; it performs the checks of `feature/plan-execution` § Start flow.
-3. Report the checkout path and the next step.
-4. When the backend puts the plan in another checkout (`worktree`, `external`), tell the user to open a new session there: that session is told the plan and its next step by the harness. Do not run a step in a session whose checkout differs from the plan's.
+3. Report whether the checkout was created or resumed, the backend, the checkout path, and the next step, all taken from the CLI output (`--json` carries `resumed`, `backend`, `checkout`, `nextCommand`).
+4. For the `worktree` backend, tell the user to open a new session there and give the exact `nextCommand` line from the CLI (`cd <checkout> && claude`); do not compose commands yourself. That session is told the plan and its next step by the harness. With the `external` backend, say that the environment runs the finish flow itself and that `specplane plan finish` must not be run locally. Do not run a step in a session whose checkout differs from the plan's.
 
 ### Output
 
-The outcome, the checkout path, and the next step.
+The outcome (created or resumed), the backend, the checkout path, the exact command to open the session, and the next step.
 
 ---
 
@@ -369,8 +369,8 @@ Read config only; this integration changes nothing.
 ### Steps
 
 1. Run `specplane plan list --live` (without the CLI, read `PLAN.md` and step files by hand).
-2. When the session is in a plan's checkout (branch `plan/<id>`), highlight that plan.
-3. Summarise per plan: effective status, step progress, next step, `where`, and any `BLOCKED:` items.
+2. When the session is in a plan's checkout (branch `plan/<id>`), highlight that plan. If `cwd` is not that plan's `checkout` (compare real paths; skip when `checkout` is null), warn once and name the `cd <checkout>` line.
+3. Summarise per plan: effective status, step progress, next step, `where`, `checkout`, and any `BLOCKED:` items.
 4. Point out plans that need attention: a next step that is blocked, or a stacked plan whose base has merged (`feature/plan-execution` § Restacking).
 
 ### Output

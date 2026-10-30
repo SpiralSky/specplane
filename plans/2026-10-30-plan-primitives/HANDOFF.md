@@ -63,3 +63,35 @@ None.
 ### What the next step must know
 
 Use `plan step-done` for HANDOFF sections and step commits in later steps (stage the work first; pass --trailer for Co-Authored-By and SPECPLANE_AGENT for the agent trailer). It commits whatever is staged plus the plan folder and never pushes. `--outcome skipped` requires a --deviation. Steps 3-4 may change the skill text again, which needs another pin update (git hash-object of agent-skills.md).
+
+## Step 03: Checkout in status and start output; degraded fetch
+
+**Date**: 2026-10-30
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/commands/plan.ts, packages/cli/src/cli.ts`: checkout column, fetch-failure notice, start output and --json
+- `packages/cli/src/plan/flows.ts`: StartResult.nextCommand
+- `packages/cli/src/plan/flows.test.ts`: tests for start output, external message, list --live checkout and fetch notice
+- `docs/specifications/architecture/reference-cli.md, docs/specifications/architecture/agent-skills.md`: plan list, plan start, plan-start and plan-status contracts
+- `harnesses/claude/templates/skills/plan-start, plan-status, plan-step, .claude/skills copies`: render checkout and nextCommand; pins moved to 82404ea
+- `plans/2026-10-30-plan-primitives/spec-gaps.md`: G6-G8
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- G6 (proposal): `feature/plan-execution` § Start flow does not say what the flow reports. See `spec-gaps.md`.
+- G7 (assumption): `checkout` for the `branch` backend differs between the brief and § Plan activity. See `spec-gaps.md`.
+- G8 (assumption): `--json` for `plan start`. See `spec-gaps.md`.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+plan start gains --json (StartResult plus checkout, nextCommand); the human list prints checkout only for the worktree backend (G7). Any further agent-skills.md edit needs the skill pins re-moved (git hash-object, 7 chars). packages/cli/node_modules is an untracked symlink: do not stage it.

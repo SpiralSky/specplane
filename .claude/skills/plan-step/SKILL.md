@@ -4,7 +4,7 @@ description: Execute the next step of a Specplane plan. Use when the user runs /
 argument-hint: "[plan-id] [--unattended]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-step@dbfad2e -->
+<!-- specplane-contract: architecture/agent-skills#plan-step@82404ea -->
 
 # plan-step
 

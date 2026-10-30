@@ -39,3 +39,27 @@
 **Resolution**: Add a `### specplane plan step-done <id>` entry to `feature/tooling` once the user finalises the text, stating that the CLI writes the HANDOFF.md section and the step commit and never pushes.
 **Target spec**: feature/tooling
 **Status**: open
+
+## G6: `feature/plan-execution` § Start flow does not say what the flow reports
+**Kind**: proposal
+**Step**: 3
+**Case**: The Start flow's "Announce" step names only the worktree path or branch and the next step. The step brief wants it to state whether the checkout was created or resumed, the backend, the exact command to open the session, and, for `external`, that `specplane plan finish` must not be run locally. The feature spec is human-authored (`llm_role: assist`), so the agent did not edit it; the behaviour is specified in `architecture/reference-cli` § `plan start`.
+**Resolution**: Extend § Start flow step 6 once the user finalises the text.
+**Target spec**: feature/plan-execution
+**Status**: open
+
+## G7: `checkout` for the `branch` backend differs between the brief and § Plan activity
+**Kind**: assumption
+**Step**: 3
+**Case**: The step criteria say the `checkout` column stays blank for `branch` and `external`. `architecture/reference-cli` § Plan activity defines the `checkout` JSON field for `branch` as the main checkout root while it is on `plan/<id>`. The two cannot both hold for the human output.
+**Resolution**: The JSON field is unchanged (spec wins); the human `plan list --live` line prints `checkout <path>` only for the `worktree` backend. For `branch`, `plan start` gives `nextCommand` `claude` (the session is already in the checkout); `external` gets `null`.
+**Target spec**: architecture/reference-cli
+**Status**: open
+
+## G8: `--json` for `plan start`
+**Kind**: assumption
+**Step**: 3
+**Case**: The guidance says `--json` output gains `checkout` and `nextCommand` fields, but `plan start` had no `--json` and `plan list --json` has no start-time command.
+**Resolution**: Added `plan start --json` (the `StartResult` plus `checkout`); `plan list --json` is unchanged apart from its existing `checkout` field. Documented in `architecture/reference-cli` § `plan start`.
+**Target spec**: architecture/reference-cli
+**Status**: open

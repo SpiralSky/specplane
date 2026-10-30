@@ -41,7 +41,7 @@ plan
   .option("--depends-on <ids>", "comma-separated plan IDs")
   .action((opts) => planNewCommand(opts));
 plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
-plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").action((id, opts) => planStartCommand(id, opts));
+plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--json", "print the result as JSON").action((id, opts) => planStartCommand(id, opts));
 plan
   .command("finish <id>")
   .description("Finish a plan: tests, rebase, done and archive commit, merge (lists open spec-gaps.md entries)")
