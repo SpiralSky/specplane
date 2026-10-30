@@ -151,7 +151,7 @@ None.
 
 ### Open issues
 
-None.
+- G9 (deferred): no CLI command writes step files, so `plan-create` still writes them by hand. May overlap with work tracked in the plan-conductor plan or a future plan. Leave for a future pass.
 
 ### What the next step must know
 
