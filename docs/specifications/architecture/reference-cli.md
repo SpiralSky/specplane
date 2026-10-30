@@ -8,13 +8,13 @@ implements: [feature/tooling, feature/plan-execution, feature/plan-index, featur
 
 # Reference CLI: module structure, parsing, git integration, validation engine, and plan flows
 
-The reference CLI (`specplane`) is a TypeScript command-line tool distributed via npm. It is one implementation of the behaviour defined in `feature/tooling`. The language and distribution choice is recorded in `decision/0002`.
+The reference CLI (`specplane`) is a TypeScript command-line tool distributed via npm. It is one implementation of the behaviour defined in `feature/tooling`. The language and distribution choice is recorded in `decision/0004` (which supersedes `decision/0002`).
 
 ---
 
 ## Technology choices
 
-- **Language**: TypeScript (Node.js ≥ 22). See `decision/0002`.
+- **Language**: TypeScript (Node.js ≥ 22). See `decision/0004`.
 - **Package manager**: npm.
 - **Distribution**: npm package `specplane` (OQ-1, resolved).
 - **YAML parsing**: `js-yaml` (battle-tested, MIT, no dependencies).
