@@ -3,7 +3,7 @@ name: validate
 description: Run full Specplane repository validation and summarise the results. Use when the user runs /validate or when validation results are relevant.
 disable-model-invocation: false
 ---
-<!-- specplane-contract: architecture/agent-skills#validate@a94912d -->
+<!-- specplane-contract: architecture/agent-skills#validate@396f26e -->
 
 # validate
 

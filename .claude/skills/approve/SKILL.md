@@ -4,7 +4,7 @@ description: Approve specs, plans, or decision records by ID, or reopen an appro
 argument-hint: "<id>... [--reopen]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#approve@a94912d -->
+<!-- specplane-contract: architecture/agent-skills#approve@396f26e -->
 
 # approve
 

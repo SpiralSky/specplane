@@ -4,7 +4,7 @@ description: Abandon a Specplane plan after confirmation. Use when the user runs
 argument-hint: "[plan-id]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-abandon@a94912d -->
+<!-- specplane-contract: architecture/agent-skills#plan-abandon@396f26e -->
 
 # plan-abandon
 
