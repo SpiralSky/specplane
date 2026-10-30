@@ -38,5 +38,6 @@ The build-out is complete and merged (11 plans, 20 approved specs). The remainin
 5. **Cosmetic**: validating inside a plan worktree without `.claude/settings.local.json` reports one extra warning (17 → 18). The main checkout is the reference.
 
 ## Open items
-- No open `spec-gaps.md` entries, no open questions in `docs/OPEN-QUESTIONS.md`, no active plans.
-- The publish flow and the skill-pin design question above are the only substantive outstanding work.
+- No open `spec-gaps.md` entries and no active plans.
+- **New (2026-10-30): harness orchestration.** Design note at `docs/design/harness-orchestration.md` (not a spec): `plan start --run` spawning a Claude Code background session (`claude --bg`) in the Specplane worktree, a CLI-side conductor (`plan run`, `plan next`), concurrency limits, and a derived `attention`/alert queue. Open questions OQ-12 … OQ-15 in `docs/OPEN-QUESTIONS.md`. Feature-spec edits are listed in the note and need user authorship.
+- The publish flow and the skill-pin design question above are the only other substantive outstanding work.

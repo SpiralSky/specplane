@@ -4,7 +4,10 @@
 
 ## Active plans
 
-_None._
+| ID | Title | Status | Dependencies | Specs |
+|----|-------|--------|--------------|-------|
+| [2026-10-30-plan-conductor](2026-10-30-plan-conductor/PLAN.md) | Plan conductor — plan run, session mode, and alerts | draft | [2026-10-30-plan-primitives](2026-10-30-plan-primitives/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/plan-execution, feature/configuration, feature/spec-precedence, feature/agent-integration, claude:architecture/claude-integration, claude:feature/claude-integration |
+| [2026-10-30-plan-primitives](2026-10-30-plan-primitives/PLAN.md) | Plan primitives — next, step-done, and harness doc fixes | draft | — | architecture/reference-cli, architecture/agent-skills, feature/plan-status, feature/agent-integration, claude:architecture/claude-integration, claude:feature/claude-integration |
 
 ## Archived plans
 
@@ -37,6 +40,8 @@ graph TD
     p_2026_10_29_cli_plan_flows[cli-plan-flows]:::done
     p_2026_10_29_cli_spec_search[cli-spec-search]:::done
     p_2026_10_29_feature_spec_alignment[feature-spec-alignment]:::done
+    p_2026_10_30_plan_conductor[plan-conductor]:::draft
+    p_2026_10_30_plan_primitives[plan-primitives]:::draft
     p_2026_10_29_feature_spec_alignment --> p_2026_10_29_assist_and_approve
     p_2026_10_29_claude_harness_files --> p_2026_10_29_claude_instructions_and_enforcement
     p_2026_10_28_reference_cli_core --> p_2026_10_29_cli_claude_harness_init
@@ -47,6 +52,7 @@ graph TD
     p_2026_10_28_reference_cli_core --> p_2026_10_29_cli_plan_flows
     p_2026_10_29_cli_plan_commands --> p_2026_10_29_cli_plan_flows
     p_2026_10_28_reference_cli_core --> p_2026_10_29_cli_spec_search
+    p_2026_10_30_plan_primitives --> p_2026_10_30_plan_conductor
     classDef draft fill:#f9fafb,color:#374151,stroke:#d1d5db
     classDef ready fill:#22c55e,color:#fff
     classDef blocked fill:#ef4444,color:#fff
