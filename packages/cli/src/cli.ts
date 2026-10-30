@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
-import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand, planNextCommand } from "./commands/plan.js";
+import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand, planNextCommand, planStepDoneCommand } from "./commands/plan.js";
 import { planApproveCommand } from "./commands/plan-approve.js";
 import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
@@ -23,7 +23,7 @@ program
   .description("Specplane reference CLI")
   .version(pkg.version);
 
-const plan = program.command("plan").description("Work with plans (list, new, show, graph, next, start, approve, finish, abandon, cleanup, archive, restack)");
+const plan = program.command("plan").description("Work with plans (list, new, show, graph, next, step-done, start, approve, finish, abandon, cleanup, archive, restack)");
 plan
   .command("list")
   .description("List plans with their effective statuses")
@@ -71,6 +71,22 @@ plan
   .option("--json", "print the result as JSON")
   .option("--no-fetch", "accepted for symmetry with `plan list --live`; `plan next` never fetches")
   .action((id, opts) => planNextCommand(id, opts));
+const collect = (v: string, prev: string[] = []): string[] => [...prev, v];
+plan
+  .command("step-done <id>")
+  .description("Append the step's HANDOFF.md section, set its status, and make the step commit (never pushes)")
+  .requiredOption("--outcome <outcome>", "done, blocked, or skipped")
+  .requiredOption("--summary <text>", "commit subject text after `<type>(<slug>): `")
+  .option("--type <type>", "Conventional Commits type of the step's main change", "feat")
+  .option("--changed <path:reason>", "file changed and why (repeatable, order kept)", collect)
+  .option("--deviation <text>", "deviation from the plan (repeatable)", collect)
+  .option("--open-issue <text>", "open issue (repeatable; `BLOCKED: ...` when blocked)", collect)
+  .option("--gap <id>", "spec-gaps.md entry this step added, e.g. G3 (repeatable)", collect)
+  .option("--next-knows <text>", "what the next step must know")
+  .option("--step <n>", "step number (default: the lowest step not done or skipped)", (v) => Number(v))
+  .option("--resume", "the step was blocked and has been run again; its blocker is resolved")
+  .option("--trailer <line>", "extra trailer such as `Co-Authored-By: ...` (repeatable)", collect)
+  .action((id, opts) => planStepDoneCommand(id, opts));
 plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());
 plan
   .command("approve <ids...>")

@@ -14,6 +14,7 @@ import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { checkoutRoot } from "../git/repo.js";
 import { fetchPlanBranches, getPlanActivity, remotePlanFrontmatter, remotePlanIds, type PlanActivity } from "../plan/activity.js";
 import { formatNext, planNext } from "../plan/next.js";
+import { stepDone, type StepDoneOptions } from "../plan/step-done.js";
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
 import { blockedReason, getEffectiveStatus, type EffectiveStatus } from "../plan/status.js";
@@ -319,5 +320,12 @@ export function planNextCommand(id: string, opts: { json?: boolean }): void {
   withConfig((root, config) => {
     const n = planNext(id, config, root);
     process.stdout.write(opts.json ? `${JSON.stringify(n, null, 2)}\n` : formatNext(n));
+  });
+}
+
+export function planStepDoneCommand(id: string, opts: StepDoneOptions): void {
+  withConfig((root, config) => {
+    const r = stepDone(id, opts, config, root);
+    process.stdout.write(`Committed ${r.commit}\nHANDOFF: ${r.handoff} (step ${String(r.step).padStart(2, "0")}, ${r.outcome})\n`);
   });
 }

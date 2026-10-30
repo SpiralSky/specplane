@@ -4,7 +4,7 @@ description: Execute the next step of a Specplane plan. Use when the user runs /
 argument-hint: "[plan-id] [--unattended]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-step@396f26e -->
+<!-- specplane-contract: architecture/agent-skills#plan-step@dbfad2e -->
 
 # plan-step
 
@@ -33,9 +33,9 @@ Read `specs.*` (authorship and `llm_role`) from config before editing any spec. 
 4. Avoid reading other files unless the listed context is insufficient; record any expansion in `<plans.dir>/<plan-id>/HANDOFF.md`.
 5. Execute the tasks, following `feature/spec-precedence`: architecture spec first, feature spec for gaps (record each gap). Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>/spec-gaps.md` as a new numbered entry (`## G<n>: <case>`, the six fields of `architecture/file-formats` §4.2, `**Status**: open`): create the file on the first entry and never reuse a number. A proposed spec edit the agent may not make itself is a `proposal` entry; do not write `feature-spec-proposals.md`. On a contradiction: if attended, stop and show both passages; if unattended, do not implement the contradicted behaviour, record a `BLOCKED:` item under open issues, and continue with unaffected tasks.
 6. Check the acceptance criteria and tick each met checkbox in the step file.
-7. Set the step's `status` to `done`, or `blocked` if a blocking issue prevents the criteria from being met.
-8. Append the step's section to `<plans.dir>/<plan-id>/HANDOFF.md` (`architecture/file-formats` §4.1: `## Step NN: <title>`, `**Date**`, `**Outcome**` equal to the status, all five subsections, "None." for empty ones). In "Gaps found in specs", list each `spec-gaps.md` entry this step added by ID (`- G<n> (<kind>): <summary>. See spec-gaps.md.`). Never edit earlier sections.
-9. Commit per `architecture/file-formats` §8: subject `<type>(<slug>): <summary>` (Conventional Commits type of the step's main change; `<slug>` is the plan ID without its `YYYY-MM-DD-` prefix; at most 72 characters), a blank line, a bullet summary of the changes, a blank line, then the trailers in this order: `Specplane-Workflow: step`, `Specplane-Plan: <plan-id>`, `Specplane-Step: NN`, `Specplane-Agent: $SPECPLANE_AGENT` (else `claude-code`), `Specplane-Session: $SPECPLANE_SESSION` (omit the line when unset), then the harness attribution trailer (`Co-Authored-By`). Do not set the commit author. Example: `feat(search-indexer): build graph from spec links`.
+7. Decide the outcome: `done`, or `blocked` if a blocking issue prevents the criteria from being met.
+8. Stage the step's own work (`git add <paths>`), then record the outcome with the CLI: `SPECPLANE_AGENT=${SPECPLANE_AGENT:-claude-code} specplane plan step-done <plan-id> --outcome <done|blocked> --summary "<commit subject text>" --type <feat|fix|docs|...>` plus `--changed "<path>:<reason>"` per changed file, `--deviation`, `--open-issue` (`BLOCKED: ...` when blocked), `--gap G<n>` for each `spec-gaps.md` entry this step added, `--next-knows`, and `--trailer "Co-Authored-By: <the harness attribution trailer>"`. The CLI appends the HANDOFF.md section (`architecture/file-formats` §4.1), sets the step's `status`, and makes the §8 step commit in one operation; do not format the section or the commit yourself, and read its refusal message if it fails. Re-running a `blocked` step adds `--resume`. It never pushes.
+9. Without the CLI (step 2 of the preconditions), do the same by hand: set the step's `status`, append the §4.1 section (`**Outcome**` equal to the status, "None." for empty subsections, gaps listed by ID), and commit per §8 with `Specplane-Workflow: step`, `Specplane-Plan`, `Specplane-Step`, `Specplane-Agent` (else `claude-code`), `Specplane-Session` (omit when unset), then the `Co-Authored-By` trailer; subject `<type>(<slug>): <summary>`, at most 72 characters.
 10. If `execution.backend` is `external`, or the plan branch has an upstream, push `plan/<id>` so the next session and other machines see the step.
 
 **Subagent branch.** If the step sets `use_subagent: true`, do steps 1-2 yourself, resolve the context items to paths, then run steps 3-9 in a fresh subagent (not a `fork`, which would inherit this session's context). The subagent does not push; you perform step 10 yourself after it returns:

@@ -2,7 +2,7 @@
 plan: 2026-10-30-plan-primitives
 step: 2
 title: "plan step-done — CLI owns the HANDOFF and commit formats"
-status: pending
+status: done
 context:
   - spec: architecture/file-formats#HANDOFF.md
   - spec: architecture/file-formats#Step files
@@ -21,21 +21,21 @@ outcome) and calls the CLI for the two mechanical writes.
 
 ## Acceptance criteria
 
-- [ ] `plan step-done <id> --outcome done|blocked --summary <text> [--changed <path>:<reason>]…
+- [x] `plan step-done <id> --outcome done|blocked --summary <text> [--changed <path>:<reason>]…
       [--deviation <text>]… [--open-issue <text>]… [--next-knows <text>] [--step NN]` appends exactly
       one section matching `architecture/file-formats` §4.1, with every required subsection and the
       literal `None.` for empty ones.
-- [ ] The commit uses §8: `<type>(<slug>): <summary>`, blank line, bullet list, blank line, then
+- [x] The commit uses §8: `<type>(<slug>): <summary>`, blank line, bullet list, blank line, then
       `Specplane-Workflow: step`, `Specplane-Plan`, `Specplane-Step`, `Specplane-Agent`,
       `Specplane-Session` (omitted when unset), `Co-Authored-By`.
-- [ ] It refuses (non-zero, no writes) when: the step is already `done`; the step is `blocked` and
+- [x] It refuses (non-zero, no writes) when: the step is already `done`; the step is `blocked` and
       `--outcome done` was passed; `--outcome blocked` has no `--open-issue` beginning with `BLOCKED:`;
       or `spec-gaps.md` has no entry for a `--gap` ID that was passed.
-- [ ] The step frontmatter `status` and the new HANDOFF `**Outcome**` are written in the same
+- [x] The step frontmatter `status` and the new HANDOFF `**Outcome**` are written in the same
       operation, so they can never disagree in a commit.
-- [ ] The `plan-step` skill instructs calling the CLI for steps 8–9 and drops its own format
+- [x] The `plan-step` skill instructs calling the CLI for steps 8–9 and drops its own format
       description to a pointer; without the CLI it still performs the writes by hand.
-- [ ] `specplane validate`, `npm test`, and a skill-contract re-pin (`specplane spec pin`) pass.
+- [x] `specplane validate`, `npm test`, and a skill-contract re-pin (`specplane spec pin`) pass.
 
 ## Tasks
 
