@@ -20,40 +20,44 @@ export interface SearchOptions {
   json?: boolean;
 }
 
-export interface SearchHit {
-  path: string;
-  id: string;
-  type: "spec" | "plan";
-  status: string | null;
+export interface SearchMatch {
   line: number;
-  snippet: string;
+  text: string;
 }
 
-const SNIPPET_MAX = 200;
+/** One matched file: the unit `feature/tooling` and `architecture/reference-cli` call a block. */
+export interface SearchFile {
+  id: string;
+  kind: "spec" | "plan";
+  path: string;
+  root: string | null;
+  status: string | null;
+  matches: SearchMatch[];
+}
+
+const MAX_SNIPPETS = 3;
 const toPosix = (p: string) => p.split(path.sep).join("/");
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-function scanFile(abs: string, rel: string, needle: string, meta: Omit<SearchHit, "path" | "line" | "snippet">): SearchHit[] {
-  const hits: SearchHit[] = [];
+/** Matching lines of one file, trimmed, at most three per file. */
+function scanFile(abs: string, needle: string): SearchMatch[] {
+  const matches: SearchMatch[] = [];
   const lines = fs.readFileSync(abs, "utf8").split(/\r?\n/);
-  lines.forEach((text, i) => {
-    if (text.toLowerCase().includes(needle)) {
-      const t = text.trim();
-      hits.push({ path: rel, ...meta, line: i + 1, snippet: t.length > SNIPPET_MAX ? `${t.slice(0, SNIPPET_MAX)}...` : t });
-    }
-  });
-  return hits;
+  for (let i = 0; i < lines.length && matches.length < MAX_SNIPPETS; i++) {
+    if (lines[i].toLowerCase().includes(needle)) matches.push({ line: i + 1, text: lines[i].trim() });
+  }
+  return matches;
 }
 
-/** Case-insensitive literal search over spec files and plan files (PLAN.md, steps, HANDOFF.md, archived plans too). */
-export function search(text: string, opts: SearchOptions, root: string, config: Config): { hits: SearchHit[]; problems: string[] } {
+/** Case-insensitive literal search over spec files, plan files, and step files (archived plans too). */
+export function search(text: string, opts: SearchOptions, root: string, config: Config): { files: SearchFile[]; problems: string[] } {
   if (text === "") throw new SearchUsageError("Search text must not be empty.");
   if (opts.kind !== undefined && opts.kind !== "spec" && opts.kind !== "plan") {
     throw new SearchUsageError(`Unknown kind \`${opts.kind}\`: expected \`spec\` or \`plan\`.`);
   }
   if (opts.root !== undefined && !config.spec_roots.some((r) => r.name === opts.root)) throw new UnknownRootError(opts.root);
   const needle = text.toLowerCase();
-  const hits: SearchHit[] = [];
+  const files: SearchFile[] = [];
   const problems: string[] = [];
 
   if (opts.kind !== "plan") {
@@ -62,7 +66,10 @@ export function search(text: string, opts: SearchOptions, root: string, config: 
     for (const s of specs) {
       if (opts.root !== undefined && s.root.name !== opts.root) continue;
       if (opts.status !== undefined && s.frontmatter.status !== opts.status) continue;
-      hits.push(...scanFile(s.file, s.rel, needle, { id: s.id, type: "spec", status: s.frontmatter.status ?? null }));
+      const matches = scanFile(s.file, needle);
+      if (matches.length > 0) {
+        files.push({ id: s.id, kind: "spec", path: s.rel, root: s.root.name, status: s.frontmatter.status ?? null, matches });
+      }
     }
   }
 
@@ -78,17 +85,28 @@ export function search(text: string, opts: SearchOptions, root: string, config: 
         continue;
       }
       if (opts.status !== undefined && status !== opts.status) continue;
-      const files = [p.planFile, ...listStepFiles(p.dir), path.join(p.dir, "HANDOFF.md")].filter((f) => fs.existsSync(f));
-      for (const f of files) hits.push(...scanFile(f, toPosix(path.relative(root, f)), needle, { id: p.id, type: "plan", status }));
+      const candidates = [p.planFile, ...listStepFiles(p.dir)].filter((f) => fs.existsSync(f));
+      for (const f of candidates) {
+        const rel = toPosix(path.relative(root, f));
+        const matches = scanFile(f, needle);
+        if (matches.length > 0) files.push({ id: p.id, kind: "plan", path: rel, root: null, status, matches });
+      }
     }
   }
 
-  hits.sort((a, b) => cmp(a.path, b.path) || a.line - b.line);
-  return { hits, problems };
+  files.sort((a, b) => cmp(a.path, b.path));
+  return { files, problems };
 }
 
-export function formatHits(hits: SearchHit[]): string {
-  return hits.map((h) => `${h.id}  ${h.path}:${h.line}  ${h.snippet}\n`).join("");
+/** A step file is labelled with its plan ID and step; other blocks use the ID alone. */
+function heading(f: SearchFile): string {
+  if (f.kind !== "plan") return f.id;
+  const m = /\/steps\/(.+)\.md$/.exec(f.path);
+  return m ? `${f.id} (step ${m[1]})` : f.id;
+}
+
+export function formatFiles(files: SearchFile[]): string {
+  return files.map((f) => `${heading(f)}  ${f.path}\n${f.matches.map((m) => `  ${m.line}: ${m.text}`).join("\n")}\n`).join("\n");
 }
 
 export function searchCommand(text: string, opts: SearchOptions): void {
@@ -96,9 +114,9 @@ export function searchCommand(text: string, opts: SearchOptions): void {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    const { hits, problems } = search(text, opts, root, config);
+    const { files, problems } = search(text, opts, root, config);
     for (const p of problems) process.stderr.write(`${p}\n`);
-    process.stdout.write(opts.json ? JSON.stringify(hits, null, 2) + "\n" : formatHits(hits));
+    process.stdout.write(opts.json ? JSON.stringify(files, null, 2) + "\n" : formatFiles(files));
   } catch (e) {
     if (!reportError(e)) throw e;
   }
