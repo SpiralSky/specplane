@@ -6,7 +6,7 @@ status: done
 context:
   - spec: architecture/reference-cli
   - decision: decision/0002
-  - file: plans/2026-10-28-reference-cli-core/PLAN.md
+  - file: plans/archive/2026-10-28-reference-cli-core/PLAN.md
 ---
 
 ## Goal

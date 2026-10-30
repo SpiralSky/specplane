@@ -5,11 +5,11 @@ title: CLAUDE.md template, sync check, AGENTS.md, and dogfood install
 status: done
 use_subagent: true
 context:
-  - spec: claude:architecture/claude-integration#CLAUDE.md structure
+  - spec: claude:architecture/claude-integration#Files produced
   - spec: claude:architecture/claude-integration#Template source
   - spec: claude:architecture/claude-integration#Settings merge
   - spec: claude:architecture/claude-integration#Testing
-  - spec: feature/agent-integration#AGENTS.md
+  - spec: feature/agent-integration#Agent instructions
   - spec: feature/configuration
   - spec: architecture/file-formats#HANDOFF.md
   - file: .specplane/config.yaml
