@@ -93,6 +93,18 @@ function defaultTip(def: string, cwd: string): string {
   return behind && !same ? `origin/${def}` : def;
 }
 
+/** ID of the base plan `plan/<id>` is stacked on when that plan is now `done` on the default branch, else null. Read-only. */
+export function mergedStackBase(id: string, config: Config, cwd: string): string | null {
+  const branch = `plan/${id}`;
+  const marker = findLatest(branch, "stack", cwd);
+  if (!marker) return null;
+  const subject = run("git", ["log", "-1", "--format=%s", marker], { cwd }).trim();
+  const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
+  const tip = defaultTip(defaultBranch(cwd), cwd);
+  if (baseId && planAt(tip, baseId, config, cwd)?.status === "done" && readTrailers(marker, cwd).has("Specplane-Stack-Base")) return baseId;
+  return null;
+}
+
 function revParse(ref: string, cwd: string): string {
   return run("git", ["rev-parse", `${ref}^{commit}`], { cwd }).trim();
 }
@@ -201,14 +213,8 @@ export function startPlan(id: string, config: Config, root: string, opts: StartO
 
   const notices: string[] = [];
   if (!first) {
-    const marker = findLatest(branch, "stack", main);
-    if (marker) {
-      const subject = run("git", ["log", "-1", "--format=%s", marker], { cwd: main }).trim();
-      const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
-      if (baseId && planAt(tip, baseId, config, main)?.status === "done" && readTrailers(marker, main).has("Specplane-Stack-Base")) {
-        notices.push(`Base plan \`${baseId}\` has merged; run \`specplane plan restack ${id}\`.`);
-      }
-    }
+    const baseId = mergedStackBase(id, config, main);
+    if (baseId) notices.push(`Base plan \`${baseId}\` has merged; run \`specplane plan restack ${id}\`.`);
   }
 
   let checkout: string | null = null;

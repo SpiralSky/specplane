@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
-import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand } from "./commands/plan.js";
+import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand, planNextCommand } from "./commands/plan.js";
 import { planApproveCommand } from "./commands/plan-approve.js";
 import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
@@ -23,7 +23,7 @@ program
   .description("Specplane reference CLI")
   .version(pkg.version);
 
-const plan = program.command("plan").description("Work with plans (list, new, show, graph, start, approve, finish, abandon, cleanup, archive, restack)");
+const plan = program.command("plan").description("Work with plans (list, new, show, graph, next, start, approve, finish, abandon, cleanup, archive, restack)");
 plan
   .command("list")
   .description("List plans with their effective statuses")
@@ -65,6 +65,12 @@ plan
   .description("Rebase a stacked plan's own commits onto its new base")
   .option("--dry-run", "check and report without rewriting history")
   .action((id, opts) => planRestackCommand(id, opts));
+plan
+  .command("next <id>")
+  .description("Show the next step, its context, and the recommended action (read-only)")
+  .option("--json", "print the result as JSON")
+  .option("--no-fetch", "accepted for symmetry with `plan list --live`; `plan next` never fetches")
+  .action((id, opts) => planNextCommand(id, opts));
 plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());
 plan
   .command("approve <ids...>")

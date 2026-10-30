@@ -263,6 +263,34 @@ Each warning includes `type` (`path`, `tech_name`, `identifier`, `schema_syntax`
 
 Remote branches are read from already-fetched remote-tracking refs; status queries never touch the network except for the forge PR lookup.
 
+### Plan next (`plan/next.ts`)
+
+`planNext(id, config, root): PlanNext` resolves what should happen next for a plan and whether an agent may start it unattended. It is read-only: it reads files, runs read-only git queries (`worktree list`, `rev-list`, `status --porcelain`, `show`), and never fetches, writes, commits, or spawns anything, so two runs in a row leave `git status` and the worktree unchanged. It is harness-neutral (no harness names in its output); a harness maps `action` to its own spawn mechanism. `computeNext(input): PlanNext` is the pure core.
+
+Files are read from the plan's own checkout (`checkout`, as in § Plan activity) when it has one, else from the invoking checkout. The next step is the lowest-numbered step whose status is not `done` or `skipped`, so an earlier `pending` or `blocked` step wins over a later one (the `plan-step` ordering rule); `reason` says so when a later step is already past `pending`. Effective status comes from `getEffectiveStatus`.
+
+`--json` prints exactly one object on stdout:
+
+| Field | Value |
+|-------|-------|
+| `plan`, `title` | plan ID and title |
+| `effectiveStatus` | as § Plan status |
+| `step` | `{ number, title, status, file }` (`file` is repository-relative), or `null` when no step remains |
+| `context` | one `{ kind, id, path, anchor }` per `context` item of `step`: `kind` is `spec`, `decision`, or `file`; `path` is repository-relative or `null` when unresolved; `anchor` is the heading anchor or `null` |
+| `checkout` | as § Plan activity |
+| `blocked` | the `BLOCKED:` lines of HANDOFF.md when `step` is `blocked`, else `[]` |
+| `openGaps` | `{ id, kind, summary }` for each `spec-gaps.md` entry whose status is `open` |
+| `warnings` | unresolved context items and skipped (unparsable) step files; never errors |
+| `attention` | derived, never stored: `{ kind, message }` objects, at most one per `kind`, from the closed set below |
+| `action` | exactly one of `spawn_step`, `ask_human`, `finish`, `restack`, `none` |
+| `reason` | one sentence explaining `action` |
+
+`attention` kinds: `blocked` (the next step is `blocked`), `gap_decision` (an `open` `spec-gaps.md` entry of kind `proposal` or `assumption`), `finish_ready` (the plan is started and every step is `done` or `skipped`), `restack` (the plan is stacked and its base plan is now `done` on the default branch, as the resume notice of § Start), `diverged` (the local branch and `origin/plan/<id>` each have commits the other lacks), `dirty` (the plan checkout has uncommitted changes).
+
+`action`, first match wins: the plan is `done` or `abandoned`, a `draft`, `blocked` by dependencies, or not started (no branch): `none`. Otherwise `diverged` or `dirty`: `ask_human`; `blocked` or `gap_decision`: `ask_human`; `restack`: `restack`; `finish_ready`: `finish`; a remaining step: `spawn_step`; no steps: `none`. `blocked` and `gap_decision` therefore always take precedence over `spawn_step`.
+
+Human output prints the same fields as labelled lines. `plan next` never fetches; `--no-fetch` is accepted for symmetry with `plan list --live` and changes nothing.
+
 ---
 
 ## Dependency graph (`plan/graph.ts`)
@@ -398,6 +426,10 @@ Inputs: `--id`, `--title`, `--specs` and `--depends-on` (comma-separated). Witho
 ### `plan list`
 
 Inputs: `--status`, `--json`, `--live`, `--no-fetch`. Computes `getEffectiveStatus` for every plan (active and archived; an unparsable plan is skipped and reported on stderr) and sorts rows by ID descending. `--status` filters on the effective status. Human output is aligned columns `id`, `title`, effective status; with `--live` a second line per plan with activity (step progress, next step, `where`, blockers). `--json` prints an array of `{id, title, stored_status, effective_status, depends_on, specs, archived}`, and with `--live` each object also carries the fields of § Plan activity. `--live` also lists plans whose branch exists only on the remote and not on the default branch, with `stored_status` taken from `PLAN.md` at the branch tip. Exit 0, or 1 for a `--status` value that is not a plan status.
+
+### `plan next <id>`
+
+Inputs: `--json`, `--no-fetch`. Runs `planNext` (§ Plan next) and prints either the JSON object or the human summary. Errors: `PlanNotFoundError`, or the parse error of an invalid `PLAN.md`. Exit 0, or 1 on an error.
 
 ### `plan show <id>`
 

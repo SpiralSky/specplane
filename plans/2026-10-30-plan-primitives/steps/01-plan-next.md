@@ -2,7 +2,7 @@
 plan: 2026-10-30-plan-primitives
 step: 1
 title: "plan next — read-only resolver"
-status: pending
+status: done
 context:
   - spec: architecture/reference-cli#Plan status
   - spec: architecture/reference-cli#Plan parsing and validation
@@ -22,18 +22,18 @@ and every harness will call; it must not write files, spawn anything, or mutate 
 
 ## Acceptance criteria
 
-- [ ] `plan next <id>` prints a human summary; `--json` prints the object below and nothing else on
+- [x] `plan next <id>` prints a human summary; `--json` prints the object below and nothing else on
       stdout.
-- [ ] The next step is the lowest-numbered step not `done`/`skipped`, and an earlier `pending` or
+- [x] The next step is the lowest-numbered step not `done`/`skipped`, and an earlier `pending` or
       `blocked` step wins over a later one (same rule as `plan-step` step 2), with the reason stated.
-- [ ] Context items are resolved to concrete paths with anchors; unresolved specs are reported as
+- [x] Context items are resolved to concrete paths with anchors; unresolved specs are reported as
       `warnings`, not errors.
-- [ ] `attention` is derived, never stored, and uses a closed set of kinds: `blocked`, `gap_decision`,
+- [x] `attention` is derived, never stored, and uses a closed set of kinds: `blocked`, `gap_decision`,
       `finish_ready`, `restack`, `diverged`, `dirty`.
-- [ ] `action` is exactly one of `spawn_step`, `ask_human`, `finish`, `restack`, `none`, and the
+- [x] `action` is exactly one of `spawn_step`, `ask_human`, `finish`, `restack`, `none`, and the
       `--json` object is documented in `architecture/reference-cli`.
-- [ ] Running it twice leaves `git status` and the worktree unchanged (assert in a test).
-- [ ] `specplane validate` and `npm test` pass; the spec section is updated in the same commit.
+- [x] Running it twice leaves `git status` and the worktree unchanged (assert in a test).
+- [x] `specplane validate` and `npm test` pass; the spec section is updated in the same commit.
 
 ## Tasks
 
