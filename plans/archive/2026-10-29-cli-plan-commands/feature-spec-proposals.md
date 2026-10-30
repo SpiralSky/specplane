@@ -2,7 +2,7 @@
 
 **Applied 2026-10-29** (user-approved, pasted verbatim): (a), (b), (c).
 
-Status: needs user review. Feature specs are `llm_role: assist`, so none of these edits has been applied. Each section gives the target, the current text, the problem, the proposed replacement, and the reason.
+This file is the applied proposal record: these edits are in the approved feature specs. The sections below are kept for traceability, not as pending suggestions.
 
 ## (a) `feature/plan-status`: abandon from which stored statuses
 

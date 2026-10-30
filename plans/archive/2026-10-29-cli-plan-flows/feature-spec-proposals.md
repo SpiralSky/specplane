@@ -2,7 +2,7 @@
 
 **Applied 2026-10-29** (user-approved, pasted verbatim): 1 (including the optional `plan start` sentence), 2, 3 (outside fences only).
 
-Status: needs user review. Feature specs are `llm_role: assist`, so none of these edits has been applied. Each section gives the target, the current text, the proposed replacement, and the reason.
+This file is the applied proposal record: these edits are in the approved feature specs. The sections below are kept for traceability, not as pending suggestions.
 
 ## 1. `feature/tooling`: add `specplane plan restack <id>`
 
