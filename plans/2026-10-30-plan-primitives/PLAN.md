@@ -1,7 +1,7 @@
 ---
 id: 2026-10-30-plan-primitives
 title: "Plan primitives — next, step-done, and harness doc fixes"
-status: draft
+status: ready
 specs: ["architecture/reference-cli","architecture/agent-skills","feature/plan-status","feature/agent-integration","claude:architecture/claude-integration","claude:feature/claude-integration"]
 depends_on: []
 ---
