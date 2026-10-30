@@ -87,6 +87,15 @@ test("start: first start creates branch and worktree, runs hook, announces (Scen
   assert.ok(fs.existsSync(path.join(wtPath(r, A), "hook.txt")));
   assert.ok(res.out.includes(`Worktree: ${wtPath(r, A)}`));
   assert.ok(res.out.includes("Next step: 01 first"));
+  assert.ok(res.out.includes("Backend: worktree (checkout created)"));
+  assert.ok(res.out.includes(`cd ${wtPath(r, A)} && claude`));
+  const j = spawnSync(process.execPath, [cli, "plan", "start", A, "--json"], { cwd: r.root, encoding: "utf8", env: ENV });
+  const parsed = JSON.parse(j.stdout);
+  assert.equal(parsed.nextCommand, `cd ${wtPath(r, A)} && claude`);
+  assert.equal(parsed.checkout, wtPath(r, A));
+  assert.equal(parsed.resumed, true);
+  const again = start(r.root, A);
+  assert.ok(again.out.includes("Backend: worktree (checkout resumed)"));
 });
 
 test("start: unapproved spec fails before any write (Scenario 2)", () => {
@@ -191,6 +200,30 @@ test("start: branch backend needs a clean tree, then switches", () => {
   assert.equal(res.code, 0, res.err);
   assert.equal(git(r.root, "rev-parse", "--abbrev-ref", "HEAD"), `plan/${A}`);
   assert.ok(res.out.includes(`Branch: plan/${A}`));
+  assert.ok(res.out.includes("Backend: branch (checkout created)"));
+  assert.ok(res.out.includes("Open a session: claude"));
+});
+
+const list = (cwd: string, ...a: string[]) => {
+  const r = spawnSync(process.execPath, [cli, "plan", "list", "--live", ...a], { cwd, encoding: "utf8", env: ENV });
+  return { code: r.status, out: r.stdout, err: r.stderr };
+};
+
+test("list --live: prints the checkout, and one notice when the fetch fails", () => {
+  const r = repo();
+  assert.equal(start(r.root, A).code, 0);
+  const ok = list(r.root);
+  assert.equal(ok.code, 0, ok.err);
+  assert.ok(ok.out.includes(`checkout ${wtPath(r, A)}`));
+  assert.equal(ok.err, "");
+  git(r.root, "remote", "set-url", "origin", path.join(r.wt, "missing-origin"));
+  const bad = list(r.root);
+  assert.equal(bad.code, 0, bad.err);
+  assert.equal(bad.err.split("notice: could not fetch origin; showing local refs").length - 1, 1);
+  assert.ok(bad.out.includes(`checkout ${wtPath(r, A)}`));
+  const quiet = list(r.root, "--no-fetch");
+  assert.equal(quiet.code, 0);
+  assert.equal(quiet.err, "");
 });
 
 test("start: external backend only creates the branch and announces", () => {
@@ -201,6 +234,9 @@ test("start: external backend only creates the branch and announces", () => {
   assert.equal(fs.existsSync(wtPath(r, A)), false);
   assert.equal(git(r.root, "rev-parse", "--abbrev-ref", "HEAD"), "main");
   assert.ok(res.out.includes(`Branch: plan/${A}`));
+  assert.ok(res.out.includes("Backend: external"));
+  assert.ok(res.out.includes("do not run `specplane plan finish` locally"));
+  assert.ok(!res.out.includes("&& claude"));
 });
 
 test("start: frontmatter mode writes a claim commit on the default branch and pushes it", () => {

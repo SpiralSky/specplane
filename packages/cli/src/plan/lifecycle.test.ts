@@ -184,6 +184,9 @@ test("restack: after a squash merge only beta's own commits are replayed (Scenar
   git(r.root, "merge", "-q", "--squash", `plan/${A}`);
   git(r.root, "commit", "-q", "-m", "squash alpha");
   const before = git(r.root, "rev-parse", `plan/${B}`);
+  const live = sp(r.root, "plan", "list", "--live", "--no-fetch");
+  assert.equal(live.code, 0, live.err);
+  assert.ok(live.err.includes(`Base plan \`${A}\` has merged; run \`specplane plan restack ${B}\`.`), live.err);
   const dry = sp(r.root, "plan", "restack", B, "--dry-run");
   assert.equal(dry.code, 0, dry.err);
   assert.match(dry.out, /^Would restack .* onto main \(no longer stacked\)$/m);
@@ -205,6 +208,7 @@ test("restack: after a squash merge only beta's own commits are replayed (Scenar
   const resume = sp(r.root, "plan", "start", B);
   assert.equal(resume.code, 0, resume.err);
   assert.doesNotMatch(resume.err, /has merged/);
+  assert.doesNotMatch(sp(r.root, "plan", "list", "--live", "--no-fetch").err, /has merged/);
 });
 
 test("restack: unmerged base appends a new marker; second run is a no-op", () => {

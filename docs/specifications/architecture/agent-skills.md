@@ -41,6 +41,35 @@ Skills must never hardcode paths. Every path to a spec, plan, or ADR is resolved
 
 The skill should call the CLI (`specplane`) for resolution, validation, and plan flows when it is available, rather than reimplementing them. If the CLI is not available, it follows the same rules by hand from the format specification.
 
+**Creation goes through the CLI.** When the CLI is available, a skill creates a spec file only with `specplane spec new <type> <slug>` and a plan folder only with `specplane plan new`; it never hand-writes the frontmatter or skeleton of a new file. The CLI writes `status: draft`, `author: user`, and the section headings of the templates in `architecture/file-formats` §1.3 and §1.4, and the skill then edits the body (as its `llm_role` allows) and, where `author` must change, only that field. Where the target root or an `extends` list matters, the skill passes `--root` and `--extends` rather than writing overlay frontmatter by hand. Right after creating a file the skill validates it (`specplane spec validate <id>` for a spec, `specplane validate` for a plan) and reports the result instead of assuming success. Without the CLI the skill writes the files by hand from the templates and says validation was not run.
+
+### Operations and skills
+
+Every CLI operation is either wrapped by a skill, CLI-only, or not user-facing. A skill exists only where the operation needs judgment, a confirmation, or context the CLI cannot supply; a skill that merely forwards a command would cost context in every session for no gain. CLI-only operations are run with `specplane <command>` from a shell, and the standing instructions route natural-language requests to them (§ Standing instructions).
+
+| Operation | Skill | Reason |
+|-----------|-------|--------|
+| `plan new` | `plan-create` | Needs the goal, spec choices, and step files, which the skill writes. |
+| `plan list` (`--live`) | `plan-status` | The skill summarises and highlights the current plan. |
+| `plan next` | not user-facing | Read-only resolver for `plan-step` and for conductors; its JSON is machine input. |
+| `plan step-done` | not user-facing | Called by `plan-step` to write the HANDOFF.md section and the step commit. |
+| `plan start` | `plan-start` | Tells the user where to continue the plan. |
+| `plan finish` | `plan-finish` | Needs confirmation and acceptance-criteria evidence; has a manual mode without the CLI. |
+| `plan approve`, `spec approve`, `spec reopen`, `decision accept` | `approve` | Human decision; user-invoked only. |
+| `plan abandon` | `plan-abandon` | Destructive; confirms first. |
+| `plan restack` | CLI-only | Mechanical history rewrite; `plan-status` and the start flow name the command when a base plan has merged. |
+| `plan cleanup` | CLI-only | Mechanical; the finish flow runs it after a local merge. |
+| `plan archive` | CLI-only | Mechanical; the finish and abandon flows archive when `archive_done` is set. |
+| `plan show`, `plan graph` | CLI-only | Read-only output that needs no interpretation. |
+| `spec new` | `spec-assist`, `spec-draft-architecture` | Called by those skills; not a user-facing skill of its own. |
+| `spec pin` | CLI-only | Mechanical; re-pins a skill or spec after its contract moves. |
+| `spec list`, `spec show`, `spec validate` | CLI-only | Read-only; `validate` wraps the whole-repository check. |
+| `validate` | `validate` | The skill summarises the results. |
+| `decision new` | `decision-new` | Writes the body from the user's description. |
+| `generate` | CLI-only | Regenerates `PLANS.md`; also run by CI or a hook. |
+| `search` | CLI-only | Read-only lookup. |
+| `init` | CLI-only | One-time setup, run before any skill exists. |
+
 ---
 
 ## Standing instructions
@@ -64,6 +93,8 @@ This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.s
 ```
 
 Each harness replaces only the **Workflows** line. The rules themselves live in the specs; this text only points to them (`feature/agent-integration`: no duplicated policy).
+
+**Routing table (project-owned, outside the managed text).** Skills with `disable-model-invocation: true` are hidden from the model, so a natural-language request such as "start the plan" would otherwise lead to hand-edited plan files. A project that wants those requests to work adds a short routing table to a file it owns (for `AGENTS.md`, outside the managed block): a request to start, step, finish, or show the status of a plan means running `specplane plan <op>` (the CLI stays reachable through the shell even when the skill is not), and plan files are never edited by hand. Specplane does not write this table and `init` never touches it; the managed text stays unchanged.
 
 ### Delivery
 
@@ -104,9 +135,10 @@ Refine-then-write (`assist`), following `feature/spec-policies#refine-then-write
 1. **Describe**: ask the user to describe the feature in their own words. Write nothing to the spec.
 2. **Refine**: discuss the description to find issues — gaps, ambiguous rules, contradictions with other specs, missing edge cases and acceptance scenarios, and architecture leaks. Raise each issue with a suggested resolution; the user decides. Repeat until no issue is open or the user chooses to stop.
 3. **Finalise**: summarise the agreed content (rules, scenarios, the decision on each issue, and anything left open). The user confirms the summary is final.
-4. **Write**: write the body from the finalised content only, using the feature spec template in `architecture/file-formats` §1.3, and show it to the user. Write the file only after the user approves the text; mark every detail filled in as an assumption to confirm.
+4. **Write**: write the body from the finalised content only, using the feature spec template in `architecture/file-formats` §1.3, and show it to the user. Write the file only after the user approves the text; mark every detail filled in as an assumption to confirm. For a new spec, after approval run `specplane spec new feature <slug> --title "<title>"` (adding `--root <name> --extends <ids>` for an overlay) and write the approved body into the file it creates; the CLI never takes content.
 5. Set `author: mixed` and leave `status` unchanged. Never set it to `approved`.
 6. Before writing, self-check the body: no implementation detail (the architecture-leak test) and no contradiction with the user's agreed content. Rewrite or drop any passage that fails.
+7. After writing, run `specplane spec validate <id>` and report the result.
 
 Review-only (`review`):
 
@@ -121,7 +153,7 @@ Under `draft`, the agent may also produce a `draft` with `author: llm` when the 
 
 ### Output
 
-Refine-then-write: the written body and its path, after approval, with the assumptions listed. Review-only: a summary of suggested additions and changes, applied only where the user approved them.
+Refine-then-write: the written body and its path, after approval, with the assumptions listed and the validation result. Review-only: a summary of suggested additions and changes, applied only where the user approved them.
 
 ---
 
@@ -152,11 +184,12 @@ Under `assist`, the feature specs read in step 1 are the input to Describe and R
 5. Mark any place where the feature specs leave the architecture open with `<!-- GAP: <description> -->`.
 6. Set `author: llm`, `status: draft`, and the `implements` list.
 7. Before writing, self-check the draft: every `implements` entry resolves, every feature-spec requirement is covered or marked with a GAP, and no section contradicts a feature spec (the architecture spec wins only where the feature spec is silent). Fix or mark with a GAP anything that fails.
-8. Write to `<root.path>/architecture/<slug>.md` (root from config; `base` unless the user names another).
+8. Create the file with `specplane spec new architecture <slug> --implements <ids> [--root <name>] [--extends <ids>]` (root from config; `base` unless the user names another), then write the draft body into it and set `author` per step 6.
+9. Run `specplane spec validate <id>` and report the result.
 
 ### Output
 
-Path to the created file; list of GAPs found.
+Path to the created file; list of GAPs found; the validation result.
 
 ---
 
@@ -179,12 +212,12 @@ Specs below the requirement → warn (the plan can be created, but not started, 
 2. Ask for the specs and dependencies; resolve each spec ID (no root context) and plan ID. Reject unknown IDs, abandoned dependencies, and dependency cycles.
 3. Draft the PLAN.md body sections (`architecture/file-formats` §2.2) with the user.
 4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths). Ordering check: confirm that each step depends only on earlier steps (nothing a step needs is produced by a later one) and reorder before showing the proposal if not.
-5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`) and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new` when available.
-6. Run validation on the new plan. Without the CLI, apply `architecture/file-formats` §2 by hand (create the files, check IDs and dependencies manually) and tell the user validation was not run.
+5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`) and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new --id <id> --title "<title>" --specs <ids> [--depends-on <ids>]` for `PLAN.md` and `HANDOFF.md` (the step files have no CLI command; write them by hand, then fill in the PLAN.md body).
+6. Run `specplane validate` and report the result for the new plan. Without the CLI, apply `architecture/file-formats` §2 by hand (create the files, check IDs and dependencies manually) and tell the user validation was not run.
 
 ### Output
 
-Plan ID, path, and step list; a reminder that a human sets `status: ready` before the plan can be started.
+Plan ID, path, and step list; a reminder that a human sets `status: ready` before the plan can be started, with the pointer `/approve <id>`.
 
 ---
 
@@ -209,9 +242,9 @@ Determine whether the session is attended (feature/spec-precedence).
 4. Avoid reading other files unless the listed context is insufficient; record any expansion in HANDOFF.md.
 5. Execute the tasks, following `feature/spec-precedence` (record gaps; on contradictions, stop if attended, or record `BLOCKED:` and continue with unaffected tasks if unattended). Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>/spec-gaps.md` as a new numbered entry (`## G<n>: <case>`, the six fields and statuses of `architecture/file-formats` §4.2, `**Status**: open`): create the file on the first entry and never reuse a number. A step that would propose a spec edit it may not make itself writes a `proposal` entry; `feature-spec-proposals.md` is the archived format and is not written by new plans.
 6. Check the acceptance criteria.
-7. Set the step's `status` to `done`, or `blocked` if a blocking issue prevents the criteria from being met.
-8. Append the step's HANDOFF.md section (`architecture/file-formats` §4; `**Outcome**` matching the status; "None." for empty sections). The "Gaps found in specs" subsection lists each `spec-gaps.md` entry this step added by ID: `- G<n> (<kind>): <one-line summary>. See spec-gaps.md.`
-9. Commit per `architecture/file-formats` §8 with `Specplane-Workflow: step`, `Specplane-Plan`, `Specplane-Step`, and `Specplane-Agent` (plus `Specplane-Session` when the harness exposes one), e.g. `feat(search-indexer): build graph from spec links`, a bullet summary, then the trailers.
+7. Decide the outcome: `done`, or `blocked` if a blocking issue prevents the criteria from being met.
+8. Record it with the CLI: stage the step's own work, then run `specplane plan step-done <plan-id> --outcome <outcome> --summary <text>` with `--changed`, `--deviation`, `--open-issue`, `--gap`, `--next-knows`, and the harness attribution `--trailer` (`architecture/reference-cli` § `plan step-done`). The CLI appends the HANDOFF.md section (`architecture/file-formats` §4.1), sets the step's `status` to the outcome, and makes the step commit (§8) in one operation. The "Gaps found in specs" subsection lists each `spec-gaps.md` entry this step added, by ID, through `--gap`.
+9. Without the CLI, do the same by hand: set the `status`, append the §4.1 section with `**Outcome**` equal to the status and "None." for empty sections, and commit per `architecture/file-formats` §8 with `Specplane-Workflow: step`, `Specplane-Plan`, `Specplane-Step`, and `Specplane-Agent` (plus `Specplane-Session` when the harness exposes one), e.g. `feat(search-indexer): build graph from spec links`, a bullet summary, then the trailers.
 10. If `execution.backend` is `external`, or the plan branch has an upstream, push `plan/<id>` so the next session and other machines see the step.
 
 ### Output
@@ -230,7 +263,7 @@ Runs the finish flow for the current plan. Implements `plan-finish`.
 
 ```
 Read config.plans and config.execution before finishing.
-If the CLI is unavailable: stop and tell the user to install it; the flow is not reimplemented by hand.
+If the CLI is unavailable: run the manual sequence below, labelled "manual mode: no stale-base or divergence checks".
 If any step of the plan is not done or skipped: stop and report which.
 ```
 
@@ -240,6 +273,23 @@ If any step of the plan is not done or skipped: stop and report which.
 2. Confirm with the user: "Run finish flow for `<plan-id>`?" (unattended: proceed only if the session was explicitly started to finish the plan).
 3. Invoke `specplane plan finish <id>` (readiness checks, verification, rebase, final commit, PR or merge). Verification lists the open `spec-gaps.md` entries; open entries never stop the flow.
 4. When verification asks for acceptance-criteria confirmation, check each criterion and state the evidence. Report the open `spec-gaps.md` entries it listed (ID, kind, target spec) so they are reviewed, and say that they do not block the merge.
+
+**Manual mode (no CLI).** Instead of step 3, print "manual mode: no stale-base or divergence checks" once and follow this sequence (the finish flow's order, for the two merge modes only). Stop and tell the user to install the CLI when the plan is stacked on another plan or `plans.status_source` is `frontmatter`, since those need the stack and claim logic.
+
+1. Check that the branch is `plan/<id>`, `git status --porcelain` is empty, and every step is `done` or `skipped`.
+2. Run `plans.test_command` in the checkout when it is set; list the acceptance criteria and open `spec-gaps.md` entries as in step 4.
+3. `git fetch origin` when a remote exists, then `git rebase <default>`; on a conflict run `git rebase --abort` and stop. Re-run the tests when the rebase applied new commits.
+4. Set `status: done` in `<plans.dir>/<id>/PLAN.md`; when `archive_done` is true run `git mv <plans.dir>/<id> <plans.dir>/archive/<id>`; stage the plan folder and commit:
+   ```
+   chore(specplane): finish <id>
+
+   Specplane-Workflow: finish
+   Specplane-Plan: <id>
+   Specplane-Agent: <$SPECPLANE_AGENT, else harness name>
+   Specplane-Session: <$SPECPLANE_SESSION; omit when unset>
+   ```
+   followed by the harness attribution trailer.
+5. `pull_request`: `git push -u origin plan/<id>`, then open the pull request (`gh pr create --base <default> --head plan/<id> --title "chore(specplane): finish <id>"`), or print the push command and the PR URL instructions when no forge CLI is available. `local_merge`: confirm with the user, then in the main checkout `git merge --no-ff -m "Merge plan/<id>" plan/<id>`, then `git worktree remove <checkout>` (worktree backend) and `git branch -d plan/<id>`.
 
 ### Output
 
@@ -320,12 +370,12 @@ Read config.execution.backend (worktree, branch, or external).
 
 1. Identify the plan: the ID argument, else the current branch `plan/<id>`, else ask the user.
 2. Run `specplane plan start <id>`; it performs the checks of `feature/plan-execution` § Start flow.
-3. Report the checkout path and the next step.
-4. When the backend puts the plan in another checkout (`worktree`, `external`), tell the user to open a new session there: that session is told the plan and its next step by the harness. Do not run a step in a session whose checkout differs from the plan's.
+3. Report whether the checkout was created or resumed, the backend, the checkout path, and the next step, all taken from the CLI output (`--json` carries `resumed`, `backend`, `checkout`, `nextCommand`).
+4. For the `worktree` backend, tell the user to open a new session there and give the exact `nextCommand` line from the CLI (`cd <checkout> && claude`); do not compose commands yourself. That session is told the plan and its next step by the harness. With the `external` backend, say that the environment runs the finish flow itself and that `specplane plan finish` must not be run locally. Do not run a step in a session whose checkout differs from the plan's.
 
 ### Output
 
-The outcome, the checkout path, and the next step.
+The outcome (created or resumed), the backend, the checkout path, the exact command to open the session, and the next step.
 
 ---
 
@@ -369,9 +419,9 @@ Read config only; this integration changes nothing.
 ### Steps
 
 1. Run `specplane plan list --live` (without the CLI, read `PLAN.md` and step files by hand).
-2. When the session is in a plan's checkout (branch `plan/<id>`), highlight that plan.
-3. Summarise per plan: effective status, step progress, next step, `where`, and any `BLOCKED:` items.
-4. Point out plans that need attention: a next step that is blocked, or a stacked plan whose base has merged (`feature/plan-execution` § Restacking).
+2. When the session is in a plan's checkout (branch `plan/<id>`), highlight that plan. If `cwd` is not that plan's `checkout` (compare real paths; skip when `checkout` is null), warn once and name the `cd <checkout>` line.
+3. Summarise per plan: effective status, step progress, next step, `where`, `checkout`, and any `BLOCKED:` items.
+4. Point out plans that need attention: a next step that is blocked, or a stacked plan whose base has merged (`feature/plan-execution` § Restacking). For the latter, name the command `specplane plan restack <id>`; `plan list --live` prints it as a notice ("Base plan `<base-id>` has merged; run `specplane plan restack <id>`.").
 
 ### Output
 

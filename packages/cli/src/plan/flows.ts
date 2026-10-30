@@ -24,6 +24,8 @@ export interface StartResult {
   resumed: boolean;
   /** Worktree path (worktree backend), otherwise null. */
   path: string | null;
+  /** Copy-pasteable command that opens the working session (`cd <path> && claude`); null for `external`. */
+  nextCommand: string | null;
   next: { number: number; title: string; status: string } | null;
   /** Messages for stderr (e.g. the base plan has merged). */
   notices: string[];
@@ -91,6 +93,18 @@ function defaultTip(def: string, cwd: string): string {
   const behind = tryRun(["merge-base", "--is-ancestor", def, `origin/${def}`], cwd) !== null;
   const same = tryRun(["rev-parse", def], cwd)?.trim() === tryRun(["rev-parse", `origin/${def}`], cwd)?.trim();
   return behind && !same ? `origin/${def}` : def;
+}
+
+/** ID of the base plan `plan/<id>` is stacked on when that plan is now `done` on the default branch, else null. Read-only. */
+export function mergedStackBase(id: string, config: Config, cwd: string): string | null {
+  const branch = `plan/${id}`;
+  const marker = findLatest(branch, "stack", cwd);
+  if (!marker) return null;
+  const subject = run("git", ["log", "-1", "--format=%s", marker], { cwd }).trim();
+  const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
+  const tip = defaultTip(defaultBranch(cwd), cwd);
+  if (baseId && planAt(tip, baseId, config, cwd)?.status === "done" && readTrailers(marker, cwd).has("Specplane-Stack-Base")) return baseId;
+  return null;
 }
 
 function revParse(ref: string, cwd: string): string {
@@ -201,14 +215,8 @@ export function startPlan(id: string, config: Config, root: string, opts: StartO
 
   const notices: string[] = [];
   if (!first) {
-    const marker = findLatest(branch, "stack", main);
-    if (marker) {
-      const subject = run("git", ["log", "-1", "--format=%s", marker], { cwd: main }).trim();
-      const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
-      if (baseId && planAt(tip, baseId, config, main)?.status === "done" && readTrailers(marker, main).has("Specplane-Stack-Base")) {
-        notices.push(`Base plan \`${baseId}\` has merged; run \`specplane plan restack ${id}\`.`);
-      }
-    }
+    const baseId = mergedStackBase(id, config, main);
+    if (baseId) notices.push(`Base plan \`${baseId}\` has merged; run \`specplane plan restack ${id}\`.`);
   }
 
   let checkout: string | null = null;
@@ -230,7 +238,8 @@ export function startPlan(id: string, config: Config, root: string, opts: StartO
   }
 
   const next = getPlanActivity(id, config, main).steps.next;
-  return { planId: id, branch, backend, resumed: !first, path: checkout, next, notices };
+  const nextCommand = backend === "worktree" && checkout !== null ? `cd ${checkout} && claude` : backend === "branch" ? "claude" : null;
+  return { planId: id, branch, backend, resumed: !first, path: checkout, nextCommand, next, notices };
 }
 
 /** Claim commit on the default branch (architecture/reference-cli § Claim commits): sets `status: in_progress`. */

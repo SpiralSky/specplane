@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
-import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand } from "./commands/plan.js";
+import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand, planNextCommand, planStepDoneCommand } from "./commands/plan.js";
 import { planApproveCommand } from "./commands/plan-approve.js";
 import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
@@ -23,7 +23,7 @@ program
   .description("Specplane reference CLI")
   .version(pkg.version);
 
-const plan = program.command("plan").description("Work with plans (list, new, show, graph, start, approve, finish, abandon, cleanup, archive, restack)");
+const plan = program.command("plan").description("Work with plans (list, new, show, graph, next, step-done, start, approve, finish, abandon, cleanup, archive, restack)");
 plan
   .command("list")
   .description("List plans with their effective statuses")
@@ -41,7 +41,7 @@ plan
   .option("--depends-on <ids>", "comma-separated plan IDs")
   .action((opts) => planNewCommand(opts));
 plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
-plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").action((id, opts) => planStartCommand(id, opts));
+plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--json", "print the result as JSON").action((id, opts) => planStartCommand(id, opts));
 plan
   .command("finish <id>")
   .description("Finish a plan: tests, rebase, done and archive commit, merge (lists open spec-gaps.md entries)")
@@ -65,6 +65,28 @@ plan
   .description("Rebase a stacked plan's own commits onto its new base")
   .option("--dry-run", "check and report without rewriting history")
   .action((id, opts) => planRestackCommand(id, opts));
+plan
+  .command("next <id>")
+  .description("Show the next step, its context, and the recommended action (read-only)")
+  .option("--json", "print the result as JSON")
+  .option("--no-fetch", "accepted for symmetry with `plan list --live`; `plan next` never fetches")
+  .action((id, opts) => planNextCommand(id, opts));
+const collect = (v: string, prev: string[] = []): string[] => [...prev, v];
+plan
+  .command("step-done <id>")
+  .description("Append the step's HANDOFF.md section, set its status, and make the step commit (never pushes)")
+  .requiredOption("--outcome <outcome>", "done, blocked, or skipped")
+  .requiredOption("--summary <text>", "commit subject text after `<type>(<slug>): `")
+  .option("--type <type>", "Conventional Commits type of the step's main change", "feat")
+  .option("--changed <path:reason>", "file changed and why (repeatable, order kept)", collect)
+  .option("--deviation <text>", "deviation from the plan (repeatable)", collect)
+  .option("--open-issue <text>", "open issue (repeatable; `BLOCKED: ...` when blocked)", collect)
+  .option("--gap <id>", "spec-gaps.md entry this step added, e.g. G3 (repeatable)", collect)
+  .option("--next-knows <text>", "what the next step must know")
+  .option("--step <n>", "step number (default: the lowest step not done or skipped)", (v) => Number(v))
+  .option("--force", "override the blocker guard and mark the step done anyway")
+  .option("--trailer <line>", "extra trailer such as `Co-Authored-By: ...` (repeatable)", collect)
+  .action((id, opts) => planStepDoneCommand(id, opts));
 plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());
 plan
   .command("approve <ids...>")

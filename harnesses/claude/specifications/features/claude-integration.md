@@ -49,7 +49,7 @@ Project skills are the chosen mechanism for this harness because they version wi
 | `/spec-draft-architecture` | `spec-draft-architecture` | Draft an architecture spec from feature specs |
 | `/plan-create` | `plan-create` | Create a new plan interactively |
 | `/plan-step` | `plan-step` | Execute the next step of the current plan |
-| `/plan-finish` | `plan-finish` | Run the finish flow for the current plan |
+| `/plan-finish` | `plan-finish` | Run the finish flow for the current plan; without the CLI, prints the manual merge sequence |
 | `/validate` | `validate` | Run `specplane validate` and summarise results |
 | `/approve` | `approve` | Approve specs, plans, or decision records by ID (`--reopen` reopens an approved spec); only when the user invokes it |
 | `/plan-start` | `plan-start` | Start a plan and say where to continue it |

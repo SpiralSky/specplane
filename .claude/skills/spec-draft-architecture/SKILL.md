@@ -4,7 +4,7 @@ description: Draft an architecture spec from feature specs, or review an archite
 argument-hint: "[feature-spec-id ...]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#spec-draft-architecture@396f26e -->
+<!-- specplane-contract: architecture/agent-skills#spec-draft-architecture@c01fd20 -->
 
 # spec-draft-architecture
 
@@ -13,7 +13,7 @@ Drafts an architecture spec from feature specs (the `spec-draft-architecture` wo
 ## Preconditions
 
 1. **Specplane configured**: if `.specplane/config.yaml` does not exist at the repository root (an `AGENTS.md` alone does not count), say "This repository is not set up for Specplane. Run `specplane init --harness claude`." and stop.
-2. **CLI availability**: run `command -v specplane`. If present, use the CLI for resolution, validation, and plan flows. If absent, follow the same rules by hand from the format and flow specs (`architecture/agent-skills` § Config resolution in skills) and say once that the CLI was not found. For `/validate` without the CLI, check frontmatter and IDs by hand against `architecture/file-formats` and label the result "manual check". `/plan-finish` without the CLI stops and tells the user to install it.
+2. **CLI availability**: run `command -v specplane`. If present, use the CLI for resolution, validation, and plan flows. If absent, follow the same rules by hand from the format and flow specs (`architecture/agent-skills` § Config resolution in skills) and say once that the CLI was not found. For `/validate` without the CLI, check frontmatter and IDs by hand against `architecture/file-formats` and label the result "manual check". `/plan-finish` without the CLI runs its manual mode (labelled "manual mode: no stale-base or divergence checks").
 
 Resolve every spec, plan, and ADR path from config (`.specplane/config.yaml`), never from hardcoded paths.
 
@@ -35,8 +35,9 @@ Read `specs.architecture.llm_role` from config.
 5. Mark any place where the feature specs leave the architecture open with `<!-- GAP: <description> -->`.
 6. Set `author: llm`, `status: draft`, and the `implements` list. Under `assist`, set `author: mixed` and leave `status` unchanged instead.
 7. Before writing, self-check the draft: every `implements` entry resolves, every feature-spec requirement is covered or marked with a GAP, and no section contradicts a feature spec (the architecture spec wins only where the feature spec is silent). Fix or mark with a GAP anything that fails.
-8. Write the draft with `Write` to `<root.path>/architecture/<slug>.md` (root from config; `base` unless the user names another). Under `assist`, show the text and write the file only after the user approves it.
+8. Create the file with `specplane spec new architecture <slug> --implements <ids> [--root <name>] [--extends <ids>]` (root from config; `base` unless the user names another), then write the draft body into it and set `author` per step 6. Under `assist`, show the text and create and write the file only after the user approves it. Without the CLI, write the file by hand to `<root.path>/architecture/<slug>.md`.
+9. Run `specplane spec validate <id>` and report the result (without the CLI, say validation was not run).
 
 ## Output
 
-The path to the created file and the list of GAP markers found.
+The path to the created file, the list of GAP markers found, and the validation result.

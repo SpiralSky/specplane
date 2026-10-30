@@ -263,6 +263,34 @@ Each warning includes `type` (`path`, `tech_name`, `identifier`, `schema_syntax`
 
 Remote branches are read from already-fetched remote-tracking refs; status queries never touch the network except for the forge PR lookup.
 
+### Plan next (`plan/next.ts`)
+
+`planNext(id, config, root): PlanNext` resolves what should happen next for a plan and whether an agent may start it unattended. It is read-only: it reads files, runs read-only git queries (`worktree list`, `rev-list`, `status --porcelain`, `show`), and never fetches, writes, commits, or spawns anything, so two runs in a row leave `git status` and the worktree unchanged. It is harness-neutral (no harness names in its output); a harness maps `action` to its own spawn mechanism. `computeNext(input): PlanNext` is the pure core.
+
+Files are read from the plan's own checkout (`checkout`, as in § Plan activity) when it has one, else from the invoking checkout. The next step is the lowest-numbered step whose status is not `done` or `skipped`, so an earlier `pending` or `blocked` step wins over a later one (the `plan-step` ordering rule); `reason` says so when a later step is already past `pending`. Effective status comes from `getEffectiveStatus`.
+
+`--json` prints exactly one object on stdout:
+
+| Field | Value |
+|-------|-------|
+| `plan`, `title` | plan ID and title |
+| `effectiveStatus` | as § Plan status |
+| `step` | `{ number, title, status, file }` (`file` is repository-relative), or `null` when no step remains |
+| `context` | one `{ kind, id, path, anchor }` per `context` item of `step`: `kind` is `spec`, `decision`, or `file`; `path` is repository-relative or `null` when unresolved; `anchor` is the heading anchor or `null` |
+| `checkout` | as § Plan activity |
+| `blocked` | the `BLOCKED:` lines of HANDOFF.md when `step` is `blocked`, else `[]` |
+| `openGaps` | `{ id, kind, summary }` for each `spec-gaps.md` entry whose status is `open` |
+| `warnings` | unresolved context items and skipped (unparsable) step files; never errors |
+| `attention` | derived, never stored: `{ kind, message }` objects, at most one per `kind`, from the closed set below |
+| `action` | exactly one of `spawn_step`, `ask_human`, `finish`, `restack`, `none` |
+| `reason` | one sentence explaining `action` |
+
+`attention` kinds: `blocked` (the next step is `blocked`), `gap_decision` (an `open` `spec-gaps.md` entry of kind `proposal` or `assumption`), `finish_ready` (the plan is started and every step is `done` or `skipped`), `restack` (the plan is stacked and its base plan is now `done` on the default branch, as the resume notice of § Start), `diverged` (the local branch and `origin/plan/<id>` each have commits the other lacks), `dirty` (the plan checkout has uncommitted changes).
+
+`action`, first match wins: the plan is `done` or `abandoned`, a `draft`, `blocked` by dependencies, or not started (no branch): `none`. Otherwise `diverged` or `dirty`: `ask_human`; `blocked` or `gap_decision`: `ask_human`; `restack`: `restack`; `finish_ready`: `finish`; a remaining step: `spawn_step`; no steps: `none`. `blocked` and `gap_decision` therefore always take precedence over `spawn_step`.
+
+Human output prints the same fields as labelled lines. `plan next` never fetches; `--no-fetch` is accepted for symmetry with `plan list --live` and changes nothing.
+
 ---
 
 ## Dependency graph (`plan/graph.ts`)
@@ -397,7 +425,21 @@ Inputs: `--id`, `--title`, `--specs` and `--depends-on` (comma-separated). Witho
 
 ### `plan list`
 
-Inputs: `--status`, `--json`, `--live`, `--no-fetch`. Computes `getEffectiveStatus` for every plan (active and archived; an unparsable plan is skipped and reported on stderr) and sorts rows by ID descending. `--status` filters on the effective status. Human output is aligned columns `id`, `title`, effective status; with `--live` a second line per plan with activity (step progress, next step, `where`, blockers). `--json` prints an array of `{id, title, stored_status, effective_status, depends_on, specs, archived}`, and with `--live` each object also carries the fields of § Plan activity. `--live` also lists plans whose branch exists only on the remote and not on the default branch, with `stored_status` taken from `PLAN.md` at the branch tip. Exit 0, or 1 for a `--status` value that is not a plan status.
+Inputs: `--status`, `--json`, `--live`, `--no-fetch`. Computes `getEffectiveStatus` for every plan (active and archived; an unparsable plan is skipped and reported on stderr) and sorts rows by ID descending. `--status` filters on the effective status. Human output is aligned columns `id`, `title`, effective status; with `--live` a second line per plan with activity (step progress, next step, `where`, the `checkout` path for the `worktree` backend and blank otherwise, blockers). `--json` prints an array of `{id, title, stored_status, effective_status, depends_on, specs, archived}`, and with `--live` each object also carries the fields of § Plan activity. `--live` also lists plans whose branch exists only on the remote and not on the default branch, with `stored_status` taken from `PLAN.md` at the branch tip. Exit 0, or 1 for a `--status` value that is not a plan status. With `--live`, when a remote is configured and the fetch fails, one line `notice: could not fetch origin; showing local refs` goes to stderr and the command continues from local refs with exit 0; `--no-fetch` prints nothing.
+
+### `plan next <id>`
+
+Inputs: `--json`, `--no-fetch`. Runs `planNext` (§ Plan next) and prints either the JSON object or the human summary. Errors: `PlanNotFoundError`, or the parse error of an invalid `PLAN.md`. Exit 0, or 1 on an error.
+
+### `plan step-done <id>`
+
+Inputs: `--outcome done|blocked|skipped` and `--summary <text>` (required); `--type <type>` (Conventional Commits type, default `feat`); repeatable `--changed <path>:<reason>` (order kept), `--deviation <text>`, `--open-issue <text>`, `--gap <G<n>>` and `--trailer <Key: value>` (harness attribution such as `Co-Authored-By`, written after the Specplane trailers); `--next-knows <text>`; `--step <NN>` (default: the lowest step that is not `done` or `skipped`); `--force`. `stepDone` (`plan/step-done.ts`) builds the `architecture/file-formats` §4.1 section (all subsections, `None.` for empty ones; for `skipped`, "What changed" is `None.`), appends it to `<plans.dir>/<id>/HANDOFF.md`, sets the step's frontmatter `status` to the outcome, stages the plan folder, and commits per §8: `<type>(<slug>): <summary>`, a bullet list of the `--changed` entries, then `Specplane-Workflow: step`, `Specplane-Plan`, `Specplane-Step`, `Specplane-Agent` and `Specplane-Session` (each only when `$SPECPLANE_AGENT` / `$SPECPLANE_SESSION` is non-empty), then the `--trailer` lines. Anything already staged goes into the same commit, so the agent stages the step's own work first. "Gaps found in specs" lists each `--gap` entry of `spec-gaps.md` as `- G<n> (<kind>): <case>. See `spec-gaps.md`.`.
+
+Every refusal happens before the first write and exits 1 with the exact fix: the step is already `done` or `skipped`; the step is `blocked` and the outcome is not `blocked` (unless `--force` overrides the blocker guard; the earlier `blocked` section stays); `--outcome blocked` without an `--open-issue` starting `BLOCKED:`; `--outcome skipped` without a `--deviation`; a `--gap` ID with no `spec-gaps.md` entry; HANDOFF.md already has a section for a later step than the one being appended; a malformed `--changed` or `--trailer`; a subject over 72 characters. The HANDOFF section and the status are written together; if the commit fails both files are restored. The command never pushes: `plan-step` step 10 stays with the agent. Prints the short commit hash and the HANDOFF path.
+
+### `plan start <id>`
+
+Inputs: `--no-fetch`, `--json`. Runs `startPlan` (§ Plan flows) and prints: `Started|Resumed <id>`, `Backend: <backend> (checkout created|resumed|not needed)`, the worktree path or branch, the next step, and one closing line: for `worktree`, `Open a session: cd <checkout> && claude`; for `branch`, `Open a session: claude`; for `external`, that the environment runs the finish flow itself and `specplane plan finish` must not be run locally. `--json` prints the `StartResult` object with `checkout` (the worktree path or `null`) and `nextCommand` (the same command string, `null` for `external`), so skills render the command instead of composing it. Notices still go to stderr.
 
 ### `plan show <id>`
 
@@ -415,7 +457,7 @@ Each command module exports a function that registers its subcommands with comma
 
 ### `spec new <type> <slug>`
 
-Inputs: `type` (`feature` or `architecture`), `slug`, `--root` (default `base`), `--title`, `--implements`, `--extends` (comma-separated). Resolves the root path through `spec/resolve.ts`; the file is `<root-path>/features/<slug>.md` or `<root-path>/architecture/<slug>.md` (the ID is `<type>/<slug>`). Order of checks: type (`Unknown spec type `<type>`: expected `feature` or `architecture`.`), root (`UnknownRootError`), slug is kebab-case and the ID matches the pattern in `architecture/file-formats` §1.1, existence in the root and its extends chain (`AlreadyExistsError`: "Spec `<type>/<slug>` already exists."), then for architecture specs `--implements` ("Architecture spec needs `--implements`." when absent and no TTY or still empty after prompting). The title is prompted for when absent and a TTY is attached; without a TTY it defaults to the slug with hyphens replaced by spaces and the first letter capitalised. The file is written with `status: draft`, `author: user`, the given `implements` and `extends`, and an empty body; the command then prints `Created <path>` on stdout. Exit codes: 0 success, 1 any error above.
+Inputs: `type` (`feature` or `architecture`), `slug`, `--root` (default `base`), `--title`, `--implements`, `--extends` (comma-separated). Resolves the root path through `spec/resolve.ts`; the file is `<root-path>/features/<slug>.md` or `<root-path>/architecture/<slug>.md` (the ID is `<type>/<slug>`). Order of checks: type (`Unknown spec type `<type>`: expected `feature` or `architecture`.`), root (`UnknownRootError`), slug is kebab-case and the ID matches the pattern in `architecture/file-formats` §1.1, existence in the root and its extends chain (`AlreadyExistsError`: "Spec `<type>/<slug>` already exists."), then for architecture specs `--implements` ("Architecture spec needs `--implements`." when absent and no TTY or still empty after prompting). The title is prompted for when absent and a TTY is attached; without a TTY it defaults to the slug with hyphens replaced by spaces and the first letter capitalised. The file is written with `status: draft`, `author: user`, the given `implements` and `extends`, and a body of the title heading plus the empty section headings of the `architecture/file-formats` §1.3 (`Rules`, `Acceptance scenarios`, `Edge cases`) or §1.4 (`Components`, `Data structures`, `Error handling`) template; the command takes no body content (authorship stays with `llm_role`); the command then prints `Created <path>` on stdout. Exit codes: 0 success, 1 any error above.
 
 ### `spec list`
 

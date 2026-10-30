@@ -103,3 +103,16 @@ test("spec validate: all, named, and JSON", () => {
   assert.match(run(root, "spec", "validate", "feature/alpha").err, /Checking feature\/alpha\.\.\. OK/);
   assert.equal(run(root, "spec", "validate", "feature/nope").err, "Spec `feature/nope` not found.\n");
 });
+
+test("spec new scaffold carries the section headings of the file-formats templates and validates", () => {
+  const root = repo();
+  assert.equal(run(root, "spec", "new", "feature", "scaf").code, 0);
+  assert.equal(run(root, "spec", "new", "architecture", "scaf-arch", "--implements", "feature/scaf").code, 0);
+  const headings = (f: string) => [...fs.readFileSync(path.join(root, f), "utf8").matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+  assert.deepEqual(headings("specs/features/scaf.md"), ["Rules", "Acceptance scenarios", "Edge cases"]);
+  assert.deepEqual(headings("specs/architecture/scaf-arch.md"), ["Components", "Data structures", "Error handling"]);
+  const dup = run(root, "spec", "new", "feature", "scaf");
+  assert.equal(dup.code, 1);
+  assert.equal(dup.err, "Spec `feature/scaf` already exists.\n");
+  assert.equal(run(root, "spec", "validate", "feature/scaf", "architecture/scaf-arch").code, 0);
+});

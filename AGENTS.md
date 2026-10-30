@@ -9,3 +9,15 @@ This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.s
 - **Commits**: follow `architecture/file-formats` §8 (Conventional Commits subject plus `Specplane-*` trailers).
 - **Workflows**: `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`, `/approve`, `/plan-start`, `/decision-new`, `/plan-status`, `/plan-abandon`; without them, follow the contracts in `architecture/agent-skills`.
 <!-- specplane:end -->
+
+## Routing plan requests
+
+The plan skills are user-invoked only, so route natural-language requests to the CLI. Run the command from the shell; never hand-edit `PLAN.md`, step files, or `HANDOFF.md` to do the same thing.
+
+| The user asks to | Run |
+|------------------|-----|
+| start a plan | `specplane plan start <id>` |
+| do the next step of a plan | `specplane plan next <id>`, then execute the step it names (`/plan-step`); record it with `specplane plan step-done <id>` |
+| finish a plan | `specplane plan finish <id>` |
+| see plan status | `specplane plan list --live` |
+| rebase a stacked plan after its base merged | `specplane plan restack <id>` |
