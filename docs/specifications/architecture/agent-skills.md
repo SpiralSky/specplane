@@ -4,6 +4,7 @@ title: "Agent skills: config resolution and harness-neutral prompt contracts"
 status: approved
 author: llm
 implements: [feature/agent-integration]
+based_on: { feature/agent-integration: "9e3a0cf" }
 ---
 
 # Agent skills: config resolution and harness-neutral prompt contracts
