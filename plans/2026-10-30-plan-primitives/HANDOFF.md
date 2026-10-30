@@ -95,3 +95,32 @@ None.
 ### What the next step must know
 
 plan start gains --json (StartResult plus checkout, nextCommand); the human list prints checkout only for the worktree backend (G7). Any further agent-skills.md edit needs the skill pins re-moved (git hash-object, 7 chars). packages/cli/node_modules is an untracked symlink: do not stage it.
+
+## Step 04: Creation paths — route spec and plan creation through the CLI
+
+**Date**: 2026-10-30
+**Outcome**: done
+
+### What changed
+
+- `docs/specifications/architecture/agent-skills.md`: creation-via-CLI rule and spec-assist, spec-draft-architecture, plan-create contracts
+- `docs/specifications/architecture/reference-cli.md`: spec new scaffold described
+- `harnesses/claude/templates/skills/spec-assist, spec-draft-architecture, plan-create, plan-start, plan-status, plan-step, .claude copies`: call spec new / plan new, validate after creation, /approve pointer; pins moved to 8c6880a
+- `packages/cli/src/commands/spec.test.ts`: scaffold headings, duplicate and validate test
+- `plans/2026-10-30-plan-primitives/spec-gaps.md`: G9
+
+### Deviations from the plan
+
+None.
+
+### Gaps found in specs
+
+- G9 (gap): step files have no creation command; `plan new` scaffolds only PLAN.md and HANDOFF.md. See `spec-gaps.md`.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+Skills now create files via spec new / plan new; any further agent-skills.md edit needs the skill pins re-moved (git hash-object, 7 chars). Step files are still hand-written (G9). The spec new scaffold already matched the templates, so no CLI behaviour change was needed.

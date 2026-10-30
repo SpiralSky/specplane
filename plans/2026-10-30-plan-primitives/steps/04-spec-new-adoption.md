@@ -2,7 +2,7 @@
 plan: 2026-10-30-plan-primitives
 step: 4
 title: "Creation paths — route spec and plan creation through the CLI"
-status: pending
+status: done
 context:
   - spec: feature/agent-integration
   - spec: feature/spec-policies
@@ -26,18 +26,18 @@ for one format. Route creation through the CLI and validate immediately after.
 
 ## Acceptance criteria
 
-- [ ] `spec-assist`, `spec-draft-architecture`, and `plan-create` create files only via
+- [x] `spec-assist`, `spec-draft-architecture`, and `plan-create` create files only via
       `specplane spec new` / `specplane plan new`; a contract line in `architecture/agent-skills` says
       so, and each skill's `## Steps` shows the command it runs.
-- [ ] After creation each skill runs `specplane spec validate <id>` (or `plan validate`), and reports
+- [x] After creation each skill runs `specplane spec validate <id>` (or `plan validate`), and reports
       the result rather than assuming success.
-- [ ] `plan-create` ends its output with the `/approve <id>` pointer, and its reminder that a human
+- [x] `plan-create` ends its output with the `/approve <id>` pointer, and its reminder that a human
       sets `status: ready` is kept.
-- [ ] The `spec new` scaffold is checked against `architecture/file-formats` §1.3/§1.4: missing
+- [x] The `spec new` scaffold is checked against `architecture/file-formats` §1.3/§1.4: missing
       required sections are a `gap` entry in `spec-gaps.md` and are fixed in the CLI in this step.
-- [ ] Where the selected root or `extends` matters, the skill passes `--root`/`--extends` instead of
+- [x] Where the selected root or `extends` matters, the skill passes `--root`/`--extends` instead of
       writing overlay frontmatter by hand (`claude:feature/claude-integration`).
-- [ ] `specplane validate` and `npm test` pass; contract pins re-pinned.
+- [x] `specplane validate` and `npm test` pass; contract pins re-pinned.
 
 ## Tasks
 

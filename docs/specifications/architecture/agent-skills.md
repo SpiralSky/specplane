@@ -41,6 +41,8 @@ Skills must never hardcode paths. Every path to a spec, plan, or ADR is resolved
 
 The skill should call the CLI (`specplane`) for resolution, validation, and plan flows when it is available, rather than reimplementing them. If the CLI is not available, it follows the same rules by hand from the format specification.
 
+**Creation goes through the CLI.** When the CLI is available, a skill creates a spec file only with `specplane spec new <type> <slug>` and a plan folder only with `specplane plan new`; it never hand-writes the frontmatter or skeleton of a new file. The CLI writes `status: draft`, `author: user`, and the section headings of the templates in `architecture/file-formats` §1.3 and §1.4, and the skill then edits the body (as its `llm_role` allows) and, where `author` must change, only that field. Where the target root or an `extends` list matters, the skill passes `--root` and `--extends` rather than writing overlay frontmatter by hand. Right after creating a file the skill validates it (`specplane spec validate <id>` for a spec, `specplane validate` for a plan) and reports the result instead of assuming success. Without the CLI the skill writes the files by hand from the templates and says validation was not run.
+
 ---
 
 ## Standing instructions
@@ -104,9 +106,10 @@ Refine-then-write (`assist`), following `feature/spec-policies#refine-then-write
 1. **Describe**: ask the user to describe the feature in their own words. Write nothing to the spec.
 2. **Refine**: discuss the description to find issues — gaps, ambiguous rules, contradictions with other specs, missing edge cases and acceptance scenarios, and architecture leaks. Raise each issue with a suggested resolution; the user decides. Repeat until no issue is open or the user chooses to stop.
 3. **Finalise**: summarise the agreed content (rules, scenarios, the decision on each issue, and anything left open). The user confirms the summary is final.
-4. **Write**: write the body from the finalised content only, using the feature spec template in `architecture/file-formats` §1.3, and show it to the user. Write the file only after the user approves the text; mark every detail filled in as an assumption to confirm.
+4. **Write**: write the body from the finalised content only, using the feature spec template in `architecture/file-formats` §1.3, and show it to the user. Write the file only after the user approves the text; mark every detail filled in as an assumption to confirm. For a new spec, after approval run `specplane spec new feature <slug> --title "<title>"` (adding `--root <name> --extends <ids>` for an overlay) and write the approved body into the file it creates; the CLI never takes content.
 5. Set `author: mixed` and leave `status` unchanged. Never set it to `approved`.
 6. Before writing, self-check the body: no implementation detail (the architecture-leak test) and no contradiction with the user's agreed content. Rewrite or drop any passage that fails.
+7. After writing, run `specplane spec validate <id>` and report the result.
 
 Review-only (`review`):
 
@@ -121,7 +124,7 @@ Under `draft`, the agent may also produce a `draft` with `author: llm` when the 
 
 ### Output
 
-Refine-then-write: the written body and its path, after approval, with the assumptions listed. Review-only: a summary of suggested additions and changes, applied only where the user approved them.
+Refine-then-write: the written body and its path, after approval, with the assumptions listed and the validation result. Review-only: a summary of suggested additions and changes, applied only where the user approved them.
 
 ---
 
@@ -152,11 +155,12 @@ Under `assist`, the feature specs read in step 1 are the input to Describe and R
 5. Mark any place where the feature specs leave the architecture open with `<!-- GAP: <description> -->`.
 6. Set `author: llm`, `status: draft`, and the `implements` list.
 7. Before writing, self-check the draft: every `implements` entry resolves, every feature-spec requirement is covered or marked with a GAP, and no section contradicts a feature spec (the architecture spec wins only where the feature spec is silent). Fix or mark with a GAP anything that fails.
-8. Write to `<root.path>/architecture/<slug>.md` (root from config; `base` unless the user names another).
+8. Create the file with `specplane spec new architecture <slug> --implements <ids> [--root <name>] [--extends <ids>]` (root from config; `base` unless the user names another), then write the draft body into it and set `author` per step 6.
+9. Run `specplane spec validate <id>` and report the result.
 
 ### Output
 
-Path to the created file; list of GAPs found.
+Path to the created file; list of GAPs found; the validation result.
 
 ---
 
@@ -179,12 +183,12 @@ Specs below the requirement → warn (the plan can be created, but not started, 
 2. Ask for the specs and dependencies; resolve each spec ID (no root context) and plan ID. Reject unknown IDs, abandoned dependencies, and dependency cycles.
 3. Draft the PLAN.md body sections (`architecture/file-formats` §2.2) with the user.
 4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths). Ordering check: confirm that each step depends only on earlier steps (nothing a step needs is produced by a later one) and reorder before showing the proposal if not.
-5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`) and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new` when available.
-6. Run validation on the new plan. Without the CLI, apply `architecture/file-formats` §2 by hand (create the files, check IDs and dependencies manually) and tell the user validation was not run.
+5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`) and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new --id <id> --title "<title>" --specs <ids> [--depends-on <ids>]` for `PLAN.md` and `HANDOFF.md` (the step files have no CLI command; write them by hand, then fill in the PLAN.md body).
+6. Run `specplane validate` and report the result for the new plan. Without the CLI, apply `architecture/file-formats` §2 by hand (create the files, check IDs and dependencies manually) and tell the user validation was not run.
 
 ### Output
 
-Plan ID, path, and step list; a reminder that a human sets `status: ready` before the plan can be started.
+Plan ID, path, and step list; a reminder that a human sets `status: ready` before the plan can be started, with the pointer `/approve <id>`.
 
 ---
 

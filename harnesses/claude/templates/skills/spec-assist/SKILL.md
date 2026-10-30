@@ -4,7 +4,7 @@ description: Help the user write a feature spec (refine-then-write under assist,
 argument-hint: "[topic]"
 disable-model-invocation: false
 ---
-<!-- specplane-contract: architecture/agent-skills#spec-assist@396f26e -->
+<!-- specplane-contract: architecture/agent-skills#spec-assist@8c6880a -->
 
 # spec-assist
 
@@ -33,9 +33,10 @@ Refine-then-write (`assist`; also the default under `draft`):
 1. **Describe**: ask the user to describe the feature in their own words (use `$ARGUMENTS` as the topic if given). Write nothing to the spec.
 2. **Refine**: discuss the description to find issues — gaps, ambiguous rules, contradictions with other specs, missing edge cases and acceptance scenarios, and architecture leaks. Raise each issue with a suggested resolution; the user decides. Repeat until no issue is open or the user chooses to stop.
 3. **Finalise**: summarise the agreed content (rules, scenarios, the decision on each issue, and anything left open). The user confirms the summary is final.
-4. **Write**: write the body from the finalised content only, using the feature spec template in `architecture/file-formats` §1.3, and show it to the user. Write the file only after the user approves the text; mark every detail filled in as an assumption to confirm.
+4. **Write**: write the body from the finalised content only, using the feature spec template in `architecture/file-formats` §1.3, and show it to the user. Write the file only after the user approves the text; mark every detail filled in as an assumption to confirm. For a new spec, after approval run `specplane spec new feature <slug> --title "<title>"` (adding `--root <name> --extends <ids>` for an overlay) and write the approved body into the file it creates; the CLI never takes content. Without the CLI, write the file by hand from the template.
 5. Set `author: mixed` and leave `status` unchanged. Never set it to `approved`.
 6. Before writing, self-check the body: no implementation detail (the architecture-leak test) and no contradiction with the user's agreed content. Rewrite or drop any passage that fails.
+7. After writing, run `specplane spec validate <id>` and report the result (without the CLI, say validation was not run).
 
 Review-only (`review`):
 
@@ -50,4 +51,4 @@ Under `draft`, the agent may also produce a `draft` with `author: llm` when the 
 
 ## Output
 
-Refine-then-write: the written body and its path, after approval, with the assumptions listed. Review-only: a summary of suggested additions and changes, applied only where the user approved them.
+Refine-then-write: the written body and its path, after approval, with the assumptions listed and the validation result. Review-only: a summary of suggested additions and changes, applied only where the user approved them.

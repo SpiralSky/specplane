@@ -63,3 +63,11 @@
 **Resolution**: Added `plan start --json` (the `StartResult` plus `checkout`); `plan list --json` is unchanged apart from its existing `checkout` field. Documented in `architecture/reference-cli` § `plan start`.
 **Target spec**: architecture/reference-cli
 **Status**: open
+
+## G9: step files have no creation command; `plan new` scaffolds only PLAN.md and HANDOFF.md
+**Kind**: gap
+**Step**: 4
+**Case**: The step brief says `plan-create` creates files only via the CLI, but `specplane plan new` writes `PLAN.md` and `HANDOFF.md` and an empty `steps/` directory, and no command writes `steps/NN-<slug>.md`. Separately, `architecture/reference-cli` § `spec new` said the body was empty, while the scaffold writes the title and the section headings of `architecture/file-formats` §1.3/§1.4 (which it matches; no section was missing).
+**Resolution**: `plan-create` writes the step files by hand and says so; the CLI is not extended (adding step scaffolding is new capability, out of scope for an adoption step). `reference-cli` § `spec new` now describes the scaffold. A `plan new --step` or `plan step new` command could be a later plan.
+**Target spec**: architecture/reference-cli
+**Status**: open

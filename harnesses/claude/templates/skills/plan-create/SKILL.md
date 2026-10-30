@@ -4,7 +4,7 @@ description: Create a new Specplane plan interactively. Use when the user runs /
 argument-hint: "[goal]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-create@396f26e -->
+<!-- specplane-contract: architecture/agent-skills#plan-create@8c6880a -->
 
 # plan-create
 
@@ -29,9 +29,9 @@ Use `AskUserQuestion` for the slug, spec, and dependency choices when it is avai
 2. Ask for the specs and dependencies; resolve each spec ID (no root context) and plan ID. Reject unknown IDs, abandoned dependencies, and dependency cycles.
 3. Draft the PLAN.md body sections (`architecture/file-formats` §2.2) with the user.
 4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths). Ordering check: confirm that each step depends only on earlier steps (nothing a step needs is produced by a later one) and reorder before showing the proposal if not.
-5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`), an empty `<plans.dir>/<id>/HANDOFF.md` (header only; `/plan-step` appends step sections), and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new` when available.
-6. Run validation on the new plan. Without the CLI, apply `architecture/file-formats` §2 by hand (create the files, check IDs and dependencies manually) and tell the user validation was not run.
+5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`), an empty `<plans.dir>/<id>/HANDOFF.md` (header only; `/plan-step` appends step sections), and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new --id <id> --title "<title>" --specs <ids> [--depends-on <ids>]` for `PLAN.md` and `HANDOFF.md` (the step files have no CLI command; write them by hand, then fill in the PLAN.md body). Without the CLI, write all files by hand.
+6. Run `specplane validate` and report the result for the new plan. Without the CLI, apply `architecture/file-formats` §2 by hand (create the files, check IDs and dependencies manually) and tell the user validation was not run.
 
 ## Output
 
-The plan ID, path, and step list, with a reminder that a human sets `status: ready` before the plan can be started.
+The plan ID, path, and step list, with a reminder that a human sets `status: ready` before the plan can be started, with the pointer `/approve <id>`.

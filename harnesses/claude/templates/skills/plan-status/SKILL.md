@@ -3,7 +3,7 @@ name: plan-status
 description: Show where Specplane plans stand, with progress and the next step. Use when the user runs /plan-status or plan state is relevant.
 disable-model-invocation: false
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-status@82404ea -->
+<!-- specplane-contract: architecture/agent-skills#plan-status@8c6880a -->
 
 # plan-status
 
