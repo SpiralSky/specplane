@@ -6,8 +6,7 @@
 
 | ID | Title | Status | Dependencies | Specs |
 |----|-------|--------|--------------|-------|
-| [2026-10-30-plan-conductor](2026-10-30-plan-conductor/PLAN.md) | Plan conductor — plan run, session mode, and alerts | draft | [2026-10-30-plan-primitives](2026-10-30-plan-primitives/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/plan-execution, feature/configuration, feature/spec-precedence, feature/agent-integration, claude:architecture/claude-integration, claude:feature/claude-integration |
-| [2026-10-30-plan-primitives](2026-10-30-plan-primitives/PLAN.md) | Plan primitives — next, step-done, and harness doc fixes | draft | — | architecture/reference-cli, architecture/agent-skills, feature/plan-status, feature/agent-integration, claude:architecture/claude-integration, claude:feature/claude-integration |
+| [2026-10-30-plan-conductor](2026-10-30-plan-conductor/PLAN.md) | Plan conductor — plan run, session mode, and alerts | ready | [2026-10-30-plan-primitives](archive/2026-10-30-plan-primitives/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/plan-execution, feature/configuration, feature/spec-precedence, feature/agent-integration, claude:architecture/claude-integration, claude:feature/claude-integration |
 
 ## Archived plans
 
@@ -24,6 +23,7 @@
 | [2026-10-29-cli-plan-flows](archive/2026-10-29-cli-plan-flows/PLAN.md) | CLI plan flows — start, finish, abandon, cleanup, archive, restack | done | feature/plan-execution, feature/plan-status, feature/plan-steps, feature/tooling, feature/configuration, architecture/reference-cli, architecture/file-formats |
 | [2026-10-29-cli-spec-search](archive/2026-10-29-cli-spec-search/PLAN.md) | CLI spec and search commands, validation hardening | done | feature/tooling, feature/spec-system, feature/spec-overlays, feature/spec-precedence, feature/decisions, feature/configuration, architecture/reference-cli, architecture/file-formats |
 | [2026-10-29-feature-spec-alignment](archive/2026-10-29-feature-spec-alignment/PLAN.md) | Align architecture specs and CLI with applied feature specs | done | feature/configuration, feature/decisions, feature/plan-index, feature/plan-status, feature/plan-steps, feature/plan-system, feature/spec-precedence, feature/tooling, architecture/reference-cli, architecture/file-formats, architecture/agent-skills, claude:feature/claude-integration, claude:architecture/claude-integration |
+| [2026-10-30-plan-primitives](archive/2026-10-30-plan-primitives/PLAN.md) | Plan primitives — next, step-done, and harness doc fixes | done | architecture/reference-cli, architecture/agent-skills, feature/plan-status, feature/agent-integration, claude:architecture/claude-integration, claude:feature/claude-integration |
 
 ## Dependency graph
 
@@ -40,8 +40,8 @@ graph TD
     p_2026_10_29_cli_plan_flows[cli-plan-flows]:::done
     p_2026_10_29_cli_spec_search[cli-spec-search]:::done
     p_2026_10_29_feature_spec_alignment[feature-spec-alignment]:::done
-    p_2026_10_30_plan_conductor[plan-conductor]:::draft
-    p_2026_10_30_plan_primitives[plan-primitives]:::draft
+    p_2026_10_30_plan_conductor[plan-conductor]:::ready
+    p_2026_10_30_plan_primitives[plan-primitives]:::done
     p_2026_10_29_feature_spec_alignment --> p_2026_10_29_assist_and_approve
     p_2026_10_29_claude_harness_files --> p_2026_10_29_claude_instructions_and_enforcement
     p_2026_10_28_reference_cli_core --> p_2026_10_29_cli_claude_harness_init

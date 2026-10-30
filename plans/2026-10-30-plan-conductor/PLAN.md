@@ -1,7 +1,7 @@
 ---
 id: 2026-10-30-plan-conductor
 title: "Plan conductor — plan run, session mode, and alerts"
-status: draft
+status: ready
 specs: ["architecture/reference-cli","architecture/agent-skills","feature/plan-execution","feature/configuration","feature/spec-precedence","feature/agent-integration","claude:architecture/claude-integration","claude:feature/claude-integration"]
 depends_on: ["2026-10-30-plan-primitives"]
 ---
