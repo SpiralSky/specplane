@@ -84,7 +84,7 @@ plan
   .option("--gap <id>", "spec-gaps.md entry this step added, e.g. G3 (repeatable)", collect)
   .option("--next-knows <text>", "what the next step must know")
   .option("--step <n>", "step number (default: the lowest step not done or skipped)", (v) => Number(v))
-  .option("--resume", "the step was blocked and has been run again; its blocker is resolved")
+  .option("--force", "override the blocker guard and mark the step done anyway")
   .option("--trailer <line>", "extra trailer such as `Co-Authored-By: ...` (repeatable)", collect)
   .action((id, opts) => planStepDoneCommand(id, opts));
 plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());

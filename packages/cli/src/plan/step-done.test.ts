@@ -88,10 +88,10 @@ test("refuses an already done step", () => {
   refused(root, ["--step", "1", "--outcome", "done", "--summary", "x"], /already `done`/);
 });
 
-test("refuses done on a blocked step without --resume; --resume allows it and keeps both sections", () => {
+test("refuses done on a blocked step without --force; --force allows it and keeps both sections", () => {
   const root = repo({ "01-a.md": step(1, "blocked") }, "# HANDOFF\n\n## Step 01: Step 1\n\n**Date**: 2026-01-01\n**Outcome**: blocked\n");
-  refused(root, ["--outcome", "done", "--summary", "x"], /blocked.*--resume/);
-  const r = sp(root, {}, "plan", "step-done", ID, "--outcome", "done", "--summary", "x", "--resume");
+  refused(root, ["--outcome", "done", "--summary", "x"], /blocked.*--force/);
+  const r = sp(root, {}, "plan", "step-done", ID, "--outcome", "done", "--summary", "x", "--force");
   assert.equal(r.code, 0, r.err);
   assert.deepEqual(handoffOutcomes(path.join(root, PLAN, "HANDOFF.md")).get(1), ["blocked", "done"]);
 });

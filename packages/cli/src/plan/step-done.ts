@@ -26,8 +26,8 @@ export interface StepDoneOptions {
   gap?: string[];
   nextKnows?: string;
   step?: number;
-  /** Confirm that a `blocked` step's blocker is resolved and the step was run again. */
-  resume?: boolean;
+  /** Force marking a `blocked` step done, overriding the blocker guard. */
+  force?: boolean;
   /** Extra trailers (`Key: value`), e.g. the harness attribution; written after the Specplane trailers. */
   trailer?: string[];
   /** Date override for tests; defaults to today (local). */
@@ -93,8 +93,8 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
   if (fm.status === "done" || fm.status === "skipped") {
     refuse(`Step ${nn} is already \`${fm.status}\`: nothing to append. Pick another step with \`--step\`, or reopen it by hand if it must be redone.`);
   }
-  if (fm.status === "blocked" && outcome !== "blocked" && !opts.resume) {
-    refuse(`Step ${nn} is \`blocked\` and \`--outcome ${outcome}\` was passed. If the blocker is resolved and you ran the step again, pass \`--resume\`; otherwise fix the blocker first.`);
+  if (fm.status === "blocked" && outcome !== "blocked" && !opts.force) {
+    refuse(`Step ${nn} is \`blocked\` and \`--outcome ${outcome}\` was passed. Fix the blocker first, or pass \`--force\` to override.`);
   }
   const issues = opts.openIssue ?? [];
   if (outcome === "blocked" && !issues.some((i) => i.trimStart().startsWith("BLOCKED:"))) {
