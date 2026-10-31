@@ -1,10 +1,13 @@
 # Specplane
 
-**Specs and plans for AI-assisted development, kept as plain markdown in your repo.**
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Node.js 22+](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org/)
 
-Specplane is a set of file conventions, a reference CLI, and agent instructions. You write down *what* a project should do and *how* it is built. Agents then carry the work out one small, reviewable step at a time, on git branches, without losing track of the specs.
+**Specs and plans for AI-assisted development — structured markdown that keeps agents on track.**
 
-> **Status:** v0.1.0. The format specs, the reference CLI and the Claude Code harness are all implemented, and this repository uses Specplane to manage itself. Nothing is published to npm yet, so install from source (see [Install](#install)).
+Specplane is a set of file conventions, a reference CLI, and agent harness. You write down *what* a project should do and *how* it is built. Agents then carry the work out one small, reviewable step at a time, on git branches, without losing context or rewriting things nobody asked them to touch.
+
+> **Status:** v0.1.0. The format specs, the reference CLI, and the Claude Code harness are all implemented, and this repository uses Specplane to manage itself. Nothing is published to npm yet — install from source (see [Install](#install)).
 
 ---
 
