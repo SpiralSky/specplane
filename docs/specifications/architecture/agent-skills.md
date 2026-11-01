@@ -4,7 +4,7 @@ title: "Agent skills: config resolution and harness-neutral prompt contracts"
 status: review
 author: mixed
 implements: [feature/agent-integration]
-based_on: { feature/agent-integration: "434c3f9" }
+based_on: { feature/agent-integration: "1e7327b" }
 ---
 
 <!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
@@ -45,9 +45,27 @@ Skills must never hardcode paths. Every path to a spec, plan, or ADR is resolved
 4. For ADRs: <decisions.dir>/<NNNN>-*.md.
 ```
 
-The skill should call the CLI (`specplane`) for resolution, validation, and plan flows when it is available, rather than reimplementing them. If the CLI is not available, it follows the same rules by hand from the format specification.
+An extension calls its bundled compatible core for resolution, validation, and plan flows. A reasoning-only fallback session calls the verified CLI (`specplane`) when available. Neither path reconstructs deterministic operations in a prompt. Without either, only the explicitly labeled manual fallbacks below apply; no native dispatch or completed validation is claimed.
 
-**Creation goes through the CLI.** When the CLI is available, a skill creates a spec file only with `specplane spec new <type> <slug>` and a plan folder only with `specplane plan new`; it never hand-writes the frontmatter or skeleton of a new file. The CLI writes `status: draft`, `author: user`, and the section headings of the templates in `architecture/file-formats` §1.3 and §1.4, and the skill then edits the body (as its `llm_role` allows) and, where `author` must change, only that field. Where the target root or an `extends` list matters, the skill passes `--root` and `--extends` rather than writing overlay frontmatter by hand. Right after creating a file the skill validates it (`specplane spec validate <id>` for a spec, `specplane validate` for a plan) and reports the result instead of assuming success. Without the CLI the skill writes the files by hand from the templates and says validation was not run.
+### Deterministic phases and reasoning procedures
+
+The ordered contracts below describe the whole workflow, including mechanical operations and human gates; they are not instructions to send every phase to a model. `architecture/reference-cli#structured-reasoning-boundary` defines the request/result envelope and recording validation; its confirmation and upgrade sections define human interaction and asset migration. Extensions preserve this order while assigning each phase to code, agent reasoning, or direct human interaction:
+
+| Workflow | Preparation in code | Agent reasoning | Validation/recording in code |
+|----------|---------------------|-----------------|------------------------------|
+| `spec-assist` | Resolve policy, spec revision and context | Describe/refine; suggest or write only as the role permits | Bind finalized text to human confirmation when required; validate bytes, authorship and contribution events |
+| `spec-draft-architecture` | Resolve features, ADRs, policy and status warnings | Draft or assist/review under policy; identify GAPs | Create through the core, validate references and record allowed body/provenance |
+| `plan-create` | Resolve choices, dependencies and IDs | Propose goal, body, criteria and ordered steps | Collect approval of the proposal, create draft plan/steps, validate; never set ready |
+| `plan-step` | Synchronize, lock, select step and resolve context | Implement, identify gaps/expansion, assess acceptance | Validate structured evidence and staging, record outcome/HANDOFF/commit, publish when required |
+| `plan-finish` | Check all steps, run required tests and expose gaps | Assess each acceptance criterion and explain evidence | Collect separate human gates, revalidate revised evidence after rebase, then perform the authorized finish flow |
+| `validate` | Run deterministic validation | Optional configured LLM review, permitted by role; interpret findings | Check quoted evidence and label LLM warnings separately |
+| `decision-new` | Create proposed ADR | Write only the user's described decision | Validate body/provenance; never accept |
+
+`approve`, `plan-start`, `plan-status`, and `plan-abandon` are wholly mechanical plus any explicit human interaction; they require no reasoning asset. Native handlers stop with an unavailable-capability result when the host lacks required dispatch or interaction APIs. A separately labeled existing-session fallback can follow these same procedures through the manual CLI, without claiming a native handler executed.
+
+In an extension-managed step, the agent returns `WorkflowResult`; it does not independently change step status, append HANDOFF, or commit before `recordWorkflow`. The core performs contract steps 8–10, including publication, using that result. In a reasoning-only CLI fallback, the agent invokes the same validated recording command after inspecting its edit set and evidence. Subagents follow the same boundary: the worker-side extension/core validates and records, and the parent receives the structured recording receipt. This preserves the required one-step commit without two competing recorders. Cancellation before recording produces no step outcome commit; cancellation after recording reports the existing commit and any incomplete publication. Do not treat a model's summary as evidence that any mechanical operation ran.
+
+**Creation goes through the shared creation operation.** An extension calls the core equivalent of `specplane spec new <type> <slug>` or `specplane plan new`; a CLI fallback uses those commands. Neither hand-writes the frontmatter or skeleton when that operation is available. The operation writes `status: draft`, `author: user`, and the section headings of the templates in `architecture/file-formats` §1.3 and §1.4, and the agent then edits the body (as its `llm_role` allows) and, where required, only the `author` metadata field. Target root, implemented IDs, and `extends` are validated operation arguments rather than hand-written overlay frontmatter. Right after creation run the matching spec or repository validation and report the result. Without core or CLI, only a contract's explicit manual fallback applies, labeled as unvalidated manual work.
 
 ### Operations and skills
 
@@ -249,7 +267,7 @@ Determine whether the session is attended (feature/spec-precedence).
 5. Execute the tasks, following `feature/spec-precedence` (record gaps; on contradictions, stop if attended, or record `BLOCKED:` and continue with unaffected tasks if unattended). Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>/spec-gaps.md` as a new numbered entry (`## G<n>: <case>`, the six fields and statuses of `architecture/file-formats` §4.2, `**Status**: open`): create the file on the first entry and never reuse a number. A step that would propose a spec edit it may not make itself writes a `proposal` entry; `feature-spec-proposals.md` is the archived format and is not written by new plans.
 6. Check the acceptance criteria.
 7. Decide the outcome: `done`, or `blocked` if a blocking issue prevents the criteria from being met.
-8. Record it with the CLI: stage the step's own work, then run `specplane plan step-done <plan-id> --outcome <outcome> --summary <text>` with `--changed`, `--deviation`, `--open-issue`, `--gap`, `--next-knows`, and the harness attribution `--trailer` (`architecture/reference-cli` § `plan step-done`). The CLI appends the HANDOFF.md section (`architecture/file-formats` §4.1), sets the step's `status` to the outcome, and makes the step commit (§8) in one operation. The "Gaps found in specs" subsection lists each `spec-gaps.md` entry this step added, by ID, through `--gap`.
+8. Record it with the CLI: inspect the exact edit set and create the digest-bound recording manifest outside the checkout, then run `specplane plan step-done <plan-id> --outcome <outcome> --summary <text> --recording-set <file>` with `--changed`, `--deviation`, `--open-issue`, `--gap`, `--next-knows`, and the harness attribution `--trailer` (`architecture/reference-cli` § `plan step-done`). The CLI appends the HANDOFF.md section (`architecture/file-formats` §4.1), sets the step's `status` to the outcome, and makes the step commit (§8) in one operation. The "Gaps found in specs" subsection lists each `spec-gaps.md` entry this step added, by ID, through `--gap`.
 9. Without the CLI, do the same by hand: set the `status`, append the §4.1 section with `**Outcome**` equal to the status and "None." for empty sections, and commit per `architecture/file-formats` §8 with `Specplane-Workflow: step`, `Specplane-Plan`, `Specplane-Step`, and `Specplane-Agent` (plus `Specplane-Session` when the harness exposes one), e.g. `feat(search-indexer): build graph from spec links`, a bullet summary, then the trailers.
 10. If `execution.backend` is `external`, or the plan branch has an upstream, push `plan/<id>` so the next session and other machines see the step.
 
@@ -381,7 +399,7 @@ Read config.execution.backend (worktree, branch, or external).
 
 ### Output
 
-The outcome (created or resumed), the backend, the checkout path, the exact command to open the session, and the next step.
+The outcome (created or resumed), the backend, the checkout path, and the next step. The invoking extension may add verified host launch instructions; standalone output remains harness-neutral.
 
 ---
 

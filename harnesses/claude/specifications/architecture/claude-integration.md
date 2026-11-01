@@ -4,7 +4,7 @@ title: Claude Code integration implementation
 status: review
 author: mixed
 implements: [claude:feature/claude-integration, feature/agent-integration]
-based_on: { "claude:feature/claude-integration": "fd9ae8f", feature/agent-integration: "434c3f9" }
+based_on: { "claude:feature/claude-integration": "fd9ae8f", feature/agent-integration: "1e7327b" }
 ---
 
 <!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
@@ -42,7 +42,7 @@ AGENTS.md                         # managed block written by base `specplane ini
 
 Skills in `.claude/skills/<name>/SKILL.md` provide the reasoning procedures used by the extension. Native handlers own mechanical public commands. The installed set excludes conflicting prompt commands; keep reasoning assets under distinct internal names where necessary. `.claude/settings.local.json` is never read or written.
 
-**User-owned files are not edited.** Specplane never writes `CLAUDE.md`. Everything above except `AGENTS.md` and `.claude/settings.json` is a Specplane-owned file that `init` may overwrite; `AGENTS.md` changes only inside its managed block (`architecture/agent-skills#delivery`) and `settings.json` only by § Settings merge.
+**User-owned files are not edited.** Specplane never writes `CLAUDE.md`. The paths above except `AGENTS.md` and `.claude/settings.json` are managed assets; refresh replaces unmodified owned bytes. Customized or unrecognized assets are preserved under `architecture/reference-cli#explicit-upgrade-transaction`. `AGENTS.md` changes only inside its managed block (`architecture/agent-skills#delivery`) and `settings.json` only by § Settings merge and the upgrade transaction's removal of recognized obsolete registrations.
 
 Repository content can deliver fallback skills and settings hooks. A cloud/headless session must separately verify that the extension package, mod, core, and required APIs are available. Do not infer extension availability from `.claude/`. A missing mod disables native command dispatch, not manual CLI operations; UI features are optional and surface-dependent.
 
@@ -130,7 +130,7 @@ disable-model-invocation: <true|false; see table>
 <What the agent says or produces.>
 ```
 
-The body restates the contract from `architecture/agent-skills` and adds only Claude Code–specific detail. It must not change policy. `$ARGUMENTS` in the body receives the text the user typed after the command. Skills split `$ARGUMENTS` on whitespace; tokens starting with `--` are flags (`--unattended`), and the first remaining token is the positional argument (`plan-id`, `topic`, or `goal`; for `spec-draft-architecture`, all remaining tokens are spec IDs). Skills whose contract has no policy check write "None." under `## Policy check`.
+The body restates the reasoning phase of the contract from `architecture/agent-skills` and adds only Claude Code–specific detail. It must not change policy. Native handlers parse arguments with a defined token grammar (quoted strings and explicit flag values, no shell evaluation), reject unknown flags and missing values, and pass validated arguments in the structured request. Free text and paths are never reconstructed by whitespace splitting. A reasoning-only fallback receives `$ARGUMENTS`, applies the same grammar through the bundled runner or CLI, and never treats prompt text as a human confirmation. Skills whose contract has no policy check write "None." under `## Policy check`.
 
 The `plan-step` and `plan-finish` skills write and read `<plans.dir>/<plan-id>/spec-gaps.md` exactly as `architecture/agent-skills` defines it; the gap record is harness-neutral, so no Claude-specific file or command is involved, and a proposal is a `spec-gaps.md` `proposal` entry rather than a `feature-spec-proposals.md` file.
 
@@ -228,11 +228,13 @@ The guard does not see edits made through `Bash` (`sed -i`, redirection); the st
 `.claude/hooks/specplane-session-context.sh` gives a session that starts in a plan checkout its scope, so a fresh session in a worktree or a cloud run knows which plan and step it is on without loading anything else. SessionStart (all sources).
 
 1. No-op without `.specplane/config.yaml`.
-2. If `CLAUDE_ENV_FILE` is set, append `export SPECPLANE_AGENT=claude-code` (with `/<model>` when the hook input has a `model` field) and `export SPECPLANE_SESSION=<session_id>`, so the CLI and the agent's commits carry the `architecture/file-formats` §8.2 trailers.
+2. If `CLAUDE_ENV_FILE` is set, append shell-quoted `export SPECPLANE_AGENT=claude-code` and, only when actually reported, `export SPECPLANE_SESSION=<session_id>`, so the CLI and the agent's commits carry the `architecture/file-formats` §8.2 context trailers. These variables describe session context only; they are not the contribution ledger and a startup model never identifies every later action.
 3. If the current branch is `plan/<id>`: find the plan folder (`<plans.dir>/<id>`, plans dir read as in the handoff check), read each step file's `step`, `title`, and `status`, and print `hookSpecificOutput.additionalContext`:
    `Specplane: this checkout is plan <id> (branch plan/<id>). Steps done: <d>/<n>. Next step: <NN> <title> (<status>). Run /plan-step to execute it; work on that step only. Open blockers: <count of BLOCKED: lines in HANDOFF.md>.`
    When every step is done: `… All steps are done; run /plan-finish.`
 4. Otherwise print nothing.
+
+The mod's action capture supplies `architecture/file-formats#capture-and-event-transport`: correlate each spec edit/review with the host's action-time model and native session evidence, including subagent observations. Use the installed host declarations to verify the relevant tool/turn/session fields; `$.session.model` queried at the end of a turn alone cannot prove which model made an earlier edit. When action-time identity is unavailable or switches cannot be correlated, emit unknown identity and an incomplete-capture notice. The startup hook must not overwrite prior events. Capture/deduplication, corrections, and commit trailer emission run through the shared core.
 
 ### Status line (registered if none is configured)
 
@@ -318,7 +320,7 @@ An agent session works on **one plan, and within it one step at a time**. The ha
 |------------------------|------------------|-----------------------------|
 | Local worktree (`execution.backend: worktree`) | Started in `<worktree_dir>/<repo>/<plan-id>/`; § Session context names the plan and next step; `/plan-step` refuses to run off the plan branch | Shared local refs: the main checkout sees `plan/<id>` immediately |
 | Subagent (`use_subagent: true`) | Gets only the step's paths (§ Subagent step execution) | Its commit on the plan branch |
-| Cloud session or other machine (`external`, or any session with an `origin/plan/<id>` upstream) | Checks out `plan/<id>`; same hooks, rules, and skills (cloud sessions load the repository's `.claude/`) | `plan-step` pushes `plan/<id>` after each step commit (`architecture/agent-skills` § plan-step, step 10) |
+| Cloud session or other machine (`external`, or any session with an `origin/plan/<id>` upstream) | Checks out `plan/<id>`; follows the shared procedure through the extension or reasoning fallback supported on that surface. Verify package, hook, and native-command availability separately. | `plan-step` pushes `plan/<id>` after each step commit (`architecture/agent-skills` § plan-step, step 10) |
 
 Rules:
 
@@ -373,7 +375,7 @@ Agent({
 })
 ```
 
-The prompt passes **paths**, not file contents; the subagent reads them itself, so the parent never loads them. The parent performs steps 1–2 of the contract and resolves the step's context items to paths before launching; the subagent loads them (step 3). The subagent commits and appends to HANDOFF.md as normal, and returns a summary with the outcome (`done` or `blocked`). It does not push: the parent performs the push (`plan-step` step 10) after the subagent returns, when `execution.backend` is `external` or the branch has an upstream. The parent reports the summary and does not re-read the step's diff. The parent runs one subagent at a time: steps of a plan are sequential.
+The prompt passes **paths**, not file contents; the subagent reads them itself, so the parent never loads them. The parent performs preparation and resolves context before launching; the worker receives the structured request and loads its named context (step 3). The subagent returns structured acceptance, gap, expansion and contribution evidence to the worker-side extension/core, which validates and records the step's HANDOFF/status/commit. It returns a recording receipt plus summary to the parent, rather than asking the parent model to infer success. The worker does not push: the parent extension publishes that receipt's commit (`plan-step` step 10), when required. A failed publication is retried without redoing implementation. The parent reports the summary without loading the step's diff; deterministic validators still inspect actual changes. The parent runs one subagent at a time. Cancellation must stop the worker before another writer acquires its lease.
 
 A subagent cannot ask the user questions mid-step, so subagent steps always run in unattended mode for contradiction handling (see `feature/spec-precedence`).
 
@@ -389,7 +391,7 @@ Skills never read or write Claude Code memory; HANDOFF.md and the plan files rem
 |-------------|------|---------|
 | `specplane-active-plan` | project | Active plan ID, checkout path, and the last completed step number. Points to HANDOFF.md for details. |
 | `specplane-open-questions` | project | Open questions found during steps and not yet recorded in the plan's HANDOFF.md. |
-| `specplane-spec-gaps` | project | Spec gaps found during steps and not yet filed in a spec or `OPEN-QUESTIONS.md`. |
+| `specplane-spec-gaps` | project | Spec gaps found during steps and not yet recorded in the plan's `spec-gaps.md`. Memory is only a pointer and never replaces the required gap record. |
 
 A memory entry that disagrees with the plan files is stale; the plan files win.
 
@@ -399,7 +401,7 @@ A memory entry that disagrees with the plan files is stale; the plan files win.
 
 The Claude harness is set up only when `specplane init --harness claude` is explicitly requested. Detection of `.claude/` is inventory/validation evidence, not installation or execution selection. That explicit operation delivers the versioned extension package through the supported host installation flow and reports any remaining enablement step; it also writes supporting repository assets:
 
-- `.claude/skills/<name>/SKILL.md` for each skill, `.claude/rules/specplane.md`, and `.claude/hooks/*.sh` (mode `0755`). These are Specplane-owned: `init` creates them if absent and overwrites them if they differ from the bundled templates (`Updated <path>`), so re-running `init` after upgrading the CLI updates the harness.
+- Internal reasoning skills, `.claude/rules/specplane.md`, and `.claude/hooks/*.sh` (mode `0755`). Refresh uses `architecture/reference-cli#explicit-upgrade-transaction`: replace unmodified owned assets, preserve customized files, and retire recognized legacy public prompt skills only when the replacement is ready. Conflicts are reported with exact paths and disable the affected native name until resolved.
 - The registrations via § Settings merge.
 
 It never creates or edits `CLAUDE.md`. It prints one `Created`/`Updated`/`Skipped` line per file (as base `init` does), followed by "Claude Code integration files written to `.claude/`."
@@ -411,7 +413,7 @@ Without explicit selection, `init` creates only base files and reports neutral i
 Implemented by a plan that depends on the reference CLI core plan (not by the plan that produces the templates):
 
 - `src/harness/index.ts`: a registry of harnesses, each `{ name, detect(root): boolean, install(root, report): void, skillDirs(root): string[], rulesFile: string }` (`skillDirs` feeds `architecture/reference-cli` § Skill contract drift; `rulesFile` feeds its standing-instructions freshness check). `init --harness <name>` with an unknown name exits 1 listing the known names.
-- `src/harness/claude.ts`: `detect` = `.claude/` exists; `install` copies the bundled templates (creating absent files and overwriting Specplane-owned files that differ, as above), sets hook scripts executable, and performs § Settings merge.
+- `src/harness/claude.ts`: `detect` = `.claude/` exists (inventory only); `install` validates and stages the selected package/templates through the shared upgrade transaction, sets hook scripts executable, and performs § Settings merge. No adapter is selected by this inventory.
 - The package build copies `harnesses/claude/templates/` to the package's `dist/templates/claude/`; `install` resolves templates relative to the compiled module.
 
 ---
@@ -433,9 +435,15 @@ Implemented by a plan that depends on the reference CLI core plan (not by the pl
 
 ## Deterministic command dispatch
 
+The target package includes `.claude-plugin/plugin.json`, `hooks/hooks.json` with `modules: ["./register.js"]`, and `hooks/register.js` exporting `register(on, options)`. It also ships `specplane-extension.json`, the bundled core build inventory and snapshots. The host manifest identifies the plugin; the separate Specplane manifest validates core/procedure compatibility before registration. Host installation/enablement is an explicit plugin operation; repository initialization reports prepared assets and remaining host steps instead of claiming the mod is loaded.
+
 Use the supported Claude mod API, rather than prompt interception, for public command dispatch. In `session.start`, call `$.command.register`; handle each name with a filtered `command.run` handler. Mechanical handlers parse arguments, call the bundled core, and return `{ text }` without a model call or delegation to the default prompt path. Register only non-built-in names, report collisions, and keep handlers unavailable if required APIs are missing. Stateful operations use the shared locks and revalidate plan state; optional immediate execution must not race a plan writer.
 
 Reasoning commands prepare the exact step/context through the core and explicitly invoke the installed reasoning procedure through the verified host turn/tool mechanism. After agent work, core validators check the structured outcome and actual repository state before step recording. Human approvals use the host's explicit user interaction and the core's approval transition; model-generated text is never approval evidence. Agent-invoked tools call the same validated operations but cannot manufacture a user command or an approval.
+
+The target delegation path is `$.prompt.submit({text})` with the prepared request and the internal reasoning asset's path, followed by a registered completion tool accepting `WorkflowResult`. Never use `asUser: true`: extension-origin input must retain its origin and cannot confer human authorization. Do not await submission while a host turn is active; retain request/lease state and validate the matching result when the turn completes. A refused submission, abandoned event, or missing completion capability cancels/refuses the workflow rather than falling through to the default prompt handler. Wire `next.signal` and host interruption to shared cancellation; stop unacknowledged workers before releasing locks. Exact tool registration and prompt/result signatures are compiled against the installed declarations and tested per surface before enabling this path.
+
+The interaction port uses a verified direct human UI operation (target `$.ui.ask`) with the core challenge's exact payload. If that operation is unavailable, mechanical read-only commands still work and confirmation-requiring transitions refuse with manual CLI instructions. Agent tool calls cannot submit confirmation responses. Query the command inventory before registering; if a built-in or customized prompt owns a name (including `/approve` on any surface where it is host-owned), leave that Specplane handler unavailable and report the manual command. Catch each registration failure separately so one collision does not skip unrelated registrations. Do not silently introduce aliases or shadow built-ins.
 
 `PreToolUse`/mod tool hooks enforce policy around agent tools; they are not command dispatchers. Direct user slash commands and agent Skill invocations have different paths and are tested independently. Capture model identity at each contributing action, preserving all models across switches instead of attributing all edits to the final model.
 

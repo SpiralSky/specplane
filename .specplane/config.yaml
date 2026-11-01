@@ -27,6 +27,11 @@ specs:
       - $ref
       - npm
       - pip
+      # Public execution configuration keys and notification event, reviewed 2026-11-01
+      - session_mode
+      - finish_ready
+      - max_parallel
+      - max_budget_usd
       - stored_status
       - effective_status
       - docs/OPEN-QUESTIONS.md

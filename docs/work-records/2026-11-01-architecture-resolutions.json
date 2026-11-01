@@ -1,0 +1,655 @@
+{
+  "date": "2026-11-01",
+  "milestone": "Architecture finding resolutions and implementation proposal",
+  "status": "proposed-for-human-review",
+  "scope": "Specification edits only; no implementation or lifecycle approval. Historical review artifacts remain unchanged.",
+  "sources": [
+    {
+      "path": "docs/specifications/architecture/reference-cli.md",
+      "sha256": "dea0effba858c1265bee617c5c772ba0af5d081d86c9efa09f10b37390b08dd6"
+    },
+    {
+      "path": "docs/specifications/architecture/agent-skills.md",
+      "sha256": "2e500d1c9b9cf0492de0fa8d6b0858e189fabb7fcde5f4bb069dfcf3f7914080"
+    }
+  ],
+  "resolutions": [
+    {
+      "id": "R1",
+      "status": "addressed-in-draft",
+      "resolution": "Required digest-bound recording-set manifest; exact index/worktree validation shared by CLI/core; no blanket staging; explicit rollback and force limits."
+    },
+    {
+      "id": "R2",
+      "status": "addressed-in-draft",
+      "resolution": "Canonical checkout leases plus ordered repository/plan/checkout locks, non-plan coverage, delegated worker recovery and mutation-time revalidation."
+    },
+    {
+      "id": "R3",
+      "status": "addressed-in-draft",
+      "resolution": "Closed test reference and execution receipt schema, ledger binding, reporter-derived counts, expected suites and shared negative fixtures."
+    }
+  ],
+  "validation": {
+    "build": "passed",
+    "diff_check": "passed",
+    "report": {
+      "valid": true,
+      "errors": [],
+      "warnings": [
+        {
+          "file": "harnesses/claude/specifications/architecture/claude-integration.md",
+          "message": "`claude:architecture/claude-integration` was reviewed against an older `claude:feature/claude-integration`; review `git diff fd9ae8f 9899cd1` then run `specplane spec pin claude:architecture/claude-integration`.",
+          "severity": "warning",
+          "type": "base-changed",
+          "spec": "architecture/claude-integration"
+        },
+        {
+          "file": "harnesses/codex/specifications/architecture/codex-integration.md",
+          "message": "`codex:architecture/codex-integration` has no `based_on` pin for `architecture/agent-skills`; run `specplane spec pin codex:architecture/codex-integration`.",
+          "severity": "warning",
+          "type": "pin",
+          "spec": "architecture/codex-integration"
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"Approval commands collect the human decision directly and never use model out...\" (overlay) vs \"the standalone CLI remains complete for manual use, including explicit human ...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 48
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"Project skills can provide reasoning-only fallback workflows but must not mas...\" (overlay) vs \"An **extension** means any plugin, extension, or mod from a harness ecosystem...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 50
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"Memory is per-user and is never the source of truth: a plan's progress lives ...\" (overlay) vs \"HANDOFF.md is the source of truth;\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 120
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"Because the rules file is Specplane-owned, upgrading Specplane updates it wit...\" (overlay) vs \"Specplane must never overwrite or reorder their content.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 40
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"**Defaults**: pre-commit validation, the policy guard, and session context ar...\" (overlay) vs \"Specplane never selects a runtime from installed files, registry order, or a ...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 95
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"The extension packages these procedures for consumers and adds host invocatio...\" (overlay) vs \"invocation details belong to each extension and must not replace another exte...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 48
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"It is an extending overlay spec in the `claude` root: it extends `feature/age...\" (overlay) vs \"Extensions are defined in the harness's overlay root and must not contradict ...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 16
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"Receives the Specplane standing instructions in every session, and workflow p...\" (overlay) vs \"Host built-ins remain host-owned and are never shadowed by Specplane commands.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 26
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"Then the skill shows the written body and writes the file only after the user...\" (overlay) vs \"Never write the spec body.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 187
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"| `/approve` | `approve` | Approve specs, plans, or decision records by ID (`...\" (overlay) vs \"The agent never approves on its own initiative, and never sets `status: appro...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 60
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"| `/spec-assist` | `spec-assist` | Help the user write a feature spec (withou...\" (overlay) vs \"| `authorship: user`, `llm_role: review` | Agent may not write the spec body.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 54
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"**Policy guard**: when the agent edits a spec, apply the spec type's `llm_rol...\" (overlay) vs \"| `authorship: user`, `llm_role: none` | Agent may not edit or suggest change...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 88
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"Multiple contributing models are retained even when the user switches models ...\" (overlay) vs \"a model or session identity never grants policy authority.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 50
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"| `/approve` | `approve` | Approve specs, plans, or decision records by ID (`...\" (overlay) vs \"Automation never approves, finishes or merges plans.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 60
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/agent-integration`: \"Sessions on other machines publish each finished step, so the next session an...\" (overlay) vs \"Restarting never duplicates a live session;\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 101
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/plan-steps`: \"Memory is per-user and is never the source of truth: a plan's progress lives ...\" (overlay) vs \"Step files live in `plans/<id>/steps/` and are named with a two-digit sequenc...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 120
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/plan-steps`: \"**Pre-commit validation**: run `specplane validate` before the agent makes a ...\" (overlay) vs \"`file:` paths exist in the repository (warning if absent at validation time, ...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 87
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/spec-policies`: \"Approval commands collect the human decision directly and never use model out...\" (overlay) vs \"Contribution provenance (`feature/spec-system`) records multiple human and mo...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 48
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/spec-policies`: \"under `review` or `assist`, ask the user to approve the exact edit.\" (overlay) vs \"`review`: the LLM may ask clarifying questions, suggest edits, and flag issue...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 88
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/spec-policies`: \"Because the rules file is Specplane-owned, upgrading Specplane updates it wit...\" (overlay) vs \"It must not write body text before the user has finalised the content, and mu...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 40
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/spec-policies`: \"these branch changes await human final review.\" (overlay) vs \"`none`: the LLM must not edit, review, or suggest changes to the spec body.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 12
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/spec-policies`: \"**Policy guard**: when the agent edits a spec, apply the spec type's `llm_rol...\" (overlay) vs \"The two settings apply together: `authorship: llm` or `either` never relaxes ...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 88
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/spec-policies`: \"The base spec (`feature/agent-integration`) defines which workflow integratio...\" (overlay) vs \"When `require_approved_features: true`, an architecture spec may not transiti...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 46
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/spec-policies`: \"| `/spec-draft-architecture` | `spec-draft-architecture` | Draft an architect...\" (overlay) vs \"Architecture specs in `draft` or `review` are never flagged, so architecture ...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 55
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/spec-policies`: \"| `/spec-draft-architecture` | `spec-draft-architecture` | Draft an architect...\" (overlay) vs \"The following are architecture details and must not appear in feature specs:\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 55
+        },
+        {
+          "file": "harnesses/claude/specifications/features/claude-integration.md",
+          "message": "`feature/claude-integration` may contradict `feature/spec-policies`: \"Claude Code receives the standing instructions (`feature/agent-integration#ag...\" (overlay) vs \"| `specs.feature.leak_guard_allow` | list of strings | `[]` | Project interfa...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/claude-integration",
+          "line": 35
+        },
+        {
+          "file": "harnesses/codex/specifications/features/codex-integration.md",
+          "message": "`feature/codex-integration` may contradict `feature/agent-integration`: \"Provenance never grants approval authority.\" (overlay) vs \"Contribution and approval provenance follow `feature/spec-system`;\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/codex-integration",
+          "line": 20
+        },
+        {
+          "file": "harnesses/codex/specifications/features/codex-integration.md",
+          "message": "`feature/codex-integration` may contradict `feature/agent-integration`: \"Installing Codex support does not select a background runtime or affect a co-...\" (overlay) vs \"Specplane never selects a runtime from installed files, registry order, or a ...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/codex-integration",
+          "line": 16
+        },
+        {
+          "file": "harnesses/codex/specifications/features/codex-integration.md",
+          "message": "`feature/codex-integration` may contradict `feature/agent-integration`: \"Unknown host/session/model identities remain unknown.\" (overlay) vs \"Host built-ins remain host-owned and are never shadowed by Specplane commands.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/codex-integration",
+          "line": 20
+        },
+        {
+          "file": "harnesses/codex/specifications/features/codex-integration.md",
+          "message": "`feature/codex-integration` may contradict `feature/agent-integration`: \"Unknown host/session/model identities remain unknown.\" (overlay) vs \"a model or session identity never grants policy authority.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/codex-integration",
+          "line": 20
+        },
+        {
+          "file": "harnesses/codex/specifications/features/codex-integration.md",
+          "message": "`feature/codex-integration` may contradict `feature/agent-integration`: \"Report unavailable command, session, budget, or interaction capabilities expl...\" (overlay) vs \"Unsupported session or budget capabilities are refusals, never a fallback to ...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/codex-integration",
+          "line": 19
+        },
+        {
+          "file": "harnesses/codex/specifications/features/codex-integration.md",
+          "message": "`feature/codex-integration` may contradict `feature/spec-system`: \"Provenance never grants approval authority.\" (overlay) vs \"Approval provenance remains separate and identifies the human decision and ex...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "feature/codex-integration",
+          "line": 20
+        },
+        {
+          "file": "harnesses/codex/specifications/architecture/codex-integration.md",
+          "message": "`architecture/codex-integration` may contradict `architecture/agent-skills`: \"The skill must not independently edit step status/HANDOFF or commit before th...\" (overlay) vs \"Existing status records prior approval only;\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "architecture/codex-integration",
+          "line": 71
+        },
+        {
+          "file": "harnesses/codex/specifications/architecture/codex-integration.md",
+          "message": "`architecture/codex-integration` may contradict `architecture/agent-skills`: \"Paths to these assets are relative to the installed skill, while repository p...\" (overlay) vs \"Skills must never hardcode paths.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "architecture/codex-integration",
+          "line": 24
+        },
+        {
+          "file": "harnesses/codex/specifications/architecture/codex-integration.md",
+          "message": "`architecture/codex-integration` may contradict `architecture/agent-skills`: \"The shared AGENTS.md block is always neutral.\" (overlay) vs \"A project that wants those requests to work adds a short routing table to a f...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "architecture/codex-integration",
+          "line": 16
+        },
+        {
+          "file": "harnesses/codex/specifications/architecture/codex-integration.md",
+          "message": "`architecture/codex-integration` may contradict `architecture/agent-skills`: \"plain init and `--harness none` write neutral scaffolding.\" (overlay) vs \"Specplane does not write this table and `init` never touches it;\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "architecture/codex-integration",
+          "line": 16
+        },
+        {
+          "file": "harnesses/codex/specifications/architecture/codex-integration.md",
+          "message": "`architecture/codex-integration` may contradict `architecture/agent-skills`: \"Delegate implementation and acceptance reasoning to the existing Codex sessio...\" (overlay) vs \"Self-check every suggestion and proposed edit before showing it: it must not ...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "architecture/codex-integration",
+          "line": 67
+        },
+        {
+          "file": "harnesses/codex/specifications/architecture/codex-integration.md",
+          "message": "`architecture/codex-integration` may contradict `architecture/agent-skills`: \"record context expansion and numbered gaps with required fields.\" (overlay) vs \"Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "architecture/codex-integration",
+          "line": 66
+        },
+        {
+          "file": "harnesses/codex/specifications/architecture/codex-integration.md",
+          "message": "`architecture/codex-integration` may contradict `architecture/agent-skills`: \"Hook scripts must exist in the execution environment and use the host's norma...\" (overlay) vs \"With the `external` backend, say that the environment runs the finish flow it...\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "architecture/codex-integration",
+          "line": 20
+        },
+        {
+          "file": "harnesses/codex/specifications/architecture/codex-integration.md",
+          "message": "`architecture/codex-integration` may contradict `architecture/agent-skills`: \"Human approval and finish/merge remain explicit user actions;\" (overlay) vs \"Never invoke approval or finish/merge automatically.\" (base).",
+          "severity": "warning",
+          "type": "overlay",
+          "spec": "architecture/codex-integration",
+          "line": 69
+        },
+        {
+          "file": ".claude/skills/approve/SKILL.md",
+          "message": "Skill `approve` implements `architecture/agent-skills#approve` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/decision-new/SKILL.md",
+          "message": "Skill `decision-new` implements `architecture/agent-skills#decision-new` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/plan-abandon/SKILL.md",
+          "message": "Skill `plan-abandon` implements `architecture/agent-skills#plan-abandon` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/plan-create/SKILL.md",
+          "message": "Skill `plan-create` implements `architecture/agent-skills#plan-create` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/plan-finish/SKILL.md",
+          "message": "Skill `plan-finish` implements `architecture/agent-skills#plan-finish` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/plan-start/SKILL.md",
+          "message": "Skill `plan-start` implements `architecture/agent-skills#plan-start` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/plan-status/SKILL.md",
+          "message": "Skill `plan-status` implements `architecture/agent-skills#plan-status` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/plan-step/SKILL.md",
+          "message": "Skill `plan-step` implements `architecture/agent-skills#plan-step` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/spec-assist/SKILL.md",
+          "message": "Skill `spec-assist` implements `architecture/agent-skills#spec-assist` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/spec-draft-architecture/SKILL.md",
+          "message": "Skill `spec-draft-architecture` implements `architecture/agent-skills#spec-draft-architecture` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": ".claude/skills/validate/SKILL.md",
+          "message": "Skill `validate` implements `architecture/agent-skills#validate` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/approve/SKILL.md",
+          "message": "Skill `approve` implements `architecture/agent-skills#approve` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/decision-new/SKILL.md",
+          "message": "Skill `decision-new` implements `architecture/agent-skills#decision-new` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/plan-abandon/SKILL.md",
+          "message": "Skill `plan-abandon` implements `architecture/agent-skills#plan-abandon` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/plan-create/SKILL.md",
+          "message": "Skill `plan-create` implements `architecture/agent-skills#plan-create` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/plan-finish/SKILL.md",
+          "message": "Skill `plan-finish` implements `architecture/agent-skills#plan-finish` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/plan-start/SKILL.md",
+          "message": "Skill `plan-start` implements `architecture/agent-skills#plan-start` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/plan-status/SKILL.md",
+          "message": "Skill `plan-status` implements `architecture/agent-skills#plan-status` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/plan-step/SKILL.md",
+          "message": "Skill `plan-step` implements `architecture/agent-skills#plan-step` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/spec-assist/SKILL.md",
+          "message": "Skill `spec-assist` implements `architecture/agent-skills#spec-assist` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/spec-draft-architecture/SKILL.md",
+          "message": "Skill `spec-draft-architecture` implements `architecture/agent-skills#spec-draft-architecture` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/claude/templates/skills/validate/SKILL.md",
+          "message": "Skill `validate` implements `architecture/agent-skills#validate` pinned at `74958ce`, which has changed; review `git diff 74958ce 335791e`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        },
+        {
+          "file": "harnesses/codex/templates/skills/specplane/SKILL.md",
+          "message": "Skill `specplane` implements `architecture/codex-integration#workflow-contract` pinned at `78dccf7`, which has changed; review `git diff 78dccf7 309b3dd`, update the skill, then update its contract comment.",
+          "severity": "warning",
+          "type": "skill-drift"
+        }
+      ]
+    },
+    "implementation_tests": "not run; specification-only changes",
+    "live_host_verification": "not run",
+    "warning_dispositions": "Historical dispositions remain tied to their old hashes; unchanged counts do not refresh those dispositions or prove semantic correctness."
+  },
+  "implementation_proposal": {
+    "suggested_id": "2026-11-01-extension-core",
+    "title": "Implement extension-owned workflows and shared core",
+    "specs": [
+      "architecture/reference-cli",
+      "architecture/agent-skills",
+      "architecture/file-formats",
+      "claude:architecture/claude-integration",
+      "codex:architecture/codex-integration"
+    ],
+    "dependencies": "Check current conductor plan overlap and live dependency state before plan creation; do not assume the older conductor design is the implementation target.",
+    "steps": [
+      {
+        "number": 1,
+        "title": "Core API and shared schemas",
+        "context": [
+          "architecture/reference-cli#shared-conductor-and-extension-boundary",
+          "packages/cli/src/cli.ts",
+          "packages/cli/package.json"
+        ],
+        "scope": "Expose specplane/core, typed operation dispatch, closed workflow/manifest/receipt schemas and shared fixtures; retain manual command behavior except explicitly specified migrations.",
+        "acceptance": "CLI and library reject malformed and unknown inputs consistently; package export imports successfully.",
+        "depends_on_steps": []
+      },
+      {
+        "number": 2,
+        "title": "Writer leases and recovery",
+        "context": [
+          "architecture/reference-cli#writer-coordination",
+          "packages/cli/src/plan/run.ts",
+          "packages/cli/src/plan/flows.ts"
+        ],
+        "scope": "Implement checkout/repository coordination, ordered plan leases, delegation, cancellation and recovery.",
+        "acceptance": "Two non-plan writers and mixed plan/non-plan writers cannot overlap; dead parent/live worker, aliases, installation and cross-checkout races fail safely.",
+        "depends_on_steps": [
+          1
+        ]
+      },
+      {
+        "number": 3,
+        "title": "Contribution capture and commit metadata",
+        "context": [
+          "architecture/file-formats#capture-and-event-transport",
+          "packages/cli/src/git/commit.ts"
+        ],
+        "scope": "Capture and deduplicate contribution events; preserve repeated trailers and revision-linked unknown/model/subagent contributors.",
+        "acceptance": "Same-session model switches and later contributors are retained; unknown identity remains unknown; rewrites preserve origin.",
+        "depends_on_steps": [
+          1,
+          2
+        ]
+      },
+      {
+        "number": 4,
+        "title": "Prepared workflows, evidence and recording",
+        "context": [
+          "architecture/reference-cli#structured-reasoning-boundary",
+          "architecture/reference-cli#test-execution-receipts",
+          "architecture/agent-skills",
+          "packages/cli/src/plan/step-done.ts"
+        ],
+        "scope": "Implement snapshot validation, core execution receipts and exact edit-set recording for both manual CLI and library; update shared recording procedure.",
+        "acceptance": "Unrelated staged and plan-folder edits refuse; partial staging refuses; failed commit restores index; stale evidence and skipped child assertions cannot pass; retry does not duplicate commits.",
+        "depends_on_steps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "number": 5,
+        "title": "Human gates and neutral manual lifecycle",
+        "context": [
+          "architecture/reference-cli#revision-bound-human-confirmation",
+          "packages/cli/src/plan/flows.ts",
+          "packages/cli/src/agents/standing.ts",
+          "packages/cli/src/cli.ts"
+        ],
+        "scope": "Add direct revision-bound confirmations, neutral startup/init guidance and explicit extension-owned conductor entry; remove standalone automated run surfaces per target.",
+        "acceptance": "Stale/reused/model-generated confirmations refuse; manual lifecycle remains complete; no implicit runtime selection or cross-host fallback.",
+        "depends_on_steps": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "number": 6,
+        "title": "Package compatibility and installation migration",
+        "context": [
+          "architecture/reference-cli#explicit-upgrade-transaction",
+          "packages/cli/src/commands/init.ts",
+          "packages/cli/src/harness/index.ts",
+          "packages/cli/src/harness/codex.ts",
+          "packages/cli/src/harness/claude.ts"
+        ],
+        "scope": "Deliver versioned core/assets/procedures with digests, containment checks, journaled migration, collision handling and co-installation rules.",
+        "acceptance": "Dangling links refuse without outside writes; customized assets survive; interrupted upgrades recover; incompatible packages never activate partial command sets.",
+        "depends_on_steps": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "number": 7,
+        "title": "Host integrations and release verification",
+        "context": [
+          "claude:architecture/claude-integration",
+          "codex:architecture/codex-integration",
+          "packages/cli/src/harness/session.ts",
+          "packages/cli/src/harness/codex.test.ts",
+          "harnesses/claude/templates",
+          "harnesses/codex/templates"
+        ],
+        "scope": "Deliver complete procedures and Codex persistent runner; implement Claude handlers only against verified installed declarations. Review pins after target commits and implementation review.",
+        "acceptance": "Normal remote-backed steps synchronize, execute real tests, record and publish; broken nested-test fixture fails; live capability evidence names host versions, otherwise native/background capabilities remain unavailable.",
+        "depends_on_steps": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    ],
+    "gates": [
+      "Human review of architecture resolutions and approval of proposed decomposition before draft plan creation.",
+      "Resolve spec eligibility before readiness/start; Codex specifications remain draft and ADR 0005 proposed.",
+      "Create plan through CLI; readiness is a separate human decision; implementation only in designated plan checkout.",
+      "Refresh specification pins against committed targets; skill pins only after implementation conformance review."
+    ]
+  }
+}
