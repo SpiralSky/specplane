@@ -1,7 +1,7 @@
 ---
 id: feature/agent-integration
 title: "Agent integration: agent instructions, skills, and policy enforcement"
-status: review
+status: approved
 author: mixed
 ---
 
