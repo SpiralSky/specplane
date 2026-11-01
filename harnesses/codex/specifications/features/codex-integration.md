@@ -1,10 +1,10 @@
 ---
 id: feature/codex-integration
 title: Codex workflow integration
-status: draft
+status: approved
 author: mixed
 extends: [feature/agent-integration, feature/plan-steps, feature/spec-policies, feature/spec-system]
-based_on: { feature/agent-integration: "1e7327b", feature/plan-steps: "00332af", feature/spec-policies: "84f50b3", feature/spec-system: "ce32511" }
+based_on: { feature/agent-integration: "f2fe6d4", feature/plan-steps: "00332af", feature/spec-policies: "84f50b3", feature/spec-system: "ce32511" }
 ---
 
 # Codex workflow integration
