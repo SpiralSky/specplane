@@ -1,7 +1,7 @@
 ---
 id: 2026-11-01-core-foundation
 title: "Core contracts, coordination and provenance"
-status: draft
+status: ready
 specs: ["architecture/reference-cli","architecture/file-formats","feature/tooling","feature/agent-integration"]
 ---
 
