@@ -54,7 +54,7 @@ src/
     gaps.ts            # parses and validates a plan's spec-gaps.md
     status.ts          # computes index and effective plan status
     graph.ts           # builds the dependency graph; detects cycles
-    flows.ts           # start, finish, abandon, cleanup, archive, restack
+    flows.ts           # start, finish, shelve, resume, abandon, cleanup, archive, restack
   decisions/
     parse.ts           # reads ADR frontmatter
     validate.ts        # ADR validation rules
@@ -77,7 +77,7 @@ src/
   commands/
     init.ts
     spec.ts            # spec new | list | show | validate | pin | approve | reopen
-    plan.ts            # plan new | list | show | graph | start | finish | approve | abandon | cleanup | archive | restack
+    plan.ts            # plan new | list | show | graph | start | finish | approve | shelve | resume | abandon | cleanup | archive | restack
     decision.ts        # decision new | accept
     search.ts
     validate.ts
@@ -236,6 +236,7 @@ Each warning includes `type` (`path`, `tech_name`, `identifier`, `schema_syntax`
 `validatePlans(plans, specs, adrs, config): ValidationReport`
 
 - `in_progress`/`review` stored while `status_source: git` → warning.
+- `shelved` is valid in both modes; enforce conditional `shelved_from`, its mode-specific values, and non-archived location per `architecture/file-formats` §2.1. Unknown lifecycle states remain errors.
 - Dangling `depends_on` → error; dependency on an `abandoned` plan → error; cycles (via `graph.ts`) → error.
 - `specs` entries resolve (no root context) → error if not; deprecated → warning.
 - Steps: contiguous numbering from 1; `context` references (`spec` with anchor, `decision`, `file`) per §3.2; HANDOFF.md outcomes per §3.2 and §4.1. `handoffOutcomes(file)` returns, per step number, the outcomes of its sections in file order; only the last one is compared with the step's `status` (latest entry wins). A `skipped`/`blocked` step without a section, or any step whose latest section's `**Outcome**` differs from its `status`, is an error: "Step <n> is `<status>` but the latest HANDOFF.md `## Step NN` section has `**Outcome**: <outcome>`." (or, with no section, the existing "has no `## Step NN` section" text). Earlier sections are not checked.
@@ -255,14 +256,14 @@ Each warning includes `type` (`path`, `tech_name`, `identifier`, `schema_syntax`
 
 1. If stored status is not `ready`: return it.
 2. If `dependency_mode: wait_for_merge` and any `depends_on` plan is not `done`: return `blocked`.
-3. If `dependency_mode: stack` and two or more `depends_on` plans are not `done`: return `blocked` (`feature/plan-status`). A plan with at most one such dependency is not `blocked` in stack mode.
+3. If `dependency_mode: stack` and a dependency is `shelved`: return `blocked` with "Cannot stack on shelved dependency: <id>; resume it first.". Otherwise, if two or more `depends_on` plans are not `done`: return `blocked` (`feature/plan-status`). A plan with at most one such dependency, none shelved, is not `blocked` in stack mode.
 4. Return `ready`.
 
-`blockedReason(plan, plansById, config): string | null` gives the text shown with a `blocked` status: in stack mode "Cannot stack on more than one unmerged dependency: `<a>`, `<b>`." (dependency IDs in backticks, in `depends_on` order), the same text the start flow's stacking check throws; in wait-for-merge mode `null` (the dependencies are listed instead). `plan list` prints it after a `blocked` status, and the start flow throws it.
+`blockedReason(plan, plansById, config): string | null` gives the text shown with a `blocked` status: in stack mode, a shelved dependency takes precedence and returns "Cannot stack on shelved dependency: <id>; resume it first."; otherwise, two or more unmerged dependencies return "Cannot stack on more than one unmerged dependency: `<a>`, `<b>`." (dependency IDs in backticks, in `depends_on` order). These are the same reasons the start flow's stacking check throws; in wait-for-merge mode `null` (the dependencies are listed instead). `plan list` prints it after a `blocked` status, and the start flow throws it.
 
 `getEffectiveStatus(plan, plansById, config, git): EffectiveStatus` — used by `plan list`, `plan show`, and `generate --print --live`:
 
-1. Compute the index status. If it is not `ready`, return it.
+1. Apply the default-branch lifecycle override (§ Shelve and resume), then compute the index status. If it is not `ready`, return it. In particular, `shelved` overrides branches, PRs and dependency-derived blocking.
 2. If `status_source: frontmatter`: return `ready`.
 3. If branch `plan/<id>` exists locally or as `refs/remotes/origin/plan/<id>`: if the forge reports an open PR for it, return `review`; otherwise return `in_progress`.
 4. Return `ready`.
@@ -273,7 +274,7 @@ Remote branches are read from already-fetched remote-tracking refs; status queri
 
 `planNext(id, config, root): PlanNext` resolves what should happen next for a plan and whether an agent may start it unattended. It is read-only: it reads files, runs read-only git queries (`worktree list`, `rev-list`, `status --porcelain`, `show`), and never fetches, writes, commits, or spawns anything, so two runs in a row leave `git status` and the worktree unchanged. It is harness-neutral (no harness names in its output); a harness maps `action` to its own spawn mechanism. `computeNext(input): PlanNext` is the pure core.
 
-Files are read from the plan's own checkout (`checkout`, as in § Plan activity) when it has one, else from the invoking checkout. The next step is the lowest-numbered step whose status is not `done` or `skipped`, so an earlier `pending` or `blocked` step wins over a later one (the `plan-step` ordering rule); `reason` says so when a later step is already past `pending`. Effective status comes from `getEffectiveStatus`.
+Files are read from the plan's own checkout (`checkout`, as in § Plan activity) when it has one, else from the invoking checkout. The next step is the lowest-numbered step whose status is not `done` or `skipped`, so an earlier `pending` or `blocked` step wins over a later one (the `plan-step` ordering rule); `reason` says so when a later step is already past `pending`. Effective status comes from `getEffectiveStatus`, after the default-branch lifecycle override described under § Shelve and resume. A retained checkout cannot mask shelving. A shelved plan may expose its pending step for inspection, but returns `action: none` with an explicit resume instruction and never `finish` or `spawn_step`.
 
 `--json` prints exactly one object on stdout:
 
@@ -293,7 +294,7 @@ Files are read from the plan's own checkout (`checkout`, as in § Plan activity)
 
 `attention` kinds: `blocked` (the next step is `blocked`), `gap_decision` (an `open` `spec-gaps.md` entry of kind `proposal` or `assumption`), `finish_ready` (the plan is started and every step is `done` or `skipped`), `restack` (the plan is stacked and its base plan is now `done` on the default branch, as the resume notice of § Start), `diverged` (the local branch and `origin/plan/<id>` each have commits the other lacks), `dirty` (the plan checkout has uncommitted changes).
 
-`action`, first match wins: the plan is `done` or `abandoned`, a `draft`, `blocked` by dependencies, or not started (no branch): `none`. Otherwise `diverged` or `dirty`: `ask_human`; `blocked` or `gap_decision`: `ask_human`; `restack`: `restack`; `finish_ready`: `finish`; a remaining step: `spawn_step`; no steps: `none`. `blocked` and `gap_decision` therefore always take precedence over `spawn_step`.
+`action`, first match wins: the plan is `done`, `abandoned`, or `shelved`, a `draft`, `blocked` by dependencies, or not started (no branch): `none`. Otherwise `diverged` or `dirty`: `ask_human`; `blocked` or `gap_decision`: `ask_human`; `restack`: `restack`; `finish_ready`: `finish`; a remaining step: `spawn_step`; no steps: `none`. `blocked` and `gap_decision` therefore always take precedence over `spawn_step`.
 
 Human output prints the same fields as labelled lines. `plan next` never fetches; `--no-fetch` is accepted for symmetry with `plan list --live` and changes nothing.
 
@@ -368,6 +369,20 @@ These implement `feature/plan-execution`. Every flow validates everything it nee
 5. First start: `createBranch('plan/<id>', base)`, where `base` is the default branch tip, or the tip of `plan/<base-id>` when stacking. When stacking, the marker commit is created without touching any checkout: `git commit-tree <base>^{tree} -p <base> -F -` with message `chore(specplane): stack <id> on <base-id>` and trailers `Specplane-Workflow: stack`, `Specplane-Plan: <id>`, `Specplane-Stack-Base: <base sha>`, and the new branch points at that commit instead. On resume, a remote-only branch is first tracked locally (`git branch --track plan/<id> origin/plan/<id>`).
 6. Check out per backend. Worktree: `createWorktree`, then run `setup_hook` via the user's shell (`sh -c` / `cmd /c`) with `cwd` = the worktree; on failure `removeWorktree(..., { force: true })` (the worktree is fresh, so nothing is lost) and throw `SetupHookError`. Branch: require `git status --porcelain` to be empty, then `git switch plan/<id>`.
 
+### Shelve and resume
+
+`plan shelve <id>` and `plan resume <id>` are CLI-only mechanical operations, also available through the shared core's validated operation interface. They require explicit user intent; unattended execution never shelves or resumes implicitly. No new public slash commands are required.
+
+- `shelve(id)`: resolve the plan on the default branch and verify it is started (a local or remote plan branch exists), non-terminal, and not already shelved. Git mode requires stored `ready`; frontmatter mode requires `in_progress` or `review`. Also inspect the plan branch tip: refuse if its plan is already `done` or `abandoned`, including a finish commit awaiting merge. Save that value as `shelved_from`, set `status: shelved`, regenerate the committed plan index, and commit only those lifecycle/index changes using workflow `shelve`.
+- `resume(id)`: require default-branch `shelved`, valid mode-compatible `shelved_from`, and an existing local or remote branch. Restore the saved status, remove `shelved_from`, regenerate the index and commit using workflow `resume`. Recompute effective status against current dependency/PR information and report checkout and next step. Do not run start, restack, finish, a step, or a model session as a side effect. A missing worktree is allowed and reported with the explicit start command; a missing branch is refused without resetting progress.
+- `abandon` accepts `shelved` and removes `shelved_from` in the same lifecycle commit. `archive` still accepts only `done` or `abandoned`; no prune/delete operation is introduced.
+
+Lifecycle recording uses the main checkout/default branch and publication preconditions of claim commits in both status-source modes. Acquire the repository mutation lock, plan lease and affected checkout leases in the shared order; refuse while any worker or recording operation is active. The retained implementation checkout may be dirty: do not stage, stash, overwrite or discard its files. Require the administrative files/index to be clean and the staging area free of unrelated entries. Preflight all checks before writing. On local recording failure restore only the operation's own uncommitted writes. If the lifecycle commit succeeded but publication failed, report its hash and pending publication; retry publishes that commit without applying another transition. Do not claim a globally visible transition until required publication succeeds.
+
+**Authoritative lifecycle override.** Before status derivation, scheduling, prepare, step recording, start, restack or finish, consult the latest known default-branch plan record. Its `shelved` status overrides an older plan-branch copy, including for remote-only branches and live listings. Once resume restores the default-branch record, no retained branch copy needs a shelving edit. Do not merge the implementation branch into default or rewrite branch history just to shelve/resume. A shelving transition cannot race an already-held execution lease. Default-branch `abandoned` also refuses execution of a retained branch. Offline readers report the ref freshness they used; no claim is made that unfetched remote changes are known.
+
+Tests cover both status-source modes, stored/index/effective status and list filters, open PR and unmet-dependency precedence, dirty-worktree preservation, active-worker refusal, stale checkout status, missing branch versus missing checkout, mode-incompatible metadata, archive refusal, shelved-to-abandoned cleanup, and local-write/publication recovery. Assert that next/conductor return no executable action and all mutating execution entry points refuse while shelved, including forced step reruns. Resume preserves step outcomes and recomputes current derived status without launching work.
+
 ### Claim commits (frontmatter mode)
 
 A claim commit must land on the default branch without disturbing anyone's checkout. It is made in the main checkout and requires that checkout to be on the default branch with no changes to the plan's `PLAN.md`; otherwise the flow stops with instructions. It edits only the `status:` line, commits `chore(specplane): claim <id> <status>` (`Specplane-Workflow: claim`), and pushes when a remote exists.
@@ -387,7 +402,7 @@ Runs in the plan's checkout. Steps follow `feature/plan-execution` § Finish flo
 ### Cleanup, abandon, archive
 
 - `cleanup(id)`: remove the worktree (or switch the branch-backend checkout back to the default branch); delete `plan/<id>` only if the plan's `PLAN.md` on the default branch has `status: done`. Each part is skipped if already done.
-- `abandon(id, { deleteBranch, force })`: fails with `PlanStateError` ("Cannot abandon plan: `<id>` is `<status>`.") when the stored status on the default branch is `done` or `abandoned`; any other stored status (`draft`, `ready`, and in frontmatter mode `in_progress`/`review`) may be abandoned. Otherwise edit `PLAN.md` on the default branch to `abandoned`, `git mv` to archive if `archive_done`, commit `chore(specplane): abandon <id>` (`Specplane-Workflow: abandon`) in the main checkout (same preconditions as a claim commit); remove the worktree; delete the branch only if requested.
+- `abandon(id, { deleteBranch, force })`: fails with `PlanStateError` ("Cannot abandon plan: `<id>` is `<status>`.") when the stored status on the default branch is `done` or `abandoned`; any other stored status (`draft`, `ready`, `shelved`, and in frontmatter mode `in_progress`/`review`) may be abandoned. Otherwise edit `PLAN.md` on the default branch to `abandoned`, remove `shelved_from` if present, `git mv` to archive if `archive_done`, commit `chore(specplane): abandon <id>` (`Specplane-Workflow: abandon`) in the main checkout (same preconditions as a claim commit); remove the worktree; delete the branch only if requested.
 - `archive(id)`: for a `done` or `abandoned` plan not yet archived, `git mv` it to the archive and commit `chore(specplane): archive <id>` (`Specplane-Workflow: archive`) in the current checkout.
 
 ### Restack
@@ -423,7 +438,7 @@ Harness live views (for example `claude:architecture/claude-integration` § Live
 
 ## Plan commands (`commands/plan.ts`)
 
-Read-side plan commands; the registration pattern is that of the spec commands below. Handlers load config through `loadConfig`, read plans from the checkout root through `plan/resolve.ts` and `plan/parse.ts` (active and `archive/`), and surface config warnings on stderr. Texts and options are those of `feature/tooling` § `specplane plan`. Start, finish, abandon, cleanup, and archive are specified under § Plan flows.
+Read-side plan commands; the registration pattern is that of the spec commands below. Handlers load config through `loadConfig`, read plans from the checkout root through `plan/resolve.ts` and `plan/parse.ts` (active and `archive/`), and surface config warnings on stderr. Texts and options are those of `feature/tooling` § `specplane plan`. Start, finish, shelve, resume, abandon, cleanup, and archive are specified under § Plan flows.
 
 ### `plan new`
 

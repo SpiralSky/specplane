@@ -80,6 +80,7 @@ The date prefix makes ID collisions very unlikely when multiple plans are create
 | `id` | string | yes | — | The plan ID, matching the folder name. Immutable. |
 | `title` | string | yes | — | Human-readable description of the plan's goal. |
 | `status` | enum | yes | — | Stored status; new plans start as `draft`. See `feature/plan-status`. |
+| `shelved_from` | enum | only when shelved | — | Previous stored status restored by resume: `ready` in Git mode; `in_progress` or `review` in frontmatter mode. Absent in all other states. |
 | `specs` | list of IDs | yes | — | Spec IDs (feature and/or architecture) this plan implements. Non-empty. |
 | `depends_on` | list of IDs | no | `[]` | Plan IDs this plan depends on. Must be done before this plan can start (default mode). |
 

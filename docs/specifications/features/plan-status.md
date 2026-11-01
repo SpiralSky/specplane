@@ -21,6 +21,7 @@ Stored statuses live in `PLAN.md` frontmatter and are changed through normal com
 | `ready` | The plan is approved for execution. Dependencies and spec requirements will be checked at start time. |
 | `done` | The plan is complete. Set in the final commit of the plan branch; it reaches the default branch when that branch is merged. |
 | `abandoned` | The plan will not be completed. Kept for traceability. |
+| `shelved` | Started work is paused with the intention that it may resume. Plan records, branch, worktree, and step progress are retained. Stored in both status-source modes. |
 
 With `status_source: frontmatter`, `in_progress` and `review` are also stored statuses (see below).
 
@@ -36,10 +37,14 @@ ready ──► abandoned
 
 With `status_source: frontmatter` the path through execution is stored as well: `ready ──► in_progress ──► review ──► done`, and `in_progress` or `review` may also move to `abandoned`.
 
-- A plan may be set to `abandoned` from any non-terminal stored status: `draft`, `ready`, and, with `status_source: frontmatter`, `in_progress` and `review`. With `status_source: git` the stored status of a started plan is still `ready`, so it is abandoned from `ready`.
+- A plan may be set to `abandoned` from any non-terminal stored status: `draft`, `ready`, `shelved`, and, with `status_source: frontmatter`, `in_progress` and `review`. With `status_source: git` the stored status of a started plan is still `ready`, so it is abandoned from `ready`.
 - Abandoning a plan whose stored status is `done` or `abandoned` fails: "Cannot abandon plan: `<id>` is `<status>`."
 - `done` is a terminal state; a done plan is not re-opened (create a new plan instead).
-- `abandoned` is a terminal state.
+- `abandoned` is a terminal state. It retains the plan; it does not mean deleted.
+- A started, non-terminal plan may move to `shelved`: in Git mode its stored status is `ready` and its plan branch exists; in frontmatter mode its stored status is `in_progress` or `review`. An unstarted plan, `draft`, `done`, or `abandoned` cannot be shelved.
+- Explicit resume restores the pre-shelving stored status, then recomputes derived status from current dependencies, branch and PR state. It does not reset completed steps or grant a new approval. In Git mode: `ready` with a branch → `shelved` → `ready` with a branch. In frontmatter mode: `in_progress` or `review` → `shelved` → the previous stored status.
+- A shelved plan may instead be abandoned. A shelved dependency remains valid but is not complete; it does not satisfy a wait-for-merge dependency or qualify as a base for starting new stacked work.
+- Shelving is not a step status. Existing step outcomes and recorded progress remain unchanged.
 
 ---
 
@@ -55,7 +60,7 @@ Derived statuses are computed at read time from plan frontmatter, git, and forge
 
 ### Effective status
 
-Derived statuses apply **only to plans whose stored status is `ready`**. Every other stored status (`draft`, `done`, `abandoned`, and the stored `in_progress`/`review` of frontmatter mode) is displayed as-is. For a `ready` plan, the first matching rule wins:
+Derived statuses apply **only to plans whose stored status is `ready`**. Every other stored status (`draft`, `shelved`, `done`, `abandoned`, and the stored `in_progress`/`review` of frontmatter mode) is displayed as-is. For a `ready` plan, the first matching rule wins:
 
 ```
 blocked  >  review  >  in_progress  >  ready
@@ -66,6 +71,8 @@ Examples:
 - `ready` + branch exists + open PR → `review`
 - `ready` + dependency not done → `blocked`
 - `done` + branch still exists → `done`
+- `shelved` + branch exists + open PR → `shelved`, with no automatic execution
+- `shelved` + unmet dependencies → `shelved`; dependency details remain visible
 - `draft` + branch exists → `draft` (a draft plan cannot be started; the stray branch is not treated as progress)
 
 ---
@@ -118,6 +125,14 @@ Use the default `status_source: git` for most projects.
 
 ---
 
+## Shelving, archiving, and deletion
+
+Shelving is a resumable lifecycle state. It retains the existing checkout by default, including uncommitted work, and leaves plan records in their non-archived location. `plan start`, step execution/recording, finish, and automatic execution must refuse to advance a shelved plan until the user explicitly resumes it. Listing, inspection, validation, and abandonment remain available. An existing branch or open PR never overrides shelving.
+
+Archiving is a filing operation for `done` or `abandoned` plan records, not a lifecycle state. It moves the records without changing their status and does not itself retain or remove a worktree. Worktree cleanup removes a checkout; it does not delete the plan records. Abandonment removes the checkout under the execution contract but retains the plan and, by default, its branch and committed work. Deleting/pruning plan records would be a separate operation; this specification introduces no deletion command or `deleted` state.
+
+---
+
 ## The `done` transition and archiving
 
 `done` is set in the plan branch's **final commit**, together with the archive operation (when `archive_done: true`). The finish flow (see `feature/plan-execution`) does this after rebasing onto the default branch:
@@ -138,6 +153,7 @@ Commits made after the final commit (for example, fixes requested in review) are
 - No plan in `depends_on` may be `abandoned`. A plan depending on an abandoned plan is itself invalid and must be updated.
 - A `done` plan may not be restarted. A new plan must be created.
 - A dependency cycle (plan A depends on plan B which depends on plan A) is a validation error.
+- A shelved plan requires `shelved_from`: `ready` in Git mode, or `in_progress`/`review` in frontmatter mode. Missing, invalid, or incompatible values are errors. The field must be absent in other states. Shelved plans must not be archived.
 - A dangling `depends_on` ID (plan does not exist) is a validation error.
 - When `status_source: frontmatter`, storing `in_progress` or `review` in frontmatter is valid. When `status_source: git`, storing these statuses is a validation warning (not an error, because a project migrating between modes should not be hard-blocked).
 
@@ -201,9 +217,28 @@ And reading `PLAN.md` on the default branch shows `in_progress`.
 
 ---
 
+### Scenario 8: Shelving overrides branch and PR activity
+
+Given a started plan with completed and pending steps and an existing worktree,
+When the user shelves it,
+Then its stored and effective status are `shelved` in either status-source mode,
+And its branch, checkout, uncommitted files and step outcomes are retained,
+And an open PR or unmet dependency does not override that status,
+And no step is launched or recorded until explicit resume.
+
+### Scenario 9: Resume retains progress
+
+Given a shelved plan,
+When the user explicitly resumes it,
+Then its pre-shelving stored status is restored and current derived status is recomputed,
+And the next step remains the lowest step not done or skipped,
+And no implementation step or model session is started by the resume operation.
+
+---
+
 ## Edge cases
 
 - A plan may have `status: done` in frontmatter but its branch still exists (e.g. the branch was not deleted after merge). The effective status is still `done`; `in_progress` does not override `done`.
 - `blocked` is only derived for plans with `status: ready`. A `draft` plan with unmet dependencies is not shown as `blocked` — it is simply `draft`.
-- When `dependency_mode: stack`, `blocked` is computed only for a `ready` plan that cannot start: it has two or more dependencies that are not done. Such a plan is displayed as `blocked`, with the message "Cannot stack on more than one unmerged dependency: <a>, <b>." A `ready` plan with at most one unmerged dependency is not `blocked`; it may start from that dependency's branch tip (see `feature/plan-execution` for the limits).
+- When `dependency_mode: stack`, `blocked` is computed only for a `ready` plan that cannot start: a dependency is shelved, or it has two or more dependencies that are not done. A shelved dependency reports "Cannot stack on shelved dependency: <id>; resume it first.". Otherwise, a plan with two or more unmerged dependencies is displayed as `blocked`, with the message "Cannot stack on more than one unmerged dependency: <a>, <b>." A `ready` plan with at most one unmerged dependency that is not shelved is not `blocked`; it may start from that dependency's branch tip (see `feature/plan-execution` for the limits).
 - Derived statuses depend on the reader's git state (which branches have been fetched). Two people may see different effective statuses until they fetch; the stored status is the same for everyone.

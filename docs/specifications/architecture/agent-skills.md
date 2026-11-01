@@ -83,7 +83,9 @@ Every CLI operation is either exposed by an extension handler, CLI-only, or an i
 | `plan abandon` | `plan-abandon` native handler | Host interaction confirms the operation; code executes it. |
 | `plan restack` | CLI-only | Mechanical history rewrite; `plan-status` and the start flow name the command when a base plan has merged. |
 | `plan cleanup` | CLI-only | Mechanical; the finish flow runs it after a local merge. |
-| `plan archive` | CLI-only | Mechanical; the finish and abandon flows archive when `archive_done` is set. |
+| `plan archive` | CLI-only | File terminal plan records away; does not change status or manage the checkout. |
+| `plan shelve` | CLI-only | On user request, pause a started plan and retain its worktree and progress. |
+| `plan resume` | CLI-only | On user request, restore a shelved plan; report the next step without executing it. |
 | `plan show`, `plan graph` | CLI-only | Read-only output that needs no interpretation. |
 | `spec new` | `spec-assist`, `spec-draft-architecture` | Called by those skills; not a user-facing skill of its own. |
 | `spec pin` | CLI-only | Mechanical; re-pins a skill or spec after its contract moves. |
@@ -261,7 +263,7 @@ Determine whether the session is attended (feature/spec-precedence).
 ### Steps
 
 1. Identify the plan: from the current branch `plan/<id>`, or from the user. If not on the plan's branch, warn before proceeding. If `origin/plan/<id>` exists, fetch it first: fast-forward when it is ahead, and stop when the branches have diverged ("Another session advanced `plan/<id>`; reconcile the branches before running a step"). Several sessions (worktrees, cloud runs) may work on a repository, but only one at a time on a given plan.
-2. Parse the step files; find the next step (lowest-numbered step that is not `done` or `skipped`). Ordering check: confirm every lower-numbered step is `done` or `skipped`; if any is `pending` or `blocked`, run that one first (or report its `BLOCKED:` issue) rather than the step the user named. If it is `blocked`, report its `BLOCKED:` issue and stop. If there is none, report that all steps are done and suggest `plan-finish`.
+2. Refuse execution or recording when the authoritative plan state is `shelved`; direct the user to explicit `specplane plan resume <id>`. Parse the step files; find the next step (lowest-numbered step that is not `done` or `skipped`). Ordering check: confirm every lower-numbered step is `done` or `skipped`; if any is `pending` or `blocked`, run that one first (or report its `BLOCKED:` issue) rather than the step the user named. If it is `blocked`, report its `BLOCKED:` issue and stop. If there is none, report that all steps are done and suggest `plan-finish`.
 3. Load context: every item in the step's `context` field (spec sections by anchor, ADRs, files) plus all prior sections of HANDOFF.md.
 4. Avoid reading other files unless the listed context is insufficient; record any expansion in HANDOFF.md.
 5. Execute the tasks, following `feature/spec-precedence` (record gaps; on contradictions, stop if attended, or record `BLOCKED:` and continue with unaffected tasks if unattended). Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>/spec-gaps.md` as a new numbered entry (`## G<n>: <case>`, the six fields and statuses of `architecture/file-formats` §4.2, `**Status**: open`): create the file on the first entry and never reuse a number. A step that would propose a spec edit it may not make itself writes a `proposal` entry; `feature-spec-proposals.md` is the archived format and is not written by new plans.
@@ -462,14 +464,14 @@ Abandons a plan. Implements `plan-abandon`.
 ### Policy check
 
 ```
-Read config.plans. Abandoning keeps the branch and worktree unless the user asks for deletion (feature/plan-execution).
+Read config.plans. Abandoning retains plan records and the branch unless branch deletion is requested, but removes the worktree (feature/plan-execution). Shelving retains the worktree for later resume.
 Unattended: do not proceed; report the plan that would be abandoned instead.
 ```
 
 ### Steps
 
 1. Identify the plan: the ID argument, else the current branch.
-2. Show what is being abandoned: stored status, step progress, branch, and checkout. Ask the user to confirm.
+2. Show what is being abandoned: stored status, step progress, retained plan records and branch, and the checkout that will be removed. Ask the user to confirm. If the intent is to pause and retain the checkout, explain `specplane plan shelve <id>` instead.
 3. Run `specplane plan abandon <id>`; add the branch-deletion option only when the user asks for it.
 
 ### Output
@@ -490,6 +492,6 @@ Skills are committed to the repository and versioned. A PR that changes a workfl
 
 ## Extension conductor contract
 
-Resolve config and call the shared conductor through the invoking extension, which must supply a session adapter explicitly. Standalone CLI commands never launch a harness. Never invoke approval or finish/merge automatically. Session identity is deterministic per plan and step for restart protection; the adapter maps it to a verified host session identity and preserves the mapping. A deterministic orchestration identity is not fabricated native-session provenance. The extension invokes its installed step workflow in unattended mode using its verified host mechanism, without embedding Claude syntax in the shared core.
+Resolve config and call the shared conductor through the invoking extension, which must supply a session adapter explicitly. Standalone CLI commands never launch a harness. Shelved plans have no executable conductor action; neither a branch nor a pending step authorizes implicit resume. Never invoke approval or finish/merge automatically. Session identity is deterministic per plan and step for restart protection; the adapter maps it to a verified host session identity and preserves the mapping. A deterministic orchestration identity is not fabricated native-session provenance. The extension invokes its installed step workflow in unattended mode using its verified host mechanism, without embedding Claude syntax in the shared core.
 
 An explicit completed-step rerun adds `--step N --force --reason TEXT` to the workflow invocation. Select exactly that completed step, execute it again, and record using the same step/force/reason options on `plan step-done`. Do not bypass safety conditions or erase earlier history. Without those arguments, existing lowest-pending ordering remains unchanged. Configured session mode may force unattended but never attended behavior.

@@ -272,6 +272,16 @@ Executes the start flow for a plan. See `feature/plan-execution`. When resuming 
 **Options**:
 - `--no-fetch`: do not fetch from the remote before starting; work from the local refs as they are.
 
+### `specplane plan shelve <id>`
+
+Pauses a started plan as `shelved`, preserving its branch, worktree (including uncommitted work), plan records, and step progress. Does not archive or delete anything. Refuses for unstarted, draft, already-shelved or terminal plans, or while a worker is active. See `feature/plan-execution` § Shelving and resuming a plan.
+
+### `specplane plan resume <id>`
+
+Resumes a shelved plan by restoring its prior stored status and reporting the resulting effective status, checkout and next step. Refuses if the plan is not shelved or its retained branch is missing. Does not execute a step or launch a session. `plan start` does not implicitly resume shelved plans.
+
+Both commands exit 0 on completed transition and 1 on refusal or failure. They print the plan ID and resulting status. A repeated invocation refuses without changes; a partially recorded transaction reports recovery information instead of treating a retry as a new transition.
+
 ### `specplane plan finish <id>`
 
 Executes the finish flow for a plan. See `feature/plan-execution`.
@@ -312,7 +322,7 @@ Removes the worktree and deletes branch `plan/<id>` after the plan has merged (f
 
 ### `specplane plan archive <id>`
 
-Moves a `done` or `abandoned` plan's folder into `<plans.dir>/archive/` — for plans that ended while `plans.archive_done` was `false`. Errors if the plan is not `done` or `abandoned`, or is already archived. Does not touch branches or worktrees.
+Moves a `done` or `abandoned` plan's folder into `<plans.dir>/archive/` — for plans that ended while `plans.archive_done` was `false`. Errors if the plan is not `done` or `abandoned`, or is already archived. Does not touch branches or worktrees. `archived` is a location flag, not a plan status; shelved plans cannot be archived.
 
 ### `specplane plan approve <id>...`
 

@@ -268,7 +268,7 @@ Controls how plans with dependencies behave. See `feature/plan-execution`.
 **Type**: boolean  
 **Default**: `true`
 
-When `true`, the plan folder is moved to `<plans.dir>/archive/<id>/` when the plan's status becomes `done`.
+When `true`, the plan folder is moved to `<plans.dir>/archive/<id>/` when the plan's status becomes `done` or `abandoned`. Shelved plans are not archived. Archiving changes record location, not lifecycle status or checkout retention.
 
 ---
 

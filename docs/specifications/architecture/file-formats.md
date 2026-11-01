@@ -273,6 +273,11 @@ Commit readers preserve repeated `Specplane-Contribution` values in order; a las
   "type": "object",
   "required": ["id", "title", "status", "specs"],
   "additionalProperties": false,
+  "allOf": [{
+    "if": { "properties": { "status": { "const": "shelved" } }, "required": ["status"] },
+    "then": { "required": ["shelved_from"] },
+    "else": { "not": { "required": ["shelved_from"] } }
+  }],
   "properties": {
     "id": {
       "type": "string",
@@ -282,8 +287,12 @@ Commit readers preserve repeated `Specplane-Contribution` values in order; a las
     "title": { "type": "string", "minLength": 1 },
     "status": {
       "type": "string",
-      "enum": ["draft", "ready", "in_progress", "review", "done", "abandoned"],
+      "enum": ["draft", "ready", "in_progress", "review", "shelved", "done", "abandoned"],
       "description": "in_progress and review are valid only when plans.status_source is frontmatter; with status_source git they produce a warning (see feature/plan-status)."
+    },
+    "shelved_from": {
+      "type": "string",
+      "enum": ["ready", "in_progress", "review"]
     },
     "specs": {
       "type": "array",
@@ -298,6 +307,8 @@ Commit readers preserve repeated `Specplane-Contribution` values in order; a las
   }
 }
 ```
+
+`shelved` is stored in both status-source modes. Semantic validation additionally requires `shelved_from: ready` in Git mode or `in_progress`/`review` in frontmatter mode, and rejects archived shelved plans. Resume or abandonment removes `shelved_from`; step files and their status schema are unchanged.
 
 ### 2.2 PLAN.md body sections
 
@@ -833,6 +844,8 @@ Harness attribution trailers (`Co-Authored-By:`) follow the harness's own conven
 | `finish` | CLI finish (done + archive) | `plan/<id>` | `chore(specplane): finish <id>` |
 | `abandon` | CLI abandon | default | `chore(specplane): abandon <id>` |
 | `archive` | CLI archive | current | `chore(specplane): archive <id>` |
+| `shelve` | CLI plan shelve | default | `chore(specplane): shelve <id>` |
+| `resume` | CLI plan resume | default | `chore(specplane): resume <id>` |
 | `generate` | CI job or hook | default | `chore(specplane): regenerate PLANS.md [skip ci]` |
 
 A step that needs a small group of commits gives each the `step` trailers; the last one includes the step file and the HANDOFF.md section.

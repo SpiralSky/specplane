@@ -41,7 +41,7 @@ A markdown table listing every plan (including archived ones, in a separate sect
 | Dependencies | `depends_on` IDs, rendered as links to the plan folders |
 | Specs | `specs` IDs from frontmatter |
 
-Active plans (not archived) appear first. Archived plans appear in a separate section, without the Dependencies column. Rows are sorted by plan ID.
+Non-archived plans (including shelved plans) appear first; non-archived does not imply actively executing. Archived plans appear in a separate section, without the Dependencies column. Rows are sorted by plan ID.
 
 ### 2. Dependency graph
 
@@ -53,6 +53,7 @@ A [Mermaid](https://mermaid.js.org/) directed graph showing dependencies between
   - `done`: grey
   - `blocked`: red
   - `in_progress`: blue; `review`: light blue (frontmatter mode, or `--live` output)
+  - `shelved`: amber, labelled `shelved`; retained branches do not make these plans active
   - `ready`: green
   - `draft`: white / default
   - `abandoned`: grey with strikethrough text (if supported by the renderer)

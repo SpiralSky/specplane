@@ -168,6 +168,16 @@ With `merge: local_merge`, no pull request is opened and the human's confirmatio
 
 ---
 
+## Shelving and resuming a plan
+
+`specplane plan shelve <id>` pauses an already-started, non-terminal plan. It records `shelved` and its prior stored status, retains the plan folder, branch, worktree and all step progress, and does not archive anything. Uncommitted implementation work is preserved; shelving does not stash, commit or discard it. Refuse while a worker or recording operation is active; the caller must stop it before shelving. A shelved plan cannot be advanced by start, step execution/recording, finish, restack, or the conductor.
+
+`specplane plan resume <id>` explicitly restores the pre-shelving stored status and removes the shelving metadata. It recomputes effective status using current dependency and PR information. It preserves completed steps and the existing checkout, and does not execute a step, launch a session, rebase, or merge. If the checkout was removed separately, report that `plan start <id>` can recreate it from the retained branch after resume. Missing branch history is an error, not permission to create a replacement plan or reset progress.
+
+Both operations require a user request and preserve approval history. Repeated shelving or resuming a plan that is not shelved refuses without changes. They record the lifecycle change on the default branch, with the same checkout and publication constraints as claim commits, in both status-source modes. A protected default branch refusal must leave the operation visibly incomplete rather than report success. Readers and execution checks must honor default-branch shelving even when a retained plan checkout still contains its previous status. No command implicitly resumes a shelved plan.
+
+---
+
 ## Abandoning a plan
 
 A plan that will not be completed is abandoned with `specplane plan abandon <id>`:
@@ -179,6 +189,8 @@ A plan that will not be completed is abandoned with `specplane plan abandon <id>
    unless forced).
 3. Keep branch plan/<id> (it may hold useful work) unless branch deletion is requested.
 ```
+
+Abandonment retains plan records and committed work on the retained branch; removing the checkout is not deleting the plan. If the plan was shelved, remove its shelving metadata as part of the abandoned transition. There is no resume transition from abandoned. Archiving remains a separate filing operation, even when performed automatically here.
 
 Plans that depend on an abandoned plan become invalid until their `depends_on` is updated (see `feature/plan-status`).
 
@@ -192,7 +204,7 @@ When `dependency_mode: stack`, a dependent plan may start before its dependency 
 
 ```
 1. Every dependency must be done, except at most one. That one ("the base plan")
-   must have been started (stored status ready, in_progress, or review, and an
+   must not be shelved and must have been started (stored status ready, in_progress, or review, and an
    existing branch plan/<base-id>).
    Two or more unmerged dependencies → start fails:
    "Cannot stack on more than one unmerged dependency: <a>, <b>."
@@ -320,7 +332,7 @@ And the dependency and spec-approval checks are skipped, so spec edits made on t
 
 - If the worktree already exists at the expected path (e.g. from a crashed previous run), the start flow reuses it rather than failing.
 - The finish flow's rebase may fail with conflicts. In this case it is surfaced to the human and not automatically resolved.
-- Starting a plan whose stored status is `draft`, `done`, or `abandoned` fails: "Cannot start plan: `<id>` is `<status>`, not `ready`."
+- Starting a plan whose stored status is `draft`, `shelved`, `done`, or `abandoned` fails: "Cannot start plan: `<id>` is `<status>`, not `ready`."
 - Claim and abandon commits are made in the main checkout and need it on the default branch without changes to the plan's `PLAN.md`; otherwise the flow stops and says what to fix. They are pushed when a remote exists. Like `local_merge`, they write to the default branch directly, so they fail on a protected branch.
 - `merge: local_merge` with a protected main branch will fail at the git level. Teams using protected branches must use `merge: pull_request`.
 - Cleanup (branch and worktree deletion) is idempotent: running it on an already-cleaned-up plan does nothing.
