@@ -1,10 +1,11 @@
 ---
 id: architecture/codex-integration
 title: Codex extension implementation
-status: draft
+status: approved
 author: mixed
 implements: [codex:feature/codex-integration, feature/agent-integration]
 extends: [architecture/agent-skills]
+based_on: { architecture/agent-skills: "9f19c8d" }
 ---
 
 # Codex extension implementation
