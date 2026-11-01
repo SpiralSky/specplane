@@ -231,3 +231,15 @@ specplane validate                          # must report 0 errors
 ## License
 
 [Apache-2.0](LICENSE)
+
+## Experimental Codex / Dot cloud integration
+
+On the unmerged environment-integration branch, build the CLI (`cd packages/cli && npm ci && npm run build`) and invoke its verified local binary or `node /absolute/specplane-checkout/packages/cli/dist/cli.js`.
+
+- `specplane init --harness codex` installs repository-local `.agents/skills/specplane/SKILL.md` plus the managed AGENTS.md block. It preserves existing differing skills and user-owned text/settings; it does not modify Codex/Claude configuration, install MCP, or grant permissions.
+- `specplane init --harness none` explicitly suppresses all harness auto-detection, including an existing `.claude/` directory.
+- The Codex/Dot agent follows that skill and uses the CLI for read/validate/draft/status operations, then implements and tests in its authorized isolated checkout. Experimental development authorization is recorded separately; draft/review statuses are not promoted.
+- Final plan approval, finalization, and merge remain human decisions. No general approval-bypass mode is added.
+- This is a **CLI workflow integration**, not a live Codex background adapter. `plan run --harness codex` refuses rather than passing Claude flags to Codex. Existing Claude integration remains separate and capability-checked.
+
+See `docs/specifications/architecture/codex-integration.md` (draft) and `docs/work-records/2026-11-01-codex-integration.md` for measured verification and limits.

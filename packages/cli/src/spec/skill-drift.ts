@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { SpecplaneError } from "../errors.js";
-import { type Harness, HARNESSES, skillDirsIn } from "../harness/index.js";
+import { SpecplaneError, SpecNotFoundError } from "../errors.js";
+import { type Harness, HARNESSES, skillDirsIn, templatesDir } from "../harness/index.js";
 import { readFrontmatter } from "../frontmatter.js";
 import { finding } from "../report.js";
 import type { Config, Finding } from "../types.js";
@@ -52,7 +53,26 @@ export function checkSkillDrift(config: Config, root: string, registry: Harness[
       target = resolveSpecId(specId, config, undefined, root);
     } catch (e) {
       if (!(e instanceof SpecplaneError)) throw e;
-      warn(`Skill \`${skill}\`: contract anchor \`${contract}\` does not match a heading (\`${specId}\` does not resolve).`);
+      // Only a registered harness may supply its own installed skill's upstream contract.
+      // Local project contracts take precedence; no generic unresolved-reference exemption.
+      const owner = e instanceof SpecNotFoundError ? registry.find(h => h.detect(root) && h.skillDirs(root).includes(dir) && h.bundledContracts?.[specId]) : undefined;
+      const bundled = owner?.bundledContracts?.[specId];
+      if (owner && bundled) {
+        try {
+          const file = path.join(templatesDir(owner.name), bundled);
+          const bytes = fs.readFileSync(file);
+          if (!headingSlugs(readFrontmatter(file).body).includes(slug)) {
+            warn(`Skill \`${skill}\`: bundled contract anchor \`${contract}\` does not match a heading.`);
+          } else {
+            const hash = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+            if (!hash.startsWith(pin.toLowerCase())) warn(`Skill \`${skill}\`: bundled contract \`${contract}\` differs from pin \`${pin}\`; review the installed template and upstream contract.`);
+          }
+        } catch {
+          warn(`Skill \`${skill}\`: bundled contract \`${contract}\` is unavailable or invalid.`);
+        }
+      } else {
+        warn(`Skill \`${skill}\`: contract anchor \`${contract}\` does not match a heading (\`${specId}\` does not resolve).`);
+      }
       continue;
     }
     let body = "";

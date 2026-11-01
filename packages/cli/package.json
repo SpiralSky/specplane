@@ -30,7 +30,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\" && node -e \"require('fs').cpSync('../../harnesses/claude/templates','dist/templates/claude',{recursive:true})\"",
+    "build": "tsc && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\" && node -e \"require('fs').cpSync('../../harnesses/claude/templates','dist/templates/claude',{recursive:true})\" && node -e \"require('fs').cpSync('../../harnesses/codex/templates','dist/templates/codex',{recursive:true})\"",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "start": "node dist/cli.js",
     "prepack": "npm run build"

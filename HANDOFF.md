@@ -1,5 +1,10 @@
 # Session handoff
 
+## Codex/Dot integration update — 2026-11-01
+
+This isolated branch `dot/codex-integration-20261101` is based on verified conductor development tip `710bbd1`. Explicit Codex CLI workflow and neutral initialization are implemented and tested (322 tests); existing Claude settings/permissions remain untouched. This is not a Codex background-session adapter or native MCP integration. See [integration record](docs/work-records/2026-11-01-codex-integration.md). All final review and merge decisions remain human-only.
+
+
 ## Experimental conductor update — 2026-11-01
 
 The user authorized development without spec-approval gates; final merge remains human-only. Experimental conductor code and tests are implemented on `dot/complete-framework-20261031`. Changed specs are in review with prior approved blobs recorded; ADR 0005 is proposed. Plan/step statuses remain untouched and no finish/merge/push was performed. See [current work record](docs/work-records/2026-11-01-experimental-conductor.md). Earlier development-gate blockers below are superseded only for this authorized experimental task. Live Claude is absent and unverified; capability checks refuse to guess compatibility.

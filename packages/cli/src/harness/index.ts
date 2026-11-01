@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SpecplaneError } from "../errors.js";
 import { claude } from "./claude.js";
+import { codex } from "./codex.js";
 
 /** Collects the `Created`/`Updated`/`Skipped` lines printed by `init`. */
 export class Report {
@@ -38,6 +39,8 @@ export interface Harness {
   rulesFile: string;
   /** Path of the bundled rules template relative to `templatesDir(name)`; enables the rules-file freshness check. */
   rulesTemplate?: string;
+  /** Upstream contract snapshots for this harness’s installed skills only; template-relative paths. */
+  bundledContracts?: Record<string, string>;
   /** Harness-specific Workflows line for the standing instructions (default: neutral). */
   workflowsLine?: string;
 }
@@ -66,7 +69,7 @@ export function templatesDir(name: string): string {
   return path.resolve(here, "..", "templates", name);
 }
 
-export const HARNESSES: Harness[] = [claude];
+export const HARNESSES: Harness[] = [claude, codex];
 
 export const NO_HARNESS_HINT =
   "No `.claude/` directory found. To enable Claude Code integration, run `specplane init --harness claude`.";
@@ -77,6 +80,7 @@ export function selectHarnesses(
   requested: string | undefined,
   registry: Harness[] = HARNESSES,
 ): Harness[] {
+  if (requested === "none") return [];
   if (requested !== undefined) {
     const h = registry.find((x) => x.name === requested);
     if (!h) throw new UnknownHarnessError(requested, registry.map((x) => x.name));

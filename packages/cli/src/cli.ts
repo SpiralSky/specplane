@@ -73,6 +73,7 @@ plan
   .action((id, opts) => planNextCommand(id, opts));
 plan.command("run <ids...>")
   .description("Run isolated plan steps through a capability-checked harness; never approve, finish or merge")
+  .option("--harness <name>", "session adapter: claude; codex CLI-only integration fails closed")
   .option("--until <target>", "step or finish", "step")
   .option("--max-steps <n>", "maximum sessions per plan", "1")
   .option("--max-parallel <n>", "maximum distinct plans in flight")

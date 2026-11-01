@@ -16,7 +16,7 @@ function walk(dir: string, prefix = ""): string[] {
   });
 }
 
-test("packed tarball installs and `init --harness claude` works end to end", () => {
+test("packed tarball installs Claude and Codex integrations end to end", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-pack-"));
   try {
     const packDir = path.join(tmp, "pack");
@@ -74,6 +74,15 @@ test("packed tarball installs and `init --harness claude` works end to end", () 
     const out2 = run(bin, ["init", "--harness", "claude"], repo);
     assert.doesNotMatch(out2, /Updated/);
     assert.doesNotMatch(out2, /Created/);
+
+    const claudeSettingsBefore = fs.readFileSync(path.join(repo, ".claude", "settings.json"), "utf8");
+    const codexOut = run(bin, ["init", "--harness", "codex"], repo);
+    assert.match(codexOut, /Codex\/Dot CLI workflow integration installed/);
+    assert.ok(fs.existsSync(path.join(repo, ".agents", "skills", "specplane", "SKILL.md")));
+    assert.equal(fs.readFileSync(path.join(repo, ".claude", "settings.json"), "utf8"), claudeSettingsBefore);
+    assert.equal(fs.existsSync(path.join(repo, ".codex", "config.toml")), false);
+    const codexAgain = run(bin, ["init", "--harness", "codex"], repo);
+    assert.doesNotMatch(codexAgain, /Created|Updated/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

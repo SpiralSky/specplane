@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { run as git } from '../git/exec.js';
 import { defaultBranch } from '../git/repo.js';
@@ -10,7 +11,7 @@ import { planNext, type PlanNext } from './next.js';
 import { acquireRunLock, LockRefused, positiveLimit, runGate, type GateResult } from './gate.js';
 import { attentionFor, dispatchAlerts, type Attention } from './alerts.js';
 export interface RunOptions {
- until?:string; maxSteps?:number|string; maxParallel?:number|string; maxBudgetUsd?:number|string;
+ harness?:string; until?:string; maxSteps?:number|string; maxParallel?:number|string; maxBudgetUsd?:number|string;
  force?:boolean; reason?:string; step?:number|string; dryRun?:boolean; pollMs?:number; timeoutSeconds?:number|string; signal?:AbortSignal;
 }
 export interface RunResult { plan:string;ok:boolean;code:number;action:string;reason:string;steps:number;sessionId?:string;checkout?:string;commands?:{attach:string;logs:string;stop:string}; reservedBudgetUsd:number }
@@ -51,7 +52,10 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
   if(!['done','skipped'].includes(target.fm.status))throw new Error('--step rerun only selects a completed step; pending work uses normal ordering.');
   return {...n,step:{number:targetStep,title:target.fm.title,status:target.fm.status,file:path.relative(n.checkout,target.file)},action:'spawn_step' as const};
  };
- const adapter=deps.adapter??createClaudeSessionAdapter({root,backend:config.execution.backend});
+ const selected=opts.harness??(fs.existsSync(path.join(root,'.agents/skills/specplane/SKILL.md'))?'codex':'claude');
+ if(!['claude','codex'].includes(selected))throw new Error('Unknown session harness; expected claude or codex.');
+ const unsupported=()=>{throw new Error('Codex/Dot integration supports CLI workflows, not a background session adapter. Run the plan step in your existing isolated session; no agent was launched.');};
+ const adapter:SessionAdapter=deps.adapter??(selected==='claude'?createClaudeSessionAdapter({root,backend:config.execution.backend}):{name:'codex',supportsBudget:false,checkCapabilities:unsupported,spawn:unsupported,observe:unsupported,commands:()=>({attach:'Use your existing Codex/Dot session',logs:'Use your existing session history',stop:'Stop in your existing session'})});
  const log=deps.log??(()=>{}); const sleep=deps.sleep??(ms=>new Promise(r=>setTimeout(r,ms))); const now=deps.now??Date.now;
  const initial=next();
  let steps=0, reservedBudgetUsd=0, sessionId:string|undefined;

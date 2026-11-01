@@ -112,7 +112,7 @@ export function runInit(
   const report = new Report(root);
   for (const h of selected) h.install(root, report);
   out.push(...report.lines);
-  if (selected.length === 0) out.push(NO_HARNESS_HINT);
+  if (selected.length === 0) out.push(opts.harness === "none" ? "Harness integration explicitly disabled; only neutral scaffolding written." : NO_HARNESS_HINT);
   return out;
 }
 

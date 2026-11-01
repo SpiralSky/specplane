@@ -59,5 +59,3 @@ Real Claude background launch/resume/JSON schema and monetary budget enforcement
 - User-authorized experimental branch stacking is next. This checkpoint is verified implementation, not a plan-finalization or real Claude compatibility certification.
 
 Post-check correction: harness notifications now emit a local stderr alert (injectable in tests), without invoking Claude or changing settings. This is a local notification, not an external delivery guarantee.
-
-Verification after local-notify correction: full CLI suite 317/317 passing; no real model sessions or external notifications invoked.
