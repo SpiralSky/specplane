@@ -2,10 +2,12 @@
 id: architecture/claude-integration
 title: Claude Code integration implementation
 status: review
-author: llm
+author: mixed
 implements: [claude:feature/claude-integration, feature/agent-integration]
 based_on: { "claude:feature/claude-integration": "fd9ae8f", feature/agent-integration: "434c3f9" }
 ---
+
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
 
 <!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
@@ -17,22 +19,14 @@ This spec defines the concrete files and structure that implement the Claude Cod
 
 ## Files produced
 
+The extension package is a Claude plugin containing a mod, the compatible shared core, shared workflow procedures/contract snapshots, reasoning skills, and policy hooks. `harnesses/claude/plugin/` is the primary package, not merely an optional pane. Repository files below are supporting assets and reasoning fallbacks; a mechanical workflow must not also install a prompt skill under its native command's name. Detect and report legacy name collisions during explicit upgrade rather than silently shadowing one implementation.
+
 Files installed into a target repository:
 
 ```
 .claude/
   skills/
-    spec-assist/SKILL.md
-    spec-draft-architecture/SKILL.md
-    plan-create/SKILL.md
-    plan-step/SKILL.md
-    plan-finish/SKILL.md
-    validate/SKILL.md
-    approve/SKILL.md
-    plan-start/SKILL.md
-    decision-new/SKILL.md
-    plan-status/SKILL.md
-    plan-abandon/SKILL.md
+    specplane-reason-<workflow>/SKILL.md  # reasoning only; distinct from public commands
   rules/
     specplane.md                  # standing instructions (Specplane-owned; overwritten on update)
   hooks/
@@ -46,11 +40,11 @@ Files installed into a target repository:
 AGENTS.md                         # managed block written by base `specplane init`
 ```
 
-Skills in `.claude/skills/<name>/SKILL.md` are Claude Code's current skill format; each is invocable as `/<name>`. (The older `.claude/commands/<name>.md` location still works but is not used.) `.claude/settings.local.json` is never read or written.
+Skills in `.claude/skills/<name>/SKILL.md` provide the reasoning procedures used by the extension. Native handlers own mechanical public commands. The installed set excludes conflicting prompt commands; keep reasoning assets under distinct internal names where necessary. `.claude/settings.local.json` is never read or written.
 
 **User-owned files are not edited.** Specplane never writes `CLAUDE.md`. Everything above except `AGENTS.md` and `.claude/settings.json` is a Specplane-owned file that `init` may overwrite; `AGENTS.md` changes only inside its managed block (`architecture/agent-skills#delivery`) and `settings.json` only by § Settings merge.
 
-Everything above is plain repository content, so it also applies in Claude Code cloud sessions, which load the repository's `.claude/` hooks, rules, and skills but do not install plugins. The optional plugin (§ Live view and Specplane mode) is a local-only addition and nothing depends on it.
+Repository content can deliver fallback skills and settings hooks. A cloud/headless session must separately verify that the extension package, mod, core, and required APIs are available. Do not infer extension availability from `.claude/`. A missing mod disables native command dispatch, not manual CLI operations; UI features are optional and surface-dependent.
 
 ### Template source
 
@@ -64,13 +58,13 @@ harnesses/claude/
     rules/specplane.md
     skills/<name>/SKILL.md        # one per skill
     hooks/<script>.sh
-  plugin/                         # optional Claude Code plugin (§ Live view and Specplane mode); not installed by init
+  plugin/                         # primary extension: mod, bundled core, reasoning assets; optional UI
   tests/
     hooks.test.sh                 # hook script tests (see § Testing)
     check-sync.sh                 # template ↔ dogfood copy check
 ```
 
-Paths under `templates/` mirror their install paths under `.claude/` (`templates/skills/plan-step/SKILL.md` → `.claude/skills/plan-step/SKILL.md`; `templates/rules/specplane.md` → `.claude/rules/specplane.md`). Templates contain no placeholders: skills and hooks resolve every path from config at run time (`architecture/agent-skills#config-resolution-in-skills`), so the same bytes work in every repository.
+Paths under `templates/` mirror their install paths under `.claude/` (`templates/skills/specplane-reason-plan-step/SKILL.md` → `.claude/skills/specplane-reason-plan-step/SKILL.md`; `templates/rules/specplane.md` → `.claude/rules/specplane.md`). Templates contain no placeholders: skills and hooks resolve every path from config at run time (`architecture/agent-skills#config-resolution-in-skills`), so the same bytes work in every repository.
 
 The CLI package bundles `harnesses/<name>/templates/` at build time (see § `specplane init` output). The Specplane repository dogfoods the harness: its own `.claude/skills/`, `.claude/hooks/`, and `.claude/rules/specplane.md` are byte-identical copies of the templates, enforced by `check-sync.sh`. Its `CLAUDE.md`, if any, is the maintainers' own file.
 
@@ -140,9 +134,11 @@ The body restates the contract from `architecture/agent-skills` and adds only Cl
 
 The `plan-step` and `plan-finish` skills write and read `<plans.dir>/<plan-id>/spec-gaps.md` exactly as `architecture/agent-skills` defines it; the gap record is harness-neutral, so no Claude-specific file or command is involved, and a proposal is a `spec-gaps.md` `proposal` entry rather than a `feature-spec-proposals.md` file.
 
-### Per-skill frontmatter and Claude Code detail
+### Workflow reasoning frontmatter and Claude Code detail
 
-`disable-model-invocation: true` means Claude never runs the skill on its own initiative; only the user's `/<name>` invokes it. Every skill that writes files, commits, or runs a plan flow sets it.
+The table names workflow contracts, not a requirement to install public prompt commands. Only reasoning phases get an internal `specplane-reason-<workflow>` skill. Native handlers own all public workflow command names; mechanical workflows have no reasoning skill. Confirmation is collected by host code, not delegated to a model. Historical skill-specific invocation flags below apply only to reasoning assets and fallback delivery.
+
+Invocation controls apply to the delivered reasoning assets, not native commands. A user-only fallback skill may use `disable-model-invocation: true`. An internal reasoning asset invoked by the extension's agent workflow must remain accessible through that supported invocation path; do not hide it from the very agent expected to load it. The native handler enforces user authorization and mechanical preconditions independently of skill visibility.
 
 | Skill | `argument-hint` | `disable-model-invocation` | Claude Code detail |
 |-------|-----------------|----------------------------|--------------------|
@@ -150,7 +146,7 @@ The `plan-step` and `plan-finish` skills write and read `<plans.dir>/<plan-id>/s
 | `spec-draft-architecture` | `[feature-spec-id ...]` | `true` | Writes the draft with `Write`; lists GAP markers in the output. |
 | `plan-create` | `[goal]` | `true` | Uses `AskUserQuestion` for the slug, spec, and dependency choices when available. |
 | `plan-step` | `[plan-id] [--unattended]` | `true` | Session-mode detection (below); subagent execution when the step sets `use_subagent: true`; writes `spec-gaps.md` entries with `Write`/`Edit` and lists their IDs in HANDOFF.md. |
-| `plan-finish` | `[plan-id]` | `true` | Confirms with `AskUserQuestion` in attended sessions; reports the open `spec-gaps.md` entries the CLI lists. Without the CLI it prints the manual local-merge or push-and-PR sequence, labelled "manual mode: no stale-base or divergence checks", instead of stopping. |
+| `plan-finish` | `[plan-id]` | `true` | Agent assesses acceptance evidence and explains gaps; the native handler collects confirmation and executes the validated finish operation. |
 | `validate` | — | `false` | Read-only; may run whenever validation results are relevant. |
 | `approve` | `<id>... [--reopen]` | `true` | Runs `spec approve`, `plan approve`, or `decision accept` by resolved kind; shows each refusal with its fix; never edits `status` itself. |
 | `plan-start` | `[plan-id]` | `true` | Runs the start flow; when the backend is a worktree, tells the user to open a new session in the checkout it reports. |
@@ -158,14 +154,14 @@ The `plan-step` and `plan-finish` skills write and read `<plans.dir>/<plan-id>/s
 | `plan-status` | — | `false` | Read-only (`specplane plan list --live`); may run whenever plan state is relevant. |
 | `plan-abandon` | `[plan-id]` | `true` | Confirms with `AskUserQuestion`; asks before deleting the branch. |
 
-**Rule for `disable-model-invocation`.** `false` only for read-only or analysis skills (`spec-assist`, `plan-status`, `validate`), which Claude may run whenever they are relevant. `true` for any skill that writes files, commits, merges, or spends quota. Hiding a skill from the model does not hide the CLI: the project instructions route natural-language plan requests to `specplane plan <op>` (`architecture/agent-skills` § Standing instructions, routing table).
+**Invocation rule.** The table's flags describe user-only fallback skills; internal reasoning assets use the visibility needed by their supported host invocation. Neither flag grants permission to mutate, approve, finish, merge, or spend quota. Mechanical `approve`, `plan-start`, `plan-status`, and `plan-abandon` contracts have native handlers and no reasoning skill; their table rows describe operation behavior only. Hiding a fallback skill does not hide the manual CLI.
 
 ### Shared preamble (`## Preconditions`)
 
 Every skill begins with the same two checks:
 
 1. **Specplane configured**: if `.specplane/config.yaml` does not exist at the repository root (an `AGENTS.md` alone does not count; many repositories have one without Specplane), say "This repository is not set up for Specplane. Run `specplane init --harness claude`." and stop (`feature/agent-integration`: skills are no-ops without Specplane).
-2. **CLI availability**: run `command -v specplane`. If present, use the CLI for resolution, validation, and plan flows. If absent, follow the same rules by hand from the format and flow specs (`architecture/agent-skills#config-resolution-in-skills`) and say once that the CLI was not found. For `/validate` without the CLI, check frontmatter and IDs by hand against `architecture/file-formats` and label the result "manual check". `/plan-finish` without the CLI runs its manual mode (labelled "manual mode: no stale-base or divergence checks").
+2. **Core availability**: native handlers use their bundled compatible core, independently of a global `specplane` on PATH. Missing/incompatible core disables the handler before mutation; never hand-edit plan records as an emulation of deterministic dispatch. Reasoning-only fallback sessions may use a verified standalone CLI. If neither is available, report the limitation and offer explicitly labeled manual instructions without claiming that checks or native commands ran.
 
 ### Session mode (attended vs. unattended)
 
@@ -335,7 +331,9 @@ Rules:
 
 ## Live view and Specplane mode (optional plugin)
 
-`harnesses/claude/plugin/` is a Claude Code plugin with a hooks module (Claude Code's plugin hook API), published from the Specplane repository's marketplace. It is opt-in and local-only: cloud sessions do not install plugins, and everything in this section is a convenience on top of files that already work without it. A repository may recommend it through `.claude/settings.json` (`extraKnownMarketplaces`, `enabledPlugins`); `init` does not add these entries.
+This historical heading is retained for existing plan anchors. Optionality refers to the UI features below; the mod is the primary command-dispatch mechanism.
+
+`harnesses/claude/plugin/` is the extension package with a mod hooks module. Its pane and mode display are optional conveniences; deterministic commands do not require a pane. A repository may recommend the package through `.claude/settings.json` (`extraKnownMarketplaces`, `enabledPlugins`); installation/enablement is explicit and never inferred from a directory. Cloud/headless support follows the host's actual package delivery and API availability, with text output when drawing is unavailable.
 
 ### Data source
 
@@ -399,14 +397,14 @@ A memory entry that disagrees with the plan files is stale; the plan files win.
 
 ## `specplane init` output for Claude Code
 
-The Claude harness is set up when `specplane init` is run with `--harness claude`, or when a `.claude/` directory already exists (the detection rule for this harness). In that case `init` additionally writes:
+The Claude harness is set up only when `specplane init --harness claude` is explicitly requested. Detection of `.claude/` is inventory/validation evidence, not installation or execution selection. That explicit operation delivers the versioned extension package through the supported host installation flow and reports any remaining enablement step; it also writes supporting repository assets:
 
 - `.claude/skills/<name>/SKILL.md` for each skill, `.claude/rules/specplane.md`, and `.claude/hooks/*.sh` (mode `0755`). These are Specplane-owned: `init` creates them if absent and overwrites them if they differ from the bundled templates (`Updated <path>`), so re-running `init` after upgrading the CLI updates the harness.
 - The registrations via § Settings merge.
 
 It never creates or edits `CLAUDE.md`. It prints one `Created`/`Updated`/`Skipped` line per file (as base `init` does), followed by "Claude Code integration files written to `.claude/`."
 
-If the harness is neither requested nor detected, `init` creates only the base files and prints: "No `.claude/` directory found. To enable Claude Code integration, run `specplane init --harness claude`."
+Without explicit selection, `init` creates only base files and reports neutral initialization, regardless of detected harnesses.
 
 ### CLI implementation
 
@@ -432,6 +430,18 @@ Implemented by a plan that depends on the reference CLI core plan (not by the pl
 - The plugin has its own tests (`harnesses/claude/plugin/`, run with `claude plugin test`): mode switching, the `step`-mode edit denials, and pane rows built from a fixture `plan list --json` output.
 - `harnesses/claude/tests/check-sync.sh` diffs each file under `templates/` against its installed path in the Specplane repository (per § Template source) and exits 1 listing any difference or missing file. The `settings.json` comparison is a subset comparison, not byte-identical: every registration in the template must be present in the installed `.claude/settings.json`, which may contain further user entries.
 - Skill content is checked for drift by `specplane validate` through the contract comment (`architecture/agent-skills#keeping-skills-in-sync-with-specs`); the content itself is still reviewed by hand when a pin goes stale.
+
+## Deterministic command dispatch
+
+Use the supported Claude mod API, rather than prompt interception, for public command dispatch. In `session.start`, call `$.command.register`; handle each name with a filtered `command.run` handler. Mechanical handlers parse arguments, call the bundled core, and return `{ text }` without a model call or delegation to the default prompt path. Register only non-built-in names, report collisions, and keep handlers unavailable if required APIs are missing. Stateful operations use the shared locks and revalidate plan state; optional immediate execution must not race a plan writer.
+
+Reasoning commands prepare the exact step/context through the core and explicitly invoke the installed reasoning procedure through the verified host turn/tool mechanism. After agent work, core validators check the structured outcome and actual repository state before step recording. Human approvals use the host's explicit user interaction and the core's approval transition; model-generated text is never approval evidence. Agent-invoked tools call the same validated operations but cannot manufacture a user command or an approval.
+
+`PreToolUse`/mod tool hooks enforce policy around agent tools; they are not command dispatchers. Direct user slash commands and agent Skill invocations have different paths and are tested independently. Capture model identity at each contributing action, preserving all models across switches instead of attributing all edits to the final model.
+
+Compatibility is checked against the installed host's mod declarations and named tested versions. Documentation establishes the design, not live implementation compatibility. Tests must assert zero model calls for mechanical handlers, direct text results, explicit reasoning delegation, collision handling, missing-API refusal, approval interaction, and headless behavior.
+
+Design sources inspected 2026-11-01: [Mods overview](https://code.claude.com/docs/en/plugins/mods/overview), [Add a command](https://code.claude.com/docs/en/plugins/mods/api#add-a-command), and [Mods reference](https://code.claude.com/docs/en/plugins/mods/reference). The mod API directly supports functions running on commands without a Claude turn, so a mod packaged as a plugin is preferred over settings-hook interception.
 
 ## Experimental Claude spawn adapter
 

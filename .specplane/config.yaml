@@ -7,6 +7,9 @@ spec_roots:
   - name: claude
     path: harnesses/claude/specifications
     extends: base
+  - name: codex
+    path: harnesses/codex/specifications
+    extends: base
 
 specs:
   feature:

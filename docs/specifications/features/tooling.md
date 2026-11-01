@@ -5,11 +5,21 @@ status: approved
 author: mixed
 ---
 
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
+
 # CLI behaviour
 
 This spec defines the behaviour of the Specplane CLI (`specplane`). The CLI is a convenience layer over the format; it is never required. All operations it performs can be done by hand.
 
 This spec is **language-agnostic**: it defines inputs, outputs, exit codes, and error cases without prescribing an implementation language.
+
+## Manual and extension interfaces
+
+The standalone CLI supports the complete manual lifecycle without a harness: create, inspect, validate, approve, prepare a checkout, record a step, and explicitly finish through the configured gates. Approval commands remain explicit human decisions whether invoked manually or through an extension. The CLI never launches or chooses an agent runtime; `plan run` and `plan start --run` are extension automation concerns and are not standalone commands.
+
+Extensions expose mechanical operations through deterministic handlers, reasoning workflows through deterministic preparation and validation around agent work, and human decisions through explicit confirmation followed by deterministic transitions. Unsupported native dispatch is reported as unavailable rather than represented as a prompt-only equivalent. Existing host commands, including session resume, retain their host behavior.
+
+Contribution inspection presents all recorded human/model contributors and their revision-linked roles, with session and model details when known. It distinguishes missing historical attribution from verified records and keeps approval provenance separate. Model display labels have no policy effect.
 
 ---
 
@@ -32,7 +42,7 @@ Scaffolds the repository for Specplane use.
 **Inputs**: none. May be run from anywhere inside a git repository.
 
 **Options**:
-- `--harness <name>`: also create the integration files for the named agent harness (e.g. `claude`). The harness's overlay specs define which files these are. Without this option, a harness is set up only if it is detected (each harness's overlay defines its detection rule).
+- `--harness <name>`: explicitly install or refresh the named harness integration (e.g. `claude` or `codex`). The overlay defines its files and package delivery. Without this option, initialize neutral scaffolding only, regardless of detected integrations. `--harness none` explicitly requests the same neutral behavior. Unknown names fail before any write.
 
 **What it creates** (paths shown with default config; if a config file already exists, its `spec_roots`, `plans.dir`, and `decisions.dir` are used instead):
 ```
@@ -47,7 +57,7 @@ The `archive/` folder and the decisions directory are created on first use.
 
 **Behaviour**:
 - Does not overwrite existing files, except Specplane's own: the managed block in `AGENTS.md` (created, appended, or updated; text outside it is untouched) and harness files the harness's overlay declares Specplane-owned. Reports each file it creates, updates, or skips.
-- Re-running `init` after upgrading Specplane updates the standing instructions and harness files.
+- Re-running `init` updates shared standing instructions. Harness files are updated only when that harness is explicitly selected. Co-installed harnesses never change the shared workflow guidance by installation order.
 - Does not create a `.git` directory or initialise git.
 
 **Exit codes**:

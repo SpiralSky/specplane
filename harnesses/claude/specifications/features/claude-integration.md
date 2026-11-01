@@ -7,6 +7,8 @@ extends: [feature/agent-integration, feature/plan-steps, feature/spec-policies]
 based_on: { feature/agent-integration: "434c3f9", feature/plan-steps: "00332af", feature/spec-policies: "beebc9c" }
 ---
 
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
+
 <!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Claude Code integration
@@ -41,9 +43,11 @@ Specplane does not create or edit `CLAUDE.md`; it belongs to the repository's ma
 
 ## Slash commands
 
-The base spec (`feature/agent-integration`) defines which workflow integrations Specplane requires and their policy contracts. In Claude Code, each integration is exposed as a **slash command** implemented as a project skill committed to the repository.
+The base spec (`feature/agent-integration`) defines which workflow integrations Specplane requires and their policy contracts. In Claude Code, a plugin containing a mod provides deterministic slash-command handlers and bundles a compatible Specplane core. Skills deliver reasoning phases; they do not implement mechanical commands by asking the agent to reconstruct a procedure.
 
-Project skills are the chosen mechanism for this harness because they version with the repository, appear automatically in the slash command menu, and are auditable markdown. Each skill references the contract it implements by anchor (for example, the `plan-step` contract) and pins the spec that defines it, so the skill records which contract version it implements and `validate` warns when that contract moves. Skills add Claude Code–specific invocation detail only and must not redefine policy — they defer to the base specs.
+Each workflow references and pins every applicable shared procedure and its Claude-specific contract. The extension packages these procedures for consumers and adds host invocation details without redefining policy. Mechanical commands parse arguments, invoke validated core operations, and display results without a model turn. Reasoning workflows invoke agent work only after deterministic preparation; final recording and policy checks run through the core. Approval commands collect the human decision directly and never use model output as authorization.
+
+Host built-ins, including `/resume`, are not overridden. Commands are registered only on supported surfaces; missing native dispatch is reported explicitly, with the manual CLI available. Project skills can provide reasoning-only fallback workflows but must not masquerade as native deterministic handlers. Multiple contributing models are retained even when the user switches models inside a session.
 
 | Slash command | Base integration | Description |
 |---------------|-----------------|-------------|
@@ -96,18 +100,18 @@ A **status line** shows the current plan, step progress, and blockers when the s
 
 A Claude Code session works on one plan, one step at a time, whether it runs in a local worktree, as a subagent, or as a cloud session. Several sessions may work on different plans in parallel; only one works on a given plan at a time. A session that finds its plan advanced elsewhere stops rather than overwriting that work. Sessions on other machines publish each finished step, so the next session and the live view see it.
 
-Everything required for this (standing instructions, slash commands, hooks) works in cloud sessions. The live view and Specplane mode below are optional local additions.
+Cloud sessions use the same shared workflow contract, but extension delivery, native command handlers, and hooks must be verified for that surface. Missing native dispatch is reported explicitly; reasoning-only workflows and the manual CLI remain available where supported. The live view and mode display below are optional UI features, not requirements for executing a step.
 
 ---
 
 ## Live view and Specplane mode (optional)
 
-An optional Claude Code plugin adds:
+Optional interface features of the Claude extension add:
 
 - **Live view**: a panel beside the chat listing active plans across all worktrees, remote branches, and cloud sessions, with step progress, the next step, blockers, and which agent session made the last step. It is read-only and offers the command to continue a plan in its checkout.
 - **Specplane mode**: a session mode (`step`, `spec`, or off). `step` mode, entered automatically in a plan checkout, keeps the agent's edits inside the checkout and the current step and shows the step's acceptance-criteria progress. `spec` mode shows the authorship policy and spec templates while writing specs.
 
-The plugin only adds visibility and tightens existing rules. Without it, every rule still holds.
+These interface features add visibility and tighten existing rules; command execution does not depend on enabling a pane. Without the extension, the complete manual CLI remains available and repository policy still applies. Availability in cloud/headless sessions is declared and checked separately from interactive UI support.
 
 ---
 

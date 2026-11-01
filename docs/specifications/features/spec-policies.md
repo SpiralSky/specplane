@@ -5,6 +5,8 @@ status: approved
 author: mixed
 ---
 
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
+
 # Spec policies: authorship, ordering, and the architecture-leak guard
 
 This spec defines the three policies that govern how specs are written and promoted. All policies have defaults that can be changed in config (see `feature/configuration`).
@@ -49,6 +51,10 @@ Revising an existing spec follows the same flow: the user's requested change is 
 ### Interaction between `authorship` and `llm_role`
 
 The `authorship` setting constrains who the final author is. The `llm_role` setting constrains what the LLM may do during the writing process. A spec with `authorship: user` and `llm_role: review` means: a human writes the spec and the LLM may help. With `llm_role: assist`, the human decides the content and the LLM writes the text, so `author: mixed` is consistent with `authorship: user`. A spec with `authorship: user` and `llm_role: none` means: the LLM is a read-only observer.
+
+The two settings apply together: `authorship: llm` or `either` never relaxes `llm_role`. Read-only under `none` permits reading and implementing the spec; it prohibits editing, reviewing, and suggesting changes to its body.
+
+Contribution provenance (`feature/spec-system`) records multiple human and model contributors independently of these permissions. Every model that actually contributes is retained, including a model switched in during one session and a model making a later revision. Model display names are cosmetic; recorded model and session identifiers support traceability and analytics, not authorization. Approval is a separate human decision and does not itself confer authorship.
 
 ### The `author` frontmatter field
 

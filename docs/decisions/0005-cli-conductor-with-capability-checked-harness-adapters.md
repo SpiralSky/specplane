@@ -1,13 +1,13 @@
 ---
 id: decision/0005
-title: "CLI conductor with capability-checked harness adapters"
+title: "Shared conductor with extension-owned harness adapters"
 date: 2026-11-01
 status: proposed
 superseded_by: ""
 related_specs: [architecture/reference-cli, feature/plan-execution]
 ---
 
-# CLI conductor with capability-checked harness adapters
+# Shared conductor with extension-owned harness adapters
 
 ## Context
 
@@ -19,11 +19,15 @@ A. A loop per harness: quick initial implementation, but duplicates safety and s
 
 B. A CLI conductor with a capability-checked adapter: one testable gate and state machine across harnesses.
 
+D. A shared core/conductor bundled in harness extensions: one gate/state machine, adapters supplied by the host extension, and a standalone manual CLI without runtime selection or provider discovery.
+
 C. External orchestrator only: useful for external backends, but does not implement the worktree conductor.
 
 ## Decision
 
-Experiment with option B. Resolve status from existing plan files and git, serialize each plan under a lock, and launch only in its exact plan branch. Never invoke approval, finish, merge, rebase, push, or cleanup. External backends remain responsible for their own sessions. Claude support fails closed unless local capabilities and observation schema match; no installed Claude version was available for live verification.
+Use option D as the target architecture. An extension is any plugin, extension, or mod providing workflows inside a harness. It bundles a compatible core and supplies its adapter directly. Standalone Specplane supports the full manual lifecycle, including explicit approvals, and never chooses or launches a runtime. There is no provider registration protocol. An entry point offering multiple hosts requires explicit selection; a single-host extension already supplies the host.
+
+Use Claude's plugin/mod native command API for deterministic slash dispatch, with skills only for reasoning phases and hooks for policy. Codex native command support remains capability-dependent and background execution remains unavailable until verified. Resolve status from plan files and git, serialize each plan under a lock, and launch only in its exact plan branch. The unattended conductor never invokes approval, finish, merge, rebase, push, or cleanup; the step procedure can publish where its shared contract requires it. External backends own their sessions. This ADR remains proposed; these edits do not record acceptance.
 
 ## Consequences
 

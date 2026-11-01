@@ -5,6 +5,8 @@ status: review
 author: mixed
 ---
 
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
+
 <!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Configuration schema and defaults
@@ -408,7 +410,9 @@ Then an error is reported: "Spec root `shared`: path `../shared-specs` is outsid
 
 ## Experimental conductor configuration
 
-`execution.session_mode` is `auto` (harness detection) or `unattended` (forces unattended). Neither value permits downgrading an unattended session to attended or bypassing approval policy.
+`execution.session_mode` is `auto` (use interaction availability reported by the invoking extension) or `unattended` (forces unattended). Unknown interaction availability is unattended. This setting never selects a harness. Neither value permits downgrading an unattended session to attended or bypassing approval policy.
+
+Execution backend, isolation, limits, and notification preferences are shared policy consumed by manual operations or extensions as applicable. Extensions supply their host context and capabilities explicitly. The core has no configured or detected default runtime and no external provider registration. Unsupported capabilities are reported before execution, without rewriting configuration or choosing a different host.
 
 `execution.notify.on` selects `blocked`, `consideration`, `finish_ready`, `done`, or `failed`. The default selects all except `done`. `consideration` groups gap decisions, restack, divergence, dirty worktrees, and execution limits. Ordinary progress is not an alert. `transport` is `none` (default, no delivery/cache), `harness` (adapter callback only), or `command` (the user's configured command). Command transport requires a nonblank command. `dedupe` defaults true. Delivery failures are logged without failing the run. With dedupe enabled, the attempt is recorded before delivery, because an error or crash cannot prove non-delivery; uncertain attempts are not automatically resent. A malformed cache suppresses delivery until inspected. Resolved considerations are removed so recurrence alerts again.
 

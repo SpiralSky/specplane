@@ -2,10 +2,12 @@
 id: architecture/agent-skills
 title: "Agent skills: config resolution and harness-neutral prompt contracts"
 status: review
-author: llm
+author: mixed
 implements: [feature/agent-integration]
 based_on: { feature/agent-integration: "434c3f9" }
 ---
+
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
 
 <!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
@@ -14,6 +16,8 @@ based_on: { feature/agent-integration: "434c3f9" }
 This spec defines the content of Specplane's workflow integrations (skills) independently of any agent harness: the policy checks each one performs, the procedure it follows, and what it outputs. A harness overlay defines how these contracts are packaged and invoked (file location, file format, invocation syntax, subagent use) — for Claude Code, see `claude:architecture/claude-integration`.
 
 Each harness implementation must preserve the policy checks, steps, and outputs defined here. It may add harness-specific detail but must not remove or reorder required steps.
+
+An extension is any host plugin, extension, or mod delivering these workflows inside its harness. It bundles a compatible shared core and the complete applicable procedures. Mechanical phases run in code; only phases requiring reasoning are delegated to the agent. User command handlers, agent tools, and manual CLI commands call the same validated core operations. A prompt asking the agent to reconstruct a mechanical operation is not a deterministic implementation.
 
 ---
 
@@ -47,18 +51,18 @@ The skill should call the CLI (`specplane`) for resolution, validation, and plan
 
 ### Operations and skills
 
-Every CLI operation is either wrapped by a skill, CLI-only, or not user-facing. A skill exists only where the operation needs judgment, a confirmation, or context the CLI cannot supply; a skill that merely forwards a command would cost context in every session for no gain. CLI-only operations are run with `specplane <command>` from a shell, and the standing instructions route natural-language requests to them (§ Standing instructions).
+Every CLI operation is either exposed by an extension handler, CLI-only, or an internal primitive. An extension handler uses the bundled core for mechanical phases and host UI for explicit human decisions. Only phases requiring judgment or writing are skills; confirmation alone does not require a model. The contracts named in the table below are workflow contracts, not requirements to install public prompt skills. CLI-only operations remain accessible through the shell.
 
-| Operation | Skill | Reason |
+| Operation | Workflow contract / dispatch | Reason |
 |-----------|-------|--------|
 | `plan new` | `plan-create` | Needs the goal, spec choices, and step files, which the skill writes. |
-| `plan list` (`--live`) | `plan-status` | The skill summarises and highlights the current plan. |
+| `plan list` (`--live`) | `plan-status` native handler | Format and highlight structured state without a model; optional interpretation is separate. |
 | `plan next` | not user-facing | Read-only resolver for `plan-step` and for conductors; its JSON is machine input. |
 | `plan step-done` | not user-facing | Called by `plan-step` to write the HANDOFF.md section and the step commit. |
-| `plan start` | `plan-start` | Tells the user where to continue the plan. |
+| `plan start` | `plan-start` native handler | Prepare the checkout and display where to continue without a model. |
 | `plan finish` | `plan-finish` | Needs confirmation and acceptance-criteria evidence; has a manual mode without the CLI. |
-| `plan approve`, `spec approve`, `spec reopen`, `decision accept` | `approve` | Human decision; user-invoked only. |
-| `plan abandon` | `plan-abandon` | Destructive; confirms first. |
+| `plan approve`, `spec approve`, `spec reopen`, `decision accept` | `approve` native handler | Human decision collected by host interaction; user-invoked only. |
+| `plan abandon` | `plan-abandon` native handler | Host interaction confirms the operation; code executes it. |
 | `plan restack` | CLI-only | Mechanical history rewrite; `plan-status` and the start flow name the command when a base plan has merged. |
 | `plan cleanup` | CLI-only | Mechanical; the finish flow runs it after a local merge. |
 | `plan archive` | CLI-only | Mechanical; the finish and abandon flows archive when `archive_done` is set. |
@@ -80,21 +84,21 @@ Skills hold the procedures; they load only when invoked. A few rules must hold e
 
 ### Content
 
-The canonical text, versioned with the CLI (`v1`):
+The canonical text, versioned with the CLI (advance the standing-text version when implementing these changes):
 
 ```markdown
 ## Specplane
 
 This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.specplane/config.yaml`; resolve every path from it (`spec_roots`, `plans.dir`, `decisions.dir`), never assume one. `execution` says how plans run.
 
-- **Authorship**: `specs.<type>.llm_role` limits what you may do to specs of that type: `none` = do not act on them, decline and say why; `review` = ask, suggest, and review, but do not write the spec body; `assist` = write the body only after the user finalises the content and approves the text (refine-then-write); `draft` = you may write a draft for review. Setting a spec to `approved`, a plan to `ready`, or a decision record to `accepted` is the human's decision: never do it by editing a file.
+- **Authorship**: `specs.<type>.llm_role` limits spec writing and review independently of `authorship`: `none` = read and implement only, with no spec-body edits, review, or suggestions; `review` = ask, suggest, and review, but do not write the spec body; `assist` = write the body only after the user finalises the content and approves the text (refine-then-write); `draft` = you may write a draft for review. Setting a spec to `approved`, a plan to `ready`, or a decision record to `accepted` is the human's decision: never do it by editing a file.
 - **Precedence**: when implementing, the architecture spec wins and the feature spec fills gaps; record each gap, assumption, or proposed spec edit as a `spec-gaps.md` entry in the plan folder. If specs contradict each other, stop and report it; do not implement either side.
 - **Plans**: work on a plan only in its checkout (branch `plan/<id>`), one step at a time, following the plan-step workflow. HANDOFF.md and `spec-gaps.md` in the plan folder are the source of truth for progress and gaps.
 - **Commits**: follow `architecture/file-formats` §8 (Conventional Commits subject plus `Specplane-*` trailers).
-- **Workflows**: <harness-specific line naming how to run the workflows, e.g. slash commands>; without them, follow the contracts in `architecture/agent-skills`.
+- **Workflows**: use an explicitly installed Specplane extension for agent workflows, or the standalone `specplane` CLI for manual operations. Extensions deliver the shared workflow procedures and their host-specific invocation details.
 ```
 
-Each harness replaces only the **Workflows** line. The rules themselves live in the specs; this text only points to them (`feature/agent-integration`: no duplicated policy).
+The shared AGENTS.md block always uses this neutral Workflows line. Harness-owned instruction files may add invocation details without replacing shared guidance. The rules themselves live in the specs; this text only points to them (`feature/agent-integration`: no duplicated policy).
 
 **Routing table (project-owned, outside the managed text).** Skills with `disable-model-invocation: true` are hidden from the model, so a natural-language request such as "start the plan" would otherwise lead to hand-edited plan files. A project that wants those requests to work adds a short routing table to a file it owns (for `AGENTS.md`, outside the managed block): a request to start, step, finish, or show the status of a plan means running `specplane plan <op>` (the CLI stays reachable through the shell even when the skill is not), and plan files are never edited by hand. Specplane does not write this table and `init` never touches it; the managed text stays unchanged.
 
@@ -372,8 +376,8 @@ Read config.execution.backend (worktree, branch, or external).
 
 1. Identify the plan: the ID argument, else the current branch `plan/<id>`, else ask the user.
 2. Run `specplane plan start <id>`; it performs the checks of `feature/plan-execution` § Start flow.
-3. Report whether the checkout was created or resumed, the backend, the checkout path, and the next step, all taken from the CLI output (`--json` carries `resumed`, `backend`, `checkout`, `nextCommand`).
-4. For the `worktree` backend, tell the user to open a new session there and give the exact `nextCommand` line from the CLI (`cd <checkout> && claude`); do not compose commands yourself. That session is told the plan and its next step by the harness. With the `external` backend, say that the environment runs the finish flow itself and that `specplane plan finish` must not be run locally. Do not run a step in a session whose checkout differs from the plan's.
+3. Report whether the checkout was created or resumed, the backend, the checkout path, and the next step from the CLI output. This mechanical operation requires no model call.
+4. For the `worktree` backend, report the checkout and tell the user to continue there. Only the explicitly invoking extension may add its verified host launch instructions, quoting shell paths or using argument arrays. The core returns no host command. With the `external` backend, say that the environment runs the finish flow itself and that `specplane plan finish` must not be run locally. Do not run a step in a session whose checkout differs from the plan's.
 
 ### Output
 
@@ -460,12 +464,14 @@ The result, and the documented manual cleanup for a branch that is kept (`git br
 
 Each skill declares the contract it implements with a contract pin: `<!-- specplane-contract: architecture/agent-skills#<skill-slug>@<blob7> -->`, where the anchor is the skill's section in this spec (e.g. `#plan-step`) and the hash is the blob of this file when the skill was last reviewed (format in `architecture/file-formats` §1.6). Skills reference contract sections by anchor, not by prose.
 
+An installed workflow may declare several contract comments. Declare every applicable shared procedure as well as its harness-specific contract; validate all declarations independently. Package the referenced procedures and versioned snapshots with the extension, including remote synchronization/publication, acceptance checks, and structured gap recording. Snapshot integrity is not evidence that the delivered workflow implements the procedure. Never refresh a pin until that implementation has been reviewed.
+
 `specplane validate` warns (type `skill-drift`) when a pin no longer matches the current blob of the spec, when the anchor does not resolve, or when a skill has no contract comment (`architecture/reference-cli` § Skill contract drift). Changes that only touch the spec's frontmatter `status`/`author` are ignored. After reviewing `git diff <pin> <current>` and updating the skill, refresh the pin to the committed blob (`specplane spec pin architecture/agent-skills` for the spec's own pins; skill comments are updated by hand to the new `git rev-parse HEAD:<path>` value). Because a pin must name a committed blob to be diffable, pins are refreshed in a commit after the spec change.
 
 Skills are committed to the repository and versioned. A PR that changes a workflow contract (in `feature/agent-integration`, this spec, or a harness overlay) updates the corresponding skill files and their contract pins in the same PR, then refreshes the pins once the spec change is committed.
 
-## Experimental plan-run contract
+## Extension conductor contract
 
-Resolve config and use `specplane plan run` explicitly. Never invoke approval or finish/merge automatically. `plan start --run` runs one iteration; the non-run path remains manual. The adapter derives a UUIDv5 from `specplane/<plan-id>/<step-number>` and exposes it in `SPECPLANE_SESSION`; ordinary prompt is `run /plan-step <id> --unattended`.
+Resolve config and call the shared conductor through the invoking extension, which must supply a session adapter explicitly. Standalone CLI commands never launch a harness. Never invoke approval or finish/merge automatically. Session identity is deterministic per plan and step for restart protection; the adapter maps it to a verified host session identity and preserves the mapping. A deterministic orchestration identity is not fabricated native-session provenance. The extension invokes its installed step workflow in unattended mode using its verified host mechanism, without embedding Claude syntax in the shared core.
 
 An explicit completed-step rerun adds `--step N --force --reason TEXT` to the workflow invocation. Select exactly that completed step, execute it again, and record using the same step/force/reason options on `plan step-done`. Do not bypass safety conditions or erase earlier history. Without those arguments, existing lowest-pending ordering remains unchanged. Configured session mode may force unattended but never attended behavior.

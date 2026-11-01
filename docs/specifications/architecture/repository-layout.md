@@ -2,9 +2,11 @@
 id: architecture/repository-layout
 title: Repository layout
 status: review
-author: llm
+author: mixed
 implements: [feature/spec-system, feature/configuration, feature/plan-system, feature/decisions]
 ---
+
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
 
 # Repository layout
 
@@ -74,6 +76,10 @@ harnesses/
 ```
 
 A harness directory's `templates/` and `tests/` are not part of the spec root and are ignored by spec discovery. Their contents are defined by the harness's architecture spec (for Claude Code, `claude:architecture/claude-integration`).
+
+Codex follows the same structure under `harnesses/codex/`, with a `codex` overlay root extending `base`. Harness-specific contracts do not live in the base specification root. Each harness package contains its ecosystem manifest, complete workflow assets, applicable contract snapshots, adapter when supported, and integration tests. Claude's plugin package includes a mod for deterministic command dispatch; Codex packaging follows the verified capabilities of its target surface.
+
+The shared core and standalone CLI remain under `packages/cli/` initially, with separate public entry points for reusable operations and the manual command interface. Extensions bundle a compatible core version and identify their core/contract compatibility. The core never imports a host adapter to choose a runtime. Package assets are not spec roots and are ignored by spec discovery.
 
 ---
 

@@ -2,9 +2,11 @@
 id: architecture/file-formats
 title: "File formats: frontmatter schemas, naming, markdown conventions, and templates"
 status: review
-author: llm
+author: mixed
 implements: [feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions]
 ---
+
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
 
 <!-- Experimental development amendment 2026-11-01; these branch changes await human final review. -->
 
@@ -40,6 +42,25 @@ This spec defines the exact format of every Specplane file type, including JSON 
     "author": {
       "type": "string",
       "enum": ["user", "llm", "mixed"]
+    },
+    "contributors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "roles"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["human", "model"] },
+          "display_name": { "type": "string" },
+          "provider": { "type": "string", "minLength": 1 },
+          "model_id": { "type": "string", "minLength": 1 },
+          "roles": {
+            "type": "array", "minItems": 1, "uniqueItems": true,
+            "items": { "enum": ["create", "revise", "review"] }
+          }
+        }
+      }
     },
     "supersedes": {
       "type": "array",
@@ -200,19 +221,33 @@ Messages for the findings defined in `feature/spec-overlays#base-pins` and `arch
 
 ### 1.6 Skill contract comment
 
-Each harness skill file records the contract it implements in one HTML comment, on its own line, directly after the skill's frontmatter:
+Each harness skill file records every contract it implements in an HTML comment per contract, each on its own line directly after the skill's frontmatter:
 
 ```
 <!-- specplane-contract: <spec-id>#<slug>@<blob> -->
 ```
 
-- `<spec-id>`: the spec defining the contract (currently always `architecture/agent-skills`); qualified IDs are allowed.
+- `<spec-id>`: the spec defining a shared or harness-specific contract; qualified IDs are allowed.
 - `<slug>`: the GitHub-style heading slug of the contract's section.
 - `<blob>`: abbreviated git blob hash (7–40 hex characters) of the spec file when the skill was last reviewed against it, compared after the same `status`/`author` normalisation as `based_on` pins.
 
-Only the first such comment in a file is read. Harness tools update the hash by hand or by tooling; `specplane spec pin` does not rewrite skill files.
+Read every such comment in a file and validate each independently. Shared procedure dependencies must remain explicit alongside harness-specific dependencies. Harness tools update the hash by hand or by tooling after implementation review; `specplane spec pin` does not rewrite skill files.
 
 ---
+
+### 1.7 Contribution provenance
+
+Keep required `author: user|llm|mixed` for compatibility. Add optional `contributors`, an array of compact summaries with `id` (stable opaque identifier), `kind` (`human` or `model`), optional `display_name`, optional `provider` and `model_id`, and `roles` (unique values from `create`, `revise`, `review`). Model contributors are distinct by reported provider/model identifier, not session. Without a known model identifier, retain an explicitly unknown contributor without merging it into a known model. Absence of provenance on older specs is valid.
+
+Contributor IDs are unique within a spec and stable across its revisions. Duplicate known provider/model pairs refer to one summary; separate events preserve their different sessions. Do not conflate human contributors using only a display name. Runtime-reported model aliases are recorded as observed; do not claim they establish an underlying immutable model version. Unknown contributions remain separate unless explicit evidence identifies them. `author` summarizes creation/revision of the body: review-only contributions and cosmetic metadata edits do not change it.
+
+Detailed contribution events are recorded as repeatable `Specplane-Contribution` Git commit trailers, one compact JSON object per event: `spec` (root-qualified spec ID), `contributor` (summary ID), `role`, `source` (`runtime` or `declared`), and optional `harness`, `session_id`, `provider`, `model_id`. The containing commit and its spec blob identify the revision; do not embed a self-referential commit hash. The contributor summary is updated in the same commit as the affected spec, and the event history is append-only through subsequent commits. Corrections append a replacement event with an additional `corrects: {commit, ordinal}` reference to the earlier event (ordinal is zero-based within that commit), preserving the original evidence. Corrected summaries are derived from the replacement events without deleting original trailers. External analytics exports are opt-in and separate from recording local attribution.
+
+Record each contributing model separately, including model switches inside one session and later edits in other sessions. Attribute the model that did the work at the time, not the final session model. A switch with no spec contribution adds no contributor. Display names are cosmetic. Do not invent model or session IDs, deduce identity from assistant prose, or turn the orchestration ID into a claimed native session ID. Preserve contribution trailers when a finish flow rewrites or squashes commits; otherwise report incomplete history rather than manufacturing it.
+
+Approval history remains separate from contribution events, using approval commits and explicit human authorization. A review contributor need not be an author of the body; approval alone is not a contribution. Existing `Specplane-Agent` and `Specplane-Session` trailers remain useful commit-level context but cannot represent all models that contributed to a spec. Changes to contributor metadata do not authorize status transitions or bypass policy.
+
+Verification covers same-session A/B contributions, a later C revision, a noncontributing model switch, multiple humans, unknown identities, correction history, and approval without authorship. Schemas and CLI inspection must accept optional contributor summaries and repeated event trailers while preserving legacy files.
 
 ## 2. Plan files
 
@@ -742,6 +777,7 @@ Specplane-Step: <NN>
 Specplane-Stack-Base: <sha>
 Specplane-Agent: <harness>/<model>
 Specplane-Session: <session-id>
+Specplane-Contribution: <compact JSON event; repeatable>
 <harness attribution trailer, e.g. Co-Authored-By>
 ```
 
@@ -764,6 +800,7 @@ Trailers are the last paragraph of the message, in `git interpret-trailers` form
 | `Specplane-Stack-Base` | `stack` only | Full SHA of the base plan's tip the branch is stacked on. |
 | `Specplane-Agent` | when an agent made the commit | `<harness>[/<model>]`, e.g. `claude-code/claude-opus-5-5`, or `claude-code` when the model is unknown; `ci` for CI jobs; absent for humans and for the CLI run by hand. |
 | `Specplane-Session` | no | The harness's session or run ID, when it exposes one. Lets tools group commits from one agent session (one worktree or cloud run). |
+| `Specplane-Contribution` | when detailed spec provenance is recorded | Repeatable compact JSON contribution event from §1.7; events can name several contributors and models within one commit. Legacy commits without events remain valid. |
 
 Harness attribution trailers (`Co-Authored-By:`) follow the harness's own convention and come after the Specplane trailers.
 

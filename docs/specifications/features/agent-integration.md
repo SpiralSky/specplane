@@ -5,6 +5,8 @@ status: review
 author: mixed
 ---
 
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
+
 <!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Agent integration: agent instructions, skills, and policy enforcement
@@ -47,6 +49,12 @@ Every commit an agent makes in a Specplane workflow identifies the workflow, the
 
 ## Harness non-interference principle
 
+An **extension** means any plugin, extension, or mod from a harness ecosystem that provides Specplane's agent workflows inside that harness. The term does not prescribe an ecosystem's packaging format. Each extension bundles a compatible Specplane core and owns its host integration; the standalone CLI remains complete for manual use, including explicit human approvals, without an extension.
+
+The host is explicit at an extension's entry point. Specplane never selects a runtime from installed files, registry order, or a default. An entry point offering multiple hosts requires an explicit selection. Merely detecting an integration establishes neither permission to execute nor session capability.
+
+Several extensions may coexist. Shared standing instructions remain harness-neutral; invocation details belong to each extension and must not replace another extension's guidance.
+
 The framework defines what each workflow must accomplish (the policy rules, the HANDOFF.md contract, the authorship constraints, the precedence rules). It does **not** dictate how the harness implements the workflow: whether it uses subagents or a single session, which model it calls, what tools it invokes internally, or how it manages concurrency within a session.
 
 Each harness may extend the base workflows with harness-specific features (e.g. per-step subagents, slash commands, hooks) without changing the base behaviour. Extensions are defined in the harness's overlay root and must not contradict the base specs.
@@ -58,6 +66,10 @@ Each harness may extend the base workflows with harness-specific features (e.g. 
 A **workflow integration** is a predefined, executable sequence of actions that an agent follows to complete a Specplane task. Harnesses expose these as slash commands, macros, or callable skills — the mechanism is a harness concern and is specified in the harness's overlay root.
 
 Each harness skill must record the contract it implements: a reference to the contract by anchor (for example, the `plan-step` contract) together with a pin of the spec that defines it. `validate` reports when that spec has changed since the skill was last pinned, so skills no longer drift from the base specs through manual review alone.
+
+Extensions deliver the complete applicable shared procedures to consumers, who need not have Specplane's own specifications. Dependencies include both shared procedures and harness-specific contracts: a shared change requires integration review even if the harness-specific contract is unchanged.
+
+Mechanical commands execute directly through deterministic handlers, without asking a model to choose or reconstruct the operation. Reasoning workflows use deterministic preparation and validation around explicitly delegated agent work. Human decisions are collected explicitly before their transitions execute. A prompt-only skill does not constitute deterministic command dispatch. Host built-ins remain host-owned and are never shadowed by Specplane commands.
 
 All workflow integrations read configuration from `.specplane/config.yaml` and resolve all spec paths from config. An integration that hardcodes a spec path is a defect.
 
@@ -189,8 +201,10 @@ Agents must enforce Specplane policies when acting within a repository. This sec
 | `authorship: user`, `llm_role: assist` | Agent writes the body only after Describe, Refine and Finalise, and only once the user approves the text. Sets `author: mixed`; never changes `status`. |
 | `authorship: user`, `llm_role: draft` | Agent may produce a `draft` with `author: llm`; it notes that a human must revise it (setting `author: mixed` or `user`) before it moves to `review`. |
 | `authorship: user`, `llm_role: none` | Agent may not edit or suggest changes to the spec body. Read-only. |
-| `authorship: llm` | Agent may author. Sets `author: llm`. |
-| `authorship: either` | No restriction. Agent notes its role in `author` field. |
+| `authorship: llm` | LLM authorship is permitted subject to the independently configured `llm_role`. Records actual authorship. |
+| `authorship: either` | Either authorship kind is permitted; `llm_role` still limits agent actions. Records actual authorship. |
+
+Authorship never overrides role limits. Under `none`, reading and implementing a spec remain permitted; editing, reviewing, or suggesting changes to its body do not. Contribution and approval provenance follow `feature/spec-system`; a model or session identity never grants policy authority.
 
 When the agent is asked to do something the authorship policy forbids, it:
 1. Declines the action.
@@ -296,6 +310,8 @@ Then it does not approve `feature/search`, and it tells the user that the `appro
 - An agent running in a repository without Specplane configured (no `.specplane/config.yaml`) should not attempt to apply Specplane policies. The skills are designed to be no-ops or to prompt for initialisation in this case.
 - Skills must be idempotent: running `plan-step` after the last step is complete reports that and changes nothing; running it on a `blocked` step reports the blocker and changes nothing.
 
-## Experimental conductor integration
+## Extension-owned conductor integration
 
-`specplane plan run <ids...>` resolves steps and invokes a capability-checked harness adapter. It never approves, finishes or merges plans. A consideration is a blocked step, unresolved proposal/assumption, finish-review readiness, restack, divergence, dirty checkout, exhausted execution limit, or failure. The conductor stops and presents the decision with a resolving command. Delivery follows `execution.notify` and remains user-owned. Distinct plans may run concurrently; one step per plan may run at a time. Restarting never duplicates a live session; attach to that session instead. A known non-running session can be resumed with its stable identity.
+An extension may offer automated plan execution using the shared conductor and its explicitly supplied host adapter. Unsupported session or budget capabilities are refusals, never a fallback to another host. Automation never approves, finishes or merges plans. A consideration is a blocked step, unresolved proposal/assumption, finish-review readiness, restack, divergence, dirty checkout, exhausted execution limit, or failure. The conductor stops and presents the decision with a resolving command. Delivery follows `execution.notify` and remains user-owned. Distinct plans may run concurrently; one step per plan may run at a time. Restarting never duplicates a live session; attach to that session instead. A known non-running session can be resumed with its stable identity.
+
+Acceptance: a mechanical command makes zero model calls; a missing adapter launches nothing; co-installed extensions leave shared guidance unchanged; changing a shared workflow contract requires both extensions to be reviewed.

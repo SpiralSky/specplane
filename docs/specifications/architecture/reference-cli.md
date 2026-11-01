@@ -2,9 +2,11 @@
 id: architecture/reference-cli
 title: "Reference CLI: module structure, parsing, git integration, validation engine, and plan flows"
 status: review
-author: llm
+author: mixed
 implements: [feature/tooling, feature/plan-execution, feature/plan-index, feature/configuration]
 ---
+
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
 
 <!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
@@ -202,6 +204,8 @@ Uncommitted edits to a base are compared as-is for the check (working tree) but 
 ## Skill contract drift (`spec/skill-drift.ts`)
 
 For each `SKILL.md` in a skill directory registered by an installed harness, parse the `<!-- specplane-contract: ... -->` comment; the anchor must resolve (type `skill-drift` warning otherwise) and the pin is compared against the current blob of the referenced spec exactly as for `based_on` (normalised hash; shallow-safe). Skill directories without a comment warn. The directories come from the harness registry (`src/harness/index.ts`): each harness entry exposes `skillDirs(root): string[]`, returning the skill directories it installs (for Claude Code, `.claude/skills/*`); the `skillDirs` of all installed harnesses are scanned.
+
+Parse all contract comments, checking shared and harness-specific dependencies independently. Packaged workflows must pin every shared procedure they implement, not only a harness contract that mentions it. A registered workflow's bundled snapshot may resolve a contract absent from the consumer repository, scoped to that package. Local contracts take precedence, ambiguous resolution is refused, and snapshot bytes and heading are validated. The fallback never waives drift or establishes behavioral conformance. Installation metadata registers assets for validation only; it never chooses or launches a runtime.
 
 ---
 
@@ -441,7 +445,7 @@ Every refusal happens before the first write and exits 1 with the exact fix: the
 
 ### `plan start <id>`
 
-Inputs: `--no-fetch`, `--json`. Runs `startPlan` (§ Plan flows) and prints: `Started|Resumed <id>`, `Backend: <backend> (checkout created|resumed|not needed)`, the worktree path or branch, the next step, and one closing line: for `worktree`, `Open a session: cd <checkout> && claude`; for `branch`, `Open a session: claude`; for `external`, that the environment runs the finish flow itself and `specplane plan finish` must not be run locally. `--json` prints the `StartResult` object with `checkout` (the worktree path or `null`) and `nextCommand` (the same command string, `null` for `external`), so skills render the command instead of composing it. Notices still go to stderr.
+Inputs: `--no-fetch`, `--json`. Runs `startPlan` (§ Plan flows) and prints: `Started|Resumed <id>`, backend, whether the checkout was created or resumed, checkout path or branch, and the next step. Tell the user to continue in that checkout, without a host launch command. For `external`, report that the environment owns its finish flow. JSON contains `resumed`, `backend`, `checkout` (path or null), and `next`; retain `nextCommand: null` as a compatibility field. Notices go to stderr. `--run` is not supported by the standalone command; direct users to the explicitly installed extension without performing the start when that option is supplied.
 
 ### `plan show <id>`
 
@@ -485,7 +489,7 @@ Module `commands/init.ts`; `--harness <name>` selects an entry in the harness re
 2. `INFO.md` in each of `<spec_roots[].path>/features/` and `<spec_roots[].path>/architecture/` for the base root only: `Created <path>` or `Skipped <path> (exists)`.
 3. `<plans.dir>/.gitkeep` when `<plans.dir>` is missing or empty: `Created`; otherwise nothing is reported.
 4. `AGENTS.md` through `upsertBlock`: `Created AGENTS.md`, `Updated AGENTS.md (appended Specplane block)`, `Updated AGENTS.md`, `Unchanged AGENTS.md`, or the malformed-block `Skipped` line (§ Standing instructions).
-5. The named or detected harness's files, each reported as `Created`, `Updated`, `Unchanged`, or `Skipped` by the harness module.
+5. Only an explicitly named harness's files, each reported as `Created`, `Updated`, `Unchanged`, or `Skipped` by the harness module. No selection or `none` performs neutral scaffolding only. Validate the name before the first write. Detection feeds inventory and validation, never installation or execution selection.
 
 Idempotence: a second run on an unchanged repository creates nothing and reports only `Skipped`/`Unchanged` lines, and exits 0. `init` outside a git repository throws `NotARepoError` (exit 1) and writes nothing.
 
@@ -541,10 +545,10 @@ Inputs: one or more ADR IDs, `--dry-run`. Per ID, in the order given: resolve (`
 
 Implements `architecture/agent-skills` § Standing instructions.
 
-- `STANDING_VERSION = 'v1'` and `standingText(workflowsLine)`: the canonical text; the base uses the harness-neutral Workflows line.
+- The standing-text version is advanced when the canonical contract changes. `standingText()` always emits the harness-neutral Workflows line in AGENTS.md; harness-owned files add their own invocation detail separately.
 - `upsertBlock(content: string | null): { content, action: 'created' | 'appended' | 'updated' | 'unchanged' | 'malformed' }`: markers are matched as `<!-- specplane:begin v<N>` … `-->` and `<!-- specplane:end -->` on their own lines. Line endings in the existing file are preserved.
 - `init` writes `AGENTS.md` through `upsertBlock` and reports `Created`, `Updated` (appended or replaced), `Unchanged`, or `Skipped AGENTS.md (malformed specplane block; fix the markers by hand)`.
-- `validate` warns (type `freshness`) when no file in the repository root delivers the block (`AGENTS.md`, or a harness file registered by an installed harness), when a block's version is older than `STANDING_VERSION`, when its text differs from `standingText` (with the harness's Workflows line), or when it is malformed. Message: `Specplane standing instructions in <file> are missing or out of date; run specplane init.`
+- `validate` warns (type `freshness`) when no file in the repository root delivers the block (`AGENTS.md`, or a harness file registered by an installed harness), when its version is older than the current standing-text version, when AGENTS.md differs from the neutral canonical text, or when it is malformed. Do not accept a harness-specific Workflows line as a valid substitute in AGENTS.md. Message: `Specplane standing instructions in <file> are missing or out of date; run specplane init.`
 - A harness registers its standing-instructions file as `rulesFile` (for Claude Code, `.claude/rules/specplane.md`). Its freshness check is a byte-compare with the bundled template; a difference is a `freshness` warning with the same message.
 
 ---
@@ -616,11 +620,13 @@ Message pattern: every error message is one sentence ending in a full stop (git 
 
 Output streams: human-readable reports, progress lines, warnings, and errors go to stderr; data goes to stdout: `--json` output, `spec show`, `plan graph`, `--print` output, and the one-line summaries that `feature/tooling` says commands print for the files they change. Errors are printed as the message alone, prefixed by nothing, and the process exits with the class's exit code.
 
-## Experimental plan run
+## Shared conductor and extension boundary
 
-Implementation: `plan/run.ts`, `plan/gate.ts`, `plan/alerts.ts`, `harness/session.ts`.
+Shared implementation: `plan/run.ts`, `plan/gate.ts`, `plan/alerts.ts`, and the runtime-neutral session interface. Host adapters live in their extension packages. Expose reusable core operations separately from the standalone CLI entry point. Extensions bundle a compatible core and contract version and reject incompatible packages before mutation. No external provider registry, executable discovery, or implicit adapter factory is part of the core.
 
-`plan run <ids...> [--until step|finish] [--max-steps N] [--max-parallel N] [--max-budget-usd N] [--timeout-seconds N] [--step N --force --reason TEXT] [--dry-run] [--json]`.
+The standalone CLI does not expose `plan run` or `plan start --run`. An extension supplies an adapter directly to the shared conductor. Its automation interface accepts plan IDs, iteration target, maximum steps/parallelism/budget, observation timeout, explicit completed-step rerun with reason, and dry-run. If an entry point offers several hosts, explicit host selection is required even when one is detected; single-host extensions already identify the host.
+
+The required adapter contract exposes name, capabilities, launch, observation, resume, and attach/logs/stop instructions; notification is optional. It rejects unsupported backend, lifecycle, or budget requirements. Preflight validates the selected adapter and core compatibility before composing plan preparation with execution. Probe runtime capabilities again before launch. Failure never substitutes a host or disables safety checks. Workflow installation is distinct from session capability.
 
 Defaults: until step, max steps 1, timeout 900 seconds; parallelism and budget from config. Limits must be positive finite numbers (steps/parallelism integers). Budgets are per plan, conservatively reserved per launch attempt in equal shares; not actual usage accounting. The initial and each subsequent launch require the exact `plan/<id>` branch and clean status. A failed read/probe never implies absence or permission to run. A matching plan-and-step trailer with pending status is a half-finished refusal.
 
@@ -628,6 +634,16 @@ Exit codes: 0 only all steps completed/finish-ready, 2 human/dependency decision
 
 Locks/cache live under `<git-common-dir>/specplane-runtime`, keyed by plan ID hash, so they never dirty a checkout. An exclusive short-lived guard serializes lock acquisition/reclamation/release. Only proven-dead PIDs are reclaimed. An unknown/malformed lock or crashed guard fails closed for manual inspection. Locks remain held during observation, preventing concurrent invocations for the same plan. Runtime files are derived coordination data, never plan status.
 
-`plan list --live --json` adds `attention: [{kind, detail, command}]` from the same resolver as `plan next`; human output appends an attention count. `plan start --run` includes the conductor result and session commands. Attention resolution never approves or finishes the plan.
+`plan list --live --json` adds `attention: [{kind, detail, command}]` from the same resolver as `plan next`; human output appends an attention count. An extension's automation result includes conductor results and known session commands. Attention resolution never approves or finishes the plan.
 
 `step-done --step N --force --reason TEXT` may re-record a completed step, preserving previous HANDOFF entries (including later-step entries) and appending the reason under deviations plus `Specplane-Force-Reason`. The reason must be a nonblank single line and requires force. Existing blocked-step recovery with `--force` is unchanged. Normal completed-step recording without an explicit reason is still refused.
+
+### Architecture readiness
+
+The extension/core boundary, standalone command surface, neutral initialization, and shared safety behavior are specified above. This revision is a coherent architecture draft, not yet a complete implementation contract. Before implementation planning is finalized, specify:
+
+- The concrete core export surface and extension compatibility manifest, including version negotiation and package delivery for each host. “Compatible core” alone is not a version-check algorithm.
+- The structured request/result schema between deterministic preparation, agent reasoning, and final step recording, including cancellation and revision-bound human confirmation. The controller must not infer an accepted outcome from a model's prose.
+- The supported Codex surfaces and exact package/native command interfaces. Until verified, native command dispatch and background execution remain explicitly unavailable; existing-session reasoning and the manual CLI are the initial supported scope.
+
+Implementation review must also update the delivered procedures and their contract pins, then verify host integration against named versions. Fake-runner tests and documentation research are not live compatibility certification. Existing spec lifecycle states and proposed ADR status do not change as a consequence of recording this design.

@@ -5,6 +5,8 @@ status: approved
 author: mixed
 ---
 
+<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
+
 # Spec system: roots, types, frontmatter, lifecycle, and IDs
 
 ## Glossary
@@ -22,7 +24,7 @@ The following terms are used consistently across all Specplane specs.
 | **Feature spec** | A spec describing observable behaviour, rules, and user-visible outcomes. |
 | **Architecture spec** | A spec describing the internal structure, components, and implementation approach. |
 | **Status** | The lifecycle stage of a spec: `draft`, `review`, `approved`, or `deprecated`. |
-| **Author** | Who wrote or is expected to write a spec: `user`, `llm`, or `mixed`. |
+| **Author** | Compatibility summary of actual authorship: `user`, `llm`, or `mixed`; detailed provenance records the contributors. |
 | **Plan** | A structured unit of implementation work. See `feature/plan-system`. |
 | **Step** | One agent session within a plan. See `feature/plan-steps`. |
 | **Handoff** | A record of what a step accomplished, written at the end of the step for the next session. |
@@ -93,6 +95,18 @@ Architecture specs must reference at least one feature spec in their `implements
 
 ## Frontmatter schema
 
+### Contribution provenance
+
+A spec can have multiple human and model contributors. Preserve the original creator and subsequent revision and review contributions; later work must not replace earlier attribution. Each distinct contributing model is represented, even when several models worked in one session or a later session edited the same spec. A model merely selected but doing no work is not a contributor.
+
+Contributor identity, session identity, and model identity are separate. One contributor can work across sessions, and one session can use several models. Record the runtime-reported model identifier and its provider when available; an optional display name is cosmetic and can change without changing historical identity. Unknown identities remain unknown rather than inferred from product names or invented.
+
+Keep `author` as a coarse compatibility summary and expose a concise contributor summary plus revision-linked contribution history. Contribution roles distinguish creation, revision, and review. Approval provenance remains separate and identifies the human decision and exact revision it covers. Approval alone does not add an author, and an agent making a mechanical write does not establish that the human contributed the content.
+
+Provenance supports inspection and derived analytics but never overrides authorship policy or proves authenticated identity. Record the source of attribution, distinguish explicit declarations from runtime observations, and do not silently export transcripts or session data. Older specs without detailed provenance remain valid; do not fabricate their history.
+
+Acceptance: work by model A followed by model B in the same session retains both models; a later revision by model C retains all three; selecting model D without a contribution adds no contributor; a human approval changes approval history without attributing the spec's writing to that approver.
+
 Every spec file begins with YAML frontmatter. The schema is defined below.
 
 ### Fields common to all specs
@@ -103,6 +117,7 @@ Every spec file begins with YAML frontmatter. The schema is defined below.
 | `title` | string | yes | — | Human-readable name. May change; the ID does not. |
 | `status` | enum | yes | — | New specs start as `draft`. `draft` \| `review` \| `approved` \| `deprecated` |
 | `author` | enum | yes | — | `user` \| `llm` \| `mixed` |
+| `contributors` | list | no | — | Human/model contributor summaries with creation, revision, or review roles; detailed history is revision-linked. |
 | `supersedes` | list of IDs | no | `[]` | IDs of specs this one replaces. Superseded specs are set to `deprecated`. |
 | `extends` | string or list of IDs | no | — | For overlay specs only. A single ID or a list. See `feature/spec-overlays`. |
 | `based_on` | map of ID → git blob hash | no | — | Pins each referenced spec (keys from `extends` or `implements`) to the blob at last review. Stale pins warn and block approval. See `feature/spec-overlays#base-pins`. |
