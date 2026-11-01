@@ -1,0 +1,607 @@
+{
+  "date": "2026-11-01",
+  "status": "proposal-only-unapproved",
+  "supersedes_proposal": "docs/work-records/2026-11-01-architecture-resolutions.json",
+  "scope": "One review/refinement pass; no plan creation, implementation, spec edits or lifecycle transitions.",
+  "findings": [
+    "Original steps exceed session-sized grouping and mix independently reviewable core, manual lifecycle, packaging and host work.",
+    "Compatibility and truthful nested-test verification must precede consumers that rely on them.",
+    "Original specification list omitted feature dependencies whose statuses control start eligibility.",
+    "Core APIs cannot be declared fully implemented before later operations exist; expose a typed boundary and explicit unavailable operations during rollout.",
+    "Host absence must not silently satisfy a requirement to deliver native handlers; independent plans make this visible.",
+    "Active conductor branch has unique commits and obsolete pending scope; neither completion nor merge is established by implementation already on this branch.",
+    "Plan-context validation currently accepts heading text at H2/H3, not web-style slug anchors or H4 headings. Context entries now use matching parent heading text where needed."
+  ],
+  "conductor_overlap": {
+    "observation": "Local refs only; no fetch or host/process-liveness inference.",
+    "live_record": {
+      "id": "2026-10-30-plan-conductor",
+      "title": "Plan conductor \u2014 plan run, session mode, and alerts",
+      "stored_status": "ready",
+      "effective_status": "in_progress",
+      "depends_on": [
+        "2026-10-30-plan-primitives"
+      ],
+      "specs": [
+        "architecture/reference-cli",
+        "architecture/agent-skills",
+        "feature/plan-execution",
+        "feature/configuration",
+        "feature/spec-precedence",
+        "feature/agent-integration",
+        "claude:architecture/claude-integration",
+        "claude:feature/claude-integration"
+      ],
+      "archived": false,
+      "branch": "plan/2026-10-30-plan-conductor",
+      "backend": "worktree",
+      "where": "local",
+      "checkout": "<workspace>/specs-framework",
+      "steps": {
+        "total": 5,
+        "done": 2,
+        "skipped": 0,
+        "blocked": 0,
+        "next": {
+          "number": 3,
+          "title": "Harness spawn adapter \u2014 background sessions in the plan checkout",
+          "status": "pending"
+        }
+      },
+      "blocked_issues": [],
+      "last_step_commit": {
+        "sha": "092a6f8db9b27d44a1b7fb391f1d35d818436da6",
+        "time": "2026-10-30T23:15:58+08:00",
+        "step": 2,
+        "agent": "claude-code",
+        "session": "007665ab-126b-41d4-a6ce-b0490380723e"
+      },
+      "ahead_of_remote": null,
+      "attention": []
+    },
+    "unique_commits": [
+      "092a6f8",
+      "8898627"
+    ],
+    "recommendation": "Before overlapping implementation starts, obtain human disposition of the old plan after comparing its unique commits to d5b9afc and current source. Prefer reconciling preserved useful changes and retiring obsolete pending scope through the authorized CLI workflow. Do not blindly merge, mark done, resume step 3, or add it as a wait-for-merge dependency. No disposition is executed here."
+  },
+  "preconditions": [
+    "Human review of architecture resolutions and approval of this replacement decomposition before draft plan creation; readiness remains separate.",
+    "Reconcile old conductor plan ownership and unique work before starting overlapping implementation.",
+    "Commit the settled specification targets through an authorized workflow before snapshot/pin generation. Check context against that commit again.",
+    "Include relevant feature specs explicitly and obtain required human approvals before starting: agent-integration, plan-execution, configuration and Claude feature are review; Codex feature is draft. ADR 0005 is proposed; resolve its decision before relying on it as accepted authority.",
+    "If implementing a schema requires contract detail still absent or contradictory, record a numbered gap and settle it before dependent code; this proposal does not authorize inventing spec requirements.",
+    "With dependency_mode wait_for_merge, dependent plans start only after predecessors are human-finished/merged; do not silently switch to stacked execution."
+  ],
+  "execution": "Each plan is independently reviewed; steps execute sequentially in its designated checkout. Codex and Claude have the same packaging dependency, but this proposal does not launch parallel agents. Suggested slugs receive current date IDs only at creation.",
+  "plans": [
+    {
+      "key": "core-foundation",
+      "suggested_slug": "core-foundation",
+      "title": "Core contracts, coordination and provenance",
+      "depends_on": [],
+      "specs": [
+        "architecture/reference-cli",
+        "architecture/file-formats",
+        "feature/tooling",
+        "feature/agent-integration"
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "title": "Trustworthy subprocess tests",
+          "context": [
+            "packages/cli/src/harness/codex.test.ts"
+          ],
+          "deliverable": "Remove inherited nested-runner context and add execution-count plus deliberately failing child coverage.",
+          "acceptance": [
+            "A correct child executes its expected test; a broken implementation fails the outer fixture.",
+            "Existing historical results are not relabeled as verified."
+          ],
+          "depends_on_steps": []
+        },
+        {
+          "number": 2,
+          "title": "Core boundary and compatibility",
+          "context": [
+            "architecture/reference-cli#Public core exports",
+            "architecture/reference-cli#Compatibility manifest and package delivery",
+            "packages/cli/package.json"
+          ],
+          "deliverable": "Create import-safe core entry, typed ports, compatibility validator and closed shared schemas. Unimplemented mutating operations explicitly refuse.",
+          "acceptance": [
+            "Importing the core does not parse CLI arguments or mutate a checkout.",
+            "Unknown fields, wrong versions and invalid asset digests refuse; unknown host version disables native/background capability."
+          ],
+          "depends_on_steps": [
+            1
+          ]
+        },
+        {
+          "number": 3,
+          "title": "Ordered writer leases",
+          "context": [
+            "architecture/reference-cli#Writer coordination",
+            "packages/cli/src/plan/gate.ts"
+          ],
+          "deliverable": "Implement canonical repository/checkout/plan lock identities and ordered acquisition as a reusable primitive.",
+          "acceptance": [
+            "Alias paths share one checkout lock; competing non-plan and plan writers cannot overlap.",
+            "Multi-checkout contention releases acquired subsets safely; malformed coordination data fails closed."
+          ],
+          "depends_on_steps": [
+            2
+          ]
+        },
+        {
+          "number": 4,
+          "title": "Delegation and cancellation",
+          "context": [
+            "architecture/reference-cli#Shared conductor and extension boundary",
+            "architecture/reference-cli#Writer coordination"
+          ],
+          "deliverable": "Implement worker generation/token delegation, stop acknowledgment and recovery on the lease primitive.",
+          "acceptance": [
+            "Dead parent/live worker cannot be reclaimed; stale tokens cannot record.",
+            "Cancellation retains edits; uncertain stop requires recovery; delegated operations do not recursively lock."
+          ],
+          "depends_on_steps": [
+            3
+          ]
+        },
+        {
+          "number": 5,
+          "title": "Contribution capture and readers",
+          "context": [
+            "architecture/file-formats#1.7 Contribution provenance",
+            "packages/cli/src/git/commit.ts"
+          ],
+          "deliverable": "Implement event validation/deduplication and repeated-trailer read/write support.",
+          "acceptance": [
+            "Same-session A/B, later C and subagent contributions survive serialization and rewrites.",
+            "Unknown identities remain unknown; duplicate event IDs cannot duplicate attribution."
+          ],
+          "depends_on_steps": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "key": "workflow-recording",
+      "suggested_slug": "workflow-recording",
+      "title": "Prepared workflows and exact recording",
+      "depends_on": [
+        "core-foundation"
+      ],
+      "specs": [
+        "architecture/reference-cli",
+        "architecture/agent-skills",
+        "architecture/file-formats",
+        "feature/plan-steps",
+        "feature/spec-policies"
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "title": "Preparation and state binding",
+          "context": [
+            "architecture/reference-cli#Structured reasoning boundary",
+            "architecture/agent-skills#plan-step",
+            "packages/cli/src/plan/next.ts"
+          ],
+          "deliverable": "Prepare plan and non-plan workflow envelopes with compatibility/policy checks, resolved scope, expected suites and snapshots.",
+          "acceptance": [
+            "Remote plan fast-forward precedes snapshot; divergence refuses.",
+            "Dirty baseline, changed policy/criteria and wrong checkout are handled according to the settled contract; missing schema details become gaps before dependent code."
+          ],
+          "depends_on_steps": []
+        },
+        {
+          "number": 2,
+          "title": "Execution receipts",
+          "context": [
+            "architecture/reference-cli#Structured reasoning boundary"
+          ],
+          "deliverable": "Implement execution ledger, output capture, supported reporters and receipt validation.",
+          "acceptance": [
+            "Successful expected suites validate; failed/skipped-only/missing child suites do not.",
+            "Changed input, output, receipt or request identity invalidates evidence; tests count actual reporter cases."
+          ],
+          "depends_on_steps": [
+            1
+          ]
+        },
+        {
+          "number": 3,
+          "title": "Manual exact-set recording",
+          "context": [
+            "architecture/reference-cli",
+            "packages/cli/src/plan/step-done.ts",
+            "packages/cli/src/plan/step-done.test.ts"
+          ],
+          "deliverable": "Add recording-set input and shared atomic recording primitive; update the manual procedure and affected callers in this same change.",
+          "acceptance": [
+            "Unrelated staged/unstaged/plan-folder edits and partial staging refuse before mutation.",
+            "Empty status-only result, additions/deletions, forced rerecord and commit-failure index restoration are covered.",
+            "Existing callers are migrated or receive actionable refusal; no silent blanket-staging fallback."
+          ],
+          "depends_on_steps": [
+            2
+          ]
+        },
+        {
+          "number": 4,
+          "title": "Workflow validation and recording",
+          "context": [
+            "architecture/reference-cli#Structured reasoning boundary",
+            "architecture/agent-skills#plan-step"
+          ],
+          "deliverable": "Connect criterion/provenance validation to the shared recorder, proposal revalidation and recoverable receipts.",
+          "acceptance": [
+            "Core alone writes status/HANDOFF; stale proposals and lost leases refuse.",
+            "Matching retry returns existing commit; failed push retries publication without implementation or duplicate commit.",
+            "Non-plan results cannot set lifecycle states or bypass creation operations."
+          ],
+          "depends_on_steps": [
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "key": "manual-lifecycle",
+      "suggested_slug": "manual-lifecycle",
+      "title": "Human gates and neutral CLI lifecycle",
+      "depends_on": [
+        "workflow-recording"
+      ],
+      "specs": [
+        "architecture/reference-cli",
+        "architecture/agent-skills",
+        "feature/spec-policies",
+        "feature/plan-execution",
+        "feature/configuration",
+        "feature/decisions",
+        "feature/agent-integration"
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "title": "Confirmation challenge primitive",
+          "context": [
+            "architecture/reference-cli#Revision-bound human confirmation"
+          ],
+          "deliverable": "Implement direct interaction port, one-use challenges, payload/state/evidence binding and expiry.",
+          "acceptance": [
+            "Model tool input cannot consume a human response port.",
+            "Decline, timeout, replay and changed bytes refuse without mutation."
+          ],
+          "depends_on_steps": []
+        },
+        {
+          "number": 2,
+          "title": "Lifecycle command integration",
+          "context": [
+            "architecture/reference-cli#Revision-bound human confirmation",
+            "packages/cli/src/commands/spec-approve.ts",
+            "packages/cli/src/commands/plan-approve.ts",
+            "packages/cli/src/commands/decision.ts",
+            "packages/cli/src/plan/flows.ts"
+          ],
+          "deliverable": "Route approval, assist text authorization, finish and abandon through operation-specific gates and full writer lease sets.",
+          "acceptance": [
+            "Approval/text authorization/finish acceptance/merge remain distinct; rebase invalidates prior acceptance.",
+            "Manual human-invoked confirmations retain documented behavior; agent entry points cannot reuse them.",
+            "Spec/ADR creation and other stateful CLI operations use checkout coordination."
+          ],
+          "depends_on_steps": [
+            1
+          ]
+        },
+        {
+          "number": 3,
+          "title": "Neutral startup and extension conductor",
+          "context": [
+            "architecture/reference-cli#Shared conductor and extension boundary",
+            "packages/cli/src/plan/run.ts",
+            "packages/cli/src/harness/session.ts",
+            "packages/cli/src/agents/standing.ts",
+            "packages/cli/src/cli.ts"
+          ],
+          "deliverable": "Extract extension-supplied adapter entry, remove standalone run surfaces, and deliver neutral startup/instruction routing with migration diagnostics.",
+          "acceptance": [
+            "No installed-file/default/registry-order runtime selection; plain start remains usable without a host.",
+            "Fake adapter tests cover launch uncertainty, resume, limits, cancellation, finish-ready and identity mapping without approving or merging.",
+            "CLI help, docs and callers match removed commands; host capabilities remain gated until later verification."
+          ],
+          "depends_on_steps": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "key": "extension-packaging",
+      "suggested_slug": "extension-packaging",
+      "title": "Compatible packages and recoverable installation",
+      "depends_on": [
+        "manual-lifecycle"
+      ],
+      "specs": [
+        "architecture/reference-cli",
+        "architecture/agent-skills",
+        "feature/agent-integration"
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "title": "Package inventory and contract snapshots",
+          "context": [
+            "architecture/reference-cli#Compatibility manifest and package delivery",
+            "packages/cli/src/harness/pack.test.ts",
+            "packages/cli/src/spec/skill-drift.ts"
+          ],
+          "deliverable": "Produce reusable package builder and complete asset/procedure inventories against committed targets.",
+          "acceptance": [
+            "Every runtime/dependency asset and required procedure is covered and resolvable from the built package.",
+            "Tampered or incompatible bundle refuses before mutation; a pin is not treated as conformance evidence."
+          ],
+          "depends_on_steps": []
+        },
+        {
+          "number": 2,
+          "title": "Containment and migration transaction",
+          "context": [
+            "architecture/reference-cli#Explicit upgrade transaction",
+            "packages/cli/src/commands/init.ts",
+            "packages/cli/src/harness/codex.ts",
+            "packages/cli/src/harness/claude.ts"
+          ],
+          "deliverable": "Implement common/host destination validation, ownership digests, journal, backups and recovery.",
+          "acceptance": [
+            "Dangling links and changed path components never write outside the target.",
+            "Customized files survive; interruption at each transaction phase recovers without partial activation."
+          ],
+          "depends_on_steps": [
+            1
+          ]
+        },
+        {
+          "number": 3,
+          "title": "Coexistence and legacy rollout",
+          "context": [
+            "architecture/reference-cli#Explicit upgrade transaction",
+            "architecture/agent-skills#Standing instructions",
+            "packages/cli/src/harness/index.ts"
+          ],
+          "deliverable": "Connect explicit installation selection and neutral guidance; gate legacy retirement on replacement readiness.",
+          "acceptance": [
+            "Both install orders and repeated init preserve the other extension and user settings.",
+            "Old public skills remain available until replacements are usable; collisions keep affected commands unavailable with an exact action.",
+            "Prepared/installed/enabled states reflect observed evidence only."
+          ],
+          "depends_on_steps": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "key": "codex-delivery",
+      "suggested_slug": "codex-delivery",
+      "title": "Codex existing-session delivery",
+      "depends_on": [
+        "extension-packaging"
+      ],
+      "specs": [
+        "architecture/reference-cli",
+        "architecture/agent-skills",
+        "codex:architecture/codex-integration",
+        "codex:feature/codex-integration"
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "title": "Persistent runner",
+          "context": [
+            "codex:architecture/codex-integration",
+            "architecture/reference-cli#Structured reasoning boundary"
+          ],
+          "deliverable": "Implement packaged NDJSON runner and core lifecycle channel.",
+          "acceptance": [
+            "Protocol framing, request matching, stale state, disconnect and worker-stop recovery are covered.",
+            "No persistent channel yields the labeled manual fallback; no other host is substituted."
+          ],
+          "depends_on_steps": []
+        },
+        {
+          "number": 2,
+          "title": "Complete installed procedure",
+          "context": [
+            "codex:architecture/codex-integration",
+            "architecture/agent-skills",
+            "harnesses/codex/templates"
+          ],
+          "deliverable": "Deliver complete workflows, provenance capture and fallback documentation in the packaged skill.",
+          "acceptance": [
+            "Consumers need not possess this repository to load required shared procedure/context.",
+            "Manual fallback supplies the new recording manifest; unsupported identity stays unknown.",
+            "Native/background capability flags remain false."
+          ],
+          "depends_on_steps": [
+            1
+          ]
+        },
+        {
+          "number": 3,
+          "title": "Codex consumer integration",
+          "context": [
+            "codex:architecture/codex-integration",
+            "packages/cli/src/harness/codex.test.ts"
+          ],
+          "deliverable": "Exercise an ordinary permitted remote-backed plan with installed assets and a scripted protocol client.",
+          "acceptance": [
+            "Synchronize, implement, execute real assertions, record and publish; diverged remote and failed push have safe outcomes.",
+            "Experimental fixtures remain separate; scripted evidence makes no live host/session claim."
+          ],
+          "depends_on_steps": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "key": "claude-delivery",
+      "suggested_slug": "claude-delivery",
+      "title": "Claude extension-owned workflow delivery",
+      "depends_on": [
+        "extension-packaging"
+      ],
+      "specs": [
+        "architecture/reference-cli",
+        "architecture/agent-skills",
+        "claude:architecture/claude-integration",
+        "claude:feature/claude-integration"
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "title": "Host surface evidence",
+          "context": [
+            "claude:architecture/claude-integration"
+          ],
+          "deliverable": "Inspect installed declarations and build a named-version API/collision/interaction compatibility fixture.",
+          "acceptance": [
+            "Native APIs and direct-human port signatures have evidence before native handler implementation.",
+            "If unavailable, report the native work blocked and retain labeled fallback; do not count unavailable capability as successful delivery."
+          ],
+          "depends_on_steps": []
+        },
+        {
+          "number": 2,
+          "title": "Handlers and reasoning procedures",
+          "context": [
+            "claude:architecture/claude-integration",
+            "architecture/agent-skills",
+            "harnesses/claude/templates"
+          ],
+          "deliverable": "Implement verified native handlers and policy hooks delegating to core; package internal reasoning procedures and fallback.",
+          "acceptance": [
+            "Mechanical handler path performs no model call; built-in commands are not shadowed.",
+            "Human gates cannot be supplied by model output; every replaced legacy workflow has conformance coverage."
+          ],
+          "depends_on_steps": [
+            1
+          ]
+        },
+        {
+          "number": 3,
+          "title": "Adapter lifecycle and integration",
+          "context": [
+            "claude:architecture/claude-integration",
+            "architecture/reference-cli#Shared conductor and extension boundary",
+            "packages/cli/src/harness/session.ts"
+          ],
+          "deliverable": "Implement extension-owned session adapter against verified declarations with shared contract fixtures.",
+          "acceptance": [
+            "Launch/observe/resume/cancel and budget behavior preserve core leases and recording ownership.",
+            "Live certification requires named-version test evidence; fake-runner success alone enables no native/background capability."
+          ],
+          "depends_on_steps": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "key": "extension-conformance",
+      "suggested_slug": "extension-conformance",
+      "title": "Cross-package conformance and rollout evidence",
+      "depends_on": [
+        "codex-delivery",
+        "claude-delivery"
+      ],
+      "specs": [
+        "architecture/reference-cli",
+        "architecture/agent-skills",
+        "architecture/file-formats",
+        "codex:architecture/codex-integration",
+        "claude:architecture/claude-integration"
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "title": "Cross-package acceptance matrix",
+          "context": [
+            "architecture/reference-cli",
+            "architecture/agent-skills",
+            "architecture/file-formats"
+          ],
+          "deliverable": "Run package installation, shared protocol, manual lifecycle and host workflow regression matrix from release artifacts.",
+          "acceptance": [
+            "CLI/core paths agree for exact staging, coordination, confirmations, receipts and provenance.",
+            "Each public export and delivered workflow maps to passing applicable tests; full implementation suite and repository validation are reported separately."
+          ],
+          "depends_on_steps": []
+        },
+        {
+          "number": 2,
+          "title": "Pin review and release evidence",
+          "context": [
+            "architecture/reference-cli#Compatibility manifest and package delivery",
+            "packages/cli/src/spec/skill-drift.ts",
+            "packages/cli/src/spec/pins.ts"
+          ],
+          "deliverable": "After implementation conformance review, refresh CLI-managed pins and write exact tested-version/surface evidence plus migration docs.",
+          "acceptance": [
+            "All pins refer to committed reviewed targets; no hash-only claim of conformance.",
+            "Warnings receive revision-bound review; no requirement to make unrelated heuristic warnings disappear.",
+            "Human finish/merge/publication remains separate; blocked Claude delivery cannot be hidden by a generic unavailable flag."
+          ],
+          "depends_on_steps": [
+            1
+          ]
+        }
+      ]
+    }
+  ],
+  "scope_limits": [
+    "No warning-dismissal feature, provider registry, native/background Codex capability, automatic approval/merge, or publication.",
+    "No global host installation or paid live background run implied by this planning review.",
+    "No pin refresh before target commits and relevant implementation review."
+  ],
+  "sources": [
+    {
+      "path": ".specplane/config.yaml",
+      "sha256": "ff4921b7dc3c0ee20434717cf83c97789e3ab53d7a437d96aede9300bb43b9c8"
+    },
+    {
+      "path": "docs/specifications/features/plan-steps.md",
+      "sha256": "9384844a40af206b89edd96c8a9a42019a2791070ae425700ae05dc86e1c5333"
+    },
+    {
+      "path": "docs/specifications/architecture/reference-cli.md",
+      "sha256": "dea0effba858c1265bee617c5c772ba0af5d081d86c9efa09f10b37390b08dd6"
+    },
+    {
+      "path": "docs/specifications/architecture/agent-skills.md",
+      "sha256": "2e500d1c9b9cf0492de0fa8d6b0858e189fabb7fcde5f4bb069dfcf3f7914080"
+    },
+    {
+      "path": "docs/specifications/architecture/file-formats.md",
+      "sha256": "bf21b7fe1fb24bc99ebf97bffb416ce1b6c92f7a0a1b11674f3fa5c645332ee2"
+    },
+    {
+      "path": "plans/2026-10-30-plan-conductor/PLAN.md",
+      "sha256": "a3e5e1040a96e46960446dab7899707bbb1041233b90baf9bd3ba079f00ea216"
+    }
+  ],
+  "verification": {
+    "proposal_json": "passed",
+    "references_and_dependency_order": "passed: 7 plans, 23 sequential steps, 92 source/spec references; anchors adapted and checked with the plan validator heading matcher",
+    "diff_check": "passed",
+    "implementation_tests": "not run; proposal-only edit",
+    "repository_validation": "not rerun; no specifications, implementation or plan files changed; previous result 0 errors/65 warnings is historical"
+  }
+}

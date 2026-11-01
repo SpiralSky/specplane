@@ -7,6 +7,13 @@
 | ID | Title | Status | Dependencies | Specs |
 |----|-------|--------|--------------|-------|
 | [2026-10-30-plan-conductor](2026-10-30-plan-conductor/PLAN.md) | Plan conductor — plan run, session mode, and alerts | ready | [2026-10-30-plan-primitives](archive/2026-10-30-plan-primitives/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/plan-execution, feature/configuration, feature/spec-precedence, feature/agent-integration, claude:architecture/claude-integration, claude:feature/claude-integration |
+| [2026-11-01-claude-delivery](2026-11-01-claude-delivery/PLAN.md) | Claude extension-owned workflow delivery | draft | [2026-11-01-extension-packaging](2026-11-01-extension-packaging/PLAN.md) | architecture/reference-cli, architecture/agent-skills, claude:architecture/claude-integration, claude:feature/claude-integration |
+| [2026-11-01-codex-delivery](2026-11-01-codex-delivery/PLAN.md) | Codex existing-session delivery | draft | [2026-11-01-extension-packaging](2026-11-01-extension-packaging/PLAN.md) | architecture/reference-cli, architecture/agent-skills, codex:architecture/codex-integration, codex:feature/codex-integration |
+| [2026-11-01-core-foundation](2026-11-01-core-foundation/PLAN.md) | Core contracts, coordination and provenance | draft | — | architecture/reference-cli, architecture/file-formats, feature/tooling, feature/agent-integration |
+| [2026-11-01-extension-conformance](2026-11-01-extension-conformance/PLAN.md) | Cross-package conformance and rollout evidence | draft | [2026-11-01-claude-delivery](2026-11-01-claude-delivery/PLAN.md), [2026-11-01-codex-delivery](2026-11-01-codex-delivery/PLAN.md) | architecture/reference-cli, architecture/agent-skills, architecture/file-formats, codex:architecture/codex-integration, claude:architecture/claude-integration |
+| [2026-11-01-extension-packaging](2026-11-01-extension-packaging/PLAN.md) | Compatible packages and recoverable installation | draft | [2026-11-01-manual-lifecycle](2026-11-01-manual-lifecycle/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/agent-integration |
+| [2026-11-01-manual-lifecycle](2026-11-01-manual-lifecycle/PLAN.md) | Human gates and neutral CLI lifecycle | draft | [2026-11-01-workflow-recording](2026-11-01-workflow-recording/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/spec-policies, feature/plan-execution, feature/configuration, feature/decisions, feature/agent-integration |
+| [2026-11-01-workflow-recording](2026-11-01-workflow-recording/PLAN.md) | Prepared workflows and exact recording | draft | [2026-11-01-core-foundation](2026-11-01-core-foundation/PLAN.md) | architecture/reference-cli, architecture/agent-skills, architecture/file-formats, feature/plan-steps, feature/spec-policies |
 
 ## Archived plans
 
@@ -42,6 +49,13 @@ graph TD
     p_2026_10_29_feature_spec_alignment[feature-spec-alignment]:::done
     p_2026_10_30_plan_conductor[plan-conductor]:::ready
     p_2026_10_30_plan_primitives[plan-primitives]:::done
+    p_2026_11_01_claude_delivery[claude-delivery]:::draft
+    p_2026_11_01_codex_delivery[codex-delivery]:::draft
+    p_2026_11_01_core_foundation[core-foundation]:::draft
+    p_2026_11_01_extension_conformance[extension-conformance]:::draft
+    p_2026_11_01_extension_packaging[extension-packaging]:::draft
+    p_2026_11_01_manual_lifecycle[manual-lifecycle]:::draft
+    p_2026_11_01_workflow_recording[workflow-recording]:::draft
     p_2026_10_29_feature_spec_alignment --> p_2026_10_29_assist_and_approve
     p_2026_10_29_claude_harness_files --> p_2026_10_29_claude_instructions_and_enforcement
     p_2026_10_28_reference_cli_core --> p_2026_10_29_cli_claude_harness_init
@@ -53,6 +67,13 @@ graph TD
     p_2026_10_29_cli_plan_commands --> p_2026_10_29_cli_plan_flows
     p_2026_10_28_reference_cli_core --> p_2026_10_29_cli_spec_search
     p_2026_10_30_plan_primitives --> p_2026_10_30_plan_conductor
+    p_2026_11_01_extension_packaging --> p_2026_11_01_claude_delivery
+    p_2026_11_01_extension_packaging --> p_2026_11_01_codex_delivery
+    p_2026_11_01_claude_delivery --> p_2026_11_01_extension_conformance
+    p_2026_11_01_codex_delivery --> p_2026_11_01_extension_conformance
+    p_2026_11_01_manual_lifecycle --> p_2026_11_01_extension_packaging
+    p_2026_11_01_workflow_recording --> p_2026_11_01_manual_lifecycle
+    p_2026_11_01_core_foundation --> p_2026_11_01_workflow_recording
     classDef draft fill:#f9fafb,color:#374151,stroke:#d1d5db
     classDef ready fill:#22c55e,color:#fff
     classDef blocked fill:#ef4444,color:#fff
