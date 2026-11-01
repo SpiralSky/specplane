@@ -1,9 +1,10 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DEFAULT_CONFIG, loadConfig } from "./config.js";
+import { DEFAULT_CONFIG, loadConfig, resolveSessionMode } from "./config.js";
 import { ConfigError } from "./errors.js";
 import { fixture } from "./fixtures.js";
 import { mainRoot } from "./git/repo.js";
@@ -113,4 +114,92 @@ test("DEFAULT_CONFIG equals the defaults table in feature/configuration", () => 
   const m = /## Full schema with defaults\s+```yaml\n([\s\S]*?)\n```/.exec(spec);
   assert.ok(m, "defaults block not found in feature/configuration");
   assert.deepEqual(yaml.load(m[1], { schema: yaml.JSON_SCHEMA }), DEFAULT_CONFIG);
+});
+
+// Conductor configuration is inert unless a caller explicitly runs a plan.
+
+/** Load an isolated config without requiring a populated specification tree. */
+function loadExecution(execution: unknown): ReturnType<typeof loadConfig> {
+  const root = mkdtempSync(path.join(os.tmpdir(), "specplane-conductor-config-"));
+  try {
+    mkdirSync(path.join(root, ".specplane"));
+    writeFileSync(path.join(root, ".specplane/config.yaml"), yaml.dump({ execution }));
+    return loadConfig(root, { checkSpecRoots: false });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test("conductor config: safe defaults and partial notification merge", () => {
+  const defaults = loadExecution({}).config.execution;
+  assert.equal(defaults.session_mode, "auto");
+  assert.equal(defaults.max_parallel, 1);
+  assert.equal(defaults.max_budget_usd, null);
+  assert.deepEqual(defaults.notify, {
+    on: ["blocked", "consideration", "finish_ready", "failed"],
+    transport: "none", command: "", dedupe: true,
+  });
+  const { config, warnings } = loadExecution({ notify: { on: [], dedupe: false } });
+  assert.deepEqual(config.execution.notify, { on: [], transport: "none", command: "", dedupe: false });
+  assert.deepEqual(warnings, []);
+});
+
+test("conductor config: accepted modes, transports, limits and event selectors", () => {
+  const { config, warnings } = loadExecution({
+    session_mode: "unattended", max_parallel: 2, max_budget_usd: 0.25,
+    notify: { on: ["done"], transport: "command", command: "printf alert", dedupe: false },
+  });
+  assert.equal(config.execution.session_mode, "unattended");
+  assert.equal(config.execution.max_parallel, 2);
+  assert.equal(config.execution.max_budget_usd, 0.25);
+  assert.equal(config.execution.notify.command, "printf alert");
+  assert.deepEqual(config.execution.notify.on, ["done"]);
+  assert.deepEqual(warnings, []);
+  assert.equal(loadExecution({ notify: { transport: "harness" } }).config.execution.notify.transport, "harness");
+  assert.equal(loadExecution({ max_budget_usd: null }).config.execution.max_budget_usd, null);
+});
+
+test("conductor config: invalid enums, types and unsafe limits are rejected", () => {
+  const invalid = [
+    { session_mode: "attended" }, { session_mode: true },
+    { notify: { transport: "email" } }, { notify: { on: ["progress"] } },
+    { notify: { on: "blocked" } }, { notify: { on: ["blocked", "blocked"] } },
+    { notify: { dedupe: "false" } }, { notify: { command: 123 } },
+    { max_parallel: 0 }, { max_parallel: -1 }, { max_parallel: 1.5 }, { max_parallel: "2" },
+    { max_budget_usd: 0 }, { max_budget_usd: -0.1 }, { max_budget_usd: "1" },
+    { max_budget_usd: Infinity }, { max_budget_usd: NaN },
+  ];
+  for (const execution of invalid) {
+    assert.throws(() => loadExecution(execution), ConfigError, JSON.stringify(execution));
+  }
+});
+
+test("conductor config: command transport requires a nonblank command", () => {
+  for (const notify of [{ transport: "command" }, { transport: "command", command: "  \n\t" }]) {
+    assert.throws(() => loadExecution({ notify }),
+      (e: unknown) => e instanceof ConfigError && e.message.includes("execution.notify.command"));
+  }
+});
+
+test("conductor config: unknown nested keys still warn and are dropped", () => {
+  const { config, warnings } = loadExecution({ future: true, notify: { future: "value" } });
+  assert.deepEqual(warnings.map((w) => w.message).sort(), [
+    "Unknown config key `execution.future`; ignoring.",
+    "Unknown config key `execution.notify.future`; ignoring.",
+  ]);
+  assert.equal("future" in config.execution, false);
+  assert.equal("future" in config.execution.notify, false);
+});
+
+test("session mode: config can force unattended but cannot force attended", () => {
+  assert.equal(resolveSessionMode("auto", "attended"), "attended");
+  assert.equal(resolveSessionMode("auto", "unattended"), "unattended");
+  assert.equal(resolveSessionMode("unattended", "attended"), "unattended");
+  assert.equal(resolveSessionMode("unattended", "unattended"), "unattended");
+});
+
+
+test("init emits the complete runtime defaults including conductor settings", async () => {
+  const { DEFAULT_CONFIG_YAML } = await import("./commands/init.js");
+  assert.deepEqual(yaml.load(DEFAULT_CONFIG_YAML), DEFAULT_CONFIG);
 });

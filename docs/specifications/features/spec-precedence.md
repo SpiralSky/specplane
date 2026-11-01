@@ -1,9 +1,11 @@
 ---
 id: feature/spec-precedence
 title: Implementation precedence and gap/contradiction handling
-status: approved
+status: review
 author: mixed
 ---
+
+<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Implementation precedence and gap/contradiction handling
 
@@ -60,7 +62,7 @@ If the architecture spec and the feature spec make contradictory claims about th
 - **In attended mode** (a human is watching the session): the implementer stops and presents the contradiction clearly, showing the conflicting passages from both specs, and asks the human to resolve it.
 - **In unattended mode** (no human in the session): the implementer records the contradiction as a **blocking issue** in `HANDOFF.md`, marks it with a `BLOCKED:` prefix, and does not implement the contradicted behaviour. It may continue with unrelated tasks in the same step. If the contradiction prevents the step's acceptance criteria from being met, the step ends with status `blocked` (see `feature/plan-steps`); otherwise it ends `done` with the `BLOCKED:` item listed under open issues.
 
-Whether a session is attended is decided by the harness, not by config: a session is attended when the agent can ask a human and wait for the answer, and unattended otherwise (for example, background, scheduled, CI, or `external`-backend runs). When in doubt, the agent treats the session as unattended, so that it never waits indefinitely for an answer.
+The harness detects session mode; `execution.session_mode: unattended` may force unattended behavior but can never force attended behavior: a session is attended when the agent can ask a human and wait for the answer, and unattended otherwise (for example, background, scheduled, CI, or `external`-backend runs). When in doubt, the agent treats the session as unattended, so that it never waits indefinitely for an answer.
 
 A contradiction is a signal that one or both specs need to be updated. The resolution is a spec edit, not a code decision.
 

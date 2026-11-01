@@ -41,6 +41,14 @@ plans:
 execution:
   backend: worktree           # worktree | branch | external
   worktree_dir: ../.specplane-worktrees   # where worktrees are created; relative to the main checkout
+  session_mode: auto
+  notify:
+    on: [blocked, consideration, finish_ready, failed]
+    transport: none
+    command: ""
+    dedupe: true
+  max_parallel: 1
+  max_budget_usd: null
 
 decisions:
   dir: docs/decisions         # directory holding ADRs

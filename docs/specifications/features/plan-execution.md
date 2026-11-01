@@ -1,9 +1,11 @@
 ---
 id: feature/plan-execution
 title: "Plan execution: backends, start/finish flows, merging, and stacking"
-status: approved
+status: review
 author: mixed
 ---
+
+<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Plan execution: backends, start/finish flows, merging, and stacking
 
@@ -321,3 +323,9 @@ And the dependency and spec-approval checks are skipped, so spec edits made on t
 - `merge: local_merge` with a protected main branch will fail at the git level. Teams using protected branches must use `merge: pull_request`.
 - Cleanup (branch and worktree deletion) is idempotent: running it on an already-cleaned-up plan does nothing.
 - Cleanup deletes `plan/<id>` only when the plan is `done` on the default branch. That status proves the merge regardless of merge method (git alone does not recognise a squash-merged branch as merged).
+
+## Experimental opt-in conductor
+
+`plan start --run` starts one unattended step iteration after the ordinary start flow. Without `--run`, start behavior is unchanged. `plan run <ids...>` accepts only isolated worktree-backed plans. `--until step|finish` controls iteration; `finish` means stop at finish-review readiness, never run the finish flow. The default maximum is one session; increase `--max-steps` explicitly for a longer bounded run. `--max-parallel` applies to distinct plans only.
+
+An explicit `--step N --force --reason TEXT` reruns a completed step once and records a single-line reason. It cannot override live sessions, locks, dirty/diverged checkouts, half-finished commits, human decisions, drafts, or unmerged dependency gates. Normal runs select the first pending step. A session that exits without advancing status is not retried automatically. Interrupting observation leaves the session running; inspect/attach before retrying. No automatic production notification configuration or permission changes occur.

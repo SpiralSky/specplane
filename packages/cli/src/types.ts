@@ -7,6 +7,8 @@ export type StepStatus = "pending" | "done" | "skipped" | "blocked";
 export type AdrStatus = "proposed" | "accepted" | "superseded" | "deprecated";
 export type Authorship = "user" | "llm" | "either";
 export type LlmRole = "review" | "assist" | "draft" | "none";
+export type SessionMode = "attended" | "unattended";
+export type NotificationEvent = "blocked" | "consideration" | "finish_ready" | "done" | "failed";
 
 export interface SpecRootConfig {
   name: string;
@@ -45,6 +47,15 @@ export interface Config {
   execution: {
     backend: "worktree" | "branch" | "external";
     worktree_dir: string;
+    session_mode: "auto" | "unattended";
+    notify: {
+      on: NotificationEvent[];
+      transport: "none" | "harness" | "command";
+      command: string;
+      dedupe: boolean;
+    };
+    max_parallel: number;
+    max_budget_usd: number | null;
   };
   decisions: { dir: string };
 }

@@ -1,9 +1,11 @@
 ---
 id: feature/agent-integration
 title: "Agent integration: agent instructions, skills, and policy enforcement"
-status: approved
+status: review
 author: mixed
 ---
+
+<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Agent integration: agent instructions, skills, and policy enforcement
 
@@ -293,3 +295,7 @@ Then it does not approve `feature/search`, and it tells the user that the `appro
 - A user who edits inside the managed block loses those edits on the next update; the block's begin marker says so.
 - An agent running in a repository without Specplane configured (no `.specplane/config.yaml`) should not attempt to apply Specplane policies. The skills are designed to be no-ops or to prompt for initialisation in this case.
 - Skills must be idempotent: running `plan-step` after the last step is complete reports that and changes nothing; running it on a `blocked` step reports the blocker and changes nothing.
+
+## Experimental conductor integration
+
+`specplane plan run <ids...>` resolves steps and invokes a capability-checked harness adapter. It never approves, finishes or merges plans. A consideration is a blocked step, unresolved proposal/assumption, finish-review readiness, restack, divergence, dirty checkout, exhausted execution limit, or failure. The conductor stops and presents the decision with a resolving command. Delivery follows `execution.notify` and remains user-owned. Distinct plans may run concurrently; one step per plan may run at a time. Restarting never duplicates a live session; attach to that session instead. A known non-running session can be resumed with its stable identity.

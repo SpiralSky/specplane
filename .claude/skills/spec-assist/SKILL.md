@@ -4,7 +4,7 @@ description: Help the user write a feature spec (refine-then-write under assist,
 argument-hint: "[topic]"
 disable-model-invocation: false
 ---
-<!-- specplane-contract: architecture/agent-skills#spec-assist@c01fd20 -->
+<!-- specplane-contract: architecture/agent-skills#spec-assist@74958ce -->
 
 # spec-assist
 

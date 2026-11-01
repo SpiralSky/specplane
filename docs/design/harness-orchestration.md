@@ -1,3 +1,5 @@
+> Experimental implementation exists on `dot/complete-framework-20261031`; see proposed ADR 0005 and `docs/work-records/2026-11-01-experimental-conductor.md`. Live Claude compatibility remains unverified. No plan has been finalized or merged; this note is not an approval.
+
 # Harness orchestration — design note
 
 > **Status:** review input, 2026-10-30. This is **not a spec**. It records a proposed rework of the

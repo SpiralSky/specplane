@@ -4,7 +4,7 @@ description: Draft an architecture spec from feature specs, or review an archite
 argument-hint: "[feature-spec-id ...]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#spec-draft-architecture@c01fd20 -->
+<!-- specplane-contract: architecture/agent-skills#spec-draft-architecture@74958ce -->
 
 # spec-draft-architecture
 

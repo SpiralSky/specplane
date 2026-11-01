@@ -1,11 +1,13 @@
 ---
 id: feature/claude-integration
 title: Claude Code integration
-status: approved
+status: review
 author: mixed
 extends: [feature/agent-integration, feature/plan-steps, feature/spec-policies]
-based_on: { feature/agent-integration: "9e3a0cf", feature/plan-steps: "00332af", feature/spec-policies: "beebc9c" }
+based_on: { feature/agent-integration: "434c3f9", feature/plan-steps: "00332af", feature/spec-policies: "beebc9c" }
 ---
+
+<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Claude Code integration
 
@@ -206,3 +208,7 @@ Then the summary includes a skill-drift warning for the skill, and the user is t
 None. IDs refer to `docs/OPEN-QUESTIONS.md`.
 
 Resolved: OQ-2 (skills vs. bash aliases — § Slash commands), OQ-3 (subagents per step — § Subagents per step), OQ-4 (default hooks — § Hooks), OQ-5 (memory names — § Memory integration).
+
+## Experimental background conductor
+
+The conductor uses an observable session in the Specplane-owned checkout, not a second harness worktree. A harness alert is surfaced only through the adapter; external delivery remains governed by existing user settings. Specplane does not enable or bypass notifications. The local Claude executable must support the required capabilities; unavailable or incompatible versions are refused rather than guessed compatible. No live Claude session has been verified in the Dot cloud environment used for this branch.

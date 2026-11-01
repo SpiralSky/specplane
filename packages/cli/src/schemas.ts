@@ -173,6 +173,23 @@ export const CONFIG_SCHEMA = {
       properties: {
         backend: enumOf("worktree", "branch", "external"),
         worktree_dir: { type: "string" },
+        session_mode: enumOf("auto", "unattended"),
+        notify: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            on: {
+              type: "array",
+              items: enumOf("blocked", "consideration", "finish_ready", "done", "failed"),
+              uniqueItems: true,
+            },
+            transport: enumOf("none", "harness", "command"),
+            command: { type: "string" },
+            dedupe: { type: "boolean" },
+          },
+        },
+        max_parallel: { type: "integer", minimum: 1 },
+        max_budget_usd: { type: ["number", "null"], exclusiveMinimum: 0 },
       },
     },
     decisions: {

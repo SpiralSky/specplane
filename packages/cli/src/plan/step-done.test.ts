@@ -140,3 +140,15 @@ test("a subject over 72 characters is refused before any write", () => {
   const root = repo({ "01-a.md": step(1, "pending") });
   refused(root, ["--outcome", "done", "--summary", "x".repeat(80)], /72/);
 });
+
+test("forced completed-step rerun records reason without deleting earlier history", () => {
+  const root = repo({ "01-a.md": step(1, "done"), "02-b.md": step(2, "done") }, "# HANDOFF\n\n## Step 01: Step 1\n**Outcome**: done\n\n## Step 02: Step 2\n**Outcome**: done\n");
+  refused(root,["--step","1","--outcome","done","--summary","redo","--force"],/already/);
+  const r=sp(root,{},"plan","step-done",ID,"--step","1","--outcome","done","--summary","rerun","--force","--reason","verify regression");
+  assert.equal(r.code,0,r.err);
+  assert.match(git(root,"log","-1","--format=%B"),/Specplane-Force-Reason: verify regression/);
+  const h=fs.readFileSync(path.join(root,PLAN,"HANDOFF.md"),"utf8");
+  assert.equal((h.match(/## Step 01/g)??[]).length,2);
+  assert.match(h,/Forced rerun: verify regression/);
+  assert.match(fs.readFileSync(path.join(root,PLAN,"PLAN.md"),"utf8"),/status: in_progress/);
+});

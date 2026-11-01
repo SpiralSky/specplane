@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
-import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand, planNextCommand, planStepDoneCommand } from "./commands/plan.js";
+import { planRunCommand, planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand, planNextCommand, planStepDoneCommand } from "./commands/plan.js";
 import { planApproveCommand } from "./commands/plan-approve.js";
 import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
@@ -41,7 +41,7 @@ plan
   .option("--depends-on <ids>", "comma-separated plan IDs")
   .action((opts) => planNewCommand(opts));
 plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
-plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--json", "print the result as JSON").action((id, opts) => planStartCommand(id, opts));
+plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--json", "print the result as JSON").option("--run", "run one unattended step after starting (never finish or merge)").action((id, opts) => planStartCommand(id, opts));
 plan
   .command("finish <id>")
   .description("Finish a plan: tests, rebase, done and archive commit, merge (lists open spec-gaps.md entries)")
@@ -71,6 +71,19 @@ plan
   .option("--json", "print the result as JSON")
   .option("--no-fetch", "accepted for symmetry with `plan list --live`; `plan next` never fetches")
   .action((id, opts) => planNextCommand(id, opts));
+plan.command("run <ids...>")
+  .description("Run isolated plan steps through a capability-checked harness; never approve, finish or merge")
+  .option("--until <target>", "step or finish", "step")
+  .option("--max-steps <n>", "maximum sessions per plan", "1")
+  .option("--max-parallel <n>", "maximum distinct plans in flight")
+  .option("--max-budget-usd <n>", "total reserved budget per plan, divided among maximum steps")
+  .option("--timeout-seconds <n>", "stop observing after this duration; leave session running", "900")
+  .option("--force", "request completed-step rerun; never bypass safety gates")
+  .option("--reason <text>", "required explanation for a forced rerun")
+  .option("--step <n>", "explicit completed step to rerun with --force --reason")
+  .option("--dry-run", "read-only gate/capability check, no session launched")
+  .option("--json", "output structured result")
+  .action((ids, opts) => planRunCommand(ids, opts));
 const collect = (v: string, prev: string[] = []): string[] => [...prev, v];
 plan
   .command("step-done <id>")
@@ -85,6 +98,7 @@ plan
   .option("--next-knows <text>", "what the next step must know")
   .option("--step <n>", "step number (default: the lowest step not done or skipped)", (v) => Number(v))
   .option("--force", "override the blocker guard and mark the step done anyway")
+  .option("--reason <text>", "audit reason required when re-recording a completed step")
   .option("--trailer <line>", "extra trailer such as `Co-Authored-By: ...` (repeatable)", collect)
   .action((id, opts) => planStepDoneCommand(id, opts));
 plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());
@@ -175,7 +189,7 @@ program
   .action((opts: { harness?: string }) => initCommand(opts));
 
 try {
-  program.parse(process.argv);
+  await program.parseAsync(process.argv);
 } catch (e) {
   if (!reportError(e)) throw e;
 }

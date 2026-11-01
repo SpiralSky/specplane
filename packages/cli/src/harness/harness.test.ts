@@ -42,6 +42,14 @@ test("harness: claude templates resolve from the compiled module", () => {
   assert.ok(fs.existsSync(path.join(templatesDir("claude"), "settings.json")));
 });
 
+test("claude plan-step: blocked-step recovery uses the current CLI flag", () => {
+  const root = makeRepo({});
+  runInit(root, { harness: "claude" });
+  const skill = fs.readFileSync(path.join(root, ".claude/skills/plan-step/SKILL.md"), "utf8");
+  assert.match(skill, /Re-running a `blocked` step adds `--force`/);
+  assert.doesNotMatch(skill, /`--resume`/);
+});
+
 // --- Claude installer and settings merge ---
 import { mergeSettings } from "./claude.js";
 import { claude } from "./claude.js";

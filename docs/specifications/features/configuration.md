@@ -1,9 +1,11 @@
 ---
 id: feature/configuration
 title: Configuration schema and defaults
-status: approved
+status: review
 author: mixed
 ---
+
+<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Configuration schema and defaults
 
@@ -61,6 +63,14 @@ plans:
 execution:
   backend: worktree           # worktree | branch | external
   worktree_dir: ../.specplane-worktrees   # where worktrees are created; relative to the main checkout
+  session_mode: auto         # auto | unattended; never forces attended
+  notify:
+    on: [blocked, consideration, finish_ready, failed]
+    transport: none          # none | harness | command
+    command: ""
+    dedupe: true
+  max_parallel: 1
+  max_budget_usd: null
 
 # ── Decision records ──────────────────────────────────────────────────────────
 decisions:
@@ -395,3 +405,13 @@ Then an error is reported: "Spec root `shared`: path `../shared-specs` is outsid
 - The **repository root** is the root of the checkout the command runs in: the main checkout, or a plan worktree. The config file is always read from the repository root, regardless of the current working directory, so a plan worktree uses the config committed on its plan branch.
 - Relative paths in the config are relative to the repository root, except `execution.worktree_dir`, which is relative to the main checkout's root (see above).
 - `execution.worktree_dir` may be an absolute path. It must not be inside the main checkout.
+
+## Experimental conductor configuration
+
+`execution.session_mode` is `auto` (harness detection) or `unattended` (forces unattended). Neither value permits downgrading an unattended session to attended or bypassing approval policy.
+
+`execution.notify.on` selects `blocked`, `consideration`, `finish_ready`, `done`, or `failed`. The default selects all except `done`. `consideration` groups gap decisions, restack, divergence, dirty worktrees, and execution limits. Ordinary progress is not an alert. `transport` is `none` (default, no delivery/cache), `harness` (adapter callback only), or `command` (the user's configured command). Command transport requires a nonblank command. `dedupe` defaults true. Delivery failures are logged without failing the run. With dedupe enabled, the attempt is recorded before delivery, because an error or crash cannot prove non-delivery; uncertain attempts are not automatically resent. A malformed cache suppresses delivery until inspected. Resolved considerations are removed so recurrence alerts again.
+
+Command transport receives `SPECPLANE_PLAN`, `SPECPLANE_KIND`, `SPECPLANE_DETAIL`, `SPECPLANE_COMMAND`, `SPECPLANE_SESSION`, and `SPECPLANE_CHECKOUT`. Specplane never enables a transport or external notification channel itself.
+
+`execution.max_parallel` is a positive integer, default 1, limiting distinct concurrent plans. `execution.max_budget_usd` is a positive finite number or null (default, no configured bound). The conductor reserves the bound in equal shares across its maximum session attempts. Unsupported budget enforcement is a refusal; reservations include uncertain launch attempts and are not a measurement of cost.

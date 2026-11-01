@@ -1,10 +1,12 @@
 ---
 id: architecture/file-formats
 title: "File formats: frontmatter schemas, naming, markdown conventions, and templates"
-status: approved
+status: review
 author: llm
 implements: [feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions]
 ---
+
+<!-- Experimental development amendment 2026-11-01; these branch changes await human final review. -->
 
 # File formats: frontmatter schemas, naming, markdown conventions, and templates
 
@@ -686,7 +688,19 @@ related_specs: []
       "additionalProperties": false,
       "properties": {
         "backend":       { "type": "string", "enum": ["worktree","branch","external"] },
-        "worktree_dir":  { "type": "string" }
+        "worktree_dir":  { "type": "string" },
+        "session_mode":  { "type": "string", "enum": ["auto", "unattended"] },
+        "max_parallel":  { "type": "integer", "minimum": 1 },
+        "max_budget_usd": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "notify": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "on": { "type": "array", "items": { "type": "string", "enum": ["blocked", "consideration", "finish_ready", "done", "failed"] } },
+            "transport": { "type": "string", "enum": ["none", "harness", "command"] },
+            "command": { "type": "string" },
+            "dedupe": { "type": "boolean" }
+          }
+        }
       }
     },
     "decisions": {
@@ -777,3 +791,7 @@ A step that needs a small group of commits gives each the `step` trailers; the l
 - Commit kind: `git log --format='%H%x00%(trailers:key=Specplane-Workflow,valueonly)' <ref>`.
 - All trailers of one commit: `git log -1 --format='%(trailers:only,unfold)' <sha>`.
 - A commit without a `Specplane-Workflow` trailer is not a Specplane commit, whatever its subject says.
+
+## Experimental conductor audit trailers
+
+A forced completed-step rerun adds `Specplane-Force-Reason` after standard step identity trailers. It is a single-line explanation, not approval. Earlier HANDOFF sections are preserved; the latest occurrence remains authoritative. Runtime locks and alert caches reside under Git’s private common directory and never establish plan completion.

@@ -14,6 +14,8 @@ import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { checkoutRoot } from "../git/repo.js";
 import { fetchPlanBranches, getPlanActivity, hasRemote, remotePlanFrontmatter, remotePlanIds, type PlanActivity } from "../plan/activity.js";
 import { formatNext, planNext } from "../plan/next.js";
+import { attentionFor, type Attention } from "../plan/alerts.js";
+import { runPlans, type RunOptions } from "../plan/run.js";
 import { stepDone, type StepDoneOptions } from "../plan/step-done.js";
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
@@ -45,7 +47,7 @@ export interface PlanListRow {
   archived: boolean;
 }
 
-export type LivePlanListRow = PlanListRow & PlanActivity;
+export type LivePlanListRow = PlanListRow & PlanActivity & { attention: Attention[] };
 
 /** Rows sorted by ID descending, plus notes for plans that could not be parsed. */
 export function planList(opts: PlanListOptions, root: string, config: Config): { rows: (PlanListRow | LivePlanListRow)[]; problems: string[]; blockedReasons: Map<string, string>; notices: string[] } {
@@ -94,7 +96,7 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
       depends_on: fm.depends_on ?? [],
       specs: fm.specs,
       archived,
-      ...(opts.live ? getPlanActivity(fm.id, config, root) : {}),
+      ...(opts.live ? { ...getPlanActivity(fm.id, config, root), attention: (() => { try { return attentionFor(planNext(fm.id, config, root)); } catch (e) { return [{kind:"unavailable",detail:(e as Error).message,command:`specplane plan show ${fm.id}`}]; } })() } : {}),
     }))
     .filter((r) => opts.status === undefined || r.effective_status === opts.status)
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
@@ -115,6 +117,7 @@ function activityLine(r: LivePlanListRow): string {
   parts.push(`where ${r.where}`);
   if (r.backend === "worktree" && r.checkout) parts.push(`checkout ${r.checkout}`);
   if (r.blocked_issues.length > 0) parts.push(`blockers: ${r.blocked_issues.join("; ")}`);
+  parts.push(`attention ${r.attention.length}`);
   return `  ${parts.join(", ")}\n`;
 }
 
@@ -243,15 +246,17 @@ export function planGraphCommand(): void {
   }
 }
 
-export function planStartCommand(id: string, opts: { fetch?: boolean; json?: boolean } = {}): void {
+export async function planStartCommand(id: string, opts: { fetch?: boolean; json?: boolean; run?: boolean } = {}): Promise<void> {
   try {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
     const r = startPlan(id, config, root, opts);
     for (const n of r.notices) process.stderr.write(`${n}\n`);
+    const execution = opts.run ? (await runPlans([id], config, root, { until: "step", maxSteps: 1 }, () => ({ log: (s) => process.stderr.write(`${s}\n`) })))[0] : undefined;
+    if (execution) process.exitCode = execution.code;
     if (opts.json) {
-      process.stdout.write(`${JSON.stringify({ ...r, checkout: r.path }, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify({ ...r, checkout: r.path, ...(execution ? { execution } : {}) }, null, 2)}\n`);
       return;
     }
     const where = r.path !== null ? `Worktree: ${r.path}` : `Branch: ${r.branch}`;
@@ -263,6 +268,7 @@ export function planStartCommand(id: string, opts: { fetch?: boolean; json?: boo
     } else if (r.nextCommand) {
       lines.push(`Open a session: ${r.nextCommand}`);
     }
+    if (execution) lines.push(`Conductor: ${execution.reason}`, ...(execution.sessionId ? [`Session: ${execution.sessionId}`, `Attach: ${execution.commands!.attach}`, `Logs: ${execution.commands!.logs}`] : []));
     process.stdout.write(`${lines.join("\n")}\n`);
   } catch (e) {
     if (!reportError(e)) throw e;
@@ -351,4 +357,20 @@ export function planStepDoneCommand(id: string, opts: StepDoneOptions): void {
     const r = stepDone(id, opts, config, root);
     process.stdout.write(`Committed ${r.commit}\nHANDOFF: ${r.handoff} (step ${String(r.step).padStart(2, "0")}, ${r.outcome})\n`);
   });
+}
+
+/** CLI orchestration; interrupt observation without terminating the harness session. */
+export async function planRunCommand(ids: string[], opts: RunOptions & { json?: boolean }): Promise<void> {
+ const controller = new AbortController();
+ const interrupt = () => controller.abort();
+ process.once("SIGINT", interrupt);
+ try {
+  const root = checkoutRoot(); const { config } = loadConfig(root);
+  const results = await runPlans(ids, config, root, { ...opts, signal: controller.signal }, () => ({ log: s => process.stderr.write(`${s}\n`) }));
+  process.exitCode = Math.max(...results.map(r => r.code));
+  process.stdout.write(opts.json ? `${JSON.stringify(results.length === 1 ? results[0] : results, null, 2)}\n` : results.map(r => `${r.plan}: ${r.reason}${r.sessionId ? `\nSession: ${r.sessionId}\nAttach: ${r.commands!.attach}\nLogs: ${r.commands!.logs}` : ""}\n`).join(""));
+ } catch(e) {
+  process.exitCode = 5;
+  process.stdout.write(opts.json ? `${JSON.stringify({ok:false,code:5,action:"ask_human",reason:(e as Error).message})}\n` : `${(e as Error).message}\n`);
+ } finally { process.removeListener("SIGINT", interrupt); }
 }

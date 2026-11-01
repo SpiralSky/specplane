@@ -28,6 +28,8 @@ export interface StepDoneOptions {
   step?: number;
   /** Force marking a `blocked` step done, overriding the blocker guard. */
   force?: boolean;
+  /** Explicit audit reason required to re-record a completed step. */
+  reason?: string;
   /** Extra trailers (`Key: value`), e.g. the harness attribution; written after the Specplane trailers. */
   trailer?: string[];
   /** Date override for tests; defaults to today (local). */
@@ -90,7 +92,9 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
   }
   const fm = target.frontmatter;
   const nn = pad(fm.step);
-  if (fm.status === "done" || fm.status === "skipped") {
+  const forceReason = opts.reason?.trim();
+  if (forceReason && (!opts.force || /[\r\n]/.test(forceReason))) refuse("A force reason requires --force and must be one line.");
+  if ((fm.status === "done" || fm.status === "skipped") && !(opts.force && forceReason)) {
     refuse(`Step ${nn} is already \`${fm.status}\`: nothing to append. Pick another step with \`--step\`, or reopen it by hand if it must be redone.`);
   }
   if (fm.status === "blocked" && outcome !== "blocked" && !opts.force) {
@@ -100,7 +104,7 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
   if (outcome === "blocked" && !issues.some((i) => i.trimStart().startsWith("BLOCKED:"))) {
     refuse("`--outcome blocked` needs an `--open-issue` that begins with `BLOCKED:`, e.g. `--open-issue \"BLOCKED: specs contradict on X\"`.");
   }
-  const deviations = opts.deviation ?? [];
+  const deviations = [...(opts.deviation ?? []), ...(forceReason ? [`Forced rerun: ${forceReason}`] : [])];
   if (outcome === "skipped" && deviations.length === 0) {
     refuse("`--outcome skipped` needs a `--deviation` that states why the step was skipped.");
   }
@@ -129,7 +133,7 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
   const handoffFile = path.join(dir, "HANDOFF.md");
   const before = fs.existsSync(handoffFile) ? fs.readFileSync(handoffFile, "utf8") : `# HANDOFF — ${planId}\n`;
   const later = sectionSteps(before).filter((n) => n > fm.step);
-  if (later.length > 0) {
+  if (later.length > 0 && !(opts.force && forceReason)) {
     refuse(`HANDOFF.md already has a section for step ${pad(Math.max(...later))}, after step ${nn}. Sections are append-only; repair the log by hand before appending.`);
   }
 
@@ -175,6 +179,7 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
     if (!m) refuse(`\`--trailer ${t}\` must have the form \`Key: value\`.`);
     ordered[m[1]] = m[2];
   }
+  if (forceReason) ordered["Specplane-Force-Reason"] = forceReason;
   const slug = planId.replace(/^\d{4}-\d{2}-\d{2}-/, "");
   const message = formatMessage({
     type,

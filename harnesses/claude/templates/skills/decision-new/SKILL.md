@@ -4,7 +4,7 @@ description: Create a Specplane decision record, optionally written from the use
 argument-hint: "[title]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#decision-new@c01fd20 -->
+<!-- specplane-contract: architecture/agent-skills#decision-new@74958ce -->
 
 # decision-new
 

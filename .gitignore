@@ -12,3 +12,15 @@ node_modules/
 # logs
 *.log
 npm-debug.log*
+
+# Local environment secrets; sanitized templates remain reviewable.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# Local caches and test coverage (not distributable build artifacts).
+.cache/
+coverage/
+.nyc_output/

@@ -1,10 +1,12 @@
 ---
 id: architecture/reference-cli
 title: "Reference CLI: module structure, parsing, git integration, validation engine, and plan flows"
-status: approved
+status: review
 author: llm
 implements: [feature/tooling, feature/plan-execution, feature/plan-index, feature/configuration]
 ---
+
+<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Reference CLI: module structure, parsing, git integration, validation engine, and plan flows
 
@@ -613,3 +615,19 @@ Exit code is `0` when `valid: true` (warnings do not affect exit code). Exit cod
 Message pattern: every error message is one sentence ending in a full stop (git stderr and `<cmd>` excerpts excepted), with the entity in backticks. Where `feature/tooling` or `feature/plan-execution` gives a text, the class uses it verbatim; the feature text wins over this table (`feature/spec-precedence`). For cross-field config rules whose text `feature/configuration` fixes as a whole sentence, `ConfigError` takes a `null` key and uses the reason as the whole message; JSON-schema violations keep the "Config key `<key>`: <reason>" prefix. `AlreadyExistsError` is thrown by `spec new` and `plan new` before anything is written.
 
 Output streams: human-readable reports, progress lines, warnings, and errors go to stderr; data goes to stdout: `--json` output, `spec show`, `plan graph`, `--print` output, and the one-line summaries that `feature/tooling` says commands print for the files they change. Errors are printed as the message alone, prefixed by nothing, and the process exits with the class's exit code.
+
+## Experimental plan run
+
+Implementation: `plan/run.ts`, `plan/gate.ts`, `plan/alerts.ts`, `harness/session.ts`.
+
+`plan run <ids...> [--until step|finish] [--max-steps N] [--max-parallel N] [--max-budget-usd N] [--timeout-seconds N] [--step N --force --reason TEXT] [--dry-run] [--json]`.
+
+Defaults: until step, max steps 1, timeout 900 seconds; parallelism and budget from config. Limits must be positive finite numbers (steps/parallelism integers). Budgets are per plan, conservatively reserved per launch attempt in equal shares; not actual usage accounting. The initial and each subsequent launch require the exact `plan/<id>` branch and clean status. A failed read/probe never implies absence or permission to run. A matching plan-and-step trailer with pending status is a half-finished refusal.
+
+Exit codes: 0 only all steps completed/finish-ready, 2 human/dependency decision, 3 duplicate/lock/completed-step refusal, 4 step/budget/observation limit or one-step stop, 5 precondition/capability/runtime failure. JSON includes `ok`, `code`, `action`, `reason`, `plan`, `steps` (session attempts), `reservedBudgetUsd`, and session/checkout/command fields when known. Dry-run performs read-only gate and capability checks, no lock, cache, notification, or spawn.
+
+Locks/cache live under `<git-common-dir>/specplane-runtime`, keyed by plan ID hash, so they never dirty a checkout. An exclusive short-lived guard serializes lock acquisition/reclamation/release. Only proven-dead PIDs are reclaimed. An unknown/malformed lock or crashed guard fails closed for manual inspection. Locks remain held during observation, preventing concurrent invocations for the same plan. Runtime files are derived coordination data, never plan status.
+
+`plan list --live --json` adds `attention: [{kind, detail, command}]` from the same resolver as `plan next`; human output appends an attention count. `plan start --run` includes the conductor result and session commands. Attention resolution never approves or finishes the plan.
+
+`step-done --step N --force --reason TEXT` may re-record a completed step, preserving previous HANDOFF entries (including later-step entries) and appending the reason under deviations plus `Specplane-Force-Reason`. The reason must be a nonblank single line and requires force. Existing blocked-step recovery with `--force` is unchanged. Normal completed-step recording without an explicit reason is still refused.

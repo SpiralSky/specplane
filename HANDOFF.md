@@ -1,5 +1,18 @@
 # Session handoff
 
+## Experimental conductor update — 2026-11-01
+
+The user authorized development without spec-approval gates; final merge remains human-only. Experimental conductor code and tests are implemented on `dot/complete-framework-20261031`. Changed specs are in review with prior approved blobs recorded; ADR 0005 is proposed. Plan/step statuses remain untouched and no finish/merge/push was performed. See [current work record](docs/work-records/2026-11-01-experimental-conductor.md). Earlier development-gate blockers below are superseded only for this authorized experimental task. Live Claude is absent and unverified; capability checks refuse to guess compatibility.
+
+
+## Current development audit — 2026-10-31
+
+Work is isolated on `dot/complete-framework-20261031` from `21317cf`; nothing is merged or published. The older “no active plans” statement below is historical: `2026-10-30-plan-conductor` is ready with all steps pending. Its first step needs human-finalized feature text under `llm_role: assist`; the existing precedence rule also contradicts the proposed config override. No approval, plan completion, or status transition has been performed.
+
+An independent correction updates the shipped/dogfood plan-step instructions to the CLI's existing `--force` flag instead of removed `--resume`, with a regression test (276/276 tests). See [progress and decision record](docs/work-records/2026-10-31-progress.md) and [unapplied feature-text review draft](docs/work-records/2026-10-31-conductor-review.md). The remaining sections preserve historical context, not current authority to merge or bypass gates.
+
+---
+
 > **Standing instruction from the user (2026-10-29)**: read this file and continue the work. When you finish a milestone, rewrite this file (goal, decisions, current state, next steps, and this instruction) and tell the user. The user then starts a new session. Repeat until the project is complete.
 >
 > **Standing instruction (2026-10-29, later)**: the agent decides open questions itself and verifies them at the plan merge (`/plan-finish`) instead of pausing mid-plan. After the last plan is done, the user will do a full review of the codebase and of the workflow as a whole and make final amendments then; the general structure is to be treated as solid until that review.

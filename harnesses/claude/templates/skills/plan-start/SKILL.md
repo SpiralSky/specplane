@@ -4,7 +4,7 @@ description: Start a Specplane plan and report its checkout and next step. Use w
 argument-hint: "[plan-id]"
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-start@c01fd20 -->
+<!-- specplane-contract: architecture/agent-skills#plan-start@74958ce -->
 
 # plan-start
 

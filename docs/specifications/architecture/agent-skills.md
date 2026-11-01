@@ -1,11 +1,13 @@
 ---
 id: architecture/agent-skills
 title: "Agent skills: config resolution and harness-neutral prompt contracts"
-status: approved
+status: review
 author: llm
 implements: [feature/agent-integration]
-based_on: { feature/agent-integration: "9e3a0cf" }
+based_on: { feature/agent-integration: "434c3f9" }
 ---
+
+<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Agent skills: config resolution and harness-neutral prompt contracts
 
@@ -461,3 +463,9 @@ Each skill declares the contract it implements with a contract pin: `<!-- specpl
 `specplane validate` warns (type `skill-drift`) when a pin no longer matches the current blob of the spec, when the anchor does not resolve, or when a skill has no contract comment (`architecture/reference-cli` § Skill contract drift). Changes that only touch the spec's frontmatter `status`/`author` are ignored. After reviewing `git diff <pin> <current>` and updating the skill, refresh the pin to the committed blob (`specplane spec pin architecture/agent-skills` for the spec's own pins; skill comments are updated by hand to the new `git rev-parse HEAD:<path>` value). Because a pin must name a committed blob to be diffable, pins are refreshed in a commit after the spec change.
 
 Skills are committed to the repository and versioned. A PR that changes a workflow contract (in `feature/agent-integration`, this spec, or a harness overlay) updates the corresponding skill files and their contract pins in the same PR, then refreshes the pins once the spec change is committed.
+
+## Experimental plan-run contract
+
+Resolve config and use `specplane plan run` explicitly. Never invoke approval or finish/merge automatically. `plan start --run` runs one iteration; the non-run path remains manual. The adapter derives a UUIDv5 from `specplane/<plan-id>/<step-number>` and exposes it in `SPECPLANE_SESSION`; ordinary prompt is `run /plan-step <id> --unattended`.
+
+An explicit completed-step rerun adds `--step N --force --reason TEXT` to the workflow invocation. Select exactly that completed step, execute it again, and record using the same step/force/reason options on `plan step-done`. Do not bypass safety conditions or erase earlier history. Without those arguments, existing lowest-pending ordering remains unchanged. Configured session mode may force unattended but never attended behavior.

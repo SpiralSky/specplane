@@ -4,7 +4,7 @@ import * as yaml from "js-yaml";
 import { ConfigError, NotARepoError } from "./errors.js";
 import { mainRoot } from "./git/repo.js";
 import { CONFIG_SCHEMA, describeError, dotted, validator } from "./schemas.js";
-import type { Config, Warning } from "./types.js";
+import type { Config, SessionMode, Warning } from "./types.js";
 
 export const CONFIG_PATH = ".specplane/config.yaml";
 
@@ -37,9 +37,26 @@ export const DEFAULT_CONFIG: Config = {
     test_command: "",
     forge: "auto",
   },
-  execution: { backend: "worktree", worktree_dir: "../.specplane-worktrees" },
+  execution: {
+    backend: "worktree",
+    worktree_dir: "../.specplane-worktrees",
+    session_mode: "auto",
+    notify: {
+      on: ["blocked", "consideration", "finish_ready", "failed"],
+      transport: "none",
+      command: "",
+      dedupe: true,
+    },
+    max_parallel: 1,
+    max_budget_usd: null,
+  },
   decisions: { dir: "docs/decisions" },
 };
+
+/** Resolve session mode without ever upgrading an unattended detection to attended. */
+export function resolveSessionMode(configured: Config["execution"]["session_mode"], detected: SessionMode): SessionMode {
+  return configured === "unattended" || detected === "unattended" ? "unattended" : "attended";
+}
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -74,6 +91,9 @@ export interface LoadConfigOptions {
 }
 
 function checkCrossFields(config: Config, root: string, opts: LoadConfigOptions): void {
+  if (config.execution.notify.transport === "command" && config.execution.notify.command.trim() === "") {
+    throw new ConfigError("execution.notify.command", "must be non-empty when transport is command");
+  }
   const names = new Set<string>();
   for (const r of config.spec_roots) {
     if (names.has(r.name)) throw new ConfigError(null, `Duplicate spec root name \`${r.name}\`.`);

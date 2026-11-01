@@ -1,11 +1,13 @@
 ---
 id: architecture/claude-integration
 title: Claude Code integration implementation
-status: approved
+status: review
 author: llm
 implements: [claude:feature/claude-integration, feature/agent-integration]
-based_on: { "claude:feature/claude-integration": "e511a6f", feature/agent-integration: "9e3a0cf" }
+based_on: { "claude:feature/claude-integration": "fd9ae8f", feature/agent-integration: "434c3f9" }
 ---
+
+<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Claude Code integration implementation
 
@@ -430,3 +432,9 @@ Implemented by a plan that depends on the reference CLI core plan (not by the pl
 - The plugin has its own tests (`harnesses/claude/plugin/`, run with `claude plugin test`): mode switching, the `step`-mode edit denials, and pane rows built from a fixture `plan list --json` output.
 - `harnesses/claude/tests/check-sync.sh` diffs each file under `templates/` against its installed path in the Specplane repository (per § Template source) and exits 1 listing any difference or missing file. The `settings.json` comparison is a subset comparison, not byte-identical: every registration in the template must be present in the installed `.claude/settings.json`, which may contain further user entries.
 - Skill content is checked for drift by `specplane validate` through the contract comment (`architecture/agent-skills#keeping-skills-in-sync-with-specs`); the content itself is still reviewed by hand when a pin goes stale.
+
+## Experimental Claude spawn adapter
+
+See proposed `decision/0005` and `harness/session.ts`. Capability checks inspect local `--version`, `--help`, and `agents --help`. Required flags are `--bg`, `--cwd`, `--name`, `--session-id`, `--permission-mode`, `--permission-prompts`, `--resume`, plus `--max-budget-usd` when requested. Arguments use an array, never shell interpolation. No `--worktree`, `--tmux`, dangerous bypass, or `claude rm` is used.
+
+The adapter's observation protocol accepts only an array (or `{agents: [...]}`) of records with sessionId, running/done/failed status, positive PID, absolute cwd, and name. Unknown output is an explicit capability error, not missing-session evidence. This protocol and flag set are verified with injected fake command runners only: **Claude is absent on the implementing computer, so no live version/schema or budget enforcement is certified**. Missing capabilities fail closed. Existing running identity is adopted by the adapter; the conductor itself refuses duplicate active invocation and offers attach/logs. A known non-running identity resumes. Launch uncertainty is never retried automatically.

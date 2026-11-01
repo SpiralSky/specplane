@@ -1,5 +1,7 @@
 # Open Questions
 
+**Experimental implementation update (2026-11-01):** OQ-12–OQ-15 have proposed answers implemented on the development branch and recorded in proposed ADR 0005. They remain here for human final review; implementation is not acceptance. CLI conductor + adapter, opt-in `--run`, Specplane-owned checkout, and deterministic UUIDv5 session identity are the experimental choices.
+
 This document records design questions where a decision could not be made with certainty. Each open entry includes a proposed default (which the specs currently follow) and the alternatives considered.
 
 Open questions should be resolved before the reference CLI implementation that depends on them. When a question is resolved, its entry moves to the "Resolved questions" table, pointing to where the decision is recorded (a spec section, or an ADR for decisions with significant trade-offs). Question IDs are permanent and are used by other specs.
