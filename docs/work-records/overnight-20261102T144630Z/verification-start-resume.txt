@@ -1,0 +1,631 @@
+
+> specplane@0.1.0 test
+> npm run build && node --test "dist/**/*.test.js"
+
+
+> specplane@0.1.0 build
+> tsc && node scripts/build-core-info.mjs && node -e "require('fs').chmodSync('dist/cli.js', 0o755)" && node -e "require('fs').cpSync('../../harnesses/claude/templates','dist/templates/claude',{recursive:true})" && node -e "require('fs').cpSync('../../harnesses/codex/templates','dist/templates/codex',{recursive:true})"
+
+✔ creates, then leaves unchanged (1.582711ms)
+✔ appends after existing text and preserves it (0.216638ms)
+✔ updates a changed block, preserving CRLF and surrounding text (0.974943ms)
+✔ malformed markers are not touched (0.139501ms)
+✔ missing and workflow-line variants (0.110006ms)
+✔ decision new: creates the next number with proposed status (Scenario 10) (576.294536ms)
+✔ decision new starts at 0001 and numbers above any existing NNNN file (1163.870172ms)
+✔ decision accept: sets accepted, commits, and prints the short SHA (560.215451ms)
+✔ decision accept refuses an unknown ID and an ADR that is not proposed (996.44332ms)
+✔ decision accept refuses an uncommitted ADR (608.471252ms)
+✔ decision accept refuses an ADR with validation errors (625.597402ms)
+✔ decision accept --dry-run prints the plan and changes nothing (554.398562ms)
+✔ plan approve: sets ready, regenerates PLANS.md in the same commit (G2) (617.255514ms)
+✔ plan approve: one commit per ID and stops at the first refusal (679.725335ms)
+✔ plan approve refuses an unknown ID and a plan that is not draft (987.722101ms)
+✔ plan approve refuses a spec that is not approved (581.723414ms)
+✔ plan approve refuses an uncommitted plan folder (605.697479ms)
+✔ plan approve reports validation errors and commits nothing (642.671794ms)
+✔ plan approve --dry-run prints the plan and changes nothing (511.114831ms)
+✔ plan list: ready plan without a branch is ready; blocked dependent (Scenario 2) (621.417646ms)
+✔ plan list: branch makes a ready plan in_progress, blocked wins, done unchanged (Scenarios 1, 2, 6) (622.813938ms)
+✔ plan list: status_source frontmatter ignores branches (532.826105ms)
+✔ plan list: abandoned dependency blocks a ready plan (Scenario 4: abandoned dependency) (533.676202ms)
+✔ plan list: JSON fields, sorting, archived, --status filter, human table (2124.168564ms)
+✔ plan list: stack mode blocks two unmerged dependencies and prints the reason (1085.284747ms)
+✔ getEffectiveStatus: forge hook derives review; non-ready statuses unchanged (0.398491ms)
+✔ plan new: creates draft plan, steps/, HANDOFF.md; validate passes (2401.210776ms)
+✔ plan new: existing ID, unknown spec/plan, bad ID, missing flags exit 1 (2719.70956ms)
+✔ plan new: self-dependency is rejected (635.606772ms)
+✔ plan new: records validated target and canonical comparison commit; refusals and dry run write nothing (3003.338317ms)
+✔ plan new: an abandoned dependency refuses without creating files (593.984782ms)
+✔ plan new: dry runs validate all inputs and leave repository contents unchanged (2252.343979ms)
+✔ plan new: archived abandoned dependencies and existing dependency cycles refuse (1200.516295ms)
+✔ plan show: active and archived plans; unknown ID exits 1 (1710.499633ms)
+✔ plan graph: matches the graph in generated PLANS.md (1837.240831ms)
+✔ search is case-insensitive, prints one block per file, and skips broken files on stderr (560.634892ms)
+✔ search no match exits 0 with no output (562.858454ms)
+✔ search --kind and --status and --root filters (4420.585684ms)
+✔ search --json fields, spec root, archived plans, deterministic path order (1227.17354ms)
+✔ search groups step files under their plan and names the step in human output (1110.735314ms)
+✔ search caps matches at three per file (545.95492ms)
+✔ search unknown kind and root exit 1 (1319.799407ms)
+✔ spec approve: base and overlay in one command, one commit each (Scenario 7) (689.999096ms)
+✔ spec approve: architecture spec implementing an unapproved feature is refused (Scenario 8) (609.045177ms)
+✔ spec reopen: reports the direct dependants and leaves them unchanged (Scenario 9) (606.779974ms)
+✔ spec approve refuses an unknown id, a wrong status, and uncommitted changes (1789.318518ms)
+✔ spec approve stops at the first refusal and keeps earlier approvals (646.357115ms)
+✔ spec approve refuses an overlay whose base is not approved (642.772272ms)
+✔ spec approve refuses an overlay with a stale pin whose base is uncommitted (652.932682ms)
+✔ spec approve reports validation errors and restores the file (613.094025ms)
+✔ spec approve records the agent and session trailers when set (598.63093ms)
+✔ spec approve and reopen --dry-run print the plan and commit nothing (1138.560799ms)
+✔ spec new feature writes a draft that validates (base and overlay roots) (1680.914434ms)
+✔ spec new architecture needs --implements without a TTY (1699.801752ms)
+✔ spec new error texts (2343.237706ms)
+✔ spec list filters and JSON output (2854.023733ms)
+✔ spec show prints the file; ambiguity and --root (3026.706193ms)
+✔ list, show and validation share assessment without rewriting the spec (1768.704089ms)
+✔ validation distinguishes unavailable assessment from invalid metadata (1153.372866ms)
+✔ assessment uses the captured root and dependency bytes after files change (78.976554ms)
+✔ malformed dependency metadata produces a schema error for assessment (602.339827ms)
+✔ spec validate: all, named, and JSON (2985.006674ms)
+✔ spec new scaffold carries the section headings of the file-formats templates and validates (2260.763077ms)
+✔ absent config returns defaults with a warning (61.524817ms)
+✔ partial config merges with defaults (6.924111ms)
+✔ invalid enum value throws ConfigError (0.935362ms)
+✔ llm_role review is accepted for both spec types (5.047679ms)
+✔ unknown llm_role fails and lists the allowed values (0.440004ms)
+✔ unknown keys warn and are dropped (3.640806ms)
+✔ root extends cycle throws ConfigError (0.598394ms)
+✔ malformed YAML throws ConfigError (0.851355ms)
+✔ duplicate spec root name (0.882462ms)
+✔ missing spec root is an error (0.772576ms)
+✔ spec root outside the repository is an error (0.487246ms)
+✔ spec root that is not a directory is an error (0.263678ms)
+✔ worktree_dir inside the repository is an error with the worktree backend (9.474702ms)
+✔ worktree_dir is not checked with the branch backend (0.545713ms)
+✔ DEFAULT_CONFIG equals the defaults table in feature/configuration (1.531111ms)
+✔ conductor config: safe defaults and partial notification merge (7.92987ms)
+✔ conductor config: accepted modes, transports, limits and event selectors (9.373599ms)
+✔ conductor config: invalid enums, types and unsafe limits are rejected (5.6577ms)
+✔ conductor config: command transport requires a nonblank command (0.666626ms)
+✔ conductor config: unknown nested keys still warn and are dropped (3.35228ms)
+✔ session mode: config can force unattended but cannot force attended (0.104678ms)
+✔ init emits the complete runtime defaults including conductor settings (3.245168ms)
+✔ verified matrix enables probed capabilities; unknown host disables them (66.995274ms)
+✔ unknown fields, protocol changes, corrupt bytes, omitted runtime and bad blobs refuse (28.899171ms)
+✔ unsigned, malformed and failing report cannot enable host capabilities (36.460098ms)
+✔ host input and all procedure references are validated and certified intervals use probes (21.447198ms)
+✔ instruction orientation metadata is bound to the documentation release (67.800289ms)
+✔ core and CLI preserve evidence and body, cover statuses, dry-run and repeated complete (749.504751ms)
+✔ invalid metadata, missing closure and held checkout lease refuse without altering files (85.255783ms)
+✔ root option selects the exact root, and qualified IDs retain precedence (74.30104ms)
+✔ preimage checks reject injected config, root, dependency, missing candidate, HEAD, index and symlink races (420.273444ms)
+✔ initial symlinks and aborted or locked operations refuse (75.13256ms)
+✔ source-aware YAML updates preserve unrelated metadata, comments, delimiter and CRLF (286.728698ms)
+✔ an implementation anchor referenced elsewhere refuses rather than changing unrelated metadata (44.015325ms)
+✔ CLI and core report matching previews for each status and refuse invalid input (2557.328947ms)
+✔ lease ownership loss refuses before mutation and leaves no temporary file (55.476626ms)
+✔ dry run in a linked checkout creates no common runtime records (72.330569ms)
+✔ outside file and directory symlinks are refused without modifying targets (128.031949ms)
+✔ spec-v1 serializes sorted mappings, literal Unicode, numbers and exact normalized body (7.851898ms)
+✔ only the specified bookkeeping fields are excluded (1.076612ms)
+✔ gray-matter closing delimiter suffix remains body content (40.784818ms)
+✔ metadata schema accepts manual and future-version records, rejects malformed records without modifying files (4.07512ms)
+✔ closure accepts identities in configured roots containing spaces (1.480049ms)
+✔ closure resolves anchored edges from each declaring root, deduplicates cycles and records membership (1.434541ms)
+✔ assessment preserves known changes with unavailable and unsupported dependencies (4.661633ms)
+✔ assessment reports membership and root changes in deterministic order (0.931113ms)
+✔ a missing recorded dependency is also removed when current traversal is complete (0.553263ms)
+✔ malformed dependency metadata is a schema error, not unavailability (0.704721ms)
+✔ models, sessions, subagent and unknown identities survive rewrite with references (5.890604ms)
+✔ invalid, untrusted, empty and conflicting events fail closed (0.693374ms)
+✔ legacy events and correction history survive; unresolved corrections refuse (0.475206ms)
+✔ corrections targeting a rewritten commit survive subsequent rewrites (0.375055ms)
+✔ import with arbitrary CLI arguments neither parses them nor writes to checkout (369.787797ms)
+✔ closed operation and test schemas reject unknown fields and invalid requests (78.709063ms)
+✔ public operations reject malformed inputs and explicitly refuse valid unimplemented work (10.193369ms)
+✔ closed receipt and confirmation schemas reject inconsistent or extra fields (21.639611ms)
+✔ aliases and plan/non-plan writers contend on one checkout (69.555069ms)
+✔ ordered sets release their subset after multi-checkout contention (71.669343ms)
+✔ malformed, delegated and guard data fail closed; ownership loss prevents release (54.434123ms)
+✔ only a proven-dead undelegated owner is reclaimed (36.094851ms)
+✔ another process cannot acquire an occupied checkout (87.60053ms)
+✔ linked runtime directories and nonregular lease records require recovery (52.275357ms)
+✔ caller mutations cannot change ownership verification (26.955918ms)
+✔ dangling links and FIFOs fail closed without blocking (36.310055ms)
+✔ delegation binds the complete set and recording consumes the token (49.14365ms)
+✔ cancellation preserves edits and uncertain stop retains leases until acknowledged (76.859854ms)
+✔ dead owner with live worker cannot be reclaimed; recovery inspects before invalidation (52.209687ms)
+✔ interrupted delegation cannot be reclaimed as an undelegated lease (35.058787ms)
+✔ listAdrs reads NNNN-*.md and keeps dates as strings (33.142538ms)
+✔ absent decisions directory yields no ADRs (1.05358ms)
+✔ AlreadyExistsError texts and exit code (0.972137ms)
+✔ getIndexStatus (54.026484ms)
+✔ toMermaid: node classes, edges after nodes, classDefs (1.004024ms)
+✔ generatePlansMd: sections, blocked status, links, determinism (31.62021ms)
+✔ generatePlansMd: stack mode blocks a ready plan with two unmerged dependencies (7.749713ms)
+✔ generatePlansMd: empty sections render _None._ (5.625668ms)
+✔ PLANS.md freshness warning (8.6687ms)
+✔ init: creates files, preserves AGENTS.md text, idempotent (18.887869ms)
+✔ init: scaffolds spec roots that do not exist yet (3.377136ms)
+✔ init: uses existing config paths and skips non-empty plans dir (3.87679ms)
+✔ formatMessage orders trailers and appends attribution last (1.127211ms)
+✔ formatMessage enforces 72 chars except chore(specplane) (0.476529ms)
+✔ cliTrailers includes agent/session only when set and non-empty (0.640717ms)
+✔ readTrailers and findLatest on a temp repo (last wins) (68.777044ms)
+✔ branchExists and remoteBranchExists (57.158263ms)
+✔ parseWorktreeList and listWorktrees (38.408662ms)
+✔ repeated contribution trailers survive Git serialization and reads (30.245607ms)
+✔ rewrite carries events from multiple Git commits with original references (85.662061ms)
+✔ forge: createPR uses gh with an argument array (no shell) (22.768304ms)
+✔ forge: getOpenPR parses --json url output (41.461605ms)
+✔ forge: auto returns null for non-GitHub remote, no remote, or missing gh (36.100195ms)
+✔ forge: github mode throws ForgeError (exit 2) when unavailable (23.782644ms)
+✔ forge: none returns null without calling gh; gh failure becomes ForgeError (48.889747ms)
+✔ run returns stdout and throws GitError on failure (26.674638ms)
+✔ run does not interpret shell syntax in arguments (21.156111ms)
+✔ checkoutRoot and mainRoot differ inside a linked worktree (38.573751ms)
+✔ defaultBranch falls back to main, then master (31.768405ms)
+✔ outside a repository throws NotARepoError (5.168869ms)
+✔ createBranch and deleteBranch (46.267221ms)
+✔ rebaseOnto succeeds without conflict (66.912255ms)
+✔ rebaseOnto aborts on conflict and leaves the branch unchanged (69.900905ms)
+✔ rebaseOnto rethrows GitError when no rebase started (25.082566ms)
+✔ createWorktree adds and reuses; removeWorktree refuses dirty unless forced (55.410386ms)
+✔ removeWorktree removes a clean worktree (48.691588ms)
+✔ codex init is explicit, idempotent and preserves user-owned settings and instructions (76.158391ms)
+✔ neutral init suppresses Claude auto-detection and all harness writes (4.090342ms)
+✔ codex init does not overwrite an existing customized skill (5.691889ms)
+✔ Codex background execution explicitly refuses instead of using Claude flags (5.343372ms)
+✔ representative experimental workflow implements/tests in isolated worktree without plan promotion (3018.003076ms)
+✔ experimental workflow rejects a broken implementation through its child tests (2479.418147ms)
+✔ codex install refuses a skill directory escaping the repository (5.505965ms)
+✔ installed Codex contract is verified against scoped bundled source, never waived (33.693902ms)
+✔ harness: unknown name throws with known names (2.242273ms)
+✔ harness: --harness and detection call install; neither prints hint (70.490345ms)
+✔ harness: claude templates resolve from the compiled module (0.379893ms)
+✔ claude plan-step: blocked-step recovery uses the current CLI flag (16.533711ms)
+✔ claude merge: absent file writes the template (1.748939ms)
+✔ claude merge: invalid JSON is reported and not clobbered (5.807663ms)
+✔ claude merge: already registered adds nothing, no duplicates (0.625624ms)
+✔ claude merge: partial registration adds only the missing entries and keeps other keys (0.403369ms)
+✔ claude merge: existing statusLine is kept (0.397019ms)
+✔ claude install: files created, hooks executable, idempotent, CLAUDE.md untouched (20.970026ms)
+✔ claude install: detection by .claude/ directory (6.697856ms)
+✔ packed tarball installs Claude and Codex integrations end to end (3949.840286ms)
+✔ session identity: UUIDv5 is stable and distinct by plan/step (1.851743ms)
+✔ Claude adapter: unsupported capabilities refuse before launch (1.62474ms)
+✔ Claude adapter: external and branch backends refuse without executing (0.286051ms)
+✔ Claude adapter: argument array, env, no extra worktree, and adoption (17.470191ms)
+✔ Claude adapter: restart resumes failed session without new identity (0.8154ms)
+✔ Claude adapter: missing resume and conflicting live identities refuse (0.805765ms)
+✔ Claude observation: invalid records are never treated as missing (0.531322ms)
+✔ Claude adapter: unobservable launch reports uncertainty, no retry (0.651784ms)
+✔ Claude adapter: invalid budgets and missing budget support refuse (0.866126ms)
+✔ Claude adapter: harness notification is local and never invokes CLI (0.412011ms)
+✔ ID pattern accepts valid IDs (0.790793ms)
+✔ ID pattern rejects invalid IDs (0.196907ms)
+✔ qualified IDs resolve through the root prefix (9.657997ms)
+Checking .specplane/config.yaml... OK
+Checking feature/agent-integration... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking feature/configuration... 2 warnings
+  Implementation (base): unrecorded; assessment: unrecorded
+  [warning] feature/configuration:221: Possible architecture detail (identifier): "target_branch"
+  [warning] feature/configuration:226: Possible architecture detail (identifier): "target_branch"
+Checking feature/decisions... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking feature/plan-execution... 3 warnings
+  Implementation (base): unrecorded; assessment: unrecorded
+  [warning] feature/plan-execution:74: Possible architecture detail (identifier): "target_branch"
+  [warning] feature/plan-execution:80: Possible architecture detail (identifier): "comparison_base"
+  [warning] feature/plan-execution:380: Possible architecture detail (identifier): "target_branch"
+Checking feature/plan-index... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking feature/plan-status... 1 warning
+  Implementation (base): unrecorded; assessment: unrecorded
+  [warning] feature/plan-status:162: Possible architecture detail (identifier): "shelved_from"
+Checking feature/plan-steps... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking feature/plan-system... 3 warnings
+  Implementation (base): unrecorded; assessment: unrecorded
+  [warning] feature/plan-system:83: Possible architecture detail (identifier): "shelved_from"
+  [warning] feature/plan-system:84: Possible architecture detail (identifier): "target_branch"
+  [warning] feature/plan-system:86: Possible architecture detail (identifier): "comparison_base"
+Checking feature/spec-overlays... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking feature/spec-policies... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking feature/spec-precedence... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking feature/spec-system... 1 warning
+  Implementation (base): unrecorded; assessment: unrecorded
+  [warning] feature/spec-system:297: Possible architecture detail (identifier): "reassessment_needed"
+Checking feature/tooling... 6 warnings
+  Implementation (base): unrecorded; assessment: unrecorded
+  [warning] feature/tooling:262: Possible architecture detail (identifier): "target_branch"
+  [warning] feature/tooling:262: Possible architecture detail (identifier): "start_base"
+  [warning] feature/tooling:262: Possible architecture detail (identifier): "comparison_base"
+  [warning] feature/tooling:511: Possible architecture detail (identifier): "implementation_status"
+  [warning] feature/tooling:511: Possible architecture detail (identifier): "assessment_status"
+  [warning] feature/tooling:511: Possible architecture detail (identifier): "assessment_reasons"
+Checking architecture/agent-skills... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking architecture/ci... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking architecture/file-formats... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking architecture/reference-cli... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking architecture/repository-layout... OK
+  Implementation (base): unrecorded; assessment: unrecorded
+Checking feature/claude-integration... 27 warnings
+  Implementation (claude): unrecorded; assessment: unrecorded
+  [warning] feature/claude-integration:48: `feature/claude-integration` may contradict `feature/agent-integration`: "Approval commands collect the human decision directly and never use model out..." (overlay) vs "the standalone CLI remains complete for manual use, including explicit human ..." (base).
+  [warning] feature/claude-integration:50: `feature/claude-integration` may contradict `feature/agent-integration`: "Project skills can provide reasoning-only fallback workflows but must not mas..." (overlay) vs "An **extension** means any plugin, extension, or mod from a harness ecosystem..." (base).
+  [warning] feature/claude-integration:120: `feature/claude-integration` may contradict `feature/agent-integration`: "Memory is per-user and is never the source of truth: a plan's progress lives ..." (overlay) vs "**Workflow procedures**: the step context contract, the HANDOFF.md format, th..." (base).
+  [warning] feature/claude-integration:224: `feature/claude-integration` may contradict `feature/agent-integration`: "Shared docs never imply a host can execute an unsupported operation." (overlay) vs "Mechanical commands execute directly through deterministic handlers, without ..." (base).
+  [warning] feature/claude-integration:40: `feature/claude-integration` may contradict `feature/agent-integration`: "Because the rules file is Specplane-owned, upgrading Specplane updates it wit..." (overlay) vs "Specplane must never overwrite or reorder their content." (base).
+  [warning] feature/claude-integration:95: `feature/claude-integration` may contradict `feature/agent-integration`: "**Defaults**: pre-commit validation, the policy guard, and session context ar..." (overlay) vs "Specplane never selects a runtime from installed files, registry order, or a ..." (base).
+  [warning] feature/claude-integration:48: `feature/claude-integration` may contradict `feature/agent-integration`: "The extension packages these procedures for consumers and adds host invocatio..." (overlay) vs "invocation details belong to each extension and must not replace another exte..." (base).
+  [warning] feature/claude-integration:16: `feature/claude-integration` may contradict `feature/agent-integration`: "It is an extending overlay spec in the `claude` root: it extends `feature/age..." (overlay) vs "Extensions are defined in the harness's overlay root and must not contradict ..." (base).
+  [warning] feature/claude-integration:26: `feature/claude-integration` may contradict `feature/agent-integration`: "Receives the Specplane standing instructions in every session, and workflow p..." (overlay) vs "Host built-ins remain host-owned and are never shadowed by Specplane commands." (base).
+  [warning] feature/claude-integration:187: `feature/claude-integration` may contradict `feature/agent-integration`: "Then the skill shows the written body and writes the file only after the user..." (overlay) vs "Never write the spec body." (base).
+  [warning] feature/claude-integration:60: `feature/claude-integration` may contradict `feature/agent-integration`: "| `/approve` | `approve` | Approve specs, plans, or decision records by ID (`..." (overlay) vs "The agent never approves on its own initiative, and never sets `status: appro..." (base).
+  [warning] feature/claude-integration:54: `feature/claude-integration` may contradict `feature/agent-integration`: "| `/spec-assist` | `spec-assist` | Help the user write a feature spec (withou..." (overlay) vs "| `authorship: user`, `llm_role: review` | Agent may not write the spec body." (base).
+  [warning] feature/claude-integration:88: `feature/claude-integration` may contradict `feature/agent-integration`: "**Policy guard**: when the agent edits a spec, apply the spec type's `llm_rol..." (overlay) vs "| `authorship: user`, `llm_role: none` | Agent may not edit or suggest change..." (base).
+  [warning] feature/claude-integration:50: `feature/claude-integration` may contradict `feature/agent-integration`: "Multiple contributing models are retained even when the user switches models ..." (overlay) vs "a model or session identity never grants policy authority." (base).
+  [warning] feature/claude-integration:60: `feature/claude-integration` may contradict `feature/agent-integration`: "| `/approve` | `approve` | Approve specs, plans, or decision records by ID (`..." (overlay) vs "Automation never approves, finishes or merges plans." (base).
+  [warning] feature/claude-integration:101: `feature/claude-integration` may contradict `feature/agent-integration`: "Sessions on other machines publish each finished step, so the next session an..." (overlay) vs "Restarting never duplicates a live session;" (base).
+  [warning] feature/claude-integration:120: `feature/claude-integration` may contradict `feature/plan-steps`: "Memory is per-user and is never the source of truth: a plan's progress lives ..." (overlay) vs "Step files live in `plans/<id>/steps/` and are named with a two-digit sequenc..." (base).
+  [warning] feature/claude-integration:87: `feature/claude-integration` may contradict `feature/plan-steps`: "**Pre-commit validation**: run `specplane validate` before the agent makes a ..." (overlay) vs "`file:` paths exist in the repository (warning if absent at validation time, ..." (base).
+  [warning] feature/claude-integration:48: `feature/claude-integration` may contradict `feature/spec-policies`: "Approval commands collect the human decision directly and never use model out..." (overlay) vs "Contribution provenance (`feature/spec-system`) records multiple human and mo..." (base).
+  [warning] feature/claude-integration:88: `feature/claude-integration` may contradict `feature/spec-policies`: "under `review` or `assist`, ask the user to approve the exact edit." (overlay) vs "`review`: the LLM may ask clarifying questions, suggest edits, and flag issue..." (base).
+  [warning] feature/claude-integration:40: `feature/claude-integration` may contradict `feature/spec-policies`: "Because the rules file is Specplane-owned, upgrading Specplane updates it wit..." (overlay) vs "It must not write body text before the user has finalised the content, and mu..." (base).
+  [warning] feature/claude-integration:12: `feature/claude-integration` may contradict `feature/spec-policies`: "these branch changes await human final review." (overlay) vs "`none`: the LLM must not edit, review, or suggest changes to the spec body." (base).
+  [warning] feature/claude-integration:88: `feature/claude-integration` may contradict `feature/spec-policies`: "**Policy guard**: when the agent edits a spec, apply the spec type's `llm_rol..." (overlay) vs "The two settings apply together: `authorship: llm` or `either` never relaxes ..." (base).
+  [warning] feature/claude-integration:46: `feature/claude-integration` may contradict `feature/spec-policies`: "The base spec (`feature/agent-integration`) defines which workflow integratio..." (overlay) vs "When `require_approved_features: true`, an architecture spec may not transiti..." (base).
+  [warning] feature/claude-integration:55: `feature/claude-integration` may contradict `feature/spec-policies`: "| `/spec-draft-architecture` | `spec-draft-architecture` | Draft an architect..." (overlay) vs "Architecture specs in `draft` or `review` are never flagged, so architecture ..." (base).
+  [warning] feature/claude-integration:55: `feature/claude-integration` may contradict `feature/spec-policies`: "| `/spec-draft-architecture` | `spec-draft-architecture` | Draft an architect..." (overlay) vs "The following are architecture details and must not appear in feature specs:" (base).
+  [warning] feature/claude-integration:35: `feature/claude-integration` may contradict `feature/spec-policies`: "Claude Code receives the standing instructions (`feature/agent-integration#ag..." (overlay) vs "| `specs.feature.leak_guard_allow` | list of strings | `[]` | Project interfa..." (base).
+Checking architecture/claude-integration... OK
+  Implementation (claude): unrecorded; assessment: unrecorded
+Checking feature/codex-integration... 13 warnings
+  Implementation (codex): unrecorded; assessment: unrecorded
+  [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/agent-integration`: "Provenance never grants approval authority." (overlay) vs "Contribution and approval provenance follow `feature/spec-system`;" (base).
+  [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/agent-integration`: "Shared docs never imply a host can execute an unsupported operation." (overlay) vs "Mechanical commands execute directly through deterministic handlers, without ..." (base).
+  [warning] feature/codex-integration:16: `feature/codex-integration` may contradict `feature/agent-integration`: "Installing Codex support does not select a background runtime or affect a co-..." (overlay) vs "Specplane never selects a runtime from installed files, registry order, or a ..." (base).
+  [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/agent-integration`: "Unknown host/session/model identities remain unknown." (overlay) vs "Host built-ins remain host-owned and are never shadowed by Specplane commands." (base).
+  [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/agent-integration`: "Orient users and agents to optional plans, arbitrary Git branches, separate r..." (overlay) vs "| `authorship: user`, `llm_role: review` | Agent may not write the spec body." (base).
+  [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/agent-integration`: "Orient users and agents to optional plans, arbitrary Git branches, separate r..." (overlay) vs "| `authorship: user`, `llm_role: none` | Agent may not edit or suggest change..." (base).
+  [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/agent-integration`: "Unknown host/session/model identities remain unknown." (overlay) vs "a model or session identity never grants policy authority." (base).
+  [warning] feature/codex-integration:19: `feature/codex-integration` may contradict `feature/agent-integration`: "Report unavailable command, session, budget, or interaction capabilities expl..." (overlay) vs "Unsupported session or budget capabilities are refusals, never a fallback to ..." (base).
+  [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/spec-policies`: "Orient users and agents to optional plans, arbitrary Git branches, separate r..." (overlay) vs "`review`: the LLM may ask clarifying questions, suggest edits, and flag issue..." (base).
+  [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/spec-policies`: "Orient users and agents to optional plans, arbitrary Git branches, separate r..." (overlay) vs "`none`: the LLM must not edit, review, or suggest changes to the spec body." (base).
+  [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/spec-system`: "Provenance never grants approval authority." (overlay) vs "Approval provenance remains separate and identifies the human decision and ex..." (base).
+  [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/spec-system`: "Preserve each model that contributes to a spec, across model switches and lat..." (overlay) vs "Assessments describe the definition in the inspected checkout or explicitly s..." (base).
+  [warning] feature/codex-integration:19: `feature/codex-integration` may contradict `feature/spec-system`: "Report unavailable command, session, budget, or interaction capabilities expl..." (overlay) vs "an unavailable dependency reports unverifiable, never current." (base).
+Checking architecture/codex-integration... 9 warnings
+  Implementation (codex): unrecorded; assessment: unrecorded
+  [warning] architecture/codex-integration:25: `architecture/codex-integration` may contradict `architecture/agent-skills`: "installing a package never changes sandbox or approval policy." (overlay) vs "A content change under `assist` returns to Finalise and exact-text approval b..." (base).
+  [warning] architecture/codex-integration:78: `architecture/codex-integration` may contradict `architecture/agent-skills`: "The skill must not independently edit step status/HANDOFF or commit before th..." (overlay) vs "Existing status records prior approval only;" (base).
+  [warning] architecture/codex-integration:100: `architecture/codex-integration` may contradict `architecture/agent-skills`: "ordinary docs lookup never installs, refreshes or accesses the network." (overlay) vs "Docs lookup is read-only and independent of repository setup;" (base).
+  [warning] architecture/codex-integration:29: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Repository delivery places the entry skill at `.agents/skills/specplane/SKILL..." (overlay) vs "Repository workflows must never hardcode paths." (base).
+  [warning] architecture/codex-integration:21: `architecture/codex-integration` may contradict `architecture/agent-skills`: "plain init and `--harness none` write neutral scaffolding." (overlay) vs "Specplane does not write this table and `init` never touches it;" (base).
+  [warning] architecture/codex-integration:13: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Existing lifecycle status describes prior approval, not approval or implement..." (overlay) vs "Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>..." (base).
+  [warning] architecture/codex-integration:13: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Existing lifecycle status describes prior approval, not approval or implement..." (overlay) vs "the agent never runs this on its own initiative and never grants review appro..." (base).
+  [warning] architecture/codex-integration:25: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Hook scripts must exist in the execution environment and use the host's norma..." (overlay) vs "With the `external` backend, say that the environment runs the finish flow it..." (base).
+  [warning] architecture/codex-integration:76: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Human approval and finish/merge remain explicit user actions;" (overlay) vs "Never invoke approval or finish/merge automatically." (base).
+Checking decision/0001... OK
+Checking decision/0002... OK
+Checking decision/0003... OK
+Checking decision/0004... OK
+Checking decision/0005... OK
+Checking 2026-10-28-reference-cli-core... OK
+Checking 2026-10-29-assist-and-approve... OK
+Checking 2026-10-29-claude-harness-files... 1 warning
+  [warning] 2026-10-29-claude-harness-files: Context file `.claude/settings.local.json` does not exist (it may not exist yet).
+Checking 2026-10-29-claude-instructions-and-enforcement... OK
+Checking 2026-10-29-claude-plugin-hardening... OK
+Checking 2026-10-29-cli-claude-harness-init... OK
+Checking 2026-10-29-cli-forge-ci-publish... OK
+Checking 2026-10-29-cli-plan-commands... 1 warning
+  [warning] 2026-10-29-cli-plan-commands: `feature/tooling#`specplane generate`` does not match a heading in `feature/tooling`.
+Checking 2026-10-29-cli-plan-flows... OK
+Checking 2026-10-29-cli-spec-search... OK
+Checking 2026-10-29-feature-spec-alignment... OK
+Checking 2026-10-30-plan-conductor... OK
+Checking 2026-10-30-plan-primitives... OK
+Checking 2026-11-01-claude-delivery... OK
+Checking 2026-11-01-codex-delivery... OK
+Checking 2026-11-01-core-foundation... OK
+Checking 2026-11-01-extension-conformance... OK
+Checking 2026-11-01-extension-packaging... OK
+Checking 2026-11-01-manual-lifecycle... OK
+Checking 2026-11-01-workflow-recording... OK
+Checking 2026-11-02-completion-assessment... OK
+Checking 2026-11-02-plan-index... OK
+Checking 2026-11-02-product-docs... OK
+Checking 2026-11-02-target-lifecycle... OK
+Checking AGENTS.md... OK
+Checking .claude/rules/specplane.md... OK
+Checking plans/PLANS.md... OK
+Checking .claude/skills/approve/SKILL.md... 1 warning
+  [warning] .claude/skills/approve/SKILL.md: Skill `approve` implements `architecture/agent-skills#approve` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/decision-new/SKILL.md... 1 warning
+  [warning] .claude/skills/decision-new/SKILL.md: Skill `decision-new` implements `architecture/agent-skills#decision-new` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/plan-abandon/SKILL.md... 1 warning
+  [warning] .claude/skills/plan-abandon/SKILL.md: Skill `plan-abandon` implements `architecture/agent-skills#plan-abandon` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/plan-create/SKILL.md... 1 warning
+  [warning] .claude/skills/plan-create/SKILL.md: Skill `plan-create` implements `architecture/agent-skills#plan-create` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/plan-finish/SKILL.md... 1 warning
+  [warning] .claude/skills/plan-finish/SKILL.md: Skill `plan-finish` implements `architecture/agent-skills#plan-finish` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/plan-start/SKILL.md... 1 warning
+  [warning] .claude/skills/plan-start/SKILL.md: Skill `plan-start` implements `architecture/agent-skills#plan-start` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/plan-status/SKILL.md... 1 warning
+  [warning] .claude/skills/plan-status/SKILL.md: Skill `plan-status` implements `architecture/agent-skills#plan-status` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/plan-step/SKILL.md... 1 warning
+  [warning] .claude/skills/plan-step/SKILL.md: Skill `plan-step` implements `architecture/agent-skills#plan-step` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/spec-assist/SKILL.md... 1 warning
+  [warning] .claude/skills/spec-assist/SKILL.md: Skill `spec-assist` implements `architecture/agent-skills#spec-assist` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/spec-draft-architecture/SKILL.md... 1 warning
+  [warning] .claude/skills/spec-draft-architecture/SKILL.md: Skill `spec-draft-architecture` implements `architecture/agent-skills#spec-draft-architecture` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking .claude/skills/validate/SKILL.md... 1 warning
+  [warning] .claude/skills/validate/SKILL.md: Skill `validate` implements `architecture/agent-skills#validate` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/approve/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/approve/SKILL.md: Skill `approve` implements `architecture/agent-skills#approve` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/decision-new/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/decision-new/SKILL.md: Skill `decision-new` implements `architecture/agent-skills#decision-new` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/plan-abandon/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/plan-abandon/SKILL.md: Skill `plan-abandon` implements `architecture/agent-skills#plan-abandon` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/plan-create/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/plan-create/SKILL.md: Skill `plan-create` implements `architecture/agent-skills#plan-create` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/plan-finish/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/plan-finish/SKILL.md: Skill `plan-finish` implements `architecture/agent-skills#plan-finish` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/plan-start/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/plan-start/SKILL.md: Skill `plan-start` implements `architecture/agent-skills#plan-start` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/plan-status/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/plan-status/SKILL.md: Skill `plan-status` implements `architecture/agent-skills#plan-status` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/plan-step/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/plan-step/SKILL.md: Skill `plan-step` implements `architecture/agent-skills#plan-step` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/spec-assist/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/spec-assist/SKILL.md: Skill `spec-assist` implements `architecture/agent-skills#spec-assist` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/spec-draft-architecture/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/spec-draft-architecture/SKILL.md: Skill `spec-draft-architecture` implements `architecture/agent-skills#spec-draft-architecture` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/claude/templates/skills/validate/SKILL.md... 1 warning
+  [warning] harnesses/claude/templates/skills/validate/SKILL.md: Skill `validate` implements `architecture/agent-skills#validate` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+Checking harnesses/codex/templates/skills/specplane/SKILL.md... 1 warning
+  [warning] harnesses/codex/templates/skills/specplane/SKILL.md: Skill `specplane` implements `architecture/codex-integration#workflow-contract` pinned at `78dccf7`, which has changed; review `git diff 78dccf7 e1311e7`, update the skill, then update its contract comment.
+
+Summary: 78 files checked, 0 errors, 90 warnings
+✔ validate exits 0 on the specs-framework repository (1960.126766ms)
+✔ generate --print emits Active plans and a Mermaid block, deterministically (1343.566935ms)
+✔ spec pin --check exits 0 on the specs-framework repository (751.252589ms)
+✔ activity: local branch fields (714.716345ms)
+✔ activity: checkout is the worktree of the plan branch (793.363612ms)
+✔ activity: no remote, not started, no throw (777.305922ms)
+✔ activity: shallow clone does not throw (839.202103ms)
+✔ activity: ahead_of_remote and single fetch from a bare remote (1532.149375ms)
+✔ activity: remote-only plan is listed live; --no-fetch skips the fetch (1466.672367ms)
+✔ plan list without --live has no activity keys (1212.256847ms)
+✔ generate --print: stdout only; --live marks effective statuses; plain output unchanged (2103.874064ms)
+✔ alerts: none has no delivery or filesystem side effects (2.922768ms)
+✔ alerts: harness deduplicates across calls/restarts and re-alerts after resolution (2.99633ms)
+✔ alerts: event filter groups considerations and supports dedupe disabled (1.015582ms)
+✔ alerts: command receives documented env without shell interpolation of details (1.287131ms)
+✔ alerts: uncertain transport failures do not throw or automatically resend (1.73023ms)
+✔ alerts: malformed cache suppresses uncertain repeat delivery (1.052978ms)
+✔ alerts: duplicate copies of one consideration are delivered only once (0.674487ms)
+✔ target precedence, conflicts, legacy ambiguity and unavailable targets preserve work (154.649466ms)
+✔ local and remote tips reconcile, divergence refuses, remote-only remains readable (133.171479ms)
+✔ inputs and immutable execution bindings require valid branches and full commit objects (272.845416ms)
+✔ plan metadata and configured team target are parsed and validated (66.311491ms)
+✔ captured plan branches refuse divergence, conflicting identity and rewritten provenance (263.032652ms)
+✔ started snapshots control binding and require evidence for legacy targets (191.24522ms)
+✔ repository default fallback considers local and origin refs in main-first order (128.961792ms)
+✔ finish: local merge without a remote (Scenarios 4, 4a) (1548.643186ms)
+✔ finish: --no-fetch skips the fetch; pushes and merges still happen (2305.129561ms)
+✔ finish: lists open spec-gaps entries without blocking (1454.080054ms)
+✔ finish: step not done stops with no writes (Scenario 5a) (1832.473117ms)
+✔ finish: wrong branch and dirty tree fail with no writes (1936.880723ms)
+✔ finish: failing tests stop the flow without a commit (Scenario 5) (1385.316684ms)
+✔ finish: tests re-run after a rebase that applied commits (1479.884196ms)
+✔ finish: rebase conflict aborts and leaves the branch unchanged (1298.069736ms)
+✔ finish: without --yes and no human, stops ready; a re-run merges (resume) (2030.211062ms)
+✔ finish: merge stops when the main checkout is on another branch (1401.245281ms)
+✔ finish: local merge pushes the default branch when a remote exists (1583.223344ms)
+✔ finish: pull_request pushes the branch and prints instructions (1691.63223ms)
+✔ finish: pull_request with a forge pushes, opens a PR from the plan, prints the URL (1749.905277ms)
+✔ finish: pull_request with forge none prints manual instructions and never calls gh (1483.300772ms)
+✔ finish: pull_request without a remote fails with no writes (1342.243143ms)
+✔ finish: frontmatter mode claims review on the default branch first (1580.573779ms)
+✔ finish: branch backend switches back to the default branch and deletes the branch (1395.818654ms)
+✔ finish: external backend rejects local_merge (1269.300193ms)
+✔ first start binds the authoritative nondefault target in a metadata-only commit (463.361241ms)
+✔ dry run and refusal leave no branch or runtime files (120.447637ms)
+✔ repository lease excludes start before mutation (45.581608ms)
+✔ failed setup retains binding branch and removes only new checkout (197.602194ms)
+✔ frontmatter claim uses target checkout and leaves unrelated checkout unchanged (226.268241ms)
+✔ stale captured target ref refuses before a plan branch is created (119.706259ms)
+✔ CLI previews the selected target and rejects standalone run without writes (1194.142697ms)
+✔ claim hook failure restores only the claim file and its staged entry (158.602073ms)
+✔ failed claim push is recognized and published on retry (496.218937ms)
+✔ stack marker precedes binding and records the dependency tip (266.950232ms)
+✔ target plan lease contention refuses before binding (58.673667ms)
+✔ checkout-only writer blocks setup after worktree registration (353.794783ms)
+✔ failed branch update reports the orphan commit without claiming a branch (172.319804ms)
+✔ human start output reports provenance and no host launch command (724.9031ms)
+✔ target ref movement during checkout creation prevents setup and preserves checkout (249.682239ms)
+✔ claim and binding preserve CRLF frontmatter and body (196.44273ms)
+✔ claim and binding preserve BOM and CRLF frontmatter and body (188.625606ms)
+✔ claim and binding preserve BOM and LF frontmatter and body (199.056281ms)
+✔ resume preserves dirty reused checkout and skips failing setup (557.032636ms)
+✔ failed missing-checkout resume keeps committed step history (449.226239ms)
+✔ resume detects target movement during missing checkout registration (457.351827ms)
+✔ git status source refuses an invalid stored in-progress resume (255.68327ms)
+✔ trusted historical evidence resumes legacy without inventing a start base (446.588225ms)
+✔ remote-ahead resume refuses equally in preview and execution (565.967998ms)
+✔ remote-only unbound legacy history has no local creation evidence (156.352745ms)
+✔ resume reports a newly recreated checkout as created (989.20737ms)
+✔ start: --no-fetch skips the fetch and works from local refs (1387.891562ms)
+✔ start: first start creates branch and worktree, runs hook, announces (Scenario 1) (2427.893304ms)
+✔ start: unapproved spec fails before any write (Scenario 2) (699.59664ms)
+✔ start: dependency not done (Scenario 3), and non-ready plan (1305.305678ms)
+✔ start: stacking on one unmerged dependency writes a marker commit (Scenario 6) (1739.464351ms)
+✔ start: stacking on two unmerged dependencies fails (2327.362447ms)
+✔ start: setup hook failure removes the worktree (Scenario 7) (822.135182ms)
+✔ start: resume re-uses branch and worktree and skips dependency and approval checks (Scenario 8) (1536.540327ms)
+✔ start: resume tracks a remote-only branch (1733.053091ms)
+✔ start: branch backend needs a clean tree, then switches (1680.978415ms)
+✔ list --live: prints the checkout, and one notice when the fetch fails (2742.827144ms)
+✔ start: external backend only creates the branch and announces (738.03161ms)
+✔ start: frontmatter mode writes a claim commit on the default branch and pushes it (871.349693ms)
+✔ start: frontmatter claim refuses when the main checkout is not on the default branch (678.69508ms)
+✔ start: ambiguous unbound legacy history is refused without writes (679.462291ms)
+✔ run gate: safety and human gates cannot be forced (1.542029ms)
+✔ run gate: completion, no-step and force semantics (0.173391ms)
+✔ limits reject invalid and unbounded values (0.388925ms)
+✔ locks exclude second conductor, preserve unknown locks and release ownership (2.105917ms)
+✔ dead PID lock is reclaimed without leaving guard (0.403897ms)
+✔ no cycle (1.284342ms)
+✔ simple cycle (0.945682ms)
+✔ multi-node cycle reachable from outside (0.171809ms)
+✔ dangling edges are ignored by cycle detection (0.113201ms)
+✔ runSetupHook runs through a shell in cwd (5.08769ms)
+✔ runSetupHook throws SetupHookError with the spec message on non-zero exit (2.372849ms)
+✔ abandon: commits on main, archives, removes worktree, keeps branch; a second abandon fails (1849.655212ms)
+✔ abandon: dirty worktree refuses without --force and leaves no partial state (2000.047444ms)
+✔ abandon: wrong branch and done plans fail with no writes (2203.466588ms)
+✔ cleanup: refuses until done on main; then removes worktree and branch; idempotent (3020.19824ms)
+✔ archive: moves done and abandoned plans; errors otherwise (2407.638301ms)
+✔ restack: after a squash merge only beta's own commits are replayed (Scenario 6a) (5692.036269ms)
+✔ restack: unmerged base appends a new marker; second run is a no-op (2759.329255ms)
+✔ restack: conflicts are listed and the checkout is left mid-rebase; non-stacked plans error (2907.450294ms)
+✔ earlier blocked step wins over later pending step; missing context file is a warning (1456.47442ms)
+✔ earlier pending step runs before a later step that is already done (1364.369864ms)
+✔ checkout is null on the branch and external backends unless the branch is checked out (3030.094702ms)
+✔ open proposal gap takes precedence over spawn_step; finish_ready when all done (2923.502617ms)
+✔ dirty checkout asks a human (1294.822079ms)
+✔ attention is deduplicated by kind (0.787477ms)
+✔ plan next has no side effects and prints only JSON with --json (2438.478368ms)
+✔ listPlans finds active and archived plans (10.510539ms)
+✔ planDir resolves active and archived, throws for unknown (0.912905ms)
+✔ listPlans returns [] when the plans directory is absent (0.192911ms)
+✔ parsePlan returns typed frontmatter (34.017458ms)
+✔ parseStep returns typed frontmatter with context (6.040441ms)
+✔ parseStep rejects a step number that mismatches the filename (0.627876ms)
+✔ parsePlan/parseStep reject id and plan mismatches (1.177564ms)
+✔ prepares committed target and preserves dirty invoking files (135.07355ms)
+✔ refuses target-local missing plan, unapproved spec and conflicting paths (215.235337ms)
+✔ refuses ambiguous legacy and divergent target refs without writes (162.847113ms)
+✔ stack preparation validates dependency binding and prospective specification revision (282.609202ms)
+✔ explicit target and recorded resume ignore malformed unrelated HEAD plan (232.285328ms)
+✔ resume refuses conflicting target and branch immutable metadata (540.814136ms)
+✔ malformed or misidentified approved specification cannot authorize start (190.20519ms)
+✔ first start refuses an orphaned execution binding without modifying refs (96.251897ms)
+✔ conductor: fake successful step advances to human finish without finalizing (7.635204ms)
+✔ conductor: unchanged step is never retried automatically (1.082261ms)
+✔ conductor: blocked, gap, dirty and divergence stop before spawning (1.982142ms)
+✔ conductor: initially blocked plan emits its selected harness alert (1.530546ms)
+✔ conductor: interruption leaves a running session alone (1.210304ms)
+✔ conductor: dry-run makes no runtime files and never spawns (1.622975ms)
+✔ conductor: distinct plans honor parallel bound and duplicate IDs fail before launch (13.793684ms)
+✔ conductor: reserves bounded session budgets and refuses unsupported enforcement (1.51332ms)
+✔ conductor: concurrent invocation of one plan refuses a duplicate session (1.390365ms)
+✔ conductor: uncertain launch outcomes retain their attempted budget reservation (0.860286ms)
+✔ conductor: initially blocked dry-run never writes alert cache (0.369046ms)
+✔ appends a §4.1 section, sets status, commits with ordered trailers (614.650185ms)
+✔ Specplane-Session is written when set and the next step is picked by number (604.350946ms)
+✔ refuses an already done step (612.782871ms)
+✔ refuses done on a blocked step without --force; --force allows it and keeps both sections (1118.504059ms)
+✔ refuses blocked without a BLOCKED: open issue; accepts one (1672.27244ms)
+✔ refuses a --gap ID with no spec-gaps.md entry (1056.62285ms)
+✔ refuses when HANDOFF.md already has a later step section (525.616454ms)
+✔ skipped writes None. for changes and needs a deviation (1001.414302ms)
+✔ a failed commit restores the files (527.323565ms)
+✔ a subject over 72 characters is refused before any write (453.970672ms)
+✔ forced completed-step rerun records reason without deleting earlier history (1015.230608ms)
+✔ flags file paths and directory paths (5.921949ms)
+✔ path inside a fenced code block, or in the allow list, is not flagged (1.021168ms)
+✔ link targets are ignored (0.363798ms)
+✔ flags technology names, case-insensitively and whole-word (1.397425ms)
+✔ config keys and built-in names are not flagged (0.346953ms)
+✔ flags code identifiers of each shape (1.031078ms)
+✔ flags schema syntax lines outside code blocks only (0.561055ms)
+✔ reports body line numbers (0.502497ms)
+✔ configured allow terms are removed (0.444789ms)
+✔ JSON Schema is a tech name, except in code fences or the allow list (1.032475ms)
+✔ bare file names with code extensions are path warnings (0.471029ms)
+✔ bare file name exclusions (1.527691ms)
+✔ parses a feature spec (49.605674ms)
+✔ parses a feature spec with allow_architecture and based_on (1.687071ms)
+✔ parses an architecture spec (2.663442ms)
+✔ missing required field throws FrontmatterError naming the field (0.946937ms)
+✔ bad enum, missing reason, missing implements, bad YAML throw FrontmatterError (1.865099ms)
+✔ file without frontmatter throws FrontmatterMissingError (0.340763ms)
+✔ isInfoFile is exact and case-sensitive (0.183026ms)
+✔ normalisedHash ignores frontmatter status and author only (2.179022ms)
+✔ current pin: no findings; body change: base-changed with message (166.641707ms)
+✔ frontmatter-only status/author change is not a base change (75.641769ms)
+✔ pinned blob missing from the object store: still fires, says diff unavailable (41.020109ms)
+✔ approved spec with a stale pin is an error, also under pin_bases off (91.268466ms)
+✔ missing pins follow specs.pin_bases (172.189166ms)
+✔ based_on key not in extends/implements is an error; qualified keys match (65.913347ms)
+✔ body anchors: unmatched slug warns; prose form and code fences are not checked (18.827929ms)
+✔ writePins: only based_on changes; insertion after extends; round trip (13.187513ms)
+✔ spec pin writes pins, prints lines, validate is then clean; refuses uncommitted base (117.010923ms)
+✔ skill drift: stale pin, unresolved anchor, missing comment (41.682335ms)
+✔ skill drift: scans harness templates and registry dirs, only for installed harnesses (20.660262ms)
+✔ feature ID resolves to an absolute path (1.361581ms)
+✔ architecture IDs map to architecture/, anchors are stripped (0.258139ms)
+✔ unknown ID throws SpecNotFoundError (0.575617ms)
+✔ qualified ID naming an undeclared root throws UnknownRootError (0.665102ms)
+✔ qualified ID looks in that root only (0.358721ms)
+✔ sibling overlays with the same ID are ambiguous without fromRoot (0.236486ms)
+✔ fromRoot resolves through the extends chain (0.301985ms)
+✔ single hit without fromRoot resolves (0.116245ms)
+✔ slugify is GitHub-style (1.184043ms)
+✔ findHeading ignores section numbers, code markup and case; accepts prefixes (0.529849ms)
+✔ hasAnchor accepts slugs and heading text (0.33868ms)
+✔ headingSlugs: punctuation, duplicate suffixes, fenced code skipped (7.315509ms)
+✔ clean repository is valid (62.312514ms)
+✔ mismatched ID is an error (9.058364ms)
+✔ missing frontmatter is a schema error; INFO.md with frontmatter is an error, without is ignored (13.354343ms)
+✔ leak guard: path and tech_name warnings, with exclusions (5.506303ms)
+✔ ordering: approved architecture spec with non-approved feature is an error; draft is not (10.847549ms)
+✔ unresolved implements/supersedes are errors (3.555104ms)
+✔ overlay with the same ID as a base spec is a shadowing error (8.806965ms)
+✔ extends: valid overlay passes; standalone root and unresolved target error (12.540227ms)
+✔ overlay contradiction heuristic warns (6.940204ms)
+✔ based_on key must appear in extends or implements; anchors warn (8.382535ms)
+✔ authorship: llm author on a review spec under user authorship warns (5.164679ms)
+✔ plan dependency cycle and dangling dependency are errors (11.534924ms)
+✔ dependency on an abandoned plan is an error; stored in_progress warns under git status_source (4.261409ms)
+✔ step number must match the file name (8.846635ms)
+✔ step numbering: missing and duplicate numbers are errors (6.287004ms)
+✔ step context: anchors, decisions, files, drafts (7.073604ms)
+✔ skipped and blocked steps need a matching HANDOFF section (9.255155ms)
+✔ HANDOFF repeated sections: only the latest outcome is checked (7.963164ms)
+✔ spec-gaps.md: valid entries pass; format, kind, status, step and target are checked (13.024577ms)
+✔ spec-gaps.md: out-of-order numbers are errors; an archived feature-spec-proposals.md is ignored (10.159682ms)
+✔ plan specs: unresolved is an error, deprecated warns (4.253266ms)
+✔ ADR rules: duplicate number, id mismatch, superseded_by, related_specs (6.912241ms)
+✔ ADR supersession cycle is reported once from its lowest-numbered ADR (4.165529ms)
+✔ freshness: missing AGENTS.md warns; current block does not (11.49584ms)
+✔ config errors become a config finding (0.576328ms)
+✔ config: a missing spec root is a config error (0.415146ms)
+✔ output formats (5.580816ms)
+✔ rules freshness: missing or differing warns; matching does not (17.640024ms)
+✔ deprecated reference: extends warns, exit status unaffected (4.034241ms)
+✔ non-deprecated reference gives no deprecated warning (3.793234ms)
+✔ specplane-validate.yml parses and runs specplane validate (6.340589ms)
+✔ specplane-generate.yml parses, filters paths, and commits only on change (1.141399ms)
+✔ .gitattributes marks PLANS.md as generated (0.204058ms)
+ℹ tests 423
+ℹ suites 0
+ℹ pass 423
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73734.888995
