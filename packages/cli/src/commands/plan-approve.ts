@@ -9,7 +9,7 @@ import {
   reportError,
 } from "../errors.js";
 import { readFrontmatter, writeStatus } from "../frontmatter.js";
-import { generatePlansMd, plansMdPath } from "../generate/plans-md.js";
+import { generateWorkingPlansMd, plansMdPath } from "../generate/plans-md.js";
 import { abbrev, hasUncommittedChanges } from "../git/blobs.js";
 import { cliTrailers, formatMessage } from "../git/commit.js";
 import { run } from "../git/exec.js";
@@ -83,7 +83,7 @@ function approveOne(rawId: string, config: Config, root: string, dryRun: boolean
 
   const planFile = path.join(dir, "PLAN.md");
   writeStatus(planFile, "ready");
-  fs.writeFileSync(plansMdPath(config, root), generatePlansMd(config, root));
+  fs.writeFileSync(plansMdPath(config, root), generateWorkingPlansMd(config, root));
 
   const sha = commitFiles(root, [toPosix(path.relative(root, planFile)), plansRel], id, "approve plan");
   process.stdout.write(`approved ${id} ${sha}\n`);

@@ -84,6 +84,7 @@ EOJ
   if [ "$rc" = 0 ] && [ "$n" = "$3" ]; then report "$1" 1; else report "$1 (rc=$rc calls=$n)" 0; fi
 }
 gen "generate: PLAN.md runs stub" "/r/plans/x/PLAN.md" 1
+[ "$(cat "$tmp/gen.log")" = "plan index --source working" ] && report "generate: working source" 1 || report "generate: working source" 0
 gen "generate: other file does not" "/r/plans/x/HANDOFF.md" 0
 gen "generate: PLAN.md.bak does not" "/r/plans/x/PLAN.md.bak" 0
 PATH="$tmp/nospec" CLAUDE_PROJECT_DIR="$tmp/proj" "$tmp/nospec/sh" "$hooks/specplane-generate.sh" >/dev/null 2>&1 <<EOJ

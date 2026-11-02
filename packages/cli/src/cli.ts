@@ -26,6 +26,17 @@ program
 
 const plan = program.command("plan").description("Work with plans (list, new, show, graph, next, step-done, start, approve, finish, abandon, cleanup, archive, restack, retarget)");
 plan
+  .command("index")
+  .description("Generate the plan index from an explicit snapshot")
+  .option("--source <source>", "head, staged, or working", "head")
+  .option("--print", "print Markdown without writing")
+  .option("--live", "include live status and targets (requires --print)")
+  .action(generateCommand);
+program.on("command:*", (args: string[]) => {
+  if (args[0] === "generate") { process.stderr.write("The generate command was removed; use specplane plan index.\n"); process.exitCode = 1; }
+  else { process.stderr.write(`Unknown command: ${args[0]}\n`); process.exitCode = 1; }
+});
+plan
   .command("list")
   .description("List plans with their effective statuses")
   .option("--status <status>", "filter by effective status")
@@ -212,12 +223,6 @@ program
   .option("--json", "output JSON")
   .action((opts: { json?: boolean }) => validateCommand(opts));
 
-program
-  .command("generate")
-  .description("Generate PLANS.md")
-  .option("--print", "write to stdout instead of the file")
-  .option("--live", "with --print, show effective (git-derived) statuses")
-  .action((opts: { print?: boolean; live?: boolean }) => generateCommand(opts));
 
 program
   .command("init")

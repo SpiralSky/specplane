@@ -13,7 +13,7 @@ import { planNext } from './next.js';
 import { acquireWriterLease } from '../core/writer-leases.js';
 import { PLAN_SCHEMA, validator } from '../schemas.js';
 import { runGate } from './gate.js';
-import { generatePlansMd } from '../generate/plans-md.js';
+import { generateWorkingPlansMd } from '../generate/plans-md.js';
 const id = '2026-11-02-pause';
 test('shelve and resume retain a dirty plan checkout and override its stale status', t => {
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'shelve-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
@@ -103,7 +103,7 @@ test('recorded non-default target, custom paths and remote-only branch use targe
  git(root,'worktree','add','-b',`plan/${id}`,wt,'release');put(wt,rel,text.replace('depends_on:',`execution:\n  target_branch: release\n  start_target_branch: release\n  start_base: ${base}\ndepends_on:`));git(wt,'commit','-am','binding');const plan=git(wt,'rev-parse','HEAD');git(root,'worktree','remove',wt);git(root,'update-ref',`refs/remotes/origin/plan/${id}`,plan);git(root,'branch','-D',`plan/${id}`);
  const config=loadConfig(root).config, main=git(root,'rev-parse','HEAD');const preview=shelveTransition(id,'shelve',config,root,{dryRun:true});assert.equal(preview.target,'release');assert.equal(preview.checkout,null);assert.equal(git(root,'rev-parse','HEAD'),main);assert.equal(git(target,'rev-parse','HEAD'),base);
  assert.throws(()=>shelveTransition(id,'shelve',{...config,plans:{...config.plans,dir:'different'}},root,{dryRun:true}),/Conflicting plan or specification path interpretation/);assert.equal(git(target,'rev-parse','HEAD'),base);
- shelveTransition(id,'shelve',config,root);assert.equal(git(root,'rev-parse','HEAD'),main);assert.equal(fs.readFileSync(path.join(target,'roadmap/PLANS.md'),'utf8'),generatePlansMd(loadConfig(target).config,target));
+ shelveTransition(id,'shelve',config,root);assert.equal(git(root,'rev-parse','HEAD'),main);assert.equal(fs.readFileSync(path.join(target,'roadmap/PLANS.md'),'utf8'),generateWorkingPlansMd(loadConfig(target).config,target));
  const resumed=shelveTransition(id,'resume',config,root);assert.equal(resumed.effectiveStatus,'blocked');assert.equal(resumed.startCommand,`specplane plan start ${id}`);assert.equal(git(root,'rev-parse',`refs/remotes/origin/plan/${id}`),plan);
  // Scripted gh supplies matching-base PR evidence; Git transport stays a local bare repo.
  put(target,`roadmap/${dep}/PLAN.md`,`---\nid: ${dep}\ntitle: Dependency\nstatus: done\nspecs: [feature/example]\n---\n`);git(target,'commit','-am','dependency done');

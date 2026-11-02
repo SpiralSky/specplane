@@ -14,10 +14,10 @@ test("validate exits 0 on the specs-framework repository", () => {
 });
 
 test("generate --print emits Active plans and a Mermaid block, deterministically", () => {
-  const out = sp("generate", "--print");
+  const out = sp("plan", "index", "--print");
   assert.match(out, /## Active plans/);
   assert.match(out, /```mermaid\ngraph TD/);
-  assert.equal(sp("generate", "--print"), out);
+  assert.equal(sp("plan", "index", "--print"), out);
 });
 
 test("spec pin --check exits 0 on the specs-framework repository", () => {

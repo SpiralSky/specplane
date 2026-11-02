@@ -83,7 +83,7 @@ export function committedPlanRecord(id: string, config: Config, cwd: string): { 
   return tryGit(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], cwd) === null ? null : recordAt("HEAD", id, config, cwd);
 }
 
-export function selectedPlanBranch(id: string, config: Config, cwd: string): { ref: string; text: string; data: Record<string, unknown> } | null {
+export function selectedPlanBranch(id: string, config: Config, cwd: string): { ref: string; text: string; data: Record<string, unknown>; config: Config } | null {
   const oid = (ref: string) => tryGit(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], cwd)?.trim() || null;
   const local = oid(`refs/heads/plan/${id}`), remote = oid(`refs/remotes/origin/plan/${id}`);
   const l = local ? recordAt(local, id, config, cwd) : null, r = remote ? recordAt(remote, id, config, cwd) : null;
@@ -117,11 +117,11 @@ export interface PlanReport {
 }
 
 /** Read committed provenance even if the target is unavailable; never impose start preconditions. */
-export function planReport(id: string, config: Config, cwd: string, fallback: Record<string, unknown> | null, fetch: PlanReport["ref_freshness"]["fetch"] = "local"): PlanReport {
+export function planReport(id: string, config: Config, cwd: string, fallback: Record<string, unknown> | null, fetch: PlanReport["ref_freshness"]["fetch"] = "local", preferFallback = false): PlanReport {
   const oid = (ref: string) => tryGit(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], cwd)?.trim() || null;
   const local = oid(`refs/heads/plan/${id}`), remote = oid(`refs/remotes/origin/plan/${id}`);
   const branch = selectedPlanBranch(id, config, cwd);
-  const hint = !branch && !local && !remote && oid("HEAD") ? recordAt("HEAD", id, config, cwd)?.data ?? fallback : fallback;
+  const hint = !preferFallback && !branch && !local && !remote && oid("HEAD") ? recordAt("HEAD", id, config, cwd)?.data ?? fallback : fallback;
   const validHint = hint && hint.id === id && validator(PLAN_SCHEMA)(hint) ? hint : null;
   const intended = !local && !remote ? (validHint?.target_branch as string | undefined) ?? config.plans.target_branch : undefined;
   if (intended !== undefined) validateTargetBranch(cwd, intended, id);

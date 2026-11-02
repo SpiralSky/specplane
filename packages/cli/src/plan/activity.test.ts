@@ -157,13 +157,13 @@ test("plan list without --live has no activity keys", () => {
 test("generate --print: stdout only; --live marks effective statuses; plain output unchanged", () => {
   const root = repo();
   git(root, "branch", `plan/${ID}`);
-  const plain = cliRun(root, "generate", "--print");
-  const liveOut = cliRun(root, "generate", "--print", "--live");
+  const plain = cliRun(root, "plan", "index", "--print");
+  const liveOut = cliRun(root, "plan", "index", "--print", "--live");
   assert.equal(plain.code, 0);
   assert.match(plain.out, /\| ready \|/);
   assert.match(liveOut.out, /\| in_progress \|/);
   assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
-  assert.notEqual(cliRun(root, "generate", "--live").code, 0);
-  cliRun(root, "generate");
+  assert.notEqual(cliRun(root, "plan", "index", "--live").code, 0);
+  cliRun(root, "plan", "index");
   assert.equal(fs.readFileSync(path.join(root, "plans/PLANS.md"), "utf8"), plain.out);
 });

@@ -67,7 +67,7 @@ function digest(config: Buffer | null, files: SnapshotFile[]): string {
   for (const f of files) h.update(`${Buffer.byteLength(f.path)}:${f.path}:${f.bytes.length}\0`).update(f.bytes);
   return h.digest('hex');
 }
-function snapshot(root: string, source: SnapshotSource): PlanSnapshot {
+function snapshot(root: string, source: SnapshotSource, ownedScratch?: string): PlanSnapshot {
   if (!['head', 'staged', 'working'].includes(source)) throw new Error(`Unknown snapshot source: ${source}`);
   let head = '';
   try { head = git(root, ['rev-parse', '--verify', 'HEAD^{commit}']).toString().trim(); } catch { if (source === 'head') throw new Error('Unborn HEAD: select --source staged or --source working explicitly.'); }
@@ -100,7 +100,7 @@ function snapshot(root: string, source: SnapshotSource): PlanSnapshot {
   // pending PLAN.md paths so callers can report exclusions across those paths.
   const excluded = [...new Set(pending.filter(p => p === CONFIG_PATH || p.endsWith('/PLAN.md')))].sort();
   const identity = source === 'head' ? head : hash(JSON.stringify(selected)), contentDigest = digest(configBytes, plans);
-  const discovery = source === 'working' ? git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard']) : Buffer.alloc(0);
+  const discovery = source === 'working' ? Buffer.from(git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard']).toString('utf8').split('\0').filter(p => p && p !== ownedScratch).map(p => `${p}\0`).join('')) : Buffer.alloc(0);
   // Git can apply an untracked .gitignore even when the rule file is itself ignored.
   // Only inspect directories Git can discover, plus ancestors of tracked plans.
   const ignorePaths = new Set<string>();
@@ -180,9 +180,9 @@ function snapshot(root: string, source: SnapshotSource): PlanSnapshot {
 }
 export function capturePlanSnapshot(root: string, source: SnapshotSource = 'head'): PlanSnapshot { return snapshot(root, source); }
 /** Invoke while holding the writer lease, immediately before replacing the output. */
-export function recheckPlanSnapshot(root: string, captured: PlanSnapshot): void {
+export function recheckPlanSnapshot(root: string, captured: PlanSnapshot, ownedScratch?: string): void {
   if (captured.source === 'prospective') throw new Error('Recheck the authoritative snapshot before writing prospective output.');
-  if (snapshot(root, captured.source).preimage !== captured.preimage) throw new Error('Snapshot inputs, index, Git operation or output changed; retry generation.');
+  if (snapshot(root, captured.source, ownedScratch).preimage !== captured.preimage) throw new Error('Snapshot inputs, index, Git operation or output changed; retry generation.');
 }
 /** Construct an in-memory authoritative-head overlay; edits are explicit repository paths. */
 export function prospectivePlanSnapshot(root: string, base: PlanSnapshot, edits: ReadonlyMap<string, Buffer | null>): PlanSnapshot {

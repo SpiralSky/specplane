@@ -1,3 +1,4 @@
+import { capturePlanSnapshot } from "../generate/snapshot.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { checkStanding } from "../agents/standing.js";
@@ -56,19 +57,26 @@ export function checkFreshness(root: string, registry: Harness[] = HARNESSES): V
 
 /** PLANS.md freshness: the committed file must equal the generated one (type `freshness`). */
 export function checkPlansMd(config: Config, root: string): ValidationReport {
-  const file = path.join(config.plans.dir, "PLANS.md");
+  let file = path.join(config.plans.dir, "PLANS.md");
   let expected: string;
+  let planCount = 0;
+  let excluded: string[] = [];
   try {
-    expected = generatePlansMd(config, root);
+    const snapshot = capturePlanSnapshot(root, "head");
+    expected = generatePlansMd(snapshot);
+    config = snapshot.config;
+    file = snapshot.outputPath;
+    planCount = snapshot.plans.length;
+    excluded = snapshot.excluded;
   } catch {
     return makeReport([], []); // unparsable plans are reported by plan validation
   }
   const abs = plansMdPath(config, root);
   const exists = fs.existsSync(abs);
-  if (!exists && listPlans(config, root).length === 0) return makeReport([], [file]);
+  if (!exists && planCount === 0) return makeReport([], [file]);
   if (exists && fs.readFileSync(abs, "utf8") === expected) return makeReport([], [file]);
   const why = exists ? "is out of date" : "is missing";
-  return makeReport([finding("warning", "freshness", file, `${file} ${why}; run specplane generate.`)], [file]);
+  return makeReport([finding("warning", "freshness", file, `${file} ${why} (source: head${excluded.length ? `; excluded pending inputs: ${excluded.join(", ")}` : ""}); run specplane plan index.`)], [file]);
 }
 
 /** Run every validation and merge the results. */
