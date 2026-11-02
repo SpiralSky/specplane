@@ -96,6 +96,15 @@ const finConfirmed = (r: R, noFetch = false, env: NodeJS.ProcessEnv = ENV) => {
   const x = spawnSync(process.execPath, ["--input-type=module", "-e", script, A], { cwd: r.co, encoding: "utf8", env });
   return { code: x.status, out: x.stdout, err: x.stderr };
 };
+const finWithCallback = (r: R, callbackBody: string) => {
+  const flow = new URL("./flows.js", import.meta.url).href;
+  const config = new URL("../config.js", import.meta.url).href;
+  const script = `import { finishPlan } from ${JSON.stringify(flow)}; import { loadConfig } from ${JSON.stringify(config)}; import { execFileSync } from "node:child_process"; import fs from "node:fs";
+    let count = 0; try { const result = await finishPlan(process.argv[1], loadConfig(process.cwd()).config, process.cwd(), { confirm: async () => { count++; ${callbackBody} return true; } }); console.log(result.outcome); }
+    catch (e) { console.error(String(e)); process.exitCode = 1; }`;
+  const x = spawnSync(process.execPath, ["--input-type=module", "-e", script, A], { cwd: r.co, encoding: "utf8", env: ENV });
+  return { code: x.status, out: x.stdout, err: x.stderr };
+};
 const sha = (cwd: string, ref: string) => git(cwd, "rev-parse", ref);
 const branchExists = (root: string, b: string) => gitOk(root, "show-ref", "--verify", "--quiet", `refs/heads/${b}`);
 
@@ -432,4 +441,215 @@ test("forge receives the recorded nondefault PR base", () => {
   const result = finConfirmed(r, false, env);
   assert.equal(result.code, 0, result.err);
   assert.match(fs.readFileSync(log, "utf8"), /pr\ncreate\n--head\nplan\/2026-01-01-alpha\n--base\nrelease\n/);
+});
+
+test("finalized PR retry requires fresh publication confirmation after target moves", () => {
+  const log = path.join(os.tmpdir(), `specplane-retry-tests-${process.pid}-${Date.now()}`);
+  const r = repo({ remote: true, merge: "pull_request", planCfg: `  forge: none\n  test_command: echo run >> ${log}\n` });
+  const hook = path.join(r.origin, "hooks", "pre-receive");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const failed = finConfirmed(r);
+  assert.equal(failed.code, 1, failed.err);
+  const finalized = sha(r.co, "HEAD");
+  assert.match(git(r.co, "log", "-1", "--format=%s"), /finish/);
+  assert.equal(gitOk(r.origin, "show-ref", "--verify", "--quiet", `refs/heads/plan/${A}`), false);
+  fs.unlinkSync(hook);
+  fs.writeFileSync(path.join(r.root, "new-target.txt"), "advance\n");
+  git(r.root, "add", "new-target.txt");
+  git(r.root, "commit", "-q", "-m", "advance target");
+  git(r.root, "push", "-q", "origin", "main");
+  const target = sha(r.root, "HEAD");
+  const retry = fin(r, "--yes");
+  assert.equal(retry.code, 0, retry.err);
+  assert.match(retry.err, /ready for fresh finish acceptance/);
+  assert.notEqual(sha(r.co, "HEAD"), finalized);
+  assert.ok(gitOk(r.co, "merge-base", "--is-ancestor", target, "HEAD"));
+  assert.equal(fs.readFileSync(log, "utf8").trim().split("\n").length, 2, "verification reran after rebase");
+  assert.equal(gitOk(r.origin, "show-ref", "--verify", "--quiet", `refs/heads/plan/${A}`), false);
+  const accepted = finConfirmed(r);
+  assert.equal(accepted.code, 0, accepted.err);
+  assert.equal(sha(r.origin, `plan/${A}`), sha(r.co, "HEAD"));
+  assert.equal(git(r.co, "rev-list", "--count", "--grep=finish", "HEAD"), "1");
+  fs.rmSync(log);
+});
+
+test("finalization confirmation preserves callback-time target file and index edits", async () => {
+  const r = repo();
+  const before = sha(r.co, "HEAD");
+  const file = path.join(r.root, "base.txt");
+  await assert.rejects(finishPlan(A, loadConfig(r.co).config, r.co, { confirm: async () => {
+    fs.writeFileSync(file, "human staged change\n");
+    git(r.root, "add", "base.txt");
+    fs.writeFileSync(file, "human unstaged change\n");
+    return true;
+  } }), /clean checkout of target/);
+  assert.equal(sha(r.co, "HEAD"), before);
+  assert.equal(fs.readFileSync(file, "utf8"), "human unstaged change\n");
+  assert.equal(git(r.root, "show", ":base.txt"), "human staged change");
+  assert.equal(git(r.co, "log", "-1", "--format=%s").includes("finish"), false);
+});
+
+test("verification edits to target checkout refuse before review claim", () => {
+  const r = repo({ planCfg: "  status_source: frontmatter\n" });
+  const cfg = path.join(r.root, ".specplane", "config.yaml");
+  fs.writeFileSync(cfg, fs.readFileSync(cfg, "utf8").replace("  merge: local_merge\n", `  merge: local_merge\n  test_command: 'printf edited > ${r.root}/base.txt'\n`));
+  git(r.root, "add", ".specplane/config.yaml");
+  git(r.root, "commit", "-q", "-m", "configure verification");
+  const target = sha(r.root, "HEAD");
+  const head = sha(r.co, "HEAD");
+  const result = fin(r, "--yes");
+  assert.equal(result.code, 1);
+  assert.match(result.err, /clean checkout of target/);
+  assert.equal(sha(r.root, "HEAD"), target);
+  assert.equal(sha(r.co, "HEAD"), head);
+  assert.equal(fs.readFileSync(path.join(r.root, "base.txt"), "utf8"), "edited");
+});
+
+test("finish rejects a draft target lifecycle record", () => {
+  const r = repo();
+  const file = path.join(r.root, "plans", A, "PLAN.md");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: draft"));
+  git(r.root, "commit", "-qam", "move target back to draft");
+  const before = sha(r.co, "HEAD");
+  const result = fin(r, "--yes");
+  assert.equal(result.code, 1);
+  assert.match(result.err, /target status draft/);
+  assert.equal(sha(r.co, "HEAD"), before);
+});
+
+test("unattended finalization reports readiness without claiming finish", () => {
+  const r = repo();
+  const before = sha(r.co, "HEAD");
+  const result = fin(r, "--yes");
+  assert.equal(result.code, 0, result.err);
+  assert.match(result.out, /Ready for finalization/);
+  assert.doesNotMatch(result.out, /Finished/);
+  assert.equal(sha(r.co, "HEAD"), before);
+});
+
+test("publication refuses a refreshed remote plan tracking ref after confirmation", () => {
+  const r = repo({ remote: true, merge: "pull_request", planCfg: "  forge: none\n" });
+  const remoteSeed = sha(r.root, "main");
+  const action = `if (count === 2) { execFileSync("git", ["update-ref", "refs/remotes/origin/plan/${A}", ${JSON.stringify(remoteSeed)}]); }`;
+  const result = finWithCallback(r, action);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /refs\/remotes\/origin\/plan.*changed during operation/);
+  assert.equal(gitOk(r.origin, "show-ref", "--verify", "--quiet", `refs/heads/plan/${A}`), false);
+  assert.match(git(r.co, "log", "-1", "--format=%s"), /finish/);
+});
+
+test("publication refuses a plan head moved during confirmation", () => {
+  const r = repo({ remote: true, merge: "pull_request", planCfg: "  forge: none\n" });
+  const action = `if (count === 2) { execFileSync("git", ["commit", "--allow-empty", "-m", "concurrent change"]); }`;
+  const result = finWithCallback(r, action);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /Plan changed during publication confirmation/);
+  assert.equal(git(r.co, "log", "-1", "--format=%s"), "concurrent change");
+  assert.equal(gitOk(r.origin, "show-ref", "--verify", "--quiet", `refs/heads/plan/${A}`), false);
+});
+
+test("failed local target push reports integrated commit and retry publishes without another merge", () => {
+  const r = repo({ remote: true });
+  const hook = path.join(r.origin, "hooks", "pre-receive");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const result = finConfirmed(r);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /was merged into main at [0-9a-f]+, but target publication failed/);
+  const merged = sha(r.root, "HEAD");
+  assert.equal(git(r.root, "rev-list", "--parents", "-n", "1", "HEAD").split(" ").length, 3);
+  fs.unlinkSync(hook);
+  const retry = fin(r, "--yes");
+  assert.equal(retry.code, 0, retry.err);
+  assert.equal(sha(r.root, "HEAD"), merged);
+  assert.equal(sha(r.origin, "main"), merged);
+  assert.equal(branchExists(r.root, `plan/${A}`), false);
+});
+
+test("finalization hook failure reports retained checkout for recovery", () => {
+  const r = repo();
+  const gitdir = git(r.co, "rev-parse", "--absolute-git-dir");
+  const common = path.resolve(gitdir, git(r.co, "rev-parse", "--git-common-dir"));
+  const hook = path.join(common, "hooks", "pre-commit");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const before = sha(r.co, "HEAD");
+  const result = finConfirmed(r);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /Finalization failed; plan HEAD is .*Operation-owned finish edits were restored/);
+  assert.equal(sha(r.co, "HEAD"), before);
+  assert.equal(git(r.co, "status", "--porcelain"), "");
+  assert.match(fs.readFileSync(path.join(r.co, "plans", A, "PLAN.md"), "utf8"), /status: ready/);
+  fs.unlinkSync(hook);
+});
+
+test("failed PR creation reports the already-pushed plan head", () => {
+  const { r, env, log } = ghRepo("  forge: github\n", "unused");
+  const program = path.join(path.dirname(log), "gh");
+  fs.writeFileSync(program, "#!/bin/sh\n[ \"$1\" = \"--version\" ] && exit 0\n[ \"$1\" = \"pr\" ] && [ \"$2\" = \"list\" ] && { echo '[]'; exit 0; }\nexit 2\n", { mode: 0o755 });
+  const result = finConfirmed(r, false, env);
+  assert.equal(result.code, 1);
+  const head = sha(r.co, "HEAD");
+  assert.match(result.err, new RegExp(`Published plan/${A} at ${head}.*pull request creation failed`));
+  assert.equal(sha(r.origin, `plan/${A}`), head);
+});
+
+test("finalized local retry after rebase requires renewed acceptance before merge", () => {
+  const r = repo();
+  const first = finWithCallback(r, "if (count === 2) return false;");
+  assert.equal(first.code, 0, first.err);
+  const done = sha(r.co, "HEAD");
+  assert.match(git(r.co, "log", "-1", "--format=%s"), /finish/);
+  fs.writeFileSync(path.join(r.root, "advance.txt"), "advanced\n");
+  git(r.root, "add", "advance.txt");
+  git(r.root, "commit", "-q", "-m", "advance target");
+  const target = sha(r.root, "HEAD");
+  const unattended = fin(r, "--yes");
+  assert.equal(unattended.code, 0, unattended.err);
+  assert.match(unattended.err, /ready for fresh finish acceptance/);
+  assert.notEqual(sha(r.co, "HEAD"), done);
+  assert.equal(sha(r.root, "HEAD"), target);
+  const accepted = finConfirmed(r);
+  assert.equal(accepted.code, 0, accepted.err);
+  assert.match(accepted.out, /Finished and merged/);
+});
+
+test("failed review claim push is published on retry before finalization", () => {
+  const r = repo({ remote: true, planCfg: "  status_source: frontmatter\n" });
+  const hook = path.join(r.origin, "hooks", "pre-receive");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const failed = fin(r, "--yes");
+  assert.equal(failed.code, 1);
+  assert.match(failed.err, /Review claim [0-9a-f]+ remains on main; publication may be pending/);
+  const claim = sha(r.root, "HEAD");
+  assert.notEqual(sha(r.origin, "main"), claim);
+  fs.unlinkSync(hook);
+  const retry = fin(r, "--yes");
+  assert.equal(retry.code, 0, retry.err);
+  assert.equal(sha(r.origin, "main"), claim);
+  assert.match(retry.out, /Ready for finalization/);
+  assert.doesNotMatch(git(r.co, "log", "-1", "--format=%s"), /finish/);
+});
+
+test("finalization failure preserves unexpected hook edits for recovery", () => {
+  const r = repo();
+  const common = git(r.co, "rev-parse", "--git-common-dir");
+  const hook = path.join(common, "hooks", "pre-commit");
+  fs.writeFileSync(hook, "#!/bin/sh\nprintf 'hook edit\\n' > base.txt\nexit 1\n", { mode: 0o755 });
+  const result = finConfirmed(r);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /Finish edits were retained because the checkout or index changed unexpectedly/);
+  assert.equal(fs.readFileSync(path.join(r.co, "base.txt"), "utf8"), "hook edit\n");
+  assert.notEqual(git(r.co, "status", "--porcelain"), "");
+  fs.unlinkSync(hook);
+});
+
+test("finish rejects a branch lifecycle status incompatible with its status source", () => {
+  const r = repo();
+  const file = path.join(r.co, "plans", A, "PLAN.md");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: in_progress"));
+  git(r.co, "commit", "-qam", "invalid branch status");
+  const before = sha(r.co, "HEAD");
+  const result = fin(r, "--yes");
+  assert.equal(result.code, 1);
+  assert.match(result.err, /plan status in_progress is not executable for git mode/);
+  assert.equal(sha(r.co, "HEAD"), before);
 });

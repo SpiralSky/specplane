@@ -144,6 +144,8 @@ export interface FinishResult {
   /** What happened at step 6: `merged`, `pushed` (pull_request), or `ready` (merge not performed). */
   outcome: "merged" | "pushed" | "ready";
   prUrl: string | null;
+  /** Whether the finish commit exists when reporting readiness. */
+  finalized?: boolean;
   /** Human-readable lines for stderr (acceptance criteria, instructions). */
   notices: string[];
 }
@@ -206,6 +208,22 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   const notices: string[] = [];
   const frontmatterMode = config.plans.status_source === "frontmatter";
 
+  // A previous merge may have succeeded even though its target push failed.
+  if (p.target.status === "done") {
+    const reviewed = git(["rev-parse", `refs/heads/${branch}`], main);
+    const finishTrailers = readTrailers(reviewed, main);
+    if (merge !== "local_merge" || p.plan.status !== "done" || finishTrailers.get("Specplane-Workflow")?.at(-1) !== "finish" || finishTrailers.get("Specplane-Plan")?.at(-1) !== id || !targetTree || git(["rev-parse", "HEAD"], targetTree) !== p.context.targetCommit || !clean(targetTree) || tryRun(["merge-base", "--is-ancestor", reviewed, p.context.targetCommit], main) === null)
+      throw new PlanStateError("Target is done without evidence of this plan head being integrated; reconcile before retrying.");
+    lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+    if (remote && p.refs[`refs/remotes/origin/${def}`] !== p.context.targetCommit) {
+      try { run("git", ["push", "origin", def], { cwd: targetTree }); }
+      catch (e) { throw new PlanStateError(`Plan ${branch} is integrated at ${p.context.targetCommit}, but target publication failed; retry after resolving the push: ${String(e)}`); }
+    }
+    if (!samePath(root, main) && clean(root) && revParse(branch, main) === reviewed) { dropWorktree(root, false, main); deleteBranch(branch, main); }
+    else if (samePath(root, main) && git(["rev-parse", "--abbrev-ref", "HEAD"], root) !== branch && revParse(branch, main) === reviewed) deleteBranch(branch, main);
+    return { planId: id, outcome: "merged", prUrl: null, notices: [`Recovered integrated plan at ${p.context.targetCommit}.`] };
+  }
+
   // 1. Readiness (no writes; fetch only updates remote-tracking refs).
   const dir = planDir(id, config, root);
   const cur = git(["rev-parse", "--abbrev-ref", "HEAD"], root);
@@ -238,7 +256,11 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   }
   const planPath = `${config.plans.dir}/${id}/PLAN.md`;
   const claimReview = frontmatterMode && !alreadyDone && planAt(tip, id, config, main)?.status !== "review";
-  if ((claimReview || merge === "local_merge") && !(canSwitch && !claimReview) && (!targetTree || git(["rev-parse", "HEAD"], targetTree) !== tip || !clean(targetTree))) throw new PlanStateError(`A clean checkout of target \`${def}\` at the selected target commit is required.`);
+  const requireAdmin = claimReview || merge === "local_merge" || (!!targetTree && git(["rev-parse", "HEAD"], targetTree) === tip);
+  function checkAdmin(expected: string): void {
+    if (requireAdmin && !(canSwitch && !claimReview) && (!targetTree || git(["rev-parse", "--abbrev-ref", "HEAD"], targetTree) !== def || git(["rev-parse", "HEAD"], targetTree) !== expected || !clean(targetTree))) throw new PlanStateError(`A clean checkout of target \`${def}\` at the selected target commit is required; preserve its changes and retry.`);
+  }
+  checkAdmin(tip);
   if (claimReview) {
     const mainBranch = tryRun(["rev-parse", "--abbrev-ref", "HEAD"], targetTree!)?.trim();
     if (mainBranch !== def) {
@@ -262,6 +284,15 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   }
   lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
   const existingPR = merge === "pull_request" ? matchingOpenPR(branch, def, { cwd: root, forge: config.plans.forge }) : null;
+  // Publish an already-created review claim before treating it as complete.
+  if (frontmatterMode && remote && p.target.status === "review" && p.refs[`refs/remotes/origin/${def}`] !== tip) {
+    const trailers = readTrailers(tip, main);
+    if (trailers.get("Specplane-Workflow")?.at(-1) !== "claim" || trailers.get("Specplane-Plan")?.at(-1) !== id || !targetTree || !clean(targetTree) || git(["rev-parse", "HEAD"], targetTree) !== tip) throw new PlanStateError("Unpublished target review state requires reconciliation before finish.");
+    lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+    try { run("git", ["push", "origin", def], { cwd: targetTree }); }
+    catch (e) { throw new PlanStateError(`Review claim ${tip} remains unpublished; retry after resolving the push: ${String(e)}`); }
+    p.refs[`refs/remotes/origin/${def}`] = tip;
+  }
   // 2. Verify.
   const testCmd = config.plans.test_command.trim();
   if (!alreadyDone) {
@@ -276,7 +307,8 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   }
 
   // 3. Claim review (frontmatter mode).
-  lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+  lease.assertOwned(); recheckLifecycleRefs(main, p.refs); checkAdmin(tip);
+  if (!clean(root)) throw new PlanStateError("Plan checkout changed during verification; retry.");
   if (claimReview) {
     try { claimPlan(id, planPath, def, remote, targetTree!, "review"); }
     catch (e) {
@@ -303,27 +335,62 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   recheckLifecycleRefs(main, targetRefs);
   // 5. Final commit (the PLAN.md may move to the archive, so read the criteria first).
   const criteria = acceptanceCriteria(fs.readFileSync(path.join(dir, "PLAN.md"), "utf8"));
-  if (!alreadyDone) {
+  if (alreadyDone) {
+    const reviewed = git(["rev-parse", "HEAD"], root);
+    const challenge = [...(criteria.length ? [`Acceptance criteria:\n${criteria.join("\n")}`] : []), `Accept finish \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
+    if (!opts.confirm || !await opts.confirm(challenge)) {
+      notices.push(`Plan \`${id}\` is ready for fresh finish acceptance: head \`${reviewed}\`, target \`${def}\` at \`${rebaseTip}\`.`);
+      return { planId: id, outcome: "ready", prUrl: null, finalized: alreadyDone, notices };
+    }
+    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs); checkAdmin(rebaseTip);
+    if (git(["rev-parse", "HEAD"], root) !== reviewed || !clean(root)) throw new PlanStateError("Plan changed during finish acceptance; retry.");
+  } else {
     const reviewed = git(["rev-parse", "HEAD"], root);
     const challenge = [...notices, `Finalize \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
     const approved = opts.confirm ? await opts.confirm(challenge) : false;
     if (!approved) {
       notices.push(`Plan \`${id}\` is ready to merge after interactive finalization: head \`${reviewed}\`, target \`${def}\` at \`${rebaseTip}\`.`);
-      return { planId: id, outcome: "ready", prUrl: null, notices };
+      return { planId: id, outcome: "ready", prUrl: null, finalized: false, notices };
     }
     lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
     if (git(["rev-parse", "HEAD"], root) !== reviewed || !clean(root)) throw new PlanStateError("Plan changed during finalization confirmation; retry.");
-    finalCommit(id, config, root);
+    checkAdmin(rebaseTip);
+    try { finalCommit(id, config, root); }
+    catch (e) { const head = git(["rev-parse", "HEAD"], root); throw new PlanStateError(`Finalization failed; plan HEAD is ${head}. Inspect the plan checkout and index before retrying: ${String(e)}`); }
+    const finalHead = git(["rev-parse", "HEAD"], root);
+    const finalParents = git(["rev-list", "--parents", "-n", "1", finalHead], root).split(" ");
+    const finalTrailers = readTrailers(finalHead, root);
+    if (finalParents.length !== 2 || finalParents[1] !== reviewed || finalTrailers.get("Specplane-Workflow")?.at(-1) !== "finish" || finalTrailers.get("Specplane-Plan")?.at(-1) !== id || !clean(root)) throw new PlanStateError(`Finalization produced unexpected state at ${finalHead}; inspect the plan checkout before retrying.`);
   }
 
   // 6. Merge.
   let outcome: FinishResult["outcome"];
   let prUrl: string | null = null;
   if (merge === "pull_request") {
+    // Confirm the actual publication head, including on retries: no durable
+    // state-bound acceptance receipt exists.
+    const publicationReviewed = git(["rev-parse", "HEAD"], root);
+    {
+      const reviewed = publicationReviewed;
+      const challenge = [...(criteria.length ? [`Acceptance criteria (confirm before publishing):\n${criteria.map(c => `  ${c}`).join("\n")}`] : []), `Publish \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
+      if (!opts.confirm || !await opts.confirm(challenge)) {
+        notices.push(`Plan \`${id}\` is ready for publication after interactive confirmation: head \`${reviewed}\`, target \`${def}\` at \`${rebaseTip}\`.`);
+        return { planId: id, outcome: "ready", prUrl: null, finalized: true, notices };
+      }
+      lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
+      if (git(["rev-parse", "HEAD"], root) !== reviewed || !clean(root)) throw new PlanStateError("Plan changed during publication confirmation; retry.");
+      checkAdmin(rebaseTip);
+    }
     lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
     if (matchingOpenPR(branch, def, { cwd: root, forge: config.plans.forge }) !== existingPR) throw new PlanStateError("Pull request state changed during finish; retry.");
-    run("git", ["push", "-u", "--force-with-lease", "origin", branch], { cwd: root });
-    prUrl = existingPR ?? createPR(branch, def, planHere.title, prBody(id, planHere.title, criteria), { cwd: root, forge: config.plans.forge });
+    const publicationHead = publicationReviewed;
+    if (git(["rev-parse", "HEAD"], root) !== publicationHead || git(["rev-parse", `refs/heads/${branch}`], root) !== publicationHead || !clean(root)) throw new PlanStateError("Publication head or checkout changed; retry.");
+    recheckLifecycleRefs(main, { [`refs/remotes/origin/${branch}`]: p.refs[`refs/remotes/origin/${branch}`] });
+    const expectedRemote = p.refs[`refs/remotes/origin/${branch}`] ?? "";
+    try { run("git", ["push", "-u", `--force-with-lease=refs/heads/${branch}:${expectedRemote}`, "origin", `${publicationHead}:refs/heads/${branch}`], { cwd: root }); }
+    catch (e) { throw new PlanStateError(`Publication of ${branch} at ${publicationHead} failed; remote outcome may be uncertain, inspect it before retrying: ${String(e)}`); }
+    try { prUrl = existingPR ?? createPR(branch, def, planHere.title, prBody(id, planHere.title, criteria), { cwd: root, forge: config.plans.forge }); }
+    catch (e) { throw new PlanStateError(`Published ${branch} at ${publicationHead}, but pull request creation failed; retry publication or create the PR into ${def}: ${String(e)}`); }
     notices.push(
       prUrl ? `Opened pull request: ${prUrl}` : `Pushed \`${branch}\`. Open a pull request from \`${branch}\` into \`${def}\`, then run \`specplane plan cleanup ${id}\` after it merges.`,
     );
@@ -339,10 +406,10 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     const ok = opts.confirm ? await opts.confirm(challenge) : false;
     if (!ok) {
       notices.push(`Plan \`${id}\` is ready to merge: head \`${reviewed}\` into target \`${def}\` at \`${rebaseTip}\`. Run \`specplane plan finish ${id}\` interactively to confirm this head and target.`);
-      return { planId: id, outcome: "ready", prUrl, notices };
+      return { planId: id, outcome: "ready", prUrl, finalized: true, notices };
     }
-    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
-    if (git(["rev-parse", "HEAD"], root) !== reviewed || git(["rev-parse", `refs/heads/${def}`], main) !== rebaseTip) throw new PlanStateError("Target or reviewed head changed after confirmation; retry finish.");
+    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs); checkAdmin(rebaseTip);
+    if (!clean(root) || git(["rev-parse", "HEAD"], root) !== reviewed || git(["rev-parse", `refs/heads/${def}`], main) !== rebaseTip) throw new PlanStateError("Target or reviewed head changed after confirmation; retry finish.");
     localMerge(id, branch, def, remote, canSwitch ? "branch" : "worktree", targetTree ?? root);
     // Delete only the exact reviewed head after independently verifying integration.
     const integrated = git(["rev-parse", `refs/heads/${def}`], main);
@@ -373,7 +440,25 @@ function finalCommit(id: string, config: Config, root: string): void {
     git(["mv", dir, dest], root);
   }
   const msg = formatMessage({ type: "chore", scope: "specplane", summary: `finish ${id}`, trailers: cliTrailers("finish", id) });
-  run("git", ["commit", "-F", "-"], { cwd: root, input: msg });
+  const head = git(["rev-parse", "HEAD"], root);
+  const raw = (args: string[]) => run("git", args, { cwd: root });
+  const status = raw(["status", "--porcelain", "-z"]);
+  const cached = raw(["diff", "--cached", "--binary"]);
+  const unstaged = raw(["diff", "--binary"]);
+  try { run("git", ["commit", "-F", "-"], { cwd: root, input: msg }); }
+  catch (e) {
+    const dest = `${config.plans.dir}/archive/${id}`;
+    const safe = git(["rev-parse", "HEAD"], root) === head && raw(["status", "--porcelain", "-z"]) === status &&
+      raw(["diff", "--cached", "--binary"]) === cached && raw(["diff", "--binary"]) === unstaged &&
+      (!config.plans.archive_done || (!fs.existsSync(path.join(root, dir)) && fs.existsSync(path.join(root, dest))));
+    if (!safe) throw new PlanStateError(`Finish edits were retained because the checkout or index changed unexpectedly: ${String(e)}`);
+    try {
+      git(["reset", "-q", "HEAD", "--", dir, ...(config.plans.archive_done ? [dest] : [])], root);
+      if (config.plans.archive_done) fs.renameSync(path.join(root, dest), path.join(root, dir));
+      fs.writeFileSync(file, text);
+    } catch (restore) { throw new PlanStateError(`Finish edit restoration was incomplete; inspect the checkout and index: ${String(restore)}; original failure: ${String(e)}`); }
+    throw new PlanStateError(`Operation-owned finish edits were restored after commit failure: ${String(e)}`);
+  }
 }
 
 /** Local merge in the main checkout (feature/plan-execution § Local merge). */
@@ -394,7 +479,11 @@ function localMerge(id: string, branch: string, def: string, remote: boolean, ba
     throw new PlanStateError(`Cannot merge plan \`${id}\`: \`${def}\` moved after the rebase. Run \`specplane plan finish ${id}\` again to rebase.`);
   }
   run("git", ["merge", "--no-ff", "-m", `Merge ${branch}`, branch], { cwd: main });
-  if (remote) run("git", ["push", "origin", def], { cwd: main });
+  if (remote) {
+    const integrated = git(["rev-parse", "HEAD"], main);
+    try { run("git", ["push", "origin", def], { cwd: main }); }
+    catch (e) { throw new PlanStateError(`Plan ${branch} was merged into ${def} at ${integrated}, but target publication failed; retry finish to publish this merge: ${String(e)}`); }
+  }
 }
 
 /** Rewrite the `status:` line of a PLAN.md. */
@@ -604,7 +693,7 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
   const lease = opts.dryRun ? null : acquireWriterLease({ repository: true, plans: [id, ...planIds], checkouts: trees.filter(w => !w.bare).map(w => w.path), requestId: `restack-${randomUUID()}` });
   try {
   if (!opts.dryRun && hasRemote(main)) run("git", ["fetch", "origin", "+refs/heads/*:refs/remotes/origin/*"], { cwd: main });
-  const p = lifecycleContext(id, config, root);
+  const p = lifecycleContext(id, config, root, "restack");
   config = p.config;
   const def = p.context.targetBranch;
   if (JSON.stringify(trees) !== JSON.stringify(listWorktrees(main))) throw new PlanStateError("Checkout set changed during preparation; retry.");
@@ -658,7 +747,8 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
     summary: merged ? `unstack ${id} from ${baseId}` : `stack ${id} on ${baseId}`,
     trailers,
   });
-  run("git", ["commit", "--allow-empty", "-F", "-"], { cwd: checkout, input: msg });
+  try { run("git", ["commit", "--allow-empty", "-F", "-"], { cwd: checkout, input: msg }); }
+  catch (e) { throw new PlanStateError(`Restack rebase completed at ${git(["rev-parse", "HEAD"], checkout)}, but marker creation failed; inspect the checkout and create or reconcile the marker before retrying: ${String(e)}`); }
   return { planId: id, outcome: "restacked", onto: newBase, unstacked: merged, commits: [] };
   } finally { lease?.release(); }
 }

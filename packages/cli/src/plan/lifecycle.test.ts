@@ -275,3 +275,30 @@ test("restack refuses a cross-target base without rewriting the child", () => {
   assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
   assert.equal(git(wtOf(r, B), "status", "--porcelain"), "");
 });
+
+test("restack reports rewritten head when the new marker commit fails", () => {
+  const r = stacked();
+  commitFile(wtOf(r, A), "more.txt", "more\n", "advance base");
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const hook = path.join(r.root, ".git", "hooks", "pre-commit");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const result = sp(r.root, "plan", "restack", B);
+  fs.unlinkSync(hook);
+  const after = git(r.root, "rev-parse", `plan/${B}`);
+  assert.equal(result.code, 1);
+  assert.notEqual(after, before);
+  assert.match(result.err, new RegExp(`Restack rebase completed at ${after}.*marker creation failed`));
+  assert.equal(git(wtOf(r, B), "status", "--porcelain"), "");
+});
+
+test("restack refuses a draft target record before rewriting", () => {
+  const r = stacked();
+  const file = path.join(r.root, "plans", B, "PLAN.md");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: draft"));
+  git(r.root, "commit", "-qam", "draft child");
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const result = sp(r.root, "plan", "restack", B);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /target status draft/);
+  assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+});

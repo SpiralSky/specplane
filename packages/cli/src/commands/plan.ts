@@ -327,7 +327,7 @@ export async function planFinishCommand(id: string, opts: { yes?: boolean; fetch
       : undefined;
     const r = await finishPlan(id, config, root, { yes: opts.yes, confirm, fetch: opts.fetch });
     for (const n of r.notices) process.stderr.write(`${n}\n`);
-    const word = r.outcome === "merged" ? "Finished and merged" : r.outcome === "pushed" ? "Finished and pushed" : "Finished";
+    const word = r.outcome === "merged" ? "Finished and merged" : r.outcome === "pushed" ? "Finished and pushed" : r.finalized ? "Finalized; ready for integration" : "Ready for finalization";
     process.stdout.write(`${word} ${r.planId}\n`);
   } catch (e) {
     if (!reportError(e)) throw e;

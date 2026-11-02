@@ -8,7 +8,7 @@ import { configAt, planAt, samePaths, snapshot } from "./prepare-start.js";
 function ref(cwd: string, name: string): string | null {
   try { return run("git", ["rev-parse", "--verify", "--quiet", `${name}^{commit}`], { cwd }).trim(); } catch { return null; }
 }
-export function lifecycleContext(id: string, discovery: Config, cwd: string) {
+export function lifecycleContext(id: string, discovery: Config, cwd: string, operation: "finish" | "restack" = "finish") {
   const refs: Record<string, string | null> = {};
   const capture = (name: string) => refs[name] = ref(cwd, name);
   const local = capture(`refs/heads/plan/${id}`), remote = capture(`refs/remotes/origin/plan/${id}`);
@@ -28,7 +28,10 @@ export function lifecycleContext(id: string, discovery: Config, cwd: string) {
   if (target.target_branch && target.target_branch !== context.targetBranch || plan.target_branch && plan.target_branch !== context.targetBranch ||
       target.comparison_base !== plan.comparison_base || target.execution && !isDeepStrictEqual(target.execution, plan.execution))
     throw new PlanStateError("Conflicting target and plan execution provenance.");
-  if (["shelved", "abandoned"].includes(target.status)) throw new PlanStateError(`Cannot execute plan: target record is ${target.status}.`);
+  const allowed = config.plans.status_source === "git" ? ["ready"] : ["in_progress", "review"];
+  const targetAllowed = [...allowed, ...(operation === "finish" ? ["done"] : [])];
+  const planAllowed = [...allowed, ...(operation === "finish" ? ["done"] : [])];
+  if (!targetAllowed.includes(target.status) || !planAllowed.includes(plan.status)) throw new PlanStateError(`Cannot ${operation}: target status ${target.status}, plan status ${plan.status} is not executable for ${config.plans.status_source} mode.`);
   return { context, refs, config, plan, target };
 }
 export function checkStackTarget(id: string, expected: string, config: Config, cwd: string, refs: Record<string, string | null>): string {
