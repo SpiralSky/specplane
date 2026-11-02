@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "5c1bdd0c18b2e547d63ad84b2e9da407f8312557",
+  "integrated_commit": "4dde314ae9d5ce9f06b43e11f15e014d41367cdd",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -45,13 +45,14 @@
       "step": "completion-assessment/1",
       "agent": "completion_1",
       "branch": "overnight/completion-1",
-      "status": "implemented; under review",
-      "commit": "39fe690"
+      "status": "integrated; review findings repaired",
+      "commit": "25ea089",
+      "tests": "373 integrated regression pass"
     },
     {
       "step": "host investigation and core audit",
       "agent": "host_investigation",
-      "status": "running"
+      "status": "reviewed; report saved"
     },
     {
       "step": "target-lifecycle/1 review",
@@ -68,14 +69,26 @@
     {
       "step": "target-lifecycle/2b",
       "agent": "target_2b",
-      "status": "running",
-      "base": "5c1bdd0c18b2e547d63ad84b2e9da407f8312557"
+      "status": "integrated provisionally; four review findings being repaired",
+      "base": "5c1bdd0c18b2e547d63ad84b2e9da407f8312557",
+      "commit": "11612d2"
     },
     {
       "step": "completion-assessment/1 review",
       "agent": "completion_1_review",
-      "status": "running",
+      "status": "reviewed; parser compatibility and root-name findings",
       "commit": "39fe690"
+    },
+    {
+      "step": "completion-assessment/2",
+      "agent": "completion_2",
+      "status": "running",
+      "base": "4dde314ae9d5ce9f06b43e11f15e014d41367cdd"
+    },
+    {
+      "step": "target-lifecycle/2b independent review",
+      "agent": "target_2b_review",
+      "status": "reviewed; four findings"
     }
   ],
   "next": [
@@ -91,7 +104,7 @@
   "processes": [],
   "remote_checkpoint": {
     "branch": "overnight/specplane-20261102T144630Z",
-    "commit": "7c5e18d",
+    "commit": "a33e3fb",
     "status": "pushed"
   },
   "baseline_validation": {
@@ -103,5 +116,10 @@
     "passed": 73,
     "failed": 0,
     "sync": "passed"
+  },
+  "host_limits": {
+    "claude_native": "blocked pending named-version host declarations",
+    "codex_runner": "project protocol available for nonlive tests",
+    "both_live_certifications": "deliberately deferred"
   }
 }

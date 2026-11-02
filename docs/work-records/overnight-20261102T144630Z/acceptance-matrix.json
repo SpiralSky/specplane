@@ -734,16 +734,26 @@
     "step": "01-fingerprints",
     "criterion": 1,
     "text": "Manual declarations without fingerprints are valid; malformed metadata, duplicate keys and unsupported values follow the specified errors.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "39fe690",
+      "25ea089",
+      "completion-1-review.md",
+      "integrated-wave2-tests.log:373 pass"
+    ]
   },
   {
     "plan": "2026-11-02-completion-assessment",
     "step": "01-fingerprints",
     "criterion": 2,
     "text": "Canonicalization excludes only specified bookkeeping; recursive root-qualified dependencies handle cycles, anchored references and changed membership.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "39fe690",
+      "25ea089",
+      "completion-1-review.md",
+      "integrated-wave2-tests.log:373 pass"
+    ]
   },
   {
     "plan": "2026-11-02-completion-assessment",
