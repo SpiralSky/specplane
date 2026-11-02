@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { listAdrs } from "../decisions/parse.js";
+import { parseAdr } from "../decisions/parse.js";
 import { GitError, PlanNotFoundError, SpecplaneError } from "../errors.js";
 import { parseFrontmatter, readFrontmatter } from "../frontmatter.js";
 import { ADR_SCHEMA, STEP_SCHEMA, validator } from "../schemas.js";
@@ -185,11 +185,15 @@ function resolveContext(step: StepFrontmatter, config: Config, base: string, war
       }
     } else if ("decision" in item) {
       const m = /^decision\/(\d{4})$/.exec(item.decision);
-      let adr: ReturnType<typeof listAdrs>[number] | undefined;
-      try { adr = m ? listAdrs(config, base).find((a) => a.number === m[1]) : undefined; }
+      const dir = path.join(base, config.decisions.dir);
+      const file = m && fs.existsSync(dir)
+        ? fs.readdirSync(dir).sort().find(f => new RegExp(`^${m[1]}-.*\\.md$`).test(f))
+        : undefined;
+      let valid = false;
+      try { if (file) { parseAdr(path.join(dir, file)); valid = true; } }
       catch (e) { if (!(e instanceof SpecplaneError)) throw e; }
-      if (!adr) warnings.push(`Context decision \`${item.decision}\` does not resolve to an ADR.`);
-      out.push({ kind: "decision", id: item.decision, path: adr ? rel(base, adr.file) : null, anchor: null });
+      if (!valid) warnings.push(`Context decision \`${item.decision}\` does not resolve to an ADR.`);
+      out.push({ kind: "decision", id: item.decision, path: valid ? rel(base, path.join(dir, file!)) : null, anchor: null });
     } else {
       const exists = fs.existsSync(path.join(base, item.file));
       if (!exists) warnings.push(`Context file \`${item.file}\` does not exist.`);

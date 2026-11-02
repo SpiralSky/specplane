@@ -138,6 +138,28 @@ test("remote tree preserves all accepted gap headings and requires a decision", 
   assert.deepEqual(n.attention.map(a => a.kind), ["gap_decision"]);
 });
 
+test("decision context resolves independently in checkout and selected tree", () => {
+  const r = repo("branch", { "01-a.md": step(1, "pending", "context:\n  - decision: decision/0001\n  - decision: decision/0002\n") });
+  const dir = path.join(r.root, "docs/decisions");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "0001-valid.md"), "---\nid: decision/0001\ntitle: Valid\ndate: 2026-01-01\nstatus: accepted\nsuperseded_by: ''\nrelated_specs: []\n---\n# Valid\n");
+  fs.writeFileSync(path.join(dir, "0002-broken.md"), "not frontmatter\n");
+  git(r.root, "add", "-A"); git(r.root, "commit", "-q", "-m", "decision context");
+  const tip = git(r.root, "rev-parse", "HEAD");
+  const checkout = next(r.root);
+  assert.notEqual(checkout.checkout, null);
+  assert.deepEqual(checkout.context.map(c => c.path), ["docs/decisions/0001-valid.md", null]);
+  assert.deepEqual(checkout.warnings, ["Context decision `decision/0002` does not resolve to an ADR."]);
+  git(r.root, "switch", "-q", "main");
+  git(r.root, "update-ref", `refs/remotes/origin/plan/${ID}`, tip);
+  git(r.root, "branch", "-D", `plan/${ID}`);
+  const tree = next(r.root);
+  assert.equal(tree.checkout, null);
+  assert.deepEqual(tree.context, checkout.context);
+  assert.deepEqual(tree.warnings, checkout.warnings);
+  assert.equal(tree.action, checkout.action);
+});
+
 test("attention is deduplicated by kind", () => {
   const base: NextInput = {
     plan: ID, title: "t", effectiveStatus: "in_progress", started: true,
