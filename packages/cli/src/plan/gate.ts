@@ -20,6 +20,7 @@ export function runGate(i: GateInput): GateResult {
   if (i.halfFinished) return deny(3, `Step commit exists without a completed status; inspect plan show ${n.plan} and recover with plan step-done. Force cannot bypass this recovery.`);
   if (n.effectiveStatus === "draft" || n.effectiveStatus === "blocked") return deny(2, n.reason);
   if (n.effectiveStatus === "done") return deny(0, "Plan already done.", "none");
+  if (n.effectiveStatus === "shelved") return deny(3, "Plan is shelved; resume it first.", "none");
   if (n.effectiveStatus === "abandoned") return deny(3, "Plan is abandoned.", "none");
   if (n.attention.some(a => a.kind !== "finish_ready")) return deny(2, n.reason);
   if (n.action === "finish" && !n.step) return deny(0, "All steps completed; human finish review is required.", "finish_ready");

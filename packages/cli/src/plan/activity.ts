@@ -75,6 +75,7 @@ function recordAt(ref: string, id: string, discovery: Config, cwd: string): { te
   if (text === null) return null;
   const data = lenientFrontmatter(text);
   if (!data || data.id !== id || !validator(PLAN_SCHEMA)(data)) throw new PlanStateError(`Invalid plan record for ${id} at ${ref}.`);
+  if (data.status === "shelved" && (archived !== null || (config.plans.status_source === "git" ? data.shelved_from !== "ready" : data.shelved_from !== "in_progress" && data.shelved_from !== "review"))) throw new PlanStateError(`Invalid shelving metadata for ${id} at ${ref}.`);
   return { text, data, config };
 }
 

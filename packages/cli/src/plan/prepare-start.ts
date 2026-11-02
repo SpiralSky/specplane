@@ -32,6 +32,8 @@ export function planAt(cwd: string, commit: string, config: Config, id: string):
   if (!found.length) return null;
   const data = lenientFrontmatter(found[0]);
   if (!data || !validator(PLAN_SCHEMA)(data) || data.id !== id) fail(`Invalid plan record for ${id} at ${commit}.`);
+  if (data.status === "shelved" && (config.plans.status_source === "git" ? data.shelved_from !== "ready" : data.shelved_from !== "in_progress" && data.shelved_from !== "review")) fail(`Invalid shelving metadata for ${id} at ${commit}.`);
+  if (data.status === "shelved" && showFile(commit, paths[1], cwd) !== null) fail(`Archived shelved plan ${id} at ${commit}.`);
   return data as unknown as PlanFrontmatter;
 }
 export function specAt(cwd: string, commit: string, config: Config, raw: string): { id: string; text: string } {

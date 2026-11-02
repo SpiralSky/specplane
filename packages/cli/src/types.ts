@@ -2,7 +2,7 @@
 
 export type SpecStatus = "draft" | "review" | "approved" | "deprecated";
 export type SpecAuthor = "user" | "llm" | "mixed";
-export type PlanStatus = "draft" | "ready" | "in_progress" | "review" | "done" | "abandoned";
+export type PlanStatus = "draft" | "ready" | "in_progress" | "review" | "shelved" | "done" | "abandoned";
 export type StepStatus = "pending" | "done" | "skipped" | "blocked";
 export type AdrStatus = "proposed" | "accepted" | "superseded" | "deprecated";
 export type Authorship = "user" | "llm" | "either";
@@ -102,6 +102,7 @@ export interface PlanFrontmatter {
   id: string;
   title: string;
   status: PlanStatus;
+  shelved_from?: "ready" | "in_progress" | "review";
   specs: string[];
   depends_on?: string[];
   target_branch?: string;

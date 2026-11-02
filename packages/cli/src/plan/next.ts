@@ -9,7 +9,7 @@ import { run } from "../git/exec.js";
 import { resolveSpecId } from "../spec/resolve.js";
 import { findHeading } from "../spec/slug.js";
 import type { Config, PlanFrontmatter, StepFrontmatter } from "../types.js";
-import { getPlanActivity } from "./activity.js";
+import { getPlanActivity, planReport, targetPlanRecord } from "./activity.js";
 import { refusePendingRetarget } from "./lifecycle-context.js";
 import { mergedStackBase } from "./flows.js";
 import { parseGaps, type GapEntry } from "./gaps.js";
@@ -71,7 +71,7 @@ export function computeNext(i: NextInput): PlanNext {
   const open = i.gaps.filter((g) => g.status === "open");
   const remaining = [...i.steps].sort((a, b) => a.number - b.number).filter((s) => s.status !== "done" && s.status !== "skipped");
   const step = remaining[0] ?? null;
-  const done = i.effectiveStatus === "done" || i.effectiveStatus === "abandoned";
+  const done = i.effectiveStatus === "done" || i.effectiveStatus === "abandoned" || i.effectiveStatus === "shelved";
 
   const attention = new Map<AttentionKind, string>();
   const add = (kind: AttentionKind, message: string) => {
@@ -90,7 +90,7 @@ export function computeNext(i: NextInput): PlanNext {
   let reason: string;
   if (done) {
     action = "none";
-    reason = `Plan is ${i.effectiveStatus}.`;
+    reason = i.effectiveStatus === "shelved" ? `Plan is shelved; run ` + "`" + `specplane plan resume ${i.plan}` + "`" + ` first.` : `Plan is ${i.effectiveStatus}.`;
   } else if (i.effectiveStatus === "draft" || i.effectiveStatus === "blocked" || !i.started) {
     action = "none";
     reason =
@@ -201,7 +201,10 @@ function resolveContext(step: StepFrontmatter, config: Config, base: string, war
  */
 export function planNext(id: string, config: Config, root: string): PlanNext {
   refusePendingRetarget(id, config, root);
-  const activity = getPlanActivity(id, config, root);
+  const report = planReport(id, config, root, null);
+  const target = targetPlanRecord(id, config, root, report);
+  const activity = getPlanActivity(id, config, root, report.target_branch);
+  if (activity.where !== "none" && !target) throw new Error("Authoritative target record is unavailable; reconcile target refs before resolving the next step.");
   // The plan's own checkout holds the current step statuses; fall back to the invoking checkout.
   const base = activity.checkout ?? root;
   const warnings: string[] = [];
@@ -220,9 +223,11 @@ export function planNext(id: string, config: Config, root: string): PlanNext {
   const rec = records.find((r) => r.id === id);
   if (!fm || !rec) throw new PlanNotFoundError(id);
   const byId = new Map(parsed.map((p) => [p.id, p]));
-  const effectiveStatus = getEffectiveStatus(fm, byId, config, {
+  const authoritative = target?.data as unknown as PlanFrontmatter | undefined;
+  for (const dep of fm.depends_on ?? []) { const record = targetPlanRecord(dep, config, root, report); if (record) byId.set(dep, record.data as unknown as PlanFrontmatter); }
+  const effectiveStatus = getEffectiveStatus(authoritative ?? fm, byId, target?.config ?? config, {
     branchExists: (pid) => branchExists(`plan/${pid}`, root) || remoteBranchExists(`plan/${pid}`, root),
-    hasOpenPr: (pid) => hasOpenPR(`plan/${pid}`, { cwd: root, forge: config.plans.forge }),
+    hasOpenPr: (pid) => hasOpenPR(`plan/${pid}`, { cwd: root, forge: config.plans.forge, ...(report.target_branch ? { base: report.target_branch } : {}) }),
   });
 
   const steps: NextInput["steps"] = [];
@@ -251,7 +256,7 @@ export function planNext(id: string, config: Config, root: string): PlanNext {
     diverged = (activity.ahead_of_remote ?? 0) > 0 && behind > 0;
   }
   const dirty = activity.checkout !== null && (tryGit(["status", "--porcelain"], activity.checkout) ?? "").trim() !== "";
-  const restackBase = local ? mergedStackBase(id, config, root) : null;
+  const restackBase = local ? mergedStackBase(id, config, root, report.target_branch ?? undefined) : null;
 
   return computeNext({
     plan: id,

@@ -1,5 +1,10 @@
 import * as fs from "node:fs";
-import { refusePendingRetarget } from "./lifecycle-context.js";
+import { randomUUID } from "node:crypto";
+import { acquireWriterLease } from "../core/writer-leases.js";
+import { listWorktrees } from "../git/worktree.js";
+import { lifecycleContext, refusePendingRetarget } from "./lifecycle-context.js";
+import { planReport, targetPlanRecord } from "./activity.js";
+import { branchExists, remoteBranchExists } from "../git/branch.js";
 import * as path from "node:path";
 import { PlanStateError } from "../errors.js";
 import { writeStatus } from "../frontmatter.js";
@@ -73,7 +78,15 @@ function refuse(message: string): never {
  * a failed commit restores both files. Never pushes.
  */
 export function stepDone(planId: string, opts: StepDoneOptions, config: Config, root: string): StepDoneResult {
+  const lease = acquireWriterLease({ repository: true, plans: [planId], checkouts: listWorktrees(root).filter(t => !t.bare).map(t => t.path), requestId: `step-done-${randomUUID()}` });
+  try {
   refusePendingRetarget(planId, config, root);
+  if (branchExists(`plan/${planId}`, root) || remoteBranchExists(`plan/${planId}`, root)) lifecycleContext(planId, config, root, "restack");
+  else {
+    const report = planReport(planId, config, root, null);
+    const status = targetPlanRecord(planId, config, root, report)?.data.status;
+    if (status === "shelved" || status === "abandoned") refuse(`Cannot record step: plan is ${status}.`);
+  }
   const outcome = opts.outcome as StepOutcome;
   if (!(STEP_OUTCOMES as readonly string[]).includes(opts.outcome)) {
     refuse(`Unknown outcome \`${opts.outcome}\`: expected one of ${STEP_OUTCOMES.join(", ")}. Pass \`--outcome done|blocked|skipped\`.`);
@@ -214,4 +227,5 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
   }
   const commit = run("git", ["rev-parse", "--short", "HEAD"], { cwd: root }).trim();
   return { planId, step: fm.step, outcome, commit, handoff: path.relative(root, handoffFile).split(path.sep).join("/") };
+  } finally { lease.release(); }
 }

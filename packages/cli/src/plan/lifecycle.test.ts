@@ -104,7 +104,7 @@ test("abandon: wrong branch and done plans fail with no writes", () => {
   git(r.root, "switch", "-q", "-c", "other");
   let res = sp(r.root, "plan", "abandon", A);
   assert.equal(res.code, 1);
-  assert.match(res.err, /main checkout is on `other`, not `main`/);
+  assert.match(res.err, /provide an up-to-date target checkout/);
   git(r.root, "switch", "-q", "main");
   fs.writeFileSync(path.join(r.root, "plans", A, "PLAN.md"), plan(A, "done"));
   git(r.root, "commit", "-qam", "done");
@@ -125,13 +125,13 @@ test("cleanup: refuses until done on main; then removes worktree and branch; ide
   const wt = wtOf(r, A);
   let res = sp(r.root, "plan", "cleanup", A);
   assert.equal(res.code, 1);
-  assert.match(res.err, /not `done` on `main`/);
+  assert.match(res.err, /unverified/);
   assert.ok(fs.existsSync(wt) && hasBranch(r, A), "nothing removed");
 
-  fs.writeFileSync(path.join(wt, "plans", A, "PLAN.md"), plan(A, "done"));
+  const planFile = path.join(wt, "plans", A, "PLAN.md");
+  fs.writeFileSync(planFile, fs.readFileSync(planFile, "utf8").replace("status: ready", "status: done"));
   git(wt, "commit", "-qam", "done");
-  git(r.root, "merge", "-q", "--squash", `plan/${A}`);
-  git(r.root, "commit", "-q", "-m", "squash");
+  git(r.root, "merge", "-q", "--no-ff", `plan/${A}`, "-m", "merge plan");
   fs.writeFileSync(path.join(wt, "base.txt"), "dirty\n");
   res = sp(r.root, "plan", "cleanup", A);
   assert.equal(res.code, 1);
