@@ -1,12 +1,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { loadConfig } from '../config.js';
 import { acquireWriterLease, inspectWriterLease } from '../core/writer-leases.js';
 import { PlanStateError } from '../errors.js';
-import { generateWorkingPlansMd } from '../generate/plans-md.js';
+import { generatePlansMd } from '../generate/plans-md.js';
+import { capturePlanSnapshot, prospectivePlanSnapshot, recheckPlanSnapshot } from '../generate/snapshot.js';
 import { cliTrailers, formatMessage, readTrailers } from '../git/commit.js';
 import { run } from '../git/exec.js';
 import { listWorktrees } from '../git/worktree.js';
@@ -19,21 +19,6 @@ import type { Config, PlanFrontmatter } from '../types.js';
 export interface ShelveReceipt { id: string; operation: 'shelve' | 'resume'; target: string; commit: string | null; checkout: string | null; retry: boolean; dryRun: boolean; startCommand: string | null; effectiveStatus: string | null; next: { number: number; title: string; status: string } | null }
 const git = (cwd: string, ...args: string[]) => run('git', args, { cwd }).trim();
 const fail = (message: string): never => { throw new PlanStateError(message); };
-
-/** Interim composition seam: plan-index step 3 must replace this with its snapshot renderer. */
-function prospectiveIndex(admin: string, commit: string, config: Config, rel: string, changed: string): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'specplane-transition-'));
-  try {
-    const names = run('git', ['ls-tree', '-r', '--name-only', '-z', commit, '--', config.plans.dir], { cwd: admin }).split('\0').filter(f => /(?:^|\/)PLAN\.md$/.test(f));
-    for (const name of names) {
-      const output = path.join(dir, name);
-      fs.mkdirSync(path.dirname(output), { recursive: true });
-      fs.writeFileSync(output, name === rel ? changed : run('git', ['show', `${commit}:${name}`], { cwd: admin }));
-    }
-    if (!names.includes(rel)) throw new PlanStateError('Target plan is absent from the committed snapshot.');
-    return generateWorkingPlansMd(config, dir);
-  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
-}
 
 function transitionText(original: string, operation: 'shelve' | 'resume', status: unknown, prior: unknown): string {
   const m = /^(\uFEFF?---(\r?\n))([\s\S]*?)(\r?\n---(?=\r?\n|$)[\s\S]*)$/.exec(original);
@@ -107,7 +92,9 @@ export function shelveTransition(id: string, operation: 'shelve' | 'resume', con
         const expected: Record<string, unknown> = operation === 'shelve' ? { ...previous, status: 'shelved', shelved_from: previous?.status } : { ...previous, status: previous?.shelved_from };
         if (operation === 'resume') delete expected.shelved_from;
         const paths = git(admin, 'diff-tree', '--no-commit-id', '--name-only', '-r', local).split('\n').sort();
-        const expectedIndex = prospectiveIndex(admin, local, record.config, rel, record.text);
+        const retrySnapshot = capturePlanSnapshot(admin, 'head');
+        if (retrySnapshot.identity !== local) return fail('Target changed during snapshot capture.');
+        const expectedIndex = generatePlansMd(retrySnapshot);
         if (git(admin, 'rev-list', '--parents', '-n', '1', local).split(' ').length !== 2 || !compatiblePrevious || transitionText(previousText, operation, previous?.status, previous?.shelved_from) !== record.text || !isDeepStrictEqual(expected, record.data) || paths.join('\n') !== [index, rel].sort().join('\n') || run('git', ['show', `${local}:${index}`], {cwd: admin}) !== expectedIndex || !isDeepStrictEqual(trees, listWorktrees(root)) || !isDeepStrictEqual(report.ref_freshness, planReport(id, config, root, null).ref_freshness)) return fail(`Cannot ${operation}: retained transition ${local} failed authentication.`);
         if (opts.dryRun) return receipt(local, true, true);
         try { verifyFinal(local); git(admin, 'push', `--force-with-lease=refs/heads/${target}:${parent}`, 'origin', `${local}:refs/heads/${target}`); }
@@ -130,13 +117,16 @@ export function shelveTransition(id: string, operation: 'shelve' | 'resume', con
     if (original !== record.text) return fail('Target plan changed during preparation.');
     const indexOriginal = fs.existsSync(indexFile) ? fs.readFileSync(indexFile) : null;
     const changed = transitionText(original, operation, status, prior);
-    const generated = prospectiveIndex(admin, local, record.config, rel, changed);
+    const snapshot = capturePlanSnapshot(admin, 'head');
+    if (snapshot.identity !== local || snapshot.outputPath !== index || !snapshot.plans.some(p => p.path === rel && p.bytes.toString('utf8') === original)) return fail('Target snapshot changed during preparation.');
+    const generated = generatePlansMd(prospectivePlanSnapshot(admin, snapshot, new Map([[rel, Buffer.from(changed)]])));
     let staged: string | null = null;
     if (opts.dryRun) return receipt(null, false, true);
     let committed = false, created: string | null = null;
     let planAttempted = false, planWritten = false, indexWritten = false;
     try {
       if (fs.readFileSync(file, 'utf8') !== original || (indexOriginal === null ? fs.existsSync(indexFile) : !fs.existsSync(indexFile) || !fs.readFileSync(indexFile).equals(indexOriginal)) || git(admin, 'diff', '--cached', '--name-only')) fail('Administrative inputs or index changed before writing; retry.');
+      recheckPlanSnapshot(admin, snapshot);
       planAttempted = true;
       fs.writeFileSync(file, changed);
       planWritten = true;
