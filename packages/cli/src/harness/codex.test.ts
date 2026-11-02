@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { runInit } from '../commands/init.js';
@@ -53,7 +53,7 @@ test('Codex background execution explicitly refuses instead of using Claude flag
  assert.equal(result.code,5);assert.match(result.reason,/not a background session adapter/);
 });
 
-test('representative experimental workflow implements/tests in isolated worktree without plan promotion',()=>{
+function experimentalWorkflow(implementation = 'export const sum = (a,b) => a+b;\n'): void {
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'specplane-codex-flow-'));const root=path.join(tmp,'repo'),work=path.join(tmp,'work');fs.mkdirSync(root);
  try{
   git(root,'init','-q','-b','fixture-base');sp(root,'init','--harness','codex');
@@ -66,15 +66,43 @@ test('representative experimental workflow implements/tests in isolated worktree
   const n=JSON.parse(sp(work,'plan','next','2026-11-01-sum','--json'));assert.equal(n.action,'none');
   // The current user-authorized experimental workflow is manual and explicit; no conductor gate is bypassed.
   fs.writeFileSync(path.join(work,'DECISIONS.md'),'Experimental implementation authorized for this fixture; final review/merge remains human. No plan/spec approval granted.\n');
-  fs.writeFileSync(path.join(work,'sum.mjs'),'export const sum = (a,b) => a+b;\n');
+  fs.writeFileSync(path.join(work,'sum.mjs'),implementation);
   fs.writeFileSync(path.join(work,'sum.test.mjs'),"import assert from 'node:assert/strict'; import {test} from 'node:test'; import {sum} from './sum.mjs'; test('sum positive, zero and negative',()=>{assert.equal(sum(2,3),5);assert.equal(sum(0,0),0);assert.equal(sum(-2,1),-1);});\n");
-  execFileSync(process.execPath,['--test','sum.test.mjs'],{cwd:work,env,encoding:'utf8'});
+  // A child test runner must not inherit the outer runner's recursive-test marker.
+  const testEnv: NodeJS.ProcessEnv = {...env};
+  delete testEnv.NODE_TEST_CONTEXT;
+  const child = spawnSync(process.execPath,['--test','--test-reporter=tap','sum.test.mjs'],{cwd:work,env:testEnv,encoding:'utf8'});
+  assert.ifError(child.error);
+  assert.equal(child.status,0,`Child implementation tests failed:\n${child.stdout}\n${child.stderr}`);
+  // Exit zero alone can mean Node skipped the nested suite: require real execution.
+  assert.match(child.stdout,/^ok 1 - sum positive, zero and negative$/m);
+  assert.match(child.stdout,/^# tests 1$/m);
+  assert.match(child.stdout,/^# pass 1$/m);
+  assert.match(child.stdout,/^# fail 0$/m);
+  assert.doesNotMatch(child.stderr,/skipping running files/);
   const validation=JSON.parse(sp(work,'validate','--json'));assert.equal(validation.errors.length,0);
   git(work,'add','DECISIONS.md','sum.mjs','sum.test.mjs');git(work,'commit','-qm','feat: demonstrate isolated experimental work');
   assert.equal(fs.readFileSync(path.join(work,plan),'utf8'),planBefore);assert.equal(fs.readFileSync(path.join(work,spec),'utf8'),specBefore);
   assert.equal(git(root,'rev-parse','HEAD'),base);assert.equal(fs.existsSync(path.join(root,'sum.mjs')),false);
   assert.equal(git(work,'status','--porcelain'),'');
  }finally{fs.rmSync(tmp,{recursive:true,force:true});}
+}
+
+test('representative experimental workflow implements/tests in isolated worktree without plan promotion',()=>{
+ experimentalWorkflow();
+});
+
+test('experimental workflow rejects a broken implementation through its child tests',()=>{
+ assert.throws(()=>experimentalWorkflow('export const sum = (a,b) => a-b;\n'),(error: unknown)=>{
+  assert.ok(error instanceof assert.AssertionError);
+  assert.equal(error.actual,1);
+  assert.equal(error.expected,0);
+  assert.match(error.message,/Child implementation tests failed:/);
+  assert.match(error.message,/^not ok 1 - sum positive, zero and negative$/m);
+  assert.match(error.message,/^# tests 1$/m);
+  assert.match(error.message,/^# fail 1$/m);
+  return true;
+ });
 });
 
 test('codex install refuses a skill directory escaping the repository',()=>{

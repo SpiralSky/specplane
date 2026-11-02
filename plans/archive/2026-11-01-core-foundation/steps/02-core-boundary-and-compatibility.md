@@ -2,7 +2,7 @@
 plan: 2026-11-01-core-foundation
 step: 2
 title: "Core boundary and compatibility"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Public core exports"
   - spec: "architecture/reference-cli#Compatibility manifest and package delivery"

@@ -2,7 +2,7 @@
 plan: 2026-11-01-core-foundation
 step: 5
 title: "Contribution capture and readers"
-status: pending
+status: done
 context:
   - spec: "architecture/file-formats#1.7 Contribution provenance"
   - file: "packages/cli/src/git/commit.ts"

@@ -134,13 +134,13 @@ function lastStepCommit(ref: string, cwd: string): PlanActivity["last_step_commi
   const time = tryGit(["show", "-s", "--format=%cI", sha], cwd)?.trim();
   if (!time) return null;
   const t = readTrailers(sha, cwd);
-  const n = Number(t.get("Specplane-Step"));
+  const n = Number(t.get("Specplane-Step")?.at(-1));
   return {
     sha,
     time,
     step: Number.isInteger(n) && t.has("Specplane-Step") ? n : null,
-    agent: t.get("Specplane-Agent") ?? null,
-    session: t.get("Specplane-Session") ?? null,
+    agent: t.get("Specplane-Agent")?.at(-1) ?? null,
+    session: t.get("Specplane-Session")?.at(-1) ?? null,
   };
 }
 
