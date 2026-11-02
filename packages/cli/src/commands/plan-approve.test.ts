@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { CONFIG, makeRepo, spec } from "../test-repo.js";
+import { withApprovalReadTree } from "./approval-read-tree.js";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "cli.js");
 const ENV = {
@@ -109,7 +110,7 @@ test("plan approve refuses an uncommitted plan folder", () => {
   fs.appendFileSync(path.join(root, `plans/${ID}/PLAN.md`), "\nedit\n");
   const r = run(root, "plan", "approve", ID);
   assert.equal(r.code, 1);
-  assert.equal(r.err, `Commit or stash changes to \`plans/${ID}\` first.\n`);
+  assert.equal(r.err, `Commit or stash changes to \`plans/${ID}/PLAN.md\` first.\n`);
   assert.equal(git(root, "rev-parse", "HEAD"), head);
 });
 
@@ -168,7 +169,7 @@ test("approval refuses dirty approval evidence and keeps the checkout intact", (
   const before = git(root, "rev-parse", "HEAD");
   const r = run(root, "plan", "approve", ID);
   assert.equal(r.code, 1);
-  assert.match(r.err, /changed administrative inputs/);
+  assert.match(r.err, /is `draft`, not `approved`/);
   assert.equal(git(root, "rev-parse", "HEAD"), before);
   assert.equal(read(root, "specs/features/base.md"), fm("feature/base"));
   assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
@@ -213,4 +214,113 @@ test("approval reports its exact retained commit when a post-commit hook moves H
   assert.equal(git(root, "rev-parse", "HEAD"), before);
   assert.equal(git(root, "rev-parse", `${created}^`), before);
   assert.match(git(root, "show", `${created}:plans/${ID}/PLAN.md`), /status: ready/);
+});
+
+
+test("approval validates committed administrative inputs and preserves unrelated staged and working edits", () => {
+  const other = "2026-01-02-beta";
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID), [`plans/${other}/PLAN.md`]: plan(other), "docs/decisions/0001-test.md": "original\n", [`plans/${ID}/steps/01-test.md`]: `---\nplan: ${ID}\nstep: 1\ntitle: Test\nstatus: pending\n---\n` });
+  fs.writeFileSync(path.join(root, "specs/features/base.md"), fm("feature/base", "draft"));
+  git(root, "add", "specs/features/base.md");
+  fs.writeFileSync(path.join(root, `plans/${other}/PLAN.md`), plan(other, "ready"));
+  fs.writeFileSync(path.join(root, "docs/decisions/0001-test.md"), "dirty\n");
+  fs.writeFileSync(path.join(root, `plans/${ID}/steps/01-test.md`), "dirty step\n");
+  fs.appendFileSync(path.join(root, ".specplane/config.yaml"), "\nplans:\n  require_approved_specs: none\n");
+  const before = git(root, "diff", "--cached", "--binary");
+  const preview = run(root, "plan", "approve", ID, "--dry-run");
+  assert.equal(preview.code, 0, preview.err);
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(git(root, "diff", "--cached", "--binary"), before);
+  assert.equal(read(root, "specs/features/base.md"), fm("feature/base", "draft"));
+  assert.equal(read(root, `plans/${ID}/steps/01-test.md`), "dirty step\n");
+  assert.equal(read(root, "docs/decisions/0001-test.md"), "dirty\n");
+  const rendered = run(root, "plan", "index", "--print");
+  assert.equal(rendered.code, 0, rendered.err);
+  assert.equal(rendered.out, read(root, "plans/PLANS.md"));
+});
+
+test("approval refuses changed output and path interpretation even in dry-run", () => {
+  for (const mode of ["output", "config"]) {
+    const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID) });
+    if (mode === "output") fs.writeFileSync(path.join(root, "plans/PLANS.md"), "user index\n");
+    else fs.appendFileSync(path.join(root, ".specplane/config.yaml"), "\nplans:\n  dir: elsewhere\n");
+    const before = git(root, "rev-parse", "HEAD");
+    for (const args of [["--dry-run"], []]) {
+      const r = run(root, "plan", "approve", ID, ...args);
+      assert.equal(r.code, 1, r.err);
+      assert.match(r.err, mode === "output" ? /PLANS.md/ : /configuration paths differ/);
+      assert.equal(git(root, "rev-parse", "HEAD"), before);
+    }
+  }
+});
+
+test("assume-unchanged spec cannot supply approval evidence", () => {
+  const root = repo({ "specs/features/base.md": fm("feature/base", "draft"), [`plans/${ID}/PLAN.md`]: plan(ID) });
+  git(root, "update-index", "--assume-unchanged", "specs/features/base.md");
+  fs.writeFileSync(path.join(root, "specs/features/base.md"), fm("feature/base"));
+  const before = git(root, "rev-parse", "HEAD");
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /is `draft`, not `approved`/);
+  assert.equal(git(root, "rev-parse", "HEAD"), before);
+  assert.equal(read(root, "specs/features/base.md"), fm("feature/base"));
+});
+
+test("dry-run and approval both refuse an unsupported status representation", () => {
+  const original = plan(ID).replace("status: draft", '"status": draft');
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: original });
+  const before = git(root, "rev-parse", "HEAD");
+  for (const args of [["--dry-run"], []]) {
+    const r = run(root, "plan", "approve", ID, ...args);
+    assert.equal(r.code, 1, r.err);
+    assert.match(r.err, /Cannot safely edit plan status/);
+    assert.equal(git(root, "rev-parse", "HEAD"), before);
+    assert.equal(read(root, `plans/${ID}/PLAN.md`), original);
+    assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
+  }
+});
+
+test("approval refuses hidden working edits to its output", () => {
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID), "plans/PLANS.md": "committed index\n" });
+  git(root, "update-index", "--assume-unchanged", "plans/PLANS.md");
+  fs.writeFileSync(path.join(root, "plans/PLANS.md"), "user index\n");
+  for (const args of [["--dry-run"], []]) {
+    const r = run(root, "plan", "approve", ID, ...args);
+    assert.equal(r.code, 1, r.err);
+    assert.match(r.err, /PLANS.md/);
+    assert.equal(read(root, "plans/PLANS.md"), "user index\n");
+  }
+});
+
+test("skip-worktree spec cannot supply approval evidence", () => {
+  const root = repo({ "specs/features/base.md": fm("feature/base", "draft"), [`plans/${ID}/PLAN.md`]: plan(ID) });
+  git(root, "update-index", "--skip-worktree", "specs/features/base.md");
+  fs.writeFileSync(path.join(root, "specs/features/base.md"), fm("feature/base"));
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /is `draft`, not `approved`/);
+  assert.equal(read(root, "specs/features/base.md"), fm("feature/base"));
+});
+
+test("working step and ADR cannot repair invalid committed validation evidence", () => {
+  const step = `plans/${ID}/steps/01-test.md`;
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID), [step]: `---\nplan: ${ID}\nstep: 1\ntitle: Test\nstatus: pending\ncontext:\n  - decision: decision/1234\n---\n` });
+  fs.writeFileSync(path.join(root, step), `---\nplan: ${ID}\nstep: 1\ntitle: Test\nstatus: pending\n---\n`);
+  const head = git(root, "rev-parse", "HEAD");
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /decision\/1234.*does not resolve/);
+  assert.equal(git(root, "rev-parse", "HEAD"), head);
+});
+
+
+test("approval read tree is removed after success and validation failure", () => {
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID) });
+  const head = git(root, "rev-parse", "HEAD");
+  let tree = "";
+  withApprovalReadTree(root, head, dir => { tree = dir; assert.ok(fs.existsSync(path.join(dir, `plans/${ID}/PLAN.md`))); });
+  assert.equal(fs.existsSync(tree), false);
+  assert.throws(() => withApprovalReadTree(root, head, dir => { tree = dir; throw new Error("validation failure"); }), /validation failure/);
+  assert.equal(fs.existsSync(tree), false);
 });
