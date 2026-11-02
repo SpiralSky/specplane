@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "6fd73b0c828ef20a39a6b80699976af9fd0678b2",
+  "integrated_commit": "c84d2e523fb050ed53a781bc80f62a04ae91a340",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -198,14 +198,89 @@
     {
       "step": "target-lifecycle/6",
       "agent": "target_6",
-      "status": "running",
+      "status": "checkpoint implemented; incomplete, split repairs running",
       "base": "6fd73b0c828ef20a39a6b80699976af9fd0678b2",
-      "branch": "overnight/target-6"
+      "branch": "overnight/target-6",
+      "commit": "febcb7d160b9617b69750ca4221b8ad225a55c8d",
+      "evidence": "target-step6-result.md"
+    },
+    {
+      "step": "target-lifecycle/6-next",
+      "agent": "target_6_next",
+      "status": "checkpoint implemented; review fixes in progress",
+      "base": "febcb7d160b9617b69750ca4221b8ad225a55c8d",
+      "branch": "overnight/target-6-next",
+      "commit": "e8c8163f659d3943a30b01020b0a3ad6bdfba898"
+    },
+    {
+      "step": "target-lifecycle/6-transition",
+      "agent": "target_6_transition",
+      "status": "checkpoint implemented; review fixes in progress",
+      "base": "febcb7d160b9617b69750ca4221b8ad225a55c8d",
+      "branch": "overnight/target-6-transition",
+      "commit": "7ec632cf30fa575b6feaddb75e27d2aa1d793253"
+    },
+    {
+      "step": "target-lifecycle/6-cleanup",
+      "agent": "target_6_cleanup",
+      "status": "checkpoint implemented; review fixes in progress",
+      "base": "febcb7d160b9617b69750ca4221b8ad225a55c8d",
+      "branch": "overnight/target-6-cleanup",
+      "commit": "3602f8ba48fe931a2b3ad8393f2c1a01b2ba69ea"
+    },
+    {
+      "step": "target-lifecycle/6-next-final",
+      "agent": "target_6_next_final",
+      "status": "reviewed; context followup verified",
+      "base": "e8c8163f659d3943a30b01020b0a3ad6bdfba898",
+      "branch": "overnight/target-6-next-final",
+      "commit": "3f3a515b789e9a542abaa89c41f8c4f1b3c0d177"
+    },
+    {
+      "step": "target-lifecycle/6-transition-final",
+      "agent": "target_6_transition_final",
+      "status": "reviewed; object format repair awaiting final review",
+      "base": "7ec632cf30fa575b6feaddb75e27d2aa1d793253",
+      "branch": "overnight/target-6-transition-final",
+      "commit": "271c90572b78aa8ef763cffb76276880aee7eb44"
+    },
+    {
+      "step": "target-lifecycle/6-cleanup-final",
+      "agent": "target_6_cleanup_final",
+      "status": "reviewed; identity and terminal recovery repairs running",
+      "base": "3602f8ba48fe931a2b3ad8393f2c1a01b2ba69ea",
+      "branch": "overnight/target-6-cleanup-final",
+      "commit": "bdea23ba1be1286518b504b4989749c7a7c009cb"
+    },
+    {
+      "step": "target-lifecycle/6",
+      "agent": "target_6_next_context",
+      "commit": "23a1508c031630c9e865808f66a9e0b7538467fe",
+      "status": "reviewed and integrated; full regression536/538, only separate fixture failures"
+    },
+    {
+      "step": "target-lifecycle/6",
+      "agent": "target_6_object_format",
+      "commit": "c16c0e71c983675a1385b0190d0ca27469050742",
+      "status": "reviewed and integrated; full regression536/538, only separate fixture failures"
+    },
+    {
+      "step": "target-lifecycle/6",
+      "agent": "target_6_cleanup_identity",
+      "commit": null,
+      "status": "reviewed and integrated; full regression536/538, only separate fixture failures"
+    },
+    {
+      "step": "target-lifecycle/6 integrated fixture repair",
+      "agent": "target_6_fixture",
+      "status": "reviewed and integrated;8 affected tests pass",
+      "base": "3168c8c39eb2e9b6945bf587d6a21d36d38acd81",
+      "commit": "54b7966efe93463ece270187e1f1d8061126ffb9"
     }
   ],
   "next": [
-    "Review and integrate target6; then plan-index steps1/2/3",
-    "Workflow recording -> manual lifecycle -> product docs -> extension packaging -> delivery hosts -> conformance"
+    "Dispatch plan-index original step1 snapshot reader",
+    "Index2 command/rendering -> index3 transaction seam -> workflow recording -> manual lifecycle -> docs -> packaging -> delivery -> conformance"
   ],
   "timing": {
     "worker_elapsed": "pending",
@@ -215,7 +290,7 @@
   "processes": [],
   "remote_checkpoint": {
     "branch": "overnight/specplane-20261102T144630Z",
-    "commit": "735dd5a",
+    "commit": "c3a84a0",
     "status": "pushed"
   },
   "baseline_validation": {
@@ -253,7 +328,8 @@
       "id": "target-attention-1",
       "description": "Bound-plan attention explicitly unavailable while planNext remains default-oriented",
       "owner": "target-lifecycle step6 must make planNext target-aware for shelving override, then reactivate truthful attention",
-      "status": "pending implementation"
+      "status": "resolved; reviewed and integrated",
+      "evidence": "target-step6-next-review.md"
     },
     {
       "id": "dependency-integration-1",
@@ -270,9 +346,9 @@
   "midrun_validation": {
     "errors": 0,
     "warnings": 90,
-    "implementation_reports": 22
+    "log": "target-step6-validation.json"
   },
-  "updated_utc": "2026-11-02T17:34:28.508755+00:00",
+  "updated_utc": "2026-11-02T18:10:41.684322+00:00",
   "combined_regression": {
     "passed": 480,
     "failed": 0,
@@ -280,8 +356,24 @@
     "log": "target-step4-integrated-tests.log"
   },
   "acceptance_counts": {
-    "verified": 48,
-    "pending": 152,
+    "verified": 56,
+    "pending": 144,
     "blocked": 2
+  },
+  "target6_regression": {
+    "passed": 536,
+    "failed": 2,
+    "skipped": 0,
+    "total": 538,
+    "duration_ms": 209313.887515,
+    "log": "target-step6-integrated-tests.log",
+    "failures": "two Codex experimental fixture missing explicit arbitrary-branch target; fresh fixture repair running",
+    "resolution": {
+      "fixture_commit": "54b7966efe93463ece270187e1f1d8061126ffb9",
+      "integrated_affected_passed": 8,
+      "failed": 0,
+      "log": "target-step6-fixture-integrated-tests.log",
+      "note": "full run536/538; both failing fixture cases corrected and affected suite8/8, no claim of repeated full suite"
+    }
   }
 }

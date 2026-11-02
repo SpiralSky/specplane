@@ -72,7 +72,9 @@
     "evidence": [
       "3ce76892631545ea613261a61ee27e540b2ce1d0",
       "target-step5-integrated-tests-final.log:76 pass",
-      "target-5-review.md"
+      "target-5-review.md",
+      "23a1508c031630c9e865808f66a9e0b7538467fe",
+      "target-step6-next-review.md:attention now target-aware and selected-snapshot-based"
     ],
     "limitations": [
       "Unsupported metadata layouts or forge histories refuse conservatively; live forge/model tests excluded"
@@ -87,11 +89,11 @@
     "evidence": [
       "22687bc",
       "target-3-review.md",
-      "target-step3-integrated-tests.log:441 pass"
+      "target-step3-integrated-tests.log:441 pass",
+      "23a1508c031630c9e865808f66a9e0b7538467fe",
+      "target-step6-next-review.md:attention now target-aware and selected-snapshot-based"
     ],
-    "limitations": [
-      "Bound-plan attention unavailable until target-aware planNext; tracked for step6"
-    ]
+    "limitations": []
   },
   {
     "plan": "2026-11-02-target-lifecycle",
@@ -136,36 +138,70 @@
     "step": "plan",
     "criterion": 9,
     "text": "Dry-run/JSON inspect identical preconditions without mutation; actual writes recheck refs, leases and plan identity.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "3ce76892631545ea613261a61ee27e540b2ce1d0",
+      "target-5-review.md",
+      "target-step5-integrated-tests-final.log:76 pass"
+    ],
+    "limitations": [
+      "Forge tests scripted; evidence can change after final forge query without forge-side transaction; unknown layouts/history conservatively refuse"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
     "step": "plan",
     "criterion": 10,
     "text": "PR base/lifecycle conflicts and missing required forge evidence refuse; original start/comparison provenance survives; no commit, rebase or PR edit occurs.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "3ce76892631545ea613261a61ee27e540b2ce1d0",
+      "target-5-review.md",
+      "target-step5-integrated-tests-final.log:76 pass"
+    ],
+    "limitations": [
+      "Forge tests scripted; evidence can change after final forge query without forge-side transaction; unknown layouts/history conservatively refuse"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
     "step": "plan",
     "criterion": 11,
     "text": "Shelving preserves checkout/branch/history and blocks execution until explicit resume.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "3168c8c39eb2e9b6945bf587d6a21d36d38acd81",
+      "target-step6-transition-review.md",
+      "target-step6-cleanup-final-review.md",
+      "target-step6-next-review.md",
+      "target-step6-integrated-tests.log:536 pass;2 unrelated fixture failures separately corrected",
+      "target-step6-fixture-integrated-tests.log"
+    ],
+    "limitations": [
+      "Current matching-index renderer seam must be replaced by plan-index3 snapshot renderer",
+      "Historical abandoned recovery without validated pending operation record refuses",
+      "Unproven squash/removed dependency history refuses; no live forge certification"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
     "step": "plan",
     "criterion": 12,
     "text": "Automated worktree/branch removal requires independent integration evidence; a manual done edit alone never permits cleanup.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "3168c8c39eb2e9b6945bf587d6a21d36d38acd81",
+      "target-step6-transition-review.md",
+      "target-step6-cleanup-final-review.md",
+      "target-step6-next-review.md",
+      "target-step6-integrated-tests.log:536 pass;2 unrelated fixture failures separately corrected",
+      "target-step6-fixture-integrated-tests.log"
+    ],
+    "limitations": [
+      "Current matching-index renderer seam must be replaced by plan-index3 snapshot renderer",
+      "Historical abandoned recovery without validated pending operation record refuses",
+      "Unproven squash/removed dependency history refuses; no live forge certification"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
@@ -238,11 +274,11 @@
     "evidence": [
       "22687bc",
       "target-3-review.md",
-      "target-step3-integrated-tests.log:441 pass"
+      "target-step3-integrated-tests.log:441 pass",
+      "23a1508c031630c9e865808f66a9e0b7538467fe",
+      "target-step6-next-review.md:attention now target-aware and selected-snapshot-based"
     ],
-    "limitations": [
-      "Bound-plan attention unavailable until target-aware planNext; tracked for step6"
-    ]
+    "limitations": []
   },
   {
     "plan": "2026-11-02-target-lifecycle",
@@ -253,11 +289,11 @@
     "evidence": [
       "22687bc",
       "target-3-review.md",
-      "target-step3-integrated-tests.log:441 pass"
+      "target-step3-integrated-tests.log:441 pass",
+      "23a1508c031630c9e865808f66a9e0b7538467fe",
+      "target-step6-next-review.md:attention now target-aware and selected-snapshot-based"
     ],
-    "limitations": [
-      "Bound-plan attention unavailable until target-aware planNext; tracked for step6"
-    ]
+    "limitations": []
   },
   {
     "plan": "2026-11-02-target-lifecycle",
@@ -301,32 +337,70 @@
     "step": "05-retarget",
     "criterion": 1,
     "text": "Dry-run/JSON inspect identical preconditions without mutation; actual writes recheck refs, leases and plan identity.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "3ce76892631545ea613261a61ee27e540b2ce1d0",
+      "target-5-review.md",
+      "target-step5-integrated-tests-final.log:76 pass"
+    ],
+    "limitations": [
+      "Forge tests scripted; evidence can change after final forge query without forge-side transaction; unknown layouts/history conservatively refuse"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
     "step": "05-retarget",
     "criterion": 2,
     "text": "PR base/lifecycle conflicts and missing required forge evidence refuse; original start/comparison provenance survives; no commit, rebase or PR edit occurs.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "3ce76892631545ea613261a61ee27e540b2ce1d0",
+      "target-5-review.md",
+      "target-step5-integrated-tests-final.log:76 pass"
+    ],
+    "limitations": [
+      "Forge tests scripted; evidence can change after final forge query without forge-side transaction; unknown layouts/history conservatively refuse"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
     "step": "06-shelve-cleanup",
     "criterion": 1,
     "text": "Shelving preserves checkout/branch/history and blocks execution until explicit resume.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "3168c8c39eb2e9b6945bf587d6a21d36d38acd81",
+      "target-step6-transition-review.md",
+      "target-step6-cleanup-final-review.md",
+      "target-step6-next-review.md",
+      "target-step6-integrated-tests.log:536 pass;2 unrelated fixture failures separately corrected",
+      "target-step6-fixture-integrated-tests.log"
+    ],
+    "limitations": [
+      "Current matching-index renderer seam must be replaced by plan-index3 snapshot renderer",
+      "Historical abandoned recovery without validated pending operation record refuses",
+      "Unproven squash/removed dependency history refuses; no live forge certification"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
     "step": "06-shelve-cleanup",
     "criterion": 2,
     "text": "Automated worktree/branch removal requires independent integration evidence; a manual done edit alone never permits cleanup.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "3168c8c39eb2e9b6945bf587d6a21d36d38acd81",
+      "target-step6-transition-review.md",
+      "target-step6-cleanup-final-review.md",
+      "target-step6-next-review.md",
+      "target-step6-integrated-tests.log:536 pass;2 unrelated fixture failures separately corrected",
+      "target-step6-fixture-integrated-tests.log"
+    ],
+    "limitations": [
+      "Current matching-index renderer seam must be replaced by plan-index3 snapshot renderer",
+      "Historical abandoned recovery without validated pending operation record refuses",
+      "Unproven squash/removed dependency history refuses; no live forge certification"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
@@ -906,7 +980,8 @@
       "target-step2-integrated-tests.log:423 pass"
     ],
     "limitations": [
-      "Anchored implementation referenced by unrelated metadata is safely refused; contract decision required for this form"
+      "Anchored implementation referenced by unrelated metadata is safely refused; contract decision required for this form",
+      "Uncoordinated external filesystem race after final path checks cannot be made fully atomic by process leases"
     ]
   },
   {
@@ -989,7 +1064,8 @@
     ],
     "partial_implementation": true,
     "limitations": [
-      "Anchored implementation referenced by unrelated metadata is safely refused; contract decision required for this form"
+      "Anchored implementation referenced by unrelated metadata is safely refused; contract decision required for this form",
+      "Uncoordinated external filesystem race after final path checks cannot be made fully atomic by process leases"
     ]
   },
   {
@@ -1005,7 +1081,8 @@
     ],
     "partial_implementation": true,
     "limitations": [
-      "Anchored implementation referenced by unrelated metadata is safely refused; contract decision required for this form"
+      "Anchored implementation referenced by unrelated metadata is safely refused; contract decision required for this form",
+      "Uncoordinated external filesystem race after final path checks cannot be made fully atomic by process leases"
     ]
   },
   {
