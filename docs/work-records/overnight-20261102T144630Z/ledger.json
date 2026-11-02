@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "f80645a7ebcafc8998ca131480dbe6e886fde8f6",
+  "integrated_commit": "6fd73b0c828ef20a39a6b80699976af9fd0678b2",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -177,15 +177,35 @@
     {
       "step": "target-lifecycle/5",
       "agent": "target_5",
+      "status": "integrated; independently reviewed;76 affected tests passed",
+      "base": "f80645a7ebcafc8998ca131480dbe6e886fde8f6",
+      "commit": "49b8f2a",
+      "tests": "12 focused,26 start,7 next,52 finish,24 lifecycle/recording passed; interrupted runs separate"
+    },
+    {
+      "step": "target-lifecycle/5 repair",
+      "agent": "target_5_repair",
+      "status": "integrated; independently reviewed;76 affected tests passed",
+      "base": "49b8f2acfd605b32a214dd48287620b69404b41a"
+    },
+    {
+      "step": "target-lifecycle dependency integration repair",
+      "agent": "stack_evidence_repair",
+      "status": "integrated; independently reproduced safe refusal;44 integrated tests passed",
+      "base": "3ce76892631545ea613261a61ee27e540b2ce1d0",
+      "commit": "b3397a0ca4b18d08a8bcdc3baef2e1ba73fae18f"
+    },
+    {
+      "step": "target-lifecycle/6",
+      "agent": "target_6",
       "status": "running",
-      "base": "f80645a7ebcafc8998ca131480dbe6e886fde8f6"
+      "base": "6fd73b0c828ef20a39a6b80699976af9fd0678b2",
+      "branch": "overnight/target-6"
     }
   ],
   "next": [
-    "Review target_5 retarget result, repair and integrate; then fresh target6 with target-aware planNext/attention and safe cleanup",
-    "Dispatch fresh target4 then5 then6 workers",
-    "Plan-index1/2/3 follow target lifecycle, then workflow recording and manual lifecycle",
-    "Product docs follows manual lifecycle, completion and indexing; packaging follows docs; delivery hosts in parallel then conformance"
+    "Review and integrate target6; then plan-index steps1/2/3",
+    "Workflow recording -> manual lifecycle -> product docs -> extension packaging -> delivery hosts -> conformance"
   ],
   "timing": {
     "worker_elapsed": "pending",
@@ -195,7 +215,7 @@
   "processes": [],
   "remote_checkpoint": {
     "branch": "overnight/specplane-20261102T144630Z",
-    "commit": "c705aff",
+    "commit": "735dd5a",
     "status": "pushed"
   },
   "baseline_validation": {
@@ -234,6 +254,12 @@
       "description": "Bound-plan attention explicitly unavailable while planNext remains default-oriented",
       "owner": "target-lifecycle step6 must make planNext target-aware for shelving override, then reactivate truthful attention",
       "status": "pending implementation"
+    },
+    {
+      "id": "dependency-integration-1",
+      "description": "Independent exact-head target integration evidence required before rewriting stacked branch; manual done refuses without dropping inherited content. Removed dependency or unproven squash history requires explicit reconciliation.",
+      "status": "repaired and verified; conservative unsupported history refusal retained",
+      "evidence": "stack-evidence-review.md"
     }
   ],
   "completion_regression": {
@@ -246,7 +272,7 @@
     "warnings": 90,
     "implementation_reports": 22
   },
-  "updated_utc": "2026-11-02T15:23:18.404060+00:00",
+  "updated_utc": "2026-11-02T17:34:28.508755+00:00",
   "combined_regression": {
     "passed": 480,
     "failed": 0,
@@ -254,8 +280,8 @@
     "log": "target-step4-integrated-tests.log"
   },
   "acceptance_counts": {
-    "verified": 44,
-    "pending": 156,
+    "verified": 48,
+    "pending": 152,
     "blocked": 2
   }
 }

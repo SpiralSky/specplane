@@ -1,0 +1,466 @@
+TAP version 13
+# Subtest: import with arbitrary CLI arguments neither parses them nor writes to checkout
+ok 1 - import with arbitrary CLI arguments neither parses them nor writes to checkout
+  ---
+  duration_ms: 404.668435
+  type: 'test'
+  ...
+# Subtest: closed operation and test schemas reject unknown fields and invalid requests
+ok 2 - closed operation and test schemas reject unknown fields and invalid requests
+  ---
+  duration_ms: 81.373443
+  type: 'test'
+  ...
+# Subtest: public operations reject malformed inputs and explicitly refuse valid unimplemented work
+ok 3 - public operations reject malformed inputs and explicitly refuse valid unimplemented work
+  ---
+  duration_ms: 9.143043
+  type: 'test'
+  ...
+# Subtest: closed receipt and confirmation schemas reject inconsistent or extra fields
+ok 4 - closed receipt and confirmation schemas reject inconsistent or extra fields
+  ---
+  duration_ms: 28.230123
+  type: 'test'
+  ...
+# Subtest: aliases and plan/non-plan writers contend on one checkout
+ok 5 - aliases and plan/non-plan writers contend on one checkout
+  ---
+  duration_ms: 73.533731
+  type: 'test'
+  ...
+# Subtest: ordered sets release their subset after multi-checkout contention
+ok 6 - ordered sets release their subset after multi-checkout contention
+  ---
+  duration_ms: 69.494644
+  type: 'test'
+  ...
+# Subtest: malformed, delegated and guard data fail closed; ownership loss prevents release
+ok 7 - malformed, delegated and guard data fail closed; ownership loss prevents release
+  ---
+  duration_ms: 52.113893
+  type: 'test'
+  ...
+# Subtest: only a proven-dead undelegated owner is reclaimed
+ok 8 - only a proven-dead undelegated owner is reclaimed
+  ---
+  duration_ms: 35.963222
+  type: 'test'
+  ...
+# Subtest: another process cannot acquire an occupied checkout
+ok 9 - another process cannot acquire an occupied checkout
+  ---
+  duration_ms: 137.134584
+  type: 'test'
+  ...
+# Subtest: linked runtime directories and nonregular lease records require recovery
+ok 10 - linked runtime directories and nonregular lease records require recovery
+  ---
+  duration_ms: 43.044807
+  type: 'test'
+  ...
+# Subtest: caller mutations cannot change ownership verification
+ok 11 - caller mutations cannot change ownership verification
+  ---
+  duration_ms: 39.953735
+  type: 'test'
+  ...
+# Subtest: dangling links and FIFOs fail closed without blocking
+ok 12 - dangling links and FIFOs fail closed without blocking
+  ---
+  duration_ms: 51.631659
+  type: 'test'
+  ...
+# Subtest: delegation binds the complete set and recording consumes the token
+ok 13 - delegation binds the complete set and recording consumes the token
+  ---
+  duration_ms: 40.809932
+  type: 'test'
+  ...
+# Subtest: cancellation preserves edits and uncertain stop retains leases until acknowledged
+ok 14 - cancellation preserves edits and uncertain stop retains leases until acknowledged
+  ---
+  duration_ms: 54.908705
+  type: 'test'
+  ...
+# Subtest: dead owner with live worker cannot be reclaimed; recovery inspects before invalidation
+ok 15 - dead owner with live worker cannot be reclaimed; recovery inspects before invalidation
+  ---
+  duration_ms: 56.869642
+  type: 'test'
+  ...
+# Subtest: interrupted delegation cannot be reclaimed as an undelegated lease
+ok 16 - interrupted delegation cannot be reclaimed as an undelegated lease
+  ---
+  duration_ms: 36.92939
+  type: 'test'
+  ...
+# Subtest: first start binds the authoritative nondefault target in a metadata-only commit
+ok 17 - first start binds the authoritative nondefault target in a metadata-only commit
+  ---
+  duration_ms: 470.829032
+  type: 'test'
+  ...
+# Subtest: dry run and refusal leave no branch or runtime files
+ok 18 - dry run and refusal leave no branch or runtime files
+  ---
+  duration_ms: 125.190246
+  type: 'test'
+  ...
+# Subtest: repository lease excludes start before mutation
+ok 19 - repository lease excludes start before mutation
+  ---
+  duration_ms: 47.293597
+  type: 'test'
+  ...
+# Subtest: failed setup retains binding branch and removes only new checkout
+ok 20 - failed setup retains binding branch and removes only new checkout
+  ---
+  duration_ms: 256.97841
+  type: 'test'
+  ...
+# Subtest: frontmatter claim uses target checkout and leaves unrelated checkout unchanged
+ok 21 - frontmatter claim uses target checkout and leaves unrelated checkout unchanged
+  ---
+  duration_ms: 250.982071
+  type: 'test'
+  ...
+# Subtest: stale captured target ref refuses before a plan branch is created
+ok 22 - stale captured target ref refuses before a plan branch is created
+  ---
+  duration_ms: 115.227846
+  type: 'test'
+  ...
+# Subtest: CLI previews the selected target and rejects standalone run without writes
+ok 23 - CLI previews the selected target and rejects standalone run without writes
+  ---
+  duration_ms: 1519.870044
+  type: 'test'
+  ...
+# Subtest: claim hook failure restores only the claim file and its staged entry
+ok 24 - claim hook failure restores only the claim file and its staged entry
+  ---
+  duration_ms: 233.63451
+  type: 'test'
+  ...
+# Subtest: failed claim push is recognized and published on retry
+ok 25 - failed claim push is recognized and published on retry
+  ---
+  duration_ms: 437.421842
+  type: 'test'
+  ...
+# Subtest: stack marker precedes binding and records the dependency tip
+ok 26 - stack marker precedes binding and records the dependency tip
+  ---
+  duration_ms: 336.396683
+  type: 'test'
+  ...
+# Subtest: target plan lease contention refuses before binding
+ok 27 - target plan lease contention refuses before binding
+  ---
+  duration_ms: 74.856583
+  type: 'test'
+  ...
+# Subtest: checkout-only writer blocks setup after worktree registration
+ok 28 - checkout-only writer blocks setup after worktree registration
+  ---
+  duration_ms: 414.683839
+  type: 'test'
+  ...
+# Subtest: failed branch update reports the orphan commit without claiming a branch
+ok 29 - failed branch update reports the orphan commit without claiming a branch
+  ---
+  duration_ms: 192.946816
+  type: 'test'
+  ...
+# Subtest: human start output reports provenance and no host launch command
+ok 30 - human start output reports provenance and no host launch command
+  ---
+  duration_ms: 824.932506
+  type: 'test'
+  ...
+# Subtest: target ref movement during checkout creation prevents setup and preserves checkout
+ok 31 - target ref movement during checkout creation prevents setup and preserves checkout
+  ---
+  duration_ms: 291.955011
+  type: 'test'
+  ...
+# Subtest: claim and binding preserve CRLF frontmatter and body
+ok 32 - claim and binding preserve CRLF frontmatter and body
+  ---
+  duration_ms: 214.456434
+  type: 'test'
+  ...
+# Subtest: claim and binding preserve BOM and CRLF frontmatter and body
+ok 33 - claim and binding preserve BOM and CRLF frontmatter and body
+  ---
+  duration_ms: 218.047662
+  type: 'test'
+  ...
+# Subtest: claim and binding preserve BOM and LF frontmatter and body
+ok 34 - claim and binding preserve BOM and LF frontmatter and body
+  ---
+  duration_ms: 206.873662
+  type: 'test'
+  ...
+# Subtest: resume preserves dirty reused checkout and skips failing setup
+ok 35 - resume preserves dirty reused checkout and skips failing setup
+  ---
+  duration_ms: 553.541335
+  type: 'test'
+  ...
+# Subtest: failed missing-checkout resume keeps committed step history
+ok 36 - failed missing-checkout resume keeps committed step history
+  ---
+  duration_ms: 423.379472
+  type: 'test'
+  ...
+# Subtest: resume detects target movement during missing checkout registration
+ok 37 - resume detects target movement during missing checkout registration
+  ---
+  duration_ms: 511.633159
+  type: 'test'
+  ...
+# Subtest: git status source resumes stored in_progress during migration without changing binding or history
+ok 38 - git status source resumes stored in_progress during migration without changing binding or history
+  ---
+  duration_ms: 343.245433
+  type: 'test'
+  ...
+# Subtest: git status source resumes stored review during migration without changing binding or history
+ok 39 - git status source resumes stored review during migration without changing binding or history
+  ---
+  duration_ms: 318.358014
+  type: 'test'
+  ...
+# Subtest: git status source refuses to resume a draft plan
+ok 40 - git status source refuses to resume a draft plan
+  ---
+  duration_ms: 277.456056
+  type: 'test'
+  ...
+# Subtest: git status source refuses to resume a done plan
+ok 41 - git status source refuses to resume a done plan
+  ---
+  duration_ms: 280.977818
+  type: 'test'
+  ...
+# Subtest: git status source refuses to resume a abandoned plan
+ok 42 - git status source refuses to resume a abandoned plan
+  ---
+  duration_ms: 230.823938
+  type: 'test'
+  ...
+# Subtest: trusted historical evidence resumes legacy without inventing a start base
+ok 43 - trusted historical evidence resumes legacy without inventing a start base
+  ---
+  duration_ms: 434.194727
+  type: 'test'
+  ...
+# Subtest: remote-ahead resume refuses equally in preview and execution
+ok 44 - remote-ahead resume refuses equally in preview and execution
+  ---
+  duration_ms: 488.941088
+  type: 'test'
+  ...
+# Subtest: remote-only unbound legacy history has no local creation evidence
+ok 45 - remote-only unbound legacy history has no local creation evidence
+  ---
+  duration_ms: 91.095737
+  type: 'test'
+  ...
+# Subtest: resume reports a newly recreated checkout as created
+ok 46 - resume reports a newly recreated checkout as created
+  ---
+  duration_ms: 1185.062901
+  type: 'test'
+  ...
+# Subtest: prepares committed target and preserves dirty invoking files
+ok 47 - prepares committed target and preserves dirty invoking files
+  ---
+  duration_ms: 171.445478
+  type: 'test'
+  ...
+# Subtest: refuses target-local missing plan, unapproved spec and conflicting paths
+ok 48 - refuses target-local missing plan, unapproved spec and conflicting paths
+  ---
+  duration_ms: 263.922215
+  type: 'test'
+  ...
+# Subtest: refuses ambiguous legacy and divergent target refs without writes
+ok 49 - refuses ambiguous legacy and divergent target refs without writes
+  ---
+  duration_ms: 157.155864
+  type: 'test'
+  ...
+# Subtest: stack preparation validates dependency binding and prospective specification revision
+ok 50 - stack preparation validates dependency binding and prospective specification revision
+  ---
+  duration_ms: 439.544406
+  type: 'test'
+  ...
+# Subtest: explicit target and recorded resume ignore malformed unrelated HEAD plan
+ok 51 - explicit target and recorded resume ignore malformed unrelated HEAD plan
+  ---
+  duration_ms: 367.914074
+  type: 'test'
+  ...
+# Subtest: resume refuses conflicting target and branch immutable metadata
+ok 52 - resume refuses conflicting target and branch immutable metadata
+  ---
+  duration_ms: 1003.70651
+  type: 'test'
+  ...
+# Subtest: malformed or misidentified approved specification cannot authorize start
+ok 53 - malformed or misidentified approved specification cannot authorize start
+  ---
+  duration_ms: 193.403663
+  type: 'test'
+  ...
+# Subtest: first start refuses an orphaned execution binding without modifying refs
+ok 54 - first start refuses an orphaned execution binding without modifying refs
+  ---
+  duration_ms: 109.592916
+  type: 'test'
+  ...
+# Subtest: resume permits migrated active statuses but first start and resume reject inactive states
+ok 55 - resume permits migrated active statuses but first start and resume reject inactive states
+  ---
+  duration_ms: 1109.525753
+  type: 'test'
+  ...
+# Subtest: preview and core update preserve provenance and unrelated changes
+ok 56 - preview and core update preserve provenance and unrelated changes
+  ---
+  duration_ms: 4690.609117
+  type: 'test'
+  ...
+# Subtest: captured target ref changing before validation refuses without a write
+ok 57 - captured target ref changing before validation refuses without a write
+  ---
+  duration_ms: 215.875636
+  type: 'test'
+  ...
+# Subtest: explicit GitHub requires origin for preview and update
+ok 58 - explicit GitHub requires origin for preview and update
+  ---
+  duration_ms: 324.8492
+  type: 'test'
+  ...
+# Subtest: local bare origin needs no forge evidence when forge is none
+ok 59 - local bare origin needs no forge evidence when forge is none
+  ---
+  duration_ms: 429.414948
+  type: 'test'
+  ...
+# Subtest: forge evidence is scoped to origin and rechecked before writing
+ok 60 - forge evidence is scoped to origin and rechecked before writing
+  ---
+  duration_ms: 182.280585
+  type: 'test'
+  ...
+# Subtest: staged administrative changes and recovery markers refuse
+ok 61 - staged administrative changes and recovery markers refuse
+  ---
+  duration_ms: 348.875491
+  type: 'test'
+  ...
+# Subtest: preview preserves private runtime and index bytes
+ok 62 - preview preserves private runtime and index bytes
+  ---
+  duration_ms: 208.147187
+  type: 'test'
+  ...
+# Subtest: active lease, dirty recording and ref races refuse without writes
+ok 63 - active lease, dirty recording and ref races refuse without writes
+  ---
+  duration_ms: 381.837652
+  type: 'test'
+  ...
+# Subtest: unavailable forge evidence refuses
+ok 64 - unavailable forge evidence refuses
+  ---
+  duration_ms: 194.598218
+  type: 'test'
+  ...
+# Subtest: wrong pull request base and unavailable gh evidence refuse
+ok 65 - wrong pull request base and unavailable gh evidence refuse
+  ---
+  duration_ms: 307.305503
+  type: 'test'
+  ...
+# Subtest: changed recording preimage and lifecycle conflicts refuse
+ok 66 - changed recording preimage and lifecycle conflicts refuse
+  ---
+  duration_ms: 343.050015
+  type: 'test'
+  ...
+# Subtest: git mode permits active migration states and refuses draft and terminal states
+ok 67 - git mode permits active migration states and refuses draft and terminal states
+  ---
+  duration_ms: 753.083373
+  type: 'test'
+  ...
+# Subtest: ref changed during final forge query refuses without writing
+ok 68 - ref changed during final forge query refuses without writing
+  ---
+  duration_ms: 253.57979
+  type: 'test'
+  ...
+# Subtest: unfinished cross-target stack refuses
+ok 69 - unfinished cross-target stack refuses
+  ---
+  duration_ms: 268.472163
+  type: 'test'
+  ...
+# Subtest: missing old branch requires independent historical identity
+ok 70 - missing old branch requires independent historical identity
+  ---
+  duration_ms: 184.904965
+  type: 'test'
+  ...
+# Subtest: retarget preserves the comparison base alongside starting provenance
+ok 71 - retarget preserves the comparison base alongside starting provenance
+  ---
+  duration_ms: 282.639946
+  type: 'test'
+  ...
+# Subtest: preserves inline metadata comments and an empty target history
+ok 72 - preserves inline metadata comments and an empty target history
+  ---
+  duration_ms: 342.657025
+  type: 'test'
+  ...
+# Subtest: preserves CRLF, BOM, comments and body bytes
+ok 73 - preserves CRLF, BOM, comments and body bytes
+  ---
+  duration_ms: 1.182507
+  type: 'test'
+  ...
+# Subtest: preserves flow binding source and appends to its history
+ok 74 - preserves flow binding source and appends to its history
+  ---
+  duration_ms: 1.611733
+  type: 'test'
+  ...
+# Subtest: appends a flow history in a block binding
+ok 75 - appends a flow history in a block binding
+  ---
+  duration_ms: 0.614163
+  type: 'test'
+  ...
+# Subtest: finish and restack contexts permit migrated active states and reject inactive states
+ok 76 - finish and restack contexts permit migrated active states and reject inactive states
+  ---
+  duration_ms: 1756.454476
+  type: 'test'
+  ...
+1..76
+# tests 76
+# suites 0
+# pass 76
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12800.601888

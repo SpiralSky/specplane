@@ -1,0 +1,274 @@
+TAP version 13
+# Subtest: target precedence, conflicts, legacy ambiguity and unavailable targets preserve work
+ok 1 - target precedence, conflicts, legacy ambiguity and unavailable targets preserve work
+  ---
+  duration_ms: 143.677284
+  type: 'test'
+  ...
+# Subtest: local and remote tips reconcile, divergence refuses, remote-only remains readable
+ok 2 - local and remote tips reconcile, divergence refuses, remote-only remains readable
+  ---
+  duration_ms: 151.737709
+  type: 'test'
+  ...
+# Subtest: inputs and immutable execution bindings require valid branches and full commit objects
+ok 3 - inputs and immutable execution bindings require valid branches and full commit objects
+  ---
+  duration_ms: 267.285992
+  type: 'test'
+  ...
+# Subtest: plan metadata and configured team target are parsed and validated
+ok 4 - plan metadata and configured team target are parsed and validated
+  ---
+  duration_ms: 61.398929
+  type: 'test'
+  ...
+# Subtest: captured plan branches refuse divergence, conflicting identity and rewritten provenance
+ok 5 - captured plan branches refuse divergence, conflicting identity and rewritten provenance
+  ---
+  duration_ms: 253.574245
+  type: 'test'
+  ...
+# Subtest: started snapshots control binding and require evidence for legacy targets
+ok 6 - started snapshots control binding and require evidence for legacy targets
+  ---
+  duration_ms: 172.384777
+  type: 'test'
+  ...
+# Subtest: repository default fallback considers local and origin refs in main-first order
+ok 7 - repository default fallback considers local and origin refs in main-first order
+  ---
+  duration_ms: 138.10352
+  type: 'test'
+  ...
+# Subtest: abandon: commits on main, archives, removes worktree, keeps branch; a second abandon fails
+ok 8 - abandon: commits on main, archives, removes worktree, keeps branch; a second abandon fails
+  ---
+  duration_ms: 1915.339943
+  type: 'test'
+  ...
+# Subtest: abandon: dirty worktree refuses without --force and leaves no partial state
+ok 9 - abandon: dirty worktree refuses without --force and leaves no partial state
+  ---
+  duration_ms: 1744.467199
+  type: 'test'
+  ...
+# Subtest: abandon: wrong branch and done plans fail with no writes
+ok 10 - abandon: wrong branch and done plans fail with no writes
+  ---
+  duration_ms: 2043.29311
+  type: 'test'
+  ...
+# Subtest: cleanup: refuses until done on main; then removes worktree and branch; idempotent
+ok 11 - cleanup: refuses until done on main; then removes worktree and branch; idempotent
+  ---
+  duration_ms: 2802.661076
+  type: 'test'
+  ...
+# Subtest: archive: moves done and abandoned plans; errors otherwise
+ok 12 - archive: moves done and abandoned plans; errors otherwise
+  ---
+  duration_ms: 2161.809443
+  type: 'test'
+  ...
+# Subtest: restack: after a squash merge only beta's own commits are replayed (Scenario 6a)
+ok 13 - restack: after a squash merge only beta's own commits are replayed (Scenario 6a)
+  ---
+  duration_ms: 8453.138111
+  type: 'test'
+  ...
+# Subtest: manual done without integration refuses restack and finish without changing the child
+ok 14 - manual done without integration refuses restack and finish without changing the child
+  ---
+  duration_ms: 5263.459388
+  type: 'test'
+  ...
+# Subtest: restack accepts contained dependency head but refuses removed branch without evidence
+ok 15 - restack accepts contained dependency head but refuses removed branch without evidence
+  ---
+  duration_ms: 4424.477529
+  type: 'test'
+  ...
+# Subtest: restack: unmerged base appends a new marker; second run is a no-op
+ok 16 - restack: unmerged base appends a new marker; second run is a no-op
+  ---
+  duration_ms: 2795.44798
+  type: 'test'
+  ...
+# Subtest: restack and its dry run preserve ignored files touched only by intermediate commits
+ok 17 - restack and its dry run preserve ignored files touched only by intermediate commits
+  ---
+  duration_ms: 2658.915605
+  type: 'test'
+  ...
+# Subtest: restack rejects a noncanonical stored stack base before rewriting
+ok 18 - restack rejects a noncanonical stored stack base before rewriting
+  ---
+  duration_ms: 1992.701804
+  type: 'test'
+  ...
+# Subtest: restack: conflicts are listed and the checkout is left mid-rebase; non-stacked plans error
+ok 19 - restack: conflicts are listed and the checkout is left mid-rebase; non-stacked plans error
+  ---
+  duration_ms: 2653.254725
+  type: 'test'
+  ...
+# Subtest: restack refuses a cross-target base without rewriting the child
+ok 20 - restack refuses a cross-target base without rewriting the child
+  ---
+  duration_ms: 2042.510226
+  type: 'test'
+  ...
+# Subtest: restack reports rewritten head when the new marker commit fails
+ok 21 - restack reports rewritten head when the new marker commit fails
+  ---
+  duration_ms: 2234.727185
+  type: 'test'
+  ...
+# Subtest: restack refuses a draft target record before rewriting
+ok 22 - restack refuses a draft target record before rewriting
+  ---
+  duration_ms: 1939.635696
+  type: 'test'
+  ...
+# Subtest: restack preview accepts migrated active Git-mode records
+ok 23 - restack preview accepts migrated active Git-mode records
+  ---
+  duration_ms: 2034.11997
+  type: 'test'
+  ...
+# Subtest: preview and core update preserve provenance and unrelated changes
+ok 24 - preview and core update preserve provenance and unrelated changes
+  ---
+  duration_ms: 3752.479638
+  type: 'test'
+  ...
+# Subtest: captured target ref changing before validation refuses without a write
+ok 25 - captured target ref changing before validation refuses without a write
+  ---
+  duration_ms: 192.605125
+  type: 'test'
+  ...
+# Subtest: explicit GitHub requires origin for preview and update
+ok 26 - explicit GitHub requires origin for preview and update
+  ---
+  duration_ms: 293.322401
+  type: 'test'
+  ...
+# Subtest: local bare origin needs no forge evidence when forge is none
+ok 27 - local bare origin needs no forge evidence when forge is none
+  ---
+  duration_ms: 385.101691
+  type: 'test'
+  ...
+# Subtest: forge evidence is scoped to origin and rechecked before writing
+ok 28 - forge evidence is scoped to origin and rechecked before writing
+  ---
+  duration_ms: 179.022827
+  type: 'test'
+  ...
+# Subtest: staged administrative changes and recovery markers refuse
+ok 29 - staged administrative changes and recovery markers refuse
+  ---
+  duration_ms: 324.393481
+  type: 'test'
+  ...
+# Subtest: preview preserves private runtime and index bytes
+ok 30 - preview preserves private runtime and index bytes
+  ---
+  duration_ms: 174.34454
+  type: 'test'
+  ...
+# Subtest: active lease, dirty recording and ref races refuse without writes
+ok 31 - active lease, dirty recording and ref races refuse without writes
+  ---
+  duration_ms: 414.978077
+  type: 'test'
+  ...
+# Subtest: unavailable forge evidence refuses
+ok 32 - unavailable forge evidence refuses
+  ---
+  duration_ms: 193.349325
+  type: 'test'
+  ...
+# Subtest: wrong pull request base and unavailable gh evidence refuse
+ok 33 - wrong pull request base and unavailable gh evidence refuse
+  ---
+  duration_ms: 297.681602
+  type: 'test'
+  ...
+# Subtest: changed recording preimage and lifecycle conflicts refuse
+ok 34 - changed recording preimage and lifecycle conflicts refuse
+  ---
+  duration_ms: 321.631766
+  type: 'test'
+  ...
+# Subtest: git mode permits active migration states and refuses draft and terminal states
+ok 35 - git mode permits active migration states and refuses draft and terminal states
+  ---
+  duration_ms: 628.446251
+  type: 'test'
+  ...
+# Subtest: ref changed during final forge query refuses without writing
+ok 36 - ref changed during final forge query refuses without writing
+  ---
+  duration_ms: 227.755078
+  type: 'test'
+  ...
+# Subtest: unfinished cross-target stack refuses
+ok 37 - unfinished cross-target stack refuses
+  ---
+  duration_ms: 226.28358
+  type: 'test'
+  ...
+# Subtest: missing old branch requires independent historical identity
+ok 38 - missing old branch requires independent historical identity
+  ---
+  duration_ms: 153.162702
+  type: 'test'
+  ...
+# Subtest: retarget preserves the comparison base alongside starting provenance
+ok 39 - retarget preserves the comparison base alongside starting provenance
+  ---
+  duration_ms: 263.330395
+  type: 'test'
+  ...
+# Subtest: preserves inline metadata comments and an empty target history
+ok 40 - preserves inline metadata comments and an empty target history
+  ---
+  duration_ms: 233.206968
+  type: 'test'
+  ...
+# Subtest: preserves CRLF, BOM, comments and body bytes
+ok 41 - preserves CRLF, BOM, comments and body bytes
+  ---
+  duration_ms: 1.277726
+  type: 'test'
+  ...
+# Subtest: preserves flow binding source and appends to its history
+ok 42 - preserves flow binding source and appends to its history
+  ---
+  duration_ms: 1.423936
+  type: 'test'
+  ...
+# Subtest: appends a flow history in a block binding
+ok 43 - appends a flow history in a block binding
+  ---
+  duration_ms: 0.516368
+  type: 'test'
+  ...
+# Subtest: finish and restack contexts permit migrated active states and reject inactive states
+ok 44 - finish and restack contexts permit migrated active states and reject inactive states
+  ---
+  duration_ms: 1646.583222
+  type: 'test'
+  ...
+1..44
+# tests 44
+# suites 0
+# pass 44
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 47271.709141

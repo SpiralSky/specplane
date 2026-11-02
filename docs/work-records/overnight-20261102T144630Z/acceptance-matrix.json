@@ -70,12 +70,12 @@
     "text": "List/show/live discovery report target, starting commit, comparison base and pending retarget state consistently.",
     "status": "verified",
     "evidence": [
-      "22687bc",
-      "target-3-review.md",
-      "target-step3-integrated-tests.log:441 pass"
+      "3ce76892631545ea613261a61ee27e540b2ce1d0",
+      "target-step5-integrated-tests-final.log:76 pass",
+      "target-5-review.md"
     ],
     "limitations": [
-      "Bound-plan attention unavailable until target-aware planNext; tracked for step6"
+      "Unsupported metadata layouts or forge histories refuse conservatively; live forge/model tests excluded"
     ]
   },
   {
@@ -121,9 +121,15 @@
       "target-4-repair2-result.md",
       "target-4-repair3-result.md",
       "target-4-parity-result.md",
-      "target-step4-integrated-tests.log:480 pass"
+      "target-step4-integrated-tests.log:480 pass",
+      "b3397a0ca4b18d08a8bcdc3baef2e1ba73fae18f",
+      "stack-evidence-review.md",
+      "stack-evidence-integrated-tests.log:44 pass"
     ],
-    "limitations": []
+    "limitations": [
+      "Confirmed dependency code removal on manual done; repair in progress; no original checkout touched",
+      "Unproven removed dependency/local squash histories require explicit reconciliation; manual done alone refuses"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
@@ -280,7 +286,14 @@
       "target-4-repair2-result.md",
       "target-4-repair3-result.md",
       "target-4-parity-result.md",
-      "target-step4-integrated-tests.log:480 pass"
+      "target-step4-integrated-tests.log:480 pass",
+      "b3397a0ca4b18d08a8bcdc3baef2e1ba73fae18f",
+      "stack-evidence-review.md",
+      "stack-evidence-integrated-tests.log:44 pass"
+    ],
+    "limitations": [
+      "Confirmed dependency code removal on manual done; repair in progress; no original checkout touched",
+      "Unproven removed dependency/local squash histories require explicit reconciliation; manual done alone refuses"
     ]
   },
   {
