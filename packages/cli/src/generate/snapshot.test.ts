@@ -74,6 +74,29 @@ test('ignored rule files are rechecked even when inventory is unchanged', () => 
   const next = capture(r, 'working'); put(r, 'plans/.gitignore', 'new/\n'); assert.throws(() => recheck(r, next), /changed/);
   assert.deepEqual(capture(r, 'working').plans.map(p => p.path), ['plans/a/PLAN.md']);
 });
+test('working discovery skips excluded trees but retains rules for tracked and visible plans', () => {
+  const r = repo(); put(r, 'plans/tracked/PLAN.md', 'tracked'); commit(r);
+  put(r, '.gitignore', 'plans/ignored/\nplans/tracked/\n*.gitignore\n');
+  put(r, 'plans/ignored/PLAN.md', 'excluded');
+  fs.symlinkSync('missing', path.join(r, 'plans/ignored/.gitignore'));
+  put(r, 'plans/tracked/.gitignore', '# tracked ancestor\n');
+  put(r, 'plans/visible/.gitignore', '# visible ancestor\n');
+  put(r, 'plans/visible/PLAN.md', 'visible');
+  const before = capture(r, 'working');
+  assert.deepEqual(before.plans.map(p => p.path), ['plans/tracked/PLAN.md', 'plans/visible/PLAN.md']);
+  fs.unlinkSync(path.join(r, 'plans/ignored/.gitignore'));
+  put(r, 'plans/ignored/.gitignore', '# irrelevant\n');
+  recheck(r, before);
+  put(r, 'plans/tracked/.gitignore', '# changed tracked ancestor\n');
+  assert.throws(() => recheck(r, before), /changed/);
+  const next = capture(r, 'working');
+  put(r, 'plans/visible/.gitignore', '# changed visible ancestor\n');
+  assert.throws(() => recheck(r, next), /changed/);
+  const membership = capture(r, 'working');
+  put(r, 'plans/visible/.gitignore', 'PLAN.md\n');
+  assert.throws(() => recheck(r, membership), /changed/);
+  assert.deepEqual(capture(r, 'working').plans.map(p => p.path), ['plans/tracked/PLAN.md']);
+});
 test('snapshot branch validation follows Git and accepts repository root plans', () => {
   const r = repo(); put(r, '.specplane/config.yaml', 'plans:\n  dir: .\n  target_branch: "@"\n'); put(r, 'a/PLAN.md', 'a'); put(r, 'archive/b/PLAN.md', 'b'); commit(r);
   assert.deepEqual(capture(r).plans.map(p => p.path), ['a/PLAN.md', 'archive/b/PLAN.md']);
