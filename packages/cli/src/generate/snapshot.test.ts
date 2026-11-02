@@ -118,3 +118,9 @@ test('external exclude and ancestor rules invalidate working snapshots; symlink 
   fs.renameSync(path.join(r, 'nested'), path.join(r, 'saved')); fs.symlinkSync(path.join(r, 'saved'), path.join(r, 'nested'), 'dir');
   assert.throws(() => capture(r, 'working'), /Symlink/);
 });
+test('owned output scratch is ignored exactly while newly discovered plans still invalidate the snapshot', () => {
+  const r = repo(); put(r, 'plans/a/PLAN.md', 'one'); commit(r);
+  const captured = capture(r, 'working'); const scratch = 'plans/.specplane-index-test.tmp'; put(r, scratch, 'pending');
+  assert.throws(() => recheck(r, captured), /changed/); recheck(r, captured, scratch);
+  put(r, 'plans/b/PLAN.md', 'new'); assert.throws(() => recheck(r, captured, scratch), /changed/);
+});

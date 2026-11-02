@@ -234,7 +234,7 @@ test("plan graph: matches the graph in generated PLANS.md", () => {
   assert.equal(g.code, 0);
   assert.match(g.out, /^graph TD/);
   assert.match(g.out, /p_2026_01_01_alpha --> p_2026_02_01_beta/);
-  assert.equal(run(root, "generate").code, 0);
+  assert.equal(run(root, "plan", "index", "--source", "working").code, 0);
   const md = fs.readFileSync(path.join(root, "plans/PLANS.md"), "utf8");
   assert.ok(md.includes(g.out.trimEnd()));
 });

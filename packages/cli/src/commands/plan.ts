@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig } from "../config.js";
 import { AlreadyExistsError, PlanStateError, SpecplaneError, reportError } from "../errors.js";
-import { generatePlansMd } from "../generate/plans-md.js";
+import { generateWorkingPlansMd } from "../generate/plans-md.js";
 import { ask, csv, interactive } from "./spec.js";
 import { resolveSpecId } from "../spec/resolve.js";
 import { buildGraph, detectCycle } from "../plan/graph.js";
@@ -272,7 +272,7 @@ export function planShowCommand(id: string): void {
 
 /** The Mermaid graph of PLANS.md, without the code fence. */
 export function planGraph(root: string, config: Config): string {
-  const md = generatePlansMd(config, root);
+  const md = generateWorkingPlansMd(config, root);
   const m = /```mermaid\n([\s\S]*?)\n```/.exec(md);
   return m ? m[1] : "";
 }

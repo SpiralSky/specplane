@@ -6,7 +6,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { loadConfig } from '../config.js';
 import { acquireWriterLease, inspectWriterLease } from '../core/writer-leases.js';
 import { PlanStateError } from '../errors.js';
-import { generatePlansMd } from '../generate/plans-md.js';
+import { generateWorkingPlansMd } from '../generate/plans-md.js';
 import { cliTrailers, formatMessage, readTrailers } from '../git/commit.js';
 import { run } from '../git/exec.js';
 import { listWorktrees } from '../git/worktree.js';
@@ -31,7 +31,7 @@ function prospectiveIndex(admin: string, commit: string, config: Config, rel: st
       fs.writeFileSync(output, name === rel ? changed : run('git', ['show', `${commit}:${name}`], { cwd: admin }));
     }
     if (!names.includes(rel)) throw new PlanStateError('Target plan is absent from the committed snapshot.');
-    return generatePlansMd(config, dir);
+    return generateWorkingPlansMd(config, dir);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 

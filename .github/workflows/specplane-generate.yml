@@ -1,26 +1,26 @@
 name: Regenerate PLANS.md
 on:
   push:
-    branches: [main]
+    branches: [main] # selected index branch; customize when installing
     paths:
       - "**/PLAN.md"
       - ".specplane/config.yaml"
 
 concurrency:
-  group: specplane-generate
+  group: specplane-generate-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   generate:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # needed to commit PLANS.md back to main
+      contents: write   # needed to commit PLANS.md back to the selected branch
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main
+          ref: ${{ github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
@@ -30,13 +30,13 @@ jobs:
       - run: npm install -g specplane@0
 
       - name: Regenerate
-        run: specplane generate
+        run: specplane plan index --source head
 
       - name: Commit if changed
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A   # the fresh checkout changes only what `specplane generate` wrote
+          git add -A   # the fresh checkout changes only what `specplane plan index --source head` wrote
           if git diff --cached --quiet; then
             echo "PLANS.md unchanged; no commit needed."
           else

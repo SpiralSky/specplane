@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -8,10 +9,17 @@ import { loadConfig } from "../config.js";
 import { blockedReason, getIndexStatus } from "../plan/status.js";
 import { makeRepo } from "../test-repo.js";
 import { toMermaid } from "./mermaid.js";
-import { generatePlansMd } from "./plans-md.js";
+import { generateWorkingPlansMd } from "./plans-md.js";
 
 const plan = (id: string, status: string, deps: string[] = []) =>
   `---\nid: ${id}\ntitle: Title ${id}\nstatus: ${status}\nspecs: [feature/alpha]\n${deps.length ? `depends_on: [${deps.join(", ")}]\n` : ""}---\n# P\n`;
+
+function gitRepo(files: Record<string, string>): string {
+  const root = makeRepo(files);
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: root, stdio: "ignore" });
+  git("init", "-q"); git("config", "user.name", "Test"); git("config", "user.email", "test@example.com");
+  git("add", "-A"); git("commit", "-qm", "fixture", "--allow-empty"); return root;
+}
 
 const A = "2026-01-01-alpha", B = "2026-01-02-beta", C = "2026-01-03-gamma";
 const files = {
@@ -47,42 +55,42 @@ test("toMermaid: node classes, edges after nodes, classDefs", () => {
   assert.equal(lines[1], "    p_2026_01_01_a[a]:::done");
   assert.equal(lines[2], "    p_2026_01_02_b[b]:::blocked");
   assert.equal(lines[3], "    p_2026_01_01_a --> p_2026_01_02_b");
-  assert.equal(lines.filter((l) => l.includes("classDef")).length, 7);
+  assert.equal(lines.filter((l) => l.includes("classDef")).length, 8);
 });
 
-test("generatePlansMd: sections, blocked status, links, determinism", () => {
-  const root = makeRepo(files);
+test("generateWorkingPlansMd: sections, blocked status, links, determinism", () => {
+  const root = gitRepo(files);
   const { config } = loadConfig(root);
-  const md = generatePlansMd(config, root);
-  assert.ok(md.startsWith("<!-- GENERATED FILE — do not edit by hand. Regenerate with: specplane generate -->\n\n# Plans\n"));
-  assert.ok(md.includes(`| [${B}](${B}/PLAN.md) | Title ${B} | blocked | [${A}](archive/${A}/PLAN.md), [${C}](${C}/PLAN.md) | feature/alpha |`));
-  assert.ok(md.includes(`| [${A}](archive/${A}/PLAN.md) | Title ${A} | done | feature/alpha |`));
+  const md = generateWorkingPlansMd(config, root);
+  assert.ok(md.startsWith("<!-- GENERATED FILE — do not edit by hand. Regenerate with: specplane plan index -->\n\n# Plans\n"));
+  assert.ok(md.includes(`| [${B}](${B}/PLAN.md) | Title ${B} | blocked | repository default | [${A}](archive/${A}/PLAN.md), [${C}](${C}/PLAN.md) | feature/alpha |`));
+  assert.ok(md.includes(`| [${A}](archive/${A}/PLAN.md) | Title ${A} | done | repository default | feature/alpha |`));
   assert.ok(md.includes("p_2026_01_02_beta[beta]:::blocked"));
-  assert.equal(generatePlansMd(config, root), md);
+  assert.equal(generateWorkingPlansMd(config, root), md);
 });
 
-test("generatePlansMd: stack mode blocks a ready plan with two unmerged dependencies", () => {
-  const root = makeRepo({
+test("generateWorkingPlansMd: stack mode blocks a ready plan with two unmerged dependencies", () => {
+  const root = gitRepo({
     ".specplane/config.yaml": "spec_roots:\n  - name: base\n    path: docs/specifications\nplans:\n  dependency_mode: stack\n",
     "plans/2026-01-01-alpha/PLAN.md": plan(A, "ready"),
     "plans/2026-01-02-beta/PLAN.md": plan(B, "ready"),
     "plans/2026-01-03-gamma/PLAN.md": plan(C, "ready", [A, B]),
   });
-  const md = generatePlansMd(loadConfig(root).config, root);
+  const md = generateWorkingPlansMd(loadConfig(root).config, root);
   assert.match(md, new RegExp(`\\| \\[${C}\\]\\(${C}/PLAN\\.md\\) \\| Title ${C} \\| blocked \\|`));
 });
 
-test("generatePlansMd: empty sections render _None._", () => {
-  const root = makeRepo({});
-  const md = generatePlansMd(loadConfig(root).config, root);
+test("generateWorkingPlansMd: empty sections render _None._", () => {
+  const root = gitRepo({});
+  const md = generateWorkingPlansMd(loadConfig(root).config, root);
   assert.equal(md.split("_None._").length - 1, 2);
 });
 
 test("PLANS.md freshness warning", () => {
-  const root = makeRepo(files);
+  const root = gitRepo(files);
   const { config } = loadConfig(root);
   assert.equal(checkPlansMd(config, root).warnings.length, 1); // missing
-  fs.writeFileSync(path.join(root, "plans", "PLANS.md"), generatePlansMd(config, root));
+  fs.writeFileSync(path.join(root, "plans", "PLANS.md"), generateWorkingPlansMd(config, root));
   assert.equal(checkPlansMd(config, root).warnings.length, 0);
   fs.appendFileSync(path.join(root, "plans", "PLANS.md"), "x\n");
   assert.equal(checkPlansMd(config, root).warnings[0].type, "freshness");

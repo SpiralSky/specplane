@@ -9,6 +9,7 @@ const CLASS_DEFS = [
   "review fill:#60a5fa,color:#fff",
   "done fill:#9ca3af,color:#fff",
   "abandoned fill:#9ca3af,color:#fff,text-decoration:line-through",
+  "shelved fill:#fef3c7,color:#92400e,stroke:#d97706",
 ];
 
 export function nodeKey(id: string): string {
