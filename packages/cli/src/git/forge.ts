@@ -52,6 +52,17 @@ export function createPR(branch: string, base: string, title: string, body: stri
   return url;
 }
 
+/** Reuse only a matching open PR; conflicting bases require reconciliation. */
+export function matchingOpenPR(branch: string, base: string, opts: ForgeOpts): string | null {
+  if (!available(opts)) return null;
+  const raw = gh(["pr", "list", "--head", branch, "--state", "open", "--json", "url,baseRefName"], opts.cwd);
+  let entries: unknown;
+  try { entries = JSON.parse(raw); } catch { throw new ForgeError("`gh pr list` returned invalid JSON."); }
+  if (!Array.isArray(entries) || entries.some(x => typeof x?.url !== "string" || typeof x?.baseRefName !== "string")) throw new ForgeError("`gh pr list` returned invalid PR evidence.");
+  if (entries.some(x => x.baseRefName !== base) || entries.length > 1) throw new ForgeError(`Open pull request base conflicts with recorded target ${base}; reconcile it first.`);
+  return entries[0]?.url ?? null;
+}
+
 /** `gh pr list --head <branch> --state open --json url`; returns the first URL, or null. */
 export function getOpenPR(branch: string, opts: ForgeOpts): string | null {
   if (!available(opts)) return null;
