@@ -1,11 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
-import { isDeepStrictEqual } from "node:util";
 import { withApprovalReadTree } from "./approval-read-tree.js";
 import { acquireWriterLease, inspectWriterLease } from "../core/writer-leases.js";
 import { capturePlanSnapshot, prospectivePlanSnapshot, recheckPlanSnapshot } from "../generate/snapshot.js";
-import { loadConfig } from "../config.js";
 import { loadAdrs } from "../decisions/validate.js";
 import {
   ApprovalRefusedError,
@@ -31,6 +29,29 @@ import type { Config } from "../types.js";
 
 const toPosix = (p: string) => p.split(path.sep).join("/");
 
+/** Refuse links and nonregular components, including hidden index-flag edits. */
+function checkOwnedPath(root: string, rel: string, allowMissing: boolean): void {
+  const parts = rel.split("/");
+  let current = root;
+  for (let i = 0; i < parts.length; i++) {
+    current = path.join(current, parts[i]);
+    let stat: fs.Stats;
+    try { stat = fs.lstatSync(current); }
+    catch (e) {
+      if (allowMissing && i === parts.length - 1 && (e as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw e;
+    }
+    if (i === parts.length - 1 ? !stat.isFile() : !stat.isDirectory()) throw new PlanStateError(`Unsafe approval path: ${rel}.`);
+  }
+}
+
+function writeOwned(root: string, rel: string, data: string | Buffer, existed: boolean): void {
+  checkOwnedPath(root, rel, !existed);
+  const flags = fs.constants.O_WRONLY | fs.constants.O_NOFOLLOW | (existed ? fs.constants.O_TRUNC : fs.constants.O_CREAT | fs.constants.O_EXCL);
+  const fd = fs.openSync(path.join(root, rel), flags, 0o666);
+  try { fs.writeFileSync(fd, data); } finally { fs.closeSync(fd); }
+}
+
 /** `plans.require_approved_specs` (`feature/configuration` § `plans.require_approved_specs`). */
 function checkRequiredSpecs(planId: string, specs: string[], config: Config, root: string): void {
   const policy = config.plans.require_approved_specs;
@@ -48,7 +69,7 @@ function checkRequiredSpecs(planId: string, specs: string[], config: Config, roo
   }
 }
 
-function approveOne(rawId: string, discovery: Config, root: string, dryRun: boolean): boolean {
+function approveOne(rawId: string, root: string, dryRun: boolean): boolean {
   const request = { repository: true, plans: [rawId], checkouts: [root], requestId: `approve-${randomUUID()}` };
   const lease = dryRun ? null : acquireWriterLease(request);
   if (dryRun) inspectWriterLease(request);
@@ -61,9 +82,7 @@ function approveOne(rawId: string, discovery: Config, root: string, dryRun: bool
     if (fs.existsSync(markerPath)) throw new PlanStateError("Cannot approve during an unfinished Git operation.");
   }
   const config = snapshot.config;
-  if (discovery.plans.dir !== config.plans.dir || discovery.decisions.dir !== config.decisions.dir || !isDeepStrictEqual(discovery.spec_roots, config.spec_roots)) {
-    throw new PlanStateError("Working configuration paths differ from HEAD; reconcile plans.dir, decisions.dir and spec_roots before approval.");
-  }
+  for (const w of snapshot.warnings) process.stderr.write(`${w.message}\n`);
   for (const p of [config.plans.dir, config.decisions.dir, ...config.spec_roots.map(r => r.path)]) {
     if (path.isAbsolute(p) || path.relative(root, path.resolve(root, p)).startsWith("..")) throw new PlanStateError(`Approval configuration path must stay inside the repository: ${p}`);
   }
@@ -76,11 +95,12 @@ function approveOne(rawId: string, discovery: Config, root: string, dryRun: bool
     const { adrs } = loadAdrs(config, tree);
     const report = validatePlans(listPlans(config, tree), adrs, config, tree);
     return { id, planRel: toPosix(path.relative(tree, dir)), errors: report.errors.filter(f => f.plan === id) };
-  });
+  }, [config.plans.dir, config.decisions.dir, ...config.spec_roots.map(r => r.path)]);
   const { id, planRel, errors } = validation;
   const planRelFile = `${planRel}/PLAN.md`;
   const dir = path.join(root, planRel);
   const captured = snapshot.plans.find(p => p.path === planRelFile);
+  checkOwnedPath(root, planRelFile, false);
   if (!captured || hasUncommittedChanges(planRelFile, root) || !fs.existsSync(path.join(dir, "PLAN.md")) || !captured.bytes.equals(fs.readFileSync(path.join(dir, "PLAN.md")))) throw new UncommittedChangesError(planRelFile);
   if (errors.length > 0) {
     process.stderr.write(formatHuman(makeReport(errors, [id])));
@@ -96,6 +116,7 @@ function approveOne(rawId: string, discovery: Config, root: string, dryRun: bool
   const treeMatch = /^(100644|100755) blob ([0-9a-f]+)\t/.exec(treeEntry);
   const indexMatch = /^(100644|100755) ([0-9a-f]+) 0\t/.exec(indexEntry);
   const outputPath = path.join(root, plansRel);
+  checkOwnedPath(root, plansRel, true);
   const outputExists = fs.existsSync(outputPath);
   const expectedOutput = treeMatch ? run("git", ["cat-file", "blob", treeMatch[2]], { cwd: root, binary: true }) : null;
   if ((treeEntry && !treeMatch) || (indexEntry && !indexMatch) || (treeMatch?.[1] ?? null) !== (indexMatch?.[1] ?? null) || (treeMatch?.[2] ?? null) !== (indexMatch?.[2] ?? null) || (expectedOutput === null ? outputExists : !outputExists || !fs.readFileSync(outputPath).equals(expectedOutput)) || hasUncommittedChanges(plansRel, root) || run("git", ["status", "--porcelain", "--ignored", "--", plansRel], { cwd: root }).trim()) throw new UncommittedChangesError(plansRel);
@@ -122,12 +143,15 @@ function approveOne(rawId: string, discovery: Config, root: string, dryRun: bool
   const git = (...args: string[]) => run("git", args, { cwd: root }).trim();
   const otherIndex = () => run("git", ["diff", "--cached", "--binary", "--", `:(exclude)${planRelFile}`, `:(exclude)${plansRel}`], { cwd: root });
   const beforeIndex = otherIndex();
+  const ownedIndex = (rel: string) => run("git", ["ls-files", "--stage", "-z", "--", rel], { cwd: root });
+  const beforeOwned = new Map([planRelFile, plansRel].map(rel => [rel, ownedIndex(rel)]));
   try {
     lease!.assertOwned();
     recheckPlanSnapshot(root, snapshot);
+    checkOwnedPath(root, planRelFile, false); checkOwnedPath(root, plansRel, oldOutput === null);
     if (git("symbolic-ref", "HEAD") !== branch || !fs.existsSync(planFile) || !fs.readFileSync(planFile).equals(captured.bytes) || hasUncommittedChanges(planRelFile, root) || hasUncommittedChanges(plansRel, root)) throw new Error("Checkout branch or owned inputs changed.");
-    attemptedPlan = true; fs.writeFileSync(planFile, changed); wrotePlan = true;
-    attemptedOutput = true; fs.writeFileSync(output, generated); wroteOutput = true;
+    attemptedPlan = true; writeOwned(root, planRelFile, changed, true); wrotePlan = true;
+    attemptedOutput = true; writeOwned(root, plansRel, generated, oldOutput !== null); wroteOutput = true;
     lease!.assertOwned();
     if (git("rev-parse", "HEAD") !== head || git("symbolic-ref", "HEAD") !== branch || otherIndex() !== beforeIndex || fs.readFileSync(planFile, "utf8") !== changed || fs.readFileSync(output, "utf8") !== generated) throw new Error("Approval inputs changed before staging.");
     staged = true; git("add", "--", planRelFile, plansRel);
@@ -149,10 +173,20 @@ function approveOne(rawId: string, discovery: Config, root: string, dryRun: bool
     const planSafe = fs.existsSync(planFile) && fs.readFileSync(planFile, "utf8") === changed;
     const outputSafe = fs.existsSync(output) && fs.readFileSync(output, "utf8") === generated;
     let indexSafe = false;
-    try { indexSafe = otherIndex() === beforeIndex && (!staged || (run("git", ["show", `:${planRelFile}`], { cwd: root }) === changed && run("git", ["show", `:${plansRel}`], { cwd: root }) === generated)); } catch { /* Retain ambiguous partial staging for inspection. */ }
-    if (staged && indexSafe) git("reset", "-q", "HEAD", "--", planRelFile, plansRel);
-    if (wrotePlan && planSafe) fs.writeFileSync(planFile, original);
-    if (wroteOutput && outputSafe) { if (oldOutput === null) fs.rmSync(output); else fs.writeFileSync(output, oldOutput); }
+    try {
+      const reset: string[] = [];
+      indexSafe = otherIndex() === beforeIndex;
+      if (staged && indexSafe) for (const [rel, expected] of [[planRelFile, changed], [plansRel, generated]]) {
+        const current = ownedIndex(rel), before = beforeOwned.get(rel)!;
+        if (current === before) continue;
+        const mode = /^(100644|100755) /.exec(before)?.[1] ?? "100644";
+        if (!current.startsWith(`${mode} `) || !current.includes(` 0\t${rel}\0`) || run("git", ["show", `:${rel}`], { cwd: root }) !== expected) { indexSafe = false; break; }
+        reset.push(rel);
+      }
+      if (indexSafe && reset.length) git("reset", "-q", "HEAD", "--", ...reset);
+    } catch { indexSafe = false; /* Retain ambiguous staging for inspection. */ }
+    if (wrotePlan && planSafe) writeOwned(root, planRelFile, original, true);
+    if (wroteOutput && outputSafe) { if (oldOutput === null) { checkOwnedPath(root, plansRel, false); fs.rmSync(output); } else writeOwned(root, plansRel, oldOutput, true); }
     const outputOriginal = oldOutput === null ? !fs.existsSync(output) : fs.existsSync(output) && fs.readFileSync(output).equals(oldOutput);
     if (!indexSafe || (wrotePlan ? !planSafe : attemptedPlan && (!fs.existsSync(planFile) || fs.readFileSync(planFile, "utf8") !== original)) || (wroteOutput ? !outputSafe : attemptedOutput && !outputOriginal)) throw new PlanStateError(`Approval recovery requires inspection: ${String(error)}`);
     throw error;
@@ -164,10 +198,8 @@ function approveOne(rawId: string, discovery: Config, root: string, dryRun: bool
 export function planApproveCommand(ids: string[], opts: { dryRun?: boolean }): void {
   try {
     const root = checkoutRoot();
-    const { config, warnings } = loadConfig(root, { checkSpecRoots: false });
-    for (const w of warnings) process.stderr.write(`${w.message}\n`);
     for (const id of ids) {
-      if (!approveOne(id, config, root, opts.dryRun === true)) return;
+      if (!approveOne(id, root, opts.dryRun === true)) return;
     }
   } catch (e) {
     if (!reportError(e)) throw e;

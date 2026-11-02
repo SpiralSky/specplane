@@ -1,11 +1,10 @@
 import * as fs from "node:fs";
-import { execFileSync } from "node:child_process";
 import * as os from "node:os";
 import * as path from "node:path";
 import { run } from "../git/exec.js";
 
 /** Materialize regular files from a captured commit into a private, disposable read tree. */
-export function withApprovalReadTree<T>(root: string, commit: string, use: (tree: string) => T): T {
+export function withApprovalReadTree<T>(root: string, commit: string, use: (tree: string) => T, validationRoots: string[] = []): T {
   const tree = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-approval-"));
   try {
     const entries = run("git", ["ls-tree", "-rlz", "--full-tree", commit], { cwd: root, binary: true })
@@ -13,6 +12,13 @@ export function withApprovalReadTree<T>(root: string, commit: string, use: (tree
         const tab = line.indexOf("\t"), fields = line.slice(0, tab).split(" ");
         return { mode: fields[0], oid: fields[2], size: Number(fields.at(-1)), file: line.slice(tab + 1) };
       });
+    const roots = validationRoots.map(p => path.posix.normalize(p.replaceAll("\\", "/")).replace(/\/$/, ""));
+    for (const entry of entries) {
+      if (entry.mode === "100644" || entry.mode === "100755") continue;
+      if (roots.some(p => p === "." || entry.file === p || entry.file.startsWith(`${p}/`) || p.startsWith(`${entry.file}/`))) {
+        throw new Error(`Unsupported committed approval input at ${entry.file} (mode ${entry.mode}).`);
+      }
+    }
     const files = entries.filter(e => e.mode === "100644" || e.mode === "100755");
     // Bound aggregate batch memory even for repositories with large unrelated trees.
     for (let first = 0; first < files.length;) {
@@ -22,7 +28,7 @@ export function withApprovalReadTree<T>(root: string, commit: string, use: (tree
         bytes += files[last++].size;
       }
       const batch = files.slice(first, last);
-      const data = execFileSync("git", ["cat-file", "--batch"], { cwd: root, input: Buffer.from(batch.map(e => e.oid).join("\n") + "\n"), maxBuffer: bytes + batch.length * 128 + 1024 });
+      const data = run("git", ["cat-file", "--batch"], { cwd: root, binary: true, input: Buffer.from(batch.map(e => e.oid).join("\n") + "\n"), maxBuffer: bytes + batch.length * 128 + 1024 });
       let offset = 0;
       for (const entry of batch) {
         if (!entry.file || entry.file.includes("\\") || entry.file.split("/").some(p => !p || p === "." || p === "..")) throw new Error("Unsafe path in approval snapshot.");

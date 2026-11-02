@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { CONFIG, makeRepo, spec } from "../test-repo.js";
 import { withApprovalReadTree } from "./approval-read-tree.js";
+import { run as gitRun } from "../git/exec.js";
+import { GitError } from "../errors.js";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "cli.js");
 const ENV = {
@@ -240,8 +243,8 @@ test("approval validates committed administrative inputs and preserves unrelated
   assert.equal(rendered.out, read(root, "plans/PLANS.md"));
 });
 
-test("approval refuses changed output and path interpretation even in dry-run", () => {
-  for (const mode of ["output", "config"]) {
+test("approval refuses changed output even in dry-run", () => {
+  for (const mode of ["output"]) {
     const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID) });
     if (mode === "output") fs.writeFileSync(path.join(root, "plans/PLANS.md"), "user index\n");
     else fs.appendFileSync(path.join(root, ".specplane/config.yaml"), "\nplans:\n  dir: elsewhere\n");
@@ -323,4 +326,110 @@ test("approval read tree is removed after success and validation failure", () =>
   assert.equal(fs.existsSync(tree), false);
   assert.throws(() => withApprovalReadTree(root, head, dir => { tree = dir; throw new Error("validation failure"); }), /validation failure/);
   assert.equal(fs.existsSync(tree), false);
+});
+
+
+test("HEAD config governs approval despite malformed or different staged and working config", () => {
+  for (const pending of ["plans: [", `${CONFIG}\nplans:\n  dir: elsewhere\n`]) {
+    const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID) });
+    fs.writeFileSync(path.join(root, ".specplane/config.yaml"), pending);
+    git(root, "add", ".specplane/config.yaml");
+    const before = git(root, "show", ":.specplane/config.yaml");
+    const r = run(root, "plan", "approve", ID);
+    assert.equal(r.code, 0, r.err);
+    assert.equal(git(root, "show", ":.specplane/config.yaml"), before);
+    assert.equal(read(root, ".specplane/config.yaml"), pending);
+  }
+});
+
+test("approval refuses nonregular committed validation inputs without following them", () => {
+  for (const rel of [`plans/${ID}/steps/01-test.md`, `plans/${ID}/HANDOFF.md`, "specs/features/link.md", "decisions/link.md", "specs/features", `plans/${ID}/steps`]) {
+    const step = `---\nplan: ${ID}\nstep: 1\ntitle: Test\nstatus: pending\ncontext:\n  - decision: decision/1234\n---\n`;
+    const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID), "bad-step.md": step });
+    const target = path.join(root, rel);
+    if (fs.existsSync(target)) fs.rmSync(target, { recursive: true });
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.symlinkSync(path.relative(path.dirname(target), path.join(root, "bad-step.md")), target);
+    git(root, "add", "-A"); git(root, "commit", "-qm", "link input");
+    const head = git(root, "rev-parse", "HEAD");
+    const r = run(root, "plan", "approve", ID);
+    assert.equal(r.code, 1, `${rel}: ${r.err}`);
+    assert.match(r.err, /Unsupported committed approval input/);
+    assert.equal(git(root, "rev-parse", "HEAD"), head);
+    assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
+  }
+});
+
+test("approval refuses gitlinks in validation roots while allowing unrelated links", () => {
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID), "source": "x" });
+  fs.symlinkSync("source", path.join(root, "unrelated-link")); git(root, "add", "unrelated-link");
+  const head = git(root, "rev-parse", "HEAD");
+  git(root, "update-index", "--add", "--cacheinfo", `160000,${head},decisions/submodule`); git(root, "commit", "-qm", "gitlink");
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 1, r.err); assert.match(r.err, /Unsupported committed approval input.*submodule/);
+  git(root, "rm", "--cached", "decisions/submodule"); git(root, "commit", "-qm", "remove gitlink");
+  const ok = run(root, "plan", "approve", ID); assert.equal(ok.code, 0, ok.err);
+});
+
+test("hidden owned file and ancestor symlinks never mutate destinations or index", () => {
+  for (const flag of ["--assume-unchanged", "--skip-worktree"]) for (const which of ["plan", "ancestor", "output"]) {
+    const planRel = `plans/${ID}/PLAN.md`;
+    const root = repo({ "specs/features/base.md": fm("feature/base"), [planRel]: plan(ID), "plans/PLANS.md": "index bytes\n", "other": "old\n" });
+    fs.writeFileSync(path.join(root, "other"), "staged\n"); git(root, "add", "other");
+    const rel = which === "output" ? "plans/PLANS.md" : planRel; git(root, "update-index", flag, rel);
+    const dest = path.join(root, "external-copy");
+    if (which === "ancestor") { fs.renameSync(path.join(root, `plans/${ID}`), dest); fs.symlinkSync(dest, path.join(root, `plans/${ID}`)); }
+    else { fs.copyFileSync(path.join(root, rel), dest); fs.unlinkSync(path.join(root, rel)); fs.symlinkSync(dest, path.join(root, rel)); }
+    const destFile = which === "ancestor" ? path.join(dest, "PLAN.md") : dest;
+    const beforeDest = fs.readFileSync(destFile), index = fs.readFileSync(path.join(root, ".git/index")), refs = git(root, "show-ref");
+    const r = run(root, "plan", "approve", ID);
+    assert.equal(r.code, 1, `${flag} ${which}: ${r.err}`);
+    assert.deepEqual(fs.readFileSync(destFile), beforeDest); assert.deepEqual(fs.readFileSync(path.join(root, ".git/index")), index);
+    assert.equal(git(root, "show-ref"), refs); assert.equal(fs.readFileSync(path.join(root, "plans/PLANS.md"), "utf8"), "index bytes\n");
+  }
+});
+
+
+test("binary Git runner preserves batch bytes and throws typed errors", () => {
+  const root = repo({ "binary": "initial" });
+  const bytes = Buffer.from([0, 10, 255, 13, 0]);
+  const oid = gitRun("git", ["hash-object", "-w", "--stdin"], { cwd: root, input: bytes }).trim();
+  const result = gitRun("git", ["cat-file", "--batch"], { cwd: root, input: Buffer.from(`${oid}\n${oid}\n`), binary: true });
+  const record = Buffer.concat([Buffer.from(`${oid} blob ${bytes.length}\n`), bytes, Buffer.from("\n")]);
+  assert.deepEqual(result, Buffer.concat([record, record]));
+  assert.throws(() => gitRun("git", ["cat-file", "--invalid-option"], { cwd: root, input: Buffer.alloc(0), binary: true }), GitError);
+});
+
+test("partial staging recovery preserves unrelated staged changes", () => {
+  const rel = `plans/${ID}/PLAN.md`;
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [rel]: plan(ID), "other": "old\n" });
+  fs.writeFileSync(path.join(root, "other"), "staged\n"); git(root, "add", "other");
+  git(root, "update-index", "--assume-unchanged", rel);
+  const head = git(root, "rev-parse", "HEAD"), other = git(root, "show", ":other");
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 1, r.err);
+  assert.equal(git(root, "rev-parse", "HEAD"), head);
+  assert.equal(git(root, "show", ":other"), other);
+  assert.equal(git(root, "diff", "--cached", "--name-only"), "other");
+  assert.equal(read(root, rel), plan(ID));
+  assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
+});
+
+
+test("hidden plan symlink to an external file refuses before any output or index mutation", () => {
+  for (const flag of ["--assume-unchanged", "--skip-worktree"]) {
+    const rel = `plans/${ID}/PLAN.md`;
+    const root = repo({ "specs/features/base.md": fm("feature/base"), [rel]: plan(ID), "other": "old" });
+    fs.writeFileSync(path.join(root, "other"), "staged"); git(root, "add", "other"); git(root, "update-index", flag, rel);
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "approval-external-"));
+    try {
+      const target = path.join(outside, "target"); fs.writeFileSync(target, plan(ID));
+      fs.unlinkSync(path.join(root, rel)); fs.symlinkSync(target, path.join(root, rel));
+      const index = fs.readFileSync(path.join(root, ".git/index")), refs = git(root, "show-ref");
+      const r = run(root, "plan", "approve", ID);
+      assert.equal(r.code, 1, r.err); assert.equal(read(outside, "target"), plan(ID));
+      assert.deepEqual(fs.readFileSync(path.join(root, ".git/index")), index); assert.equal(git(root, "show-ref"), refs);
+      assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
+    } finally { fs.rmSync(outside, { recursive: true, force: true }); }
+  }
 });
