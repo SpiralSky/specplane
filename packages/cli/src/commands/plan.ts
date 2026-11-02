@@ -269,7 +269,7 @@ export async function planStartCommand(id: string, opts: { fetch?: boolean; json
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    if (opts.run) throw new PlanStateError("Standalone --run is unavailable until shared core execution is shipped.");
+    if (opts.run) throw new PlanStateError("Standalone --run is unavailable; use an explicitly installed execution extension.");
     const r = firstStart(id, config, root, opts);
     for (const n of r.notices) process.stderr.write(`${n}\n`);
     if (opts.json) {
@@ -278,13 +278,13 @@ export async function planStartCommand(id: string, opts: { fetch?: boolean; json
     }
     if (r.dryRun) { process.stdout.write(`Would start ${id} on ${r.target} at ${r.startBase} (${r.freshness})\n`); return; }
     const where = r.path !== null ? `Worktree: ${r.path}` : `Branch: ${r.branch}`;
-    const lines = [`${r.resumed ? "Resumed" : "Started"} ${r.planId}`, `Target: ${r.target} (start base ${r.startBase}; ${r.freshness})`, `Backend: ${r.backend} (checkout ${r.resumed && r.backend !== "external" ? "resumed" : r.backend === "external" ? "not needed" : "created"})`, where];
+    const lines = [`${r.resumed ? "Resumed" : "Started"} ${r.planId}`, `Target: ${r.target_branch}; start base: ${r.start_base}; comparison base: ${r.comparison_base ?? "none"}; freshness: ${r.ref_freshness}`, `Backend: ${r.backend} (checkout ${r.resumed && r.backend !== "external" ? "resumed" : r.backend === "external" ? "not needed" : "created"})`, where];
     const next = r.next ? `Next step: ${String(r.next.number).padStart(2, "0")} ${r.next.title} (${r.next.status})` : "No pending steps.";
     lines.push(next);
     if (r.backend === "external") {
       lines.push("The environment runs the finish flow itself; do not run `specplane plan finish` locally.");
-    } else if (r.nextCommand) {
-      lines.push(`Open a session: ${r.nextCommand}`);
+    } else {
+      lines.push(`Continue in ${r.path ?? r.branch}.`);
     }
     process.stdout.write(`${lines.join("\n")}\n`);
   } catch (e) {

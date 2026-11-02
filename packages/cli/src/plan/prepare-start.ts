@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 import { parseConfigText, CONFIG_PATH } from "../config.js";
 import { AmbiguousIdError, PlanNotFoundError, PlanStateError, SpecNotFoundError, UnknownRootError } from "../errors.js";
 import { run } from "../git/exec.js";
+import { readTrailers } from "../git/commit.js";
 import { ID_PATTERN, PLAN_SCHEMA, SPEC_COMMON_SCHEMA, SPEC_FEATURE_SCHEMA, SPEC_ARCHITECTURE_SCHEMA, validator } from "../schemas.js";
 import { TYPE_DIRS } from "../spec/resolve.js";
 import type { Config, PlanFrontmatter } from "../types.js";
@@ -11,7 +12,7 @@ import { resolveCommit, resolvePlanContext, validatePlanBranches, type PlanBranc
 export interface PreparedStart {
   context: TargetContext; config: Config; plan: PlanFrontmatter; first: boolean;
   /** Recheck all refs under leases before any mutation. */
-  refs: Record<string, string | null>; base: string; stackId: string | null;
+  refs: Record<string, string | null>; base: string; stackId: string | null; recoveryClaim?: string;
 }
 function fail(reason: string): never { throw new PlanStateError(reason); }
 function ref(cwd: string, name: string): string | null {
@@ -51,6 +52,23 @@ function snapshot(cwd: string, commit: string | null, id: string, discovery: Con
   if (!plan) fail(`Plan branch has no record for ${id}.`);
   return { id, commit, binding: plan.execution, comparisonBase: plan.comparison_base };
 }
+/** Recognize only a complete, metadata-only claim at the selected target tip. */
+function recoverableClaim(cwd: string, commit: string, file: string, id: string): boolean {
+  try {
+    const parents = run("git", ["rev-list", "--parents", "-n", "1", commit], { cwd }).trim().split(" ");
+    const trailers = readTrailers(commit, cwd);
+    if (parents.length !== 2 || trailers.get("Specplane-Workflow")?.join() !== "claim" || trailers.get("Specplane-Plan")?.join() !== id || run("git", ["log", "-1", "--format=%s", commit], { cwd }).trim() !== `chore(specplane): claim ${id} in_progress`) return false;
+    if (run("git", ["diff-tree", "--no-commit-id", "--name-only", "-r", commit], { cwd }).trim() !== file) return false;
+    const mode = (tree: string) => run("git", ["ls-tree", tree, "--", file], { cwd }).split(" ")[0];
+    if (mode(parents[1]) !== mode(commit)) return false;
+    const before = showFile(parents[1], file, cwd), after = showFile(commit, file, cwd);
+    if (before === null || after === null) return false;
+    const end = before.indexOf("\n---", 3);
+    if (end < 0 || lenientFrontmatter(before)?.status !== "ready") return false;
+    const expected = before.slice(0, end).replace(/^status:.*$/m, "status: in_progress") + before.slice(end);
+    return expected === after && expected !== before;
+  } catch { return false; }
+}
 /** Read-only preparation: no fetch, lease, checkout or persistent mutation. */
 export function prepareStart(id: string, discovery: Config, cwd: string, options: { target?: string; freshness?: "fetched" | "local"; legacyDefault?: string } = {}): PreparedStart {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) fail("Invalid plan ID.");
@@ -83,7 +101,8 @@ export function prepareStart(id: string, discovery: Config, cwd: string, options
     return { context, config, plan, first: false, refs, base: selected.commit, stackId: null };
   }
   if (plan.execution) fail("Target contains an orphaned execution binding; recovery is required.");
-  if (plan.status !== "ready") fail(`Cannot start plan: \`${id}\` is \`${plan.status}\`, not \`ready\`.`);
+  const recoveryClaim = config.plans.status_source === "frontmatter" && plan.status === "in_progress" && recoverableClaim(cwd, context.targetCommit, `${config.plans.dir}/${id}/PLAN.md`, id) ? context.targetCommit : undefined;
+  if (plan.status !== "ready" && !recoveryClaim) fail(`Cannot start plan: \`${id}\` is \`${plan.status}\`, not \`ready\`.`);
   if (plan.comparison_base) context.comparisonBase = resolveCommit(cwd, plan.comparison_base, true);
   const unmerged = (plan.depends_on ?? []).filter(dep => planAt(cwd, context.targetCommit, config, dep)?.status !== "done");
   let base = context.targetCommit; let stackId: string | null = null;
@@ -98,7 +117,7 @@ export function prepareStart(id: string, discovery: Config, cwd: string, options
     base = ds.commit;
     if (!samePaths(config, configAt(cwd, base))) fail("Conflicting stack configuration path interpretation.");
     const prospective = planAt(cwd, base, config, id);
-    if (!prospective || !isDeepStrictEqual(prospective, plan)) fail("Stack tree does not contain the authoritative ready plan.");
+    if (!prospective || !isDeepStrictEqual(prospective, recoveryClaim ? { ...plan, status: "ready" } : plan)) fail("Stack tree does not contain the authoritative ready plan.");
   }
   for (const raw of plan.specs) {
     const spec = specAt(cwd, context.targetCommit, config, raw);
@@ -113,5 +132,5 @@ export function prepareStart(id: string, discovery: Config, cwd: string, options
     if (data.status !== "approved") fail(`Cannot start plan: \`${spec.id}\` is not approved.`);
     if (base !== context.targetCommit && specAt(cwd, base, config, raw).text !== spec.text) fail(`Stack tree has a different required specification revision: ${spec.id}.`);
   }
-  return { context, config, plan, first: true, refs, base, stackId };
+  return { context, config, plan, first: true, refs, base, stackId, recoveryClaim };
 }
