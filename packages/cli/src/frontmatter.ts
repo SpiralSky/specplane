@@ -20,7 +20,9 @@ export function parseFrontmatter(content: string, filePath = "<snapshot>"): { da
       if (event === "open") stack.push({ children: [] });
       else {
         const node = stack.pop()!;
-        if (state.kind === "mapping") {
+        // js-yaml may wrap a flow mapping in another mapping event with the
+        // identical result; that wrapper has one child rather than key/value pairs.
+        if (state.kind === "mapping" && !(node.children.length === 1 && node.children[0] === state.result)) {
           for (let i = 0; i < node.children.length; i += 2) {
             if (typeof node.children[i] !== "string") throw new Error("mapping keys must be strings");
           }

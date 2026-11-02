@@ -1,5 +1,7 @@
 /** Import-safe library entry point. The CLI is deliberately not imported here. */
 import { Ajv } from 'ajv';
+import { writeImplementation, type CompletionReceipt } from './completion-writer.js';
+import { LeaseRefused } from './writer-leases.js';
 import { mechanicalRequestSchema, workflowRequestSchema, workflowResultSchema, workflowTestRequestSchema, recordingProposalSchema, contributionEventSchema, confirmationChallengeSchema, confirmationResponseSchema, conductorRequestSchema, contributionQuerySchema } from './schemas.js';
 import { coreInfo } from './build-info.js';
 import { validateCompatibility, type HostSelection } from './compatibility.js';
@@ -19,7 +21,17 @@ function checked(operation: string, valid: boolean): Result<never> {
   return valid ? unavailable(operation) : { protocol: 1, ok: false, error: { code: 'INVALID_EVIDENCE', message: `Invalid ${operation} input`, retryable: false, details: null }, notices: [] };
 }
 export const inspectRepository = (_request: { checkout: string }): Result<never> => unavailable('inspectRepository');
-export const executeOperation = (_request: MechanicalRequest, _context: CoreContext): Result<never> => checked('executeOperation', validate.operation(_request));
+export const executeOperation = (request: MechanicalRequest, context: CoreContext): Result<CompletionReceipt> => {
+  if (!validate.operation(request)) return checked('executeOperation', false);
+  if (request.operation !== 'spec.complete' && request.operation !== 'spec.implementation') return unavailable('executeOperation');
+  try {
+    const args = request.arguments;
+    const status = request.operation === 'spec.complete' ? 'complete' : request.arguments.status;
+    return { protocol: 1, ok: true, value: writeImplementation({ ...args, status }, context.checkout ?? process.cwd(), { signal: context.signal }), notices: [] };
+  } catch (error) {
+    return { protocol: 1, ok: false, error: { code: error instanceof LeaseRefused ? error.code : context.signal?.aborted ? 'CANCELLED' : 'OPERATION_FAILED', message: error instanceof Error ? error.message : String(error), retryable: error instanceof LeaseRefused && error.code === 'LOCKED', details: null }, notices: [] };
+  }
+};
 export const prepareWorkflow = (_request: WorkflowRequest, _context: CoreContext): Result<never> => checked('prepareWorkflow', validate.request(_request));
 export const executeWorkflowTest = (_request: WorkflowTestRequest, _context: CoreContext): Result<never> => checked('executeWorkflowTest', validate.test(_request));
 export const validateWorkflowResult = (_prepared: WorkflowRequest, _result: WorkflowResult, _context: CoreContext): Result<never> => checked('validateWorkflowResult', validate.request(_prepared) && validate.result(_result));
@@ -33,3 +45,5 @@ export const captureContribution = (_event: ContributionEvent, _context: CoreCon
 export const readContributions = (_query: ContributionQuery, _context: CoreContext): Result<never> => checked('readContributions', validate.query(_query));
 
 export * from "./completion.js";
+
+export type { CompletionReceipt } from './completion-writer.js';
