@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "4dde314ae9d5ce9f06b43e11f15e014d41367cdd",
+  "integrated_commit": "4cfbd2b96fa1226d495d60f9245455fcd639c9b7",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -69,9 +69,10 @@
     {
       "step": "target-lifecycle/2b",
       "agent": "target_2b",
-      "status": "integrated provisionally; four review findings being repaired",
+      "status": "integrated; four review repairs verified",
       "base": "5c1bdd0c18b2e547d63ad84b2e9da407f8312557",
-      "commit": "11612d2"
+      "commit": "16c9aca",
+      "tests": "37 preparation/config/context pass"
     },
     {
       "step": "completion-assessment/1 review",
@@ -82,13 +83,39 @@
     {
       "step": "completion-assessment/2",
       "agent": "completion_2",
-      "status": "running",
-      "base": "4dde314ae9d5ce9f06b43e11f15e014d41367cdd"
+      "status": "integrated; review repairs verified",
+      "base": "4dde314ae9d5ce9f06b43e11f15e014d41367cdd",
+      "commit": "2a082b6",
+      "tests": "66 affected tests passed"
     },
     {
       "step": "target-lifecycle/2b independent review",
       "agent": "target_2b_review",
       "status": "reviewed; four findings"
+    },
+    {
+      "step": "target-lifecycle/2c",
+      "agent": "target_2c",
+      "status": "repairing review/recovery/lease gaps",
+      "base": "ef4acba6043423e4044d9faaf1236a224431528b",
+      "commit": "c6a6f52",
+      "tests": "33 focused pass;17/30 existing flows unresolved"
+    },
+    {
+      "step": "completion-assessment/2 review",
+      "agent": "completion_2_review",
+      "status": "reviewed; two findings"
+    },
+    {
+      "step": "completion-assessment/3",
+      "agent": "completion_3",
+      "status": "running",
+      "base": "4cfbd2b96fa1226d495d60f9245455fcd639c9b7"
+    },
+    {
+      "step": "target-lifecycle/2c review",
+      "agent": "target_2c_review",
+      "status": "running"
     }
   ],
   "next": [

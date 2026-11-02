@@ -760,16 +760,26 @@
     "step": "02-assessment",
     "criterion": 1,
     "text": "List/show/validation report declaration plus current, reassessment_needed, unrecorded or unverifiable with ordered reasons.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "c88c3dd",
+      "2a082b6",
+      "completion2-integrated-tests.log:66 pass",
+      "completion-2-review.md"
+    ]
   },
   {
     "plan": "2026-11-02-completion-assessment",
     "step": "02-assessment",
     "criterion": 2,
     "text": "Unavailable/unsupported dependencies take unverifiable precedence while retaining mismatches; code changes alone never imply verification.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "c88c3dd",
+      "2a082b6",
+      "completion2-integrated-tests.log:66 pass",
+      "completion-2-review.md"
+    ]
   },
   {
     "plan": "2026-11-02-completion-assessment",
