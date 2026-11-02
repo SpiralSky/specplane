@@ -89,11 +89,18 @@ export interface LoadConfigOptions {
    * (`architecture/reference-cli` init step 2). Defaults to `true`.
    */
   checkSpecRoots?: boolean;
+  /** Validate snapshot config without consulting checkout-specific Git state. */
+  snapshot?: boolean;
 }
 
 function checkCrossFields(config: Config, root: string, opts: LoadConfigOptions): void {
   if (config.plans.target_branch !== undefined) {
-    try { validateTargetBranch(root, config.plans.target_branch); }
+    try {
+      const name = config.plans.target_branch;
+      if (opts.snapshot) {
+        if (!name || name.startsWith('-') || name.startsWith('/') || name.endsWith('/') || name.endsWith('.') || /(?:\.\.|@\{|[\x00-\x20\x7f~^:?*\[\\])/.test(name) || name.split('/').some(part => !part || part.startsWith('.') || part.endsWith('.lock'))) throw new Error('invalid branch');
+      } else validateTargetBranch(root, name);
+    }
     catch { throw new ConfigError("plans.target_branch", "must be a valid Git branch name"); }
   }
   if (config.execution.notify.transport === "command" && config.execution.notify.command.trim() === "") {
@@ -136,7 +143,7 @@ function checkCrossFields(config: Config, root: string, opts: LoadConfigOptions)
       }
     }
   }
-  if (config.execution.backend === "worktree") {
+  if (config.execution.backend === "worktree" && !opts.snapshot) {
     let main = root;
     try {
       main = mainRoot(root);
