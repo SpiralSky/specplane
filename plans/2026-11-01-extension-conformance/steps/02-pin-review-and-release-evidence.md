@@ -19,11 +19,17 @@ After implementation conformance review, refresh CLI-managed pins and write exac
 - [ ] Warnings receive revision-bound review; no requirement to make unrelated heuristic warnings disappear.
 - [ ] Human finish/merge/publication remains separate; blocked Claude delivery cannot be hidden by a generic unavailable flag.
 
+- [ ] Spec dependency pins already current do not imply installed-skill conformance; refresh skill comments only after implementation review.
+
 ## Tasks
 
 1. After implementation conformance review, refresh CLI-managed pins and write exact tested-version/surface evidence plus migration docs.
 2. Verify each acceptance criterion with the applicable automated checks or required host evidence.
 3. Record results, limitations and any specification gaps through the plan-step workflow.
+
+Additional tasks for the settled contracts:
+
+- Record current tested versions and migration away from generate; do not repin unchanged spec relationships merely for release.
 
 ## Guidance
 

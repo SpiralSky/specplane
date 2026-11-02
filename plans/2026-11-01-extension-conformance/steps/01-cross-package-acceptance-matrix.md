@@ -18,11 +18,18 @@ Run package installation, shared protocol, manual lifecycle and host workflow re
 - [ ] CLI/core paths agree for exact staging, coordination, confirmations, receipts and provenance.
 - [ ] Each public export and delivered workflow maps to passing applicable tests; full implementation suite and repository validation are reported separately.
 
+- [ ] Acceptance covers all three index sources, target/retarget refusal paths, completion dependency changes and offline CLI/core/harness docs parity.
+- [ ] Ordinary Git/manual declarations and agent interpretation are assessed separately from deterministic packaging tests.
+
 ## Tasks
 
 1. Run package installation, shared protocol, manual lifecycle and host workflow regression matrix from release artifacts.
 2. Verify each acceptance criterion with the applicable automated checks or required host evidence.
 3. Record results, limitations and any specification gaps through the plan-step workflow.
+
+Additional tasks for the settled contracts:
+
+- Build traceability from each added contract to named suites and separate host evidence.
 
 ## Guidance
 

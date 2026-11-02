@@ -18,11 +18,17 @@ Connect criterion/provenance validation to the shared recorder, proposal revalid
 - [ ] Matching retry returns existing commit; failed push retries publication without implementation or duplicate commit.
 - [ ] Non-plan results cannot set lifecycle states or bypass creation operations.
 
+- [ ] Recording derives the durable HANDOFF summary from validated evidence; another clone cannot independently verify absent private receipts.
+
 ## Tasks
 
 1. Connect criterion/provenance validation to the shared recorder, proposal revalidation and recoverable receipts.
 2. Verify each acceptance criterion with the applicable automated checks or required host evidence.
 3. Record results, limitations and any specification gaps through the plan-step workflow.
+
+Additional tasks for the settled contracts:
+
+- Verify commands/counts/state/receipt digests and limitations survive recording without publishing raw private evidence.
 
 ## Guidance
 

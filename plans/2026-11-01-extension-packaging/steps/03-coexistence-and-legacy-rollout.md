@@ -19,11 +19,17 @@ Connect explicit installation selection and neutral guidance; gate legacy retire
 - [ ] Old public skills remain available until replacements are usable; collisions keep affected commands unavailable with an exact action.
 - [ ] Prepared/installed/enabled states reflect observed evidence only.
 
+- [ ] Both install orders preserve customization and explicitly refresh release guidance; startup/docs lookup never installs.
+
 ## Tasks
 
 1. Connect explicit installation selection and neutral guidance; gate legacy retirement on replacement readiness.
 2. Verify each acceptance criterion with the applicable automated checks or required host evidence.
 3. Record results, limitations and any specification gaps through the plan-step workflow.
+
+Additional tasks for the settled contracts:
+
+- Connect product-docs freshness checks and explicit refresh to the installer transaction.
 
 ## Guidance
 

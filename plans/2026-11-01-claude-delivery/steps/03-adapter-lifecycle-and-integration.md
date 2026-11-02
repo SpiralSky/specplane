@@ -18,11 +18,17 @@ Implement extension-owned session adapter against verified declarations with sha
 - [ ] Launch/observe/resume/cancel and budget behavior preserve core leases and recording ownership.
 - [ ] Live certification requires named-version test evidence; fake-runner success alone enables no native/background capability.
 
+- [ ] Consumer coverage includes offline docs, no-plan edits, completion and target-aware managed flows under named-version capability evidence.
+
 ## Tasks
 
 1. Implement extension-owned session adapter against verified declarations with shared contract fixtures.
 2. Verify each acceptance criterion with the applicable automated checks or required host evidence.
 3. Record results, limitations and any specification gaps through the plan-step workflow.
+
+Additional tasks for the settled contracts:
+
+- Report unavailable host fixtures as blocked, not passing or certified.
 
 ## Guidance
 

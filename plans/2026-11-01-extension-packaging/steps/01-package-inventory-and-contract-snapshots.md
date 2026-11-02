@@ -18,11 +18,17 @@ Produce reusable package builder and complete asset/procedure inventories agains
 - [ ] Every runtime/dependency asset and required procedure is covered and resolvable from the built package.
 - [ ] Tampered or incompatible bundle refuses before mutation; a pin is not treated as conformance evidence.
 
+- [ ] Bundles include the compatible core docs, source hashes, shared orientation and documentation/contract versions.
+
 ## Tasks
 
 1. Produce reusable package builder and complete asset/procedure inventories against committed targets.
 2. Verify each acceptance criterion with the applicable automated checks or required host evidence.
 3. Record results, limitations and any specification gaps through the plan-step workflow.
+
+Additional tasks for the settled contracts:
+
+- Validate packaged assets and examples against the delivered command inventory.
 
 ## Guidance
 
