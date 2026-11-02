@@ -252,15 +252,40 @@ test("resume detects target movement during missing checkout registration", t =>
   assert.equal(fs.existsSync(path.join(checkout, ".specplane/config.yaml")), false);
 });
 
-test("git status source refuses an invalid stored in-progress resume", t => {
-  const f = fixture(t, "execution:\n  backend: external\n");
-  firstStart(id, f.config, f.cwd, { fetch: false });
-  const file = `plans/${id}/PLAN.md`;
-  f.put(file, fs.readFileSync(path.join(f.cwd, file), "utf8").replace("status: ready", "status: in_progress"));
-  f.git("commit", "-am", "invalid stored status"); const branchTip = f.git("rev-parse", `plan/${id}`);
-  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /invalid stored status/);
-  assert.equal(f.git("rev-parse", `plan/${id}`), branchTip);
-});
+for (const status of ["in_progress", "review"]) {
+  test(`git status source resumes stored ${status} during migration without changing binding or history`, t => {
+    const f = fixture(t, "execution:\n  backend: external\n");
+    const started = firstStart(id, f.config, f.cwd, { fetch: false });
+    const branch = `plan/${id}`, file = `plans/${id}/PLAN.md`;
+    const checkout = path.join(f.cwd, "plan-checkout"); f.git("worktree", "add", checkout, branch);
+    const branchFile = path.join(checkout, file);
+    fs.writeFileSync(branchFile, fs.readFileSync(branchFile, "utf8").replace("status: ready", `status: ${status}`));
+    const history = path.join(checkout, `plans/${id}/steps/01-first.md`);
+    fs.mkdirSync(path.dirname(history), { recursive: true }); fs.writeFileSync(history, "completed step history\n");
+    execFileSync("git", ["add", file, `plans/${id}/steps/01-first.md`], { cwd: checkout });
+    execFileSync("git", ["commit", "-m", "record migrated progress"], { cwd: checkout, stdio: "ignore" });
+    f.git("worktree", "remove", checkout);
+    f.put(file, fs.readFileSync(path.join(f.cwd, file), "utf8").replace("status: ready", `status: ${status}`));
+    f.git("commit", "-am", "migrate target status");
+    const branchTip = f.git("rev-parse", branch), binding = f.git("show", `${branch}:${file}`);
+    const result = firstStart(id, f.config, f.cwd, { fetch: false });
+    assert.equal(result.resumed, true); assert.equal(result.target, started.target); assert.equal(result.startBase, started.startBase);
+    assert.match(binding, new RegExp(`start_base: ${started.startBase}`));
+    assert.equal(f.git("rev-parse", branch), branchTip); assert.equal(f.git("show", `${branch}:${file}`), binding);
+    assert.equal(f.git("show", `${branch}:plans/${id}/steps/01-first.md`), "completed step history");
+  });
+}
+
+for (const status of ["draft", "done", "abandoned"]) {
+  test(`git status source refuses to resume a ${status} plan`, t => {
+    const f = fixture(t, "execution:\n  backend: external\n"); firstStart(id, f.config, f.cwd, { fetch: false });
+    const file = `plans/${id}/PLAN.md`, branch = `plan/${id}`;
+    f.put(file, fs.readFileSync(path.join(f.cwd, file), "utf8").replace("status: ready", `status: ${status}`));
+    f.git("commit", "-am", `set ${status} status`); const branchTip = f.git("rev-parse", branch);
+    assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /Cannot resume plan with invalid stored status/);
+    assert.equal(f.git("rev-parse", branch), branchTip);
+  });
+}
 
 test("trusted historical evidence resumes legacy without inventing a start base", t => {
   const f = fixture(t, "execution:\n  backend: external\n"); f.git("branch", `plan/${id}`, "main");
