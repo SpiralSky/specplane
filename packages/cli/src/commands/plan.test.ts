@@ -121,6 +121,9 @@ function newRepo(): string {
 
 test("plan new: creates draft plan, steps/, HANDOFF.md; validate passes", () => {
   const root = newRepo();
+  const git = (...args: string[]) => spawnSync("git", args, { cwd: root, encoding: "utf8" });
+  assert.equal(git("add", ".specplane/config.yaml", "plans", "specs").status, 0);
+  assert.equal(git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "fixture baseline").status, 0);
   const r = run(root, "plan", "new", "--id", "2026-02-01-beta", "--title", "Beta plan", "--specs", "feature/alpha", "--depends-on", "2026-01-01-alpha");
   assert.equal(r.code, 0, r.err);
   const dir = path.join(root, "plans/2026-02-01-beta");
@@ -130,7 +133,12 @@ test("plan new: creates draft plan, steps/, HANDOFF.md; validate passes", () => 
   assert.match(text, /## Acceptance criteria/);
   assert.ok(fs.statSync(path.join(dir, "steps")).isDirectory());
   assert.equal(fs.readFileSync(path.join(dir, "HANDOFF.md"), "utf8"), "# HANDOFF — 2026-02-01-beta\n");
-  assert.equal(run(root, "validate").code, 0, run(root, "validate").out + run(root, "validate").err);
+  assert.match(git("status", "--porcelain", "--untracked-files=all").stdout, /\?\? plans\/2026-02-01-beta\/PLAN\.md/);
+  assert.notEqual(git("cat-file", "-e", "HEAD:plans/2026-02-01-beta/PLAN.md").status, 0);
+  const validation = run(root, "validate");
+  assert.equal(validation.code, 0, validation.out + validation.err);
+  assert.match(validation.err, /plan index freshness source: head/);
+  assert.match(validation.err, /2026-02-01-beta/);
 });
 
 test("plan new: existing ID, unknown spec/plan, bad ID, missing flags exit 1", () => {
