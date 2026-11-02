@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 import { parseConfigText, CONFIG_PATH } from "../config.js";
 import { AmbiguousIdError, PlanNotFoundError, PlanStateError, SpecNotFoundError, UnknownRootError } from "../errors.js";
 import { run } from "../git/exec.js";
-import { ID_PATTERN, PLAN_SCHEMA, validator } from "../schemas.js";
+import { ID_PATTERN, PLAN_SCHEMA, SPEC_COMMON_SCHEMA, SPEC_FEATURE_SCHEMA, SPEC_ARCHITECTURE_SCHEMA, validator } from "../schemas.js";
 import { TYPE_DIRS } from "../spec/resolve.js";
 import type { Config, PlanFrontmatter } from "../types.js";
 import { lenientFrontmatter, showFile } from "./activity.js";
@@ -61,7 +61,7 @@ export function prepareStart(id: string, discovery: Config, cwd: string, options
   const selected = validatePlanBranches(cwd, id, branches);
   const head = ref(cwd, "HEAD");
   if (!head) fail("Invoking checkout has no committed HEAD.");
-  const hint = planAt(cwd, head, discovery, id);
+  const hint = !selected && !options.target ? planAt(cwd, head, discovery, id) : null;
   const context = resolvePlanContext(cwd, { id, explicit: options.target, declared: selected ? undefined : hint?.target_branch,
     team: discovery.plans.target_branch, planBranches: branches, freshness: options.freshness,
     legacy: selected && !selected.binding ? { originalDefault: options.legacyDefault } : undefined });
@@ -76,10 +76,13 @@ export function prepareStart(id: string, discovery: Config, cwd: string, options
   if (plan.target_branch && plan.target_branch !== context.targetBranch) fail("Target plan declaration conflicts with selected target.");
   if (selected) {
     const branchPlan = planAt(cwd, selected.commit, config, id)!;
+    if (plan.comparison_base !== branchPlan.comparison_base) fail("Target and plan branch comparison provenance conflict.");
+    if (plan.execution !== undefined && !isDeepStrictEqual(plan.execution, branchPlan.execution)) fail("Target and plan branch execution binding conflict.");
     if (branchPlan.target_branch && branchPlan.target_branch !== context.targetBranch) fail("Plan branch declaration conflicts with execution target.");
     if (!["ready", "in_progress", "review"].includes(plan.status) || !["ready", "in_progress", "review"].includes(branchPlan.status)) fail("Cannot resume plan with terminal, shelved, or draft record.");
     return { context, config, plan, first: false, refs, base: selected.commit, stackId: null };
   }
+  if (plan.execution) fail("Target contains an orphaned execution binding; recovery is required.");
   if (plan.status !== "ready") fail(`Cannot start plan: \`${id}\` is \`${plan.status}\`, not \`ready\`.`);
   if (plan.comparison_base) context.comparisonBase = resolveCommit(cwd, plan.comparison_base, true);
   const unmerged = (plan.depends_on ?? []).filter(dep => planAt(cwd, context.targetCommit, config, dep)?.status !== "done");
@@ -101,7 +104,13 @@ export function prepareStart(id: string, discovery: Config, cwd: string, options
     const spec = specAt(cwd, context.targetCommit, config, raw);
     const required = config.plans.require_approved_specs === "feature_and_architecture" || (config.plans.require_approved_specs === "feature" && spec.id.startsWith("feature/"));
     if (!required) continue;
-    if (lenientFrontmatter(spec.text)?.status !== "approved") fail(`Cannot start plan: \`${spec.id}\` is not approved.`);
+    const data = lenientFrontmatter(spec.text);
+    const specific = spec.id.startsWith("feature/") ? SPEC_FEATURE_SCHEMA : SPEC_ARCHITECTURE_SCHEMA;
+    if (!data || data.id !== spec.id || !validator(SPEC_COMMON_SCHEMA)(data) || !validator(specific)(data) ||
+        (data.allow_architecture === true && (typeof data.architecture_reason !== "string" || !data.architecture_reason.trim()))) {
+      fail(`Invalid required specification record: ${spec.id}.`);
+    }
+    if (data.status !== "approved") fail(`Cannot start plan: \`${spec.id}\` is not approved.`);
     if (base !== context.targetCommit && specAt(cwd, base, config, raw).text !== spec.text) fail(`Stack tree has a different required specification revision: ${spec.id}.`);
   }
   return { context, config, plan, first: true, refs, base, stackId };
