@@ -785,13 +785,13 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
   }
   if (!clean(checkout)) throw new PlanStateError("Cannot restack: the working tree has uncommitted changes. Commit or stash them first.");
   if (!merged && newBaseSha === upstream) return { planId: id, outcome: "current", onto: newBase, unstacked: false, commits: [] };
+  if (!opts.dryRun) { lease?.assertOwned(); recheckLifecycleRefs(main, p.refs); }
+  protectIgnoredCollisions(checkout, branch, newBase, upstream);
   if (opts.dryRun) {
     return { planId: id, outcome: "dry-run", onto: newBase, unstacked: merged, commits: commitsToReplay(branch, upstream, main) };
   }
 
-  lease?.assertOwned(); recheckLifecycleRefs(main, p.refs);
   // Unlike finish, a conflict leaves the checkout mid-rebase for the human (`feature/tooling`).
-  protectIgnoredCollisions(checkout, branch, newBase, upstream);
   rebaseOnto(newBase, upstream, branch, checkout, { onConflict: "leave" });
   const afterRebase = validatedPlanAt(checkout, "HEAD", config, id);
   if (!afterRebase || !isDeepStrictEqual(afterRebase.execution, p.context.binding) || (afterRebase.comparison_base ?? null) !== p.context.comparisonBase) throw new PlanStateError("Restack changed execution provenance; recovery is required.");

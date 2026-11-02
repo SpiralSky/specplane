@@ -237,7 +237,7 @@ test("restack: unmerged base appends a new marker; second run is a no-op", () =>
   assert.equal(git(r.root, "rev-parse", `plan/${B}`), head);
 });
 
-test("restack preserves ignored files touched only by intermediate commits", () => {
+test("restack and its dry run preserve ignored files touched only by intermediate commits", () => {
   const r = stacked();
   const child = wtOf(r, B);
   commitFile(child, "transient", "temporary", "add transient");
@@ -249,11 +249,16 @@ test("restack preserves ignored files touched only by intermediate commits", () 
   fs.writeFileSync(file, bytes);
   commitFile(wtOf(r, A), "advance", "base advances", "advance base");
   const head = git(child, "rev-parse", "HEAD");
-  const result = sp(r.root, "plan", "restack", B);
-  assert.equal(result.code, 1, result.err);
-  assert.match(result.err, /Ignored file.*conflicts/);
-  assert.deepEqual(fs.readFileSync(file), bytes);
-  assert.equal(git(child, "rev-parse", "HEAD"), head);
+  const indexPath = path.resolve(child, git(child, "rev-parse", "--git-path", "index"));
+  const index = fs.readFileSync(indexPath);
+  for (const args of [["--dry-run"], []]) {
+    const result = sp(r.root, "plan", "restack", B, ...args);
+    assert.equal(result.code, 1, result.err);
+    assert.match(result.err, /Ignored file.*conflicts/);
+    assert.deepEqual(fs.readFileSync(file), bytes);
+    assert.equal(git(child, "rev-parse", "HEAD"), head);
+    assert.deepEqual(fs.readFileSync(indexPath), index);
+  }
 });
 
 test("restack rejects a noncanonical stored stack base before rewriting", () => {
