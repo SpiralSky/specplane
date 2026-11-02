@@ -82,10 +82,11 @@ test("createWorktree adds and reuses; removeWorktree refuses dirty unless forced
   const { tmp, repo } = makeRepo();
   const config = { ...DEFAULT_CONFIG, execution: { ...DEFAULT_CONFIG.execution, worktree_dir: "../wt" } };
   createBranch("plan/p1", "main", repo);
-  const p = createWorktree("p1", "plan/p1", config, repo);
+  const { path: p, created } = createWorktree("p1", "plan/p1", config, repo);
+  assert.equal(created, true);
   assert.equal(p, worktreePath("p1", config, repo));
   assert.ok(fs.existsSync(path.join(p, "a.txt")));
-  assert.equal(createWorktree("p1", "plan/p1", config, repo), p);
+  assert.deepEqual(createWorktree("p1", "plan/p1", config, repo), { path: p, created: false });
   assert.equal(listWorktrees(repo).filter((w) => w.branch === "plan/p1").length, 1);
 
   fs.writeFileSync(path.join(p, "dirty.txt"), "x");
@@ -100,7 +101,7 @@ test("removeWorktree removes a clean worktree", () => {
   const { tmp, repo } = makeRepo();
   const config = { ...DEFAULT_CONFIG, execution: { ...DEFAULT_CONFIG.execution, worktree_dir: "../wt" } };
   createBranch("plan/p2", "main", repo);
-  const p = createWorktree("p2", "plan/p2", config, repo);
+  const { path: p } = createWorktree("p2", "plan/p2", config, repo);
   removeWorktree("p2", config, {}, repo);
   assert.ok(!fs.existsSync(p));
   fs.rmSync(tmp, { recursive: true });

@@ -43,18 +43,19 @@ export function worktreePath(planId: string, config: Config, cwd: string = proce
   return path.resolve(main, config.execution.worktree_dir, path.basename(main), planId);
 }
 
-/** Create the worktree for `planId` on `branch`; reuses an existing worktree of that branch. Returns its path. */
+/** Create the worktree for `planId` on `branch`; reuses an existing worktree of that branch. Returns the path and whether this call created it. */
 export function createWorktree(
   planId: string,
   branch: string,
   config: Config,
   cwd: string = process.cwd(),
-): string {
+  opts: { noCheckout?: boolean } = {},
+): { path: string; created: boolean } {
   const existing = listWorktrees(cwd).find((w) => w.branch === branch);
-  if (existing) return existing.path;
+  if (existing) return { path: existing.path, created: false };
   const target = worktreePath(planId, config, cwd);
-  run("git", ["worktree", "add", target, branch], { cwd });
-  return target;
+  run("git", ["worktree", "add", ...(opts.noCheckout ? ["--no-checkout"] : []), target, branch], { cwd });
+  return { path: target, created: true };
 }
 
 /**
