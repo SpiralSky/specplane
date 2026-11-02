@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import { refusePendingRetarget } from "./lifecycle-context.js";
 import * as path from "node:path";
 import { PlanStateError } from "../errors.js";
 import { writeStatus } from "../frontmatter.js";
@@ -72,6 +73,7 @@ function refuse(message: string): never {
  * a failed commit restores both files. Never pushes.
  */
 export function stepDone(planId: string, opts: StepDoneOptions, config: Config, root: string): StepDoneResult {
+  refusePendingRetarget(planId, config, root);
   const outcome = opts.outcome as StepOutcome;
   if (!(STEP_OUTCOMES as readonly string[]).includes(opts.outcome)) {
     refuse(`Unknown outcome \`${opts.outcome}\`: expected one of ${STEP_OUTCOMES.join(", ")}. Pass \`--outcome done|blocked|skipped\`.`);

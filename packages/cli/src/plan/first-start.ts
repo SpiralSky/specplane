@@ -14,6 +14,7 @@ import { getPlanActivity, hasRemote, showFile } from "./activity.js";
 import { runSetupHook } from "./hooks.js";
 import { bindFrontmatter, claimFrontmatter } from "./start-frontmatter.js";
 import { prepareStart, type PreparedStart, type LegacyDefaultEvidence } from "./prepare-start.js";
+import { refusePendingRetarget } from "./lifecycle-context.js";
 import { mergedStackBase, type StartResult } from "./flows.js";
 
 function ref(cwd: string, name: string): string | null {
@@ -60,6 +61,7 @@ function checkResumeRef(p: PreparedStart): void {
 }
 export interface FirstStartOptions { fetch?: boolean; target?: string; dryRun?: boolean; /** Trusted caller attestation of an independently verified historical-default record. */ legacyEvidence?: LegacyDefaultEvidence }
 export function firstStart(id: string, discovery: Config, root: string, opts: FirstStartOptions = {}): StartResult {
+  refusePendingRetarget(id, discovery, root);
   const main = mainRoot(root);
   if (opts.dryRun) {
     const p = prepareStart(id, discovery, root, { target: opts.target, legacyEvidence: opts.legacyEvidence });
@@ -74,6 +76,7 @@ export function firstStart(id: string, discovery: Config, root: string, opts: Fi
   let claim: string | null = null; let binding: string | null = null; let branchCreated = false; let resumed = false; let published = false;
   try {
     lease.assertOwned();
+    refusePendingRetarget(id, discovery, root);
     if (hasRemote(main) && opts.fetch !== false) run("git", ["fetch", "origin", "+refs/heads/*:refs/remotes/origin/*"], { cwd: main });
     const p = prepareStart(id, discovery, root, { target: opts.target, freshness: hasRemote(main) && opts.fetch !== false ? "fetched" : "local", legacyEvidence: opts.legacyEvidence });
     resumed = !p.first;

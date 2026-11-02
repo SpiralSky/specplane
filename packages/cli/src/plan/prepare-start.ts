@@ -34,7 +34,7 @@ export function planAt(cwd: string, commit: string, config: Config, id: string):
   if (!data || !validator(PLAN_SCHEMA)(data) || data.id !== id) fail(`Invalid plan record for ${id} at ${commit}.`);
   return data as unknown as PlanFrontmatter;
 }
-function specAt(cwd: string, commit: string, config: Config, raw: string): { id: string; text: string } {
+export function specAt(cwd: string, commit: string, config: Config, raw: string): { id: string; text: string } {
   let id = raw.split("#")[0]; let roots = config.spec_roots;
   const colon = id.indexOf(":");
   if (colon !== -1) { const name = id.slice(0, colon); id = id.slice(colon + 1); roots = roots.filter(r => r.name === name); if (!roots.length) throw new UnknownRootError(name); }
@@ -105,7 +105,7 @@ export function prepareStart(id: string, discovery: Config, cwd: string, options
     if (plan.comparison_base !== branchPlan.comparison_base) fail("Target and plan branch comparison provenance conflict.");
     if (plan.execution !== undefined && !isDeepStrictEqual(plan.execution, branchPlan.execution)) fail("Target and plan branch execution binding conflict.");
     if (branchPlan.target_branch && branchPlan.target_branch !== context.targetBranch) fail("Plan branch declaration conflicts with execution target.");
-    const resumable = config.plans.status_source === "git" ? ["ready"] : ["ready", "in_progress", "review"];
+    const resumable = ["ready", "in_progress", "review"];
     if (!resumable.includes(plan.status) || !resumable.includes(branchPlan.status)) fail("Cannot resume plan with invalid stored status for its status source.");
     return { context, config, plan, first: false, refs, base: selected.commit, stackId: null };
   }

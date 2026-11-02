@@ -10,6 +10,7 @@ import { resolveSpecId } from "../spec/resolve.js";
 import { findHeading } from "../spec/slug.js";
 import type { Config, PlanFrontmatter, StepFrontmatter } from "../types.js";
 import { getPlanActivity } from "./activity.js";
+import { refusePendingRetarget } from "./lifecycle-context.js";
 import { mergedStackBase } from "./flows.js";
 import { parseGaps, type GapEntry } from "./gaps.js";
 import { listStepFiles, parsePlan, parseStep } from "./parse.js";
@@ -199,6 +200,7 @@ function resolveContext(step: StepFrontmatter, config: Config, base: string, war
  * runs read-only git queries, never fetches, writes, or spawns. `root` is the checkout the command runs in.
  */
 export function planNext(id: string, config: Config, root: string): PlanNext {
+  refusePendingRetarget(id, config, root);
   const activity = getPlanActivity(id, config, root);
   // The plan's own checkout holds the current step statuses; fall back to the invoking checkout.
   const base = activity.checkout ?? root;

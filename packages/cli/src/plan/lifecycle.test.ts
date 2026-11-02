@@ -337,3 +337,16 @@ test("restack refuses a draft target record before rewriting", () => {
   assert.match(result.err, /target status draft/);
   assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
 });
+
+test("restack preview accepts migrated active Git-mode records", () => {
+  const r = stacked();
+  for (const [dir, status] of [[r.root, "in_progress"], [wtOf(r, B), "review"]]) {
+    const file = path.join(dir, "plans", B, "PLAN.md");
+    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", `status: ${status}`));
+    git(dir, "commit", "-qam", `migrated ${status}`);
+  }
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const result = sp(r.root, "plan", "restack", B, "--dry-run");
+  assert.equal(result.code, 0, result.err);
+  assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+});

@@ -99,3 +99,18 @@ test("first start refuses an orphaned execution binding without modifying refs",
   assert.throws(() => prepareStart(id, config, cwd), /orphaned execution binding/);
   assert.equal(git("rev-parse", "HEAD"), head); assert.equal(git("status", "--porcelain"), before);
 });
+
+test("resume permits migrated active statuses but first start and resume reject inactive states", () => {
+  const { cwd, git, put, config } = fixture(); const file = `plans/${id}/PLAN.md`;
+  for (const status of ["in_progress", "review", "draft", "done"]) {
+    put(file, `---\nid: ${id}\ntitle: Example\nstatus: ${status}\nspecs: [feature/example]\n---\n`); git("commit", "-am", `first ${status}`);
+    assert.throws(() => prepareStart(id, config, cwd), /not `ready`/);
+  }
+  put(file, `---\nid: ${id}\ntitle: Example\nstatus: in_progress\nspecs: [feature/example]\n---\n`); git("commit", "-am", "migrated target"); const start = git("rev-parse", "HEAD");
+  git("checkout", "-b", `plan/${id}`);
+  for (const status of ["review", "in_progress", "ready", "draft", "shelved", "abandoned", "done"]) {
+    put(file, `---\nid: ${id}\ntitle: Example\nstatus: ${status}\nspecs: [feature/example]\nexecution:\n  target_branch: main\n  start_target_branch: main\n  start_base: ${start}\n---\n`); git("commit", "-am", `branch ${status}`);
+    if (["ready", "in_progress", "review"].includes(status)) assert.equal(prepareStart(id, config, cwd).first, false);
+    else assert.throws(() => prepareStart(id, config, cwd), status === "shelved" ? /Invalid plan record/ : /invalid stored status/);
+  }
+});
