@@ -69,20 +69,28 @@ function recoverableClaim(cwd: string, commit: string, file: string, id: string)
     return expected === after && expected !== before;
   } catch { return false; }
 }
+/** Evidence must be supplied by a trusted caller after independently verifying a
+ * historical repository-default record. `record` identifies that external record;
+ * neither current config nor branch-creation reflogs establish the old default. */
+export interface LegacyDefaultEvidence {
+  originalDefault: string;
+  record: string;
+}
 /** Read-only preparation: no fetch, lease, checkout or persistent mutation. */
-export function prepareStart(id: string, discovery: Config, cwd: string, options: { target?: string; freshness?: "fetched" | "local"; legacyDefault?: string } = {}): PreparedStart {
+export function prepareStart(id: string, discovery: Config, cwd: string, options: { target?: string; freshness?: "fetched" | "local"; legacyEvidence?: LegacyDefaultEvidence } = {}): PreparedStart {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) fail("Invalid plan ID.");
   const refs: Record<string, string | null> = {};
   const capture = (name: string) => refs[name] = ref(cwd, name);
   const local = capture(`refs/heads/plan/${id}`), remote = capture(`refs/remotes/origin/plan/${id}`);
   const branches = { local: snapshot(cwd, local, id, discovery), remote: snapshot(cwd, remote, id, discovery) };
   const selected = validatePlanBranches(cwd, id, branches);
+  const evidence = selected && !selected.binding && typeof options.legacyEvidence?.record === "string" && options.legacyEvidence.record.trim() ? options.legacyEvidence : undefined;
   const head = ref(cwd, "HEAD");
   if (!head) fail("Invoking checkout has no committed HEAD.");
   const hint = !selected && !options.target ? planAt(cwd, head, discovery, id) : null;
   const context = resolvePlanContext(cwd, { id, explicit: options.target, declared: selected ? undefined : hint?.target_branch,
     team: discovery.plans.target_branch, planBranches: branches, freshness: options.freshness,
-    legacy: selected && !selected.binding ? { originalDefault: options.legacyDefault } : undefined });
+    legacy: selected && !selected.binding ? { originalDefault: evidence?.originalDefault } : undefined });
   capture(`refs/heads/${context.targetBranch}`); capture(`refs/remotes/origin/${context.targetBranch}`);
   const verify = resolvePlanContext(cwd, { id, explicit: context.targetBranch, freshness: options.freshness });
   if (verify.targetCommit !== context.targetCommit || ![refs[`refs/heads/${context.targetBranch}`], refs[`refs/remotes/origin/${context.targetBranch}`]].includes(context.targetCommit)) fail("Target refs changed during preparation; retry.");

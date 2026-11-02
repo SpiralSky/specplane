@@ -1,4 +1,4 @@
-import { firstStart } from "./first-start.js";
+import { firstStart, type FirstStartOptions } from "./first-start.js";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -28,6 +28,16 @@ export interface StartResult {
   next: { number: number; title: string; status: string } | null;
   /** Messages for stderr (e.g. the base plan has merged). */
   notices: string[];
+  dryRun?: boolean;
+  target: string;
+  startBase: string | null;
+  freshness: string;
+  target_branch: string;
+  start_base: string | null;
+  comparison_base: string | null;
+  ref_freshness: string;
+  legacy: boolean;
+  checkoutCreated: boolean | null;
 }
 
 interface PlanAt {
@@ -88,12 +98,7 @@ function revParse(ref: string, cwd: string): string {
   return run("git", ["rev-parse", `${ref}^{commit}`], { cwd }).trim();
 }
 
-export interface StartOptions {
-  /** Commander sets this to false for `--no-fetch`. */
-  fetch?: boolean;
-  target?: string;
-  dryRun?: boolean;
-}
+export type StartOptions = FirstStartOptions;
 
 /**
  * `specplane plan start <id>` (feature/plan-execution § Start flow). All checks run before the first

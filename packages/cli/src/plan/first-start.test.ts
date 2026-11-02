@@ -261,3 +261,45 @@ test("git status source refuses an invalid stored in-progress resume", t => {
   assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /invalid stored status/);
   assert.equal(f.git("rev-parse", `plan/${id}`), branchTip);
 });
+
+test("trusted historical evidence resumes legacy without inventing a start base", t => {
+  const f = fixture(t, "execution:\n  backend: external\n"); f.git("branch", `plan/${id}`, "main");
+  const tip = f.git("rev-parse", `plan/${id}`);
+  const legacyEvidence = { originalDefault: "main", record: "caller-verified historical default record" };
+  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /ambiguous/);
+  const preview = firstStart(id, f.config, f.cwd, { dryRun: true, legacyEvidence });
+  assert.equal(preview.legacy, true); assert.equal(preview.start_base, null);
+  const result = firstStart(id, f.config, f.cwd, { fetch: false, legacyEvidence });
+  assert.equal(result.legacy, true); assert.equal(result.resumed, true); assert.equal(result.start_base, null);
+  assert.equal(result.target_branch, "main"); assert.equal(f.git("rev-parse", `plan/${id}`), tip);
+  assert.doesNotMatch(f.git("show", `plan/${id}:plans/${id}/PLAN.md`), /execution:/);
+  f.git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/other");
+  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false, legacyEvidence }), /ambiguous|default changed/);
+  assert.equal(f.git("rev-parse", `plan/${id}`), tip);
+});
+
+test("remote-ahead resume refuses equally in preview and execution", t => {
+  const f = fixture(t, "execution:\n  backend: external\n"); firstStart(id, f.config, f.cwd, { fetch: false });
+  const branch = `plan/${id}`, local = f.git("rev-parse", branch);
+  const remote = f.git("commit-tree", `${local}^{tree}`, "-p", local, "-m", "remote work");
+  f.git("update-ref", `refs/remotes/origin/${branch}`, remote);
+  for (const dryRun of [true, false]) assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false, dryRun }), /reconcile it before resuming/);
+  assert.equal(f.git("rev-parse", branch), local); assert.equal(f.git("rev-parse", `refs/remotes/origin/${branch}`), remote);
+});
+
+test("remote-only unbound legacy history has no local creation evidence", t => {
+  const f = fixture(t, "execution:\n  backend: external\n"); const tip = f.git("rev-parse", "main");
+  f.git("update-ref", `refs/remotes/origin/plan/${id}`, tip);
+  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /ambiguous/);
+  assert.equal(f.git("branch", "--list", `plan/${id}`), "");
+  assert.equal(f.git("rev-parse", `refs/remotes/origin/plan/${id}`), tip);
+});
+
+test("resume reports a newly recreated checkout as created", t => {
+  const f = fixture(t, "execution:\n  backend: worktree\n  worktree_dir: ../.worktrees\n");
+  const first = firstStart(id, f.config, f.cwd, { fetch: false }); f.git("worktree", "remove", first.path!);
+  const cli = fileURLToPath(new URL("../cli.js", import.meta.url));
+  const result = spawnSync(process.execPath, [cli, "plan", "start", id, "--no-fetch"], { cwd: f.cwd, encoding: "utf8", timeout: 5000 });
+  assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /Resumed/);
+  assert.match(result.stdout, /Backend: worktree \(checkout created\)/);
+});

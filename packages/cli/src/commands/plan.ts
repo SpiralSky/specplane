@@ -276,9 +276,10 @@ export async function planStartCommand(id: string, opts: { fetch?: boolean; json
       process.stdout.write(`${JSON.stringify({ ...r, checkout: r.path }, null, 2)}\n`);
       return;
     }
-    if (r.dryRun) { process.stdout.write(`Would start ${id} on ${r.target} at ${r.startBase} (${r.freshness})\n`); return; }
+    if (r.dryRun) { process.stdout.write(`Would start ${id} on ${r.target} at ${r.startBase ?? "unknown"} (${r.freshness})${r.legacy ? " [legacy]" : ""}\n`); return; }
     const where = r.path !== null ? `Worktree: ${r.path}` : `Branch: ${r.branch}`;
-    const lines = [`${r.resumed ? "Resumed" : "Started"} ${r.planId}`, `Target: ${r.target_branch}; start base: ${r.start_base}; comparison base: ${r.comparison_base ?? "none"}; freshness: ${r.ref_freshness}`, `Backend: ${r.backend} (checkout ${r.resumed && r.backend !== "external" ? "resumed" : r.backend === "external" ? "not needed" : "created"})`, where];
+    const lines = [`${r.resumed ? "Resumed" : "Started"} ${r.planId}`, `Target: ${r.target_branch}; start base: ${r.start_base ?? "unknown"}; comparison base: ${r.comparison_base ?? "none"}; freshness: ${r.ref_freshness}`, `Backend: ${r.backend} (checkout ${r.backend === "external" ? "not needed" : r.backend === "worktree" ? r.checkoutCreated ? "created" : "resumed" : r.resumed ? "resumed" : "created"})`, where];
+    if (r.legacy) lines.splice(2, 0, "Legacy execution; original start base is unavailable.");
     const next = r.next ? `Next step: ${String(r.next.number).padStart(2, "0")} ${r.next.title} (${r.next.status})` : "No pending steps.";
     lines.push(next);
     if (r.backend === "external") {
