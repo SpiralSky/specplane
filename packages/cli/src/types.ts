@@ -35,6 +35,7 @@ export interface Config {
   };
   plans: {
     dir: string;
+    target_branch?: string;
     require_approved_specs: "none" | "feature" | "feature_and_architecture";
     status_source: "git" | "frontmatter";
     merge: "pull_request" | "local_merge";
@@ -81,12 +82,22 @@ export interface SpecFrontmatter {
   implements?: string[];
 }
 
+export interface ExecutionBinding {
+  target_branch: string;
+  start_target_branch: string;
+  start_base: string;
+  target_changes?: { from: string; to: string }[];
+}
+
 export interface PlanFrontmatter {
   id: string;
   title: string;
   status: PlanStatus;
   specs: string[];
   depends_on?: string[];
+  target_branch?: string;
+  comparison_base?: string;
+  execution?: ExecutionBinding;
 }
 
 export type StepContextItem =

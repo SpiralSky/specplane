@@ -62,6 +62,21 @@ export const PLAN_SCHEMA = {
     status: { type: "string", enum: ["draft", "ready", "in_progress", "review", "done", "abandoned"] },
     specs: { type: "array", items: { type: "string" }, minItems: 1 },
     depends_on: strArray,
+    target_branch: { type: "string", minLength: 1 },
+    comparison_base: { type: "string", pattern: "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
+    execution: {
+      type: "object", additionalProperties: false,
+      required: ["target_branch", "start_target_branch", "start_base"],
+      properties: {
+        target_branch: { type: "string", minLength: 1 },
+        start_target_branch: { type: "string", minLength: 1 },
+        start_base: { type: "string", pattern: "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
+        target_changes: { type: "array", items: {
+          type: "object", additionalProperties: false, required: ["from", "to"],
+          properties: { from: { type: "string", minLength: 1 }, to: { type: "string", minLength: 1 } },
+        } },
+      },
+    },
   },
 } as const;
 
@@ -157,6 +172,7 @@ export const CONFIG_SCHEMA = {
       additionalProperties: false,
       properties: {
         dir: { type: "string" },
+        target_branch: { type: "string", minLength: 1 },
         require_approved_specs: enumOf("none", "feature", "feature_and_architecture"),
         status_source: enumOf("git", "frontmatter"),
         merge: enumOf("pull_request", "local_merge"),

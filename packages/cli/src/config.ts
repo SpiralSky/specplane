@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import { ConfigError, NotARepoError } from "./errors.js";
+import { validateTargetBranch } from "./plan/context.js";
 import { mainRoot } from "./git/repo.js";
 import { CONFIG_SCHEMA, describeError, dotted, validator } from "./schemas.js";
 import type { Config, SessionMode, Warning } from "./types.js";
@@ -91,6 +92,10 @@ export interface LoadConfigOptions {
 }
 
 function checkCrossFields(config: Config, root: string, opts: LoadConfigOptions): void {
+  if (config.plans.target_branch !== undefined) {
+    try { validateTargetBranch(root, config.plans.target_branch); }
+    catch { throw new ConfigError("plans.target_branch", "must be a valid Git branch name"); }
+  }
   if (config.execution.notify.transport === "command" && config.execution.notify.command.trim() === "") {
     throw new ConfigError("execution.notify.command", "must be non-empty when transport is command");
   }
