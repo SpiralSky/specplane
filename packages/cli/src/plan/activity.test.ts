@@ -124,7 +124,7 @@ test("activity: remote-only plan is listed live; --no-fetch skips the fetch", ()
   const other = fs.mkdtempSync(path.join(os.tmpdir(), "other-"));
   git(other, "clone", "-q", bare, "work");
   const work = path.join(other, "work");
-  git(work, "switch", "-q", "-c", `plan/${OTHER}`);
+  git(work, "switch", "-q", "-c", `plan/${OTHER}`, "origin/main");
   fs.mkdirSync(path.join(work, `plans/${OTHER}/steps`), { recursive: true });
   fs.writeFileSync(path.join(work, `plans/${OTHER}/PLAN.md`), plan(OTHER));
   fs.writeFileSync(path.join(work, `plans/${OTHER}/steps/01-a.md`), step(1, "done").replace(ID, OTHER));

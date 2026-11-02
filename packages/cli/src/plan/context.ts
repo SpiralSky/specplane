@@ -72,11 +72,11 @@ function targetTip(cwd: string, branch: string): string {
   if (optionalGit(cwd, ["merge-base", "--is-ancestor", remote, local]) !== null) return local;
   return fail(`Integration target ${branch} has divergent local and origin refs.`);
 }
-export function validateExecutionBinding(cwd: string, id: string, binding: ExecutionBinding, declared?: string, previous?: ExecutionBinding): void {
+export function validateExecutionBinding(cwd: string, id: string, binding: ExecutionBinding, declared?: string, previous?: ExecutionBinding, allowMissingObjects = false): void {
   if (!validator(PLAN_SCHEMA.properties.execution)(binding)) fail("Malformed execution binding.");
   validateTargetBranch(cwd, binding.target_branch, id);
   validateTargetBranch(cwd, binding.start_target_branch, id);
-  resolveCommit(cwd, binding.start_base, true);
+  if (!allowMissingObjects) resolveCommit(cwd, binding.start_base, true);
   let current = binding.start_target_branch;
   for (const change of binding.target_changes ?? []) {
     validateTargetBranch(cwd, change.from, id);
@@ -86,7 +86,7 @@ export function validateExecutionBinding(cwd: string, id: string, binding: Execu
   }
   if (current !== binding.target_branch || (declared !== undefined && declared !== current)) fail("Inconsistent execution target declaration or chain.");
   if (previous) {
-    validateExecutionBinding(cwd, id, previous);
+    validateExecutionBinding(cwd, id, previous, undefined, undefined, allowMissingObjects);
     if (previous.start_base !== binding.start_base || previous.start_target_branch !== binding.start_target_branch) fail("Original execution provenance changed.");
     const oldChanges = previous.target_changes ?? [];
     const changes = binding.target_changes ?? [];
@@ -94,14 +94,14 @@ export function validateExecutionBinding(cwd: string, id: string, binding: Execu
   }
 }
 /** Refuse divergent histories, identities, or rewritten immutable metadata. */
-export function validatePlanBranches(cwd: string, id: string, branches: NonNullable<TargetInputs["planBranches"]>): PlanBranchSnapshot | undefined {
+export function validatePlanBranches(cwd: string, id: string, branches: NonNullable<TargetInputs["planBranches"]>, allowMissingObjects = false): PlanBranchSnapshot | undefined {
   const { local, remote } = branches;
   for (const branch of [local, remote]) {
     if (!branch) continue;
     resolveCommit(cwd, branch.commit, true);
     if (branch.id !== id) fail("Conflicting plan branch identity.");
-    if (branch.comparisonBase !== undefined) resolveCommit(cwd, branch.comparisonBase, true);
-    if (branch.binding) validateExecutionBinding(cwd, id, branch.binding);
+    if (branch.comparisonBase !== undefined && !allowMissingObjects) resolveCommit(cwd, branch.comparisonBase, true);
+    if (branch.binding) validateExecutionBinding(cwd, id, branch.binding, undefined, undefined, allowMissingObjects);
   }
   if (!local || !remote) return local ?? remote;
   const localFirst = optionalGit(cwd, ["merge-base", "--is-ancestor", local.commit, remote.commit]) !== null;
@@ -110,7 +110,7 @@ export function validatePlanBranches(cwd: string, id: string, branches: NonNulla
   const [older, newer] = localFirst ? [local, remote] : [remote, local];
   if (older.comparisonBase !== newer.comparisonBase) fail("Plan comparison provenance changed.");
   if (older.binding && !newer.binding) fail("Execution binding was removed.");
-  if (older.binding && newer.binding) validateExecutionBinding(cwd, id, newer.binding, undefined, older.binding);
+  if (older.binding && newer.binding) validateExecutionBinding(cwd, id, newer.binding, undefined, older.binding, allowMissingObjects);
   if (local.commit === remote.commit && !isDeepStrictEqual(local, remote)) fail("Conflicting plan branch records.");
   return newer;
 }

@@ -70,13 +70,13 @@ test("plan list: abandoned dependency blocks a ready plan (Scenario 4: abandoned
 test("plan list: JSON fields, sorting, archived, --status filter, human table", () => {
   const root = repo();
   const all = rows(root);
-  assert.deepEqual(Object.keys(all[0]!), ["id", "title", "stored_status", "effective_status", "depends_on", "specs", "archived"]);
+  assert.deepEqual(Object.keys(all[0]!), ["id", "title", "stored_status", "effective_status", "depends_on", "specs", "archived", "target_branch", "start_base", "comparison_base", "plan_branch_status", "target_status", "integration_status", "integration_reasons", "pending_target_branch", "ref_freshness"]);
   assert.equal(all[0]!.id, "2026-01-04-delta");
   assert.equal(all.at(-1)!.archived, true);
   assert.deepEqual(rows(root, "--status", "blocked").map((r) => r.id), ["2026-01-02-beta"]);
   const h = run(root, "plan", "list");
   assert.equal(h.code, 0, h.err);
-  assert.match(h.out, /^2026-01-04-delta {2}T 2026-01-04-delta {2}done$/m);
+  assert.match(h.out, /^2026-01-04-delta {2}T 2026-01-04-delta {2}done  target /m);
   assert.equal(run(root, "plan", "list", "--status", "bogus").code, 1);
 });
 
@@ -92,7 +92,7 @@ test("plan list: stack mode blocks two unmerged dependencies and prints the reas
   assert.equal(eff(root)["2026-01-03-gamma"], "blocked");
   const h = run(root, "plan", "list");
   assert.equal(h.code, 0, h.err);
-  assert.match(h.out, /^2026-01-03-gamma {2}T 2026-01-03-gamma {2}blocked {2}Cannot stack on more than one unmerged dependency: `2026-01-01-alpha`, `2026-01-02-beta`\.$/m);
+  assert.match(h.out, /^2026-01-03-gamma {2}T 2026-01-03-gamma {2}blocked {2}Cannot stack on more than one unmerged dependency: `2026-01-01-alpha`, `2026-01-02-beta`\.  target /m);
 });
 
 test("getEffectiveStatus: forge hook derives review; non-ready statuses unchanged", () => {
@@ -220,7 +220,7 @@ test("plan new: archived abandoned dependencies and existing dependency cycles r
 
 test("plan show: active and archived plans; unknown ID exits 1", () => {
   const root = newRepo();
-  assert.equal(run(root, "plan", "show", "2026-01-01-alpha").out, fs.readFileSync(path.join(root, "plans/2026-01-01-alpha/PLAN.md"), "utf8"));
+  assert.ok(run(root, "plan", "show", "2026-01-01-alpha").out.startsWith(fs.readFileSync(path.join(root, "plans/2026-01-01-alpha/PLAN.md"), "utf8") + "\nDerived plan context:\n"));
   assert.match(run(root, "plan", "show", "2025-12-01-old").out, /id: 2025-12-01-old/);
   const r = run(root, "plan", "show", "2030-01-01-none");
   assert.equal(r.code, 1);
