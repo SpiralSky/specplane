@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "40c71899bce9e4f763174e3716c0e46dacb2733b",
+  "integrated_commit": "c3c2ac3e15f2f2abb5fcb968ac778a7f42ac9a46",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -127,14 +127,28 @@
     {
       "step": "target-lifecycle/2d",
       "agent": "target_2d",
+      "status": "integrated;423 full regression pass;raw legacy limitation retained",
+      "base": "40c71899bce9e4f763174e3716c0e46dacb2733b",
+      "commit": "d4ca3a1",
+      "tests": "418 full before review;82 focused before final defensive/output edits"
+    },
+    {
+      "step": "target-lifecycle/2d review",
+      "agent": "target_2d_review",
+      "status": "reviewed; findings addressed"
+    },
+    {
+      "step": "target-lifecycle/3",
+      "agent": "target_3",
       "status": "running",
-      "base": "40c71899bce9e4f763174e3716c0e46dacb2733b"
+      "base": "c3c2ac3e15f2f2abb5fcb968ac778a7f42ac9a46"
     }
   ],
   "next": [
-    "Review results and integrate serially",
-    "target step2b after 2a",
-    "completion step2 after step1"
+    "Review target_3 result and integrate repairs serially",
+    "Dispatch fresh target4 then5 then6 workers",
+    "Plan-index1/2/3 follow target lifecycle, then workflow recording and manual lifecycle",
+    "Product docs follows manual lifecycle, completion and indexing; packaging follows docs; delivery hosts in parallel then conformance"
   ],
   "timing": {
     "worker_elapsed": "pending",
@@ -144,12 +158,12 @@
   "processes": [],
   "remote_checkpoint": {
     "branch": "overnight/specplane-20261102T144630Z",
-    "commit": "a33e3fb",
+    "commit": "da44e84",
     "status": "pushed"
   },
   "baseline_validation": {
     "errors": 0,
-    "warnings": 89,
+    "warnings": 90,
     "log": "baseline-validation.json"
   },
   "baseline_hooks": {
@@ -169,11 +183,31 @@
       "description": "implementation anchor referenced by unrelated metadata cannot be changed while preserving both unrelated source bytes and prior alias semantics; safe refusal tested",
       "action": "human contract decision about allowing unrelated source rewrites or keeping refusal",
       "scope": "only this YAML form; remaining completion operations implemented"
+    },
+    {
+      "id": "legacy-provenance-1",
+      "criterion": "target-lifecycle legacy resume provenance",
+      "description": "No raw CLI historical-default record source specified or available; branch reflog creation source is insufficient evidence",
+      "handling": "raw ambiguous legacy refuse; trusted caller may supply independently verified attestation through internal start API, with null starting commit",
+      "action": "define/provide authoritative historical default record source/recovery contract",
+      "scope": "recorded-binding flow unaffected"
     }
   ],
   "completion_regression": {
     "passed": 396,
     "failed": 0,
     "log": "completion-plan-integrated-tests.log"
+  },
+  "midrun_validation": {
+    "errors": 0,
+    "warnings": 90,
+    "implementation_reports": 22
+  },
+  "updated_utc": "2026-11-02T15:23:18.404060+00:00",
+  "combined_regression": {
+    "passed": 423,
+    "failed": 0,
+    "skipped": 0,
+    "log": "target-step2-integrated-tests.log"
   }
 }

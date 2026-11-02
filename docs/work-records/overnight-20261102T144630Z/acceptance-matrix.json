@@ -126,16 +126,36 @@
     "step": "02-target-start",
     "criterion": 1,
     "text": "First start validates target-local plans/specs/dependencies and records immutable provenance before execution.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "d4ca3a1",
+      "target-2a-result.md",
+      "target-2b-result.md",
+      "target-2c-result.md",
+      "target-2d-result.md",
+      "target-step2-integrated-tests.log:423 pass"
+    ],
+    "limitations": [
+      "Raw legacy CLI requires independent historical-default evidence; no inference from reflogs"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
     "step": "02-target-start",
     "criterion": 2,
     "text": "Dirty reused worktrees skip setup and survive failure; missing checkout recreation preserves branch and step commits.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "d4ca3a1",
+      "target-2a-result.md",
+      "target-2b-result.md",
+      "target-2c-result.md",
+      "target-2d-result.md",
+      "target-step2-integrated-tests.log:423 pass"
+    ],
+    "limitations": [
+      "Raw legacy CLI requires independent historical-default evidence; no inference from reflogs"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
@@ -786,12 +806,15 @@
     "step": "03-completion-writers",
     "criterion": 1,
     "text": "CLI/core parity covers dry-run, no-op repetition, all statuses and preserving prior evidence; complete resolves the entire dependency closure.",
-    "status": "verified except recorded anchored-alias form blocked",
+    "status": "blocked",
     "evidence": [
       "0266b61",
       "completion-3-review.md",
-      "completion-plan-integrated-tests.log:396 pass",
-      "completion-3-result.md"
+      "target-step2-integrated-tests.log:423 pass"
+    ],
+    "partial_implementation": true,
+    "limitations": [
+      "Anchored implementation referenced by unrelated metadata is safely refused; contract decision required for this form"
     ]
   },
   {
@@ -799,12 +822,15 @@
     "step": "03-completion-writers",
     "criterion": 2,
     "text": "Lease and preimage checks preserve body, lifecycle, unrelated edits/index on failure; no plan, commit, test execution or fabricated evidence is required.",
-    "status": "verified except recorded anchored-alias form blocked",
+    "status": "verified",
     "evidence": [
       "0266b61",
       "completion-3-review.md",
-      "completion-plan-integrated-tests.log:396 pass",
-      "completion-3-result.md"
+      "target-step2-integrated-tests.log:423 pass"
+    ],
+    "partial_implementation": true,
+    "limitations": [
+      "Anchored implementation referenced by unrelated metadata is safely refused; contract decision required for this form"
     ]
   },
   {
