@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -34,7 +35,7 @@ after(() => { for (const dir of ownedDirs) fs.rmSync(dir, { recursive: true, for
 
 interface R { root: string; wt: string }
 /** Temp repo on `main` (no remote) with plans A and B (B depends on A) and a private worktree dir. */
-function repo(planCfg = ""): R {
+function repo(planCfg = "", objectFormat = "sha1"): R {
   const wt = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-lc-"));
   const root = makeRepo({
     ".specplane/config.yaml": `spec_roots:\n  - name: base\n    path: specs\nplans:\n  dir: plans\n  require_approved_specs: none\n${planCfg}execution:\n  worktree_dir: ${wt}\n`,
@@ -44,7 +45,7 @@ function repo(planCfg = ""): R {
     "base.txt": "base\n",
   });
   ownedDirs.push(root, wt);
-  git(root, "init", "-q", "-b", "main");
+  git(root, "init", "-q", "-b", "main", `--object-format=${objectFormat}`);
   git(root, "add", "-A");
   git(root, "commit", "-q", "-m", "init");
   return { root, wt };
@@ -76,9 +77,10 @@ test("abandon: commits on main, archives, removes worktree, and resumes cleanup"
   assert.ok(hasBranch(r, A), "branch kept");
   const head = git(r.root, "rev-parse", "HEAD");
   const again = sp(r.root, "plan", "abandon", A, "--delete-branch");
-  assert.equal(again.code, 0, again.err);
+  assert.equal(again.code, 1);
+  assert.match(again.err, /is `abandoned`/);
   assert.equal(git(r.root, "rev-parse", "HEAD"), head, "no second commit");
-  assert.ok(!hasBranch(r, A), "retry deletes the retained branch");
+  assert.ok(hasBranch(r, A), "completed abandonment retains the branch");
   assert.equal(git(r.root, "status", "--porcelain"), "");
 });
 
@@ -513,6 +515,87 @@ test("abandon retains a hook-modified commit without publishing it", () => {
   const hook = path.join(r.root, ".git", "hooks", "pre-commit");
   fs.writeFileSync(hook, "#!/bin/sh\nprintf altered > base.txt\ngit add base.txt\n", { mode: 0o755 });
   const result = sp(r.root, "plan", "abandon", A);
-  assert.notEqual(result.code, 0); assert.match(result.err, /committed tree changed/);
+  assert.notEqual(result.code, 0); assert.match(result.err, /parent, tree or trailers changed/);
   assert.notEqual(git(r.root, "rev-parse", "HEAD"), before); assert.equal(git(bare, "rev-parse", "refs/heads/main"), before);
+});
+
+
+test("abandon retains the actual commit when a post-commit hook creates a same-tree child", () => {
+  const r = repo();
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-abandon-child-")); ownedDirs.push(bare);
+  git(bare, "init", "--bare", "-q"); git(r.root, "remote", "add", "origin", bare); git(r.root, "push", "-u", "origin", "main");
+  const before = git(r.root, "rev-parse", "HEAD");
+  const hook = path.join(r.root, ".git", "hooks", "post-commit");
+  fs.writeFileSync(hook, "#!/bin/sh\ngit -c core.hooksPath=/dev/null commit --allow-empty -qm child\n", { mode: 0o755 });
+  const result = sp(r.root, "plan", "abandon", A);
+  const child = git(r.root, "rev-parse", "HEAD"), actual = git(r.root, "rev-parse", "HEAD^");
+  assert.equal(result.code, 1); assert.match(result.err, new RegExp(`commit ${actual} retained; HEAD moved to ${child}`));
+  assert.equal(git(r.root, "rev-parse", `${actual}^{tree}`), git(r.root, "rev-parse", `${child}^{tree}`));
+  assert.equal(git(bare, "rev-parse", "refs/heads/main"), before);
+  assert.equal(sp(r.root, "plan", "abandon", A).code, 1);
+});
+
+test("abandon rejects a modified pending record without deleting the branch", () => {
+  const r = repo(); start(r, A);
+  const wt = wtOf(r, A); git(r.root, "config", "core.excludesFile", path.join(r.root, ".git", "ignore"));
+  fs.writeFileSync(path.join(r.root, ".git", "ignore"), "secret\n");
+  const hook = path.join(r.root, ".git", "hooks", "post-commit");
+  fs.writeFileSync(hook, `#!/bin/sh\nprintf preserve > '${path.join(wt, "secret")}'\n`, { mode: 0o755 });
+  assert.equal(sp(r.root, "plan", "abandon", A, "--delete-branch").code, 1);
+  const dir = path.join(r.root, ".git", "specplane-abandon");
+  const journal = path.join(dir, fs.readdirSync(dir)[0]);
+  const data = JSON.parse(fs.readFileSync(journal, "utf8")); data.planLocal = "0".repeat(40); fs.writeFileSync(journal, JSON.stringify(data));
+  fs.rmSync(path.join(wt, "secret"));
+  const retry = sp(r.root, "plan", "abandon", A, "--delete-branch");
+  assert.equal(retry.code, 1); assert.match(retry.err, /Pending abandonment record/); assert.ok(hasBranch(r, A)); assert.ok(fs.existsSync(wt));
+});
+
+
+test("abandon recovers the exact 64-character commit in a SHA-256 repository", () => {
+  const r = repo("", "sha256"); start(r, A);
+  const wt = wtOf(r, A);
+  git(r.root, "config", "core.excludesFile", path.join(r.root, ".git", "ignore"));
+  fs.writeFileSync(path.join(r.root, ".git", "ignore"), "secret\n");
+  const hook = path.join(r.root, ".git", "hooks", "post-commit");
+  fs.writeFileSync(hook, `#!/bin/sh\nprintf preserve > '${path.join(wt, "secret")}'\n`, { mode: 0o755 });
+  assert.equal(sp(r.root, "plan", "abandon", A).code, 1);
+  const commit = git(r.root, "rev-parse", "HEAD"); assert.equal(commit.length, 64);
+  fs.rmSync(hook); fs.rmSync(path.join(wt, "secret"));
+  const retry = sp(r.root, "plan", "abandon", A); assert.equal(retry.code, 0, retry.err);
+  assert.equal(git(r.root, "rev-parse", "HEAD"), commit);
+});
+
+test("abandon retains moved HEAD and staged edits when a failing hook updates the ref", () => {
+  const r = repo();
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-abandon-failing-hook-")); ownedDirs.push(bare);
+  git(bare, "init", "--bare", "-q"); git(r.root, "remote", "add", "origin", bare); git(r.root, "push", "-u", "origin", "main");
+  const before = git(r.root, "rev-parse", "HEAD");
+  const hook = path.join(r.root, ".git", "hooks", "pre-commit");
+  fs.writeFileSync(hook, "#!/bin/sh\nchild=$(git commit-tree 'HEAD^{tree}' -p HEAD -m unrelated)\ngit update-ref HEAD \"$child\"\nexit 1\n", { mode: 0o755 });
+  const result = sp(r.root, "plan", "abandon", A);
+  const head = git(r.root, "rev-parse", "HEAD");
+  assert.equal(result.code, 1); assert.notEqual(head, before); assert.match(result.err, new RegExp(`HEAD moved to ${head}`));
+  assert.match(result.err, /retained for reconciliation/); assert.equal(git(bare, "rev-parse", "refs/heads/main"), before);
+  assert.notEqual(git(r.root, "diff", "--cached", "--name-only"), "");
+});
+
+test("abandon refuses an existing pending record before writing the plan", () => {
+  const r = repo();
+  const dir = path.join(r.root, ".git", "specplane-abandon"); fs.mkdirSync(dir);
+  const name = createHash("sha256").update(A).digest("hex") + ".json";
+  const journal = path.join(dir, name); fs.writeFileSync(journal, "existing\n");
+  const before = git(r.root, "rev-parse", "HEAD");
+  const result = sp(r.root, "plan", "abandon", A);
+  assert.equal(result.code, 1); assert.match(result.err, /Pending abandonment record exists/);
+  assert.equal(git(r.root, "rev-parse", "HEAD"), before); assert.equal(git(r.root, "status", "--porcelain"), "");
+  assert.equal(fs.readFileSync(journal, "utf8"), "existing\n");
+});
+
+test("abandon refuses disabled reflog recording before writes", () => {
+  const r = repo(); git(r.root, "config", "core.logAllRefUpdates", "false");
+  const before = git(r.root, "rev-parse", "HEAD");
+  const result = sp(r.root, "plan", "abandon", A);
+  assert.equal(result.code, 1); assert.match(result.err, /reflog recording is disabled/);
+  assert.equal(git(r.root, "rev-parse", "HEAD"), before); assert.equal(git(r.root, "status", "--porcelain"), "");
+  assert.ok(!fs.existsSync(path.join(r.root, ".git", "specplane-abandon")));
 });

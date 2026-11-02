@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { acquireWriterLease } from "../core/writer-leases.js";
 import { lifecycleContext, checkStackTarget, recheckLifecycleRefs, requireStackIntegration } from "./lifecycle-context.js";
 import { resolveCommit } from "./context.js";
@@ -665,6 +665,33 @@ function abandonedText(text: string): string {
   return result;
 }
 
+type AbandonPending = { version: 1; id: string; target: string; parent: string; tree: string; planLocal: string | null; planRemote: string | null; deleteBranch: boolean; force: boolean; logLength: number; logHash: string };
+const hashBytes = (b: Buffer) => createHash('sha256').update(b).digest('hex');
+function pendingPath(main: string, id: string): string {
+  const common = git(['rev-parse', '--path-format=absolute', '--git-common-dir'], main);
+  return path.join(common, 'specplane-abandon', createHash('sha256').update(id).digest('hex') + '.json');
+}
+function headLog(main: string): string {
+  return path.join(git(['rev-parse', '--absolute-git-dir'], main), 'logs', 'HEAD');
+}
+function pendingCommit(main: string, record: AbandonPending): string {
+  const log = fs.readFileSync(headLog(main));
+  if (log.length <= record.logLength || hashBytes(log.subarray(0, record.logLength)) !== record.logHash)
+    throw new PlanStateError('Pending abandonment HEAD log changed; reconcile the retained operation.');
+  const first = log.subarray(record.logLength).toString('utf8').split('\n')[0];
+  const match = /^([0-9a-f]{40}|[0-9a-f]{64}) ([0-9a-f]{40}|[0-9a-f]{64}) [^\n]*\tcommit: /.exec(first);
+  if (!match || match[1] !== record.parent || match[2].length !== record.parent.length)
+    throw new PlanStateError('Pending abandonment HEAD transition is ambiguous; reconcile the retained operation.');
+  return match[2];
+}
+function validatePendingCommit(main: string, record: AbandonPending, commit: string): void {
+  const parents = git(['rev-list', '--parents', '-n', '1', commit], main).split(' ');
+  const trailers = readTrailers(commit, main);
+  if (parents.length !== 2 || parents[1] !== record.parent || git(['rev-parse', `${commit}^{tree}`], main) !== record.tree ||
+      trailers.get('Specplane-Workflow')?.join() !== 'abandon' || trailers.get('Specplane-Plan')?.join() !== record.id)
+    throw new PlanStateError(`Abandonment commit ${commit} retained; its parent, tree or trailers changed during recording.`);
+}
+
 /** `specplane plan abandon <id>` (feature/plan-execution § Abandoning a plan). Re-running finishes any leftover steps. */
 export function abandonPlan(id: string, config: Config, root: string, opts: AbandonOptions = {}): AbandonResult {
   const trees = listWorktrees(root);
@@ -682,13 +709,14 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   const rec = listPlans(config, main).find((p) => p.id === id);
   if (!rec) throw new PlanNotFoundError(id);
   const status = String(lenientFrontmatter(fs.readFileSync(rec.planFile, "utf8"))?.status ?? "unknown");
-  const finishAbandonCleanup = (commit: string, archived: boolean, committed: boolean): AbandonResult => {
+  const finishAbandonCleanup = (commit: string, archived: boolean, committed: boolean, verifyJournal: () => void): AbandonResult => {
     const baseline = planReport(id, config, main, null).ref_freshness;
     if (baseline.target_local !== commit || baseline.plan_local !== report.ref_freshness.plan_local || baseline.plan_remote !== report.ref_freshness.plan_remote)
       throw new PlanStateError(`Abandonment commit ${commit} retained; refs changed before cleanup.`);
     let expectedTrees = trees.map(t => samePath(t.path, main) ? { ...t, head: commit } : t);
     const verify = () => {
       lease.assertOwned();
+      verifyJournal();
       if (!isDeepStrictEqual(expectedTrees, listWorktrees(main)) || !isDeepStrictEqual(baseline, planReport(id, config, main, null).ref_freshness) ||
           git(['rev-parse', 'HEAD'], main) !== commit || git(['rev-parse', '--abbrev-ref', 'HEAD'], main) !== def)
         throw new PlanStateError(`Abandonment commit ${commit} retained; refs or checkouts changed before cleanup.`);
@@ -703,8 +731,21 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
     if (opts.deleteBranch && branchExists(branch, main)) { verify(); deleteBranch(branch, main); deleted = true; }
     return { planId: id, committed, archived, worktreeRemoved: removed, branchDeleted: deleted };
   };
-  if (status === "abandoned") {
+  const journal = pendingPath(main, id);
+  const journalDir = path.dirname(journal);
+  if (fs.existsSync(journalDir) && !fs.lstatSync(journalDir).isDirectory()) throw new PlanStateError('Invalid pending abandonment directory; reconcile it before continuing.');
+  if (fs.lstatSync(journal, { throwIfNoEntry: false })?.isSymbolicLink()) throw new PlanStateError('Invalid pending abandonment record; reconcile it before continuing.');
+  if (status === "abandoned" && fs.existsSync(journal)) {
+    const bytes = fs.readFileSync(journal, 'utf8');
+    let pending: AbandonPending;
+    try { pending = JSON.parse(bytes) as AbandonPending; } catch { throw new PlanStateError('Invalid pending abandonment record; reconcile it before retrying.'); }
+    if (!pending || pending.version !== 1 || pending.id !== id || pending.target !== def || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(pending.parent) || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(pending.tree) || !Number.isSafeInteger(pending.logLength) || pending.logLength < 0 || !/^[0-9a-f]{64}$/.test(pending.logHash) || typeof pending.deleteBranch !== 'boolean' || typeof pending.force !== 'boolean' || (pending.planLocal !== report.ref_freshness.plan_local && !(pending.deleteBranch && pending.planLocal !== null && report.ref_freshness.plan_local === null)) || pending.planRemote !== report.ref_freshness.plan_remote || pending.deleteBranch !== (opts.deleteBranch === true) || pending.force !== (opts.force === true))
+      throw new PlanStateError('Pending abandonment record or requested cleanup differs; reconcile it before retrying.');
+    const verifyJournal = () => { if (!fs.existsSync(journal) || fs.readFileSync(journal, 'utf8') !== bytes) throw new PlanStateError('Pending abandonment record changed; reconcile before continuing.'); };
+    const recorded = pendingCommit(main, pending);
+    validatePendingCommit(main, pending, recorded);
     const local = report.ref_freshness.target_local!;
+    if (recorded !== local) throw new PlanStateError(`Abandonment commit ${recorded} retained; HEAD moved to ${local}; reconcile before publication.`);
     const trailers = readTrailers(local, main);
     if (trailers.get('Specplane-Workflow')?.join() === 'abandon' && trailers.get('Specplane-Plan')?.join() === id) {
       const parent = git(['rev-parse', `${local}^`], main);
@@ -726,12 +767,16 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
         const published = git(['ls-remote', '--heads', 'origin', `refs/heads/${def}`], main).split(/\s+/)[0];
         if (published === parent) {
           lease.assertOwned();
+          verifyJournal();
           if (git(['rev-parse', 'HEAD'], main) !== local) throw new PlanStateError(`Publication pending for ${local}: target changed.`);
           try { git(['push', 'origin', `${local}:refs/heads/${def}`], main); }
           catch (e) { throw new PlanStateError(`Publication pending for ${local}: ${String(e)}`); }
         } else if (published !== local) throw new PlanStateError(`Cannot abandon: publication of ${local} needs reconciliation.`);
       }
-      return finishAbandonCleanup(local, rec.archived, false);
+      const finished = finishAbandonCleanup(local, rec.archived, false, verifyJournal);
+      if (fs.readFileSync(journal, 'utf8') !== bytes) throw new PlanStateError(`Abandonment commit ${local} retained; pending record changed before completion.`);
+      fs.unlinkSync(journal);
+      return finished;
 
     }
   }
@@ -763,6 +808,12 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
     throw new PlanStateError(`Cannot abandon plan \`${id}\`: \`${archiveRel}\` already exists.`);
   }
 
+  // Reserve the mechanical operation before changing the worktree.
+  if (fs.existsSync(journal)) throw new PlanStateError('Pending abandonment record exists; reconcile it before continuing.');
+  if (tryRun(['config', '--bool', '--get', 'core.logAllRefUpdates'], main)?.trim() === 'false') throw new PlanStateError('HEAD reflog recording is disabled; enable it before abandonment.');
+  const initialLog = fs.readFileSync(headLog(main));
+  if (initialLog.length && initialLog[initialLog.length - 1] !== 10) throw new PlanStateError('Incomplete HEAD reflog; reconcile before abandonment.');
+
   // 2. Write.
   if (!isDeepStrictEqual(report.ref_freshness, planReport(id, config, root, null).ref_freshness)) throw new PlanStateError('Target or plan refs changed during abandonment; retry.');
   lease.assertOwned();
@@ -773,7 +824,17 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   const before = git(['rev-parse', 'HEAD'], main);
   let staged: string | null = null;
   let expectedTree: string | null = null;
+  let pending: AbandonPending | null = null;
+  let journalBytes: string | null = null;
+  let journalCreated = false;
+  let journalFd: number | null = null;
   try {
+    fs.mkdirSync(journalDir, { recursive: true });
+    if (!fs.lstatSync(journalDir).isDirectory()) throw new PlanStateError('Invalid pending abandonment directory.');
+    journalFd = fs.openSync(journal, 'wx', 0o600);
+    journalCreated = true;
+    journalBytes = JSON.stringify({ version: 1, id, state: 'preparing' }) + '\n';
+    fs.writeFileSync(journalFd, journalBytes);
     fs.writeFileSync(rec.planFile, changed);
     if (moves) {
       fs.mkdirSync(path.join(main, config.plans.dir, 'archive'), { recursive: true });
@@ -799,29 +860,55 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
         git(['status', '--porcelain', '--untracked-files=all', '--ignored', '--', moves ? archiveRel : relDir], main).split('\n').some(line => line && (line[1] !== ' ' || line.startsWith('??') || line.startsWith('!!'))) ||
         run('git', ['show', `:${moves ? archiveRel : relDir}/PLAN.md`], { cwd: main }) !== changed || fs.readFileSync(writtenFile, 'utf8') !== changed) throw new PlanStateError('Abandonment index or plan files changed; inspect before retrying.');
     const msg = formatMessage({ type: 'chore', scope: 'specplane', summary: `abandon ${id}`, trailers: cliTrailers('abandon', id) });
+    const log = fs.readFileSync(headLog(main));
+    pending = { version: 1, id, target: def, parent: before, tree: indexTree, planLocal: report.ref_freshness.plan_local, planRemote: report.ref_freshness.plan_remote, deleteBranch: opts.deleteBranch === true, force: opts.force === true, logLength: log.length, logHash: hashBytes(log) };
+    const preparingBytes = journalBytes;
+    journalBytes = JSON.stringify(pending) + '\n';
+    if (journalFd === null || !fs.existsSync(journal) || fs.lstatSync(journal).isSymbolicLink() || fs.statSync(journal).ino !== fs.fstatSync(journalFd).ino || fs.readFileSync(journal, 'utf8') !== preparingBytes) throw new PlanStateError('Pending abandonment record changed; reconcile it.');
+    fs.ftruncateSync(journalFd, 0);
+    fs.writeSync(journalFd, journalBytes, 0, 'utf8');
+    fs.closeSync(journalFd); journalFd = null;
     run('git', ['commit', '-m', msg], { cwd: main });
     result.committed = true;
   } catch (e) {
+    if (journalFd !== null) { fs.closeSync(journalFd); journalFd = null; }
     const head = git(['rev-parse', 'HEAD'], main);
-    if (head !== before) throw new PlanStateError(`Abandonment commit ${head} was retained after a recording error; retry publication: ${String(e)}`);
+    const logMoved = pending !== null && (!fs.existsSync(headLog(main)) || fs.readFileSync(headLog(main)).length !== pending.logLength || hashBytes(fs.readFileSync(headLog(main))) !== pending.logHash);
+    if (head !== before || logMoved) {
+      let actual = 'unknown';
+      try { if (pending) actual = pendingCommit(main, pending); } catch { /* retain ambiguous state */ }
+      throw new PlanStateError(`Recording failed; HEAD moved to ${head}; first recorded commit ${actual} retained for reconciliation: ${String(e)}`);
+    }
+    if (!journalCreated) throw e;
     const writtenFile = path.join(main, moves ? `${archiveRel}/PLAN.md` : `${relDir}/PLAN.md`);
     const current = run('git', ['diff', '--cached', '--binary'], { cwd: main });
     if (!fs.existsSync(writtenFile) || fs.readFileSync(writtenFile, 'utf8') !== changed || (staged === null ? current !== '' : staged !== current) || git(['status', '--porcelain', '--untracked-files=all', '--ignored', '--', ...paths], main).split('\n').some(line => line && (line[1] !== ' ' || line.startsWith('??') || line.startsWith('!!'))) || (moves && fs.existsSync(path.join(main, relDir)))) throw new PlanStateError(`Abandonment edits retained for inspection: ${String(e)}`);
     git(['reset', '-q', 'HEAD', '--', ...paths], main);
     if (moves) fs.renameSync(path.join(main, archiveRel), path.join(main, relDir));
     fs.writeFileSync(rec.planFile, original);
+    if (journalCreated && journalBytes !== null && fs.existsSync(journal) && fs.readFileSync(journal, 'utf8') === journalBytes) fs.unlinkSync(journal);
     throw e;
   }
-  const commit = git(['rev-parse', 'HEAD'], main);
+  if (!pending) throw new PlanStateError('Pending abandonment record missing; reconcile the operation.');
+  const commit = pendingCommit(main, pending);
+  validatePendingCommit(main, pending, commit);
+  const movedHead = git(['rev-parse', 'HEAD'], main);
+  if (movedHead !== commit) throw new PlanStateError(`Abandonment commit ${commit} retained; HEAD moved to ${movedHead}; reconcile before publication.`);
   if (!expectedTree || git(['rev-parse', `${commit}^{tree}`], main) !== expectedTree) throw new PlanStateError(`Abandonment commit ${commit} retained; committed tree changed during recording.`);
+  const verifyJournal = () => { if (!fs.existsSync(journal) || fs.readFileSync(journal, 'utf8') !== journalBytes) throw new PlanStateError(`Abandonment commit ${commit} retained; pending record changed before continuing.`); };
+  verifyJournal();
   const beforePublication = planReport(id, config, main, null).ref_freshness;
   if (beforePublication.target_local !== commit || beforePublication.target_remote !== report.ref_freshness.target_remote || beforePublication.plan_local !== report.ref_freshness.plan_local || beforePublication.plan_remote !== report.ref_freshness.plan_remote) throw new PlanStateError(`Abandonment commit ${commit} retained; refs changed before publication.`);
   lease.assertOwned();
   if (hasRemote(main)) try {
+    verifyJournal();
     if (git(['rev-parse', 'HEAD'], main) !== commit) throw new PlanStateError('Target changed.');
     git(['push', 'origin', `${commit}:refs/heads/${def}`], main);
   } catch (e) { throw new PlanStateError(`Publication pending for ${commit}: ${String(e)}`); }
-  return finishAbandonCleanup(commit, result.archived, true);
+  const finished = finishAbandonCleanup(commit, result.archived, true, verifyJournal);
+  if (fs.readFileSync(journal, 'utf8') !== journalBytes) throw new PlanStateError(`Abandonment commit ${commit} retained; pending record changed before completion.`);
+  fs.unlinkSync(journal);
+  return finished;
   } finally { lease.release(); }
 }
 
