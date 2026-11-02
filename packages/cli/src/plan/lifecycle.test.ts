@@ -400,3 +400,46 @@ test("restack preview accepts migrated active Git-mode records", () => {
   assert.equal(result.code, 0, result.err);
   assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
 });
+
+
+test("abandon: shelved target rolls back a failed commit and retries publication of the same commit", () => {
+  const r = repo();
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-abandon-remote-")); ownedDirs.push(bare);
+  git(bare, "init", "--bare", "-q"); git(r.root, "remote", "add", "origin", bare); git(r.root, "push", "-u", "origin", "main");
+  start(r, A);
+  const file = path.join(r.root, "plans", A, "PLAN.md");
+  fs.writeFileSync(file, plan(A, "shelved", "shelved_from: ready\n")); git(r.root, "commit", "-qam", "shelve"); git(r.root, "push", "origin", "main");
+  const before = git(r.root, "rev-parse", "HEAD");
+  const hook = path.join(r.root, ".git", "hooks", "pre-commit"); fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  assert.notEqual(sp(r.root, "plan", "abandon", A).code, 0); fs.rmSync(hook);
+  assert.equal(git(r.root, "rev-parse", "HEAD"), before); assert.match(fs.readFileSync(file, "utf8"), /shelved_from: ready/); assert.equal(git(r.root, "status", "--porcelain"), "");
+  const reject = path.join(bare, "hooks", "pre-receive"); fs.writeFileSync(reject, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const failed = sp(r.root, "plan", "abandon", A); assert.equal(failed.code, 1); assert.match(failed.err, /Publication pending/);
+  const retained = git(r.root, "rev-parse", "HEAD"); assert.notEqual(retained, before);
+  const archived = fs.readFileSync(path.join(r.root, "plans", "archive", A, "PLAN.md"), "utf8"); assert.match(archived, /status: abandoned/); assert.doesNotMatch(archived, /shelved_from/);
+  fs.rmSync(reject); const retry = sp(r.root, "plan", "abandon", A); assert.equal(retry.code, 0, retry.err);
+  assert.equal(git(r.root, "rev-parse", "HEAD"), retained); assert.equal(git(bare, "rev-parse", "refs/heads/main"), retained); assert.ok(!fs.existsSync(wtOf(r, A)));
+});
+
+test("archive refuses ignored files and staged changes without moving them", () => {
+  const r = repo("  archive_done: false\n");
+  fs.writeFileSync(path.join(r.root, "plans", A, "PLAN.md"), plan(A, "done"));
+  fs.writeFileSync(path.join(r.root, ".gitignore"), "secret.txt\n"); git(r.root, "add", ".gitignore", `plans/${A}/PLAN.md`); git(r.root, "commit", "-qm", "done");
+  const secret = path.join(r.root, "plans", A, "secret.txt"); fs.writeFileSync(secret, "keep");
+  assert.equal(sp(r.root, "plan", "archive", A).code, 1); assert.equal(fs.readFileSync(secret, "utf8"), "keep");
+  fs.rmSync(secret); fs.writeFileSync(path.join(r.root, "base.txt"), "staged"); git(r.root, "add", "base.txt");
+  assert.equal(sp(r.root, "plan", "archive", A).code, 1); assert.equal(git(r.root, "diff", "--cached", "--name-only"), "base.txt");
+});
+
+test("cleanup uses the recorded non-default target and preserves ignored checkout files", () => {
+  const r = repo("  target_branch: integration\n");
+  git(r.root, "switch", "-qc", "integration");
+  fs.writeFileSync(path.join(r.root, ".gitignore"), "secret.txt\n"); git(r.root, "add", ".gitignore"); git(r.root, "commit", "-qm", "ignore");
+  start(r, A); const wt = wtOf(r, A);
+  const f = path.join(wt, "plans", A, "PLAN.md"); fs.writeFileSync(f, fs.readFileSync(f, "utf8").replace("status: ready", "status: done"));
+  git(wt, "commit", "-qam", "done"); git(r.root, "merge", "-q", "--no-ff", `plan/${A}`, "-m", "integrate");
+  fs.writeFileSync(path.join(wt, "secret.txt"), "preserve");
+  const blocked = sp(r.root, "plan", "cleanup", A, "--force"); assert.equal(blocked.code, 1); assert.match(blocked.err, /ignored files/);
+  assert.equal(fs.readFileSync(path.join(wt, "secret.txt"), "utf8"), "preserve"); fs.rmSync(path.join(wt, "secret.txt"));
+  const done = sp(r.root, "plan", "cleanup", A); assert.equal(done.code, 0, done.err); assert.equal(hasBranch(r, A), false);
+});
