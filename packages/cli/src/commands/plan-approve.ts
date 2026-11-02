@@ -95,7 +95,7 @@ function approveOne(rawId: string, root: string, dryRun: boolean): boolean {
     const { adrs } = loadAdrs(config, tree);
     const report = validatePlans(listPlans(config, tree), adrs, config, tree);
     return { id, planRel: toPosix(path.relative(tree, dir)), errors: report.errors.filter(f => f.plan === id) };
-  }, [config.plans.dir, config.decisions.dir, ...config.spec_roots.map(r => r.path)]);
+  }, { plans: config.plans.dir, decisions: config.decisions.dir, specs: config.spec_roots.map(r => r.path) });
   const { id, planRel, errors } = validation;
   const planRelFile = `${planRel}/PLAN.md`;
   const dir = path.join(root, planRel);

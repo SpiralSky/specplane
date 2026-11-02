@@ -343,7 +343,7 @@ test("HEAD config governs approval despite malformed or different staged and wor
 });
 
 test("approval refuses nonregular committed validation inputs without following them", () => {
-  for (const rel of [`plans/${ID}/steps/01-test.md`, `plans/${ID}/HANDOFF.md`, "specs/features/link.md", "decisions/link.md", "specs/features", `plans/${ID}/steps`]) {
+  for (const rel of [`plans/${ID}/steps/01-test.md`, `plans/${ID}/HANDOFF.md`, `plans/${ID}/spec-gaps.md`, "specs/features/link.md", "decisions/0001-link.md", "specs/features", `plans/${ID}/steps`]) {
     const step = `---\nplan: ${ID}\nstep: 1\ntitle: Test\nstatus: pending\ncontext:\n  - decision: decision/1234\n---\n`;
     const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID), "bad-step.md": step });
     const target = path.join(root, rel);
@@ -355,20 +355,49 @@ test("approval refuses nonregular committed validation inputs without following 
     const r = run(root, "plan", "approve", ID);
     assert.equal(r.code, 1, `${rel}: ${r.err}`);
     assert.match(r.err, /Unsupported committed approval input/);
+    assert.doesNotMatch(r.err, /\n\s+at /);
     assert.equal(git(root, "rev-parse", "HEAD"), head);
     assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
   }
 });
 
-test("approval refuses gitlinks in validation roots while allowing unrelated links", () => {
+test("approval refuses ambiguous discovery directory links even with dotted names", () => {
+  for (const rel of ["plans/hidden.dir", "specs/features/hidden.dir"]) {
+    const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID) });
+    fs.symlinkSync("missing", path.join(root, rel));
+    git(root, "add", rel); git(root, "commit", "-qm", "ambiguous link");
+    const head = git(root, "rev-parse", "HEAD");
+    const r = run(root, "plan", "approve", ID);
+    assert.equal(r.code, 1, r.err);
+    assert.match(r.err, /Unsupported committed approval input/);
+    assert.doesNotMatch(r.err, /\n\s+at /);
+    assert.equal(git(root, "rev-parse", "HEAD"), head);
+    assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
+  }
+});
+
+test("approval refuses gitlinks in discovery paths while allowing unrelated links", () => {
   const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID), "source": "x" });
   fs.symlinkSync("source", path.join(root, "unrelated-link")); git(root, "add", "unrelated-link");
   const head = git(root, "rev-parse", "HEAD");
-  git(root, "update-index", "--add", "--cacheinfo", `160000,${head},decisions/submodule`); git(root, "commit", "-qm", "gitlink");
+  git(root, "update-index", "--add", "--cacheinfo", `160000,${head},specs/features/submodule`); git(root, "commit", "-qm", "gitlink");
   const r = run(root, "plan", "approve", ID);
   assert.equal(r.code, 1, r.err); assert.match(r.err, /Unsupported committed approval input.*submodule/);
-  git(root, "rm", "--cached", "decisions/submodule"); git(root, "commit", "-qm", "remove gitlink");
+  git(root, "rm", "--cached", "specs/features/submodule"); git(root, "commit", "-qm", "remove gitlink");
   const ok = run(root, "plan", "approve", ID); assert.equal(ok.code, 0, ok.err);
+});
+
+test("approval ignores unrelated links in configured roots", () => {
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID), "guide.txt": "guide\n" });
+  for (const rel of ["plans/guide-link.txt", `plans/${ID}/guide-link.txt`, `plans/${ID}/steps/guide-link.txt`, "specs/guide-link.txt", "specs/features/guide-link.txt", "specs/features/nested/guide-link.txt", "decisions/guide-link.txt", "decisions/nested/guide-link.txt"]) {
+    const target = path.join(root, rel);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.symlinkSync(path.relative(path.dirname(target), path.join(root, "guide.txt")), target);
+  }
+  git(root, "add", "-A"); git(root, "commit", "-qm", "unrelated links");
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 0, r.err);
+  assert.match(read(root, `plans/${ID}/PLAN.md`), /^status: ready$/m);
 });
 
 test("hidden owned file and ancestor symlinks never mutate destinations or index", () => {

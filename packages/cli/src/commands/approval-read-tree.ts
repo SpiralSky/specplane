@@ -2,9 +2,40 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { run } from "../git/exec.js";
+import { PlanStateError } from "../errors.js";
+
+interface ValidationPaths { plans: string; decisions: string; specs: string[] }
+
+const normalize = (p: string) => path.posix.normalize(p.replaceAll("\\", "/")).replace(/\/$/, "") || ".";
+const beneath = (file: string, dir: string): string | null => dir === "." ? file : file.startsWith(`${dir}/`) ? file.slice(dir.length + 1) : null;
+const ancestor = (file: string, dir: string) => file === dir || dir.startsWith(`${file}/`);
+// Only a link to a known committed regular file can be excluded as a directory.
+const couldBeDirectory = (knownFileLink: boolean) => !knownFileLink;
+
+/** Match the discovery shapes used by listPlans, listStepFiles, loadSpecs and loadAdrs. */
+function relevant(file: string, knownFileLink: boolean, paths: ValidationPaths): boolean {
+  const plans = normalize(paths.plans), decisions = normalize(paths.decisions);
+  const specDirs = paths.specs.flatMap(root => ["features", "architecture"].map(type => normalize(path.posix.join(root.replaceAll("\\", "/"), type))));
+  if ([plans, decisions, ...specDirs].some(dir => ancestor(file, dir))) return true;
+  const planPath = beneath(file, plans);
+  if (planPath !== null) {
+    const parts = planPath.split("/");
+    if (parts[0] === "archive") parts.shift();
+    if (parts.length === 0) return true;
+    if (parts.length === 1 && couldBeDirectory(knownFileLink)) return true;
+    if (parts.length === 2 && ["PLAN.md", "HANDOFF.md", "spec-gaps.md", "steps"].includes(parts[1])) return true;
+    if (parts.length === 3 && parts[1] === "steps" && parts[2].endsWith(".md")) return true;
+  }
+  const adr = beneath(file, decisions);
+  if (adr !== null && !adr.includes("/") && /^\d{4}-.*\.md$/.test(adr)) return true;
+  return specDirs.some(dir => {
+    const rel = beneath(file, dir);
+    return rel !== null && (rel.endsWith(".md") || couldBeDirectory(knownFileLink));
+  });
+}
 
 /** Materialize regular files from a captured commit into a private, disposable read tree. */
-export function withApprovalReadTree<T>(root: string, commit: string, use: (tree: string) => T, validationRoots: string[] = []): T {
+export function withApprovalReadTree<T>(root: string, commit: string, use: (tree: string) => T, validationPaths?: ValidationPaths): T {
   const tree = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-approval-"));
   try {
     const entries = run("git", ["ls-tree", "-rlz", "--full-tree", commit], { cwd: root, binary: true })
@@ -12,11 +43,17 @@ export function withApprovalReadTree<T>(root: string, commit: string, use: (tree
         const tab = line.indexOf("\t"), fields = line.slice(0, tab).split(" ");
         return { mode: fields[0], oid: fields[2], size: Number(fields.at(-1)), file: line.slice(tab + 1) };
       });
-    const roots = validationRoots.map(p => path.posix.normalize(p.replaceAll("\\", "/")).replace(/\/$/, ""));
+    const regular = new Set(entries.filter(e => e.mode === "100644" || e.mode === "100755").map(e => e.file));
     for (const entry of entries) {
       if (entry.mode === "100644" || entry.mode === "100755") continue;
-      if (roots.some(p => p === "." || entry.file === p || entry.file.startsWith(`${p}/`) || p.startsWith(`${entry.file}/`))) {
-        throw new Error(`Unsupported committed approval input at ${entry.file} (mode ${entry.mode}).`);
+      let knownFileLink = false;
+      if (entry.mode === "120000") {
+        const target = run("git", ["cat-file", "blob", entry.oid], { cwd: root, binary: true }).toString("utf8");
+        const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(entry.file), target));
+        knownFileLink = !path.posix.isAbsolute(target) && !resolved.startsWith("../") && regular.has(resolved);
+      }
+      if (validationPaths && relevant(entry.file, knownFileLink, validationPaths)) {
+        throw new PlanStateError(`Unsupported committed approval input at ${entry.file} (mode ${entry.mode}); replace it with regular files or directories and retry.`);
       }
     }
     const files = entries.filter(e => e.mode === "100644" || e.mode === "100755");
