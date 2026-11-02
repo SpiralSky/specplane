@@ -10,7 +10,7 @@ import type { Config, PlanFrontmatter } from '../types.js';
 import type { PlanSnapshot } from './snapshot.js';
 import { toMermaid } from './mermaid.js';
 
-export interface LiveContext { statuses: ReadonlyMap<string, IndexStatus>; targets: ReadonlyMap<string, string> }
+export interface LiveContext { statuses: ReadonlyMap<string, IndexStatus>; targets: ReadonlyMap<string, string>; additionalRecords?: ReturnType<typeof snapshotRecords> }
 export function snapshotRecords(snapshot: PlanSnapshot): { id: string; archived: boolean; fm: PlanFrontmatter }[] {
   return snapshot.plans.map(file => {
     const parts = file.path.split('/'); const id = parts[parts.length - 2];
@@ -27,14 +27,15 @@ const linkPart = (s: string) => encodeURIComponent(s);
 export function generatePlansMd(snapshot: PlanSnapshot, opts: { live?: boolean; liveContext?: LiveContext } = {}): string {
   if (opts.live && !opts.liveContext) throw new Error('Live rendering requires live context.');
   if (!opts.live && opts.liveContext) throw new Error('Live context requires live rendering.');
-  const records = snapshotRecords(snapshot), config = snapshot.config;
+  const records = [...snapshotRecords(snapshot), ...(opts.liveContext?.additionalRecords ?? [])], config = snapshot.config;
+  if (opts.live && new Set(records.map(r => r.id)).size !== records.length) throw new Error('Ambiguous live plan identity.');
   const byId = new Map(records.map(r => [r.id, r.fm]));
   const link = (id: string) => {
     const rec = records.find(r => r.id === id);
     return `[${cell(id)}](${rec?.archived ? 'archive/' : ''}${linkPart(id)}/PLAN.md)`;
   };
-  const statuses = new Map(records.map(r => [r.id, opts.live ? (opts.liveContext!.statuses.get(r.id) ?? getIndexStatus(r.fm, byId, config)) : getIndexStatus(r.fm, byId, config)]));
-  const target = (r: typeof records[number]) => cell(opts.live ? (opts.liveContext!.targets.get(r.id) ?? 'unavailable') : (r.fm.target_branch ?? config.plans.target_branch ?? 'repository default'));
+  const statuses = new Map(records.map(r => { const status = opts.live ? opts.liveContext!.statuses.get(r.id) : getIndexStatus(r.fm, byId, config); if (!status) throw new Error(`Live status unavailable for ${r.id}.`); return [r.id, status] as const; }));
+  const target = (r: typeof records[number]) => { const value = opts.live ? opts.liveContext!.targets.get(r.id) : (r.fm.target_branch ?? config.plans.target_branch ?? 'repository default'); if (!value) throw new Error(`Live target unavailable for ${r.id}.`); return cell(value); };
   const active = records.filter(r => !r.archived), archived = records.filter(r => r.archived);
   const activeSection = active.length ? ['| ID | Title | Status | Target | Dependencies | Specs |', '|----|-------|--------|--------|--------------|-------|', ...active.map(r => `| ${link(r.id)} | ${cell(r.fm.title)} | ${statuses.get(r.id)} | ${target(r)} | ${r.fm.depends_on?.length ? [...r.fm.depends_on].sort().map(link).join(', ') : '—'} | ${r.fm.specs.map(cell).join(', ')} |`)].join('\n') : '_None._';
   const archivedSection = archived.length ? ['| ID | Title | Status | Target | Specs |', '|----|-------|--------|--------|-------|', ...archived.map(r => `| ${link(r.id)} | ${cell(r.fm.title)} | ${statuses.get(r.id)} | ${target(r)} | ${r.fm.specs.map(cell).join(', ')} |`)].join('\n') : '_None._';

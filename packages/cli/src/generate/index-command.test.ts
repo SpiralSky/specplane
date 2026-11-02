@@ -74,3 +74,82 @@ test('live status reads authoritative target and queries PR with its recorded ba
   const abandoned=r.sp('plan','index','--print','--live'); assert.equal(abandoned.status,0,abandoned.stderr); assert.match(abandoned.stdout,/\| abandoned \| release \|/);
  } finally { process.env.PATH=previous; }
 });
+
+test('live frontmatter uses execution status and target terminal overrides', () => {
+ const r=repo(); const file=`plans/${id}/PLAN.md`;
+ r.put('.specplane/config.yaml','plans:\n  status_source: frontmatter\n'); r.git('add','-A'); r.git('commit','-qm','config');
+ const sha=r.git('rev-parse','HEAD'); r.git('checkout','-qb',`plan/${id}`);
+ const binding=`execution:\n  target_branch: master\n  start_target_branch: master\n  start_base: ${sha}\n`;
+ for (const status of ['review','done']) {
+  r.put(file,plan('execution',binding).replace('status: ready',`status: ${status}`)); r.git('commit','-qam',status);
+  const result=r.sp('plan','index','--print','--live'); assert.equal(result.status,0,result.stderr); assert.match(result.stdout,new RegExp(`\\| ${status} \\| master \\|`));
+ }
+ r.git('checkout','-q','master');
+ for (const [status,extra] of [['shelved','shelved_from: review\n'],['abandoned',''],['done','']]) {
+  r.put(file,plan('target',extra).replace('status: ready',`status: ${status}`)); r.git('commit','-qam',status);
+  const result=r.sp('plan','index','--print','--live'); assert.equal(result.status,0,result.stderr); assert.match(result.stdout,new RegExp(`\\| ${status} \\| master \\|`));
+ }
+});
+
+test('live target dependencies and config block before querying a PR in both status modes', () => {
+ for (const mode of ['git','frontmatter']) {
+  const r=repo(); const file=`plans/${id}/PLAN.md`, dep='2026-01-01-dep';
+  r.put('.specplane/config.yaml',`plans:\n  status_source: ${mode}\n  dependency_mode: wait_for_merge\n`);
+  r.put(`plans/${dep}/PLAN.md`,plan('dependency').replaceAll(id,dep));
+  r.put(file,plan('target',`depends_on: [${dep}]\n`)); r.git('add','-A'); r.git('commit','-qm','target');
+  const sha=r.git('rev-parse','HEAD'); r.git('checkout','-qb',`plan/${id}`);
+  r.put(file,plan('execution',`execution:\n  target_branch: master\n  start_target_branch: master\n  start_base: ${sha}\n`)); r.git('commit','-qam','execution');
+  const result=r.sp('plan','index','--print','--live'); assert.equal(result.status,0,result.stderr); assert.match(result.stdout,/\| blocked \| master \|/);
+ }
+});
+
+test('live discovers local and fetched remote branch-only records with their target config', () => {
+ for (const remote of [false,true]) {
+  const r=repo(); const other='2026-01-02-branch-only'; const file=`plans/${other}/PLAN.md`;
+  r.git('checkout','-qb','release'); r.put('.specplane/config.yaml','plans:\n  status_source: frontmatter\n');
+  r.put(file,plan('target only').replaceAll(id,other)); r.git('add','-A'); r.git('commit','-qm','target'); const sha=r.git('rev-parse','HEAD');
+  r.git('checkout','-qb',`plan/${other}`); r.put(file,plan('branch only',`execution:\n  target_branch: release\n  start_target_branch: release\n  start_base: ${sha}\n`).replaceAll(id,other).replace('status: ready','status: review')); r.git('commit','-qam','execution');
+  r.git('checkout','-q','master'); if (remote) { r.git('update-ref',`refs/remotes/origin/plan/${other}`,r.git('rev-parse',`plan/${other}`)); r.git('branch','-D',`plan/${other}`); }
+  const before=r.git('status','--porcelain=v1'); const result=r.sp('plan','index','--print','--live'); assert.equal(result.status,0,result.stderr); assert.match(result.stdout,/\| branch only \| review \| release \|/); assert.equal(r.git('status','--porcelain=v1'),before); assert.equal(fs.existsSync(path.join(r.root,'plans/PLANS.md')),false);
+  const ordinary=r.sp('plan','index','--print'); assert.equal(ordinary.status,0,ordinary.stderr); assert.doesNotMatch(ordinary.stdout,/branch only/);
+ }
+});
+
+test('live refuses missing target and incompatible branch bindings without stdout or mutations', () => {
+ for (const kind of ['missing','invalid','divergent']) {
+  const r=repo(); const file=`plans/${id}/PLAN.md`, sha=r.git('rev-parse','HEAD'); r.git('checkout','-qb',`plan/${id}`);
+  const target=kind==='missing'?'missing':'master';
+  r.put(file,plan('branch',`execution:\n  target_branch: ${target}\n  start_target_branch: ${target}\n  start_base: ${kind==='invalid'?'not-a-sha':sha}\n`)); r.git('commit','-qam','branch');
+  if (kind==='divergent') { r.git('update-ref',`refs/remotes/origin/plan/${id}`,r.git('rev-parse','HEAD')); r.git('checkout','-q','master'); r.git('checkout','-qb','other'); r.put(file,plan('other',`execution:\n  target_branch: master\n  start_target_branch: master\n  start_base: ${sha}\n`)); r.git('commit','-qam','other'); r.git('branch','-f',`plan/${id}`,'HEAD'); }
+  r.git('checkout','-q','master'); const before=r.git('status','--porcelain=v1'); const result=r.sp('plan','index','--print','--live'); assert.notEqual(result.status,0,kind); assert.equal(result.stdout,'',kind); assert.notEqual(result.stderr,''); assert.equal(r.git('status','--porcelain=v1'),before); assert.equal(fs.existsSync(path.join(r.root,'plans/PLANS.md')),false);
+ }
+});
+
+test('live PR lookup uses recorded base and ignores PRs to another base', () => {
+ const r=repo(); const sha=r.git('rev-parse','HEAD'); r.git('branch','release'); r.git('checkout','-qb',`plan/${id}`);
+ r.put(`plans/${id}/PLAN.md`,plan('branch',`execution:\n  target_branch: release\n  start_target_branch: release\n  start_base: ${sha}\n`)); r.git('commit','-qam','branch'); r.git('checkout','-q','master'); r.git('remote','add','origin','https://github.com/example/repo.git');
+ const bin=path.join(r.root,'bin'); fs.mkdirSync(bin); const log=path.join(r.root,'gh.log');
+ fs.writeFileSync(path.join(bin,'gh'),`#!/bin/sh\nprintf '%s\\n' "$*" >> '${log}'\ncase "$*" in *'--base wrong'*) echo '[{"url":"https://example.test/pr"}]';; *'--version'*) echo 'gh version';; *) echo '[]';; esac\n`,{mode:0o755});
+ const previous=process.env.PATH; process.env.PATH=`${bin}:${previous}`;
+ try { const result=r.sp('plan','index','--print','--live'); assert.equal(result.status,0,result.stderr); assert.match(result.stdout,/\| in_progress \| release \|/); assert.match(fs.readFileSync(log,'utf8'),/--base release/); } finally { process.env.PATH=previous; }
+});
+
+test('live unstarted routing respects the selected staged and working declarations', () => {
+ const r=repo(); const file=`plans/${id}/PLAN.md`; r.git('branch','release'); r.git('branch','other');
+ r.put(file,plan('staged','target_branch: release\n')); r.git('add',file); r.put(file,plan('working','target_branch: other\n'));
+ for (const [source,target] of [['staged','release'],['working','other']]) {
+  const result=r.sp('plan','index','--source',source,'--print','--live'); assert.equal(result.status,0,result.stderr); assert.match(result.stdout,new RegExp(`\\| ${source} \\| ready \\| ${target} \\|`));
+ }
+});
+
+test('live refuses branch config path conflicts', () => {
+ const r=repo(); const sha=r.git('rev-parse','HEAD'); r.git('checkout','-qb',`plan/${id}`);
+ r.put('.specplane/config.yaml','plans:\n  dir: alternate\n'); r.put(`alternate/${id}/PLAN.md`,plan('alternate',`execution:\n  target_branch: master\n  start_target_branch: master\n  start_base: ${sha}\n`)); r.git('add','-A'); r.git('commit','-qm','alternate'); r.git('checkout','-q','master');
+ const before=r.git('status','--porcelain=v1'); const result=r.sp('plan','index','--print','--live'); assert.notEqual(result.status,0); assert.equal(result.stdout,''); assert.match(result.stderr,/Conflicting plan or specification path/); assert.equal(r.git('status','--porcelain=v1'),before);
+});
+
+test('live renderer refuses incomplete status context', () => {
+ const r=repo(); const snapshot=capturePlanSnapshot(r.root,'head');
+ assert.throws(() => generatePlansMd(snapshot,{live:true,liveContext:{statuses:new Map(),targets:new Map([[id,'master']])}}),/Live status unavailable/);
+ assert.throws(() => generatePlansMd(snapshot,{live:true,liveContext:{statuses:new Map([[id,'ready']]),targets:new Map()}}),/Live target unavailable/);
+});

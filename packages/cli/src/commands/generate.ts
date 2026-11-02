@@ -7,8 +7,7 @@ import { generatePlansMd, snapshotRecords, type LiveContext } from '../generate/
 import { checkoutRoot } from '../git/repo.js';
 import { branchExists, remoteBranchExists } from '../git/branch.js';
 import { hasOpenPR } from '../git/forge.js';
-import { run } from '../git/exec.js';
-import { planReport, targetPlanRecord, selectedPlanBranch } from '../plan/activity.js';
+import { localPlanIds, remotePlanIds, planReport, targetPlanRecord, selectedPlanBranch } from '../plan/activity.js';
 import { getEffectiveStatus, type IndexStatus } from '../plan/status.js';
 import type { PlanFrontmatter } from '../types.js';
 
@@ -30,26 +29,37 @@ export function generateCommand(opts: { print?: boolean; live?: boolean; source?
         process.stderr.write('notice: live context uses local and previously fetched refs; no fetch performed.\n');
         const targets = new Map<string, string>(), statuses = new Map<string, IndexStatus>();
         const records = snapshotRecords(snapshot);
-        for (const record of records) {
-          try {
-            const report = planReport(record.id, snapshot.config, root, record.fm as unknown as Record<string, unknown>);
-            const target = targetPlanRecord(record.id, snapshot.config, root, report);
-            const branch = selectedPlanBranch(record.id, snapshot.config, root);
-            const fm = (target?.data ?? branch?.data ?? record.fm) as unknown as PlanFrontmatter;
-            const dependencies = new Map(records.map(r => [r.id, r.fm]));
-            if (target) for (const id of fm.depends_on ?? []) {
-              const dep = targetPlanRecord(id, snapshot.config, root, report);
-              if (dep) dependencies.set(id, dep.data as unknown as PlanFrontmatter); else dependencies.delete(id);
-            }
-            const base = report.target_branch;
-            targets.set(record.id, base ?? `unavailable (${report.integration_reasons.join('; ')})`);
-            statuses.set(record.id, getEffectiveStatus(fm, dependencies, target?.config ?? snapshot.config, {
-              branchExists: id => branchExists(`plan/${id}`, root) || remoteBranchExists(`plan/${id}`, root),
-              hasOpenPr: id => !!base && hasOpenPR(`plan/${id}`, {cwd: root, forge: (target?.config ?? snapshot.config).plans.forge, base}),
-            }));
-          } catch (e) { targets.set(record.id, `unavailable (${(e as Error).message})`); }
+        const known = new Set(records.map(r => r.id));
+        const additionalRecords: typeof records = [];
+        for (const id of [...new Set([...localPlanIds(root), ...remotePlanIds(root)])].sort()) {
+          if (known.has(id)) continue;
+          const branch = selectedPlanBranch(id, snapshot.config, root);
+          if (!branch) throw new Error(`Plan branch record unavailable for ${id}.`);
+          additionalRecords.push({id, archived: false, fm: branch.data as unknown as PlanFrontmatter});
         }
-        liveContext = {targets, statuses};
+        records.push(...additionalRecords);
+        for (const record of records) {
+          const report = planReport(record.id, snapshot.config, root, record.fm as unknown as Record<string, unknown>, 'local', true);
+          const target = targetPlanRecord(record.id, snapshot.config, root, report);
+          const branch = selectedPlanBranch(record.id, snapshot.config, root);
+          if (!target || !report.target_branch || ((report.ref_freshness.plan_local || report.ref_freshness.plan_remote) && !branch)) throw new Error(`Authoritative live context unavailable for ${record.id}: ${report.integration_reasons.join('; ')}`);
+          const authoritative = target.data as unknown as PlanFrontmatter;
+          const selected = (branch?.data ?? target.data) as unknown as PlanFrontmatter;
+          const status = ['shelved', 'abandoned', 'done'].includes(authoritative.status) ? authoritative.status : selected.status;
+          const fm = {...selected, status, depends_on: authoritative.depends_on};
+          const dependencies = new Map<string, PlanFrontmatter>();
+          for (const id of fm.depends_on ?? []) {
+            const dep = targetPlanRecord(id, snapshot.config, root, report);
+            if (dep) dependencies.set(id, dep.data as unknown as PlanFrontmatter);
+          }
+          const base = report.target_branch;
+          targets.set(record.id, base);
+          statuses.set(record.id, getEffectiveStatus(fm, dependencies, target.config, {
+            branchExists: id => branchExists(`plan/${id}`, root) || remoteBranchExists(`plan/${id}`, root),
+            hasOpenPr: id => hasOpenPR(`plan/${id}`, {cwd: root, forge: target.config.plans.forge, base}),
+          }));
+        }
+        liveContext = {targets, statuses, additionalRecords};
       }
       const content = generatePlansMd(snapshot, {live: opts.live, liveContext});
       if (opts.print) { process.stdout.write(content); return; }
