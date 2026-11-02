@@ -10,6 +10,7 @@ import { blockedReason, getIndexStatus } from "../plan/status.js";
 import { makeRepo } from "../test-repo.js";
 import { toMermaid } from "./mermaid.js";
 import { generateWorkingPlansMd } from "./plans-md.js";
+import { capturePlanSnapshot } from "./snapshot.js";
 
 const plan = (id: string, status: string, deps: string[] = []) =>
   `---\nid: ${id}\ntitle: Title ${id}\nstatus: ${status}\nspecs: [feature/alpha]\n${deps.length ? `depends_on: [${deps.join(", ")}]\n` : ""}---\n# P\n`;
@@ -91,9 +92,12 @@ test("PLANS.md freshness warning", () => {
   const { config } = loadConfig(root);
   assert.equal(checkPlansMd(config, root).warnings.length, 1); // missing
   fs.writeFileSync(path.join(root, "plans", "PLANS.md"), generateWorkingPlansMd(config, root));
+  execFileSync("git", ["add", "plans/PLANS.md"], { cwd: root });
+  execFileSync("git", ["commit", "-qm", "index"], { cwd: root });
   assert.equal(checkPlansMd(config, root).warnings.length, 0);
   fs.appendFileSync(path.join(root, "plans", "PLANS.md"), "x\n");
-  assert.equal(checkPlansMd(config, root).warnings[0].type, "freshness");
+  assert.equal(checkPlansMd(config, root).warnings.length, 0); // HEAD output, not working output
+  assert.equal(checkPlansMd(config, root, capturePlanSnapshot(root, "working")).warnings[0].type, "freshness");
 });
 
 test("init: creates files, preserves AGENTS.md text, idempotent", () => {
