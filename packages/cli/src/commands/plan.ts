@@ -19,6 +19,7 @@ import { runPlans, type RunOptions } from "../plan/run.js";
 import { stepDone, type StepDoneOptions } from "../plan/step-done.js";
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
+import { resolveCommit, validateTargetBranch } from "../plan/context.js";
 import { blockedReason, getEffectiveStatus, type EffectiveStatus } from "../plan/status.js";
 import { abandonPlan, archivePlan, cleanupPlan, finishPlan, mergedStackBase, restackPlan, startPlan } from "../plan/flows.js";
 import type { Config, PlanFrontmatter } from "../types.js";
@@ -152,6 +153,9 @@ export interface PlanNewOptions {
   title?: string;
   specs?: string;
   dependsOn?: string;
+  target?: string;
+  comparisonBase?: string;
+  dryRun?: boolean;
 }
 
 /** Create a draft plan folder; returns the repository-relative PLAN.md path. */
@@ -170,7 +174,10 @@ export async function planNew(opts: PlanNewOptions, root: string, config: Config
 
   let title = opts.title?.trim();
   if (!title && interactive()) title = await ask("Title: ");
-  if (!title) throw new PlanUsageError("`plan new` needs `--title`.");
+  if (!title) {
+    const slug = id.slice(11).replace(/-/g, " ");
+    title = slug.charAt(0).toUpperCase() + slug.slice(1);
+  }
   let specs = csv(opts.specs);
   if (specs.length === 0 && interactive()) specs = csv(await ask("Spec IDs (comma-separated): "));
   if (specs.length === 0) throw new PlanUsageError("`plan new` needs `--specs` with at least one spec ID.");
@@ -180,6 +187,12 @@ export async function planNew(opts: PlanNewOptions, root: string, config: Config
   for (const s of specs) resolveSpecId(s, config, undefined, root);
   const known = new Set(existing.map((p) => p.id));
   for (const d of deps) if (!known.has(d)) throw new PlanNotFoundError(d);
+  for (const d of deps) {
+    const dependency = existing.find((p) => p.id === d)!;
+    if (parsePlan(dependency.dir).frontmatter.status === "abandoned") throw new PlanUsageError(`Dependency \`${d}\` is abandoned.`);
+  }
+  if (opts.target !== undefined) validateTargetBranch(root, opts.target, id);
+  const comparisonBase = opts.comparisonBase === undefined ? undefined : resolveCommit(root, opts.comparisonBase);
   const graph = buildGraph([
     ...existing.map((p) => ({ id: p.id, depends_on: parsePlan(p.dir).frontmatter.depends_on })),
     { id, depends_on: deps },
@@ -188,6 +201,7 @@ export async function planNew(opts: PlanNewOptions, root: string, config: Config
   if (cycle) throw new PlanUsageError(`Dependency cycle: ${cycle.join(" -> ")}.`);
 
   const dir = path.join(root, config.plans.dir, id);
+  if (opts.dryRun) return path.relative(root, path.join(dir, "PLAN.md")).split(path.sep).join("/");
   fs.mkdirSync(path.join(dir, "steps"), { recursive: true });
   const fm = [
     `id: ${id}`,
@@ -195,9 +209,12 @@ export async function planNew(opts: PlanNewOptions, root: string, config: Config
     "status: draft",
     `specs: ${JSON.stringify(specs)}`,
     ...(deps.length > 0 ? [`depends_on: ${JSON.stringify(deps)}`] : []),
+    ...(opts.target !== undefined ? [`target_branch: ${JSON.stringify(opts.target)}`] : []),
+    ...(comparisonBase !== undefined ? [`comparison_base: ${JSON.stringify(comparisonBase)}`] : []),
   ];
   fs.writeFileSync(path.join(dir, "PLAN.md"), `---\n${fm.join("\n")}\n---\n${planBody(title)}`);
   fs.writeFileSync(path.join(dir, "HANDOFF.md"), `# HANDOFF \u2014 ${id}\n`);
+  fs.writeFileSync(path.join(dir, "steps", ".gitkeep"), "");
   return path.relative(root, path.join(dir, "PLAN.md")).split(path.sep).join("/");
 }
 
@@ -206,7 +223,7 @@ export async function planNewCommand(opts: PlanNewOptions): Promise<void> {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    process.stdout.write(`Created ${await planNew(opts, root, config)}\n`);
+    process.stdout.write(`${opts.dryRun ? "Would create" : "Created"} ${await planNew(opts, root, config)}\n`);
   } catch (e) {
     if (!reportError(e)) throw e;
   }

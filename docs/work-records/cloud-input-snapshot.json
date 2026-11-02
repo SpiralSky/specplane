@@ -1,0 +1,23 @@
+{
+  "purpose": "Transport exact existing implementation inputs; not step completion",
+  "source_integration_commit": "6a620d73502037da05d14de1bd76e93b824e310a",
+  "source_plan_commit": "346425f43c83560025975ff4c14611fccd53de43",
+  "snapshot_branch": "snapshot/specplane-overnight-inputs-20261102",
+  "partial_step": {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": 2,
+    "status": "incomplete",
+    "files_sha256": {
+      "packages/cli/src/cli.ts": "7bfb1e78eec47f7c2ee3a12fbb391657eb997b171b38fe5376cdd379175bd90f",
+      "packages/cli/src/commands/plan.ts": "94149b3867e2f53882f78b5b89e6c6ceee3e96804e11d3c169a927e4e641b55b",
+      "packages/cli/src/commands/plan.test.ts": "479ce93adfd8d05c5e6ad7a19bfdb1871e38bd4eb05eff8a5183f84c0829b206"
+    }
+  },
+  "verification": {
+    "source_byte_equality": true,
+    "tests_rerun_for_transport": false,
+    "reason": "No implementation changes; source files copied exactly."
+  },
+  "excluded": "Unrelated local edits, private session logs, problems.md and draft archives",
+  "history_rewrite_authorized": false
+}

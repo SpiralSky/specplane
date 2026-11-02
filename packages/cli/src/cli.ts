@@ -39,6 +39,9 @@ plan
   .option("--title <title>", "plan title")
   .option("--specs <ids>", "comma-separated spec IDs")
   .option("--depends-on <ids>", "comma-separated plan IDs")
+  .option("--target <branch>", "intended integration branch")
+  .option("--comparison-base <commit>", "comparison baseline commit")
+  .option("--dry-run", "validate without creating the plan")
   .action((opts) => planNewCommand(opts));
 plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
 plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--json", "print the result as JSON").option("--run", "run one unattended step after starting (never finish or merge)").action((id, opts) => planStartCommand(id, opts));
