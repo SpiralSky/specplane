@@ -142,7 +142,9 @@ test("plan new: existing ID, unknown spec/plan, bad ID, missing flags exit 1", (
   assert.equal(run(root, "plan", "new", "--id", "2026-02-01-b", "--title", "T", "--specs", "feature/nope").code, 1);
   assert.equal(run(root, ...base, "--id", "2026-02-01-b", "--depends-on", "2026-09-09-nope").code, 1);
   assert.equal(run(root, ...base, "--id", "bad").code, 1);
-  assert.equal(run(root, ...base).code, 1);
+  const missingId = run(root, ...base);
+  assert.equal(missingId.code, 1);
+  assert.match(missingId.err, /Plan ID needed: pass `--id`\./);
   assert.ok(!fs.existsSync(path.join(root, "plans/2026-02-01-b")));
 });
 
@@ -182,6 +184,38 @@ test("plan new: an abandoned dependency refuses without creating files", () => {
   assert.equal(r.code, 1);
   assert.match(r.err, /abandoned/);
   assert.equal(fs.existsSync(path.join(root, "plans/2026-02-01-target")), false);
+});
+
+test("plan new: dry runs validate all inputs and leave repository contents unchanged", () => {
+  const root = newRepo();
+  const git = (...args: string[]) => spawnSync("git", args, { cwd: root, encoding: "utf8" });
+  assert.equal(git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "--allow-empty", "-m", "init").status, 0);
+  const tree = git("rev-parse", "HEAD^{tree}").stdout.trim();
+  const before = git("status", "--porcelain", "--untracked-files=all").stdout;
+  const base = ["plan", "new", "--id", "2026-02-01-preview", "--specs", "feature/alpha", "--dry-run"];
+  for (const extra of [["--target", "bad branch"], ["--comparison-base", tree], ["--depends-on", "2026-09-09-missing"]]) {
+    assert.equal(run(root, ...base, ...extra).code, 1);
+    assert.equal(git("status", "--porcelain", "--untracked-files=all").stdout, before);
+  }
+  assert.equal(run(root, ...base, "--target", "release", "--comparison-base", "HEAD").code, 0);
+  assert.equal(git("status", "--porcelain", "--untracked-files=all").stdout, before);
+  assert.equal(fs.existsSync(path.join(root, "plans/2026-02-01-preview")), false);
+});
+
+test("plan new: archived abandoned dependencies and existing dependency cycles refuse", () => {
+  const root = newRepo();
+  const archived = path.join(root, "plans/archive/2025-12-01-old/PLAN.md");
+  fs.writeFileSync(archived, plan("2025-12-01-old", "abandoned").replace("feature/x", "feature/alpha"));
+  const base = ["plan", "new", "--id", "2026-02-01-preview", "--specs", "feature/alpha"];
+  const abandoned = run(root, ...base, "--depends-on", "2025-12-01-old");
+  assert.equal(abandoned.code, 1);
+  assert.match(abandoned.err, /abandoned/);
+  fs.writeFileSync(archived, plan("2025-12-01-old", "done", "depends_on: [2026-01-01-alpha]\n").replace("feature/x", "feature/alpha"));
+  fs.writeFileSync(path.join(root, "plans/2026-01-01-alpha/PLAN.md"), plan("2026-01-01-alpha", "done", "depends_on: [2025-12-01-old]\n").replace("feature/x", "feature/alpha"));
+  const cycle = run(root, ...base);
+  assert.equal(cycle.code, 1);
+  assert.match(cycle.err, /Dependency cycle/);
+  assert.equal(fs.existsSync(path.join(root, "plans/2026-02-01-preview")), false);
 });
 
 test("plan show: active and archived plans; unknown ID exits 1", () => {
