@@ -1,4 +1,4 @@
-import { capturePlanSnapshot } from "../generate/snapshot.js";
+import { capturePlanSnapshot, hasRecoveryOperation, type PlanSnapshot } from "../generate/snapshot.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { checkStanding } from "../agents/standing.js";
@@ -6,7 +6,7 @@ import { type Harness, HARNESSES, templatesDir } from "../harness/index.js";
 import { CONFIG_PATH, loadConfig } from "../config.js";
 import { loadAdrs, validateAdrs } from "../decisions/validate.js";
 import { ConfigError, FrontmatterError, FrontmatterMissingError } from "../errors.js";
-import { generatePlansMd, plansMdPath } from "../generate/plans-md.js";
+import { generatePlansMd } from "../generate/plans-md.js";
 import { checkoutRoot } from "../git/repo.js";
 import { formatHuman } from "../output/human.js";
 import { formatJson } from "../output/json.js";
@@ -56,37 +56,42 @@ export function checkFreshness(root: string, registry: Harness[] = HARNESSES): V
 }
 
 /** PLANS.md freshness: the committed file must equal the generated one (type `freshness`). */
-export function checkPlansMd(config: Config, root: string): ValidationReport {
-  let file = path.join(config.plans.dir, "PLANS.md");
+export function checkPlansMd(config: Config | undefined, root: string, selected?: PlanSnapshot, notice?: (message: string) => void): ValidationReport {
+  let file = path.join(config?.plans.dir ?? "plans", "PLANS.md");
   let expected: string;
   let planCount = 0;
   let excluded: string[] = [];
+  let source = selected?.source ?? "head";
   try {
-    const snapshot = capturePlanSnapshot(root, "head");
+    if (!selected && hasRecoveryOperation(root)) source = "staged";
+    const snapshot = selected ?? capturePlanSnapshot(root, source as "head" | "staged");
     expected = generatePlansMd(snapshot);
     config = snapshot.config;
     file = snapshot.outputPath;
     planCount = snapshot.plans.length;
     excluded = snapshot.excluded;
-  } catch {
-    return makeReport([], []); // unparsable plans are reported by plan validation
+    notice?.(`plan index freshness source: ${snapshot.source}${excluded.length ? `; excluded pending inputs: ${excluded.join(", ")}` : ""}`);
+    if (snapshot.source === "staged" && snapshot.outputUnmerged) {
+      return makeReport([finding("warning", "freshness", file, `${file} is conflicted (source: staged); run specplane plan index --source staged, then stage ${file}.`)], [file]);
+    }
+    if (snapshot.outputBytes == null && planCount === 0) return makeReport([], [file]);
+    if (snapshot.outputBytes?.equals(Buffer.from(expected))) return makeReport([], [file]);
+    const why = snapshot.outputBytes == null ? "is missing" : "is out of date";
+    return makeReport([finding("warning", "freshness", file, `${file} ${why} (source: ${snapshot.source}${excluded.length ? `; excluded pending inputs: ${excluded.join(", ")}` : ""}); run specplane plan index${snapshot.source === "staged" ? " --source staged" : ""}.`)], [file]);
+  } catch (e) {
+    notice?.(`plan index freshness source: ${source}`);
+    return makeReport([finding("error", "freshness", file, `Cannot check plan index freshness (source: ${source}): ${(e as Error).message}`)], [file]);
   }
-  const abs = plansMdPath(config, root);
-  const exists = fs.existsSync(abs);
-  if (!exists && planCount === 0) return makeReport([], [file]);
-  if (exists && fs.readFileSync(abs, "utf8") === expected) return makeReport([], [file]);
-  const why = exists ? "is out of date" : "is missing";
-  return makeReport([finding("warning", "freshness", file, `${file} ${why} (source: head${excluded.length ? `; excluded pending inputs: ${excluded.join(", ")}` : ""}); run specplane plan index.`)], [file]);
 }
 
 /** Run every validation and merge the results. */
-export function runValidate(root: string): ValidationReport {
+export function runValidate(root: string, notice?: (message: string) => void): ValidationReport {
   let loaded;
   try {
     loaded = loadConfig(root);
   } catch (e) {
     if (e instanceof ConfigError || e instanceof FrontmatterError || e instanceof FrontmatterMissingError) {
-      return makeReport([finding("error", "config", CONFIG_PATH, e.message)], [CONFIG_PATH]);
+      return mergeReports(makeReport([finding("error", "config", CONFIG_PATH, e.message)], [CONFIG_PATH]), checkPlansMd(undefined, root, undefined, notice));
     }
     throw e;
   }
@@ -99,11 +104,11 @@ export function runValidate(root: string): ValidationReport {
   const { adrs, findings: adrLoad } = loadAdrs(config, root);
   const adrReport = validateAdrs(adrs, config, root, adrLoad);
   const plans = validatePlans(listPlans(config, root), adrs, config, root);
-  return mergeReports(configReport, specs, adrReport, plans, checkFreshness(root), checkPlansMd(config, root), makeReport(checkSkillDrift(config, root)));
+  return mergeReports(configReport, specs, adrReport, plans, checkFreshness(root), checkPlansMd(config, root, undefined, notice), makeReport(checkSkillDrift(config, root)));
 }
 
 export function validateCommand(opts: { json?: boolean }): void {
-  const report = runValidate(checkoutRoot());
+  const report = runValidate(checkoutRoot(), message => process.stderr.write(`notice: ${message}\n`));
   if (opts.json) process.stdout.write(formatJson(report));
   else process.stderr.write(formatHuman(report));
   process.exitCode = report.valid ? 0 : 1;

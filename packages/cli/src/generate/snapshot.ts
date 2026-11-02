@@ -12,6 +12,7 @@ export interface PlanSnapshot {
   source: SnapshotSource | 'prospective'; identity: string; digest: string;
   configBytes: Buffer | null; config: Config; warnings: Warning[]; plans: SnapshotFile[];
   outputPath: string; outputUnmerged: boolean; excluded: string[]; preimage: string;
+  outputBytes?: Buffer | null; outputMode?: string | null;
 }
 type Entry = { path: string; mode: string; oid: string; stage: number };
 const hash = (v: string | Buffer): string => createHash('sha256').update(v).digest('hex');
@@ -61,6 +62,11 @@ function operation(root: string): string {
   }
   return JSON.stringify(['HEAD', 'MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD', 'rebase-merge', 'rebase-apply', 'sequencer'].map(n => [n, state(git(root, ['rev-parse', '--path-format=absolute', '--git-path', n]).toString().trim())]));
 }
+/** Whether Git is currently applying a merge, cherry-pick, revert or rebase. */
+export function hasRecoveryOperation(root: string): boolean {
+  return ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD', 'rebase-merge', 'rebase-apply', 'sequencer'].some(n =>
+    fs.existsSync(git(root, ['rev-parse', '--path-format=absolute', '--git-path', n]).toString().trim()));
+}
 function digest(config: Buffer | null, files: SnapshotFile[]): string {
   const h = createHash('sha256');
   h.update(config === null ? 'missing\0' : `config:${config.length}\0`).update(config ?? Buffer.alloc(0));
@@ -90,6 +96,9 @@ function snapshot(root: string, source: SnapshotSource, ownedScratch?: string): 
     if (bytes !== null) plans.push({ path: p, bytes });
   }
   const outputPath = dir ? `${dir}/PLANS.md` : 'PLANS.md', output = readSafe(root, outputPath);
+  const outputEntry = selected.find(e => e.path === outputPath && e.stage === 0);
+  const outputBytes = source === 'working' ? output : readEntry(outputEntry);
+  const outputMode = source === 'working' ? (output === null ? null : ((fs.statSync(path.join(root, outputPath)).mode & 0o111) ? '100755' : '100644')) : outputEntry?.mode ?? null;
   const names = (args: string[]): string[] => git(root, args).toString('utf8').split('\0').filter(Boolean);
   const pending = source === 'working' ? [] : [
     ...names(['diff', '--name-only', '--no-renames', '-z']),
@@ -176,7 +185,7 @@ function snapshot(root: string, source: SnapshotSource, ownedScratch?: string): 
     }
   }
   const preimage = hash(JSON.stringify([head, hash(git(root, ['ls-files', '--stage', '-z'])), operation(root), output === null ? null : hash(output), contentDigest, hash(discovery), ignores, infoExclude, globalExclude]));
-  return { source, identity, digest: contentDigest, configBytes, config, warnings, plans, outputPath, outputUnmerged: unmerged.includes(outputPath), excluded, preimage };
+  return { source, identity, digest: contentDigest, configBytes, config, warnings, plans, outputPath, outputUnmerged: unmerged.includes(outputPath), outputBytes, outputMode, excluded, preimage };
 }
 export function capturePlanSnapshot(root: string, source: SnapshotSource = 'head'): PlanSnapshot { return snapshot(root, source); }
 /** Invoke while holding the writer lease, immediately before replacing the output. */

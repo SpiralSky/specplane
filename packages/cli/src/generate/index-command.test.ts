@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { capturePlanSnapshot } from './snapshot.js';
 import { generatePlansMd } from './plans-md.js';
+import { checkPlansMd } from '../commands/validate.js';
 const cli = fileURLToPath(new URL('../cli.js', import.meta.url));
 const id = '2026-01-01-alpha';
 const plan = (title: string, extra = '') => `---\nid: ${id}\ntitle: "${title}"\nstatus: ready\nspecs: [feature/alpha]\n${extra}---\n`;
@@ -52,6 +53,43 @@ test('staged recovery permits output conflict and refuses unresolved plan input'
  r.put(f,plan('resolved')); r.git('add',f); const before=fs.readFileSync(path.join(r.root,'plans/PLANS.md'),'utf8');
  const head=r.sp('plan','index'); assert.notEqual(head.status,0); assert.match(head.stderr,/--source staged/); assert.equal(fs.readFileSync(path.join(r.root,'plans/PLANS.md'),'utf8'),before);
  const staged=r.sp('plan','index','--source','staged'); assert.equal(staged.status,0,staged.stderr); assert.match(fs.readFileSync(path.join(r.root,'plans/PLANS.md'),'utf8'),/\| resolved \|/); assert.match(r.git('ls-files','-u'),/PLANS\.md/);
+});
+test('freshness compares each selected output and reports source even when fresh', () => {
+ const r=repo(), f=`plans/${id}/PLAN.md`, out='plans/PLANS.md';
+ fs.mkdirSync(path.join(r.root,'docs/specifications'),{recursive:true});
+ r.put(out,generatePlansMd(capturePlanSnapshot(r.root))); r.git('add',out); r.git('commit','-qm','head index');
+ r.put(f,plan('staged')); r.git('add',f); const staged=capturePlanSnapshot(r.root,'staged');
+ r.put(out,generatePlansMd(staged)); r.git('add',out); r.put(f,plan('working')); r.put(out,'different working output\n');
+ const notes:string[]=[];
+ for (const source of ['head','staged'] as const) {
+  const snap=capturePlanSnapshot(r.root,source); assert.equal(checkPlansMd(snap.config,r.root,snap,n=>notes.push(n)).warnings.length,0);
+  assert.equal(snap.outputMode,'100644');
+ }
+ const working=capturePlanSnapshot(r.root,'working'); assert.equal(checkPlansMd(working.config,r.root,working).warnings.length,1);
+ assert.match(notes.join('\n'),/source: head.*excluded pending inputs/); assert.match(notes.join('\n'),/source: staged.*excluded pending inputs/);
+ const result=r.sp('validate','--json'); assert.doesNotThrow(()=>JSON.parse(result.stdout)); assert.match(result.stderr,/freshness source: head/);
+ r.put('.specplane/config.yaml','plans: [invalid\n');
+ const invalid=r.sp('validate','--json'); assert.doesNotThrow(()=>JSON.parse(invalid.stdout)); assert.match(invalid.stderr,/freshness source: head/);
+});
+for (const kind of ['merge','rebase','cherry-pick'] as const) test(`${kind} recovery uses resolved staged inputs through continuation`, () => {
+ const r=repo(), f=`plans/${id}/PLAN.md`, out='plans/PLANS.md', other='other.txt';
+ fs.mkdirSync(path.join(r.root,'docs/specifications'),{recursive:true});
+ r.put(out,'base\n'); r.put(other,'base\n'); r.git('add','-A'); r.git('commit','-qm','base outputs');
+ r.git('checkout','-qb','side'); r.put(f,plan('side')); r.put(out,'side\n'); r.put(other,'side\n'); r.git('commit','-qam','side'); const side=r.git('rev-parse','HEAD');
+ r.git('checkout','-q','master'); r.put(f,plan('main')); r.put(out,'main\n'); r.put(other,'main\n'); r.git('commit','-qam','main');
+ if (kind === 'rebase') r.git('checkout','-q','side');
+ try { if (kind === 'merge') r.git('merge','side'); else if (kind === 'rebase') r.git('rebase','master'); else r.git('cherry-pick',side); } catch { /* expected conflicts */ }
+ const bad=r.sp('plan','index','--source','staged'); assert.notEqual(bad.status,0); assert.match(bad.stderr,/Unresolved plan input/);
+ const before=fs.readFileSync(path.join(r.root,out)); const index=r.git('ls-files','-u');
+ const validation=r.sp('validate','--json'); assert.match(validation.stdout,/Unresolved plan input/); assert.equal(r.git('ls-files','-u'),index); assert.deepEqual(fs.readFileSync(path.join(r.root,out)),before);
+ r.put(f,plan('resolved')); r.git('add',f); const input=fs.readFileSync(path.join(r.root,f));
+ const refused=r.sp('plan','index'); assert.notEqual(refused.status,0); assert.match(refused.stderr,/--source staged/);
+ const pending=r.git('ls-files','-u'); const notice=r.sp('validate','--json'); assert.match(notice.stderr,/freshness source: staged/); assert.match(notice.stdout,/is conflicted/);
+ const rendered=r.sp('plan','index','--source','staged'); assert.equal(rendered.status,0,rendered.stderr); const bytes=fs.readFileSync(path.join(r.root,out)); assert.match(bytes.toString(),/\| resolved \|/);
+ assert.deepEqual(fs.readFileSync(path.join(r.root,f)),input); assert.equal(r.git('ls-files','-u'),pending);
+ r.put(other,'resolved other\n'); r.git('add',out,other);
+ if (kind === 'merge') r.git('-c','core.editor=true','commit','-qm','resolved merge'); else r.git('-c','core.editor=true',kind,'--continue');
+ const regeneration=r.sp('plan','index'); assert.equal(regeneration.status,0,regeneration.stderr); assert.deepEqual(fs.readFileSync(path.join(r.root,out)),bytes);
 });
 test('unborn and detached head behavior is explicit', () => {
  const r=repo(); r.git('checkout','--detach','-q'); assert.equal(r.sp('plan','index','--print').status,0);
