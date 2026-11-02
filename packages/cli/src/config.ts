@@ -161,13 +161,18 @@ function checkCrossFields(config: Config, root: string, opts: LoadConfigOptions)
  */
 export function loadConfig(root: string, opts: LoadConfigOptions = {}): { config: Config; warnings: Warning[] } {
   const file = path.join(root, CONFIG_PATH);
+  return parseConfigText(fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null, root, opts);
+}
+
+/** Parse configuration bytes from a committed tree without consulting working files. */
+export function parseConfigText(text: string | null, root: string, opts: LoadConfigOptions = {}): { config: Config; warnings: Warning[] } {
   const warnings: Warning[] = [];
   let raw: unknown = {};
-  if (!fs.existsSync(file)) {
+  if (text === null) {
     warnings.push({ message: "No `.specplane/config.yaml` found; using defaults." });
   } else {
     try {
-      raw = yaml.load(fs.readFileSync(file, "utf8"), { schema: yaml.JSON_SCHEMA }) ?? {};
+      raw = yaml.load(text, { schema: yaml.JSON_SCHEMA }) ?? {};
     } catch (e) {
       throw new ConfigError(CONFIG_PATH, `malformed YAML: ${(e as Error).message.split("\n")[0]}`);
     }
