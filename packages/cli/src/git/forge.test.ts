@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
 import { ForgeError } from "../errors.js";
-import { createPR, getOpenPR, hasOpenPR } from "./forge.js";
+import { createPR, getOpenPR, hasOpenPR, mergedPRCommit } from "./forge.js";
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "specplane-forge-"));
 
@@ -39,6 +39,17 @@ function withPath<T>(front: string | null, fn: () => T): T {
 }
 
 const GH = "https://github.com/o/r.git";
+
+test("forge: PR queries bind the requested target and merged evidence binds exact head", () => {
+  const cwd = repo(GH); const head = "a".repeat(40), merge = "b".repeat(40);
+  const open = stubGh('[{"url":"https://github.com/o/r/pull/9"}]');
+  assert.ok(withPath(open.dir, () => hasOpenPR("plan/a", {cwd, forge:"auto", base:"candidate"})));
+  assert.match(fs.readFileSync(open.log, "utf8"), /--base\ncandidate\n/);
+  const merged = stubGh(JSON.stringify([{headRefOid:head,baseRefName:"candidate",mergeCommit:{oid:merge}}]));
+  assert.equal(withPath(merged.dir, () => mergedPRCommit("plan/a", "candidate", head, {cwd,forge:"auto"})), merge);
+  assert.equal(withPath(merged.dir, () => mergedPRCommit("plan/a", "candidate", "c".repeat(40), {cwd,forge:"auto"})), null);
+  assert.equal(withPath(merged.dir, () => mergedPRCommit("plan/a", "other", head, {cwd,forge:"auto"})), null);
+});
 
 test("forge: createPR uses gh with an argument array (no shell)", () => {
   const cwd = repo(GH);

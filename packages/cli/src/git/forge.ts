@@ -6,6 +6,7 @@ import { run } from "./exec.js";
 export interface ForgeOpts {
   cwd: string;
   forge: Config["plans"]["forge"];
+  base?: string;
 }
 
 /**
@@ -54,7 +55,7 @@ export function createPR(branch: string, base: string, title: string, body: stri
 /** `gh pr list --head <branch> --state open --json url`; returns the first URL, or null. */
 export function getOpenPR(branch: string, opts: ForgeOpts): string | null {
   if (!available(opts)) return null;
-  const out = gh(["pr", "list", "--head", branch, "--state", "open", "--json", "url"], opts.cwd);
+  const out = gh(["pr", "list", "--head", branch, ...(opts.base ? ["--base", opts.base] : []), "--state", "open", "--json", "url"], opts.cwd);
   let list: unknown;
   try {
     list = JSON.parse(out || "[]");
@@ -63,6 +64,20 @@ export function getOpenPR(branch: string, opts: ForgeOpts): string | null {
   }
   const first = Array.isArray(list) ? (list[0] as { url?: unknown } | undefined) : undefined;
   return typeof first?.url === "string" ? first.url : null;
+}
+
+/** Forge evidence identifies the exact merged head and merge commit for a target. */
+export function mergedPRCommit(branch: string, base: string, head: string, opts: ForgeOpts): string | null {
+  try {
+    if (!available(opts)) return null;
+    const out = gh(["pr", "list", "--head", branch, "--base", base, "--state", "merged", "--json", "headRefOid,baseRefName,mergeCommit", "--limit", "100"], opts.cwd);
+    const list: unknown = JSON.parse(out);
+    if (!Array.isArray(list)) return null;
+    for (const item of list) {
+      if (item?.headRefOid === head && item?.baseRefName === base && typeof item?.mergeCommit?.oid === "string" && /^[0-9a-f]{40,64}$/.test(item.mergeCommit.oid)) return item.mergeCommit.oid;
+    }
+  } catch { /* Forge availability is not integration proof. */ }
+  return null;
 }
 
 /** Read-only status query: true when an open PR exists; any forge failure counts as "no PR". */

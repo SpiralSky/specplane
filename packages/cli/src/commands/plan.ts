@@ -13,7 +13,7 @@ import { ID_RE_PLAN, planBody } from "../plan/new-template.js";
 import { hasOpenPR } from "../git/forge.js";
 import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { checkoutRoot } from "../git/repo.js";
-import { fetchPlanBranches, getPlanActivity, hasRemote, remotePlanFrontmatter, remotePlanIds, type PlanActivity } from "../plan/activity.js";
+import { fetchPlanBranches, getPlanActivity, hasRemote, remotePlanFrontmatter, remotePlanIds, localPlanIds, planReport, planTextAt, lenientFrontmatter, type PlanActivity, type PlanReport } from "../plan/activity.js";
 import { formatNext, planNext } from "../plan/next.js";
 import { attentionFor, type Attention } from "../plan/alerts.js";
 import { runPlans, type RunOptions } from "../plan/run.js";
@@ -39,7 +39,7 @@ export interface PlanListOptions {
   fetch?: boolean;
 }
 
-export interface PlanListRow {
+export interface PlanListRow extends PlanReport {
   id: string;
   title: string;
   stored_status: string;
@@ -58,6 +58,7 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
   }
   const problems: string[] = [];
   const notices: string[] = [];
+  let freshness: PlanReport["ref_freshness"]["fetch"] = "local";
   const parsed: { fm: PlanFrontmatter; archived: boolean }[] = [];
   for (const rec of listPlans(config, root)) {
     try {
@@ -68,13 +69,14 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
     }
   }
   if (opts.live) {
-    if (opts.fetch !== false && hasRemote(root) && !fetchPlanBranches(root)) {
-      notices.push("notice: could not fetch origin; showing local refs");
+    if (opts.fetch !== false && hasRemote(root)) {
+      if (!fetchPlanBranches(root)) { freshness = "failed"; notices.push("notice: could not fetch origin; showing local refs"); }
+      else freshness = "fetched";
     }
     const known = new Set(parsed.map((p) => p.fm.id));
-    for (const id of remotePlanIds(root)) {
+    for (const id of new Set([...localPlanIds(root), ...remotePlanIds(root)])) {
       if (known.has(id)) continue;
-      const fm = remotePlanFrontmatter(id, config, root);
+      const fm = remotePlanFrontmatter(id, config, root, branchExists(`plan/${id}`, root) ? `plan/${id}` : `origin/plan/${id}`);
       if (fm) parsed.push({ fm, archived: false });
       else problems.push(`Skipped ${id}: PLAN.md on origin/plan/${id} is missing or invalid.`);
     }
@@ -87,10 +89,10 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
   }
   const git = {
     branchExists: (id: string) => branchExists(`plan/${id}`, root) || remoteBranchExists(`plan/${id}`, root),
-    hasOpenPr: (id: string) => hasOpenPR(`plan/${id}`, { cwd: root, forge: config.plans.forge }),
+    hasOpenPr: (id: string) => { const fm = byId.get(id); const target = planReport(id, config, root, fm as unknown as Record<string, unknown> ?? null, freshness).target_branch; return target ? hasOpenPR(`plan/${id}`, { cwd: root, forge: config.plans.forge, base: target }) : false; },
   };
   const rows: (PlanListRow | LivePlanListRow)[] = parsed
-    .map(({ fm, archived }) => ({
+    .map(({ fm, archived }) => { const report = planReport(fm.id, config, root, fm as unknown as Record<string, unknown>, freshness); return ({
       id: fm.id,
       title: fm.title,
       stored_status: fm.status,
@@ -98,8 +100,9 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
       depends_on: fm.depends_on ?? [],
       specs: fm.specs,
       archived,
-      ...(opts.live ? { ...getPlanActivity(fm.id, config, root), attention: (() => { try { return attentionFor(planNext(fm.id, config, root)); } catch (e) { return [{kind:"unavailable",detail:(e as Error).message,command:`specplane plan show ${fm.id}`}]; } })() } : {}),
-    }))
+      ...report,
+      ...(opts.live ? { ...getPlanActivity(fm.id, config, root, report.target_branch), attention: (() => { try { return attentionFor(planNext(fm.id, config, root)); } catch (e) { return [{kind:"unavailable",detail:(e as Error).message,command:`specplane plan show ${fm.id}`}]; } })() } : {}),
+    }); })
     .filter((r) => opts.status === undefined || r.effective_status === opts.status)
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
   if (opts.live) {
@@ -130,7 +133,7 @@ export function formatPlanList(rows: (PlanListRow | LivePlanListRow)[], blockedR
   return rows
     .map((r) => {
       const reason = r.effective_status === "blocked" ? blockedReasons.get(r.id) : undefined;
-      return `${r.id.padEnd(w1)}  ${r.title.padEnd(w2)}  ${r.effective_status}${reason ? `  ${reason}` : ""}\n` + ("where" in r ? activityLine(r) : "");
+      return `${r.id.padEnd(w1)}  ${r.title.padEnd(w2)}  ${r.effective_status}${reason ? `  ${reason}` : ""}  target ${r.target_branch ?? "unknown"}, start ${r.start_base ?? "unknown"}${r.comparison_base ? `, comparison ${r.comparison_base}` : ""}, integration ${r.integration_status}\n` + ("where" in r ? activityLine(r) : "");
     })
     .join("");
 }
@@ -232,7 +235,12 @@ export async function planNewCommand(opts: PlanNewOptions): Promise<void> {
 
 /** PLAN.md text (frontmatter included) of an active or archived plan. */
 export function planShow(id: string, root: string, config: Config): string {
-  return fs.readFileSync(path.join(planDir(id, config, root), "PLAN.md"), "utf8");
+  const ref = branchExists(`plan/${id}`, root) ? `plan/${id}` : remoteBranchExists(`plan/${id}`, root) ? `origin/plan/${id}` : null;
+  let text: string;
+  if (ref) text = planTextAt(ref, id, config, root) ?? fs.readFileSync(path.join(planDir(id, config, root), "PLAN.md"), "utf8");
+  else text = fs.readFileSync(path.join(planDir(id, config, root), "PLAN.md"), "utf8");
+  const report = planReport(id, config, root, lenientFrontmatter(text));
+  return `${text}${text.endsWith("\n") ? "" : "\n"}\nDerived plan context:\n${JSON.stringify(report, null, 2)}\n`;
 }
 
 export function planShowCommand(id: string): void {
