@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "8fbdb9eb734b2567f575f3d6af4235999323a300",
+  "integrated_commit": "f80645a7ebcafc8998ca131480dbe6e886fde8f6",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -148,12 +148,41 @@
     {
       "step": "target-lifecycle/4",
       "agent": "target_4",
+      "status": "integrated;480 full regression passed",
+      "base": "8fbdb9eb734b2567f575f3d6af4235999323a300",
+      "commit": "c2699de",
+      "tests": "84 affected plus final status case passed; cleanup/evidence defects remain"
+    },
+    {
+      "step": "target-lifecycle/4 repair2",
+      "agent": "target_4_repair2",
+      "status": "integrated;480 full regression passed",
+      "base": "c2699dec972cac4621aab3fcae498f26aed2e113",
+      "started_utc": "2026-11-02T16:26:14.458918+00:00"
+    },
+    {
+      "step": "target-lifecycle/4 ignored preservation",
+      "agent": "target_4_repair3",
+      "status": "integrated;480 full regression passed",
+      "commit": "050e5a6",
+      "tests": "99 affected plus7 focused pass"
+    },
+    {
+      "step": "target-lifecycle/4 dry-run parity",
+      "agent": "target_4_parity",
+      "status": "integrated;480 full regression passed",
+      "commit": "5193b5d",
+      "tests": "8 focused pass"
+    },
+    {
+      "step": "target-lifecycle/5",
+      "agent": "target_5",
       "status": "running",
-      "base": "8fbdb9eb734b2567f575f3d6af4235999323a300"
+      "base": "f80645a7ebcafc8998ca131480dbe6e886fde8f6"
     }
   ],
   "next": [
-    "Review target_4 result and integrate repairs serially; then fresh target5 and target6 workers",
+    "Review target_5 retarget result, repair and integrate; then fresh target6 with target-aware planNext/attention and safe cleanup",
     "Dispatch fresh target4 then5 then6 workers",
     "Plan-index1/2/3 follow target lifecycle, then workflow recording and manual lifecycle",
     "Product docs follows manual lifecycle, completion and indexing; packaging follows docs; delivery hosts in parallel then conformance"
@@ -166,7 +195,7 @@
   "processes": [],
   "remote_checkpoint": {
     "branch": "overnight/specplane-20261102T144630Z",
-    "commit": "1983abb",
+    "commit": "c705aff",
     "status": "pushed"
   },
   "baseline_validation": {
@@ -219,9 +248,14 @@
   },
   "updated_utc": "2026-11-02T15:23:18.404060+00:00",
   "combined_regression": {
-    "passed": 441,
+    "passed": 480,
     "failed": 0,
     "skipped": 0,
-    "log": "target-step3-integrated-tests.log"
+    "log": "target-step4-integrated-tests.log"
+  },
+  "acceptance_counts": {
+    "verified": 44,
+    "pending": 156,
+    "blocked": 2
   }
 }

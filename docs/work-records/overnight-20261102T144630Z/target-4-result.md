@@ -1,0 +1,39 @@
+# Target lifecycle step 4 result
+
+- Checkout: `/workspace/overnight/target-4`; branch `overnight/target-4`.
+- Base: `8fbdb9eb734b2567f575f3d6af4235999323a300`; implementation: `c1baa5f427a32aa6dd37cc5a04074936f8cc2cef`; review repair/result: `c2699dec972cac4621aab3fcae498f26aed2e113`.
+- Commit: `feat(plan): finish and restack against recorded targets`, with Specplane agent/workflow/plan/step trailers.
+- Changed: `packages/cli/src/plan/{flows.ts,lifecycle-context.ts,prepare-start.ts,finish.test.ts,lifecycle.test.ts}` and `packages/cli/src/git/forge.ts` and `packages/cli/src/commands/plan.ts`. No formal plan/spec/status files were edited. No publication or live host/model tests were performed.
+
+## Criteria mapping
+
+1. **Recorded destination and legacy refusal** — `lifecycle-context.ts` reads both committed plan branch snapshots, validates identity/binding/provenance and reconciles target refs; loads target-local config and record. `flows.ts` uses its captured target commit for rebase/restack and its branch for PR/local merge, finds the target checkout, checks clean/index state, and refuses ambiguous unbound legacy, stale/divergent refs and inconsistent records. `matchingOpenPR` refuses a conflicting base and rechecks before push. Evidence: nondefault local merge, missing checkout refusal, remote-ahead rebase, scripted forge nondefault base and wrong-base tests; start/context suites cover underlying snapshot validation.
+2. **Acceptance invalidation, stacks and recovery** — finish requires direct confirmation of the captured pre-finalization state and a second confirmation of the final head before local merge; `--yes` cannot substitute for either. Unattended invocation stops before writing the finish/done commit. References and leases are rechecked after challenges. A manual done edit without a matching finish commit refuses. Finish and restack validate dependency bindings; finish conflict aborts while restack conflict leaves the rebase for human recovery. Original binding/comparison are checked after rebase. Evidence: target movement, target movement during a confirmation callback, nondefault confirmation, manual-done, cross-target refusal and existing conflict-preservation tests. Scripted confirmation and forge ports are simulations, not live human or forge certification.
+
+Actual writer operations take ordered repository/plan/checkout leases and recheck snapshots. A ready/refusal result may have fetched refs, run tests, made a frontmatter review claim on the target, or rebased the plan branch; it does not create a done commit without finalization confirmation. If finalization is confirmed but merge confirmation is declined, the finish commit remains; retry recognizes its matching finish trailers and does not duplicate it. Existing divergent remote plan history after an applied rebase may require explicit reconciliation before a retry. Failed claim publication leaves the claim commit and reports its identity; other partial failures preserve the checkout and need inspection.
+
+## Verification
+
+- `npm ci --cache /workspace/.npm-cache --prefer-offline --no-audit --no-fund`: passed, 23 packages installed locally.
+- `npm run build`: passed at final source, including TypeScript.
+- `timeout 180s node --test dist/plan/finish.test.js dist/plan/lifecycle.test.js dist/plan/first-start.test.js dist/plan/prepare-start.test.js`: 67 passed, 0 failed, 0 skipped before the final manual-done guard and extra PR-base test; log `/workspace/overnight/state/target-4-tests-settlement.log`.
+- `timeout 180s node --test dist/plan/flows.test.js dist/plan/context.test.js dist/plan/target-report.test.js`: 39 passed, 0 failed, 0 skipped; `/workspace/overnight/state/target-4-tests-start.log`.
+- `timeout 90s node --test --test-name-pattern 'manual done|target movement|confirmation refuses|without --yes' dist/plan/finish.test.js`: 4 passed, 0 failed, 0 skipped at final production code; `/workspace/overnight/state/target-4-tests-recovery.log`.
+- `timeout 90s node --test --test-name-pattern 'forge receives the recorded nondefault PR base' dist/plan/finish.test.js`: 1 passed, 0 failed, 0 skipped at final commit; `/workspace/overnight/state/target-4-tests-pr-base.log`.
+- Earlier PR-focused run: 6 passed, 0 failed, `/workspace/overnight/state/target-4-tests-pr.log`. `git diff --check` passed.
+- The first sandboxed suite stalled in Git subprocesses, was terminated as its owned process tree, and emitted no test results (`target-4-tests.log`). Subsequent bounded Git suites used supported `require_escalated` execution and completed. Initial iterative failures are preserved in `target-4-tests-escalated.log` and `target-4-tests-confirm.log`; they were corrected and rerun as described above.
+
+Limitations: no private receipts exist or are asserted; the human callback challenges live state rather than claiming core receipt machinery. Explicit retarget and shelving writers remain later assignments. Full combined repository suite and live forge/host certification were not run in this worker. Timing: final commit recorded 2026-11-02 16:13 UTC; complete worker start time and token usage not captured. All owned test processes have exited.
+
+
+## Independent review repair
+
+Independent review `/workspace/overnight/state/target-4-review.md` identified five issues, addressed in `c2699dec972cac4621aab3fcae498f26aed2e113`:
+
+1. Every finalized retry obtains fresh finish acceptance for the current head and target; local merge and PR publication then each have a separate fresh confirmation. Tests rerun when rebase changes HEAD. Both PR and local moved-target retries stop unattended.
+2. PR publication rechecks the finalized local head, clean checkout and captured remote tracking ref, then pushes the exact reviewed commit with `--force-with-lease=refs/heads/plan/<id>:<captured-sha>` (empty expectation for an absent ref). Tests move the local head and tracking ref in confirmation callbacks and verify no remote plan is published.
+3. Target branch, HEAD, worktree and index are rechecked after test execution and after confirmation; tests preserve both staged and unstaged target edits and ensure no review claim or finish commit follows an unsafe change.
+4. Local merge failure to push reports the integrated target commit and a retry verifies ancestry/finish identity, publishes that existing merge and cleans up without a second merge. A failed review claim push reports its local claim and retries its publication. PR creation failure reports the pushed branch and exact head; push failure states that remote outcome may be uncertain. Failed finish hooks restore the operation-owned edits only when captured HEAD/index/worktree evidence is unchanged; unexpected hook edits are retained and reported. Restack marker failure reports the rewritten HEAD and recovery need. Disposable-repository tests cover these cases.
+5. CLI now distinguishes unfinalized readiness from finalized integration readiness and completed finish. A separate mode-aware lifecycle check rejects draft and incompatible target or branch statuses for finish/restack.
+
+Post-review verification: final `npm run build` passed. `timeout 180s node --test dist/plan/finish.test.js dist/plan/lifecycle.test.js dist/plan/first-start.test.js dist/plan/prepare-start.test.js` passed **84/84**, 0 failed/skipped, at final production code, before the final additional branch-status test; log `/workspace/overnight/state/target-4-review-settlement.log`. The added branch-status case passed separately (**1/1**) after the final build, `/workspace/overnight/state/target-4-review-status.log`. Earlier repair full run passed 83/83, `/workspace/overnight/state/target-4-review-final.log`; final focused recovery and race tests passed 9/9, `/workspace/overnight/state/target-4-review-final-focused.log`. No live forge or human sessions were used; callback and forge evidence is scripted. Git diff check passed and no owned test processes remain.
