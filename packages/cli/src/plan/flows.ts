@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { acquireWriterLease } from "../core/writer-leases.js";
-import { lifecycleContext, checkStackTarget, recheckLifecycleRefs } from "./lifecycle-context.js";
+import { lifecycleContext, checkStackTarget, recheckLifecycleRefs, requireStackIntegration } from "./lifecycle-context.js";
 import { resolveCommit } from "./context.js";
 import { isDeepStrictEqual } from "node:util";
 import { planAt as validatedPlanAt } from "./prepare-start.js";
@@ -96,7 +96,10 @@ export function mergedStackBase(id: string, config: Config, cwd: string, target?
   const subject = run("git", ["log", "-1", "--format=%s", marker], { cwd }).trim();
   const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
   const tip = defaultTip(target ?? defaultBranch(cwd), cwd);
-  if (baseId && planAt(tip, baseId, config, cwd)?.status === "done" && readTrailers(marker, cwd).has("Specplane-Stack-Base")) return baseId;
+  const stored = readTrailers(marker, cwd).get("Specplane-Stack-Base")?.at(-1);
+  if (baseId && stored && planAt(tip, baseId, config, cwd)?.status === "done") {
+    try { requireStackIntegration(baseId, target ?? defaultBranch(cwd), revParse(tip, cwd), resolveCommit(cwd, stored, true), config, cwd, {}); return baseId; } catch { /* A declaration alone is not a merge. */ }
+  }
   return null;
 }
 
@@ -317,6 +320,7 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
       const base = validatedPlanAt(main, tip, config, baseId);
       if (base?.status !== "done" || base.execution?.target_branch !== def) throw new PlanStateError("Stack dependency lacks compatible recorded target.");
     }
+    requireStackIntegration(baseId, def, tip, stackBase!, config, main, p.refs);
   }
   lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
   const existingPR = merge === "pull_request" ? matchingOpenPR(branch, def, { cwd: root, forge: config.plans.forge }) : null;
@@ -773,6 +777,7 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
   let baseCommit = tip;
   if (planIds.includes(baseId)) baseCommit = checkStackTarget(baseId, def, config, main, p.refs);
   else if (!merged || baseRecord?.execution?.target_branch !== def) throw new PlanStateError(`Stack dependency ${baseId} lacks compatible recorded target.`);
+  if (merged) requireStackIntegration(baseId, def, tip, upstream, config, main, p.refs);
   let newBase = tip;
   if (!merged) {
     newBase = baseCommit;

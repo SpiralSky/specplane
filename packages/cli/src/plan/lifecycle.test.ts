@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { makeRepo } from "../test-repo.js";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "cli.js");
-const ENV = {
+const ENV: NodeJS.ProcessEnv = {
   ...process.env,
   GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t",
   SPECPLANE_AGENT: "", SPECPLANE_SESSION: "",
@@ -172,7 +172,7 @@ test("archive: moves done and abandoned plans; errors otherwise", () => {
 
 /** A started, B stacked on A, each with one own commit. */
 function stacked(): R {
-  const r = repo("  dependency_mode: stack\n");
+  const r = repo("  dependency_mode: stack\n  merge: local_merge\n");
   start(r, A);
   commitFile(wtOf(r, A), "a.txt", "a\n", "alpha work");
   start(r, B);
@@ -188,6 +188,20 @@ test("restack: after a squash merge only beta's own commits are replayed (Scenar
   git(wa, "commit", "-qam", "alpha done");
   git(r.root, "merge", "-q", "--squash", `plan/${A}`);
   git(r.root, "commit", "-q", "-m", "squash alpha");
+  // A scripted forge ties the squash to the exact dependency head and target.
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-forge-"));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-gh-"));
+  ownedDirs.push(bare, bin);
+  git(bare, "init", "-q", "--bare");
+  git(r.root, "remote", "add", "origin", "https://github.com/example/repo.git");
+  git(r.root, "config", `url.${bare}.insteadOf`, "https://github.com/example/repo.git");
+  git(r.root, "push", "-q", "origin", "main", `plan/${A}`);
+  const head = git(r.root, "rev-parse", `plan/${A}`);
+  const merge = git(r.root, "rev-parse", "main");
+  fs.writeFileSync(path.join(bin, "gh"), `#!/bin/sh\nif [ "$1" = "--version" ]; then echo gh; else echo '[{"headRefOid":"${head}","baseRefName":"main","mergeCommit":{"oid":"${merge}"}}]'; fi\n`, { mode: 0o755 });
+  const oldPath = ENV.PATH;
+  ENV.PATH = `${bin}${path.delimiter}${oldPath}`;
+  try {
   const before = git(r.root, "rev-parse", `plan/${B}`);
   const live = sp(r.root, "plan", "list", "--live", "--no-fetch");
   assert.equal(live.code, 0, live.err);
@@ -214,6 +228,42 @@ test("restack: after a squash merge only beta's own commits are replayed (Scenar
   assert.equal(resume.code, 0, resume.err);
   assert.doesNotMatch(resume.err, /has merged/);
   assert.doesNotMatch(sp(r.root, "plan", "list", "--live", "--no-fetch").err, /has merged/);
+  } finally { ENV.PATH = oldPath; }
+});
+
+test("manual done without integration refuses restack and finish without changing the child", () => {
+  const r = stacked();
+  const file = path.join(r.root, "plans", A, "PLAN.md");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: done"));
+  git(r.root, "commit", "-qam", "manual done");
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  assert.doesNotMatch(sp(r.root, "plan", "list", "--live", "--no-fetch").err, /has merged/);
+  for (const args of [["plan", "restack", B, "--dry-run"], ["plan", "restack", B], ["plan", "finish", B]]) {
+    const res = sp(args[1] === "finish" ? wtOf(r, B) : r.root, ...args);
+    assert.equal(res.code, 1, res.err);
+    assert.match(res.err, /integration .* unverified/);
+    assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+    assert.equal(git(r.root, "show", `plan/${B}:a.txt`), "a");
+    assert.equal(git(r.root, "show", `plan/${B}:b.txt`), "b");
+  }
+});
+
+test("restack accepts contained dependency head but refuses removed branch without evidence", () => {
+  for (const removed of [false, true]) {
+    const r = stacked();
+    const wa = wtOf(r, A);
+    const file = path.join(wa, "plans", A, "PLAN.md");
+    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: done"));
+    git(wa, "commit", "-qam", "done");
+    git(r.root, "merge", "-q", "--no-ff", `plan/${A}`, "-m", "integrate alpha");
+    const before = git(r.root, "rev-parse", `plan/${B}`);
+    if (removed) { git(r.root, "worktree", "remove", wa); git(r.root, "branch", "-D", `plan/${A}`); }
+    const res = sp(r.root, "plan", "restack", B);
+    assert.equal(res.code, removed ? 1 : 0, res.err);
+    if (removed) { assert.match(res.err, /integration .* unverified/); assert.equal(git(r.root, "rev-parse", `plan/${B}`), before); }
+    assert.equal(git(r.root, "show", `plan/${B}:a.txt`), "a");
+    assert.equal(git(r.root, "show", `plan/${B}:b.txt`), "b");
+  }
 });
 
 test("restack: unmerged base appends a new marker; second run is a no-op", () => {

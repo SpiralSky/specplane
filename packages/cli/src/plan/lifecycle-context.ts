@@ -8,6 +8,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { listWorktrees } from "../git/worktree.js";
 import { lenientFrontmatter, showFile } from "./activity.js";
+import { mergedPRCommit } from "../git/forge.js";
 
 /** Uncommitted execution bindings never become managed execution context. */
 export function refusePendingRetarget(id: string, config: Config, cwd: string): void {
@@ -64,6 +65,18 @@ export function checkStackTarget(id: string, expected: string, config: Config, c
   const selected = validatePlanBranches(cwd, id, { local: snapshot(cwd, refs[l], id, config), remote: snapshot(cwd, refs[r], id, config) });
   if (!selected?.binding || selected.binding.target_branch !== expected) throw new PlanStateError(`Stack dependency ${id} lacks compatible recorded target.`);
   return selected.commit;
+}
+
+/** Prove the exact compatible dependency head, including the inherited snapshot, reached the selected target. */
+export function requireStackIntegration(id: string, target: string, tip: string, upstream: string, config: Config, cwd: string, refs: Record<string, string | null>): void {
+  const fail = () => { throw new PlanStateError(`Cannot unstack: integration of dependency \`${id}\` into \`${target}\` is unverified; reconcile the dependency and target evidence before retrying.`); };
+  let head: string;
+  try { head = checkStackTarget(id, target, config, cwd, refs); } catch { return fail(); }
+  const ancestor = (a: string, b: string) => { try { run("git", ["merge-base", "--is-ancestor", a, b], { cwd }); return true; } catch { return false; } };
+  if (!ancestor(upstream, head)) return fail();
+  if (ancestor(head, tip)) return;
+  const merge = mergedPRCommit(`plan/${id}`, target, head, { cwd, forge: config.plans.forge });
+  if (!merge || !ancestor(merge, tip)) return fail();
 }
 export function recheckLifecycleRefs(cwd: string, refs: Record<string, string | null>): void {
   for (const [name, value] of Object.entries(refs)) if (ref(cwd, name) !== value) throw new PlanStateError(`Ref ${name} changed during operation; retry.`);
