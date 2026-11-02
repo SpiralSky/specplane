@@ -28,7 +28,13 @@ test('shelve and resume retain a dirty plan checkout and override its stale stat
  const lease=acquireWriterLease({repository:true,plans:[id],checkouts:[root,wt],requestId:'worker-test'}); assert.throws(()=>shelveTransition(id,'shelve',config,root),/lease|held/i); lease.release();
  const head=git(root,'rev-parse','HEAD');const preview=shelveTransition(id,'shelve',config,root,{dryRun:true});assert.equal(preview.dryRun,true);assert.equal(preview.commit,null);assert.equal(git(root,'rev-parse','HEAD'),head);assert.equal(git(root,'status','--porcelain'),'');
  const hook=path.join(root,'.git','hooks','pre-commit');fs.writeFileSync(hook,'#!/bin/sh\nexit 1\n',{mode:0o755});assert.throws(()=>shelveTransition(id,'shelve',config,root));assert.equal(git(root,'rev-parse','HEAD'),head);assert.equal(git(root,'status','--porcelain'),'');assert.equal(fs.readFileSync(path.join(root,file),'utf8'),text);fs.rmSync(hook);
+ // A hook may modify owned files after commit; retain the commit and edits for inspection.
+ const post=path.join(root,'.git','hooks','post-commit');fs.writeFileSync(post,`#!/bin/sh\nprintf '\nexternal edit\n' >> '${file}'\n`,{mode:0o755});
+ assert.throws(()=>shelveTransition(id,'shelve',config,root),/retained.*inspect/i);const retainedHook=git(root,'rev-parse','HEAD');assert.notEqual(retainedHook,head);assert.match(fs.readFileSync(path.join(root,file),'utf8'),/external edit/);fs.rmSync(post);
+ // This disposable fixture deliberately discards the hook-induced transition for subsequent cases.
+ git(root,'reset','--hard',head);git(root,'clean','-fd');
  const cli=path.join(path.dirname(fileURLToPath(import.meta.url)),'..','cli.js'); const receipt=spawnSync(process.execPath,[cli,'plan','shelve',id],{cwd:root,encoding:'utf8',timeout:10000}); assert.equal(receipt.status,0,receipt.stderr); assert.match(receipt.stdout,/Shelved/);assert.match(fs.readFileSync(path.join(root,file),'utf8'),/status: shelved\nspecs:.*\nshelved_from: ready/);assert.equal(fs.readFileSync(path.join(wt,'dirty.txt'),'utf8'),'uncommitted');assert.equal(planNext(id,config,root).action,'none');assert.equal(planNext(id,config,root).effectiveStatus,'shelved');assert.throws(()=>shelveTransition(id,'shelve',config,root));
+ const resumePreview=shelveTransition(id,'resume',config,root,{dryRun:true});assert.equal(resumePreview.effectiveStatus,'in_progress');assert.equal(resumePreview.next?.number,1);
  const resumed=executeOperation({operation:'plan.resume',arguments:{id}},{extensionId:'test',checkout:root}); assert.equal(resumed.ok,true); assert.match(fs.readFileSync(path.join(root,file),'utf8'),/status: ready/);assert.doesNotMatch(fs.readFileSync(path.join(root,file),'utf8'),/shelved_from/);assert.equal(fs.readFileSync(path.join(wt,'dirty.txt'),'utf8'),'uncommitted');
  // A manually copied done declaration is not integration proof.
  fs.writeFileSync(path.join(root,file),text.replace('ready','done'));git(root,'commit','-am','manual done');assert.throws(()=>cleanupPlan(id,config,root,{force:true}),/unverified/);assert.ok(fs.existsSync(wt));assert.equal(git(root,'rev-parse',`plan/${id}`),git(wt,'rev-parse','HEAD'));
@@ -44,10 +50,14 @@ test('frontmatter publication failure retains its exact commit and retry publish
  const file=`plans/${id}/PLAN.md`, text=`---\nid: ${id}\ntitle: Pause\nstatus: in_progress\nspecs: [feature/example]\n---\n`;
  put(file,text);git(root,'add','.');git(root,'commit','-m','base');const base=git(root,'rev-parse','HEAD');git(root,'remote','add','origin',bare);git(root,'push','-u','origin','main');
  git(root,'worktree','add','-b',`plan/${id}`,wt);fs.writeFileSync(path.join(wt,file),text.replace('specs: [feature/example]',`specs: [feature/example]\nexecution:\n  target_branch: main\n  start_target_branch: main\n  start_base: ${base}`));git(wt,'commit','-am','binding');
+ git(root,'worktree','remove',wt);
  const hook=path.join(bare,'hooks','pre-receive');fs.writeFileSync(hook,'#!/bin/sh\nexit 1\n',{mode:0o755});const config=loadConfig(root).config;
  assert.throws(()=>shelveTransition(id,'shelve',config,root),/Publication pending for [0-9a-f]{40}/);const retained=git(root,'rev-parse','HEAD');assert.notEqual(retained,base);assert.equal(git(bare,'rev-parse','refs/heads/main'),base);
+ const beforePreview=git(root,'status','--porcelain');const preview=shelveTransition(id,'shelve',config,root,{dryRun:true});assert.equal(preview.retry,true);assert.equal(preview.commit,retained);assert.equal(git(bare,'rev-parse','refs/heads/main'),base);assert.equal(git(root,'status','--porcelain'),beforePreview);
  fs.rmSync(hook);const retry=shelveTransition(id,'shelve',config,root);assert.equal(retry.retry,true);assert.equal(retry.commit,retained);assert.equal(git(root,'rev-parse','HEAD'),retained);assert.equal(git(bare,'rev-parse','refs/heads/main'),retained);
- shelveTransition(id,'resume',config,root);assert.match(fs.readFileSync(path.join(root,file),'utf8'),/status: in_progress/);assert.doesNotMatch(fs.readFileSync(path.join(root,file),'utf8'),/shelved_from/);
+ const previewResume=shelveTransition(id,'resume',config,root,{dryRun:true});assert.equal(previewResume.effectiveStatus,'in_progress');assert.equal(previewResume.startCommand,`specplane plan start ${id}`);
+ const resumed=shelveTransition(id,'resume',config,root);assert.equal(resumed.effectiveStatus,'in_progress');assert.equal(resumed.checkout,null);assert.equal(resumed.startCommand,`specplane plan start ${id}`);assert.match(fs.readFileSync(path.join(root,file),'utf8'),/status: in_progress/);assert.doesNotMatch(fs.readFileSync(path.join(root,file),'utf8'),/shelved_from/);
+ git(root,'branch','-D',`plan/${id}`);assert.throws(()=>shelveTransition(id,'shelve',config,root),/existing plan branch is required/);
 });
 
 
