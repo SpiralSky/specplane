@@ -112,3 +112,34 @@ None.
 ### What the next step must know
 
 Observed manual checks: npm run build passed; focused lease tests 12/12 passed outside sandbox after subprocess EPERM; diff check and consolidated review passed. No spec gaps. Context expanded to lease implementation/tests, package configuration and plan-step contract. Worker requires known PID and trusts caller stopped acknowledgment; host cancellation and recording integration remain future work. Recovery tests simulate dead PIDs. Full suite not run. Worker ended with no remaining writers/build/tests; approximate 11:29–11:51 UTC calendar, active and approval timing unknown.
+
+## Step 05: Contribution capture and readers
+
+**Date**: 2026-11-02
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/core/contributions.ts`: Validated event deduplication, summaries and rewrite provenance
+- `packages/cli/src/core/contributions.test.ts`: Identity, validation, deduplication and correction rewrite coverage
+- `packages/cli/src/core/index.ts`: Export contribution primitives
+- `packages/cli/src/git/commit.ts`: Preserve repeated trailer values
+- `packages/cli/src/git/commit.test.ts`: Actual Git serialization and rewrite round-trip
+- `packages/cli/src/plan/activity.ts`: Adapt last-value reader semantics
+- `packages/cli/src/plan/flows.ts`: Adapt last-value reader semantics
+
+### Deviations from the plan
+
+Authorized legacy bootstrap exact reviewed staging; observed manual checks, not core-issued receipts.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+Build passed; standalone contribution/Git tests 12/12 and activity/flows regressions 22/22 passed; diff check and consolidated review accepted. One combined build/test invocation failed at Git test file level without diagnostic; standalone rerun passed, cause unknown. Full suite not run. Scope is validation/deduplication and repeated-trailer primitives, with actual Git rewrite evidence; public capture/read and production finish/restack integration remain unavailable. Trusted verifier port requires caller evidence validation. Correction aliases resolve to persistent origin through repeated rewrites. No spec gaps. Expanded context: schemas/contracts, commit consumers and activity/flow tests. Worker ended 12:45:15 UTC, no running processes; active time unknown.

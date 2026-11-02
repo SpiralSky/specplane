@@ -8,6 +8,7 @@ export { coreInfo };
 export type * from './contracts.js';
 export type { ExtensionManifest, HostSelection, Capabilities } from './compatibility.js';
 export * from './schemas.js';
+export * from './contributions.js';
 export const checkCompatibility = (manifest: unknown, host: HostSelection) => validateCompatibility(manifest, host, coreInfo);
 function unavailable<T>(operation: string): Result<T> {
   return { protocol: 1, ok: false, error: { code: 'UNSUPPORTED_CAPABILITY', message: `${operation} is not implemented by this core release`, retryable: false, details: null }, notices: [] };

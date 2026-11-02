@@ -378,7 +378,7 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   // 4. Rebase onto the default branch (restack when stacked).
   const rebaseTip = defaultTip(def, main);
   const marker = findLatest(branch, "stack", root);
-  const stackBase = marker ? readTrailers(marker, root).get("Specplane-Stack-Base") : undefined;
+  const stackBase = marker ? readTrailers(marker, root).get("Specplane-Stack-Base")?.at(-1) : undefined;
   const before = git(["rev-parse", "HEAD"], root);
   rebaseOnto(rebaseTip, stackBase ?? rebaseTip, branch, root);
   if (git(["rev-parse", "HEAD"], root) !== before && testCmd !== "") runTests(testCmd, root);
@@ -639,7 +639,7 @@ export interface RestackResult {
 function commitsToReplay(branch: string, upstream: string, cwd: string): { sha: string; subject: string }[] {
   const shas = run("git", ["rev-list", "--reverse", `${upstream}..${branch}`], { cwd }).trim().split("\n").filter(Boolean);
   return shas
-    .map((sha) => ({ sha, subject: run("git", ["log", "-1", "--format=%s", sha], { cwd }).trim(), marker: readTrailers(sha, cwd).get("Specplane-Workflow") === "stack" }))
+    .map((sha) => ({ sha, subject: run("git", ["log", "-1", "--format=%s", sha], { cwd }).trim(), marker: readTrailers(sha, cwd).get("Specplane-Workflow")?.at(-1) === "stack" }))
     .filter((c) => !c.marker)
     .map(({ sha, subject }) => ({ sha: sha.slice(0, 7), subject }));
 }
@@ -661,7 +661,7 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
     throw new PlanStateError(`Cannot restack: \`${id}\` is not stacked.`);
   }
   const marker = findLatest(branch, "stack", main);
-  const upstream = marker ? readTrailers(marker, main).get("Specplane-Stack-Base") : undefined;
+  const upstream = marker ? readTrailers(marker, main).get("Specplane-Stack-Base")?.at(-1) : undefined;
   if (!marker || !upstream) throw new PlanStateError(`Cannot restack: \`${id}\` is not stacked.`);
   const subject = run("git", ["log", "-1", "--format=%s", marker], { cwd: main }).trim();
   const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];

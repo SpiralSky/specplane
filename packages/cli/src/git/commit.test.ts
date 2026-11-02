@@ -5,6 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
 import { CommitFormatError } from "../errors.js";
+import { carryContributions } from "../core/contributions.js";
 import type { Config } from "../types.js";
 import { branchExists, remoteBranchExists } from "./branch.js";
 import { cliTrailers, findLatest, formatMessage, readTrailers } from "./commit.js";
@@ -71,8 +72,8 @@ test("readTrailers and findLatest on a temp repo (last wins)", () => {
   const finishSha = g(repo, "rev-parse", "HEAD").trim();
   g(repo, "commit", "-q", "--allow-empty", "-m", "plain commit");
   const t = readTrailers(stepSha, repo);
-  assert.equal(t.get("Specplane-Step"), "02");
-  assert.equal(t.get("Specplane-Workflow"), "step");
+  assert.equal(t.get("Specplane-Step")?.at(-1), "02");
+  assert.equal(t.get("Specplane-Workflow")?.at(-1), "step");
   assert.equal(readTrailers("HEAD", repo).size, 0);
   assert.equal(findLatest("main", "step", repo), stepSha);
   assert.equal(findLatest("main", "finish", repo), finishSha);
@@ -111,4 +112,34 @@ test("parseWorktreeList and listWorktrees", () => {
   const cfg = { execution: { backend: "worktree", worktree_dir: "../.wts" } } as Config;
   assert.equal(worktreePath("p1", cfg, repo), path.join(tmp, ".wts", "main-checkout", "p1"));
   fs.rmSync(tmp, { recursive: true });
+});
+
+test("repeated contribution trailers survive Git serialization and reads", () => {
+  const { tmp, repo } = makeRepo();
+  const values = ['{"event_id":"a"}', '{"event_id":"b"}'];
+  const message = formatMessage({ type: 'docs', summary: 'record', trailers: { 'Specplane-Contribution': values } });
+  g(repo, 'commit', '-q', '--allow-empty', '-m', message);
+  assert.deepEqual(readTrailers('HEAD', repo).get('Specplane-Contribution'), values);
+  fs.rmSync(tmp, { recursive: true });
+});
+
+test("rewrite carries events from multiple Git commits with original references", () => {
+  const { tmp, repo } = makeRepo();
+  try {
+    const initial = g(repo, "rev-parse", "HEAD").trim();
+    const event = (contributor: string, session_id: string, parent_session_id?: string) => JSON.stringify({ spec: "base:architecture/foo", contributor, role: "revise", source: "declared", session_id, ...(parent_session_id && { parent_session_id }) });
+    const first = [event("A", "same"), event("B", "same")];
+    const second = [event("C", "later"), event("child", "child", "same"), event("unknown", "later")];
+    const commit = (values: string[]) => {
+      g(repo, "commit", "-q", "--allow-empty", "-m", formatMessage({ type: "docs", summary: "record", trailers: { "Specplane-Contribution": values } }));
+      return g(repo, "rev-parse", "HEAD").trim();
+    };
+    const one = commit(first), two = commit(second);
+    const carried = carryContributions([one, two].map(sha => ({ commit: sha, values: readTrailers(sha, repo).get("Specplane-Contribution") ?? [] })));
+    g(repo, "reset", "--soft", initial);
+    commit(carried);
+    const actual = readTrailers("HEAD", repo).get("Specplane-Contribution")!.map(value => JSON.parse(value));
+    assert.deepEqual(actual.map(({ origin: _origin, ...value }) => value), [...first, ...second].map(value => JSON.parse(value)));
+    assert.deepEqual(actual.map(value => value.origin), [0, 1].map(ordinal => ({ commit: one, ordinal })).concat([0, 1, 2].map(ordinal => ({ commit: two, ordinal }))));
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });

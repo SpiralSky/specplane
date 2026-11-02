@@ -2,7 +2,7 @@ import { CommitFormatError } from "../errors.js";
 import { run } from "./exec.js";
 
 /** Ordered trailer key/value pairs; `formatMessage` re-orders known keys per file-formats §8.2. */
-export type Trailers = Record<string, string>;
+export type Trailers = Record<string, string | string[]>;
 
 export interface CommitParts {
   type: string;
@@ -19,6 +19,7 @@ const TRAILER_ORDER = [
   "Specplane-Stack-Base",
   "Specplane-Agent",
   "Specplane-Session",
+  "Specplane-Contribution",
 ];
 const MAX_SUBJECT = 72;
 
@@ -32,7 +33,13 @@ export function formatMessage(parts: CommitParts): string {
   const keys = Object.keys(parts.trailers);
   const known = TRAILER_ORDER.filter((k) => keys.includes(k));
   const others = keys.filter((k) => !TRAILER_ORDER.includes(k)); // attribution trailers come last
-  const trailerLines = [...known, ...others].map((k) => `${k}: ${parts.trailers[k]}`);
+  const trailerLines = [...known, ...others].flatMap((k) => {
+    const values = parts.trailers[k];
+    return (Array.isArray(values) ? values : [values]).map((value) => {
+      if (/\r|\n/.test(value)) throw new CommitFormatError(`invalid newline in trailer ${k}`);
+      return `${k}: ${value}`;
+    });
+  });
   const paragraphs = [subject];
   if (parts.body?.trim()) paragraphs.push(parts.body.trim());
   if (trailerLines.length > 0) paragraphs.push(trailerLines.join("\n"));
@@ -48,13 +55,24 @@ export function cliTrailers(workflow: string, planId: string, env: NodeJS.Proces
   return t;
 }
 
-/** All trailers of the commit at `ref`; the last value wins for repeated keys. */
-export function readTrailers(ref: string, cwd: string = process.cwd()): Map<string, string> {
+/** Preserve repeated trailers in their original order. */
+export function readTrailerEntries(ref: string, cwd: string = process.cwd()): [string, string][] {
   const out = run("git", ["log", "-1", "--format=%(trailers:only,unfold)", ref], { cwd });
-  const map = new Map<string, string>();
+  const entries: [string, string][] = [];
   for (const line of out.split("\n")) {
     const m = /^([A-Za-z0-9-]+):\s*(.*)$/.exec(line.trim());
-    if (m) map.set(m[1], m[2].trim());
+    if (m) entries.push([m[1], m[2].trim()]);
+  }
+  return entries;
+}
+
+/** All trailer values, in commit order, including repeated contribution events. */
+export function readTrailers(ref: string, cwd: string = process.cwd()): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const [key, value] of readTrailerEntries(ref, cwd)) {
+    const values = map.get(key) ?? [];
+    values.push(value);
+    map.set(key, values);
   }
   return map;
 }
