@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fingerprintClosure, fingerprintSpec } from "./completion.js";
+import { evaluateImplementation, fingerprintClosure, fingerprintSpec } from "./completion.js";
 import { parseSpec } from "../spec/parse.js";
 
 const base = 'id: feature/example\ntitle: Example\nstatus: draft\nauthor: user\n';
@@ -79,4 +79,34 @@ test('closure resolves anchored edges from each declaring root, deduplicates cyc
   assert.deepEqual(Object.keys(second.assessed_dependencies), ['beta:feature/other']);
   assert.notEqual(first.assessed_dependencies['beta:feature/other'], second.assessed_dependencies['beta:feature/other']);
   delete nodes['beta:feature/other']; assert.throws(() => fingerprintClosure(root, snapshot), /unavailable/);
+});
+
+test('assessment preserves known changes with unavailable and unsupported dependencies', () => {
+  const nodes: Record<string, string> = { 'base:feature/other': spec('', '# Other\n'), 'base:feature/extra': spec('', '# Extra\n') };
+  const snapshot = { resolve(ref: string, from: string) { const id = ref.includes(':') ? ref : `${from}:${ref}`; if (!nodes[id]) throw new Error('missing'); return { id, content: nodes[id] }; } };
+  const plain = spec('extends: [feature/other, feature/extra]\n');
+  const root = { id: 'base:feature/example', content: plain };
+  const fp = fingerprintClosure(root, snapshot);
+  const withImpl = (fields: object) => ({ ...root, content: plain.replace('---\n# Body', `implementation: ${JSON.stringify(fields)}\n---\n# Body`) });
+  assert.equal(evaluateImplementation(withImpl({ status: 'complete', ...fp }), snapshot).assessment_status, 'current');
+  assert.equal(evaluateImplementation(withImpl({ status: 'partial', ...fp }), snapshot).assessment_status, 'unrecorded');
+  assert.equal(evaluateImplementation(withImpl({ status: 'complete' }), snapshot).assessment_status, 'unrecorded');
+  assert.equal(evaluateImplementation(withImpl({ status: 'complete', assessed_spec_hash: fp.assessed_spec_hash }), snapshot).assessment_reasons[0].code, 'coverage_unrecorded');
+  nodes['base:feature/other'] += 'changed\n';
+  delete nodes['base:feature/extra'];
+  const assessed = evaluateImplementation(withImpl({ status: 'complete', ...fp, assessed_spec_hash: `future:sha256:${'a'.repeat(64)}` }), snapshot);
+  assert.equal(assessed.assessment_status, 'unverifiable');
+  assert.deepEqual(assessed.assessment_reasons.map(r => r.code), ['dependency_changed', 'dependency_unavailable', 'unsupported_version']);
+  assert.throws(() => evaluateImplementation(withImpl({ status: 'complete', assessed_spec_hash: 'bad' }), snapshot), /Invalid spec metadata/);
+});
+
+test('assessment reports membership and root changes in deterministic order', () => {
+  const nodes: Record<string, string> = { 'base:feature/old': spec(), 'base:feature/new': spec() };
+  const snapshot = { resolve(ref: string, from: string) { const id = ref.includes(':') ? ref : `${from}:${ref}`; if (!nodes[id]) throw Error('missing'); return { id, content: nodes[id] }; } };
+  const original = { id: 'base:feature/example', content: spec('extends: feature/old\n') };
+  const fp = fingerprintClosure(original, snapshot);
+  const changed = spec(`extends: feature/new\nimplementation: ${JSON.stringify({ status: 'complete', ...fp })}\n`);
+  const assessment = evaluateImplementation({ ...original, content: changed }, snapshot);
+  assert.equal(assessment.assessment_status, 'reassessment_needed');
+  assert.deepEqual(assessment.assessment_reasons.map(r => r.code), ['root_changed', 'dependency_added', 'dependency_removed']);
 });

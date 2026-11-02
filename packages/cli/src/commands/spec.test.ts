@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { CONFIG, makeRepo, spec } from "../test-repo.js";
+import { fingerprintSpec } from "../core/completion.js";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "cli.js");
 const fm = (id: string, extra: Record<string, unknown> = {}) => spec({ id, title: `T ${id}`, status: "draft", author: "user", ...extra });
@@ -66,24 +67,59 @@ test("spec list filters and JSON output", () => {
   const root = repo();
   const all = JSON.parse(run(root, "spec", "list", "--json").out) as Array<Record<string, string>>;
   assert.deepEqual(all.map((r) => `${r.root}:${r.id}`), ["base:feature/alpha", "ext:feature/beta", "base:feature/shared", "ext:feature/shared"]);
-  assert.deepEqual(Object.keys(all[0]), ["id", "title", "status", "author", "root"]);
+  assert.deepEqual(Object.keys(all[0]), ["id", "title", "status", "author", "root", "implementation_status", "assessment_status", "assessment_reasons"]);
   const ext = JSON.parse(run(root, "spec", "list", "--json", "--root", "ext", "--status", "approved").out);
   assert.deepEqual(ext.map((r: { id: string }) => r.id), ["feature/beta"]);
   assert.equal(JSON.parse(run(root, "spec", "list", "--json", "--type", "architecture").out).length, 0);
   const human = run(root, "spec", "list", "--root", "base").out;
-  assert.match(human, /^feature\/alpha +T feature\/alpha +draft$/m);
+  assert.match(human, /^feature\/alpha +T feature\/alpha +draft +implementation: unrecorded +assessment: unrecorded$/m);
   assert.equal(run(root, "spec", "list", "--root", "zzz").code, 1);
 });
 
 test("spec show prints the file; ambiguity and --root", () => {
   const root = repo();
-  assert.equal(run(root, "spec", "show", "feature/alpha").out, fs.readFileSync(path.join(root, "specs/features/alpha.md"), "utf8"));
+  assert.ok(run(root, "spec", "show", "feature/alpha").out.startsWith(fs.readFileSync(path.join(root, "specs/features/alpha.md"), "utf8")));
   const amb = run(root, "spec", "show", "feature/shared");
   assert.equal(amb.code, 1);
   assert.equal(amb.err, "Ambiguous ID `feature/shared`: found in roots `base`, `ext`. Use `<root>:feature/shared`.\n");
   assert.match(run(root, "spec", "show", "feature/shared", "--root", "ext").out, /extends: "feature\/shared"/);
   assert.equal(run(root, "spec", "show", "ext:feature/shared").code, 0);
   assert.equal(run(root, "spec", "show", "feature/missing").err, "Spec `feature/missing` not found.\n");
+});
+
+test('list, show and validation share assessment without rewriting the spec', () => {
+  const root = repo();
+  const file = path.join(root, 'specs/features/alpha.md');
+  const original = fs.readFileSync(file, 'utf8');
+  const content = fm('feature/alpha', { implementation: { status: 'complete', assessed_spec_hash: fingerprintSpec(original), assessed_dependencies: {} } }, );
+  fs.writeFileSync(file, content.replace('# T', '# Changed'));
+  const list = JSON.parse(run(root, 'spec', 'list', '--json').out).find((r: { id: string }) => r.id === 'feature/alpha');
+  const show = JSON.parse(run(root, 'spec', 'show', 'feature/alpha', '--json').out);
+  const validation = run(root, 'spec', 'validate', 'feature/alpha', '--json');
+  const report = JSON.parse(validation.out);
+  assert.equal(validation.code, 0);
+  assert.equal(list.assessment_status, 'reassessment_needed');
+  assert.deepEqual(show.assessment_reasons, list.assessment_reasons);
+  assert.deepEqual(report.implementations[0].assessment_reasons, list.assessment_reasons);
+  assert.equal(report.warnings[0].type, 'implementation-reassessment');
+  assert.equal(show.content, fs.readFileSync(file, 'utf8'));
+});
+
+test('validation distinguishes unavailable assessment from invalid metadata', () => {
+  const root = repo();
+  const file = path.join(root, 'specs/features/alpha.md');
+  const original = fs.readFileSync(file, 'utf8');
+  const currentHash = fingerprintSpec(original);
+  fs.writeFileSync(file, fm('feature/alpha', { implementation: { status: 'complete', assessed_spec_hash: currentHash, assessed_dependencies: { 'missing:feature/other': currentHash } } }));
+  const result = run(root, 'spec', 'validate', 'feature/alpha', '--json');
+  const report = JSON.parse(result.out);
+  assert.equal(result.code, 0);
+  assert.equal(report.implementations[0].assessment_status, 'unverifiable');
+  assert.equal(report.warnings[0].type, 'implementation-unverifiable');
+  fs.writeFileSync(file, fm('feature/alpha', { implementation: { status: 'complete', assessed_spec_hash: 'invalid' } }));
+  const invalid = run(root, 'spec', 'validate', 'feature/alpha', '--json');
+  assert.equal(invalid.code, 1);
+  assert.equal(JSON.parse(invalid.out).errors[0].type, 'schema');
 });
 
 test("spec validate: all, named, and JSON", () => {

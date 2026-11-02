@@ -16,6 +16,9 @@ export function formatHuman(report: ValidationReport): string {
     const w = findings.length - e;
     const summary = findings.length === 0 ? "OK" : [e ? plural(e, "error") : "", w ? plural(w, "warning") : ""].filter(Boolean).join(", ");
     lines.push(`Checking ${subject}... ${summary}`);
+    for (const item of report.implementations ?? []) if (item.id === subject) {
+      lines.push(`  Implementation (${item.root}): ${item.implementation_status ?? "unrecorded"}; assessment: ${item.assessment_status}`);
+    }
     for (const f of findings) {
       const where = f.line !== undefined ? `${subject}:${f.line}` : subject;
       lines.push(`  [${f.severity}] ${where}: ${f.message}`);
