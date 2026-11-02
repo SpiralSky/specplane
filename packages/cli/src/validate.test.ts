@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 import { test } from "node:test";
 import { runValidate } from "./commands/validate.js";
 import { formatHuman } from "./output/human.js";
@@ -12,8 +13,15 @@ const feat = (id: string, extra: Record<string, unknown> = {}, body?: string) =>
 const arch = (id: string, extra: Record<string, unknown> = {}, body?: string) =>
   spec({ id, title: "T", status: "approved", author: "user", ...extra }, body);
 
-const run = (files: Record<string, string>) =>
-  runValidate(makeRepo({ ".specplane/config.yaml": CONFIG, ...files }));
+const run = (files: Record<string, string>) => {
+  const root = makeRepo({ ".specplane/config.yaml": CONFIG, ...files });
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: root, stdio: "pipe" });
+  git("init", "-q", "-b", "main");
+  // Validation reads domain fixtures from the working tree; freshness reads this committed config.
+  git("add", ".specplane/config.yaml");
+  git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "fixture baseline");
+  return runValidate(root);
+};
 const msgs = (r: ReturnType<typeof run>, sev: "errors" | "warnings") => r[sev].map((f) => `${f.type}: ${f.message}`);
 
 test("clean repository is valid", () => {
