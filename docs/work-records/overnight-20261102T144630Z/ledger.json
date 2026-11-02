@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "e034635979413f713e50d35a63211a05be18f929",
+  "integrated_commit": "5c1bdd0c18b2e547d63ad84b2e9da407f8312557",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -37,18 +37,45 @@
       "step": "target-lifecycle/2a",
       "agent": "target_2a",
       "branch": "overnight/target-2a",
-      "status": "running"
+      "status": "integrated",
+      "commit": "d840407",
+      "tests": "21 focused pass; 16 command pass after final assertion"
     },
     {
       "step": "completion-assessment/1",
       "agent": "completion_1",
       "branch": "overnight/completion-1",
-      "status": "running"
+      "status": "implemented; under review",
+      "commit": "39fe690"
     },
     {
       "step": "host investigation and core audit",
       "agent": "host_investigation",
       "status": "running"
+    },
+    {
+      "step": "target-lifecycle/1 review",
+      "agent": "target_1_review",
+      "status": "reviewed; 3 findings"
+    },
+    {
+      "step": "target-lifecycle/1 repair",
+      "agent": "target_1_repair",
+      "status": "integrated",
+      "commit": "7319f99",
+      "tests": "23 combined focused tests pass"
+    },
+    {
+      "step": "target-lifecycle/2b",
+      "agent": "target_2b",
+      "status": "running",
+      "base": "5c1bdd0c18b2e547d63ad84b2e9da407f8312557"
+    },
+    {
+      "step": "completion-assessment/1 review",
+      "agent": "completion_1_review",
+      "status": "running",
+      "commit": "39fe690"
     }
   ],
   "next": [
@@ -61,5 +88,20 @@
     "approval_wait": "unknown tool latency; not measured separately",
     "token_usage": "unavailable"
   },
-  "processes": []
+  "processes": [],
+  "remote_checkpoint": {
+    "branch": "overnight/specplane-20261102T144630Z",
+    "commit": "7c5e18d",
+    "status": "pushed"
+  },
+  "baseline_validation": {
+    "errors": 0,
+    "warnings": 89,
+    "log": "baseline-validation.json"
+  },
+  "baseline_hooks": {
+    "passed": 73,
+    "failed": 0,
+    "sync": "passed"
+  }
 }

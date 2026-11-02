@@ -1,0 +1,538 @@
+{
+  "source_commit": "e034635979413f713e50d35a63211a05be18f929",
+  "source": "configured plans.dir; exact criterion sections and step tasks/guidance retained verbatim",
+  "dependency_note": "The expected graph omits explicit core-foundation edges to target lifecycle and completion assessment and the redundant target lifecycle edge to workflow recording; the plan frontmatter above is authoritative. Review-branch exception makes tested integrated code sufficient for implementation readiness, not formal approval.",
+  "target_lifecycle_step_02_assignments": [
+    "creation inputs and immutable comparison validation",
+    "read-only start preparation from authoritative target snapshots",
+    "first-start binding, ordered leases and rollback/recovery",
+    "resume and checkout preservation"
+  ],
+  "plans": [
+    {
+      "id": "2026-11-02-target-lifecycle",
+      "path": "plans/2026-11-02-target-lifecycle/PLAN.md",
+      "status": "ready",
+      "depends_on": [
+        "2026-11-01-core-foundation"
+      ],
+      "scope_markdown": "- Resolve targets and validate immutable execution bindings\n- Create and resume plans against their recorded target\n- Use target context in plan discovery and reports\n- Use recorded destinations for finish and restack\n- Implement explicit retarget previews and atomic metadata updates\n- Reconcile shelving, resume and integration-checked cleanup",
+      "acceptance_criteria_markdown": "- [ ] Explicit, declared, team and repository-default precedence is deterministic; ambiguous or unavailable legacy targets refuse.\n- [ ] Target and comparison inputs resolve valid commits/branches; malformed bindings fail before mutation.\n- [ ] First start validates target-local plans/specs/dependencies and records immutable provenance before execution.\n- [ ] Dirty reused worktrees skip setup and survive failure; missing checkout recreation preserves branch and step commits.\n- [ ] List/show/live discovery report target, starting commit, comparison base and pending retarget state consistently.\n- [ ] Missing/offline refs and manually declared done without integration are distinguished.\n- [ ] Rebase, PR base and local merge use the recorded destination; ambiguous legacy provenance refuses.\n- [ ] Target changes or rebase invalidate prior acceptance; cross-target stacks refuse; failed operations preserve recoverable state.\n- [ ] Dry-run/JSON inspect identical preconditions without mutation; actual writes recheck refs, leases and plan identity.\n- [ ] PR base/lifecycle conflicts and missing required forge evidence refuse; original start/comparison provenance survives; no commit, rebase or PR edit occurs.\n- [ ] Shelving preserves checkout/branch/history and blocks execution until explicit resume.\n- [ ] Automated worktree/branch removal requires independent integration evidence; a manual done edit alone never permits cleanup.",
+      "execution_prerequisites_markdown": "Create through the existing CLI after proposal approval; readiness and start remain separate human decisions. The current CLI does not support target/comparison inputs: do not synthesize execution metadata. Resolve the bootstrap exception explicitly before execution.",
+      "steps": [
+        {
+          "id": "01-target-resolution",
+          "number": 1,
+          "title": "Resolve targets and validate immutable execution bindings",
+          "path": "plans/2026-11-02-target-lifecycle/steps/01-target-resolution.md",
+          "status": "done",
+          "acceptance_criteria_markdown": "- [ ] Explicit, declared, team and repository-default precedence is deterministic; ambiguous or unavailable legacy targets refuse.\n- [ ] Target and comparison inputs resolve valid commits/branches; malformed bindings fail before mutation.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "02-target-start",
+          "number": 2,
+          "title": "Create and resume plans against their recorded target",
+          "path": "plans/2026-11-02-target-lifecycle/steps/02-target-start.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] First start validates target-local plans/specs/dependencies and records immutable provenance before execution.\n- [ ] Dirty reused worktrees skip setup and survive failure; missing checkout recreation preserves branch and step commits.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "03-target-readers",
+          "number": 3,
+          "title": "Use target context in plan discovery and reports",
+          "path": "plans/2026-11-02-target-lifecycle/steps/03-target-readers.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] List/show/live discovery report target, starting commit, comparison base and pending retarget state consistently.\n- [ ] Missing/offline refs and manually declared done without integration are distinguished.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "04-target-finish",
+          "number": 4,
+          "title": "Use recorded destinations for finish and restack",
+          "path": "plans/2026-11-02-target-lifecycle/steps/04-target-finish.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Rebase, PR base and local merge use the recorded destination; ambiguous legacy provenance refuses.\n- [ ] Target changes or rebase invalidate prior acceptance; cross-target stacks refuse; failed operations preserve recoverable state.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "05-retarget",
+          "number": 5,
+          "title": "Implement explicit retarget previews and atomic metadata updates",
+          "path": "plans/2026-11-02-target-lifecycle/steps/05-retarget.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Dry-run/JSON inspect identical preconditions without mutation; actual writes recheck refs, leases and plan identity.\n- [ ] PR base/lifecycle conflicts and missing required forge evidence refuse; original start/comparison provenance survives; no commit, rebase or PR edit occurs.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "06-shelve-cleanup",
+          "number": 6,
+          "title": "Reconcile shelving, resume and integration-checked cleanup",
+          "path": "plans/2026-11-02-target-lifecycle/steps/06-shelve-cleanup.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Shelving preserves checkout/branch/history and blocks execution until explicit resume.\n- [ ] Automated worktree/branch removal requires independent integration evidence; a manual done edit alone never permits cleanup.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-02-plan-index",
+      "path": "plans/2026-11-02-plan-index/PLAN.md",
+      "status": "draft",
+      "depends_on": [
+        "2026-11-02-target-lifecycle"
+      ],
+      "scope_markdown": "- Capture head, staged and working plan snapshots\n- Deliver plan index and deterministic rendering\n- Integrate prospective lifecycle and recovery snapshots",
+      "acceptance_criteria_markdown": "- [ ] Each snapshot resolves its own config and plan inventory; detached/unborn HEAD and staged additions/deletions behave as specified.\n- [ ] Working includes tracked ignored files and non-ignored new plans; unresolved inputs and changed discovery/index bytes refuse safely.\n- [ ] Default head rendering is deterministic with the Target column; --live requires --print and print writes nothing.\n- [ ] Old generate command refuses with migration guidance; CI targets the selected branch and uses head; unchanged output is not rewritten.\n- [ ] Approval/shelve/resume commit new metadata and its matching index together; post-commit regeneration is byte-identical.\n- [ ] Resolved staged merge/rebase/cherry-pick inputs appear in recovery rendering; unmerged plan/config inputs refuse while output-only conflict is allowed.",
+      "execution_prerequisites_markdown": "Create through the existing CLI after proposal approval; readiness and start remain separate human decisions. The current CLI does not support target/comparison inputs: do not synthesize execution metadata. Resolve the bootstrap exception explicitly before execution.",
+      "steps": [
+        {
+          "id": "01-snapshot-reader",
+          "number": 1,
+          "title": "Capture head, staged and working plan snapshots",
+          "path": "plans/2026-11-02-plan-index/steps/01-snapshot-reader.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Each snapshot resolves its own config and plan inventory; detached/unborn HEAD and staged additions/deletions behave as specified.\n- [ ] Working includes tracked ignored files and non-ignored new plans; unresolved inputs and changed discovery/index bytes refuse safely.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "02-index-command",
+          "number": 2,
+          "title": "Deliver plan index and deterministic rendering",
+          "path": "plans/2026-11-02-plan-index/steps/02-index-command.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Default head rendering is deterministic with the Target column; --live requires --print and print writes nothing.\n- [ ] Old generate command refuses with migration guidance; CI targets the selected branch and uses head; unchanged output is not rewritten.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "03-transaction-snapshots",
+          "number": 3,
+          "title": "Integrate prospective lifecycle and recovery snapshots",
+          "path": "plans/2026-11-02-plan-index/steps/03-transaction-snapshots.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Approval/shelve/resume commit new metadata and its matching index together; post-commit regeneration is byte-identical.\n- [ ] Resolved staged merge/rebase/cherry-pick inputs appear in recovery rendering; unmerged plan/config inputs refuse while output-only conflict is allowed.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-01-workflow-recording",
+      "path": "plans/2026-11-01-workflow-recording/PLAN.md",
+      "status": "draft",
+      "depends_on": [
+        "2026-11-02-target-lifecycle",
+        "2026-11-02-plan-index"
+      ],
+      "scope_markdown": "- Prepare plan and non-plan workflow envelopes with compatibility/policy checks, resolved scope, expected suites and snapshots.\n- Implement execution ledger, output capture, supported reporters and receipt validation.\n- Add recording-set input and shared atomic recording primitive; update the manual procedure and affected callers in this same change.\n- Connect criterion/provenance validation to the shared recorder, proposal revalidation and recoverable receipts.",
+      "acceptance_criteria_markdown": "- [ ] Remote plan fast-forward precedes snapshot; divergence refuses.\n- [ ] Dirty baseline, changed policy/criteria and wrong checkout are handled according to the settled contract; missing schema details become gaps before dependent code.\n- [ ] Successful expected suites validate; failed/skipped-only/missing child suites do not.\n- [ ] Changed input, output, receipt or request identity invalidates evidence; tests count actual reporter cases.\n- [ ] Unrelated staged/unstaged/plan-folder edits and partial staging refuse before mutation.\n- [ ] Empty status-only result, additions/deletions, forced rerecord and commit-failure index restoration are covered.\n- [ ] Existing callers are migrated or receive actionable refusal; no silent blanket-staging fallback.\n- [ ] Core alone writes status/HANDOFF; stale proposals and lost leases refuse.\n- [ ] Matching retry returns existing commit; failed push retries publication without implementation or duplicate commit.\n- [ ] Non-plan results cannot set lifecycle states or bypass creation operations.\n\n- [ ] Preparation binds target context and reviewed suite/report mappings; absent mappings remain uncertain.\n- [ ] executeWorkflowTest retains the active lease, launches through the host permission port, and captures stdout reporters in the private ledger.\n- [ ] Permission refusal, cancellation, nonzero exit, skipped child, missing suites, stale/forged receipts and concurrent execution cannot establish passing criteria.\n- [ ] Recording derives the durable HANDOFF summary from validated evidence; another clone cannot independently verify absent private receipts.",
+      "execution_prerequisites_markdown": "This plan originated in the approved November 1 decomposition. The November 2 coverage revision does not change stored readiness or authorize execution. Reconfirm readiness against the revised scope before start; resolve current spec/dependency status through the CLI.\n\nDependencies: `2026-11-02-target-lifecycle`, `2026-11-02-plan-index`. Under `wait_for_merge`, each predecessor must be human-finished and merged before this plan starts.\n\nRun steps sequentially in branch `plan/2026-11-01-workflow-recording` after CLI-managed start. Commit settled specification targets and recheck context before implementation; draft creation does not pin the current dirty specification text.",
+      "steps": [
+        {
+          "id": "01-preparation-and-state-binding",
+          "number": 1,
+          "title": "Preparation and state binding",
+          "path": "plans/2026-11-01-workflow-recording/steps/01-preparation-and-state-binding.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Remote plan fast-forward precedes snapshot; divergence refuses.\n- [ ] Dirty baseline, changed policy/criteria and wrong checkout are handled according to the settled contract; missing schema details become gaps before dependent code.\n\n- [ ] Preparation binds target context and reviewed suite/report mappings; absent mappings remain uncertain.",
+          "tasks_markdown": "1. Prepare plan and non-plan workflow envelopes with compatibility/policy checks, resolved scope, expected suites and snapshots.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Resolve target state using target-lifecycle outputs before taking preparation snapshots.",
+          "guidance_markdown": "Follow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "02-execution-receipts",
+          "number": 2,
+          "title": "Execution receipts",
+          "path": "plans/2026-11-01-workflow-recording/steps/02-execution-receipts.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Successful expected suites validate; failed/skipped-only/missing child suites do not.\n- [ ] Changed input, output, receipt or request identity invalidates evidence; tests count actual reporter cases.\n\n- [ ] executeWorkflowTest retains the active lease, launches through the host permission port, and captures stdout reporters in the private ledger.\n- [ ] Permission refusal, cancellation, nonzero exit, skipped child, missing suites, stale/forged receipts and concurrent execution cannot establish passing criteria.",
+          "tasks_markdown": "1. Implement execution ledger, output capture, supported reporters and receipt validation.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Exercise prepare \u2192 edit \u2192 execute \u2192 validate under real child-process fixtures; remove inherited NODE_TEST_CONTEXT.",
+          "guidance_markdown": "Complete step 1 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "03-manual-exact-set-recording",
+          "number": 3,
+          "title": "Manual exact-set recording",
+          "path": "plans/2026-11-01-workflow-recording/steps/03-manual-exact-set-recording.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Unrelated staged/unstaged/plan-folder edits and partial staging refuse before mutation.\n- [ ] Empty status-only result, additions/deletions, forced rerecord and commit-failure index restoration are covered.\n- [ ] Existing callers are migrated or receive actionable refusal; no silent blanket-staging fallback.",
+          "tasks_markdown": "1. Add recording-set input and shared atomic recording primitive; update the manual procedure and affected callers in this same change.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.",
+          "guidance_markdown": "Complete step 2 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "04-workflow-validation-and-recording",
+          "number": 4,
+          "title": "Workflow validation and recording",
+          "path": "plans/2026-11-01-workflow-recording/steps/04-workflow-validation-and-recording.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Core alone writes status/HANDOFF; stale proposals and lost leases refuse.\n- [ ] Matching retry returns existing commit; failed push retries publication without implementation or duplicate commit.\n- [ ] Non-plan results cannot set lifecycle states or bypass creation operations.\n\n- [ ] Recording derives the durable HANDOFF summary from validated evidence; another clone cannot independently verify absent private receipts.",
+          "tasks_markdown": "1. Connect criterion/provenance validation to the shared recorder, proposal revalidation and recoverable receipts.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Verify commands/counts/state/receipt digests and limitations survive recording without publishing raw private evidence.",
+          "guidance_markdown": "Complete step 3 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-01-manual-lifecycle",
+      "path": "plans/2026-11-01-manual-lifecycle/PLAN.md",
+      "status": "draft",
+      "depends_on": [
+        "2026-11-01-workflow-recording"
+      ],
+      "scope_markdown": "- Implement direct interaction port, one-use challenges, payload/state/evidence binding and expiry.\n- Route approval, assist text authorization, finish and abandon through operation-specific gates and full writer lease sets.\n- Extract extension-supplied adapter entry, remove standalone run surfaces, and deliver neutral startup/instruction routing with migration diagnostics.",
+      "acceptance_criteria_markdown": "- [ ] Model tool input cannot consume a human response port.\n- [ ] Decline, timeout, replay and changed bytes refuse without mutation.\n- [ ] Approval/text authorization/finish acceptance/merge remain distinct; rebase invalidates prior acceptance.\n- [ ] Manual human-invoked confirmations retain documented behavior; agent entry points cannot reuse them.\n- [ ] Spec/ADR creation and other stateful CLI operations use checkout coordination.\n- [ ] No installed-file/default/registry-order runtime selection; plain start remains usable without a host.\n- [ ] Fake adapter tests cover launch uncertainty, resume, limits, cancellation, finish-ready and identity mapping without approving or merging.\n- [ ] CLI help, docs and callers match removed commands; host capabilities remain gated until later verification.\n\n- [ ] Completion declarations and ordinary Git remain separate from review approval; metadata-only completion never triggers body-writing approval.\n- [ ] Human gates retain target binding and prospective index transaction invariants.",
+      "execution_prerequisites_markdown": "This plan originated in the approved November 1 decomposition. The November 2 coverage revision does not change stored readiness or authorize execution. Reconfirm readiness against the revised scope before start; resolve current spec/dependency status through the CLI.\n\nDependencies: `2026-11-01-workflow-recording`. Under `wait_for_merge`, each predecessor must be human-finished and merged before this plan starts.\n\nRun steps sequentially in branch `plan/2026-11-01-manual-lifecycle` after CLI-managed start. Commit settled specification targets and recheck context before implementation; draft creation does not pin the current dirty specification text.",
+      "steps": [
+        {
+          "id": "01-confirmation-challenge-primitive",
+          "number": 1,
+          "title": "Confirmation challenge primitive",
+          "path": "plans/2026-11-01-manual-lifecycle/steps/01-confirmation-challenge-primitive.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Model tool input cannot consume a human response port.\n- [ ] Decline, timeout, replay and changed bytes refuse without mutation.",
+          "tasks_markdown": "1. Implement direct interaction port, one-use challenges, payload/state/evidence binding and expiry.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.",
+          "guidance_markdown": "Follow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "02-lifecycle-command-integration",
+          "number": 2,
+          "title": "Lifecycle command integration",
+          "path": "plans/2026-11-01-manual-lifecycle/steps/02-lifecycle-command-integration.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Approval/text authorization/finish acceptance/merge remain distinct; rebase invalidates prior acceptance.\n- [ ] Manual human-invoked confirmations retain documented behavior; agent entry points cannot reuse them.\n- [ ] Spec/ADR creation and other stateful CLI operations use checkout coordination.\n\n- [ ] Completion declarations and ordinary Git remain separate from review approval; metadata-only completion never triggers body-writing approval.\n- [ ] Human gates retain target binding and prospective index transaction invariants.",
+          "tasks_markdown": "1. Route approval, assist text authorization, finish and abandon through operation-specific gates and full writer lease sets.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Test ordinary non-plan edits, exact-approved review edits, manual completion and retarget changes without inventing lifecycle authority.",
+          "guidance_markdown": "Complete step 1 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "03-neutral-startup-and-extension-conductor",
+          "number": 3,
+          "title": "Neutral startup and extension conductor",
+          "path": "plans/2026-11-01-manual-lifecycle/steps/03-neutral-startup-and-extension-conductor.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] No installed-file/default/registry-order runtime selection; plain start remains usable without a host.\n- [ ] Fake adapter tests cover launch uncertainty, resume, limits, cancellation, finish-ready and identity mapping without approving or merging.\n- [ ] CLI help, docs and callers match removed commands; host capabilities remain gated until later verification.",
+          "tasks_markdown": "1. Extract extension-supplied adapter entry, remove standalone run surfaces, and deliver neutral startup/instruction routing with migration diagnostics.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.",
+          "guidance_markdown": "Complete step 2 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-02-completion-assessment",
+      "path": "plans/2026-11-02-completion-assessment/PLAN.md",
+      "status": "draft",
+      "depends_on": [
+        "2026-11-01-core-foundation"
+      ],
+      "scope_markdown": "- Implement completion schema and versioned fingerprints\n- Evaluate completion independently of lifecycle state\n- Deliver spec complete and implementation status operations",
+      "acceptance_criteria_markdown": "- [ ] Manual declarations without fingerprints are valid; malformed metadata, duplicate keys and unsupported values follow the specified errors.\n- [ ] Canonicalization excludes only specified bookkeeping; recursive root-qualified dependencies handle cycles, anchored references and changed membership.\n- [ ] List/show/validation report declaration plus current, reassessment_needed, unrecorded or unverifiable with ordered reasons.\n- [ ] Unavailable/unsupported dependencies take unverifiable precedence while retaining mismatches; code changes alone never imply verification.\n- [ ] CLI/core parity covers dry-run, no-op repetition, all statuses and preserving prior evidence; complete resolves the entire dependency closure.\n- [ ] Lease and preimage checks preserve body, lifecycle, unrelated edits/index on failure; no plan, commit, test execution or fabricated evidence is required.",
+      "execution_prerequisites_markdown": "Create through the existing CLI after proposal approval; readiness and start remain separate human decisions. The current CLI does not support target/comparison inputs: do not synthesize execution metadata. Resolve the bootstrap exception explicitly before execution.",
+      "steps": [
+        {
+          "id": "01-fingerprints",
+          "number": 1,
+          "title": "Implement completion schema and versioned fingerprints",
+          "path": "plans/2026-11-02-completion-assessment/steps/01-fingerprints.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Manual declarations without fingerprints are valid; malformed metadata, duplicate keys and unsupported values follow the specified errors.\n- [ ] Canonicalization excludes only specified bookkeeping; recursive root-qualified dependencies handle cycles, anchored references and changed membership.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "02-assessment",
+          "number": 2,
+          "title": "Evaluate completion independently of lifecycle state",
+          "path": "plans/2026-11-02-completion-assessment/steps/02-assessment.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] List/show/validation report declaration plus current, reassessment_needed, unrecorded or unverifiable with ordered reasons.\n- [ ] Unavailable/unsupported dependencies take unverifiable precedence while retaining mismatches; code changes alone never imply verification.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "03-completion-writers",
+          "number": 3,
+          "title": "Deliver spec complete and implementation status operations",
+          "path": "plans/2026-11-02-completion-assessment/steps/03-completion-writers.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] CLI/core parity covers dry-run, no-op repetition, all statuses and preserving prior evidence; complete resolves the entire dependency closure.\n- [ ] Lease and preimage checks preserve body, lifecycle, unrelated edits/index on failure; no plan, commit, test execution or fabricated evidence is required.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-02-product-docs",
+      "path": "plans/2026-11-02-product-docs/PLAN.md",
+      "status": "draft",
+      "depends_on": [
+        "2026-11-01-manual-lifecycle",
+        "2026-11-02-completion-assessment",
+        "2026-11-02-plan-index"
+      ],
+      "scope_markdown": "- Build versioned documentation manifest and topic bundle\n- Expose shared offline docs index, topic and search\n- Detect managed guidance drift without implicit upgrades",
+      "acceptance_criteria_markdown": "- [ ] Manifest hashes, source bytes, unique topics and related links validate; minimum topics and release orientation are packaged.\n- [ ] Command examples match delivered inventory; future designs are labelled rather than advertised as runtime capability.\n- [ ] Operations work outside Git without config or network; CLI/core content, order and version fields agree.\n- [ ] Unknown/traversal IDs, empty queries and corrupt bundles follow specified errors; literal search has deterministic excerpts and empty success results.\n- [ ] Version/hash checks report stale or missing owned guidance without writing files or fetching.\n- [ ] Explicit refresh consumes reviewed release assets and preserves user/custom content; integration into both installers is owned by extension-packaging.",
+      "execution_prerequisites_markdown": "Create through the existing CLI after proposal approval; readiness and start remain separate human decisions. The current CLI does not support target/comparison inputs: do not synthesize execution metadata. Resolve the bootstrap exception explicitly before execution.",
+      "steps": [
+        {
+          "id": "01-docs-bundle",
+          "number": 1,
+          "title": "Build versioned documentation manifest and topic bundle",
+          "path": "plans/2026-11-02-product-docs/steps/01-docs-bundle.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Manifest hashes, source bytes, unique topics and related links validate; minimum topics and release orientation are packaged.\n- [ ] Command examples match delivered inventory; future designs are labelled rather than advertised as runtime capability.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "02-docs-operations",
+          "number": 2,
+          "title": "Expose shared offline docs index, topic and search",
+          "path": "plans/2026-11-02-product-docs/steps/02-docs-operations.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Operations work outside Git without config or network; CLI/core content, order and version fields agree.\n- [ ] Unknown/traversal IDs, empty queries and corrupt bundles follow specified errors; literal search has deterministic excerpts and empty success results.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        },
+        {
+          "id": "03-guidance-freshness",
+          "number": 3,
+          "title": "Detect managed guidance drift without implicit upgrades",
+          "path": "plans/2026-11-02-product-docs/steps/03-guidance-freshness.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Version/hash checks report stale or missing owned guidance without writing files or fetching.\n- [ ] Explicit refresh consumes reviewed release assets and preserves user/custom content; integration into both installers is owned by extension-packaging.",
+          "tasks_markdown": "1. Implement the behavior stated in the goal using the listed contracts.\n2. Add focused regression tests for each acceptance criterion, including its refusal and preservation cases.\n3. Run the reviewed procedure and record commands, outcomes and limitations through the plan-step workflow.",
+          "guidance_markdown": "Complete earlier steps first. Use the managed checkout after CLI start. Before preparation, bind each criterion to concrete suite IDs and a supported reporter (Node TAP v13 or JUnit XML on stdout); missing mappings remain uncertain until resolved. Test files are committed implementation. Manual CLI execution records observed results without claiming core receipts. Preserve body/status independence and unrelated edits."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-01-extension-packaging",
+      "path": "plans/2026-11-01-extension-packaging/PLAN.md",
+      "status": "draft",
+      "depends_on": [
+        "2026-11-02-product-docs"
+      ],
+      "scope_markdown": "- Produce reusable package builder and complete asset/procedure inventories against committed targets.\n- Implement common/host destination validation, ownership digests, journal, backups and recovery.\n- Connect explicit installation selection and neutral guidance; gate legacy retirement on replacement readiness.",
+      "acceptance_criteria_markdown": "- [ ] Every runtime/dependency asset and required procedure is covered and resolvable from the built package.\n- [ ] Tampered or incompatible bundle refuses before mutation; a pin is not treated as conformance evidence.\n- [ ] Dangling links and changed path components never write outside the target.\n- [ ] Customized files survive; interruption at each transaction phase recovers without partial activation.\n- [ ] Both install orders and repeated init preserve the other extension and user settings.\n- [ ] Old public skills remain available until replacements are usable; collisions keep affected commands unavailable with an exact action.\n- [ ] Prepared/installed/enabled states reflect observed evidence only.\n\n- [ ] Bundles include the compatible core docs, source hashes, shared orientation and documentation/contract versions.\n- [ ] Both install orders preserve customization and explicitly refresh release guidance; startup/docs lookup never installs.",
+      "execution_prerequisites_markdown": "This plan originated in the approved November 1 decomposition. The November 2 coverage revision does not change stored readiness or authorize execution. Reconfirm readiness against the revised scope before start; resolve current spec/dependency status through the CLI.\n\nDependencies: `2026-11-02-product-docs` (which depends on manual-lifecycle, completion-assessment and plan-index). Under `wait_for_merge`, each predecessor must be human-finished and merged before this plan starts.\n\nRun steps sequentially in branch `plan/2026-11-01-extension-packaging` after CLI-managed start. Commit settled specification targets and recheck context before implementation; draft creation does not pin the current dirty specification text.",
+      "steps": [
+        {
+          "id": "01-package-inventory-and-contract-snapshots",
+          "number": 1,
+          "title": "Package inventory and contract snapshots",
+          "path": "plans/2026-11-01-extension-packaging/steps/01-package-inventory-and-contract-snapshots.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Every runtime/dependency asset and required procedure is covered and resolvable from the built package.\n- [ ] Tampered or incompatible bundle refuses before mutation; a pin is not treated as conformance evidence.\n\n- [ ] Bundles include the compatible core docs, source hashes, shared orientation and documentation/contract versions.",
+          "tasks_markdown": "1. Produce reusable package builder and complete asset/procedure inventories against committed targets.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Validate packaged assets and examples against the delivered command inventory.",
+          "guidance_markdown": "Follow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "02-containment-and-migration-transaction",
+          "number": 2,
+          "title": "Containment and migration transaction",
+          "path": "plans/2026-11-01-extension-packaging/steps/02-containment-and-migration-transaction.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Dangling links and changed path components never write outside the target.\n- [ ] Customized files survive; interruption at each transaction phase recovers without partial activation.",
+          "tasks_markdown": "1. Implement common/host destination validation, ownership digests, journal, backups and recovery.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.",
+          "guidance_markdown": "Complete step 1 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "03-coexistence-and-legacy-rollout",
+          "number": 3,
+          "title": "Coexistence and legacy rollout",
+          "path": "plans/2026-11-01-extension-packaging/steps/03-coexistence-and-legacy-rollout.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Both install orders and repeated init preserve the other extension and user settings.\n- [ ] Old public skills remain available until replacements are usable; collisions keep affected commands unavailable with an exact action.\n- [ ] Prepared/installed/enabled states reflect observed evidence only.\n\n- [ ] Both install orders preserve customization and explicitly refresh release guidance; startup/docs lookup never installs.",
+          "tasks_markdown": "1. Connect explicit installation selection and neutral guidance; gate legacy retirement on replacement readiness.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Connect product-docs freshness checks and explicit refresh to the installer transaction.",
+          "guidance_markdown": "Complete step 2 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-01-claude-delivery",
+      "path": "plans/2026-11-01-claude-delivery/PLAN.md",
+      "status": "draft",
+      "depends_on": [
+        "2026-11-01-extension-packaging"
+      ],
+      "scope_markdown": "- Inspect installed declarations and build a named-version API/collision/interaction compatibility fixture.\n- Implement verified native handlers and policy hooks delegating to core; package internal reasoning procedures and fallback.\n- Implement extension-owned session adapter against verified declarations with shared contract fixtures.",
+      "acceptance_criteria_markdown": "- [ ] Native APIs and direct-human port signatures have evidence before native handler implementation.\n- [ ] If unavailable, report the native work blocked and retain labeled fallback; do not count unavailable capability as successful delivery.\n- [ ] Mechanical handler path performs no model call; built-in commands are not shadowed.\n- [ ] Human gates cannot be supplied by model output; every replaced legacy workflow has conformance coverage.\n- [ ] Launch/observe/resume/cancel and budget behavior preserve core leases and recording ownership.\n- [ ] Live certification requires named-version test evidence; fake-runner success alone enables no native/background capability.\n\n- [ ] Docs/completion handlers preserve core/version parity and host command names; the optional edit hook invokes plan index --source working.\n- [ ] Body policy honors exact user-approved edits under review and distinguishes implementation metadata from review status.\n- [ ] Consumer coverage includes offline docs, no-plan edits, completion and target-aware managed flows under named-version capability evidence.",
+      "execution_prerequisites_markdown": "This plan originated in the approved November 1 decomposition. The November 2 coverage revision does not change stored readiness or authorize execution. Reconfirm readiness against the revised scope before start; resolve current spec/dependency status through the CLI.\n\nDependencies: `2026-11-01-extension-packaging`. Under `wait_for_merge`, each predecessor must be human-finished and merged before this plan starts.\n\nRun steps sequentially in branch `plan/2026-11-01-claude-delivery` after CLI-managed start. Commit settled specification targets and recheck context before implementation; draft creation does not pin the current dirty specification text.",
+      "steps": [
+        {
+          "id": "01-host-surface-evidence",
+          "number": 1,
+          "title": "Host surface evidence",
+          "path": "plans/2026-11-01-claude-delivery/steps/01-host-surface-evidence.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Native APIs and direct-human port signatures have evidence before native handler implementation.\n- [ ] If unavailable, report the native work blocked and retain labeled fallback; do not count unavailable capability as successful delivery.",
+          "tasks_markdown": "1. Inspect installed declarations and build a named-version API/collision/interaction compatibility fixture.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.",
+          "guidance_markdown": "Follow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "02-handlers-and-reasoning-procedures",
+          "number": 2,
+          "title": "Handlers and reasoning procedures",
+          "path": "plans/2026-11-01-claude-delivery/steps/02-handlers-and-reasoning-procedures.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Mechanical handler path performs no model call; built-in commands are not shadowed.\n- [ ] Human gates cannot be supplied by model output; every replaced legacy workflow has conformance coverage.\n\n- [ ] Docs/completion handlers preserve core/version parity and host command names; the optional edit hook invokes plan index --source working.\n- [ ] Body policy honors exact user-approved edits under review and distinguishes implementation metadata from review status.",
+          "tasks_markdown": "1. Implement verified native handlers and policy hooks delegating to core; package internal reasoning procedures and fallback.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Test hook arguments and pending PLAN visibility; verify native availability before enabling handlers.",
+          "guidance_markdown": "Complete step 1 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "03-adapter-lifecycle-and-integration",
+          "number": 3,
+          "title": "Adapter lifecycle and integration",
+          "path": "plans/2026-11-01-claude-delivery/steps/03-adapter-lifecycle-and-integration.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Launch/observe/resume/cancel and budget behavior preserve core leases and recording ownership.\n- [ ] Live certification requires named-version test evidence; fake-runner success alone enables no native/background capability.\n\n- [ ] Consumer coverage includes offline docs, no-plan edits, completion and target-aware managed flows under named-version capability evidence.",
+          "tasks_markdown": "1. Implement extension-owned session adapter against verified declarations with shared contract fixtures.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Report unavailable host fixtures as blocked, not passing or certified.",
+          "guidance_markdown": "Complete step 2 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-01-codex-delivery",
+      "path": "plans/2026-11-01-codex-delivery/PLAN.md",
+      "status": "draft",
+      "depends_on": [
+        "2026-11-01-extension-packaging"
+      ],
+      "scope_markdown": "- Implement packaged NDJSON runner and core lifecycle channel.\n- Deliver complete workflows, provenance capture and fallback documentation in the packaged skill.\n- Exercise an ordinary permitted remote-backed plan with installed assets and a scripted protocol client.",
+      "acceptance_criteria_markdown": "- [ ] Protocol framing, request matching, stale state, disconnect and worker-stop recovery are covered.\n- [ ] No persistent channel yields the labeled manual fallback; no other host is substituted.\n- [ ] Consumers need not possess this repository to load required shared procedure/context.\n- [ ] Manual fallback supplies the new recording manifest; unsupported identity stays unknown.\n- [ ] Native/background capability flags remain false.\n- [ ] Synchronize, implement, execute real assertions, record and publish; diverged remote and failed push have safe outcomes.\n- [ ] Experimental fixtures remain separate; scripted evidence makes no live host/session claim.\n\n- [ ] executeTest forwards the closed request to executeWorkflowTest under the retained lease; disconnect/cancel and permission refusal propagate.\n- [ ] Docs/completion use bundled shared operations and optional-workflow guidance without source-repository dependencies.\n- [ ] Consumer tests cover ordinary no-plan work, offline docs, stale manual completion and prepare/edit/executeTest/validate/record.",
+      "execution_prerequisites_markdown": "This plan originated in the approved November 1 decomposition. The November 2 coverage revision does not change stored readiness or authorize execution. Reconfirm readiness against the revised scope before start; resolve current spec/dependency status through the CLI.\n\nDependencies: `2026-11-01-extension-packaging`. Under `wait_for_merge`, each predecessor must be human-finished and merged before this plan starts.\n\nRun steps sequentially in branch `plan/2026-11-01-codex-delivery` after CLI-managed start. Commit settled specification targets and recheck context before implementation; draft creation does not pin the current dirty specification text.",
+      "steps": [
+        {
+          "id": "01-persistent-runner",
+          "number": 1,
+          "title": "Persistent runner",
+          "path": "plans/2026-11-01-codex-delivery/steps/01-persistent-runner.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Protocol framing, request matching, stale state, disconnect and worker-stop recovery are covered.\n- [ ] No persistent channel yields the labeled manual fallback; no other host is substituted.\n\n- [ ] executeTest forwards the closed request to executeWorkflowTest under the retained lease; disconnect/cancel and permission refusal propagate.",
+          "tasks_markdown": "1. Implement packaged NDJSON runner and core lifecycle channel.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Test protocol request/result parity, stale state and rejected caller-authored receipts.",
+          "guidance_markdown": "Follow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "02-complete-installed-procedure",
+          "number": 2,
+          "title": "Complete installed procedure",
+          "path": "plans/2026-11-01-codex-delivery/steps/02-complete-installed-procedure.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Consumers need not possess this repository to load required shared procedure/context.\n- [ ] Manual fallback supplies the new recording manifest; unsupported identity stays unknown.\n- [ ] Native/background capability flags remain false.\n\n- [ ] Docs/completion use bundled shared operations and optional-workflow guidance without source-repository dependencies.",
+          "tasks_markdown": "1. Deliver complete workflows, provenance capture and fallback documentation in the packaged skill.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Preserve separate body authorship and declaration authority; keep unsupported host capability claims disabled.",
+          "guidance_markdown": "Complete step 1 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "03-codex-consumer-integration",
+          "number": 3,
+          "title": "Codex consumer integration",
+          "path": "plans/2026-11-01-codex-delivery/steps/03-codex-consumer-integration.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] Synchronize, implement, execute real assertions, record and publish; diverged remote and failed push have safe outcomes.\n- [ ] Experimental fixtures remain separate; scripted evidence makes no live host/session claim.\n\n- [ ] Consumer tests cover ordinary no-plan work, offline docs, stale manual completion and prepare/edit/executeTest/validate/record.",
+          "tasks_markdown": "1. Exercise an ordinary permitted remote-backed plan with installed assets and a scripted protocol client.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Run a second-clone summary test; distinguish deterministic scripted results from live agent comprehension.",
+          "guidance_markdown": "Complete step 2 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-01-extension-conformance",
+      "path": "plans/2026-11-01-extension-conformance/PLAN.md",
+      "status": "draft",
+      "depends_on": [
+        "2026-11-01-codex-delivery",
+        "2026-11-01-claude-delivery"
+      ],
+      "scope_markdown": "- Run package installation, shared protocol, manual lifecycle and host workflow regression matrix from release artifacts.\n- After implementation conformance review, refresh CLI-managed pins and write exact tested-version/surface evidence plus migration docs.",
+      "acceptance_criteria_markdown": "- [ ] CLI/core paths agree for exact staging, coordination, confirmations, receipts and provenance.\n- [ ] Each public export and delivered workflow maps to passing applicable tests; full implementation suite and repository validation are reported separately.\n- [ ] All pins refer to committed reviewed targets; no hash-only claim of conformance.\n- [ ] Warnings receive revision-bound review; no requirement to make unrelated heuristic warnings disappear.\n- [ ] Human finish/merge/publication remains separate; blocked Claude delivery cannot be hidden by a generic unavailable flag.\n\n- [ ] Acceptance covers all three index sources, target/retarget refusal paths, completion dependency changes and offline CLI/core/harness docs parity.\n- [ ] Ordinary Git/manual declarations and agent interpretation are assessed separately from deterministic packaging tests.\n- [ ] Spec dependency pins already current do not imply installed-skill conformance; refresh skill comments only after implementation review.",
+      "execution_prerequisites_markdown": "This plan originated in the approved November 1 decomposition. The November 2 coverage revision does not change stored readiness or authorize execution. Reconfirm readiness against the revised scope before start; resolve current spec/dependency status through the CLI.\n\nDependencies: `2026-11-01-codex-delivery`, `2026-11-01-claude-delivery`. Under `wait_for_merge`, each predecessor must be human-finished and merged before this plan starts.\n\nRun steps sequentially in branch `plan/2026-11-01-extension-conformance` after CLI-managed start. Commit settled specification targets and recheck context before implementation; draft creation does not pin the current dirty specification text.",
+      "steps": [
+        {
+          "id": "01-cross-package-acceptance-matrix",
+          "number": 1,
+          "title": "Cross-package acceptance matrix",
+          "path": "plans/2026-11-01-extension-conformance/steps/01-cross-package-acceptance-matrix.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] CLI/core paths agree for exact staging, coordination, confirmations, receipts and provenance.\n- [ ] Each public export and delivered workflow maps to passing applicable tests; full implementation suite and repository validation are reported separately.\n\n- [ ] Acceptance covers all three index sources, target/retarget refusal paths, completion dependency changes and offline CLI/core/harness docs parity.\n- [ ] Ordinary Git/manual declarations and agent interpretation are assessed separately from deterministic packaging tests.",
+          "tasks_markdown": "1. Run package installation, shared protocol, manual lifecycle and host workflow regression matrix from release artifacts.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Build traceability from each added contract to named suites and separate host evidence.",
+          "guidance_markdown": "Follow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "02-pin-review-and-release-evidence",
+          "number": 2,
+          "title": "Pin review and release evidence",
+          "path": "plans/2026-11-01-extension-conformance/steps/02-pin-review-and-release-evidence.md",
+          "status": "pending",
+          "acceptance_criteria_markdown": "- [ ] All pins refer to committed reviewed targets; no hash-only claim of conformance.\n- [ ] Warnings receive revision-bound review; no requirement to make unrelated heuristic warnings disappear.\n- [ ] Human finish/merge/publication remains separate; blocked Claude delivery cannot be hidden by a generic unavailable flag.\n\n- [ ] Spec dependency pins already current do not imply installed-skill conformance; refresh skill comments only after implementation review.",
+          "tasks_markdown": "1. After implementation conformance review, refresh CLI-managed pins and write exact tested-version/surface evidence plus migration docs.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Record current tested versions and migration away from generate; do not repin unchanged spec relationships merely for release.",
+          "guidance_markdown": "Complete step 1 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        }
+      ]
+    },
+    {
+      "id": "2026-11-01-core-foundation",
+      "path": "plans/archive/2026-11-01-core-foundation/PLAN.md",
+      "status": "done",
+      "depends_on": [],
+      "scope_markdown": "- Remove inherited nested-runner context and add execution-count plus deliberately failing child coverage.\n- Create import-safe core entry, typed ports, compatibility validator and closed shared schemas. Unimplemented mutating operations explicitly refuse.\n- Implement canonical repository/checkout/plan lock identities and ordered acquisition as a reusable primitive.\n- Implement worker generation/token delegation, stop acknowledgment and recovery on the lease primitive.\n- Implement event validation/deduplication and repeated-trailer read/write support.",
+      "acceptance_criteria_markdown": "- [ ] A correct child executes its expected test; a broken implementation fails the outer fixture.\n- [ ] Existing historical results are not relabeled as verified.\n- [ ] Importing the core does not parse CLI arguments or mutate a checkout.\n- [ ] Unknown fields, wrong versions and invalid asset digests refuse; unknown host version disables native/background capability.\n- [ ] Alias paths share one checkout lock; competing non-plan and plan writers cannot overlap.\n- [ ] Multi-checkout contention releases acquired subsets safely; malformed coordination data fails closed.\n- [ ] Dead parent/live worker cannot be reclaimed; stale tokens cannot record.\n- [ ] Cancellation retains edits; uncertain stop requires recovery; delegated operations do not recursively lock.\n- [ ] Same-session A/B, later C and subagent contributions survive serialization and rewrites.\n- [ ] Unknown identities remain unknown; duplicate event IDs cannot duplicate attribution.\n\n- [ ] Public contracts include completion/docs/target operations and executeWorkflowTest; unavailable implementations explicitly refuse.",
+      "execution_prerequisites_markdown": "This plan originated in the approved November 1 decomposition. The November 2 coverage revision does not change stored readiness or authorize execution. Reconfirm readiness against the revised scope before start; resolve current spec/dependency status through the CLI.\n\nThis plan has no predecessor dependency.\n\nRun steps sequentially in branch `plan/2026-11-01-core-foundation` after CLI-managed start. Commit settled specification targets and recheck context before implementation; draft creation does not pin the current dirty specification text.",
+      "steps": [
+        {
+          "id": "01-trustworthy-subprocess-tests",
+          "number": 1,
+          "title": "Trustworthy subprocess tests",
+          "path": "plans/archive/2026-11-01-core-foundation/steps/01-trustworthy-subprocess-tests.md",
+          "status": "done",
+          "acceptance_criteria_markdown": "- [ ] A correct child executes its expected test; a broken implementation fails the outer fixture.\n- [ ] Existing historical results are not relabeled as verified.",
+          "tasks_markdown": "1. Remove inherited nested-runner context and add execution-count plus deliberately failing child coverage.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.",
+          "guidance_markdown": "Follow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "02-core-boundary-and-compatibility",
+          "number": 2,
+          "title": "Core boundary and compatibility",
+          "path": "plans/archive/2026-11-01-core-foundation/steps/02-core-boundary-and-compatibility.md",
+          "status": "done",
+          "acceptance_criteria_markdown": "- [ ] Importing the core does not parse CLI arguments or mutate a checkout.\n- [ ] Unknown fields, wrong versions and invalid asset digests refuse; unknown host version disables native/background capability.\n\n- [ ] Public contracts include completion/docs/target operations and executeWorkflowTest; unavailable implementations explicitly refuse.",
+          "tasks_markdown": "1. Create import-safe core entry, typed ports, compatibility validator and closed shared schemas. Unimplemented mutating operations explicitly refuse.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.\n\nAdditional tasks for the settled contracts:\n\n- Add closed request/result schemas and import-safety tests without advertising unfinished commands.",
+          "guidance_markdown": "Complete step 1 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "03-ordered-writer-leases",
+          "number": 3,
+          "title": "Ordered writer leases",
+          "path": "plans/archive/2026-11-01-core-foundation/steps/03-ordered-writer-leases.md",
+          "status": "done",
+          "acceptance_criteria_markdown": "- [ ] Alias paths share one checkout lock; competing non-plan and plan writers cannot overlap.\n- [ ] Multi-checkout contention releases acquired subsets safely; malformed coordination data fails closed.",
+          "tasks_markdown": "1. Implement canonical repository/checkout/plan lock identities and ordered acquisition as a reusable primitive.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.",
+          "guidance_markdown": "Complete step 2 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "04-delegation-and-cancellation",
+          "number": 4,
+          "title": "Delegation and cancellation",
+          "path": "plans/archive/2026-11-01-core-foundation/steps/04-delegation-and-cancellation.md",
+          "status": "done",
+          "acceptance_criteria_markdown": "- [ ] Dead parent/live worker cannot be reclaimed; stale tokens cannot record.\n- [ ] Cancellation retains edits; uncertain stop requires recovery; delegated operations do not recursively lock.",
+          "tasks_markdown": "1. Implement worker generation/token delegation, stop acknowledgment and recovery on the lease primitive.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.",
+          "guidance_markdown": "Complete step 3 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        },
+        {
+          "id": "05-contribution-capture-and-readers",
+          "number": 5,
+          "title": "Contribution capture and readers",
+          "path": "plans/archive/2026-11-01-core-foundation/steps/05-contribution-capture-and-readers.md",
+          "status": "done",
+          "acceptance_criteria_markdown": "- [ ] Same-session A/B, later C and subagent contributions survive serialization and rewrites.\n- [ ] Unknown identities remain unknown; duplicate event IDs cannot duplicate attribution.",
+          "tasks_markdown": "1. Implement event validation/deduplication and repeated-trailer read/write support.\n2. Verify each acceptance criterion with the applicable automated checks or required host evidence.\n3. Record results, limitations and any specification gaps through the plan-step workflow.",
+          "guidance_markdown": "Complete step 4 before this step.\n\nFollow the architecture before feature details. Record missing or contradictory requirements in `spec-gaps.md` and resolve them before dependent implementation. Execute only in this plan\u2019s designated checkout; let the workflow record progress."
+        }
+      ]
+    }
+  ]
+}

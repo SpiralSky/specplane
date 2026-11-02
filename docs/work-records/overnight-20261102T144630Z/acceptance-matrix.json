@@ -1,0 +1,1694 @@
+[
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 1,
+    "text": "Explicit, declared, team and repository-default precedence is deterministic; ambiguous or unavailable legacy targets refuse.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 2,
+    "text": "Target and comparison inputs resolve valid commits/branches; malformed bindings fail before mutation.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 3,
+    "text": "First start validates target-local plans/specs/dependencies and records immutable provenance before execution.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Dirty reused worktrees skip setup and survive failure; missing checkout recreation preserves branch and step commits.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 5,
+    "text": "List/show/live discovery report target, starting commit, comparison base and pending retarget state consistently.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 6,
+    "text": "Missing/offline refs and manually declared done without integration are distinguished.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 7,
+    "text": "Rebase, PR base and local merge use the recorded destination; ambiguous legacy provenance refuses.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 8,
+    "text": "Target changes or rebase invalidate prior acceptance; cross-target stacks refuse; failed operations preserve recoverable state.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 9,
+    "text": "Dry-run/JSON inspect identical preconditions without mutation; actual writes recheck refs, leases and plan identity.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 10,
+    "text": "PR base/lifecycle conflicts and missing required forge evidence refuse; original start/comparison provenance survives; no commit, rebase or PR edit occurs.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 11,
+    "text": "Shelving preserves checkout/branch/history and blocks execution until explicit resume.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "plan",
+    "criterion": 12,
+    "text": "Automated worktree/branch removal requires independent integration evidence; a manual done edit alone never permits cleanup.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "01-target-resolution",
+    "criterion": 1,
+    "text": "Explicit, declared, team and repository-default precedence is deterministic; ambiguous or unavailable legacy targets refuse.",
+    "status": "verified",
+    "evidence": [
+      "346425f",
+      "7319f99",
+      "target-integrated-tests.log:23 pass",
+      "target-1-review.md"
+    ]
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "01-target-resolution",
+    "criterion": 2,
+    "text": "Target and comparison inputs resolve valid commits/branches; malformed bindings fail before mutation.",
+    "status": "verified",
+    "evidence": [
+      "346425f",
+      "7319f99",
+      "target-integrated-tests.log:23 pass",
+      "target-1-review.md"
+    ]
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "02-target-start",
+    "criterion": 1,
+    "text": "First start validates target-local plans/specs/dependencies and records immutable provenance before execution.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "02-target-start",
+    "criterion": 2,
+    "text": "Dirty reused worktrees skip setup and survive failure; missing checkout recreation preserves branch and step commits.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "03-target-readers",
+    "criterion": 1,
+    "text": "List/show/live discovery report target, starting commit, comparison base and pending retarget state consistently.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "03-target-readers",
+    "criterion": 2,
+    "text": "Missing/offline refs and manually declared done without integration are distinguished.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "04-target-finish",
+    "criterion": 1,
+    "text": "Rebase, PR base and local merge use the recorded destination; ambiguous legacy provenance refuses.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "04-target-finish",
+    "criterion": 2,
+    "text": "Target changes or rebase invalidate prior acceptance; cross-target stacks refuse; failed operations preserve recoverable state.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "05-retarget",
+    "criterion": 1,
+    "text": "Dry-run/JSON inspect identical preconditions without mutation; actual writes recheck refs, leases and plan identity.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "05-retarget",
+    "criterion": 2,
+    "text": "PR base/lifecycle conflicts and missing required forge evidence refuse; original start/comparison provenance survives; no commit, rebase or PR edit occurs.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "06-shelve-cleanup",
+    "criterion": 1,
+    "text": "Shelving preserves checkout/branch/history and blocks execution until explicit resume.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-target-lifecycle",
+    "step": "06-shelve-cleanup",
+    "criterion": 2,
+    "text": "Automated worktree/branch removal requires independent integration evidence; a manual done edit alone never permits cleanup.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "plan",
+    "criterion": 1,
+    "text": "Each snapshot resolves its own config and plan inventory; detached/unborn HEAD and staged additions/deletions behave as specified.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "plan",
+    "criterion": 2,
+    "text": "Working includes tracked ignored files and non-ignored new plans; unresolved inputs and changed discovery/index bytes refuse safely.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "plan",
+    "criterion": 3,
+    "text": "Default head rendering is deterministic with the Target column; --live requires --print and print writes nothing.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Old generate command refuses with migration guidance; CI targets the selected branch and uses head; unchanged output is not rewritten.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "plan",
+    "criterion": 5,
+    "text": "Approval/shelve/resume commit new metadata and its matching index together; post-commit regeneration is byte-identical.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "plan",
+    "criterion": 6,
+    "text": "Resolved staged merge/rebase/cherry-pick inputs appear in recovery rendering; unmerged plan/config inputs refuse while output-only conflict is allowed.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "01-snapshot-reader",
+    "criterion": 1,
+    "text": "Each snapshot resolves its own config and plan inventory; detached/unborn HEAD and staged additions/deletions behave as specified.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "01-snapshot-reader",
+    "criterion": 2,
+    "text": "Working includes tracked ignored files and non-ignored new plans; unresolved inputs and changed discovery/index bytes refuse safely.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "02-index-command",
+    "criterion": 1,
+    "text": "Default head rendering is deterministic with the Target column; --live requires --print and print writes nothing.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "02-index-command",
+    "criterion": 2,
+    "text": "Old generate command refuses with migration guidance; CI targets the selected branch and uses head; unchanged output is not rewritten.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "03-transaction-snapshots",
+    "criterion": 1,
+    "text": "Approval/shelve/resume commit new metadata and its matching index together; post-commit regeneration is byte-identical.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-plan-index",
+    "step": "03-transaction-snapshots",
+    "criterion": 2,
+    "text": "Resolved staged merge/rebase/cherry-pick inputs appear in recovery rendering; unmerged plan/config inputs refuse while output-only conflict is allowed.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 1,
+    "text": "Remote plan fast-forward precedes snapshot; divergence refuses.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 2,
+    "text": "Dirty baseline, changed policy/criteria and wrong checkout are handled according to the settled contract; missing schema details become gaps before dependent code.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 3,
+    "text": "Successful expected suites validate; failed/skipped-only/missing child suites do not.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Changed input, output, receipt or request identity invalidates evidence; tests count actual reporter cases.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 5,
+    "text": "Unrelated staged/unstaged/plan-folder edits and partial staging refuse before mutation.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 6,
+    "text": "Empty status-only result, additions/deletions, forced rerecord and commit-failure index restoration are covered.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 7,
+    "text": "Existing callers are migrated or receive actionable refusal; no silent blanket-staging fallback.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 8,
+    "text": "Core alone writes status/HANDOFF; stale proposals and lost leases refuse.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 9,
+    "text": "Matching retry returns existing commit; failed push retries publication without implementation or duplicate commit.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 10,
+    "text": "Non-plan results cannot set lifecycle states or bypass creation operations.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 12,
+    "text": "Preparation binds target context and reviewed suite/report mappings; absent mappings remain uncertain.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 13,
+    "text": "executeWorkflowTest retains the active lease, launches through the host permission port, and captures stdout reporters in the private ledger.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 14,
+    "text": "Permission refusal, cancellation, nonzero exit, skipped child, missing suites, stale/forged receipts and concurrent execution cannot establish passing criteria.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "plan",
+    "criterion": 15,
+    "text": "Recording derives the durable HANDOFF summary from validated evidence; another clone cannot independently verify absent private receipts.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "01-preparation-and-state-binding",
+    "criterion": 1,
+    "text": "Remote plan fast-forward precedes snapshot; divergence refuses.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "01-preparation-and-state-binding",
+    "criterion": 2,
+    "text": "Dirty baseline, changed policy/criteria and wrong checkout are handled according to the settled contract; missing schema details become gaps before dependent code.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "01-preparation-and-state-binding",
+    "criterion": 4,
+    "text": "Preparation binds target context and reviewed suite/report mappings; absent mappings remain uncertain.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "02-execution-receipts",
+    "criterion": 1,
+    "text": "Successful expected suites validate; failed/skipped-only/missing child suites do not.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "02-execution-receipts",
+    "criterion": 2,
+    "text": "Changed input, output, receipt or request identity invalidates evidence; tests count actual reporter cases.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "02-execution-receipts",
+    "criterion": 4,
+    "text": "executeWorkflowTest retains the active lease, launches through the host permission port, and captures stdout reporters in the private ledger.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "02-execution-receipts",
+    "criterion": 5,
+    "text": "Permission refusal, cancellation, nonzero exit, skipped child, missing suites, stale/forged receipts and concurrent execution cannot establish passing criteria.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "03-manual-exact-set-recording",
+    "criterion": 1,
+    "text": "Unrelated staged/unstaged/plan-folder edits and partial staging refuse before mutation.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "03-manual-exact-set-recording",
+    "criterion": 2,
+    "text": "Empty status-only result, additions/deletions, forced rerecord and commit-failure index restoration are covered.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "03-manual-exact-set-recording",
+    "criterion": 3,
+    "text": "Existing callers are migrated or receive actionable refusal; no silent blanket-staging fallback.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "04-workflow-validation-and-recording",
+    "criterion": 1,
+    "text": "Core alone writes status/HANDOFF; stale proposals and lost leases refuse.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "04-workflow-validation-and-recording",
+    "criterion": 2,
+    "text": "Matching retry returns existing commit; failed push retries publication without implementation or duplicate commit.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "04-workflow-validation-and-recording",
+    "criterion": 3,
+    "text": "Non-plan results cannot set lifecycle states or bypass creation operations.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-workflow-recording",
+    "step": "04-workflow-validation-and-recording",
+    "criterion": 5,
+    "text": "Recording derives the durable HANDOFF summary from validated evidence; another clone cannot independently verify absent private receipts.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 1,
+    "text": "Model tool input cannot consume a human response port.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 2,
+    "text": "Decline, timeout, replay and changed bytes refuse without mutation.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 3,
+    "text": "Approval/text authorization/finish acceptance/merge remain distinct; rebase invalidates prior acceptance.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Manual human-invoked confirmations retain documented behavior; agent entry points cannot reuse them.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 5,
+    "text": "Spec/ADR creation and other stateful CLI operations use checkout coordination.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 6,
+    "text": "No installed-file/default/registry-order runtime selection; plain start remains usable without a host.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 7,
+    "text": "Fake adapter tests cover launch uncertainty, resume, limits, cancellation, finish-ready and identity mapping without approving or merging.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 8,
+    "text": "CLI help, docs and callers match removed commands; host capabilities remain gated until later verification.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 10,
+    "text": "Completion declarations and ordinary Git remain separate from review approval; metadata-only completion never triggers body-writing approval.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "plan",
+    "criterion": 11,
+    "text": "Human gates retain target binding and prospective index transaction invariants.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "01-confirmation-challenge-primitive",
+    "criterion": 1,
+    "text": "Model tool input cannot consume a human response port.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "01-confirmation-challenge-primitive",
+    "criterion": 2,
+    "text": "Decline, timeout, replay and changed bytes refuse without mutation.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "02-lifecycle-command-integration",
+    "criterion": 1,
+    "text": "Approval/text authorization/finish acceptance/merge remain distinct; rebase invalidates prior acceptance.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "02-lifecycle-command-integration",
+    "criterion": 2,
+    "text": "Manual human-invoked confirmations retain documented behavior; agent entry points cannot reuse them.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "02-lifecycle-command-integration",
+    "criterion": 3,
+    "text": "Spec/ADR creation and other stateful CLI operations use checkout coordination.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "02-lifecycle-command-integration",
+    "criterion": 5,
+    "text": "Completion declarations and ordinary Git remain separate from review approval; metadata-only completion never triggers body-writing approval.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "02-lifecycle-command-integration",
+    "criterion": 6,
+    "text": "Human gates retain target binding and prospective index transaction invariants.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "03-neutral-startup-and-extension-conductor",
+    "criterion": 1,
+    "text": "No installed-file/default/registry-order runtime selection; plain start remains usable without a host.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "03-neutral-startup-and-extension-conductor",
+    "criterion": 2,
+    "text": "Fake adapter tests cover launch uncertainty, resume, limits, cancellation, finish-ready and identity mapping without approving or merging.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-manual-lifecycle",
+    "step": "03-neutral-startup-and-extension-conductor",
+    "criterion": 3,
+    "text": "CLI help, docs and callers match removed commands; host capabilities remain gated until later verification.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "plan",
+    "criterion": 1,
+    "text": "Manual declarations without fingerprints are valid; malformed metadata, duplicate keys and unsupported values follow the specified errors.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "plan",
+    "criterion": 2,
+    "text": "Canonicalization excludes only specified bookkeeping; recursive root-qualified dependencies handle cycles, anchored references and changed membership.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "plan",
+    "criterion": 3,
+    "text": "List/show/validation report declaration plus current, reassessment_needed, unrecorded or unverifiable with ordered reasons.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Unavailable/unsupported dependencies take unverifiable precedence while retaining mismatches; code changes alone never imply verification.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "plan",
+    "criterion": 5,
+    "text": "CLI/core parity covers dry-run, no-op repetition, all statuses and preserving prior evidence; complete resolves the entire dependency closure.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "plan",
+    "criterion": 6,
+    "text": "Lease and preimage checks preserve body, lifecycle, unrelated edits/index on failure; no plan, commit, test execution or fabricated evidence is required.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "01-fingerprints",
+    "criterion": 1,
+    "text": "Manual declarations without fingerprints are valid; malformed metadata, duplicate keys and unsupported values follow the specified errors.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "01-fingerprints",
+    "criterion": 2,
+    "text": "Canonicalization excludes only specified bookkeeping; recursive root-qualified dependencies handle cycles, anchored references and changed membership.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "02-assessment",
+    "criterion": 1,
+    "text": "List/show/validation report declaration plus current, reassessment_needed, unrecorded or unverifiable with ordered reasons.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "02-assessment",
+    "criterion": 2,
+    "text": "Unavailable/unsupported dependencies take unverifiable precedence while retaining mismatches; code changes alone never imply verification.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "03-completion-writers",
+    "criterion": 1,
+    "text": "CLI/core parity covers dry-run, no-op repetition, all statuses and preserving prior evidence; complete resolves the entire dependency closure.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-completion-assessment",
+    "step": "03-completion-writers",
+    "criterion": 2,
+    "text": "Lease and preimage checks preserve body, lifecycle, unrelated edits/index on failure; no plan, commit, test execution or fabricated evidence is required.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "plan",
+    "criterion": 1,
+    "text": "Manifest hashes, source bytes, unique topics and related links validate; minimum topics and release orientation are packaged.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "plan",
+    "criterion": 2,
+    "text": "Command examples match delivered inventory; future designs are labelled rather than advertised as runtime capability.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "plan",
+    "criterion": 3,
+    "text": "Operations work outside Git without config or network; CLI/core content, order and version fields agree.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Unknown/traversal IDs, empty queries and corrupt bundles follow specified errors; literal search has deterministic excerpts and empty success results.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "plan",
+    "criterion": 5,
+    "text": "Version/hash checks report stale or missing owned guidance without writing files or fetching.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "plan",
+    "criterion": 6,
+    "text": "Explicit refresh consumes reviewed release assets and preserves user/custom content; integration into both installers is owned by extension-packaging.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "01-docs-bundle",
+    "criterion": 1,
+    "text": "Manifest hashes, source bytes, unique topics and related links validate; minimum topics and release orientation are packaged.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "01-docs-bundle",
+    "criterion": 2,
+    "text": "Command examples match delivered inventory; future designs are labelled rather than advertised as runtime capability.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "02-docs-operations",
+    "criterion": 1,
+    "text": "Operations work outside Git without config or network; CLI/core content, order and version fields agree.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "02-docs-operations",
+    "criterion": 2,
+    "text": "Unknown/traversal IDs, empty queries and corrupt bundles follow specified errors; literal search has deterministic excerpts and empty success results.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "03-guidance-freshness",
+    "criterion": 1,
+    "text": "Version/hash checks report stale or missing owned guidance without writing files or fetching.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-02-product-docs",
+    "step": "03-guidance-freshness",
+    "criterion": 2,
+    "text": "Explicit refresh consumes reviewed release assets and preserves user/custom content; integration into both installers is owned by extension-packaging.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "plan",
+    "criterion": 1,
+    "text": "Every runtime/dependency asset and required procedure is covered and resolvable from the built package.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "plan",
+    "criterion": 2,
+    "text": "Tampered or incompatible bundle refuses before mutation; a pin is not treated as conformance evidence.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "plan",
+    "criterion": 3,
+    "text": "Dangling links and changed path components never write outside the target.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Customized files survive; interruption at each transaction phase recovers without partial activation.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "plan",
+    "criterion": 5,
+    "text": "Both install orders and repeated init preserve the other extension and user settings.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "plan",
+    "criterion": 6,
+    "text": "Old public skills remain available until replacements are usable; collisions keep affected commands unavailable with an exact action.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "plan",
+    "criterion": 7,
+    "text": "Prepared/installed/enabled states reflect observed evidence only.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "plan",
+    "criterion": 9,
+    "text": "Bundles include the compatible core docs, source hashes, shared orientation and documentation/contract versions.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "plan",
+    "criterion": 10,
+    "text": "Both install orders preserve customization and explicitly refresh release guidance; startup/docs lookup never installs.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "01-package-inventory-and-contract-snapshots",
+    "criterion": 1,
+    "text": "Every runtime/dependency asset and required procedure is covered and resolvable from the built package.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "01-package-inventory-and-contract-snapshots",
+    "criterion": 2,
+    "text": "Tampered or incompatible bundle refuses before mutation; a pin is not treated as conformance evidence.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "01-package-inventory-and-contract-snapshots",
+    "criterion": 4,
+    "text": "Bundles include the compatible core docs, source hashes, shared orientation and documentation/contract versions.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "02-containment-and-migration-transaction",
+    "criterion": 1,
+    "text": "Dangling links and changed path components never write outside the target.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "02-containment-and-migration-transaction",
+    "criterion": 2,
+    "text": "Customized files survive; interruption at each transaction phase recovers without partial activation.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "03-coexistence-and-legacy-rollout",
+    "criterion": 1,
+    "text": "Both install orders and repeated init preserve the other extension and user settings.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "03-coexistence-and-legacy-rollout",
+    "criterion": 2,
+    "text": "Old public skills remain available until replacements are usable; collisions keep affected commands unavailable with an exact action.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "03-coexistence-and-legacy-rollout",
+    "criterion": 3,
+    "text": "Prepared/installed/enabled states reflect observed evidence only.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-packaging",
+    "step": "03-coexistence-and-legacy-rollout",
+    "criterion": 5,
+    "text": "Both install orders preserve customization and explicitly refresh release guidance; startup/docs lookup never installs.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "plan",
+    "criterion": 1,
+    "text": "Native APIs and direct-human port signatures have evidence before native handler implementation.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "plan",
+    "criterion": 2,
+    "text": "If unavailable, report the native work blocked and retain labeled fallback; do not count unavailable capability as successful delivery.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "plan",
+    "criterion": 3,
+    "text": "Mechanical handler path performs no model call; built-in commands are not shadowed.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Human gates cannot be supplied by model output; every replaced legacy workflow has conformance coverage.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "plan",
+    "criterion": 5,
+    "text": "Launch/observe/resume/cancel and budget behavior preserve core leases and recording ownership.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "plan",
+    "criterion": 6,
+    "text": "Live certification requires named-version test evidence; fake-runner success alone enables no native/background capability.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "plan",
+    "criterion": 8,
+    "text": "Docs/completion handlers preserve core/version parity and host command names; the optional edit hook invokes plan index --source working.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "plan",
+    "criterion": 9,
+    "text": "Body policy honors exact user-approved edits under review and distinguishes implementation metadata from review status.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "plan",
+    "criterion": 10,
+    "text": "Consumer coverage includes offline docs, no-plan edits, completion and target-aware managed flows under named-version capability evidence.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "01-host-surface-evidence",
+    "criterion": 1,
+    "text": "Native APIs and direct-human port signatures have evidence before native handler implementation.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "01-host-surface-evidence",
+    "criterion": 2,
+    "text": "If unavailable, report the native work blocked and retain labeled fallback; do not count unavailable capability as successful delivery.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "02-handlers-and-reasoning-procedures",
+    "criterion": 1,
+    "text": "Mechanical handler path performs no model call; built-in commands are not shadowed.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "02-handlers-and-reasoning-procedures",
+    "criterion": 2,
+    "text": "Human gates cannot be supplied by model output; every replaced legacy workflow has conformance coverage.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "02-handlers-and-reasoning-procedures",
+    "criterion": 4,
+    "text": "Docs/completion handlers preserve core/version parity and host command names; the optional edit hook invokes plan index --source working.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "02-handlers-and-reasoning-procedures",
+    "criterion": 5,
+    "text": "Body policy honors exact user-approved edits under review and distinguishes implementation metadata from review status.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "03-adapter-lifecycle-and-integration",
+    "criterion": 1,
+    "text": "Launch/observe/resume/cancel and budget behavior preserve core leases and recording ownership.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "03-adapter-lifecycle-and-integration",
+    "criterion": 2,
+    "text": "Live certification requires named-version test evidence; fake-runner success alone enables no native/background capability.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-claude-delivery",
+    "step": "03-adapter-lifecycle-and-integration",
+    "criterion": 4,
+    "text": "Consumer coverage includes offline docs, no-plan edits, completion and target-aware managed flows under named-version capability evidence.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 1,
+    "text": "Protocol framing, request matching, stale state, disconnect and worker-stop recovery are covered.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 2,
+    "text": "No persistent channel yields the labeled manual fallback; no other host is substituted.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 3,
+    "text": "Consumers need not possess this repository to load required shared procedure/context.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Manual fallback supplies the new recording manifest; unsupported identity stays unknown.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 5,
+    "text": "Native/background capability flags remain false.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 6,
+    "text": "Synchronize, implement, execute real assertions, record and publish; diverged remote and failed push have safe outcomes.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 7,
+    "text": "Experimental fixtures remain separate; scripted evidence makes no live host/session claim.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 9,
+    "text": "executeTest forwards the closed request to executeWorkflowTest under the retained lease; disconnect/cancel and permission refusal propagate.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 10,
+    "text": "Docs/completion use bundled shared operations and optional-workflow guidance without source-repository dependencies.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "plan",
+    "criterion": 11,
+    "text": "Consumer tests cover ordinary no-plan work, offline docs, stale manual completion and prepare/edit/executeTest/validate/record.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "01-persistent-runner",
+    "criterion": 1,
+    "text": "Protocol framing, request matching, stale state, disconnect and worker-stop recovery are covered.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "01-persistent-runner",
+    "criterion": 2,
+    "text": "No persistent channel yields the labeled manual fallback; no other host is substituted.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "01-persistent-runner",
+    "criterion": 4,
+    "text": "executeTest forwards the closed request to executeWorkflowTest under the retained lease; disconnect/cancel and permission refusal propagate.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "02-complete-installed-procedure",
+    "criterion": 1,
+    "text": "Consumers need not possess this repository to load required shared procedure/context.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "02-complete-installed-procedure",
+    "criterion": 2,
+    "text": "Manual fallback supplies the new recording manifest; unsupported identity stays unknown.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "02-complete-installed-procedure",
+    "criterion": 3,
+    "text": "Native/background capability flags remain false.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "02-complete-installed-procedure",
+    "criterion": 5,
+    "text": "Docs/completion use bundled shared operations and optional-workflow guidance without source-repository dependencies.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "03-codex-consumer-integration",
+    "criterion": 1,
+    "text": "Synchronize, implement, execute real assertions, record and publish; diverged remote and failed push have safe outcomes.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "03-codex-consumer-integration",
+    "criterion": 2,
+    "text": "Experimental fixtures remain separate; scripted evidence makes no live host/session claim.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-codex-delivery",
+    "step": "03-codex-consumer-integration",
+    "criterion": 4,
+    "text": "Consumer tests cover ordinary no-plan work, offline docs, stale manual completion and prepare/edit/executeTest/validate/record.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "plan",
+    "criterion": 1,
+    "text": "CLI/core paths agree for exact staging, coordination, confirmations, receipts and provenance.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "plan",
+    "criterion": 2,
+    "text": "Each public export and delivered workflow maps to passing applicable tests; full implementation suite and repository validation are reported separately.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "plan",
+    "criterion": 3,
+    "text": "All pins refer to committed reviewed targets; no hash-only claim of conformance.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Warnings receive revision-bound review; no requirement to make unrelated heuristic warnings disappear.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "plan",
+    "criterion": 5,
+    "text": "Human finish/merge/publication remains separate; blocked Claude delivery cannot be hidden by a generic unavailable flag.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "plan",
+    "criterion": 7,
+    "text": "Acceptance covers all three index sources, target/retarget refusal paths, completion dependency changes and offline CLI/core/harness docs parity.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "plan",
+    "criterion": 8,
+    "text": "Ordinary Git/manual declarations and agent interpretation are assessed separately from deterministic packaging tests.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "plan",
+    "criterion": 9,
+    "text": "Spec dependency pins already current do not imply installed-skill conformance; refresh skill comments only after implementation review.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "01-cross-package-acceptance-matrix",
+    "criterion": 1,
+    "text": "CLI/core paths agree for exact staging, coordination, confirmations, receipts and provenance.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "01-cross-package-acceptance-matrix",
+    "criterion": 2,
+    "text": "Each public export and delivered workflow maps to passing applicable tests; full implementation suite and repository validation are reported separately.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "01-cross-package-acceptance-matrix",
+    "criterion": 4,
+    "text": "Acceptance covers all three index sources, target/retarget refusal paths, completion dependency changes and offline CLI/core/harness docs parity.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "01-cross-package-acceptance-matrix",
+    "criterion": 5,
+    "text": "Ordinary Git/manual declarations and agent interpretation are assessed separately from deterministic packaging tests.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "02-pin-review-and-release-evidence",
+    "criterion": 1,
+    "text": "All pins refer to committed reviewed targets; no hash-only claim of conformance.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "02-pin-review-and-release-evidence",
+    "criterion": 2,
+    "text": "Warnings receive revision-bound review; no requirement to make unrelated heuristic warnings disappear.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "02-pin-review-and-release-evidence",
+    "criterion": 3,
+    "text": "Human finish/merge/publication remains separate; blocked Claude delivery cannot be hidden by a generic unavailable flag.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-extension-conformance",
+    "step": "02-pin-review-and-release-evidence",
+    "criterion": 5,
+    "text": "Spec dependency pins already current do not imply installed-skill conformance; refresh skill comments only after implementation review.",
+    "status": "pending",
+    "evidence": []
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 1,
+    "text": "A correct child executes its expected test; a broken implementation fails the outer fixture.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 2,
+    "text": "Existing historical results are not relabeled as verified.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 3,
+    "text": "Importing the core does not parse CLI arguments or mutate a checkout.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 4,
+    "text": "Unknown fields, wrong versions and invalid asset digests refuse; unknown host version disables native/background capability.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 5,
+    "text": "Alias paths share one checkout lock; competing non-plan and plan writers cannot overlap.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 6,
+    "text": "Multi-checkout contention releases acquired subsets safely; malformed coordination data fails closed.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 7,
+    "text": "Dead parent/live worker cannot be reclaimed; stale tokens cannot record.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 8,
+    "text": "Cancellation retains edits; uncertain stop requires recovery; delegated operations do not recursively lock.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 9,
+    "text": "Same-session A/B, later C and subagent contributions survive serialization and rewrites.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 10,
+    "text": "Unknown identities remain unknown; duplicate event IDs cannot duplicate attribution.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "plan",
+    "criterion": 12,
+    "text": "Public contracts include completion/docs/target operations and executeWorkflowTest; unavailable implementations explicitly refuse.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "01-trustworthy-subprocess-tests",
+    "criterion": 1,
+    "text": "A correct child executes its expected test; a broken implementation fails the outer fixture.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "01-trustworthy-subprocess-tests",
+    "criterion": 2,
+    "text": "Existing historical results are not relabeled as verified.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "02-core-boundary-and-compatibility",
+    "criterion": 1,
+    "text": "Importing the core does not parse CLI arguments or mutate a checkout.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "02-core-boundary-and-compatibility",
+    "criterion": 2,
+    "text": "Unknown fields, wrong versions and invalid asset digests refuse; unknown host version disables native/background capability.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "02-core-boundary-and-compatibility",
+    "criterion": 4,
+    "text": "Public contracts include completion/docs/target operations and executeWorkflowTest; unavailable implementations explicitly refuse.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "03-ordered-writer-leases",
+    "criterion": 1,
+    "text": "Alias paths share one checkout lock; competing non-plan and plan writers cannot overlap.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "03-ordered-writer-leases",
+    "criterion": 2,
+    "text": "Multi-checkout contention releases acquired subsets safely; malformed coordination data fails closed.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "04-delegation-and-cancellation",
+    "criterion": 1,
+    "text": "Dead parent/live worker cannot be reclaimed; stale tokens cannot record.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "04-delegation-and-cancellation",
+    "criterion": 2,
+    "text": "Cancellation retains edits; uncertain stop requires recovery; delegated operations do not recursively lock.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "05-contribution-capture-and-readers",
+    "criterion": 1,
+    "text": "Same-session A/B, later C and subagent contributions survive serialization and rewrites.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  },
+  {
+    "plan": "2026-11-01-core-foundation",
+    "step": "05-contribution-capture-and-readers",
+    "criterion": 2,
+    "text": "Unknown identities remain unknown; duplicate event IDs cannot duplicate attribution.",
+    "status": "verified baseline implementation; live integration excluded",
+    "evidence": [
+      "host-investigation.md",
+      "baseline-tests.log:359 pass"
+    ]
+  }
+]
