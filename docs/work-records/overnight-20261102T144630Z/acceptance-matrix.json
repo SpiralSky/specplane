@@ -786,16 +786,26 @@
     "step": "03-completion-writers",
     "criterion": 1,
     "text": "CLI/core parity covers dry-run, no-op repetition, all statuses and preserving prior evidence; complete resolves the entire dependency closure.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified except recorded anchored-alias form blocked",
+    "evidence": [
+      "0266b61",
+      "completion-3-review.md",
+      "completion-plan-integrated-tests.log:396 pass",
+      "completion-3-result.md"
+    ]
   },
   {
     "plan": "2026-11-02-completion-assessment",
     "step": "03-completion-writers",
     "criterion": 2,
     "text": "Lease and preimage checks preserve body, lifecycle, unrelated edits/index on failure; no plan, commit, test execution or fabricated evidence is required.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified except recorded anchored-alias form blocked",
+    "evidence": [
+      "0266b61",
+      "completion-3-review.md",
+      "completion-plan-integrated-tests.log:396 pass",
+      "completion-3-result.md"
+    ]
   },
   {
     "plan": "2026-11-02-product-docs",

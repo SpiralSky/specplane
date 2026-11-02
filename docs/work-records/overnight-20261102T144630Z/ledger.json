@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "4cfbd2b96fa1226d495d60f9245455fcd639c9b7",
+  "integrated_commit": "40c71899bce9e4f763174e3716c0e46dacb2733b",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -96,10 +96,10 @@
     {
       "step": "target-lifecycle/2c",
       "agent": "target_2c",
-      "status": "repairing review/recovery/lease gaps",
+      "status": "integrated;44 focused pass;resume/legacy regression reconciliation assigned2d",
       "base": "ef4acba6043423e4044d9faaf1236a224431528b",
-      "commit": "c6a6f52",
-      "tests": "33 focused pass;17/30 existing flows unresolved"
+      "commit": "bc16df6",
+      "tests": "44 focused pass; legacy flow regressions await2d"
     },
     {
       "step": "completion-assessment/2 review",
@@ -109,13 +109,26 @@
     {
       "step": "completion-assessment/3",
       "agent": "completion_3",
-      "status": "running",
-      "base": "4cfbd2b96fa1226d495d60f9245455fcd639c9b7"
+      "status": "integrated;396-test regression passed; anchored-alias gap retained",
+      "base": "4cfbd2b96fa1226d495d60f9245455fcd639c9b7",
+      "commit": "0266b61",
+      "tests": "44 focused pass"
     },
     {
       "step": "target-lifecycle/2c review",
       "agent": "target_2c_review",
-      "status": "running"
+      "status": "reviewed; lease/recovery/API findings"
+    },
+    {
+      "step": "completion-assessment/3 review",
+      "agent": "completion_3_review",
+      "status": "reviewed; repairs completed with one recorded contract gap"
+    },
+    {
+      "step": "target-lifecycle/2d",
+      "agent": "target_2d",
+      "status": "running",
+      "base": "40c71899bce9e4f763174e3716c0e46dacb2733b"
     }
   ],
   "next": [
@@ -148,5 +161,19 @@
     "claude_native": "blocked pending named-version host declarations",
     "codex_runner": "project protocol available for nonlive tests",
     "both_live_certifications": "deliberately deferred"
+  },
+  "gaps": [
+    {
+      "id": "completion-alias-1",
+      "criterion": "completion-assessment/3 metadata preservation",
+      "description": "implementation anchor referenced by unrelated metadata cannot be changed while preserving both unrelated source bytes and prior alias semantics; safe refusal tested",
+      "action": "human contract decision about allowing unrelated source rewrites or keeping refusal",
+      "scope": "only this YAML form; remaining completion operations implemented"
+    }
+  ],
+  "completion_regression": {
+    "passed": 396,
+    "failed": 0,
+    "log": "completion-plan-integrated-tests.log"
   }
 }
