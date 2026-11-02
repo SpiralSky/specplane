@@ -162,16 +162,30 @@
     "step": "03-target-readers",
     "criterion": 1,
     "text": "List/show/live discovery report target, starting commit, comparison base and pending retarget state consistently.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "22687bc",
+      "target-3-review.md",
+      "target-step3-integrated-tests.log:441 pass"
+    ],
+    "limitations": [
+      "Bound-plan attention unavailable until target-aware planNext; tracked for step6"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",
     "step": "03-target-readers",
     "criterion": 2,
     "text": "Missing/offline refs and manually declared done without integration are distinguished.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "22687bc",
+      "target-3-review.md",
+      "target-step3-integrated-tests.log:441 pass"
+    ],
+    "limitations": [
+      "Bound-plan attention unavailable until target-aware planNext; tracked for step6"
+    ]
   },
   {
     "plan": "2026-11-02-target-lifecycle",

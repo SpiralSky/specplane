@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "c3c2ac3e15f2f2abb5fcb968ac778a7f42ac9a46",
+  "integrated_commit": "8fbdb9eb734b2567f575f3d6af4235999323a300",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -140,12 +140,20 @@
     {
       "step": "target-lifecycle/3",
       "agent": "target_3",
+      "status": "integrated;441 full regression passed",
+      "base": "c3c2ac3e15f2f2abb5fcb968ac778a7f42ac9a46",
+      "commit": "22687bc",
+      "tests": "54 affected pass"
+    },
+    {
+      "step": "target-lifecycle/4",
+      "agent": "target_4",
       "status": "running",
-      "base": "c3c2ac3e15f2f2abb5fcb968ac778a7f42ac9a46"
+      "base": "8fbdb9eb734b2567f575f3d6af4235999323a300"
     }
   ],
   "next": [
-    "Review target_3 result and integrate repairs serially",
+    "Review target_4 result and integrate repairs serially; then fresh target5 and target6 workers",
     "Dispatch fresh target4 then5 then6 workers",
     "Plan-index1/2/3 follow target lifecycle, then workflow recording and manual lifecycle",
     "Product docs follows manual lifecycle, completion and indexing; packaging follows docs; delivery hosts in parallel then conformance"
@@ -158,7 +166,7 @@
   "processes": [],
   "remote_checkpoint": {
     "branch": "overnight/specplane-20261102T144630Z",
-    "commit": "da44e84",
+    "commit": "1983abb",
     "status": "pushed"
   },
   "baseline_validation": {
@@ -172,8 +180,8 @@
     "sync": "passed"
   },
   "host_limits": {
-    "claude_native": "blocked pending named-version host declarations",
-    "codex_runner": "project protocol available for nonlive tests",
+    "claude_native": "Official Claude Code2.1.316 and AgentSDK0.3.316 declarations inspected with SHA512 verification; required native mod dispatch/direct-human UI signatures unavailable",
+    "codex_runner": "Codex0.163.0 offline generated process/channel declarations available; real-session access and live compatibility unverified",
     "both_live_certifications": "deliberately deferred"
   },
   "gaps": [
@@ -191,6 +199,12 @@
       "handling": "raw ambiguous legacy refuse; trusted caller may supply independently verified attestation through internal start API, with null starting commit",
       "action": "define/provide authoritative historical default record source/recovery contract",
       "scope": "recorded-binding flow unaffected"
+    },
+    {
+      "id": "target-attention-1",
+      "description": "Bound-plan attention explicitly unavailable while planNext remains default-oriented",
+      "owner": "target-lifecycle step6 must make planNext target-aware for shelving override, then reactivate truthful attention",
+      "status": "pending implementation"
     }
   ],
   "completion_regression": {
@@ -205,9 +219,9 @@
   },
   "updated_utc": "2026-11-02T15:23:18.404060+00:00",
   "combined_regression": {
-    "passed": 423,
+    "passed": 441,
     "failed": 0,
     "skipped": 0,
-    "log": "target-step2-integrated-tests.log"
+    "log": "target-step3-integrated-tests.log"
   }
 }
