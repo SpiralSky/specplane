@@ -1,9 +1,14 @@
+import { randomUUID } from "node:crypto";
+import { acquireWriterLease } from "../core/writer-leases.js";
+import { lifecycleContext, checkStackTarget, recheckLifecycleRefs } from "./lifecycle-context.js";
+import { isDeepStrictEqual } from "node:util";
+import { planAt as validatedPlanAt } from "./prepare-start.js";
 import { firstStart, type FirstStartOptions } from "./first-start.js";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { GitError, PlanNotFoundError, PlanStateError } from "../errors.js";
-import { createPR } from "../git/forge.js";
+import { createPR, matchingOpenPR } from "../git/forge.js";
 import { branchExists, deleteBranch, rebaseOnto, remoteBranchExists } from "../git/branch.js";
 import { cliTrailers, findLatest, formatMessage, readTrailers } from "../git/commit.js";
 import { run } from "../git/exec.js";
@@ -126,7 +131,7 @@ function claimPlan(id: string, planPath: string, def: string, remote: boolean, m
 }
 
 export interface FinishOptions {
-  /** Auto-confirm the local merge. */
+  /** Accepted for CLI compatibility; local merge requires a state-specific confirmation callback. */
   yes?: boolean;
   /** Asks the human to confirm the merge; absent means no human is available (unattended). */
   confirm?: (question: string) => Promise<boolean>;
@@ -148,7 +153,7 @@ function git(args: string[], cwd: string): string {
 }
 
 function clean(cwd: string): boolean {
-  return (tryRun(["status", "--porcelain", "--untracked-files=no"], cwd) ?? "").trim() === "";
+  return tryRun(["status", "--porcelain"], cwd)?.trim() === "";
 }
 
 /** Run `plans.test_command` in `cwd` (output to stderr); throws on a non-zero exit. */
@@ -178,8 +183,23 @@ function acceptanceCriteria(text: string): string[] {
  */
 export async function finishPlan(id: string, config: Config, root: string, opts: FinishOptions = {}): Promise<FinishResult> {
   const main = mainRoot(root);
-  const def = defaultBranch(main);
+  const trees = listWorktrees(main);
+  const planIds = git(["for-each-ref", "--format=%(refname)", "refs/heads/plan/", "refs/remotes/origin/plan/"], main).split("\n").map(x => x.replace(/^refs\/(?:heads|remotes\/origin)\/plan\//, "")).filter(Boolean);
+  const lease = acquireWriterLease({ repository: true, plans: [id, ...planIds], checkouts: trees.filter(w => !w.bare).map(w => w.path), requestId: `finish-${randomUUID()}` });
+  try {
   const remote = hasRemote(main);
+  if (remote && opts.fetch !== false) run("git", ["fetch", "origin", "+refs/heads/*:refs/remotes/origin/*"], { cwd: main });
+  let p = lifecycleContext(id, config, root);
+  if (remote && opts.fetch !== false) {
+    run("git", ["fetch", "origin", p.context.targetBranch], { cwd: main });
+    p = lifecycleContext(id, config, root);
+  }
+  if (JSON.stringify(trees) !== JSON.stringify(listWorktrees(main))) throw new PlanStateError("Checkout set changed during preparation; retry.");
+  if (p.context.targetBranch.startsWith("plan/") && !planIds.includes(p.context.targetBranch.slice(5))) throw new PlanStateError("Target plan appeared during fetch; retry to acquire its lease.");
+  config = p.config;
+  const def = p.context.targetBranch;
+  const targetTree = trees.find(w => w.branch === def)?.path;
+  const canSwitch = config.execution.backend === "branch" && !targetTree && tryRun(["rev-parse", "--verify", `refs/heads/${def}^{commit}`], main)?.trim() === p.context.targetCommit;
   const branch = `plan/${id}`;
   const backend = config.execution.backend;
   const merge = config.plans.merge;
@@ -203,8 +223,7 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   if (merge === "pull_request" && !remote) {
     throw new PlanStateError("Cannot finish: `merge: pull_request` needs a remote `origin` to push to.");
   }
-  if (remote && opts.fetch !== false) run("git", ["fetch", "origin", def], { cwd: main });
-  const tip = defaultTip(def, main);
+  const tip = p.context.targetCommit;
   const planHere = planAt("HEAD", id, config, root);
   if (!planHere) throw new PlanNotFoundError(id);
   if (config.plans.dependency_mode === "stack") {
@@ -213,18 +232,36 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     }
   }
   const alreadyDone = planHere.status === "done";
+  if (alreadyDone) {
+    const trailers = readTrailers("HEAD", root);
+    if (trailers.get("Specplane-Workflow")?.at(-1) !== "finish" || trailers.get("Specplane-Plan")?.at(-1) !== id) throw new PlanStateError("Done plan branch has no matching finish commit; reconcile its lifecycle state before retrying.");
+  }
   const planPath = `${config.plans.dir}/${id}/PLAN.md`;
-  const claimReview = frontmatterMode && backend !== "branch" && !alreadyDone && planAt(tip, id, config, main)?.status !== "review";
+  const claimReview = frontmatterMode && !alreadyDone && planAt(tip, id, config, main)?.status !== "review";
+  if ((claimReview || merge === "local_merge") && !(canSwitch && !claimReview) && (!targetTree || git(["rev-parse", "HEAD"], targetTree) !== tip || !clean(targetTree))) throw new PlanStateError(`A clean checkout of target \`${def}\` at the selected target commit is required.`);
   if (claimReview) {
-    const mainBranch = tryRun(["rev-parse", "--abbrev-ref", "HEAD"], main)?.trim();
+    const mainBranch = tryRun(["rev-parse", "--abbrev-ref", "HEAD"], targetTree!)?.trim();
     if (mainBranch !== def) {
       throw new PlanStateError(`Cannot claim plan \`${id}\`: the main checkout is on \`${mainBranch}\`, not \`${def}\`. Switch to \`${def}\` and run finish again.`);
     }
-    if ((tryRun(["status", "--porcelain", "--", planPath], main) ?? "").trim() !== "") {
+    if ((tryRun(["status", "--porcelain", "--", planPath], targetTree!) ?? "").trim() !== "") {
       throw new PlanStateError(`Cannot claim plan \`${id}\`: \`${planPath}\` has uncommitted changes in the main checkout. Commit or discard them and run finish again.`);
     }
   }
 
+  const markerPre = findLatest(branch, "stack", root);
+  if (markerPre && readTrailers(markerPre, root).has("Specplane-Stack-Base")) {
+    const subject = git(["log", "-1", "--format=%s", markerPre], root);
+    const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
+    if (!baseId) throw new PlanStateError("Stack dependency is missing.");
+    if (planIds.includes(baseId)) checkStackTarget(baseId, def, config, main, p.refs);
+    else {
+      const base = validatedPlanAt(main, tip, config, baseId);
+      if (base?.status !== "done" || base.execution?.target_branch !== def) throw new PlanStateError("Stack dependency lacks compatible recorded target.");
+    }
+  }
+  lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+  const existingPR = merge === "pull_request" ? matchingOpenPR(branch, def, { cwd: root, forge: config.plans.forge }) : null;
   // 2. Verify.
   const testCmd = config.plans.test_command.trim();
   if (!alreadyDone) {
@@ -239,41 +276,87 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   }
 
   // 3. Claim review (frontmatter mode).
-  if (claimReview) claimPlan(id, planPath, def, remote, main, "review");
+  lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+  if (claimReview) {
+    try { claimPlan(id, planPath, def, remote, targetTree!, "review"); }
+    catch (e) {
+      const current = tryRun(["rev-parse", "HEAD"], targetTree!)?.trim();
+      throw new PlanStateError(current && current !== tip ? `Review claim ${current} remains on ${def}; publication may be pending. Inspect and retry: ${String(e)}` : `Review claim failed; inspect the target checkout and index before retrying: ${String(e)}`);
+    }
+    p.refs[`refs/heads/${def}`] = revParse(`refs/heads/${def}`, main);
+    if (remote) p.refs[`refs/remotes/origin/${def}`] = tryRun(["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${def}^{commit}`], main)?.trim() ?? null;
+  }
 
   // 4. Rebase onto the default branch (restack when stacked).
-  const rebaseTip = defaultTip(def, main);
+  const rebaseTip = claimReview ? git(["rev-parse", "HEAD"], targetTree!) : tip;
   const marker = findLatest(branch, "stack", root);
   const stackBase = marker ? readTrailers(marker, root).get("Specplane-Stack-Base")?.at(-1) : undefined;
   const before = git(["rev-parse", "HEAD"], root);
   rebaseOnto(rebaseTip, stackBase ?? rebaseTip, branch, root);
-  if (git(["rev-parse", "HEAD"], root) !== before && testCmd !== "") runTests(testCmd, root);
+  const rebased = git(["rev-parse", "HEAD"], root) !== before;
+  if (rebased && testCmd !== "") runTests(testCmd, root);
+  const afterRebase = validatedPlanAt(root, "HEAD", config, id);
+  if (!afterRebase || !isDeepStrictEqual(afterRebase.execution, p.context.binding) || (afterRebase.comparison_base ?? null) !== p.context.comparisonBase) throw new PlanStateError("Rebase changed execution provenance; recovery is required.");
 
+  lease.assertOwned();
+  const targetRefs = Object.fromEntries(Object.entries(p.refs).filter(([name]) => name !== `refs/heads/${branch}` && name !== `refs/remotes/origin/${branch}`));
+  recheckLifecycleRefs(main, targetRefs);
   // 5. Final commit (the PLAN.md may move to the archive, so read the criteria first).
   const criteria = acceptanceCriteria(fs.readFileSync(path.join(dir, "PLAN.md"), "utf8"));
-  if (!alreadyDone) finalCommit(id, config, root);
+  if (!alreadyDone) {
+    const reviewed = git(["rev-parse", "HEAD"], root);
+    const challenge = [...notices, `Finalize \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
+    const approved = opts.confirm ? await opts.confirm(challenge) : false;
+    if (!approved) {
+      notices.push(`Plan \`${id}\` is ready to merge after interactive finalization: head \`${reviewed}\`, target \`${def}\` at \`${rebaseTip}\`.`);
+      return { planId: id, outcome: "ready", prUrl: null, notices };
+    }
+    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
+    if (git(["rev-parse", "HEAD"], root) !== reviewed || !clean(root)) throw new PlanStateError("Plan changed during finalization confirmation; retry.");
+    finalCommit(id, config, root);
+  }
 
   // 6. Merge.
   let outcome: FinishResult["outcome"];
   let prUrl: string | null = null;
   if (merge === "pull_request") {
+    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
+    if (matchingOpenPR(branch, def, { cwd: root, forge: config.plans.forge }) !== existingPR) throw new PlanStateError("Pull request state changed during finish; retry.");
     run("git", ["push", "-u", "--force-with-lease", "origin", branch], { cwd: root });
-    prUrl = createPR(branch, def, planHere.title, prBody(id, planHere.title, criteria), { cwd: root, forge: config.plans.forge });
+    prUrl = existingPR ?? createPR(branch, def, planHere.title, prBody(id, planHere.title, criteria), { cwd: root, forge: config.plans.forge });
     notices.push(
       prUrl ? `Opened pull request: ${prUrl}` : `Pushed \`${branch}\`. Open a pull request from \`${branch}\` into \`${def}\`, then run \`specplane plan cleanup ${id}\` after it merges.`,
     );
     outcome = "pushed";
   } else {
-    const ok = opts.yes === true || (opts.confirm ? await opts.confirm(`Merge \`${branch}\` into \`${def}\` now?`) : false);
+    const reviewed = git(["rev-parse", "HEAD"], root);
+    if (alreadyDone && criteria.length) notices.push(`Acceptance criteria (confirm before merging):\n${criteria.map(c => `  ${c}`).join("\n")}`);
+    if (alreadyDone) {
+      const file = path.join(dir, "spec-gaps.md");
+      if (fs.existsSync(file)) { const open = formatOpenGaps(parseGaps(file).entries); if (open.length) notices.push(`Open spec gaps:\n${open.map(g => `  ${g}`).join("\n")}`); }
+    }
+    const challenge = [...notices, `Merge \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
+    const ok = opts.confirm ? await opts.confirm(challenge) : false;
     if (!ok) {
-      notices.push(`Plan \`${id}\` is ready to merge. Run \`specplane plan finish ${id}\` again to merge it.`);
+      notices.push(`Plan \`${id}\` is ready to merge: head \`${reviewed}\` into target \`${def}\` at \`${rebaseTip}\`. Run \`specplane plan finish ${id}\` interactively to confirm this head and target.`);
       return { planId: id, outcome: "ready", prUrl, notices };
     }
-    localMerge(id, branch, def, remote, backend, main);
-    cleanupPlan(id, config, main);
+    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
+    if (git(["rev-parse", "HEAD"], root) !== reviewed || git(["rev-parse", `refs/heads/${def}`], main) !== rebaseTip) throw new PlanStateError("Target or reviewed head changed after confirmation; retry finish.");
+    localMerge(id, branch, def, remote, canSwitch ? "branch" : "worktree", targetTree ?? root);
+    // Delete only the exact reviewed head after independently verifying integration.
+    const integrated = git(["rev-parse", `refs/heads/${def}`], main);
+    if (tryRun(["merge-base", "--is-ancestor", reviewed, integrated], main) === null || planAt(integrated, id, config, main)?.status !== "done" || revParse(branch, main) !== reviewed) throw new PlanStateError("Merge succeeded but integration evidence changed; retain the plan checkout for recovery.");
+    if (canSwitch) deleteBranch(branch, main);
+    else if (!samePath(root, main)) {
+      if (!clean(root)) throw new PlanStateError("Merge succeeded but the plan checkout changed; retain it for recovery.");
+      dropWorktree(root, false, main);
+      deleteBranch(branch, main);
+    } else notices.push("Merge succeeded; retain the plan checkout for explicit cleanup.");
     outcome = "merged";
   }
   return { planId: id, outcome, prUrl, notices };
+  } finally { lease.release(); }
 }
 
 /** Step 5: `status: done`, archive when configured, one `finish` commit. */
@@ -516,12 +599,17 @@ function commitsToReplay(branch: string, upstream: string, cwd: string): { sha: 
  */
 export function restackPlan(id: string, config: Config, root: string, opts: { dryRun?: boolean } = {}): RestackResult {
   const main = mainRoot(root);
-  const def = defaultBranch(main);
+  const trees = listWorktrees(main);
+  const planIds = git(["for-each-ref", "--format=%(refname)", "refs/heads/plan/", "refs/remotes/origin/plan/"], main).split("\n").map(x => x.replace(/^refs\/(?:heads|remotes\/origin)\/plan\//, "")).filter(Boolean);
+  const lease = opts.dryRun ? null : acquireWriterLease({ repository: true, plans: [id, ...planIds], checkouts: trees.filter(w => !w.bare).map(w => w.path), requestId: `restack-${randomUUID()}` });
+  try {
+  if (!opts.dryRun && hasRemote(main)) run("git", ["fetch", "origin", "+refs/heads/*:refs/remotes/origin/*"], { cwd: main });
+  const p = lifecycleContext(id, config, root);
+  config = p.config;
+  const def = p.context.targetBranch;
+  if (JSON.stringify(trees) !== JSON.stringify(listWorktrees(main))) throw new PlanStateError("Checkout set changed during preparation; retry.");
+  if (def.startsWith("plan/") && !planIds.includes(def.slice(5))) throw new PlanStateError("Target plan appeared during fetch; retry to acquire its lease.");
   const branch = `plan/${id}`;
-  if (hasRemote(main)) {
-    run("git", ["fetch", "origin", def], { cwd: main });
-    fetchPlanBranches(main);
-  }
   if (!branchExists(branch, main)) {
     if (!planAt(defaultTip(def, main), id, config, main)) throw new PlanNotFoundError(id);
     throw new PlanStateError(`Cannot restack: \`${id}\` is not stacked.`);
@@ -533,28 +621,35 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
   const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
   if (!baseId) throw new PlanStateError(`Cannot restack: the stack marker of \`${id}\` does not name a base plan.`);
 
-  const tip = defaultTip(def, main);
-  const merged = planAt(tip, baseId, config, main)?.status === "done";
+  const tip = p.context.targetCommit;
+  const baseRecord = validatedPlanAt(main, tip, config, baseId);
+  const merged = baseRecord?.status === "done";
+  let baseCommit = tip;
+  if (planIds.includes(baseId)) baseCommit = checkStackTarget(baseId, def, config, main, p.refs);
+  else if (!merged || baseRecord?.execution?.target_branch !== def) throw new PlanStateError(`Stack dependency ${baseId} lacks compatible recorded target.`);
   let newBase = tip;
   if (!merged) {
-    const baseBranch = `plan/${baseId}`;
-    newBase = branchExists(baseBranch, main) ? baseBranch : remoteBranchExists(baseBranch, main) ? `origin/${baseBranch}` : "";
+    newBase = baseCommit;
     if (newBase === "") throw new PlanStateError(`Cannot restack: base plan \`${baseId}\` has no branch and is not done on \`${def}\`.`);
   }
   const newBaseSha = revParse(newBase, main);
-  if (!merged && newBaseSha === upstream) return { planId: id, outcome: "current", onto: newBase, unstacked: false, commits: [] };
-
   const checkout = planWorktree(branch, main) ?? (git(["rev-parse", "--abbrev-ref", "HEAD"], main) === branch ? main : null);
   if (!checkout) {
     throw new PlanStateError(`Cannot restack: \`${branch}\` is not checked out. Run \`specplane plan start ${id}\` first.`);
   }
   if (!clean(checkout)) throw new PlanStateError("Cannot restack: the working tree has uncommitted changes. Commit or stash them first.");
+  if (!merged && newBaseSha === upstream) return { planId: id, outcome: "current", onto: newBase, unstacked: false, commits: [] };
   if (opts.dryRun) {
     return { planId: id, outcome: "dry-run", onto: newBase, unstacked: merged, commits: commitsToReplay(branch, upstream, main) };
   }
 
+  lease?.assertOwned(); recheckLifecycleRefs(main, p.refs);
   // Unlike finish, a conflict leaves the checkout mid-rebase for the human (`feature/tooling`).
   rebaseOnto(newBase, upstream, branch, checkout, { onConflict: "leave" });
+  const afterRebase = validatedPlanAt(checkout, "HEAD", config, id);
+  if (!afterRebase || !isDeepStrictEqual(afterRebase.execution, p.context.binding) || (afterRebase.comparison_base ?? null) !== p.context.comparisonBase) throw new PlanStateError("Restack changed execution provenance; recovery is required.");
+  lease?.assertOwned();
+  recheckLifecycleRefs(main, Object.fromEntries(Object.entries(p.refs).filter(([name]) => name !== `refs/heads/${branch}` && name !== `refs/remotes/origin/${branch}`)));
   // A new marker: the next base while stacked, or a marker without a base once the plan is on the default branch.
   const trailers = { ...cliTrailers("stack", id), ...(merged ? {} : { "Specplane-Stack-Base": newBaseSha }) };
   const msg = formatMessage({
@@ -565,4 +660,5 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
   });
   run("git", ["commit", "--allow-empty", "-F", "-"], { cwd: checkout, input: msg });
   return { planId: id, outcome: "restacked", onto: newBase, unstacked: merged, commits: [] };
+  } finally { lease?.release(); }
 }

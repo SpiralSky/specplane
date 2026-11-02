@@ -6,6 +6,8 @@ import * as path from "node:path";
 import { test, after } from "node:test";
 import { fileURLToPath } from "node:url";
 import { makeRepo } from "../test-repo.js";
+import { loadConfig } from "../config.js";
+import { finishPlan } from "./flows.js";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "cli.js");
 const ENV = {
@@ -36,6 +38,7 @@ interface Opts {
   steps?: string[];
   planStatus?: string;
   merge?: string;
+  target?: string;
 }
 const ownedDirs: string[] = [];
 after(() => { for (const dir of ownedDirs) fs.rmSync(dir, { recursive: true, force: true }); });
@@ -63,7 +66,11 @@ function repo(o: Opts = {}): R {
     git(root, "push", "-q", "origin", "main");
     git(root, "fetch", "-q", "origin");
   }
-  const res = sp(root, "plan", "start", A);
+  if (o.target) {
+    git(root, "switch", "-q", "-c", o.target);
+    if (o.remote) git(root, "push", "-q", "origin", o.target);
+  }
+  const res = sp(root, "plan", "start", A, ...(o.target ? ["--target", o.target] : []));
   assert.equal(res.code, 0, res.err);
   const inRoot = /backend: (branch|external)/.test(o.exec ?? "");
   const co = inRoot ? root : path.join(wt, path.basename(root), A);
@@ -78,6 +85,17 @@ function repo(o: Opts = {}): R {
   return { root, wt, origin, co };
 }
 const fin = (r: R, ...a: string[]) => sp(r.co, "plan", "finish", A, ...a);
+// Scripted human port: exercises the actual confirmation callback with the displayed head and target.
+const finConfirmed = (r: R, noFetch = false, env: NodeJS.ProcessEnv = ENV) => {
+  const flow = new URL("./flows.js", import.meta.url).href;
+  const config = new URL("../config.js", import.meta.url).href;
+  const script = `import { finishPlan } from ${JSON.stringify(flow)}; import { loadConfig } from ${JSON.stringify(config)};
+    try { const result = await finishPlan(process.argv[1], loadConfig(process.cwd()).config, process.cwd(), { fetch: ${!noFetch}, confirm: async q => { if (!/ at .* into .* at /.test(q)) throw new Error("missing state"); return true; } });
+      process.stdout.write((result.outcome === "merged" ? "Finished and merged" : result.outcome === "pushed" ? "Finished and pushed" : "Finished") + "\\n"); process.stderr.write(result.notices.join("\\n")); }
+    catch (e) { process.stderr.write(String(e)); process.exitCode = 1; }`;
+  const x = spawnSync(process.execPath, ["--input-type=module", "-e", script, A], { cwd: r.co, encoding: "utf8", env });
+  return { code: x.status, out: x.stdout, err: x.stderr };
+};
 const sha = (cwd: string, ref: string) => git(cwd, "rev-parse", ref);
 const branchExists = (root: string, b: string) => gitOk(root, "show-ref", "--verify", "--quiet", `refs/heads/${b}`);
 
@@ -86,7 +104,10 @@ test("finish: local merge without a remote (Scenarios 4, 4a)", () => {
   fs.writeFileSync(path.join(r.root, "later.txt"), "x");
   git(r.root, "add", "later.txt");
   git(r.root, "commit", "-q", "-m", "main moves");
-  const res = fin(r, "--yes");
+  const first = fin(r, "--yes");
+  assert.equal(first.code, 0, first.err);
+  assert.match(first.err, /ready to merge/);
+  const res = finConfirmed(r);
   assert.equal(res.code, 0, res.err);
   assert.match(res.out, /Finished and merged/);
   assert.equal(git(r.root, "rev-list", "--parents", "-n", "1", "main").split(" ").length, 3, "merge commit");
@@ -98,7 +119,7 @@ test("finish: local merge without a remote (Scenarios 4, 4a)", () => {
   const body = git(r.root, "log", "--format=%B", "--grep=finish", "-n", "1", "main");
   assert.match(body, /chore\(specplane\): finish 2026-01-01-alpha/);
   assert.match(body, /Specplane-Workflow: finish/);
-  assert.match(res.err, /Acceptance criteria/);
+  assert.match(first.err, /Acceptance criteria/);
 });
 
 test("finish: --no-fetch skips the fetch; pushes and merges still happen", () => {
@@ -107,7 +128,10 @@ test("finish: --no-fetch skips the fetch; pushes and merges still happen", () =>
   git(r.origin, "branch", "-D", "main");
   const bad = fin(r, "--yes");
   assert.notEqual(bad.code, 0, "a fetch failure surfaces without --no-fetch");
-  const ok = fin(r, "--yes", "--no-fetch");
+  const ready = fin(r, "--yes", "--no-fetch");
+  assert.equal(ready.code, 0, ready.err);
+  assert.match(ready.err, /ready to merge/);
+  const ok = finConfirmed(r, true);
   assert.equal(ok.code, 0, ok.err);
   assert.match(ok.out, /Finished and merged/);
   assert.equal(git(r.origin, "rev-parse", "main"), git(r.root, "rev-parse", "main"), "merged commit pushed");
@@ -179,7 +203,7 @@ test("finish: rebase conflict aborts and leaves the branch unchanged", () => {
   const head = sha(r.co, "HEAD");
   const res = fin(r, "--yes");
   assert.equal(res.code, 1);
-  assert.match(res.err, /Rebase of `plan\/2026-01-01-alpha` onto `main` has conflicts; resolve manually\./);
+  assert.match(res.err, /Rebase of `plan\/2026-01-01-alpha` onto `[0-9a-f]+` has conflicts; resolve manually\./);
   assert.equal(sha(r.co, "HEAD"), head);
   assert.ok(!fs.existsSync(path.join(r.root, ".git", "worktrees", A, "rebase-merge")));
 });
@@ -190,9 +214,9 @@ test("finish: without --yes and no human, stops ready; a re-run merges (resume)"
   assert.equal(res.code, 0, res.err);
   assert.match(res.err, /ready to merge/);
   assert.ok(branchExists(r.root, `plan/${A}`));
-  assert.match(git(r.co, "log", "-1", "--format=%s"), /finish/);
+  assert.doesNotMatch(git(r.co, "log", "-1", "--format=%s"), /finish/);
   const done = sha(r.co, "HEAD");
-  res = fin(r, "--yes");
+  res = finConfirmed(r);
   assert.equal(res.code, 0, res.err);
   assert.equal(git(r.root, "rev-list", "--count", "--grep=finish", "main"), "1", "no second finish commit");
   assert.ok(gitOk(r.root, "merge-base", "--is-ancestor", done, "main"));
@@ -203,21 +227,23 @@ test("finish: merge stops when the main checkout is on another branch", () => {
   git(r.root, "switch", "-q", "-c", "other");
   const res = fin(r, "--yes");
   assert.equal(res.code, 1);
-  assert.match(res.err, /the main checkout is on `other`, not `main`/);
+  assert.match(res.err, /clean checkout of target `main`/);
   assert.ok(branchExists(r.root, `plan/${A}`));
-  assert.equal(git(r.co, "log", "-1", "--format=%s").startsWith("chore(specplane): finish"), true);
+  assert.notEqual(git(r.co, "log", "-1", "--format=%s").startsWith("chore(specplane): finish"), true);
 });
 
 test("finish: local merge pushes the default branch when a remote exists", () => {
   const r = repo({ remote: true });
-  const res = fin(r, "--yes");
+  const ready = fin(r, "--yes");
+  assert.equal(ready.code, 0, ready.err);
+  const res = finConfirmed(r);
   assert.equal(res.code, 0, res.err);
   assert.equal(sha(r.origin, "main"), sha(r.root, "main"));
 });
 
 test("finish: pull_request pushes the branch and prints instructions", () => {
   const r = repo({ remote: true, merge: "pull_request", planCfg: "  forge: none\n" });
-  const res = fin(r);
+  const res = finConfirmed(r);
   assert.equal(res.code, 0, res.err);
   assert.match(res.out, /Finished and pushed/);
   assert.match(res.err, /Open a pull request from `plan\/2026-01-01-alpha` into `main`/);
@@ -226,14 +252,14 @@ test("finish: pull_request pushes the branch and prints instructions", () => {
 });
 
 /** Stub `gh` first on PATH; origin looks like GitHub but fetches/pushes resolve to the local bare repo. */
-function ghRepo(planCfg: string, ghOut: string): { r: R; env: NodeJS.ProcessEnv; log: string } {
-  const r = repo({ remote: true, merge: "pull_request", planCfg });
+function ghRepo(planCfg: string, ghOut: string, target?: string): { r: R; env: NodeJS.ProcessEnv; log: string } {
+  const r = repo({ remote: true, merge: "pull_request", planCfg, target });
   git(r.root, "config", "remote.origin.url", "https://github.com/o/r.git");
   git(r.root, "config", `url.${r.origin}.insteadOf`, "https://github.com/o/r.git");
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-gh-"));
   ownedDirs.push(bin);
   const log = path.join(bin, "calls.log");
-  fs.writeFileSync(path.join(bin, "gh"), `#!/bin/sh\nprintf '%s\\n' "$@" >> '${log}'\necho -- >> '${log}'\n[ "$1" = "--version" ] && exit 0\necho '${ghOut}'\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(bin, "gh"), `#!/bin/sh\nprintf '%s\\n' "$@" >> '${log}'\necho -- >> '${log}'\n[ "$1" = "--version" ] && exit 0\n[ "$1" = "pr" ] && [ "$2" = "list" ] && { echo '[]'; exit 0; }\necho '${ghOut}'\n`, { mode: 0o755 });
   return { r, env: { ...ENV, PATH: `${bin}${path.delimiter}${process.env.PATH}` }, log };
 }
 const finEnv = (r: R, env: NodeJS.ProcessEnv) => {
@@ -243,7 +269,7 @@ const finEnv = (r: R, env: NodeJS.ProcessEnv) => {
 
 test("finish: pull_request with a forge pushes, opens a PR from the plan, prints the URL", () => {
   const { r, env, log } = ghRepo("  forge: github\n", "https://github.com/o/r/pull/3");
-  const res = finEnv(r, env);
+  const res = finConfirmed(r, false, env);
   assert.equal(res.code, 0, res.err);
   assert.match(res.err, /Opened pull request: https:\/\/github\.com\/o\/r\/pull\/3/);
   assert.equal(sha(r.origin, `plan/${A}`), sha(r.co, "HEAD"));
@@ -255,7 +281,7 @@ test("finish: pull_request with a forge pushes, opens a PR from the plan, prints
 
 test("finish: pull_request with forge none prints manual instructions and never calls gh", () => {
   const { r, env, log } = ghRepo("  forge: none\n", "unused");
-  const res = finEnv(r, env);
+  const res = finConfirmed(r, false, env);
   assert.equal(res.code, 0, res.err);
   assert.match(res.err, /Open a pull request from/);
   assert.equal(fs.existsSync(log), false);
@@ -274,6 +300,8 @@ test("finish: frontmatter mode claims review on the default branch first", () =>
   const r = repo({ planCfg: "  status_source: frontmatter\n", remote: false });
   const res = fin(r, "--yes");
   assert.equal(res.code, 0, res.err);
+  const merged = finConfirmed(r);
+  assert.equal(merged.code, 0, merged.err);
   const log = git(r.root, "log", "--format=%s", "main");
   assert.match(log, /claim 2026-01-01-alpha review/);
   assert.match(log, /finish 2026-01-01-alpha/);
@@ -283,6 +311,8 @@ test("finish: branch backend switches back to the default branch and deletes the
   const r = repo({ exec: "  backend: branch\n" });
   const res = fin(r, "--yes");
   assert.equal(res.code, 0, res.err);
+  const merged = finConfirmed(r);
+  assert.equal(merged.code, 0, merged.err);
   assert.equal(git(r.root, "rev-parse", "--abbrev-ref", "HEAD"), "main");
   assert.equal(branchExists(r.root, `plan/${A}`), false);
   assert.ok(fs.existsSync(path.join(r.root, "plans", "archive", A, "PLAN.md")));
@@ -293,4 +323,113 @@ test("finish: external backend rejects local_merge", () => {
   const res = fin(r, "--yes");
   assert.equal(res.code, 1);
   assert.match(res.err, /`external` backend does not support `local_merge`/);
+});
+
+test("finish uses recorded nondefault target and requires fresh acceptance after finalization", () => {
+  const r = repo({ target: "release" });
+  const main = sha(r.root, "main");
+  const first = fin(r, "--yes");
+  assert.equal(first.code, 0, first.err);
+  assert.equal(sha(r.root, "release"), main);
+  assert.match(first.err, /ready to merge/);
+  const reviewed = sha(r.co, "HEAD");
+  const second = finConfirmed(r);
+  assert.equal(second.code, 0, second.err);
+  assert.match(second.out, /Finished and merged/);
+  assert.equal(sha(r.root, "main"), main);
+  assert.ok(gitOk(r.root, "merge-base", "--is-ancestor", reviewed, "release"));
+});
+
+test("finish refuses a missing target checkout before changing the plan", () => {
+  const r = repo({ target: "release" });
+  git(r.root, "switch", "-q", "main");
+  const before = sha(r.co, "HEAD");
+  const result = fin(r, "--yes");
+  assert.equal(result.code, 1);
+  assert.match(result.err, /clean checkout of target `release`/);
+  assert.equal(sha(r.co, "HEAD"), before);
+});
+
+test("finish rebases on a remote-ahead recorded target and advertises its PR base", () => {
+  const r = repo({ target: "release", remote: true, merge: "pull_request", planCfg: "  forge: none\n" });
+  const clone = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-remote-ahead-"));
+  ownedDirs.push(clone);
+  git(clone, "clone", "-q", r.origin, ".");
+  git(clone, "switch", "-q", "release");
+  fs.writeFileSync(path.join(clone, "remote.txt"), "remote\n");
+  git(clone, "add", "remote.txt");
+  git(clone, "commit", "-q", "-m", "remote target advances");
+  git(clone, "push", "-q", "origin", "release");
+  const remoteTip = sha(clone, "HEAD");
+  const res = finConfirmed(r);
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.err, /into `release`/);
+  assert.ok(gitOk(r.co, "merge-base", "--is-ancestor", remoteTip, "HEAD"));
+  assert.equal(sha(r.origin, `plan/${A}`), sha(r.co, "HEAD"));
+});
+
+test("target movement invalidates earlier acceptance and requires another invocation", () => {
+  const r = repo();
+  const ready = fin(r, "--yes");
+  assert.equal(ready.code, 0, ready.err);
+  const prior = sha(r.co, "HEAD");
+  fs.writeFileSync(path.join(r.root, "advanced.txt"), "advance\n");
+  git(r.root, "add", "advanced.txt");
+  git(r.root, "commit", "-q", "-m", "advance target");
+  const target = sha(r.root, "HEAD");
+  const rebased = fin(r, "--yes");
+  assert.equal(rebased.code, 0, rebased.err);
+  assert.match(rebased.err, /ready to merge/);
+  assert.equal(sha(r.root, "HEAD"), target);
+  assert.notEqual(sha(r.co, "HEAD"), prior);
+  const merged = finConfirmed(r);
+  assert.equal(merged.code, 0, merged.err);
+  assert.match(merged.out, /Finished and merged/);
+});
+
+test("finish refuses a wrong-base open PR before changing or pushing the plan", () => {
+  const { r, env, log } = ghRepo("  forge: github\n", "unused");
+  const program = path.join(path.dirname(log), "gh");
+  fs.writeFileSync(program, `#!/bin/sh\n[ "$1" = "--version" ] && exit 0\n[ "$1" = "pr" ] && [ "$2" = "list" ] && { echo '[{"url":"https://github.com/o/r/pull/1","baseRefName":"other"}]'; exit 0; }\nexit 2\n`, { mode: 0o755 });
+  const before = sha(r.co, "HEAD");
+  const result = finEnv(r, env);
+  assert.equal(result.code, 2);
+  assert.match(result.err, /base conflicts with recorded target/);
+  assert.equal(sha(r.co, "HEAD"), before);
+  assert.equal(gitOk(r.origin, "show-ref", "--verify", "--quiet", `refs/heads/plan/${A}`), false);
+});
+
+test("confirmation refuses when target moves during the human challenge", async () => {
+  const r = repo();
+  const ready = fin(r, "--yes");
+  assert.equal(ready.code, 0, ready.err);
+  const reviewed = sha(r.co, "HEAD");
+  await assert.rejects(finishPlan(A, loadConfig(r.co).config, r.co, { confirm: async question => {
+    assert.match(question, new RegExp(reviewed));
+    fs.writeFileSync(path.join(r.root, "raced.txt"), "race\n");
+    git(r.root, "add", "raced.txt");
+    git(r.root, "commit", "-q", "-m", "target race");
+    return true;
+  } }), /changed during operation/);
+  assert.equal(sha(r.co, "HEAD"), reviewed);
+  assert.equal(gitOk(r.root, "merge-base", "--is-ancestor", reviewed, "main"), false);
+});
+
+test("a manual done edit does not impersonate a completed finish", () => {
+  const r = repo();
+  const file = path.join(r.co, "plans", A, "PLAN.md");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: done"));
+  git(r.co, "commit", "-qam", "manual done");
+  const head = sha(r.co, "HEAD");
+  const res = fin(r, "--yes");
+  assert.equal(res.code, 1);
+  assert.match(res.err, /no matching finish commit/);
+  assert.equal(sha(r.co, "HEAD"), head);
+});
+
+test("forge receives the recorded nondefault PR base", () => {
+  const { r, env, log } = ghRepo("  forge: github\n", "https://github.com/o/r/pull/7", "release");
+  const result = finConfirmed(r, false, env);
+  assert.equal(result.code, 0, result.err);
+  assert.match(fs.readFileSync(log, "utf8"), /pr\ncreate\n--head\nplan\/2026-01-01-alpha\n--base\nrelease\n/);
 });

@@ -183,7 +183,8 @@ function stacked(): R {
 test("restack: after a squash merge only beta's own commits are replayed (Scenario 6a)", () => {
   const r = stacked();
   const wa = wtOf(r, A);
-  fs.writeFileSync(path.join(wa, "plans", A, "PLAN.md"), plan(A, "done"));
+  const alphaPlan = path.join(wa, "plans", A, "PLAN.md");
+  fs.writeFileSync(alphaPlan, fs.readFileSync(alphaPlan, "utf8").replace("status: ready", "status: done"));
   git(wa, "commit", "-qam", "alpha done");
   git(r.root, "merge", "-q", "--squash", `plan/${A}`);
   git(r.root, "commit", "-q", "-m", "squash alpha");
@@ -193,7 +194,7 @@ test("restack: after a squash merge only beta's own commits are replayed (Scenar
   assert.ok(live.err.includes(`Base plan \`${A}\` has merged; run \`specplane plan restack ${B}\`.`), live.err);
   const dry = sp(r.root, "plan", "restack", B, "--dry-run");
   assert.equal(dry.code, 0, dry.err);
-  assert.match(dry.out, /^Would restack .* onto main \(no longer stacked\)$/m);
+  assert.match(dry.out, /^Would restack .* onto [0-9a-f]+ \(no longer stacked\)$/m);
   assert.match(dry.out, /^[0-9a-f]{7} beta work$/m, "dry run lists the commits to replay");
   assert.doesNotMatch(dry.out, /alpha work/, "the stack marker and base commits are not listed");
   assert.equal(git(r.root, "rev-parse", `plan/${B}`), before, "dry run changes nothing");
@@ -255,4 +256,22 @@ test("restack: conflicts are listed and the checkout is left mid-rebase; non-sta
   assert.equal(plain.code, 1);
   assert.match(plain.err, /is not stacked/);
   assert.equal(count(r, `plan/${B}`) > 0, true);
+});
+
+test("restack refuses a cross-target base without rewriting the child", () => {
+  const r = stacked();
+  git(r.root, "branch", "release");
+  const wa = wtOf(r, A);
+  const file = path.join(wa, "plans", A, "PLAN.md");
+  const original = fs.readFileSync(file, "utf8");
+  const changed = original.replace(/(start_target_branch: )"main"/, '$1"release"').replace(/(target_branch: )"main"/, '$1"release"');
+  assert.notEqual(changed, original);
+  fs.writeFileSync(file, changed);
+  git(wa, "commit", "-qam", "change base binding");
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const result = sp(r.root, "plan", "restack", B);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /compatible recorded target/);
+  assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+  assert.equal(git(wtOf(r, B), "status", "--porcelain"), "");
 });

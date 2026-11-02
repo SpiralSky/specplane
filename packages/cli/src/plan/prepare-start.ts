@@ -19,13 +19,13 @@ function fail(reason: string): never { throw new PlanStateError(reason); }
 function ref(cwd: string, name: string): string | null {
   try { return run("git", ["rev-parse", "--verify", "--quiet", `${name}^{commit}`], { cwd }).trim(); } catch { return null; }
 }
-function configAt(cwd: string, commit: string): Config {
+export function configAt(cwd: string, commit: string): Config {
   return parseConfigText(showFile(commit, CONFIG_PATH, cwd), cwd, { checkSpecRoots: false }).config;
 }
-function samePaths(a: Config, b: Config): boolean {
+export function samePaths(a: Config, b: Config): boolean {
   return a.plans.dir === b.plans.dir && isDeepStrictEqual(a.spec_roots, b.spec_roots);
 }
-function planAt(cwd: string, commit: string, config: Config, id: string): PlanFrontmatter | null {
+export function planAt(cwd: string, commit: string, config: Config, id: string): PlanFrontmatter | null {
   const paths = [`${config.plans.dir}/${id}/PLAN.md`, `${config.plans.dir}/archive/${id}/PLAN.md`];
   const found = paths.map(p => showFile(commit, p, cwd)).filter((v): v is string => v !== null);
   if (found.length > 1) fail(`Multiple records for plan ${id}.`);
@@ -45,7 +45,7 @@ function specAt(cwd: string, commit: string, config: Config, raw: string): { id:
   if (hits.length > 1) throw new AmbiguousIdError(id, hits.map(h => h.root));
   return { id, text: hits[0].text! };
 }
-function snapshot(cwd: string, commit: string | null, id: string, discovery: Config): PlanBranchSnapshot | undefined {
+export function snapshot(cwd: string, commit: string | null, id: string, discovery: Config): PlanBranchSnapshot | undefined {
   if (!commit) return undefined;
   const config = configAt(cwd, commit);
   if (!samePaths(discovery, config)) fail("Conflicting plan or specification path interpretation in plan branch.");
