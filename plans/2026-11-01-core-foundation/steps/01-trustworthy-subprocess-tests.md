@@ -2,7 +2,7 @@
 plan: 2026-11-01-core-foundation
 step: 1
 title: "Trustworthy subprocess tests"
-status: pending
+status: done
 context:
   - file: "packages/cli/src/harness/codex.test.ts"
 ---

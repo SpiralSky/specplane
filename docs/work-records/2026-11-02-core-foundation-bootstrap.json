@@ -1,0 +1,31 @@
+{
+  "plan": "2026-11-01-core-foundation",
+  "authorization": "User confirmed revised readiness, temporary local origin/HEAD bootstrap, CLI start and first-step execution.",
+  "original_origin_head": "refs/remotes/origin/main",
+  "selected_origin_head": "refs/remotes/origin/dot/codex-integration-20261101",
+  "destination": "dot/codex-integration-20261101",
+  "target_commit": "d6ec9bb71f242100147248b69c102d9a202f7a63",
+  "remote_tip": "73cd690cd474245a87121912298ccd8e15063513",
+  "preflight": "Fetched origin; remote integration tip is ancestor of local destination. Old conductor checkout is clean at 092a6f8db9b27d44a1b7fb391f1d35d818436da6. No specplane-runtime directory or process in the old checkout; repository processes are current Codex and shells. Old conductor remains preserved and must not be resumed during bootstrap.",
+  "restore": "Keep selection while legacy plans depend on it. After trustworthy target-binding reconciliation and checking no default-dependent workflow remains, restore refs/remotes/origin/main.",
+  "limitations": "Legacy manual CLI; no structured receipts or target-binding implementation. No finish, merge, push or other plan readiness authorized.",
+  "state": "started; step 1 verified before recording",
+  "plan_branch": "plan/2026-11-01-core-foundation",
+  "start_commit": "d6ec9bb71f242100147248b69c102d9a202f7a63",
+  "checkout": "<worktrees>/specplane/2026-11-01-core-foundation",
+  "start_command": "node packages/cli/dist/cli.js plan start 2026-11-01-core-foundation --no-fetch --json",
+  "next_result": "in_progress; step 1 pending; no blockers, warnings or gaps",
+  "comparison_baseline": "d6ec9bb71f242100147248b69c102d9a202f7a63",
+  "verification": {
+    "command": "npm run build && node --test dist/harness/codex.test.js",
+    "build": "passed",
+    "tests": 8,
+    "passed": 8,
+    "failed": 0,
+    "child_correct": "1 executed, 1 passed",
+    "child_broken": "1 executed, 1 failed; outer fixture rejected it",
+    "receipt": "Manual CLI fallback: observed command results, not core-issued execution receipts.",
+    "historical_results": "Unchanged; previous nested execution claims are not retroactively verified.",
+    "scope": "Focused Codex suite; full CLI suite not run."
+  }
+}
