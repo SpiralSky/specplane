@@ -1,7 +1,8 @@
+import { firstStart } from "../plan/first-start.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig } from "../config.js";
-import { AlreadyExistsError, SpecplaneError, reportError } from "../errors.js";
+import { AlreadyExistsError, PlanStateError, SpecplaneError, reportError } from "../errors.js";
 import { generatePlansMd } from "../generate/plans-md.js";
 import { ask, csv, interactive } from "./spec.js";
 import { resolveSpecId } from "../spec/resolve.js";
@@ -21,7 +22,7 @@ import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
 import { resolveCommit, validateTargetBranch } from "../plan/context.js";
 import { blockedReason, getEffectiveStatus, type EffectiveStatus } from "../plan/status.js";
-import { abandonPlan, archivePlan, cleanupPlan, finishPlan, mergedStackBase, restackPlan, startPlan } from "../plan/flows.js";
+import { abandonPlan, archivePlan, cleanupPlan, finishPlan, mergedStackBase, restackPlan } from "../plan/flows.js";
 import type { Config, PlanFrontmatter } from "../types.js";
 
 class PlanUsageError extends SpecplaneError {
@@ -263,21 +264,21 @@ export function planGraphCommand(): void {
   }
 }
 
-export async function planStartCommand(id: string, opts: { fetch?: boolean; json?: boolean; run?: boolean } = {}): Promise<void> {
+export async function planStartCommand(id: string, opts: { fetch?: boolean; json?: boolean; run?: boolean; target?: string; dryRun?: boolean } = {}): Promise<void> {
   try {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    const r = startPlan(id, config, root, opts);
+    if (opts.run) throw new PlanStateError("Standalone --run is unavailable until shared core execution is shipped.");
+    const r = firstStart(id, config, root, opts);
     for (const n of r.notices) process.stderr.write(`${n}\n`);
-    const execution = opts.run ? (await runPlans([id], config, root, { until: "step", maxSteps: 1 }, () => ({ log: (s) => process.stderr.write(`${s}\n`) })))[0] : undefined;
-    if (execution) process.exitCode = execution.code;
     if (opts.json) {
-      process.stdout.write(`${JSON.stringify({ ...r, checkout: r.path, ...(execution ? { execution } : {}) }, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify({ ...r, checkout: r.path }, null, 2)}\n`);
       return;
     }
+    if (r.dryRun) { process.stdout.write(`Would start ${id} on ${r.target} at ${r.startBase} (${r.freshness})\n`); return; }
     const where = r.path !== null ? `Worktree: ${r.path}` : `Branch: ${r.branch}`;
-    const lines = [`${r.resumed ? "Resumed" : "Started"} ${r.planId}`, `Backend: ${r.backend} (checkout ${r.resumed && r.backend !== "external" ? "resumed" : r.backend === "external" ? "not needed" : "created"})`, where];
+    const lines = [`${r.resumed ? "Resumed" : "Started"} ${r.planId}`, `Target: ${r.target} (start base ${r.startBase}; ${r.freshness})`, `Backend: ${r.backend} (checkout ${r.resumed && r.backend !== "external" ? "resumed" : r.backend === "external" ? "not needed" : "created"})`, where];
     const next = r.next ? `Next step: ${String(r.next.number).padStart(2, "0")} ${r.next.title} (${r.next.status})` : "No pending steps.";
     lines.push(next);
     if (r.backend === "external") {
@@ -285,7 +286,6 @@ export async function planStartCommand(id: string, opts: { fetch?: boolean; json
     } else if (r.nextCommand) {
       lines.push(`Open a session: ${r.nextCommand}`);
     }
-    if (execution) lines.push(`Conductor: ${execution.reason}`, ...(execution.sessionId ? [`Session: ${execution.sessionId}`, `Attach: ${execution.commands!.attach}`, `Logs: ${execution.commands!.logs}`] : []));
     process.stdout.write(`${lines.join("\n")}\n`);
   } catch (e) {
     if (!reportError(e)) throw e;

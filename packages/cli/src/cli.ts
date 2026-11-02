@@ -44,7 +44,7 @@ plan
   .option("--dry-run", "validate without creating the plan")
   .action((opts) => planNewCommand(opts));
 plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
-plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--json", "print the result as JSON").option("--run", "run one unattended step after starting (never finish or merge)").action((id, opts) => planStartCommand(id, opts));
+plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--target <branch>", "select an integration target").option("--dry-run", "prepare without mutation").option("--json", "print the result as JSON").option("--run", "run one unattended step after starting (never finish or merge)").action((id, opts) => planStartCommand(id, opts));
 plan
   .command("finish <id>")
   .description("Finish a plan: tests, rebase, done and archive commit, merge (lists open spec-gaps.md entries)")

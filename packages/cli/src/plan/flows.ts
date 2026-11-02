@@ -222,10 +222,10 @@ export function startPlan(id: string, config: Config, root: string, opts: StartO
   let checkout: string | null = null;
   const backend = config.execution.backend;
   if (backend === "worktree") {
-    const existed = listWorktrees(main).some((w) => w.branch === branch);
-    checkout = createWorktree(id, branch, config, main);
+    const worktree = createWorktree(id, branch, config, main);
+    checkout = worktree.path;
     const hook = config.plans.setup_hook;
-    if (!existed && hook.trim() !== "") {
+    if (worktree.created && hook.trim() !== "") {
       try {
         runSetupHook(hook, checkout);
       } catch (e) {
