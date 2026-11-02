@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { run } from '../git/exec.js';
 import { CONFIG_PATH, parseConfigText } from '../config.js';
 import type { Config, Warning } from '../types.js';
 
@@ -15,7 +15,11 @@ export interface PlanSnapshot {
 type Entry = { path: string; mode: string; oid: string; stage: number };
 const hash = (v: string | Buffer): string => createHash('sha256').update(v).digest('hex');
 function git(root: string, args: string[]): Buffer {
-  return execFileSync('git', args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
+  return run('git', args, { cwd: root, binary: true });
+}
+const comparePath = (a: string, b: string): number => Buffer.compare(Buffer.from(a), Buffer.from(b));
+function canonicalPath(p: string): boolean {
+  return !!p && !p.includes('\\') && !path.posix.isAbsolute(p) && !/^[A-Za-z]:/.test(p) && p.split('/').every(part => !!part && part !== '.' && part !== '..');
 }
 function entries(root: string, source: 'head' | 'staged', head: string): Entry[] {
   const raw = source === 'head' ? git(root, ['ls-tree', '-rz', '--full-tree', head]) : git(root, ['ls-files', '--stage', '-z']);
@@ -27,10 +31,11 @@ function entries(root: string, source: 'head' | 'staged', head: string): Entry[]
 }
 function safeDir(dir: string): string {
   const n = path.posix.normalize(dir.replaceAll('\\', '/'));
-  if (!dir || path.posix.isAbsolute(n) || n === '..' || n.startsWith('../')) throw new Error('plans.dir must be inside the repository');
+  if (!dir || /^[A-Za-z]:/.test(dir) || path.posix.isAbsolute(n) || n === '..' || n.startsWith('../')) throw new Error('plans.dir must be inside the repository');
   return n === '.' ? '' : n.replace(/\/$/, '');
 }
 function isPlan(file: string, dir: string): boolean {
+  if (!canonicalPath(file)) return false;
   const prefix = dir ? `${dir}/` : '';
   if (!file.startsWith(prefix)) return false;
   const p = file.slice(prefix.length).split('/');
@@ -79,7 +84,7 @@ function snapshot(root: string, source: SnapshotSource): PlanSnapshot {
   if (source !== 'head' && unmerged.some(p => isPlan(p, dir))) throw new Error('Unresolved plan input; resolve and stage plan/config inputs first.');
   const candidates = source === 'working' ? git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard']).toString('utf8').split('\0').filter(Boolean) : selected.filter(e => e.stage === 0).map(e => e.path);
   const plans: SnapshotFile[] = [];
-  for (const p of [...new Set(candidates)].filter(p => isPlan(p, dir)).sort()) {
+  for (const p of [...new Set(candidates)].filter(p => isPlan(p, dir)).sort(comparePath)) {
     const bytes = source === 'working' ? readSafe(root, p) : readEntry(selected.find(e => e.path === p && e.stage === 0));
     if (bytes !== null) plans.push({ path: p, bytes });
   }
@@ -95,7 +100,34 @@ function snapshot(root: string, source: SnapshotSource): PlanSnapshot {
   const excluded = [...new Set(pending.filter(p => p === CONFIG_PATH || p.endsWith('/PLAN.md')))].sort();
   const identity = source === 'head' ? head : hash(JSON.stringify(selected)), contentDigest = digest(configBytes, plans);
   const discovery = source === 'working' ? git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard']) : Buffer.alloc(0);
-  const ignores = source === 'working' ? [...new Set(discovery.toString('utf8').split('\0').filter(p => p === '.gitignore' || p.endsWith('/.gitignore')))].sort().map(p => [p, readSafe(root, p)?.toString('base64') ?? null]) : [];
+  // Git can apply an untracked .gitignore even when the rule file is itself ignored.
+  // Inspect ancestor rules and every real directory under the configured plan root.
+  const ignorePaths = new Set<string>();
+  if (source === 'working') {
+    let parent = '';
+    ignorePaths.add('.gitignore');
+    for (const part of dir.split('/').filter(Boolean)) {
+      parent = parent ? `${parent}/${part}` : part;
+      ignorePaths.add(`${parent}/.gitignore`);
+      try { if (fs.lstatSync(path.join(root, parent)).isSymbolicLink()) throw new Error(`Symlink in snapshot path: ${parent}`); }
+      catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
+    }
+    const walk = (rel: string): void => {
+      const absolute = path.join(root, rel);
+      let st: fs.Stats;
+      try { st = fs.lstatSync(absolute); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return; throw e; }
+      if (st.isSymbolicLink()) throw new Error(`Symlink in snapshot path: ${rel}`);
+      if (!st.isDirectory()) return;
+      for (const name of fs.readdirSync(absolute)) {
+        if (!rel && name === '.git') continue;
+        const child = rel ? `${rel}/${name}` : name;
+        const entry = fs.lstatSync(path.join(root, child));
+        if (entry.isDirectory()) { ignorePaths.add(`${child}/.gitignore`); walk(child); }
+      }
+    };
+    walk(dir);
+  }
+  const ignores = [...ignorePaths].sort(comparePath).map(p => [p, readSafe(root, p)?.toString('base64') ?? null]);
   const excludePath = git(root, ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude']).toString().trim();
   const infoExclude = source === 'working' && fs.existsSync(excludePath) ? hash(fs.readFileSync(excludePath)) : null;
   let globalExclude: string | null = null;
@@ -103,6 +135,7 @@ function snapshot(root: string, source: SnapshotSource): PlanSnapshot {
     let file = '';
     try { file = git(root, ['config', '--path', '--get', 'core.excludesFile']).toString().trim(); }
     catch { /* no configured global excludes */ }
+    if (!file) file = path.join(process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || '', '.config'), 'git', 'ignore');
     if (file) {
       const absolute = path.resolve(root, file);
       globalExclude = JSON.stringify([absolute, fs.existsSync(absolute) ? hash(fs.readFileSync(absolute)) : null]);
@@ -130,6 +163,6 @@ export function prospectivePlanSnapshot(root: string, base: PlanSnapshot, edits:
     if (!isPlan(p, dir)) throw new Error(`Unauthorized prospective input: ${p}`);
     if (bytes === null) files.delete(p); else files.set(p, bytes);
   }
-  const plans = [...files].sort(([a], [b]) => a.localeCompare(b)).map(([p, bytes]) => ({ path: p, bytes }));
+  const plans = [...files].sort(([a], [b]) => comparePath(a, b)).map(([p, bytes]) => ({ path: p, bytes }));
   return { ...base, source: 'prospective', configBytes, config, warnings, plans, digest: digest(configBytes, plans), identity: `${base.identity}+${digest(configBytes, plans)}` };
 }

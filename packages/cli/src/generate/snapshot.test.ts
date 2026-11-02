@@ -53,3 +53,45 @@ test('unmerged config refuses and symlink inputs are not followed', () => {
   assert.throws(() => capture(r, 'staged'), /Unresolved config/); assert.throws(() => capture(r, 'working'), /Unresolved config/);
   git(r, 'merge', '--abort'); fs.rmSync(path.join(r, '.specplane/config.yaml')); fs.symlinkSync('/etc/passwd', path.join(r, '.specplane/config.yaml')); assert.throws(() => capture(r, 'working'), /Symlink/);
 });
+test('prospective canonical paths and bytewise ordering match committed snapshots', () => {
+  const r = repo(); put(r, 'plans/Z/PLAN.md', 'z'); put(r, 'plans/a/PLAN.md', 'a'); commit(r);
+  const base = capture(r), index = git(r, 'ls-files', '--stage');
+  const empty = prospectivePlanSnapshot(r, base, new Map());
+  assert.deepEqual(empty.plans, base.plans); assert.equal(empty.digest, base.digest);
+  for (const p of ['plans/../PLAN.md', 'plans/./PLAN.md', 'plans//PLAN.md', 'plans/archive/../PLAN.md', 'plans/archive/./PLAN.md', 'plans\\a\\PLAN.md', '/plans/a/PLAN.md', 'C:/plans/a/PLAN.md']) {
+    assert.throws(() => prospectivePlanSnapshot(r, base, new Map([[p, Buffer.from('bad')]])), /Unauthorized/);
+  }
+  const overlay = prospectivePlanSnapshot(r, base, new Map([['plans/Z/PLAN.md', null], ['plans/archive/B/PLAN.md', Buffer.from('b')]]));
+  assert.equal(git(r, 'ls-files', '--stage'), index);
+  fs.rmSync(path.join(r, 'plans/Z/PLAN.md')); put(r, 'plans/archive/B/PLAN.md', 'b'); git(r, 'add', '-A'); git(r, 'commit', '-qm', 'overlay');
+  const committed = capture(r); assert.deepEqual(overlay.plans, committed.plans); assert.equal(overlay.digest, committed.digest);
+});
+test('ignored rule files are rechecked even when inventory is unchanged', () => {
+  const r = repo(); put(r, 'plans/a/PLAN.md', 'a'); commit(r);
+  put(r, '.git/info/exclude', '*.gitignore\n'); put(r, 'plans/.gitignore', '# first\n'); put(r, 'plans/new/PLAN.md', 'new');
+  const before = capture(r, 'working'); assert.equal(before.plans.length, 2);
+  put(r, 'plans/.gitignore', '# second\n'); assert.throws(() => recheck(r, before), /changed/);
+  const next = capture(r, 'working'); put(r, 'plans/.gitignore', 'new/\n'); assert.throws(() => recheck(r, next), /changed/);
+  assert.deepEqual(capture(r, 'working').plans.map(p => p.path), ['plans/a/PLAN.md']);
+});
+test('snapshot branch validation follows Git and accepts repository root plans', () => {
+  const r = repo(); put(r, '.specplane/config.yaml', 'plans:\n  dir: .\n  target_branch: "@"\n'); put(r, 'a/PLAN.md', 'a'); put(r, 'archive/b/PLAN.md', 'b'); commit(r);
+  assert.deepEqual(capture(r).plans.map(p => p.path), ['a/PLAN.md', 'archive/b/PLAN.md']);
+  for (const name of ['bad..name', '-bad', '@{-1}', 'bad.lock']) {
+    put(r, '.specplane/config.yaml', `plans:\n  target_branch: "${name}"\n`);
+    assert.throws(() => capture(r, 'working'), /valid Git branch/);
+  }
+  for (const dir of ['../outside', 'C:/outside', '/outside']) {
+    put(r, '.specplane/config.yaml', `plans:\n  dir: '${dir}'\n`);
+    assert.throws(() => capture(r, 'working'));
+  }
+});
+test('external exclude and ancestor rules invalidate working snapshots; symlink directories refuse', () => {
+  const r = repo(), external = fs.mkdtempSync(path.join(os.tmpdir(), 'excludes-'));
+  const exclude = path.join(external, 'ignore'); fs.writeFileSync(exclude, '# one\n'); git(r, 'config', 'core.excludesFile', exclude);
+  put(r, '.specplane/config.yaml', 'plans:\n  dir: nested/plans\n'); put(r, 'nested/plans/a/PLAN.md', 'a'); commit(r);
+  let s = capture(r, 'working'); fs.writeFileSync(exclude, '# two\n'); assert.throws(() => recheck(r, s), /changed/);
+  s = capture(r, 'working'); put(r, 'nested/.gitignore', '# ancestor\n'); assert.throws(() => recheck(r, s), /changed/);
+  fs.renameSync(path.join(r, 'nested'), path.join(r, 'saved')); fs.symlinkSync(path.join(r, 'saved'), path.join(r, 'nested'), 'dir');
+  assert.throws(() => capture(r, 'working'), /Symlink/);
+});
