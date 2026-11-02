@@ -52,7 +52,7 @@ export function lifecycleContext(id: string, discovery: Config, cwd: string, ope
   if (target.target_branch && target.target_branch !== context.targetBranch || plan.target_branch && plan.target_branch !== context.targetBranch ||
       target.comparison_base !== plan.comparison_base || target.execution && !isDeepStrictEqual(target.execution, plan.execution))
     throw new PlanStateError("Conflicting target and plan execution provenance.");
-  const allowed = config.plans.status_source === "git" ? ["ready"] : ["in_progress", "review"];
+  const allowed = ["ready", "in_progress", "review"];
   const targetAllowed = [...allowed, ...(operation === "finish" ? ["done"] : [])];
   const planAllowed = [...allowed, ...(operation === "finish" ? ["done"] : [])];
   if (!targetAllowed.includes(target.status) || !planAllowed.includes(plan.status)) throw new PlanStateError(`Cannot ${operation}: target status ${target.status}, plan status ${plan.status} is not executable for ${config.plans.status_source} mode.`);

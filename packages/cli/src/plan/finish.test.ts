@@ -852,14 +852,26 @@ test("finalization failure preserves unexpected hook edits for recovery", () => 
   fs.unlinkSync(hook);
 });
 
-test("finish rejects a branch lifecycle status incompatible with its status source", () => {
+test("finish rejects a draft branch lifecycle status", () => {
   const r = repo();
   const file = path.join(r.co, "plans", A, "PLAN.md");
-  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: in_progress"));
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: draft"));
   git(r.co, "commit", "-qam", "invalid branch status");
   const before = sha(r.co, "HEAD");
   const result = fin(r, "--yes");
   assert.equal(result.code, 1);
-  assert.match(result.err, /plan status in_progress is not executable for git mode/);
+  assert.match(result.err, /plan status draft is not executable for git mode/);
+  assert.equal(sha(r.co, "HEAD"), before);
+});
+
+test("finish reaches approval gate for a migrated active Git-mode plan", () => {
+  const r = repo();
+  const file = path.join(r.co, "plans", A, "PLAN.md");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: review"));
+  git(r.co, "commit", "-qam", "migrated status");
+  const before = sha(r.co, "HEAD");
+  const result = fin(r, "--yes");
+  assert.equal(result.code, 0, result.err);
+  assert.match(result.err, /ready to merge/);
   assert.equal(sha(r.co, "HEAD"), before);
 });

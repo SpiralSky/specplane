@@ -128,13 +128,28 @@ test('changed recording preimage and lifecycle conflicts refuse', () => {
   assert.throws(() => retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd), /lifecycle/);
  } finally { f.cleanup(); }
 });
-test('status source controls valid active lifecycle records', () => {
+test('git mode permits active migration states and refuses draft and terminal states', () => {
  const f = fixture(); try {
-  f.git('switch', 'candidate'); f.put(`plans/${id}/PLAN.md`, fs.readFileSync(f.file, 'utf8').replace('status: ready', 'status: in_progress')); f.git('commit', '-am', 'invalid git status'); f.git('switch', `plan/${id}`);
-  assert.throws(() => retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd), /lifecycle.*status source/);
-  for (const b of [`plan/${id}`, 'main', 'candidate']) { if (f.git('branch', '--show-current') !== b) f.git('switch', b); f.put('.specplane/config.yaml', 'plans:\n  dependency_mode: stack\n  status_source: frontmatter\n'); f.git('commit', '-am', 'frontmatter mode'); }
-  f.git('switch', `plan/${id}`); assert.equal(retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd).changed, true);
+  for (const [branch, status] of [['candidate', 'in_progress'], ['main', 'review'], [`plan/${id}`, 'review']]) {
+   f.git('switch', branch); f.put(`plans/${id}/PLAN.md`, fs.readFileSync(f.file, 'utf8').replace('status: ready', `status: ${status}`)); f.git('commit', '-am', `status ${status}`);
+  }
+  assert.equal(retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd).changed, true);
+  for (const status of ['draft', 'shelved', 'abandoned', 'done']) {
+   f.git('switch', 'candidate'); f.put(`plans/${id}/PLAN.md`, fs.readFileSync(f.file, 'utf8').replace(/status: \w+/, `status: ${status}`)); f.git('commit', '-am', `status ${status}`); f.git('switch', `plan/${id}`);
+   assert.throws(() => retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd), status === 'shelved' ? /Invalid plan record/ : /lifecycle/);
+  }
  } finally { f.cleanup(); }
+});
+test('ref changed during final forge query refuses without writing', () => {
+ const f = fixture(); const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'fake-gh-')); const oldPath = process.env.PATH;
+ try {
+  const count = path.join(bin, 'count');
+  fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh\nn=0\n[ ! -f '${count}' ] || n=$(cat '${count}')\nn=$((n+1))\nprintf '%s' "$n" > '${count}'\nif [ "$n" -eq 3 ]; then git update-ref refs/heads/candidate '${f.git('rev-parse', 'HEAD')}'; fi\nprintf '[]'\n`, { mode: 0o755 });
+  process.env.PATH = `${bin}:${oldPath}`; f.git('remote', 'add', 'origin', 'https://github.com/example/repo.git');
+  const original = fs.readFileSync(f.file); const index = fs.readFileSync(path.join(f.cwd, '.git/index'));
+  assert.throws(() => retargetPlan({ id, target: 'candidate' }, f.cwd), /Ref .* changed/);
+  assert.equal(fs.readFileSync(count, 'utf8'), '3'); assert.deepEqual(fs.readFileSync(f.file), original); assert.deepEqual(fs.readFileSync(path.join(f.cwd, '.git/index')), index);
+ } finally { process.env.PATH = oldPath; fs.rmSync(bin, { recursive: true, force: true }); f.cleanup(); }
 });
 test('unfinished cross-target stack refuses', () => {
  const f = fixture(); try {
@@ -184,4 +199,20 @@ test('appends a flow history in a block binding', () => {
  assert.match(output, /target_changes: \[\{from: main, to: candidate\}, \{from: "candidate", to: "release"\}\] # prior/);
  assert.match(output, /start_target_branch: main/);
  assert.match(output, /target_branch: "release" # current/);
+});
+
+test('finish and restack contexts permit migrated active states and reject inactive states', () => {
+ const f = fixture(); try {
+  f.git('switch', 'main'); f.put(`plans/${id}/PLAN.md`, fs.readFileSync(f.file, 'utf8').replace('status: ready', 'status: in_progress')); f.git('commit', '-am', 'migrated target'); f.git('switch', `plan/${id}`);
+  for (const status of ['review', 'in_progress', 'ready', 'draft', 'shelved', 'abandoned']) {
+   f.put(`plans/${id}/PLAN.md`, fs.readFileSync(f.file, 'utf8').replace(/status: \w+/, `status: ${status}`)); f.git('commit', '-am', `branch ${status}`);
+   for (const operation of ['finish', 'restack'] as const) {
+    if (['ready', 'in_progress', 'review'].includes(status)) assert.equal(lifecycleContext(id, loadConfig(f.cwd).config, f.cwd, operation).plan.status, status);
+    else assert.throws(() => lifecycleContext(id, loadConfig(f.cwd).config, f.cwd, operation), status === 'shelved' ? /Invalid plan record/ : /not executable/);
+   }
+  }
+  f.put(`plans/${id}/PLAN.md`, fs.readFileSync(f.file, 'utf8').replace('status: abandoned', 'status: done')); f.git('commit', '-am', 'done');
+  assert.equal(lifecycleContext(id, loadConfig(f.cwd).config, f.cwd, 'finish').plan.status, 'done');
+  assert.throws(() => lifecycleContext(id, loadConfig(f.cwd).config, f.cwd, 'restack'), /not executable/);
+ } finally { f.cleanup(); }
 });

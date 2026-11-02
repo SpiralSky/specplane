@@ -122,9 +122,9 @@ export function retargetPlan(input: { id: string; target: string; dryRun?: boole
   const selected = validatePlanBranches(root, id, { local: snapshot(root, local, id, config), remote: snapshot(root, remote, id, config) });
   if (!local || !selected || selected.commit !== local || !selected.binding || ref(root, 'HEAD') !== local) return fail('Recorded local plan context is unavailable or stale.');
   const plan = planAt(root, local, config, id)!; const binding = selected.binding;
-  const validStatus = (status: string, source: string) => source === 'git' ? status === 'ready' : ['ready', 'in_progress', 'review'].includes(status);
-  if (!validStatus(plan.status, config.plans.status_source)) return fail('Plan lifecycle state is invalid for its status source.');
-  if (remote) { const cfg = configAt(root, remote); const remotePlan = planAt(root, remote, cfg, id); if (!remotePlan || !validStatus(remotePlan.status, cfg.plans.status_source)) return fail('Remote plan lifecycle state is invalid for its status source.'); }
+  const validStatus = (status: string) => ['ready', 'in_progress', 'review'].includes(status);
+  if (!validStatus(plan.status)) return fail('Plan lifecycle state is invalid for its status source.');
+  if (remote) { const cfg = configAt(root, remote); const remotePlan = planAt(root, remote, cfg, id); if (!remotePlan || !validStatus(remotePlan.status)) return fail('Remote plan lifecycle state is invalid for its status source.'); }
   validateExecutionBinding(root, id, binding, plan.target_branch);
   validateTargetBranch(root, target, id);
   const lifecycle = (status: string) => ['ready', 'in_progress', 'review'].includes(status) ? 'active' : status;
@@ -137,7 +137,7 @@ export function retargetPlan(input: { id: string; target: string; dryRun?: boole
   const records = [destination, ...(old ? [old] : [])].map(commit => {
     const cfg = configAt(root, commit); if (!samePaths(config, cfg)) return fail('Conflicting target configuration paths.');
     const p = planAt(root, commit, cfg, id); if (!p) return fail('Target plan record is unavailable.');
-    if (!validStatus(p.status, cfg.plans.status_source)) return fail('Target lifecycle state is invalid for its status source.');
+    if (!validStatus(p.status)) return fail('Target lifecycle state is invalid for its status source.');
     if (p.comparison_base !== plan.comparison_base || p.execution && !isDeepStrictEqual(p.execution, binding)) return fail('Conflicting target execution provenance.');
     if (lifecycle(p.status) !== lifecycle(plan.status)) return fail('Conflicting target lifecycle state.');
     return { p, cfg, commit };
@@ -148,7 +148,7 @@ export function retargetPlan(input: { id: string; target: string; dryRun?: boole
   if (!old) {
     const historicalConfig = configAt(root, binding.start_base);
     const historical = samePaths(config, historicalConfig) ? planAt(root, binding.start_base, historicalConfig, id) : null;
-    if (!historical || !validStatus(historical.status, historicalConfig.plans.status_source) || !identityMatches(historical) || lifecycle(historical.status) !== lifecycle(plan.status)) return fail('Missing old target and insufficient identity or lifecycle evidence.');
+    if (!historical || !validStatus(historical.status) || !identityMatches(historical) || lifecycle(historical.status) !== lifecycle(plan.status)) return fail('Missing old target and insufficient identity or lifecycle evidence.');
   }
   if (!['ready', 'in_progress', 'review'].includes(plan.status)) return fail('Plan lifecycle state does not permit retargeting.');
   const dest = records[0];
@@ -211,9 +211,9 @@ export function retargetPlan(input: { id: string; target: string; dryRun?: boole
   const receipt: RetargetReceipt = { id, old_target: binding.target_branch, new_target: target, start_target_branch: binding.start_target_branch, start_base: binding.start_base, comparison_base: plan.comparison_base ?? null, changed_files: changed ? [{ path: file, before: hash(original), after: hash(proposed) }] : [], changed, dry_run: !!input.dryRun, committed: false };
   if (changed && !input.dryRun) {
     options.beforeRecheck?.();
-    const verify = () => { if (options.signal?.aborted) return fail('Operation aborted.'); lease!.assertOwned(); recheckLifecycleRefs(root, refs);
+    const verify = () => { evidenceCheck(); if (options.signal?.aborted) return fail('Operation aborted.'); lease!.assertOwned(); recheckLifecycleRefs(root, refs);
       for (const [p, signature] of signatures) { const s = fs.lstatSync(p); if (s.isSymbolicLink() || `${s.dev}:${s.ino}:${s.mode}` !== signature) return fail('Recording path identity changed; retry.'); }
-      mutationCheck(); evidenceCheck();
+      mutationCheck();
       if (JSON.stringify(trees) !== JSON.stringify(listWorktrees(main)) || git(root, 'symbolic-ref', '--short', 'HEAD') !== branch || dirty() || fs.readFileSync(absolute, 'utf8') !== original || fs.readFileSync(path.join(root, CONFIG_PATH), 'utf8') !== configText) return fail('Checkout or recording preimage changed; retry.'); };
     verify(); const temp = path.join(root, `.specplane-retarget-${randomUUID()}.tmp`);
     try { fs.writeFileSync(temp, proposed, { flag: 'wx', mode: fs.statSync(absolute).mode & 0o777 }); verify(); fs.renameSync(temp, absolute); } finally { try { fs.unlinkSync(temp); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } }
