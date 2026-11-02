@@ -65,6 +65,9 @@ function defaultTarget(cwd: string): string {
 function targetTip(cwd: string, branch: string): string {
   const local = optionalGit(cwd, ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}^{commit}`]);
   const remote = optionalGit(cwd, ["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${branch}^{commit}`]);
+  return capturedTargetTip(cwd, branch, local, remote);
+}
+export function capturedTargetTip(cwd: string, branch: string, local: string | null, remote: string | null): string {
   if (!local && !remote) return fail(`Integration target ${branch} is unavailable.`);
   if (!local) return remote!;
   if (!remote || local === remote) return local;

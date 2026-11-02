@@ -50,7 +50,11 @@ plan.command("retarget <id>").description("Reconcile the recorded destination wi
   const result = executeOperation({ operation: 'plan.retarget', arguments: { id, target: opts.target, dryRun: !!opts.dryRun } }, { extensionId: 'cli' });
   if (!result.ok) { process.stderr.write(`${result.error.message}\n`); process.exitCode = 1; return; }
   if (opts.json) process.stdout.write(`${JSON.stringify(result.value)}\n`);
-  else process.stdout.write(`${id}: ${result.value.old_target} -> ${result.value.new_target}; ${result.value.changed ? (opts.dryRun ? 'preview (refs may change)' : 'updated, uncommitted') : 'unchanged'}\n`);
+  else {
+    const value = result.value;
+    process.stdout.write(`${id}: ${value.old_target} -> ${value.new_target}; ${value.changed ? (opts.dryRun ? 'preview' : 'updated, uncommitted') : 'unchanged'}\n`);
+    if (opts.dryRun) process.stdout.write(`Original start: ${value.start_target_branch} at ${value.start_base}\nComparison baseline: ${value.comparison_base ?? '(none)'}\nChanged paths: ${value.changed_files.map(f => f.path).join(', ') || '(none)'}\nRefs may change before the update.\n`);
+  }
 });
 plan
   .command("finish <id>")

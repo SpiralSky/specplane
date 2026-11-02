@@ -10,7 +10,7 @@ import { run } from '../git/exec.js';
 import { checkoutRoot, mainRoot } from '../git/repo.js';
 import { listWorktrees } from '../git/worktree.js';
 import { lenientFrontmatter } from './activity.js';
-import { resolvePlanContext, validateExecutionBinding, validatePlanBranches } from './context.js';
+import { capturedTargetTip, validateExecutionBinding, validatePlanBranches, validateTargetBranch } from './context.js';
 import { checkStackTarget, recheckLifecycleRefs } from './lifecycle-context.js';
 import { configAt, planAt, samePaths, snapshot, specAt } from './prepare-start.js';
 import { PLAN_SCHEMA, SPEC_COMMON_SCHEMA, SPEC_FEATURE_SCHEMA, SPEC_ARCHITECTURE_SCHEMA, validator } from '../schemas.js';
@@ -102,7 +102,7 @@ export function retargetFrontmatter(text: string, old: string, target: string): 
  return result;
 }
 
-export function retargetPlan(input: { id: string; target: string; dryRun?: boolean }, cwd: string, options: { signal?: AbortSignal; beforeRecheck?: () => void } = {}): RetargetReceipt {
+export function retargetPlan(input: { id: string; target: string; dryRun?: boolean }, cwd: string, options: { signal?: AbortSignal; afterTargetCapture?: () => void; beforeRecheck?: () => void } = {}): RetargetReceipt {
  const { id, target } = input;
  if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) return fail('Invalid plan ID.');
  const root = fs.realpathSync(checkoutRoot(cwd)); const main = mainRoot(root);
@@ -122,15 +122,22 @@ export function retargetPlan(input: { id: string; target: string; dryRun?: boole
   const selected = validatePlanBranches(root, id, { local: snapshot(root, local, id, config), remote: snapshot(root, remote, id, config) });
   if (!local || !selected || selected.commit !== local || !selected.binding || ref(root, 'HEAD') !== local) return fail('Recorded local plan context is unavailable or stale.');
   const plan = planAt(root, local, config, id)!; const binding = selected.binding;
+  const validStatus = (status: string, source: string) => source === 'git' ? status === 'ready' : ['ready', 'in_progress', 'review'].includes(status);
+  if (!validStatus(plan.status, config.plans.status_source)) return fail('Plan lifecycle state is invalid for its status source.');
+  if (remote) { const cfg = configAt(root, remote); const remotePlan = planAt(root, remote, cfg, id); if (!remotePlan || !validStatus(remotePlan.status, cfg.plans.status_source)) return fail('Remote plan lifecycle state is invalid for its status source.'); }
   validateExecutionBinding(root, id, binding, plan.target_branch);
-  const destination = resolvePlanContext(root, { id, explicit: target });
+  validateTargetBranch(root, target, id);
   const lifecycle = (status: string) => ['ready', 'in_progress', 'review'].includes(status) ? 'active' : status;
-  for (const name of [binding.target_branch, target]) { capture(`refs/heads/${name}`); capture(`refs/remotes/origin/${name}`); }
+  for (const name of new Set([binding.target_branch, target])) { capture(`refs/heads/${name}`); capture(`refs/remotes/origin/${name}`); }
+  options.afterTargetCapture?.();
+  const tip = (name: string) => capturedTargetTip(root, name, refs[`refs/heads/${name}`], refs[`refs/remotes/origin/${name}`]);
+  const destination = tip(target);
   const oldAvailable = refs[`refs/heads/${binding.target_branch}`] || refs[`refs/remotes/origin/${binding.target_branch}`];
-  const old = oldAvailable ? resolvePlanContext(root, { id, explicit: binding.target_branch }) : null;
-  const records = [destination.targetCommit, ...(old ? [old.targetCommit] : [])].map(commit => {
+  const old = oldAvailable ? tip(binding.target_branch) : null;
+  const records = [destination, ...(old ? [old] : [])].map(commit => {
     const cfg = configAt(root, commit); if (!samePaths(config, cfg)) return fail('Conflicting target configuration paths.');
     const p = planAt(root, commit, cfg, id); if (!p) return fail('Target plan record is unavailable.');
+    if (!validStatus(p.status, cfg.plans.status_source)) return fail('Target lifecycle state is invalid for its status source.');
     if (p.comparison_base !== plan.comparison_base || p.execution && !isDeepStrictEqual(p.execution, binding)) return fail('Conflicting target execution provenance.');
     if (lifecycle(p.status) !== lifecycle(plan.status)) return fail('Conflicting target lifecycle state.');
     return { p, cfg, commit };
@@ -141,7 +148,7 @@ export function retargetPlan(input: { id: string; target: string; dryRun?: boole
   if (!old) {
     const historicalConfig = configAt(root, binding.start_base);
     const historical = samePaths(config, historicalConfig) ? planAt(root, binding.start_base, historicalConfig, id) : null;
-    if (!historical || !identityMatches(historical) || lifecycle(historical.status) !== lifecycle(plan.status)) return fail('Missing old target and insufficient identity or lifecycle evidence.');
+    if (!historical || !validStatus(historical.status, historicalConfig.plans.status_source) || !identityMatches(historical) || lifecycle(historical.status) !== lifecycle(plan.status)) return fail('Missing old target and insufficient identity or lifecycle evidence.');
   }
   if (!['ready', 'in_progress', 'review'].includes(plan.status)) return fail('Plan lifecycle state does not permit retargeting.');
   const dest = records[0];
@@ -162,13 +169,20 @@ export function retargetPlan(input: { id: string; target: string; dryRun?: boole
       for (const raw of dest.p.specs) if (specAt(root, tip, config, raw).text !== specAt(root, dest.commit, dest.cfg, raw).text) return fail(`Stack tree has a different specification revision: ${raw}.`);
     }
   }
-  const origin = (() => { try { return git(root, 'remote', 'get-url', 'origin'); } catch { return ''; } })();
-  if (origin) {
-    if (!/github\.com[:/]/i.test(origin) || config.plans.forge === 'none') return fail('Required forge evidence is unavailable.');
-    let evidence: unknown; try { evidence = JSON.parse(run('gh', ['pr', 'list', '--head', branch, '--state', 'all', '--json', 'url,baseRefName', '--limit', '1000'], { cwd: root })); } catch { return fail('Required forge evidence is unavailable.'); }
+  const originUrl = () => { try { return git(root, 'remote', 'get-url', 'origin'); } catch { return ''; } };
+  const origin = originUrl();
+  const evidenceCheck = () => {
+    if (originUrl() !== origin) return fail('Origin changed; retry.');
+    if (!origin) { if (config.plans.forge === 'github') return fail('Required forge evidence is unavailable.'); return; }
+    const localOrigin = origin.startsWith('file://') || (!origin.includes('://') && !/^[^/]+:/.test(origin));
+    if (localOrigin && config.plans.forge !== 'github') return;
+    const match = /^(?:https?:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i.exec(origin);
+    if (!match || config.plans.forge === 'none') return fail('Required forge evidence is unavailable.');
+    let evidence: unknown; try { evidence = JSON.parse(run('gh', ['pr', 'list', '--repo', `github.com/${match[1]}/${match[2]}`, '--head', branch, '--state', 'all', '--json', 'url,baseRefName', '--limit', '1000'], { cwd: root })); } catch { return fail('Required forge evidence is unavailable.'); }
     if (!Array.isArray(evidence) || evidence.length >= 1000 || evidence.some(x => typeof x?.url !== 'string' || typeof x?.baseRefName !== 'string')) return fail('Invalid or incomplete forge evidence.');
     if (evidence.some(x => x.baseRefName !== target)) return fail('Pull request base conflicts with requested target; reconcile it externally.');
-  }
+  };
+  evidenceCheck();
   const file = `${config.plans.dir}/${id}/PLAN.md`;
   const absolute = path.resolve(root, file); if (!absolute.startsWith(root + path.sep)) return fail('Plan path escapes checkout.');
   const paths = [absolute, path.join(root, CONFIG_PATH)];
@@ -199,7 +213,7 @@ export function retargetPlan(input: { id: string; target: string; dryRun?: boole
     options.beforeRecheck?.();
     const verify = () => { if (options.signal?.aborted) return fail('Operation aborted.'); lease!.assertOwned(); recheckLifecycleRefs(root, refs);
       for (const [p, signature] of signatures) { const s = fs.lstatSync(p); if (s.isSymbolicLink() || `${s.dev}:${s.ino}:${s.mode}` !== signature) return fail('Recording path identity changed; retry.'); }
-      mutationCheck();
+      mutationCheck(); evidenceCheck();
       if (JSON.stringify(trees) !== JSON.stringify(listWorktrees(main)) || git(root, 'symbolic-ref', '--short', 'HEAD') !== branch || dirty() || fs.readFileSync(absolute, 'utf8') !== original || fs.readFileSync(path.join(root, CONFIG_PATH), 'utf8') !== configText) return fail('Checkout or recording preimage changed; retry.'); };
     verify(); const temp = path.join(root, `.specplane-retarget-${randomUUID()}.tmp`);
     try { fs.writeFileSync(temp, proposed, { flag: 'wx', mode: fs.statSync(absolute).mode & 0o777 }); verify(); fs.renameSync(temp, absolute); } finally { try { fs.unlinkSync(temp); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } }

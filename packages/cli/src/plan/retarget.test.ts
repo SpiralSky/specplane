@@ -29,6 +29,8 @@ test('preview and core update preserve provenance and unrelated changes', () => 
  const head = f.git('rev-parse', 'HEAD'), status = f.git('status', '--porcelain');
  const preview = retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd);
  const cli = JSON.parse(execFileSync(process.execPath, [path.resolve('dist/cli.js'), 'plan', 'retarget', id, '--target', 'candidate', '--dry-run', '--json'], { cwd: f.cwd, encoding: 'utf8', timeout: 10000 }));
+ const human = execFileSync(process.execPath, [path.resolve('dist/cli.js'), 'plan', 'retarget', id, '--target', 'candidate', '--dry-run'], { cwd: f.cwd, encoding: 'utf8', timeout: 10000 });
+ assert.match(human, new RegExp(`Original start: main at ${f.base}`)); assert.match(human, /Comparison baseline: \(none\)/); assert.match(human, new RegExp(`plans/${id}/PLAN.md`)); assert.match(human, /Refs may change/);
  assert.deepEqual(cli, preview);
  assert.equal(preview.changed, true); assert.equal(preview.committed, false); assert.equal(f.git('status', '--porcelain'), status);
  const result = executeOperation({ operation: 'plan.retarget', arguments: { id, target: 'candidate' } }, { checkout: f.cwd, extensionId: 'test' }); assert.equal(result.ok, true, JSON.stringify(result));
@@ -38,9 +40,61 @@ test('preview and core update preserve provenance and unrelated changes', () => 
  assert.throws(() => refusePendingRetarget(id, loadConfig(f.cwd).config, f.cwd), /Pending retarget/);
  assert.throws(() => firstStart(id, loadConfig(f.cwd).config, f.cwd, { dryRun: true }), /Pending retarget/);
  assert.throws(() => lifecycleContext(id, loadConfig(f.cwd).config, f.cwd), /Pending retarget/);
+ for (const args of [['next', id], ['step-done', id, '--outcome', 'done', '--summary', 'test']]) assert.throws(() => execFileSync(process.execPath, [path.resolve('dist/cli.js'), 'plan', ...args], { cwd: f.cwd, encoding: 'utf8', stdio: 'pipe', timeout: 10000 }), /Pending retarget/);
  f.git('add', f.file); f.git('commit', '-m', 'retarget'); assert.equal(retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd).changed, false);
+ const noop = execFileSync(process.execPath, [path.resolve('dist/cli.js'), 'plan', 'retarget', id, '--target', 'candidate', '--dry-run'], { cwd: f.cwd, encoding: 'utf8', timeout: 10000 }); assert.match(noop, /unchanged/); assert.match(noop, /Changed paths: \(none\)/); assert.match(noop, /Refs may change/);
  retargetPlan({ id, target: 'main' }, f.cwd); const history = fs.readFileSync(f.file, 'utf8');
  assert.match(history, /from: "main"\n\s+to: "candidate"\n\s+- from: "candidate"\n\s+to: "main"/);
+ } finally { f.cleanup(); }
+});
+test('captured target ref changing before validation refuses without a write', () => {
+ const f = fixture(); try {
+  const original = fs.readFileSync(f.file); const index = fs.readFileSync(path.join(f.cwd, '.git/index'));
+  assert.throws(() => retargetPlan({ id, target: 'candidate' }, f.cwd, { afterTargetCapture: () => f.git('update-ref', 'refs/heads/candidate', f.git('rev-parse', 'HEAD')) }), /changed/);
+  assert.deepEqual(fs.readFileSync(f.file), original); assert.deepEqual(fs.readFileSync(path.join(f.cwd, '.git/index')), index);
+ } finally { f.cleanup(); }
+});
+test('explicit GitHub requires origin for preview and update', () => {
+ const f = fixture(); try {
+  f.put('.specplane/config.yaml', 'plans:\n  dependency_mode: stack\n  forge: github\n'); f.git('commit', '-am', 'require github');
+  const original = fs.readFileSync(f.file); const status = f.git('status', '--porcelain');
+  for (const dryRun of [true, false]) assert.throws(() => retargetPlan({ id, target: 'candidate', dryRun }, f.cwd), /forge evidence/);
+  assert.deepEqual(fs.readFileSync(f.file), original); assert.equal(f.git('status', '--porcelain'), status);
+ } finally { f.cleanup(); }
+});
+test('local bare origin needs no forge evidence when forge is none', () => {
+ const f = fixture(); const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'retarget-bare-')); try {
+  execFileSync('git', ['init', '--bare', bare], { stdio: 'ignore', timeout: 5000 }); f.git('remote', 'add', 'origin', bare);
+  f.put('.specplane/config.yaml', 'plans:\n  dependency_mode: stack\n  forge: none\n'); f.git('commit', '-am', 'disable forge');
+  assert.equal(retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd).changed, true); assert.equal(retargetPlan({ id, target: 'candidate' }, f.cwd).changed, true);
+ } finally { fs.rmSync(bare, { recursive: true, force: true }); f.cleanup(); }
+});
+test('forge evidence is scoped to origin and rechecked before writing', () => {
+ const f = fixture(); const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'fake-gh-')); const oldPath = process.env.PATH; const oldRepo = process.env.GH_REPO;
+ try {
+  const evidence = path.join(bin, 'evidence'); const args = path.join(bin, 'args');
+  fs.writeFileSync(evidence, '[]'); fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh\nprintf '%s\\n' "$@" > '${args}'\ncat '${evidence}'\n`, { mode: 0o755 });
+  process.env.PATH = `${bin}:${oldPath}`; process.env.GH_REPO = 'wrong/other'; f.git('remote', 'add', 'origin', 'https://github.com/example/repo.git');
+  const original = fs.readFileSync(f.file);
+  assert.throws(() => retargetPlan({ id, target: 'candidate' }, f.cwd, { beforeRecheck: () => fs.writeFileSync(evidence, '[{"url":"x","baseRefName":"main"}]') }), /base conflicts/);
+  assert.match(fs.readFileSync(args, 'utf8'), /--repo\ngithub\.com\/example\/repo\n/); assert.deepEqual(fs.readFileSync(f.file), original);
+ } finally { process.env.PATH = oldPath; if (oldRepo === undefined) delete process.env.GH_REPO; else process.env.GH_REPO = oldRepo; fs.rmSync(bin, { recursive: true, force: true }); f.cleanup(); }
+});
+test('staged administrative changes and recovery markers refuse', () => {
+ const f = fixture(); try {
+  const original = fs.readFileSync(f.file); f.put(`plans/${id}/HANDOFF.md`, 'staged'); f.git('add', `plans/${id}/HANDOFF.md`);
+  const index = fs.readFileSync(path.join(f.cwd, '.git/index')); assert.throws(() => retargetPlan({ id, target: 'candidate' }, f.cwd), /dirty/); assert.deepEqual(fs.readFileSync(path.join(f.cwd, '.git/index')), index); assert.deepEqual(fs.readFileSync(f.file), original);
+  f.git('reset', '--', `plans/${id}/HANDOFF.md`); fs.unlinkSync(path.join(f.cwd, `plans/${id}/HANDOFF.md`));
+  const marker = path.join(f.cwd, '.git/MERGE_HEAD'); fs.writeFileSync(marker, f.base + '\n');
+  assert.throws(() => retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd), /mutation/); assert.equal(fs.readFileSync(marker, 'utf8'), f.base + '\n'); assert.deepEqual(fs.readFileSync(f.file), original);
+ } finally { f.cleanup(); }
+});
+test('preview preserves private runtime and index bytes', () => {
+ const f = fixture(); try {
+  const runtime = path.join(f.cwd, '.git/specplane-runtime'); fs.mkdirSync(runtime); fs.writeFileSync(path.join(runtime, 'recovery-note'), 'retain');
+  const index = fs.readFileSync(path.join(f.cwd, '.git/index')); const plan = fs.readFileSync(f.file);
+  retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd);
+  assert.deepEqual(fs.readdirSync(runtime), ['recovery-note']); assert.equal(fs.readFileSync(path.join(runtime, 'recovery-note'), 'utf8'), 'retain'); assert.deepEqual(fs.readFileSync(path.join(f.cwd, '.git/index')), index); assert.deepEqual(fs.readFileSync(f.file), plan);
  } finally { f.cleanup(); }
 });
 test('active lease, dirty recording and ref races refuse without writes', () => {
@@ -72,6 +126,14 @@ test('changed recording preimage and lifecycle conflicts refuse', () => {
   assert.equal(fs.readFileSync(f.file, 'utf8'), original + 'external\n'); f.put(`plans/${id}/PLAN.md`, original);
   f.git('switch', 'candidate'); const target = fs.readFileSync(f.file, 'utf8'); f.put(`plans/${id}/PLAN.md`, target.replace('status: ready', 'status: abandoned')); f.git('commit', '-am', 'abandon'); f.git('switch', `plan/${id}`);
   assert.throws(() => retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd), /lifecycle/);
+ } finally { f.cleanup(); }
+});
+test('status source controls valid active lifecycle records', () => {
+ const f = fixture(); try {
+  f.git('switch', 'candidate'); f.put(`plans/${id}/PLAN.md`, fs.readFileSync(f.file, 'utf8').replace('status: ready', 'status: in_progress')); f.git('commit', '-am', 'invalid git status'); f.git('switch', `plan/${id}`);
+  assert.throws(() => retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd), /lifecycle.*status source/);
+  for (const b of [`plan/${id}`, 'main', 'candidate']) { if (f.git('branch', '--show-current') !== b) f.git('switch', b); f.put('.specplane/config.yaml', 'plans:\n  dependency_mode: stack\n  status_source: frontmatter\n'); f.git('commit', '-am', 'frontmatter mode'); }
+  f.git('switch', `plan/${id}`); assert.equal(retargetPlan({ id, target: 'candidate', dryRun: true }, f.cwd).changed, true);
  } finally { f.cleanup(); }
 });
 test('unfinished cross-target stack refuses', () => {
