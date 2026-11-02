@@ -20,7 +20,7 @@ export interface ShelveReceipt { id: string; operation: 'shelve' | 'resume'; tar
 const git = (cwd: string, ...args: string[]) => run('git', args, { cwd }).trim();
 const fail = (message: string): never => { throw new PlanStateError(message); };
 
-/** Render from committed inputs and the one authorized plan edit. */
+/** Interim composition seam: plan-index step 3 must replace this with its snapshot renderer. */
 function prospectiveIndex(admin: string, commit: string, config: Config, rel: string, changed: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'specplane-transition-'));
   try {
@@ -63,6 +63,12 @@ export function shelveTransition(id: string, operation: 'shelve' | 'resume', con
     if (!admin) return fail(`Cannot ${operation}: provide a checkout of target ${target}.`);
     const local = report.ref_freshness.target_local, remote = report.ref_freshness.target_remote;
     if (!local || local !== record.ref || git(admin, 'rev-parse', 'HEAD') !== local || git(admin, 'symbolic-ref', '--short', 'HEAD') !== target) return fail(`Cannot ${operation}: target checkout is stale or unavailable.`);
+    const verifyFinal = (expectedTarget: string) => {
+      lease!.assertOwned();
+      const fresh = planReport(id, config, root, null).ref_freshness;
+      const expected = { ...report.ref_freshness, target_local: expectedTarget };
+      if (!isDeepStrictEqual(expected, fresh) || git(admin, 'rev-parse', 'HEAD') !== expectedTarget || git(admin, 'symbolic-ref', '--short', 'HEAD') !== target || !isDeepStrictEqual(trees.map(t => [t.path, t.branch, t.bare]), listWorktrees(root).map(t => [t.path, t.branch, t.bare]))) fail('Target, plan refs, checkout or lease changed; inspect before retrying.');
+    };
     const receipt = (commit: string | null, retry: boolean, dryRun: boolean): ShelveReceipt => {
       const checkout = trees.find(t => t.branch === `plan/${id}`)?.path ?? null;
       const activity = getPlanActivity(id, record.config, root, target, branch.ref);
@@ -102,10 +108,9 @@ export function shelveTransition(id: string, operation: 'shelve' | 'resume', con
         if (operation === 'resume') delete expected.shelved_from;
         const paths = git(admin, 'diff-tree', '--no-commit-id', '--name-only', '-r', local).split('\n').sort();
         const expectedIndex = prospectiveIndex(admin, local, record.config, rel, record.text);
-        if (!compatiblePrevious || transitionText(previousText, operation, previous?.status, previous?.shelved_from) !== record.text || !isDeepStrictEqual(expected, record.data) || paths.join('\n') !== [index, rel].sort().join('\n') || run('git', ['show', `${local}:${index}`], {cwd: admin}) !== expectedIndex || !isDeepStrictEqual(trees, listWorktrees(root)) || !isDeepStrictEqual(report.ref_freshness, planReport(id, config, root, null).ref_freshness)) return fail(`Cannot ${operation}: retained transition ${local} failed authentication.`);
+        if (git(admin, 'rev-list', '--parents', '-n', '1', local).split(' ').length !== 2 || !compatiblePrevious || transitionText(previousText, operation, previous?.status, previous?.shelved_from) !== record.text || !isDeepStrictEqual(expected, record.data) || paths.join('\n') !== [index, rel].sort().join('\n') || run('git', ['show', `${local}:${index}`], {cwd: admin}) !== expectedIndex || !isDeepStrictEqual(trees, listWorktrees(root)) || !isDeepStrictEqual(report.ref_freshness, planReport(id, config, root, null).ref_freshness)) return fail(`Cannot ${operation}: retained transition ${local} failed authentication.`);
         if (opts.dryRun) return receipt(local, true, true);
-        lease!.assertOwned();
-        try { git(admin, 'push', `--force-with-lease=refs/heads/${target}:${parent}`, 'origin', `${local}:refs/heads/${target}`); }
+        try { verifyFinal(local); git(admin, 'push', `--force-with-lease=refs/heads/${target}:${parent}`, 'origin', `${local}:refs/heads/${target}`); }
         catch (e) { return fail(`Publication pending for ${local}: ${String(e)}`); }
         return receipt(local, true, false);
       }
@@ -128,11 +133,15 @@ export function shelveTransition(id: string, operation: 'shelve' | 'resume', con
     const generated = prospectiveIndex(admin, local, record.config, rel, changed);
     let staged: string | null = null;
     if (opts.dryRun) return receipt(null, false, true);
-    let committed = false;
+    let committed = false, created: string | null = null;
+    let planAttempted = false, planWritten = false, indexWritten = false;
     try {
       if (fs.readFileSync(file, 'utf8') !== original || (indexOriginal === null ? fs.existsSync(indexFile) : !fs.existsSync(indexFile) || !fs.readFileSync(indexFile).equals(indexOriginal)) || git(admin, 'diff', '--cached', '--name-only')) fail('Administrative inputs or index changed before writing; retry.');
+      planAttempted = true;
       fs.writeFileSync(file, changed);
+      planWritten = true;
       fs.writeFileSync(indexFile, generated);
+      indexWritten = true;
       lease!.assertOwned();
       const otherAdmin = git(admin, 'status', '--porcelain', '--untracked-files=all', '--ignored', '--', record.config.plans.dir, '.specplane/config.yaml', `:(exclude)${rel}`, `:(exclude)${index}`);
       if (!isDeepStrictEqual(trees, listWorktrees(root)) || git(admin, 'rev-parse', 'HEAD') !== local || !isDeepStrictEqual(report.ref_freshness, planReport(id, config, root, null).ref_freshness) || otherAdmin || git(admin, 'diff', '--cached', '--name-only') || fs.readFileSync(file, 'utf8') !== changed || fs.readFileSync(indexFile, 'utf8') !== generated) fail('Administrative inputs, index or refs changed during transition; retry.');
@@ -140,27 +149,31 @@ export function shelveTransition(id: string, operation: 'shelve' | 'resume', con
       staged = run('git', ['diff', '--cached', '--binary'], { cwd: admin });
       const files = git(admin, 'diff', '--cached', '--name-only').split('\n').sort();
       if (files.join('\n') !== [index, rel].sort().join('\n') || run('git', ['show', `:${rel}`], { cwd: admin }) !== changed || run('git', ['show', `:${index}`], { cwd: admin }) !== generated || fs.readFileSync(file, 'utf8') !== changed || fs.readFileSync(indexFile, 'utf8') !== generated) fail('Index or administrative files changed during transition; inspect before retrying.');
-      git(admin, 'commit', '-m', formatMessage({ type: 'chore', scope: 'specplane', summary: `${operation} ${id}`, trailers: cliTrailers(operation, id) }), '--', rel, index);
+      const output = run('git', ['-c', 'core.abbrev=40', 'commit', '-m', formatMessage({ type: 'chore', scope: 'specplane', summary: `${operation} ${id}`, trailers: cliTrailers(operation, id) }), '--', rel, index], { cwd: admin });
       committed = true;
+      created = /^\[[^\n]* ([0-9a-f]{40})\]/m.exec(output)?.[1] ?? null;
+      if (!created) fail('Commit succeeded but its identity could not be determined; inspect the reflog.');
       const head = git(admin, 'rev-parse', 'HEAD');
+      verifyFinal(created!);
       const parents = git(admin, 'rev-list', '--parents', '-n', '1', head).split(' ');
       if (parents.length !== 2 || parents[1] !== local || run('git', ['show', `${head}:${rel}`], {cwd: admin}) !== changed || run('git', ['show', `${head}:${index}`], {cwd: admin}) !== generated || git(admin, 'diff-tree', '--no-commit-id', '--name-only', '-r', head).split('\n').sort().join('\n') !== [index, rel].sort().join('\n') || git(admin, 'diff', '--cached', '--name-only') || git(admin, 'status', '--porcelain', '--untracked-files=all', '--ignored', '--', record.config.plans.dir, '.specplane/config.yaml', `:(exclude)${rel}`, `:(exclude)${index}`) || !isDeepStrictEqual(trees.map(t => [t.path, t.branch, t.bare]), listWorktrees(root).map(t => [t.path, t.branch, t.bare])) || fs.readFileSync(file, 'utf8') !== changed || fs.readFileSync(indexFile, 'utf8') !== generated) fail(`Lifecycle commit ${head} or administrative state changed during hooks; retained for inspection.`);
     } catch (error) {
       const head = git(admin, 'rev-parse', 'HEAD');
-      if (committed || head !== local) return fail(`Lifecycle commit ${head} was retained after a recording error; inspect and publish it before retrying: ${String(error)}`);
+      if (committed || head !== local) return fail(`Lifecycle commit ${created ?? 'identity unavailable'} was retained after a recording error (current HEAD ${head}); inspect refs and recovery state before retrying: ${String(error)}`);
       const currentIndex = run('git', ['diff', '--cached', '--binary'], { cwd: admin });
       const indexSafe = staged === null ? currentIndex === '' : currentIndex === staged;
       const fileSafe = fs.existsSync(file) && fs.readFileSync(file, 'utf8') === changed;
-      const generatedSafe = generated === null ? (indexOriginal === null ? !fs.existsSync(indexFile) : fs.existsSync(indexFile) && fs.readFileSync(indexFile).equals(indexOriginal)) : fs.existsSync(indexFile) && fs.readFileSync(indexFile, 'utf8') === generated;
-      if (!indexSafe || !fileSafe || !generatedSafe) return fail(`Transition files or index changed concurrently; retained for inspection: ${String(error)}`);
-      if (staged !== null) run('git', ['reset', '-q', 'HEAD', '--', rel, index], { cwd: admin });
-      fs.writeFileSync(file, original);
-      if (indexOriginal === null) fs.rmSync(indexFile, { force: true }); else fs.writeFileSync(indexFile, indexOriginal);
+      const outputSafe = fs.existsSync(indexFile) && fs.readFileSync(indexFile, 'utf8') === generated;
+      const outputOriginal = indexOriginal === null ? !fs.existsSync(indexFile) : fs.existsSync(indexFile) && fs.readFileSync(indexFile).equals(indexOriginal);
+      if (staged !== null && indexSafe) run('git', ['reset', '-q', 'HEAD', '--', rel, index], { cwd: admin });
+      if (planWritten && fileSafe) fs.writeFileSync(file, original);
+      if (indexWritten && outputSafe) { if (indexOriginal === null) fs.rmSync(indexFile, { force: true }); else fs.writeFileSync(indexFile, indexOriginal); }
+      if (!indexSafe || (planWritten ? !fileSafe : planAttempted && (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== original)) || (indexWritten ? !outputSafe : !outputOriginal)) return fail(`Transition files or index changed or were partially written; ambiguous bytes retained for inspection: ${String(error)}`);
       throw error;
     }
     if (!committed) return fail('Lifecycle transition did not commit.');
-    const commit = git(admin, 'rev-parse', 'HEAD');
-    if (hasRemote(admin)) try { lease!.assertOwned(); if (git(admin, 'rev-parse', `refs/heads/${target}`) !== commit || git(admin, 'symbolic-ref', '--short', 'HEAD') !== target) fail('Target changed before publication.'); git(admin, 'push', `--force-with-lease=refs/heads/${target}:${local}`, 'origin', `${commit}:refs/heads/${target}`); } catch (e) { return fail(`Publication pending for ${commit}: ${String(e)}`); }
+    const commit = created!;
+    try { verifyFinal(commit); if (hasRemote(admin)) git(admin, 'push', `--force-with-lease=refs/heads/${target}:${local}`, 'origin', `${commit}:refs/heads/${target}`); } catch (e) { return fail(`Publication pending for ${commit}, or final verification failed; commit retained: ${String(e)}`); }
     return receipt(commit, false, false);
   } finally { lease?.release(); }
 }
