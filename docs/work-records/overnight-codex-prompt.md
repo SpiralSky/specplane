@@ -93,17 +93,20 @@ Verify:
 1. Commands, repository files and subagents execute in hosted infrastructure
    independent of my computer.
 2. The supplied snapshot includes unpublished commits, current plan branch
-   history and the uncommitted target-lifecycle step-2 implementation.
+   history and the preserved target-lifecycle step-2 implementation (committed
+   for transport in the prepared snapshot).
 3. Git writes, worktrees, dependencies, subprocess tests and subagents work.
 4. Outputs can be preserved and retrieved after this run.
 
-The source integration branch is `dot/codex-integration-20261101`, not `main`.
-At prompt preparation its implementation base was `37a77e1`. Target-lifecycle
-step 1 was recorded separately as `346425f` on its plan branch; step 2 also had
-uncommitted changes in its plan checkout. Verify these facts against the supplied
-snapshot, including ancestry and file hashes. Do not assume pushing this prompt
-also transferred the other worktree or uncommitted records. Use cloud-local
-paths discovered at runtime, not historical absolute paths on my computer.
+The prepared source branch is `snapshot/specplane-overnight-inputs-20261102`,
+not `main`. It combines integration history through `6a620d7` (including
+`37a77e1`) with the original target-lifecycle step-1 commit `346425f`. The
+previously uncommitted step-2 edits are committed for transport only and remain
+incomplete. Verify ancestry and the exact file hashes in
+`docs/work-records/cloud-input-snapshot.json`. Read the current root handoff.
+Use cloud-local paths discovered at runtime, not historical absolute paths on
+my computer. Do not execute the separate proposed path-history removal checklist
+during this overnight run; history rewriting and force-pushing are not authorized.
 
 Use actual checkout state as authority; older handoff sections may be stale.
 Do not assume a remote checkout contains local-only work. If required input

@@ -153,6 +153,37 @@ test("plan new: self-dependency is rejected", () => {
   assert.ok(!fs.existsSync(path.join(root, "plans/2026-02-01-self")));
 });
 
+test("plan new: records validated target and canonical comparison commit; refusals and dry run write nothing", () => {
+  const root = newRepo();
+  const git = (...args: string[]) => spawnSync("git", args, { cwd: root, encoding: "utf8" });
+  assert.equal(git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "--allow-empty", "-m", "init").status, 0);
+  const sha = git("rev-parse", "HEAD").stdout.trim();
+  const base = ["plan", "new", "--id", "2026-02-01-target", "--specs", "feature/alpha"];
+  const dir = path.join(root, "plans/2026-02-01-target");
+  for (const extra of [["--target", "bad branch"], ["--target", "plan/2026-02-01-target"], ["--comparison-base", "missing"], ["--target", "release", "--dry-run"]]) {
+    const r = run(root, ...base, ...extra);
+    assert.equal(r.code, extra.includes("--dry-run") ? 0 : 1, r.err);
+    if (extra.includes("--dry-run")) assert.match(r.out, /^Would create /);
+    assert.equal(fs.existsSync(dir), false);
+  }
+  const r = run(root, ...base, "--target", "release", "--comparison-base", "HEAD");
+  assert.equal(r.code, 0, r.err);
+  const text = fs.readFileSync(path.join(dir, "PLAN.md"), "utf8");
+  assert.match(text, /target_branch: "release"/);
+  assert.match(text, /title: "Target"/);
+  assert.ok(text.includes(`comparison_base: "${sha}"`));
+  assert.ok(fs.existsSync(path.join(dir, "steps/.gitkeep")));
+});
+
+test("plan new: an abandoned dependency refuses without creating files", () => {
+  const root = newRepo();
+  fs.writeFileSync(path.join(root, "plans/2026-01-01-alpha/PLAN.md"), plan("2026-01-01-alpha", "abandoned").replace("feature/x", "feature/alpha"));
+  const r = run(root, "plan", "new", "--id", "2026-02-01-target", "--specs", "feature/alpha", "--depends-on", "2026-01-01-alpha");
+  assert.equal(r.code, 1);
+  assert.match(r.err, /abandoned/);
+  assert.equal(fs.existsSync(path.join(root, "plans/2026-02-01-target")), false);
+});
+
 test("plan show: active and archived plans; unknown ID exits 1", () => {
   const root = newRepo();
   assert.equal(run(root, "plan", "show", "2026-01-01-alpha").out, fs.readFileSync(path.join(root, "plans/2026-01-01-alpha/PLAN.md"), "utf8"));
