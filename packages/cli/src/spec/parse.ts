@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import { FrontmatterError } from "../errors.js";
-import { readFrontmatter } from "../frontmatter.js";
+import * as fs from "node:fs";
+import { parseFrontmatter } from "../frontmatter.js";
 import {
   SPEC_ARCHITECTURE_SCHEMA,
   SPEC_COMMON_SCHEMA,
@@ -16,7 +17,11 @@ export function isInfoFile(filePath: string): boolean {
 }
 
 export function parseSpec(filePath: string): { frontmatter: SpecFrontmatter; body: string } {
-  const { data, body } = readFrontmatter(filePath);
+  return parseSpecContent(fs.readFileSync(filePath, "utf8"), filePath);
+}
+
+export function parseSpecContent(content: string, filePath = "<snapshot>"): { frontmatter: SpecFrontmatter; body: string } {
+  const { data, body } = parseFrontmatter(content, filePath);
 
   const check = (schema: object) => {
     const v = validator(schema);

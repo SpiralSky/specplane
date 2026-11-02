@@ -333,13 +333,13 @@ test("config: a missing spec root is a config error", () => {
 test("output formats", () => {
   const r = run({ "specs/features/alpha.md": feat("feature/alpha", {}, "# T\n\nTypeScript\n") });
   const json = JSON.parse(formatJson(r));
-  assert.deepEqual(Object.keys(json), ["valid", "errors", "warnings"]);
+  assert.deepEqual(Object.keys(json), ["valid", "errors", "warnings", "implementations"]);
   assert.equal(json.valid, true);
   assert.equal(json.warnings[0].severity, "warning");
   assert.equal(json.warnings[0].type, "tech_name");
   assert.equal(json.warnings[0].spec, "feature/alpha");
   const human = formatHuman(r);
-  assert.match(human, /Checking feature\/alpha\.\.\. 1 warning\n  \[warning\] feature\/alpha:9: Possible architecture detail \(tech_name\): "TypeScript"/);
+  assert.match(human, /Checking feature\/alpha\.\.\. 1 warning\n  Implementation \(base\): unrecorded; assessment: unrecorded\n  \[warning\] feature\/alpha:9: Possible architecture detail \(tech_name\): "TypeScript"/);
   assert.match(human, /Summary: \d+ files checked, 0 errors, \d+ warnings?\n$/);
 });
 

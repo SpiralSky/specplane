@@ -149,7 +149,8 @@ spec
   .command("show <id>")
   .description("Print a spec file")
   .option("--root <name>", "qualify the root")
-  .action((id: string, opts: { root?: string }) => specShowCommand(id, opts));
+  .option("--json", "output JSON")
+  .action((id: string, opts: { root?: string; json?: boolean }) => specShowCommand(id, opts));
 spec
   .command("validate [ids...]")
   .description("Validate one, several, or all specs")

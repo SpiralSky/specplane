@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import { assessContent, completionSnapshot } from "./completion.js";
 import * as path from "node:path";
 import { FrontmatterError, FrontmatterMissingError, SpecplaneError } from "../errors.js";
 import { readFrontmatter } from "../frontmatter.js";
@@ -7,7 +8,7 @@ import { finding, makeReport } from "../report.js";
 import type { Config, Finding, SpecFrontmatter, SpecRootConfig, ValidationReport } from "../types.js";
 import { checkArchitectureLeak } from "./leak-guard.js";
 import { checkOverlayContradictions } from "./overlay-check.js";
-import { isInfoFile, parseSpec } from "./parse.js";
+import { isInfoFile, parseSpecContent } from "./parse.js";
 import { resolveSpecId } from "./resolve.js";
 import { checkPins } from "./pins.js";
 import { hasAnchor, headingSlugs } from "./slug.js";
@@ -24,6 +25,7 @@ export interface LoadedSpec {
   body: string;
   /** Lines of frontmatter before the body, to map body lines to file lines. */
   lineOffset: number;
+  content?: string;
 }
 
 const TYPE_DIRS: Record<string, string> = { feature: "features", architecture: "architecture" };
@@ -44,10 +46,11 @@ function pathDerivedId(rootDir: string, type: string, file: string): string {
 }
 
 /** Parse every spec file of every root; unparseable files become findings. */
-export function loadSpecs(config: Config, repoRoot: string): { specs: LoadedSpec[]; findings: Finding[]; checked: string[] } {
+export function loadSpecs(config: Config, repoRoot: string): { specs: LoadedSpec[]; findings: Finding[]; checked: string[]; contents: Map<string, string> } {
   const specs: LoadedSpec[] = [];
   const findings: Finding[] = [];
   const checked: string[] = [];
+  const contents = new Map<string, string>();
   for (const root of config.spec_roots) {
     const rootDir = path.join(repoRoot, root.path);
     for (const type of Object.keys(TYPE_DIRS)) {
@@ -63,11 +66,12 @@ export function loadSpecs(config: Config, repoRoot: string): { specs: LoadedSpec
         }
         checked.push(id);
         try {
-          const { frontmatter, body } = parseSpec(file);
           const raw = fs.readFileSync(file, "utf8");
+          contents.set(file, raw);
+          const { frontmatter, body } = parseSpecContent(raw, file);
           const at = body === "" ? -1 : raw.lastIndexOf(body);
           const lineOffset = at <= 0 ? 0 : raw.slice(0, at).split("\n").length - 1;
-          specs.push({ file, rel, root, id, frontmatter, body, lineOffset });
+          specs.push({ file, rel, root, id, frontmatter, body, lineOffset, content: raw });
         } catch (e) {
           if (e instanceof FrontmatterError || e instanceof FrontmatterMissingError) {
             findings.push(finding("error", "schema", rel, e.message, { spec: id }));
@@ -76,7 +80,7 @@ export function loadSpecs(config: Config, repoRoot: string): { specs: LoadedSpec
       }
     }
   }
-  return { specs, findings, checked };
+  return { specs, findings, checked, contents };
 }
 
 const asList = (v: string | string[] | undefined): string[] => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
@@ -232,13 +236,25 @@ export function validateSpec(spec: LoadedSpec, config: Config, repoRoot: string)
 
 /** Validate every spec in every root, then the cross-spec policies. */
 export function validateSpecs(config: Config, root: string): ValidationReport {
-  const { specs, findings, checked } = loadSpecs(config, root);
+  const { specs, findings, checked, contents } = loadSpecs(config, root);
   const out: Finding[] = [...findings];
   const byFile = new Map(specs.map((s) => [s.file, s]));
+  const implementations: NonNullable<ValidationReport["implementations"]> = [];
+  const snapshot = completionSnapshot(config, root, contents);
 
   for (const s of specs) {
     const r = validateSpec(s, config, root);
     out.push(...r.errors, ...r.warnings);
+    try {
+      const assessment = assessContent(s.id, s.root.name, s.content!, snapshot);
+      implementations.push({ id: s.id, root: s.root.name, path: s.rel, ...assessment });
+      if (assessment.assessment_status === "reassessment_needed" || assessment.assessment_status === "unverifiable") {
+        out.push(finding("warning", assessment.assessment_status === "unverifiable" ? "implementation-unverifiable" : "implementation-reassessment", s.rel, `Implementation assessment ${assessment.assessment_status}: ${assessment.assessment_reasons.map(reason => reason.message).join(" ")}`, { spec: s.id }));
+      }
+    } catch (e) {
+      if (e instanceof FrontmatterError || e instanceof FrontmatterMissingError) out.push(finding("error", "schema", s.rel, e.message, { spec: s.id }));
+      else throw e;
+    }
   }
 
   // Ordering policy.
@@ -292,5 +308,7 @@ export function validateSpecs(config: Config, root: string): ValidationReport {
       }
     }
   }
-  return makeReport(out, checked);
+  const report = makeReport(out, checked);
+  report.implementations = implementations.sort((a, b) => a.id.localeCompare(b.id) || a.root.localeCompare(b.root));
+  return report;
 }

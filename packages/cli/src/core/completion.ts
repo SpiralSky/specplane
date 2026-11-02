@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { parseFrontmatter } from "../frontmatter.js";
-import { QUALIFIED_SPEC_PATTERN } from "../schemas.js";
+import { QUALIFIED_SPEC_PATTERN, SPEC_COMMON_SCHEMA, validator } from "../schemas.js";
+import type { ImplementationDeclaration } from "../types.js";
+import { FrontmatterError } from "../errors.js";
 
 const excluded = new Set(["status", "author", "contributors", "based_on", "implementation"]);
 function compareKeys(a: string, b: string): number {
@@ -49,4 +51,87 @@ export function fingerprintClosure(root: CompletionSpecSnapshot, snapshot: Compl
   };
   visit(root);
   return { assessed_spec_hash: fingerprintSpec(root.content), assessed_dependencies: dependencies };
+}
+
+export interface AssessmentReason {
+  code: "root_changed" | "dependency_changed" | "dependency_added" | "dependency_removed" | "dependency_unavailable" | "unsupported_version" | "coverage_unrecorded";
+  spec: string;
+  message: string;
+  expected: string | null;
+  actual: string | null;
+}
+export interface ImplementationAssessment {
+  implementation_status: ImplementationDeclaration["status"] | null;
+  assessment_status: "current" | "reassessment_needed" | "unrecorded" | "unverifiable";
+  assessment_reasons: AssessmentReason[];
+}
+
+/** Assess supplied content only. Evidence annotations do not verify implementation. */
+export function evaluateImplementation(root: CompletionSpecSnapshot, snapshot: CompletionSnapshot): ImplementationAssessment {
+  const check = validator(SPEC_COMMON_SCHEMA);
+  const validateContent = (node: CompletionSpecSnapshot) => {
+    const data = parseFrontmatter(node.content, node.id).data;
+    if (!check(data)) throw new FrontmatterError(node.id, `Invalid spec metadata: ${JSON.stringify(check.errors)}`);
+    return data;
+  };
+  const data = validateContent(root);
+  const impl = data.implementation as ImplementationDeclaration | undefined;
+  const result: ImplementationAssessment = { implementation_status: impl?.status ?? null, assessment_status: "unrecorded", assessment_reasons: [] };
+  if (!impl || impl.status !== "complete" || !impl.assessed_spec_hash) return result;
+  const reasons = result.assessment_reasons;
+  const add = (code: AssessmentReason["code"], spec: string, expected: string | null, actual: string | null, message: string) => reasons.push({ code, spec, message, expected, actual });
+  const supported = (value: string) => value.startsWith("spec-v1:sha256:");
+  const recorded = impl.assessed_dependencies;
+  for (const [id, hash] of [[root.id, impl.assessed_spec_hash], ...Object.entries(recorded ?? {})]) {
+    if (!supported(hash)) add("unsupported_version", id, hash, null, `Unsupported fingerprint version for ${id}.`);
+  }
+  const rootHash = fingerprintSpec(root.content);
+  if (supported(impl.assessed_spec_hash) && impl.assessed_spec_hash !== rootHash) add("root_changed", root.id, impl.assessed_spec_hash, rootHash, `Spec content changed: ${root.id}.`);
+  const current = new Map<string, string>();
+  const visited = new Set([root.id]);
+  let incomplete = false;
+  const unavailable = new Set<string>();
+  const visit = (node: CompletionSpecSnapshot) => {
+    const from = node.id.slice(0, node.id.indexOf(":"));
+    const fm = validateContent(node);
+    const refs = [fm.extends, fm.implements].flatMap(v => v === undefined ? [] : Array.isArray(v) ? v : [v]);
+    for (const ref of refs) {
+      if (typeof ref !== "string") throw new Error(`Invalid dependency in ${node.id}`);
+      const raw = ref.split("#", 1)[0];
+      let child: CompletionSpecSnapshot;
+      try { child = snapshot.resolve(raw, from); }
+      catch {
+        incomplete = true;
+        const id = raw.includes(":") ? raw : `${from}:${raw}`;
+        if (!unavailable.has(id)) { unavailable.add(id); add("dependency_unavailable", id, recorded?.[id] ?? null, null, `Dependency unavailable: ${id}.`); }
+        continue;
+      }
+      if (!new RegExp(QUALIFIED_SPEC_PATTERN).test(child.id)) throw new Error("Invalid resolved identity");
+      if (visited.has(child.id)) continue;
+      visited.add(child.id);
+      validateContent(child);
+      current.set(child.id, fingerprintSpec(child.content));
+      visit(child);
+    }
+  };
+  visit(root);
+  for (const [id, hash] of Object.entries(recorded ?? {})) {
+    if (current.has(id) || unavailable.has(id)) continue;
+    let child: CompletionSpecSnapshot;
+    try { child = snapshot.resolve(id, root.id.slice(0, root.id.indexOf(":"))); }
+    catch { unavailable.add(id); add("dependency_unavailable", id, hash, null, `Dependency unavailable: ${id}.`); continue; }
+    validateContent(child);
+  }
+  if (!recorded && (current.size > 0 || incomplete)) add("coverage_unrecorded", root.id, null, null, "Dependency coverage was not recorded.");
+  if (recorded) {
+    for (const [id, hash] of current) {
+      if (!(id in recorded)) add("dependency_added", id, null, hash, `Dependency added: ${id}.`);
+      else if (supported(recorded[id]) && recorded[id] !== hash) add("dependency_changed", id, recorded[id], hash, `Dependency changed: ${id}.`);
+    }
+    if (!incomplete) for (const [id, hash] of Object.entries(recorded)) if (!current.has(id)) add("dependency_removed", id, hash, null, `Dependency removed: ${id}.`);
+  }
+  const order: AssessmentReason["code"][] = ["root_changed", "dependency_changed", "dependency_added", "dependency_removed", "dependency_unavailable", "unsupported_version", "coverage_unrecorded"];
+  reasons.sort((a, b) => order.indexOf(a.code) - order.indexOf(b.code) || compareKeys(a.spec, b.spec));
+  result.assessment_status = reasons.some(r => ["dependency_unavailable", "unsupported_version", "coverage_unrecorded"].includes(r.code)) ? "unverifiable" : reasons.length ? "reassessment_needed" : "current";
+  return result;
 }

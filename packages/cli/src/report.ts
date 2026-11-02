@@ -20,10 +20,12 @@ export function makeReport(findings: Finding[], checked: Iterable<string> = []):
 
 /** Merge reports, keeping finding order and the union of checked subjects. */
 export function mergeReports(...reports: ValidationReport[]): ValidationReport {
-  return makeReport(
+  const report = makeReport(
     reports.flatMap((r) => [...r.errors, ...r.warnings]),
     reports.flatMap((r) => r.checked ?? []),
   );
+  report.implementations = reports.flatMap(r => r.implementations ?? []);
+  return report;
 }
 
 /** Subject a finding is reported under in the human-readable output. */

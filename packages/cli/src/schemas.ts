@@ -16,7 +16,7 @@ export const ID_PATTERN = "^(feature|architecture)/[a-z0-9](?:[a-z0-9-]|/(?!/))*
 
 const strArray = { type: "array", items: { type: "string" } };
 export const FINGERPRINT_PATTERN = "^[a-z0-9][a-z0-9-]*:sha256:[0-9a-f]{64}$";
-export const QUALIFIED_SPEC_PATTERN = `^[^:#]*:${ID_PATTERN.slice(1)}`;
+export const QUALIFIED_SPEC_PATTERN = `^[^:#]+:${ID_PATTERN.slice(1)}`;
 
 export const SPEC_COMMON_SCHEMA = {
   type: "object",

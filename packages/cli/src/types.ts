@@ -138,7 +138,7 @@ export type FindingType =
   | "config" | "schema" | "id" | "reference" | "authorship" | "ordering"
   | "path" | "tech_name" | "identifier" | "schema_syntax" | "overlay"
   | "base-changed" | "pin" | "anchor" | "skill-drift" | "plan" | "step"
-  | "adr" | "freshness";
+  | "adr" | "freshness" | "implementation-reassessment" | "implementation-unverifiable";
 
 export interface Finding {
   file: string;
@@ -157,4 +157,5 @@ export interface ValidationReport {
   warnings: Finding[];
   /** Subjects (spec IDs, plan IDs, ADR IDs, files) that were checked; human output only. */
   checked?: string[];
+  implementations?: Array<{ id: string; root: string; path: string } & import("./core/completion.js").ImplementationAssessment>;
 }
