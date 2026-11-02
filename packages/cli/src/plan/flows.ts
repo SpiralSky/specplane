@@ -615,14 +615,24 @@ export function cleanupPlan(id: string, config: Config, root: string, opts: { fo
       throw new PlanStateError(`Cannot clean up plan: ignored files exist in \`${wt}\`; preserve them before removal.`);
     const onBranch = git(["rev-parse", "--abbrev-ref", "HEAD"], main) === branch;
     if (onBranch && !clean(main)) throw new PlanStateError(`Cannot clean up plan: checkout has uncommitted changes.`);
-    const fresh = planReport(id, config, main, null);
-    if (!isDeepStrictEqual(refs, fresh.ref_freshness) || fresh.integration_status !== "integrated") throw new PlanStateError("Target or plan refs changed during cleanup; retry.");
-    if (!isDeepStrictEqual(trees, listWorktrees(main))) throw new PlanStateError("Checkout set changed during cleanup; retry.");
-    if (onBranch) protectIgnoredCollisions(main, branch, report.target_branch);
-    lease.assertOwned();
-    if (wt) { dropWorktree(wt, opts.force === true, main); result.worktreeRemoved = true; }
-    if (onBranch) { run("git", ["switch", "--no-overwrite-ignore", report.target_branch], { cwd: main }); result.branchSwitched = true; }
-    deleteBranch(branch, main); result.branchDeleted = true;
+    let expectedTrees = trees;
+    const verify = () => {
+      lease.assertOwned();
+      const fresh = planReport(id, config, main, null);
+      if (!isDeepStrictEqual(refs, fresh.ref_freshness) || fresh.integration_status !== "integrated") throw new PlanStateError("Target or plan refs changed during cleanup; retry.");
+      if (!isDeepStrictEqual(expectedTrees, listWorktrees(main))) throw new PlanStateError("Checkout set changed during cleanup; retry.");
+      const current = planWorktree(branch, main);
+      requireCleanWorktree(current, "clean up plan", opts.force === true);
+      if (current && ignoredFiles(current).length) throw new PlanStateError("Cannot clean up plan: ignored files exist; preserve them before removal.");
+      if (onBranch && !result.branchSwitched) {
+        if (!clean(main)) throw new PlanStateError("Cannot clean up plan: checkout has uncommitted changes.");
+        protectIgnoredCollisions(main, branch, report.target_branch!);
+      }
+      return current;
+    };
+    if (wt) { verify(); dropWorktree(wt, opts.force === true, main); result.worktreeRemoved = true; expectedTrees = expectedTrees.filter(t => !samePath(t.path, wt)); }
+    if (onBranch) { verify(); run("git", ["switch", "--no-overwrite-ignore", report.target_branch], { cwd: main }); result.branchSwitched = true; expectedTrees = expectedTrees.map(t => samePath(t.path, main) ? { ...t, branch: report.target_branch, head: refs.target_local } : t); }
+    verify(); deleteBranch(branch, main); result.branchDeleted = true;
     return result;
   } finally { lease.release(); }
 }
@@ -638,6 +648,21 @@ export interface AbandonResult {
   archived: boolean;
   worktreeRemoved: boolean;
   branchDeleted: boolean;
+}
+
+
+/** Only rewrite a simple, unique top-level status field in frontmatter. */
+function abandonedText(text: string): string {
+  const end = text.indexOf("\n---", 3);
+  if (!text.startsWith("---\n") || end < 0) throw new PlanStateError('Cannot abandon: unsupported plan frontmatter layout.');
+  const head = text.slice(0, end);
+  if ((head.match(/^status:[^\r\n]*$/gm) ?? []).length !== 1 || (head.match(/^shelved_from:[^\r\n]*$/gm) ?? []).length > 1)
+    throw new PlanStateError('Cannot abandon: unsupported plan status layout.');
+  const changed = head.replace(/^status:[^\r\n]*$/m, 'status: abandoned').replace(/^shelved_from:[^\r\n]*(?:\r?\n|$)/m, '');
+  const result = changed + text.slice(end);
+  const data = lenientFrontmatter(result);
+  if (data?.status !== 'abandoned' || Object.hasOwn(data, 'shelved_from')) throw new PlanStateError('Cannot abandon: unsupported plan status layout.');
+  return result;
 }
 
 /** `specplane plan abandon <id>` (feature/plan-execution § Abandoning a plan). Re-running finishes any leftover steps. */
@@ -657,39 +682,57 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   const rec = listPlans(config, main).find((p) => p.id === id);
   if (!rec) throw new PlanNotFoundError(id);
   const status = String(lenientFrontmatter(fs.readFileSync(rec.planFile, "utf8"))?.status ?? "unknown");
-  if (status === "abandoned" && hasRemote(main)) {
+  const finishAbandonCleanup = (commit: string, archived: boolean, committed: boolean): AbandonResult => {
+    const baseline = planReport(id, config, main, null).ref_freshness;
+    if (baseline.target_local !== commit || baseline.plan_local !== report.ref_freshness.plan_local || baseline.plan_remote !== report.ref_freshness.plan_remote)
+      throw new PlanStateError(`Abandonment commit ${commit} retained; refs changed before cleanup.`);
+    let expectedTrees = trees.map(t => samePath(t.path, main) ? { ...t, head: commit } : t);
+    const verify = () => {
+      lease.assertOwned();
+      if (!isDeepStrictEqual(expectedTrees, listWorktrees(main)) || !isDeepStrictEqual(baseline, planReport(id, config, main, null).ref_freshness) ||
+          git(['rev-parse', 'HEAD'], main) !== commit || git(['rev-parse', '--abbrev-ref', 'HEAD'], main) !== def)
+        throw new PlanStateError(`Abandonment commit ${commit} retained; refs or checkouts changed before cleanup.`);
+      const current = planWorktree(branch, main);
+      if (current && ignoredFiles(current).length) throw new PlanStateError(`Abandonment commit ${commit} retained; worktree contains ignored files.`);
+      requireCleanWorktree(current, 'abandon plan', opts.force === true);
+      return current;
+    };
+    let removed = false, deleted = false;
+    const current = verify();
+    if (current) { dropWorktree(current, opts.force === true, main); removed = true; expectedTrees = expectedTrees.filter(t => !samePath(t.path, current)); }
+    if (opts.deleteBranch && branchExists(branch, main)) { verify(); deleteBranch(branch, main); deleted = true; }
+    return { planId: id, committed, archived, worktreeRemoved: removed, branchDeleted: deleted };
+  };
+  if (status === "abandoned") {
     const local = report.ref_freshness.target_local!;
     const trailers = readTrailers(local, main);
     if (trailers.get('Specplane-Workflow')?.join() === 'abandon' && trailers.get('Specplane-Plan')?.join() === id) {
       const parent = git(['rev-parse', `${local}^`], main);
-      const prior = showFile(parent, `${config.plans.dir}/${id}/PLAN.md`, main);
+      const activeDir = `${config.plans.dir}/${id}`, archivedDir = `${config.plans.dir}/archive/${id}`;
+      const sourceDir = showFile(parent, `${activeDir}/PLAN.md`, main) !== null ? activeDir : archivedDir;
+      const prior = showFile(parent, `${sourceDir}/PLAN.md`, main);
       const previous = prior ? lenientFrontmatter(prior) : null;
-      const expected = prior?.replace(/^status:[^\r\n]*/m, 'status: abandoned').replace(/^shelved_from:[^\r\n]*(?:\r?\n|$)/m, '');
+      const expected = prior ? abandonedText(prior) : null;
       const changedPaths = git(['diff', '--name-only', '--no-renames', '-z', parent, local], main).split('\0').filter(Boolean);
       const treeEntries = (ref: string, dir: string) => git(['ls-tree', '-r', '-z', ref, '--', dir], main).split('\0').filter(Boolean).map(entry => {
         const tab = entry.indexOf('\t');
         return `${entry.slice(0, tab)}\t${entry.slice(tab + 1).slice(dir.length + 1)}`;
       }).filter(entry => !entry.endsWith('\tPLAN.md')).sort();
-      const sourceDir = `${config.plans.dir}/${id}`, destinationDir = rec.archived ? `${config.plans.dir}/archive/${id}` : sourceDir;
+      const destinationDir = rec.archived ? archivedDir : activeDir;
       if (!isDeepStrictEqual(treeEntries(parent, sourceDir), treeEntries(local, destinationDir))) throw new PlanStateError(`Cannot abandon: retained commit ${local} changed unrelated plan files.`);
       if (!previous || previous.id !== id || ['done', 'abandoned'].includes(String(previous.status)) || expected !== targetRecord.text || changedPaths.some(f => !f.startsWith(`${config.plans.dir}/${id}/`) && !f.startsWith(`${config.plans.dir}/archive/${id}/`)))
         throw new PlanStateError(`Cannot abandon: retained commit ${local} is not an authenticated transition.`);
-      const published = git(['ls-remote', '--heads', 'origin', `refs/heads/${def}`], main).split(/\s+/)[0];
-      if (published === parent) {
-        lease.assertOwned();
-        try { git(['push', 'origin', `refs/heads/${def}:refs/heads/${def}`], main); }
-        catch (e) { throw new PlanStateError(`Publication pending for ${local}: ${String(e)}`); }
-        const wt = planWorktree(branch, main);
-        if (wt && ignoredFiles(wt).length) throw new PlanStateError('Publication succeeded; worktree retained because it contains ignored files.');
-        requireCleanWorktree(wt, 'abandon plan', opts.force === true);
-        if (!isDeepStrictEqual(trees, listWorktrees(root))) throw new PlanStateError('Publication succeeded; checkout set changed.');
-        lease.assertOwned();
-        if (wt) dropWorktree(wt, opts.force === true, main);
-        const deleted = !!opts.deleteBranch && branchExists(branch, main);
-        if (deleted) deleteBranch(branch, main);
-        return { planId: id, committed: false, archived: rec.archived, worktreeRemoved: !!wt, branchDeleted: deleted };
+      if (hasRemote(main)) {
+        const published = git(['ls-remote', '--heads', 'origin', `refs/heads/${def}`], main).split(/\s+/)[0];
+        if (published === parent) {
+          lease.assertOwned();
+          if (git(['rev-parse', 'HEAD'], main) !== local) throw new PlanStateError(`Publication pending for ${local}: target changed.`);
+          try { git(['push', 'origin', `${local}:refs/heads/${def}`], main); }
+          catch (e) { throw new PlanStateError(`Publication pending for ${local}: ${String(e)}`); }
+        } else if (published !== local) throw new PlanStateError(`Cannot abandon: publication of ${local} needs reconciliation.`);
       }
-      if (published !== local) throw new PlanStateError(`Cannot abandon: publication of ${local} needs reconciliation.`);
+      return finishAbandonCleanup(local, rec.archived, false);
+
     }
   }
   if (status === "done" || status === "abandoned") {
@@ -725,10 +768,11 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   lease.assertOwned();
   const result: AbandonResult = { planId: id, committed: false, archived: false, worktreeRemoved: false, branchDeleted: false };
   const original = fs.readFileSync(rec.planFile, 'utf8');
-  const changed = original.replace(/^status:[^\r\n]*/m, 'status: abandoned').replace(/^shelved_from:[^\r\n]*(?:\r?\n|$)/m, '');
+  const changed = abandonedText(original);
   const paths = [relDir, ...(moves ? [archiveRel] : [])];
   const before = git(['rev-parse', 'HEAD'], main);
   let staged: string | null = null;
+  let expectedTree: string | null = null;
   try {
     fs.writeFileSync(rec.planFile, changed);
     if (moves) {
@@ -742,36 +786,42 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
     if (otherAdmin || !isDeepStrictEqual(trees, listWorktrees(root)) || !isDeepStrictEqual(report.ref_freshness, planReport(id, config, root, null).ref_freshness) || git(['rev-parse', 'HEAD'], main) !== before || fs.readFileSync(writtenFile, 'utf8') !== changed)
       throw new PlanStateError('Administrative inputs or refs changed during abandonment; retry.');
     lease.assertOwned();
-    git(['add', '--', moves ? archiveRel : relDir], main);
+    git(['add', '--', `${moves ? archiveRel : relDir}/PLAN.md`], main);
     staged = run('git', ['diff', '--cached', '--binary'], { cwd: main });
-    const stagedFiles = git(['diff', '--cached', '--name-only', '-z'], main).split('\0').filter(Boolean);
-    if (stagedFiles.some(f => !f.startsWith(`${relDir}/`) && !f.startsWith(`${archiveRel}/`)) || run('git', ['show', `:${moves ? archiveRel : relDir}/PLAN.md`], { cwd: main }) !== changed || fs.readFileSync(writtenFile, 'utf8') !== changed) throw new PlanStateError('Abandonment index changed; inspect before retrying.');
+    const stagedFiles = git(['diff', '--cached', '--name-only', '--no-renames', '-z'], main).split('\0').filter(Boolean);
+    const sourceFiles = git(['ls-tree', '-r', '--name-only', '-z', before, '--', relDir], main).split('\0').filter(Boolean);
+    const expectedFiles = moves ? sourceFiles.flatMap(f => [f, `${archiveRel}/${f.slice(relDir.length + 1)}`]).sort() : [`${relDir}/PLAN.md`];
+    const treeEntries = (ref: string, dir: string) => git(['ls-tree', '-r', '-z', ref, '--', dir], main).split('\0').filter(Boolean).map(entry => { const tab = entry.indexOf('\t'); return `${entry.slice(0, tab)}\t${entry.slice(tab + 1).slice(dir.length + 1)}`; }).filter(entry => !entry.endsWith('\tPLAN.md')).sort();
+    const indexTree = git(['write-tree'], main);
+    expectedTree = indexTree;
+    if (!isDeepStrictEqual(stagedFiles.sort(), expectedFiles) || !isDeepStrictEqual(treeEntries(before, relDir), treeEntries(indexTree, moves ? archiveRel : relDir)) ||
+        git(['ls-tree', before, '--', `${relDir}/PLAN.md`], main).split(' ')[0] !== git(['ls-tree', indexTree, '--', `${moves ? archiveRel : relDir}/PLAN.md`], main).split(' ')[0] ||
+        git(['status', '--porcelain', '--untracked-files=all', '--ignored', '--', moves ? archiveRel : relDir], main).split('\n').some(line => line && (line[1] !== ' ' || line.startsWith('??') || line.startsWith('!!'))) ||
+        run('git', ['show', `:${moves ? archiveRel : relDir}/PLAN.md`], { cwd: main }) !== changed || fs.readFileSync(writtenFile, 'utf8') !== changed) throw new PlanStateError('Abandonment index or plan files changed; inspect before retrying.');
     const msg = formatMessage({ type: 'chore', scope: 'specplane', summary: `abandon ${id}`, trailers: cliTrailers('abandon', id) });
-    run('git', ['commit', '-m', msg, '--', ...paths], { cwd: main });
+    run('git', ['commit', '-m', msg], { cwd: main });
     result.committed = true;
   } catch (e) {
     const head = git(['rev-parse', 'HEAD'], main);
     if (head !== before) throw new PlanStateError(`Abandonment commit ${head} was retained after a recording error; retry publication: ${String(e)}`);
     const writtenFile = path.join(main, moves ? `${archiveRel}/PLAN.md` : `${relDir}/PLAN.md`);
     const current = run('git', ['diff', '--cached', '--binary'], { cwd: main });
-    if (!fs.existsSync(writtenFile) || fs.readFileSync(writtenFile, 'utf8') !== changed || (staged === null ? current !== '' : staged !== current)) throw new PlanStateError(`Abandonment edits retained for inspection: ${String(e)}`);
+    if (!fs.existsSync(writtenFile) || fs.readFileSync(writtenFile, 'utf8') !== changed || (staged === null ? current !== '' : staged !== current) || git(['status', '--porcelain', '--untracked-files=all', '--ignored', '--', ...paths], main).split('\n').some(line => line && (line[1] !== ' ' || line.startsWith('??') || line.startsWith('!!'))) || (moves && fs.existsSync(path.join(main, relDir)))) throw new PlanStateError(`Abandonment edits retained for inspection: ${String(e)}`);
     git(['reset', '-q', 'HEAD', '--', ...paths], main);
     if (moves) fs.renameSync(path.join(main, archiveRel), path.join(main, relDir));
     fs.writeFileSync(rec.planFile, original);
     throw e;
   }
   const commit = git(['rev-parse', 'HEAD'], main);
-  if (hasRemote(main)) try { git(['push', 'origin', `refs/heads/${def}:refs/heads/${def}`], main); }
-  catch (e) { throw new PlanStateError(`Publication pending for ${commit}: ${String(e)}`); }
-  if (wt) {
-    dropWorktree(wt, opts.force === true, main);
-    result.worktreeRemoved = true;
-  }
-  if (opts.deleteBranch && branchExists(branch, main)) {
-    deleteBranch(branch, main);
-    result.branchDeleted = true;
-  }
-  return result;
+  if (!expectedTree || git(['rev-parse', `${commit}^{tree}`], main) !== expectedTree) throw new PlanStateError(`Abandonment commit ${commit} retained; committed tree changed during recording.`);
+  const beforePublication = planReport(id, config, main, null).ref_freshness;
+  if (beforePublication.target_local !== commit || beforePublication.target_remote !== report.ref_freshness.target_remote || beforePublication.plan_local !== report.ref_freshness.plan_local || beforePublication.plan_remote !== report.ref_freshness.plan_remote) throw new PlanStateError(`Abandonment commit ${commit} retained; refs changed before publication.`);
+  lease.assertOwned();
+  if (hasRemote(main)) try {
+    if (git(['rev-parse', 'HEAD'], main) !== commit) throw new PlanStateError('Target changed.');
+    git(['push', 'origin', `${commit}:refs/heads/${def}`], main);
+  } catch (e) { throw new PlanStateError(`Publication pending for ${commit}: ${String(e)}`); }
+  return finishAbandonCleanup(commit, result.archived, true);
   } finally { lease.release(); }
 }
 
