@@ -1,0 +1,65 @@
+{
+  "run": "overnight/specplane-20261102T144630Z",
+  "started_utc": "2026-11-02T14:46:30Z",
+  "source_branch": "origin/dot/codex-integration-20261101",
+  "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
+  "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
+  "integrated_commit": "e034635979413f713e50d35a63211a05be18f929",
+  "original_checkout": {
+    "path": "/workspace/specplane",
+    "branch": "work",
+    "commit": "21317cf335a2602f2a7873a929425d7a6b6ef336",
+    "dirty": false
+  },
+  "inputs": {
+    "37a77e1": "present; ancestor",
+    "346425f": "present; ancestor via snapshot",
+    "partial_step2": "all three hashes match cloud-input-snapshot.json",
+    "old_conductor": "no checkout supplied; never modified",
+    "excluded_local_files": "snapshot declares exclusions; not fabricated"
+  },
+  "policy": {
+    "ordinary_git_exception": true,
+    "formal_approvals": "deferred human action",
+    "live_host_tests": "deliberately deferred",
+    "package_publication": "excluded",
+    "push": "only dedicated review branch, non-force"
+  },
+  "baseline_tests": {
+    "command": "npm ci && npm test",
+    "cwd": "/workspace/overnight/review/packages/cli",
+    "passed": 359,
+    "failed": 0,
+    "log": "baseline-tests.log"
+  },
+  "assignments": [
+    {
+      "step": "target-lifecycle/2a",
+      "agent": "target_2a",
+      "branch": "overnight/target-2a",
+      "status": "running"
+    },
+    {
+      "step": "completion-assessment/1",
+      "agent": "completion_1",
+      "branch": "overnight/completion-1",
+      "status": "running"
+    },
+    {
+      "step": "host investigation and core audit",
+      "agent": "host_investigation",
+      "status": "running"
+    }
+  ],
+  "next": [
+    "Review results and integrate serially",
+    "target step2b after 2a",
+    "completion step2 after step1"
+  ],
+  "timing": {
+    "worker_elapsed": "pending",
+    "approval_wait": "unknown tool latency; not measured separately",
+    "token_usage": "unavailable"
+  },
+  "processes": []
+}
