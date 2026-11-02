@@ -22,6 +22,7 @@ export function getIndexStatus(
   if (config.plans.dependency_mode === "wait_for_merge") {
     return unmerged.length > 0 ? "blocked" : "ready";
   }
+  if ((plan.depends_on ?? []).some(dep => plansById.get(dep)?.status === "shelved")) return "blocked";
   // Stack mode: a plan can stack on one unmerged dependency, but not two (`feature/plan-status`).
   return unmerged.length > 1 ? "blocked" : "ready";
 }
@@ -33,6 +34,8 @@ export function blockedReason(
   config: Config,
 ): string | null {
   if (config.plans.dependency_mode !== "stack") return null;
+  const shelved = (plan.depends_on ?? []).find(dep => plansById.get(dep)?.status === "shelved");
+  if (shelved) return `Cannot stack on shelved dependency: ${shelved}; resume it first.`;
   const unmerged = unmergedDependencies(plan, plansById);
   if (unmerged.length <= 1) return null;
   return `Cannot stack on more than one unmerged dependency: ${unmerged.map((u) => `\`${u}\``).join(", ")}.`;

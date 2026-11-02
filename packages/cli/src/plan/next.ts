@@ -1,18 +1,20 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { listAdrs } from "../decisions/parse.js";
+import { parseAdr } from "../decisions/parse.js";
 import { GitError, PlanNotFoundError, SpecplaneError } from "../errors.js";
-import { readFrontmatter } from "../frontmatter.js";
+import { parseFrontmatter, readFrontmatter } from "../frontmatter.js";
+import { ADR_SCHEMA, STEP_SCHEMA, validator } from "../schemas.js";
+import { configAt } from "./prepare-start.js";
 import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { hasOpenPR } from "../git/forge.js";
 import { run } from "../git/exec.js";
 import { resolveSpecId } from "../spec/resolve.js";
 import { findHeading } from "../spec/slug.js";
 import type { Config, PlanFrontmatter, StepFrontmatter } from "../types.js";
-import { getPlanActivity } from "./activity.js";
+import { getPlanActivity, planReport, selectedPlanBranch, showFile, targetPlanRecord } from "./activity.js";
 import { refusePendingRetarget } from "./lifecycle-context.js";
 import { mergedStackBase } from "./flows.js";
-import { parseGaps, type GapEntry } from "./gaps.js";
+import { parseGaps, parseGapsText, type GapEntry } from "./gaps.js";
 import { listStepFiles, parsePlan, parseStep } from "./parse.js";
 import { listPlans } from "./resolve.js";
 import { getEffectiveStatus, type EffectiveStatus } from "./status.js";
@@ -71,7 +73,7 @@ export function computeNext(i: NextInput): PlanNext {
   const open = i.gaps.filter((g) => g.status === "open");
   const remaining = [...i.steps].sort((a, b) => a.number - b.number).filter((s) => s.status !== "done" && s.status !== "skipped");
   const step = remaining[0] ?? null;
-  const done = i.effectiveStatus === "done" || i.effectiveStatus === "abandoned";
+  const done = i.effectiveStatus === "done" || i.effectiveStatus === "abandoned" || i.effectiveStatus === "shelved";
 
   const attention = new Map<AttentionKind, string>();
   const add = (kind: AttentionKind, message: string) => {
@@ -90,7 +92,7 @@ export function computeNext(i: NextInput): PlanNext {
   let reason: string;
   if (done) {
     action = "none";
-    reason = `Plan is ${i.effectiveStatus}.`;
+    reason = i.effectiveStatus === "shelved" ? `Plan is shelved; run ` + "`" + `specplane plan resume ${i.plan}` + "`" + ` first.` : `Plan is ${i.effectiveStatus}.`;
   } else if (i.effectiveStatus === "draft" || i.effectiveStatus === "blocked" || !i.started) {
     action = "none";
     reason =
@@ -183,9 +185,15 @@ function resolveContext(step: StepFrontmatter, config: Config, base: string, war
       }
     } else if ("decision" in item) {
       const m = /^decision\/(\d{4})$/.exec(item.decision);
-      const adr = m ? listAdrs(config, base).find((a) => a.number === m[1]) : undefined;
-      if (!adr) warnings.push(`Context decision \`${item.decision}\` does not resolve to an ADR.`);
-      out.push({ kind: "decision", id: item.decision, path: adr ? rel(base, adr.file) : null, anchor: null });
+      const dir = path.join(base, config.decisions.dir);
+      const file = m && fs.existsSync(dir)
+        ? fs.readdirSync(dir).sort().find(f => new RegExp(`^${m[1]}-.*\\.md$`).test(f))
+        : undefined;
+      let valid = false;
+      try { if (file) { parseAdr(path.join(dir, file)); valid = true; } }
+      catch (e) { if (!(e instanceof SpecplaneError)) throw e; }
+      if (!valid) warnings.push(`Context decision \`${item.decision}\` does not resolve to an ADR.`);
+      out.push({ kind: "decision", id: item.decision, path: valid ? rel(base, path.join(dir, file!)) : null, anchor: null });
     } else {
       const exists = fs.existsSync(path.join(base, item.file));
       if (!exists) warnings.push(`Context file \`${item.file}\` does not exist.`);
@@ -195,79 +203,115 @@ function resolveContext(step: StepFrontmatter, config: Config, base: string, war
   return out;
 }
 
-/**
- * `specplane plan next <id>` (`architecture/reference-cli` § Plan next). Read-only: reads files and
- * runs read-only git queries, never fetches, writes, or spawns. `root` is the checkout the command runs in.
- */
-export function planNext(id: string, config: Config, root: string): PlanNext {
-  refusePendingRetarget(id, config, root);
-  const activity = getPlanActivity(id, config, root);
-  // The plan's own checkout holds the current step statuses; fall back to the invoking checkout.
-  const base = activity.checkout ?? root;
-  const warnings: string[] = [];
-
-  const records = listPlans(config, base);
-  const parsed: PlanFrontmatter[] = [];
-  for (const rec of records) {
-    try {
-      parsed.push(parsePlan(rec.dir).frontmatter);
-    } catch (e) {
-      if (!(e instanceof SpecplaneError)) throw e;
-      if (rec.id === id) throw e;
-    }
-  }
-  const fm = parsed.find((p) => p.id === id);
-  const rec = records.find((r) => r.id === id);
-  if (!fm || !rec) throw new PlanNotFoundError(id);
-  const byId = new Map(parsed.map((p) => [p.id, p]));
-  const effectiveStatus = getEffectiveStatus(fm, byId, config, {
-    branchExists: (pid) => branchExists(`plan/${pid}`, root) || remoteBranchExists(`plan/${pid}`, root),
-    hasOpenPr: (pid) => hasOpenPR(`plan/${pid}`, { cwd: root, forge: config.plans.forge }),
-  });
-
+/** Read committed inputs directly from a tree without creating a worktree or temporary files. */
+function snapshotNext(id: string, ref: string, config: Config, root: string, warnings: string[]) {
+  const active = `${config.plans.dir}/${id}`;
+  const archived = `${config.plans.dir}/archive/${id}`;
+  const dir = showFile(ref, `${active}/PLAN.md`, root) !== null ? active : archived;
+  const files = (tryGit(["ls-tree", "-r", "--name-only", ref, "--", `${dir}/steps/`], root) ?? "")
+    .split("\n").filter(f => f.startsWith(`${dir}/steps/`) && !f.slice(`${dir}/steps/`.length).includes("/") && f.endsWith(".md")).sort();
   const steps: NextInput["steps"] = [];
   const stepFms = new Map<number, StepFrontmatter>();
-  for (const file of listStepFiles(rec.dir)) {
+  for (const file of files) {
     try {
-      const s = parseStep(file).frontmatter;
-      steps.push({ number: s.step, title: s.title, status: s.status, file: rel(base, file) });
+      const text = showFile(ref, file, root);
+      if (text === null) throw new Error("file is unavailable");
+      const data = parseFrontmatter(text, file).data;
+      const prefix = /^(\d+)-/.exec(path.basename(file));
+      if (!validator(STEP_SCHEMA)(data) || !prefix || data.step !== Number(prefix[1]) || data.plan !== id) throw new Error("invalid step record");
+      const s = data as unknown as StepFrontmatter;
+      steps.push({ number: s.step, title: s.title, status: s.status, file });
       stepFms.set(s.step, s);
-    } catch (e) {
-      if (!(e instanceof SpecplaneError)) throw e;
-      warnings.push(`Skipped ${path.basename(file)}: ${e.message}`);
+    } catch (e) { warnings.push(`Skipped ${path.basename(file)}: ${(e as Error).message}`); }
+  }
+  const gapText = showFile(ref, `${dir}/spec-gaps.md`, root) ?? "";
+  const gaps = parseGapsText(gapText).entries;
+  const first = [...steps].sort((a, b) => a.number - b.number).find(s => s.status !== "done" && s.status !== "skipped");
+  const context: NextContextItem[] = [];
+  for (const item of first ? stepFms.get(first.number)!.context ?? [] : []) {
+    if ("spec" in item) {
+      const hash = item.spec.indexOf("#"), specId = hash < 0 ? item.spec : item.spec.slice(0, hash), anchor = hash < 0 ? null : item.spec.slice(hash + 1);
+      try {
+        const resolved = resolveSpecId(specId, config, undefined, root, f => showFile(ref, rel(root, f), root) !== null);
+        const file = rel(root, resolved.path), text = showFile(ref, file, root)!;
+        if (anchor !== null && !findHeading(parseFrontmatter(text, file).body, anchor)) warnings.push(`Context spec \`${item.spec}\`: no heading matches the anchor.`);
+        context.push({ kind: "spec", id: specId, path: file, anchor });
+      } catch (e) {
+        if (!(e instanceof SpecplaneError)) throw e;
+        warnings.push(`Context spec \`${item.spec}\` does not resolve: ${e.message}`);
+        context.push({ kind: "spec", id: specId, path: null, anchor });
+      }
+    } else if ("decision" in item) {
+      const number = /^decision\/(\d{4})$/.exec(item.decision)?.[1];
+      const files = (tryGit(["ls-tree", "-r", "--name-only", ref, "--", `${config.decisions.dir}/`], root) ?? "").split("\n");
+      const file = number && files.find(f => path.posix.dirname(f) === config.decisions.dir && new RegExp(`^${number}-.*\\.md$`).test(path.posix.basename(f)));
+      let valid = false;
+      if (file) {
+        const text = showFile(ref, file, root);
+        try { if (text !== null) valid = validator(ADR_SCHEMA)(parseFrontmatter(text, file).data); }
+        catch (e) { if (!(e instanceof SpecplaneError)) throw e; }
+      }
+      if (!valid) warnings.push(`Context decision \`${item.decision}\` does not resolve to an ADR.`);
+      context.push({ kind: "decision", id: item.decision, path: valid ? file! : null, anchor: null });
+    } else {
+      const exists = showFile(ref, item.file, root) !== null;
+      if (!exists) warnings.push(`Context file \`${item.file}\` does not exist.`);
+      context.push({ kind: "file", id: item.file, path: exists ? item.file : null, anchor: null });
     }
   }
+  return { steps, gaps, context };
+}
 
-  const gapsFile = path.join(rec.dir, "spec-gaps.md");
-  const gaps = fs.existsSync(gapsFile) ? parseGaps(gapsFile).entries : [];
-
-  const first = [...steps].sort((a, b) => a.number - b.number).find((s) => s.status !== "done" && s.status !== "skipped");
-  const context = first ? resolveContext(stepFms.get(first.number)!, config, base, warnings) : [];
-
+/** Resolve the selected execution or target snapshot without fetching or mutating Git. */
+export function planNext(id: string, config: Config, root: string): PlanNext {
+  refusePendingRetarget(id, config, root);
+  const report = planReport(id, config, root, null);
+  const target = targetPlanRecord(id, config, root, report);
+  const branch = selectedPlanBranch(id, config, root);
+  if (!target) throw new Error("Authoritative target record is unavailable; reconcile target refs before resolving the next step.");
+  const selected = branch ?? target;
+  const ownConfig = configAt(root, selected.ref);
+  const activity = getPlanActivity(id, ownConfig, root, report.target_branch, selected.ref);
+  const checkout = branch && branch.ref === report.ref_freshness.plan_local ? activity.checkout : null;
+  const warnings: string[] = [];
+  const checkoutRecord = checkout ? listPlans(ownConfig, checkout).find(r => r.id === id) : undefined;
+  if (checkout && !checkoutRecord) throw new PlanNotFoundError(id);
+  const fm = checkoutRecord ? parsePlan(checkoutRecord.dir).frontmatter : selected.data as unknown as PlanFrontmatter;
+  const authoritative = target.data as unknown as PlanFrontmatter;
+  const byId = new Map<string, PlanFrontmatter>();
+  for (const dep of authoritative.depends_on ?? []) {
+    const record = targetPlanRecord(dep, config, root, report);
+    if (record) byId.set(dep, record.data as unknown as PlanFrontmatter);
+  }
+  const lifecycle = ["shelved", "abandoned", "done"].includes(authoritative.status) ? authoritative.status : fm.status;
+  const effectiveStatus = getEffectiveStatus({ ...fm, status: lifecycle, depends_on: authoritative.depends_on }, byId, target.config, {
+    branchExists: pid => branchExists(`plan/${pid}`, root) || remoteBranchExists(`plan/${pid}`, root),
+    hasOpenPr: pid => hasOpenPR(`plan/${pid}`, { cwd: root, forge: target.config.plans.forge, ...(report.target_branch ? { base: report.target_branch } : {}) }),
+  });
+  let inputs: Pick<NextInput, "steps" | "gaps" | "context">;
+  if (checkout) {
+    const rec = checkoutRecord!;
+    const steps: NextInput["steps"] = [], stepFms = new Map<number, StepFrontmatter>();
+    for (const file of listStepFiles(rec.dir)) {
+      try { const s = parseStep(file).frontmatter; steps.push({ number: s.step, title: s.title, status: s.status, file: rel(checkout, file) }); stepFms.set(s.step, s); }
+      catch (e) { if (!(e instanceof SpecplaneError)) throw e; warnings.push(`Skipped ${path.basename(file)}: ${e.message}`); }
+    }
+    const gapsFile = path.join(rec.dir, "spec-gaps.md");
+    const first = [...steps].sort((a,b) => a.number-b.number).find(s => s.status !== "done" && s.status !== "skipped");
+    inputs = { steps, gaps: fs.existsSync(gapsFile) ? parseGaps(gapsFile).entries : [], context: first ? resolveContext(stepFms.get(first.number)!, ownConfig, checkout, warnings) : [] };
+  } else inputs = snapshotNext(id, selected.ref, ownConfig, root, warnings);
   const local = activity.where === "local";
   let diverged = false;
   if (local && remoteBranchExists(`plan/${id}`, root)) {
     const behind = Number(tryGit(["rev-list", "--count", `plan/${id}..origin/plan/${id}`], root)?.trim());
     diverged = (activity.ahead_of_remote ?? 0) > 0 && behind > 0;
   }
-  const dirty = activity.checkout !== null && (tryGit(["status", "--porcelain"], activity.checkout) ?? "").trim() !== "";
-  const restackBase = local ? mergedStackBase(id, config, root) : null;
-
-  return computeNext({
-    plan: id,
-    title: fm.title,
-    effectiveStatus,
-    started: activity.where !== "none",
-    steps,
-    context,
-    checkout: activity.checkout,
-    blockedIssues: activity.blocked_issues,
-    gaps,
-    warnings,
-    restackBase,
-    diverged,
-    dirty,
-  });
+  const dirty = checkout !== null && (tryGit(["status", "--porcelain"], checkout) ?? "").trim() !== "";
+  const handoff = checkoutRecord && path.join(checkoutRecord.dir, "HANDOFF.md");
+  const blockedIssues = handoff ? (fs.existsSync(handoff) ? fs.readFileSync(handoff, "utf8") : "")
+    .split("\n").filter(line => line.includes("BLOCKED:")).map(line => line.trim().replace(/^[-*]\s+/, "")) : activity.blocked_issues;
+  return computeNext({ plan: id, title: fm.title, effectiveStatus, started: activity.where !== "none", ...inputs, checkout,
+    blockedIssues, warnings, restackBase: local ? mergedStackBase(id, ownConfig, root, report.target_branch ?? undefined) : null, diverged, dirty });
 }
 
 /** Human summary of a `PlanNext`. */

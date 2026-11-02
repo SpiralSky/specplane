@@ -56,6 +56,17 @@ plan.command("retarget <id>").description("Reconcile the recorded destination wi
     if (opts.dryRun) process.stdout.write(`Original start: ${value.start_target_branch} at ${value.start_base}\nComparison baseline: ${value.comparison_base ?? '(none)'}\nChanged paths: ${value.changed_files.map(f => f.path).join(', ') || '(none)'}\nRefs may change before the update.\n`);
   }
 });
+for (const operation of ['shelve', 'resume'] as const) {
+  plan.command(`${operation} <id>`).description(`${operation} a started plan`).option('--dry-run', 'preview without mutation').option('--json', 'output a structured receipt').action((id: string, opts: { dryRun?: boolean; json?: boolean }) => {
+    const result = executeOperation({ operation: operation === 'shelve' ? 'plan.shelve' : 'plan.resume', arguments: { id, ...(opts.dryRun ? { dryRun: true } : {}) } }, { extensionId: 'cli' });
+    if (!result.ok) { process.stderr.write(`${result.error.message}\n`); process.exitCode = 1; return; }
+    if (opts.json) { process.stdout.write(`${JSON.stringify(result.value)}\n`); return; }
+    process.stdout.write(`${opts.dryRun ? 'Would ' + operation : operation === 'shelve' ? 'Shelved' : 'Resumed'} ${id} on ${result.value.target}${result.value.commit ? ` (${result.value.commit})` : ''}\n`);
+    if (result.value.effectiveStatus) process.stdout.write(`Effective status: ${result.value.effectiveStatus}\n`);
+    if (result.value.next) process.stdout.write(`Next step: ${result.value.next.number} ${result.value.next.title} (${result.value.next.status})\n`);
+    if (operation === 'resume' && !result.value.checkout) process.stdout.write(`Checkout missing; run specplane plan start ${id} to recreate it.\n`);
+  });
+}
 plan
   .command("finish <id>")
   .description("Finish a plan: tests, rebase, done and archive commit, merge (lists open spec-gaps.md entries)")

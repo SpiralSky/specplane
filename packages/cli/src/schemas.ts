@@ -68,10 +68,12 @@ export const PLAN_SCHEMA = {
   type: "object",
   required: ["id", "title", "status", "specs"],
   additionalProperties: false,
+  allOf: [{ if: { properties: { status: { const: "shelved" } }, required: ["status"] }, then: { required: ["shelved_from"] }, else: { not: { required: ["shelved_from"] } } }],
   properties: {
     id: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9][a-z0-9-]*[a-z0-9]$" },
     title: { type: "string", minLength: 1 },
-    status: { type: "string", enum: ["draft", "ready", "in_progress", "review", "done", "abandoned"] },
+    status: { type: "string", enum: ["draft", "ready", "in_progress", "review", "shelved", "done", "abandoned"] },
+    shelved_from: { type: "string", enum: ["ready", "in_progress", "review"] },
     specs: { type: "array", items: { type: "string" }, minItems: 1 },
     depends_on: strArray,
     target_branch: { type: "string", minLength: 1 },

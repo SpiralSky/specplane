@@ -16,7 +16,7 @@ import { run } from "../git/exec.js";
 import { defaultBranch, mainRoot } from "../git/repo.js";
 import { listWorktrees } from "../git/worktree.js";
 import type { Config, PlanStatus } from "../types.js";
-import { fetchPlanBranches, getPlanActivity, hasRemote, lenientFrontmatter, showFile } from "./activity.js";
+import { fetchPlanBranches, getPlanActivity, hasRemote, lenientFrontmatter, showFile, planReport } from "./activity.js";
 import { formatOpenGaps, parseGaps } from "./gaps.js";
 import { listStepFiles, parseStep } from "./parse.js";
 import { listPlans, planDir } from "./resolve.js";
@@ -592,38 +592,32 @@ export interface CleanupResult {
  */
 export function cleanupPlan(id: string, config: Config, root: string, opts: { force?: boolean } = {}): CleanupResult {
   const main = mainRoot(root);
-  const def = defaultBranch(main);
   const branch = `plan/${id}`;
-  if (hasRemote(main)) run("git", ["fetch", "origin", def], { cwd: main });
-  const tip = defaultTip(def, main);
-  const plan = planAt(tip, id, config, main);
-  const hasBranch = branchExists(branch, main);
-  if (!plan && !hasBranch) throw new PlanNotFoundError(id);
-  const result: CleanupResult = { planId: id, worktreeRemoved: false, branchSwitched: false, branchDeleted: false };
-  if (!hasBranch) return result;
-  if (plan?.status !== "done") {
-    throw new PlanStateError(`Cannot clean up plan: \`${id}\` is \`${plan?.status ?? "unknown"}\`, not \`done\` on \`${def}\`; \`${branch}\` is kept.`);
-  }
-
-  // Validate before any write.
-  const wt = planWorktree(branch, main);
-  requireCleanWorktree(wt, "clean up plan", opts.force === true);
-  const onBranch = git(["rev-parse", "--abbrev-ref", "HEAD"], main) === branch;
-  if (onBranch && !clean(main)) {
-    throw new PlanStateError(`Cannot clean up plan: the checkout has uncommitted changes on \`${branch}\`. Commit or stash them first.`);
-  }
-
-  if (wt) {
-    dropWorktree(wt, opts.force === true, main);
-    result.worktreeRemoved = true;
-  }
-  if (onBranch) {
-    run("git", ["switch", def], { cwd: main });
-    result.branchSwitched = true;
-  }
-  deleteBranch(branch, main);
-  result.branchDeleted = true;
-  return result;
+  const trees = listWorktrees(main);
+  const lease = acquireWriterLease({ repository: true, plans: [id], checkouts: trees.filter(t => !t.bare).map(t => t.path), requestId: `cleanup-${randomUUID()}` });
+  try {
+    const result: CleanupResult = { planId: id, worktreeRemoved: false, branchSwitched: false, branchDeleted: false };
+    const hasBranch = branchExists(branch, main);
+    if (!hasBranch) { if (!listPlans(config, root).some(p => p.id === id)) throw new PlanNotFoundError(id); return result; }
+    const report = planReport(id, config, main, null);
+    if (!report.target_branch || report.target_status !== "done" || report.integration_status !== "integrated")
+      throw new PlanStateError(`Cannot clean up plan: integration into its recorded target is unverified; ${report.integration_reasons.join(" ")}`);
+    const refs = report.ref_freshness;
+    const wt = planWorktree(branch, main);
+    requireCleanWorktree(wt, "clean up plan", opts.force === true);
+    // Git's forced removal also deletes ignored files; never discard them silently.
+    if (wt && (tryRun(["ls-files", "--others", "--ignored", "--exclude-standard"], wt) ?? "").trim())
+      throw new PlanStateError(`Cannot clean up plan: ignored files exist in \`${wt}\`; preserve them before removal.`);
+    const onBranch = git(["rev-parse", "--abbrev-ref", "HEAD"], main) === branch;
+    if (onBranch && !clean(main)) throw new PlanStateError(`Cannot clean up plan: checkout has uncommitted changes.`);
+    const fresh = planReport(id, config, main, null);
+    if (!isDeepStrictEqual(refs, fresh.ref_freshness) || fresh.integration_status !== "integrated") throw new PlanStateError("Target or plan refs changed during cleanup; retry.");
+    lease.assertOwned();
+    if (wt) { dropWorktree(wt, opts.force === true, main); result.worktreeRemoved = true; }
+    if (onBranch) { run("git", ["switch", report.target_branch], { cwd: main }); result.branchSwitched = true; }
+    deleteBranch(branch, main); result.branchDeleted = true;
+    return result;
+  } finally { lease.release(); }
 }
 
 export interface AbandonOptions {
@@ -641,8 +635,14 @@ export interface AbandonResult {
 
 /** `specplane plan abandon <id>` (feature/plan-execution § Abandoning a plan). Re-running finishes any leftover steps. */
 export function abandonPlan(id: string, config: Config, root: string, opts: AbandonOptions = {}): AbandonResult {
-  const main = mainRoot(root);
-  const def = defaultBranch(main);
+  const trees = listWorktrees(root);
+  const lease = acquireWriterLease({ repository: true, plans: [id], checkouts: trees.filter(t => !t.bare).map(t => t.path), requestId: `abandon-${randomUUID()}` });
+  try {
+  const report = planReport(id, config, root, null);
+  if (!report.target_branch || report.target_status === null) throw new PlanStateError('Cannot abandon: authoritative target is unavailable.');
+  const def = report.target_branch;
+  const main = trees.find(t => !t.bare && t.branch === def)?.path;
+  if (!main || git(['rev-parse', 'HEAD'], main) !== report.ref_freshness.target_local || report.ref_freshness.target_local !== (report.ref_freshness.target_remote ?? report.ref_freshness.target_local)) throw new PlanStateError('Cannot abandon: provide an up-to-date target checkout.');
   const branch = `plan/${id}`;
   const rec = listPlans(config, main).find((p) => p.id === id);
   if (!rec) throw new PlanNotFoundError(id);
@@ -655,7 +655,11 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   const moves = config.plans.archive_done && !rec.archived;
 
   // 1. Validate.
+  const planTree = trees.find(t => t.branch === branch);
+  if (planTree && samePath(planTree.path, mainRoot(root))) throw new PlanStateError('Cannot abandon: the plan is checked out in the main worktree; preserve it and switch it before retrying.');
+  if (git(['diff', '--cached', '--name-only'], main)) throw new PlanStateError('Cannot abandon: index has staged changes.');
   const wt = planWorktree(branch, main);
+  if (wt && (tryRun(['ls-files', '--others', '--ignored', '--exclude-standard'], wt) ?? '').trim()) throw new PlanStateError('Cannot abandon: ignored files exist in the worktree; preserve them before removal.');
   requireCleanWorktree(wt, "abandon plan", opts.force === true);
   const cur = git(["rev-parse", "--abbrev-ref", "HEAD"], main);
   if (cur !== def) {
@@ -669,8 +673,12 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   }
 
   // 2. Write.
+  if (!isDeepStrictEqual(report.ref_freshness, planReport(id, config, root, null).ref_freshness)) throw new PlanStateError('Target or plan refs changed during abandonment; retry.');
+  lease.assertOwned();
   const result: AbandonResult = { planId: id, committed: false, archived: false, worktreeRemoved: false, branchDeleted: false };
   setStatus(rec.planFile, "abandoned");
+  const abandoned = fs.readFileSync(rec.planFile, 'utf8').replace(/^shelved_from:[^\r\n]*(?:\r?\n|$)/m, '');
+  fs.writeFileSync(rec.planFile, abandoned);
   const paths = [relDir];
   if (moves) {
     fs.mkdirSync(path.join(main, config.plans.dir, "archive"), { recursive: true });
@@ -692,6 +700,7 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
     result.branchDeleted = true;
   }
   return result;
+  } finally { lease.release(); }
 }
 
 export interface ArchiveResult {

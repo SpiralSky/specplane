@@ -1,6 +1,7 @@
 /** Import-safe library entry point. The CLI is deliberately not imported here. */
 import { Ajv } from 'ajv';
 import { writeImplementation, type CompletionReceipt } from './completion-writer.js';
+import { transitionFromCheckout, type ShelveReceipt } from '../plan/shelve.js';
 import { retargetPlan, type RetargetReceipt } from '../plan/retarget.js';
 import { LeaseRefused } from './writer-leases.js';
 import { mechanicalRequestSchema, workflowRequestSchema, workflowResultSchema, workflowTestRequestSchema, recordingProposalSchema, contributionEventSchema, confirmationChallengeSchema, confirmationResponseSchema, conductorRequestSchema, contributionQuerySchema } from './schemas.js';
@@ -24,11 +25,13 @@ function checked(operation: string, valid: boolean): Result<never> {
 export const inspectRepository = (_request: { checkout: string }): Result<never> => unavailable('inspectRepository');
 export function executeOperation(request: Extract<MechanicalRequest, { operation: 'spec.complete' | 'spec.implementation' }>, context: CoreContext): Result<CompletionReceipt>;
 export function executeOperation(request: Extract<MechanicalRequest, { operation: 'plan.retarget' }>, context: CoreContext): Result<RetargetReceipt>;
-export function executeOperation(request: MechanicalRequest, context: CoreContext): Result<CompletionReceipt | RetargetReceipt>;
-export function executeOperation(request: MechanicalRequest, context: CoreContext): Result<CompletionReceipt | RetargetReceipt> {
+export function executeOperation(request: Extract<MechanicalRequest, { operation: 'plan.shelve' | 'plan.resume' }>, context: CoreContext): Result<ShelveReceipt>;
+export function executeOperation(request: MechanicalRequest, context: CoreContext): Result<CompletionReceipt | RetargetReceipt | ShelveReceipt>;
+export function executeOperation(request: MechanicalRequest, context: CoreContext): Result<CompletionReceipt | RetargetReceipt | ShelveReceipt> {
   if (!validate.operation(request)) return checked('executeOperation', false);
-  if (request.operation !== 'spec.complete' && request.operation !== 'spec.implementation' && request.operation !== 'plan.retarget') return unavailable('executeOperation');
+  if (request.operation !== 'spec.complete' && request.operation !== 'spec.implementation' && request.operation !== 'plan.retarget' && request.operation !== 'plan.shelve' && request.operation !== 'plan.resume') return unavailable('executeOperation');
   try {
+    if (request.operation === 'plan.shelve' || request.operation === 'plan.resume') return { protocol: 1, ok: true, value: transitionFromCheckout(request.arguments.id, request.operation === 'plan.shelve' ? 'shelve' : 'resume', context.checkout ?? process.cwd(), { dryRun: request.arguments.dryRun }), notices: [] };
     if (request.operation === 'plan.retarget') return { protocol: 1, ok: true, value: retargetPlan(request.arguments, context.checkout ?? process.cwd(), { signal: context.signal }), notices: [] };
     const args = request.arguments;
     const status = request.operation === 'spec.complete' ? 'complete' : request.arguments.status;

@@ -69,6 +69,11 @@ export function validatePlans(
       at("warning", "plan", p.planFile, `Stored status \`${fm.status}\` is ignored while \`plans.status_source\` is \`git\`; status is derived from git state.`);
     }
 
+    if (fm.status === "shelved") {
+      if (p.archived) at("error", "plan", p.planFile, "Shelved plans cannot be archived.");
+      if (config.plans.status_source === "git" ? fm.shelved_from !== "ready" : !["in_progress", "review"].includes(fm.shelved_from ?? "")) at("error", "plan", p.planFile, "shelved_from is incompatible with the status source.");
+    }
+
     for (const dep of fm.depends_on ?? []) {
       if (!known.has(dep)) at("error", "reference", p.planFile, `\`depends_on\` entry \`${dep}\` does not match any plan.`);
       else if (parsed.get(dep)?.status === "abandoned") at("error", "reference", p.planFile, `\`depends_on\` entry \`${dep}\` is an abandoned plan.`);

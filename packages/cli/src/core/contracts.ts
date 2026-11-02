@@ -39,7 +39,7 @@ type AdditionalOperations = {
   'plan.new': { id?: string; title?: string; specs?: string[]; dependsOn?: string[]; target?: string; comparisonBase?: string };
   'plan.list': { status?: string; live?: boolean; noFetch?: boolean }; 'plan.show': { id: string }; 'plan.graph': Record<string, never>; 'plan.next': { id: string };
   'plan.step-done': { id: string; outcome: 'done' | 'blocked' | 'skipped'; summary: string; recordingSet: string; type?: string; changed?: string[]; deviation?: string[]; openIssue?: string[]; gap?: string[]; trailer?: string[]; nextKnows?: string; step?: number; force?: boolean; reason?: string };
-  'plan.start': { id: string; target?: string; noFetch?: boolean }; 'plan.shelve': { id: string }; 'plan.resume': { id: string }; 'plan.finish': { id: string; noFetch?: boolean };
+  'plan.start': { id: string; target?: string; noFetch?: boolean }; 'plan.shelve': { id: string; dryRun?: boolean }; 'plan.resume': { id: string; dryRun?: boolean }; 'plan.finish': { id: string; noFetch?: boolean };
   'plan.restack': { id: string; dryRun?: boolean }; 'plan.abandon': { id: string; deleteBranch?: boolean; force?: boolean }; 'plan.cleanup': { id: string; force?: boolean };
   'plan.archive': { id: string }; 'plan.approve': { ids: string[]; dryRun?: boolean }; 'plan.index': { source?: 'head' | 'staged' | 'working'; print?: boolean; live?: boolean };
   'decision.new': { title: string }; 'decision.accept': { ids: string[]; dryRun?: boolean };
