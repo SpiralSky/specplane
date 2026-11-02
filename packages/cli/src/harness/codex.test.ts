@@ -58,7 +58,7 @@ function experimentalWorkflow(implementation = 'export const sum = (a,b) => a+b;
  try{
   git(root,'init','-q','-b','fixture-base');sp(root,'init','--harness','codex');
   sp(root,'spec','new','feature','sum','--title','Add two numbers');
-  sp(root,'plan','new','--id','2026-11-01-sum','--title','Implement sum','--specs','feature/sum','--depends-on','');
+  sp(root,'plan','new','--id','2026-11-01-sum','--title','Implement sum','--specs','feature/sum','--depends-on','','--target','fixture-base');
   const plan='plans/2026-11-01-sum/PLAN.md', spec='docs/specifications/features/sum.md';
   const planBefore=fs.readFileSync(path.join(root,plan),'utf8'),specBefore=fs.readFileSync(path.join(root,spec),'utf8');
   git(root,'add','.');git(root,'commit','-qm','fixture draft');const base=git(root,'rev-parse','HEAD');
