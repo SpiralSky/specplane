@@ -75,11 +75,20 @@ export interface SpecFrontmatter {
   extends?: string | string[];
   /** Spec ID -> abbreviated git blob hash (7-40 hex). */
   based_on?: Record<string, string>;
+  implementation?: ImplementationDeclaration;
   // Feature specs
   allow_architecture?: boolean;
   architecture_reason?: string;
   // Architecture specs
   implements?: string[];
+}
+
+export interface ImplementationDeclaration {
+  status: "incomplete" | "partial" | "complete";
+  assessed_spec_hash?: string;
+  assessed_dependencies?: Record<string, string>;
+  evidence?: string[];
+  implementation_revision?: string;
 }
 
 export interface ExecutionBinding {

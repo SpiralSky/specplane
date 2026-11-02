@@ -15,6 +15,8 @@ export function createAjv(): Ajv {
 export const ID_PATTERN = "^(feature|architecture)/[a-z0-9](?:[a-z0-9-]|/(?!/))*[a-z0-9]$";
 
 const strArray = { type: "array", items: { type: "string" } };
+export const FINGERPRINT_PATTERN = "^[a-z0-9][a-z0-9-]*:sha256:[0-9a-f]{64}$";
+export const QUALIFIED_SPEC_PATTERN = `^[^:#]*:${ID_PATTERN.slice(1)}`;
 
 export const SPEC_COMMON_SCHEMA = {
   type: "object",
@@ -32,6 +34,16 @@ export const SPEC_COMMON_SCHEMA = {
     based_on: {
       type: "object",
       additionalProperties: { type: "string", pattern: "^[0-9a-f]{7,40}$" },
+    },
+    implementation: {
+      type: "object", required: ["status"], additionalProperties: false,
+      properties: {
+        status: { enum: ["incomplete", "partial", "complete"] },
+        assessed_spec_hash: { type: "string", pattern: FINGERPRINT_PATTERN },
+        assessed_dependencies: { type: "object", propertyNames: { pattern: QUALIFIED_SPEC_PATTERN }, additionalProperties: { type: "string", pattern: FINGERPRINT_PATTERN } },
+        evidence: { type: "array", items: { type: "string", minLength: 1 } },
+        implementation_revision: { type: "string", minLength: 1 },
+      },
     },
   },
 } as const;
