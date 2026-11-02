@@ -15,7 +15,7 @@ function fixture() {
   git("init", "-b", "main"); git("config", "user.name", "Test"); git("config", "user.email", "test@example.com");
   put(".specplane/config.yaml", "plans:\n  dependency_mode: stack\n");
   put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Example\nstatus: ready\nspecs: [feature/example]\n---\n`);
-  put("docs/specifications/features/example.md", "---\nid: feature/example\nstatus: approved\n---\nApproved\n");
+  put("docs/specifications/features/example.md", "---\nid: feature/example\ntitle: Example\nauthor: user\nstatus: approved\n---\nApproved\n");
   git("add", "."); git("commit", "-m", "base");
   return { cwd, git, put, config: loadConfig(cwd).config };
 }
@@ -29,7 +29,7 @@ test("prepares committed target and preserves dirty invoking files", () => {
 });
 test("refuses target-local missing plan, unapproved spec and conflicting paths", () => {
   const { cwd, git, put, config } = fixture(); git("branch", "candidate");
-  put("docs/specifications/features/example.md", "---\nid: feature/example\nstatus: review\n---\n"); git("commit", "-am", "review");
+  put("docs/specifications/features/example.md", "---\nid: feature/example\ntitle: Example\nauthor: user\nstatus: review\n---\n"); git("commit", "-am", "review");
   assert.throws(() => prepareStart(id, config, cwd), /not approved/);
   git("checkout", "candidate"); put(".specplane/config.yaml", "plans:\n  dir: other\n"); git("commit", "-am", "paths");
   assert.throws(() => prepareStart(id, config, cwd, { target: "candidate" }), /path interpretation/);
@@ -54,6 +54,46 @@ test("stack preparation validates dependency binding and prospective specificati
   put(`plans/${dep}/PLAN.md`, `---\nid: ${dep}\ntitle: Base\nstatus: ready\nspecs: [feature/example]\nexecution:\n  target_branch: main\n  start_target_branch: main\n  start_base: ${target}\n---\n`);
   git("commit", "-am", "bind"); const base = git("rev-parse", "HEAD"); git("checkout", "main");
   const result = prepareStart(id, config, cwd); assert.equal(result.stackId, dep); assert.equal(result.base, base);
-  git("checkout", `plan/${dep}`); put("docs/specifications/features/example.md", "---\nid: feature/example\nstatus: approved\n---\nChanged\n"); git("commit", "-am", "change spec"); git("checkout", "main");
+  git("checkout", `plan/${dep}`); put("docs/specifications/features/example.md", "---\nid: feature/example\ntitle: Example\nauthor: user\nstatus: approved\n---\nChanged\n"); git("commit", "-am", "change spec"); git("checkout", "main");
   const before = git("status", "--porcelain"); assert.throws(() => prepareStart(id, config, cwd), /different required specification/); assert.equal(git("status", "--porcelain"), before);
+});
+test("explicit target and recorded resume ignore malformed unrelated HEAD plan", () => {
+  const { cwd, git, put, config } = fixture();
+  git("branch", "candidate"); git("checkout", "-b", "unrelated");
+  put(`plans/${id}/PLAN.md`, "---\nid: wrong\n---\n"); git("commit", "-am", "invalid unrelated plan");
+  const before = git("status", "--porcelain");
+  assert.equal(prepareStart(id, config, cwd, { target: "candidate" }).context.targetBranch, "candidate");
+  git("checkout", "candidate"); const start = git("rev-parse", "HEAD"); git("checkout", "-b", `plan/${id}`);
+  put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Example\nstatus: ready\nspecs: [feature/example]\nexecution:\n  target_branch: candidate\n  start_target_branch: candidate\n  start_base: ${start}\n---\n`); git("commit", "-am", "bind"); git("checkout", "unrelated");
+  assert.equal(prepareStart(id, config, cwd).first, false); assert.equal(git("status", "--porcelain"), before);
+});
+test("resume refuses conflicting target and branch immutable metadata", () => {
+  const { cwd, git, put, config } = fixture(); const start = git("rev-parse", "HEAD");
+  put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Example\nstatus: ready\nspecs: [feature/example]\ncomparison_base: ${start}\n---\n`); git("commit", "-am", "record comparison");
+  git("checkout", "-b", `plan/${id}`);
+  put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Example\nstatus: ready\nspecs: [feature/example]\ncomparison_base: ${start}\nexecution:\n  target_branch: main\n  start_target_branch: main\n  start_base: ${start}\n---\n`); git("commit", "-am", "bind"); git("checkout", "main");
+  assert.equal(prepareStart(id, config, cwd).first, false);
+  put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Example\nstatus: ready\nspecs: [feature/example]\n---\n`); git("commit", "-am", "remove comparison");
+  assert.throws(() => prepareStart(id, config, cwd), /comparison provenance conflict/);
+  put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Example\nstatus: ready\nspecs: [feature/example]\ncomparison_base: ${"f".repeat(40)}\n---\n`); git("commit", "-am", "conflict comparison");
+  assert.throws(() => prepareStart(id, config, cwd), /comparison provenance conflict/);
+  const target = git("rev-parse", "HEAD");
+  put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Example\nstatus: ready\nspecs: [feature/example]\ncomparison_base: ${start}\nexecution:\n  target_branch: main\n  start_target_branch: main\n  start_base: ${target}\n---\n`); git("commit", "-am", "conflict binding");
+  const before = git("status", "--porcelain"); assert.throws(() => prepareStart(id, config, cwd), /execution binding conflict/); assert.equal(git("status", "--porcelain"), before);
+});
+test("malformed or misidentified approved specification cannot authorize start", () => {
+  const { cwd, git, put, config } = fixture();
+  for (const text of ["---\nid: feature/example\nstatus: approved\n---\n", "---\nid: feature/other\ntitle: Example\nauthor: user\nstatus: approved\n---\n"]) {
+    put("docs/specifications/features/example.md", text); git("commit", "-am", "invalid spec");
+    const before = git("status", "--porcelain"); const head = git("rev-parse", "HEAD");
+    assert.throws(() => prepareStart(id, config, cwd), /Invalid required specification/);
+    assert.equal(git("status", "--porcelain"), before); assert.equal(git("rev-parse", "HEAD"), head);
+  }
+});
+test("first start refuses an orphaned execution binding without modifying refs", () => {
+  const { cwd, git, put, config } = fixture(); const base = git("rev-parse", "HEAD");
+  put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Example\nstatus: ready\nspecs: [feature/example]\nexecution:\n  target_branch: main\n  start_target_branch: main\n  start_base: ${base}\n---\n`); git("commit", "-am", "orphan binding");
+  const head = git("rev-parse", "HEAD"); const before = git("status", "--porcelain");
+  assert.throws(() => prepareStart(id, config, cwd), /orphaned execution binding/);
+  assert.equal(git("rev-parse", "HEAD"), head); assert.equal(git("status", "--porcelain"), before);
 });
