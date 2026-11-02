@@ -4,7 +4,7 @@ title: Claude Code integration implementation
 status: approved
 author: mixed
 implements: [claude:feature/claude-integration, feature/agent-integration]
-based_on: { "claude:feature/claude-integration": "4dc646b", feature/agent-integration: "1e7327b" }
+based_on: { "claude:feature/claude-integration": "4f7fa5e", feature/agent-integration: "6fd87da" }
 ---
 
 <!-- Plan index proposal 2026-11-02: user agreed naming/source semantics and approved the companion feature patch, now applied. Architecture revision awaits review; not implemented behavior. -->
