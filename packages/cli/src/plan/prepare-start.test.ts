@@ -1,4 +1,4 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -8,8 +8,10 @@ import { loadConfig } from "../config.js";
 import { prepareStart } from "./prepare-start.js";
 
 const id = "2026-11-02-example";
+const ownedDirs: string[] = [];
+after(() => { for (const dir of ownedDirs) fs.rmSync(dir, { recursive: true, force: true }); });
 function fixture() {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prepare-start-"));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prepare-start-")); ownedDirs.push(cwd);
   const git = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 5000 }).trim();
   const put = (name: string, text: string) => { const file = path.join(cwd, name); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
   git("init", "-b", "main"); git("config", "user.name", "Test"); git("config", "user.email", "test@example.com");

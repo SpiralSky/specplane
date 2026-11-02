@@ -97,7 +97,8 @@ export function prepareStart(id: string, discovery: Config, cwd: string, options
     if (plan.comparison_base !== branchPlan.comparison_base) fail("Target and plan branch comparison provenance conflict.");
     if (plan.execution !== undefined && !isDeepStrictEqual(plan.execution, branchPlan.execution)) fail("Target and plan branch execution binding conflict.");
     if (branchPlan.target_branch && branchPlan.target_branch !== context.targetBranch) fail("Plan branch declaration conflicts with execution target.");
-    if (!["ready", "in_progress", "review"].includes(plan.status) || !["ready", "in_progress", "review"].includes(branchPlan.status)) fail("Cannot resume plan with terminal, shelved, or draft record.");
+    const resumable = config.plans.status_source === "git" ? ["ready"] : ["ready", "in_progress", "review"];
+    if (!resumable.includes(plan.status) || !resumable.includes(branchPlan.status)) fail("Cannot resume plan with invalid stored status for its status source.");
     return { context, config, plan, first: false, refs, base: selected.commit, stackId: null };
   }
   if (plan.execution) fail("Target contains an orphaned execution binding; recovery is required.");

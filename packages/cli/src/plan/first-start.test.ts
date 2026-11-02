@@ -34,7 +34,8 @@ test("first start binds the authoritative nondefault target in a metadata-only c
   assert.match(text, /target_branch: "candidate"/); assert.match(text, new RegExp(`start_base: ${base}`));
   assert.match(f.git("log", "-1", "--format=%B", ref), /Specplane-Workflow: start/);
   assert.equal(fs.readFileSync(path.join(f.cwd, "docs/specifications/features/example.md"), "utf8"), "unapproved in working tree");
-  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /Resume/);
+  const resumed = firstStart(id, f.config, f.cwd, { fetch: false });
+  assert.equal(resumed.resumed, true); assert.equal(resumed.target, "candidate"); assert.equal(resumed.startBase, base);
   assert.equal(f.git("rev-parse", ref), f.git("rev-parse", `refs/heads/${ref}`));
 });
 test("dry run and refusal leave no branch or runtime files", t => {
@@ -198,3 +199,65 @@ for (const [label, prefix, newline] of [["CRLF", "", "\r\n"], ["BOM and CRLF", "
     assert.equal(read(`plan/${id}`), claimed.replace(`${newline}---${newline}# Body`, `${newline}${binding}${newline}---${newline}# Body`));
   });
 }
+
+test("resume preserves dirty reused checkout and skips failing setup", t => {
+  const f = fixture(t, "plans:\n  setup_hook: 'exit 9'\nexecution:\n  backend: worktree\n  worktree_dir: ../.worktrees\n");
+  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /Setup hook failed/);
+  const branch = `plan/${id}`; const before = f.git("rev-parse", branch);
+  const checkout = path.join(os.tmpdir(), ".worktrees", path.basename(f.cwd), id);
+  f.git("worktree", "add", checkout, branch);
+  fs.writeFileSync(path.join(checkout, "untracked"), "keep\n");
+  fs.appendFileSync(path.join(checkout, `plans/${id}/PLAN.md`), "dirty\n");
+  const bytes = fs.readFileSync(path.join(checkout, `plans/${id}/PLAN.md`));
+  const result = firstStart(id, f.config, f.cwd, { fetch: false });
+  assert.equal(result.resumed, true); assert.equal(result.path, checkout);
+  assert.deepEqual(fs.readFileSync(path.join(checkout, `plans/${id}/PLAN.md`)), bytes);
+  assert.equal(fs.readFileSync(path.join(checkout, "untracked"), "utf8"), "keep\n");
+  assert.equal(f.git("rev-parse", branch), before);
+  const targetPlan = `plans/${id}/PLAN.md`;
+  f.put(targetPlan, fs.readFileSync(path.join(f.cwd, targetPlan), "utf8").replace("status: ready", "status: shelved"));
+  f.git("commit", "-am", "shelve target");
+  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }));
+  assert.deepEqual(fs.readFileSync(path.join(checkout, targetPlan)), bytes);
+  assert.equal(fs.readFileSync(path.join(checkout, "untracked"), "utf8"), "keep\n");
+  assert.equal(f.git("rev-parse", branch), before);
+});
+
+test("failed missing-checkout resume keeps committed step history", t => {
+  const f = fixture(t, "plans:\n  setup_hook: 'exit 9'\nexecution:\n  backend: worktree\n  worktree_dir: ../.worktrees\n");
+  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /Setup hook failed/);
+  const branch = `plan/${id}`; const checkout = path.join(os.tmpdir(), ".worktrees", path.basename(f.cwd), id);
+  f.git("worktree", "add", checkout, branch);
+  const file = path.join(checkout, `plans/${id}/steps/01-first.md`); fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, "completed step history\n");
+  execFileSync("git", ["add", "."], { cwd: checkout }); execFileSync("git", ["commit", "-m", "record step"], { cwd: checkout, stdio: "ignore" });
+  const before = f.git("rev-parse", branch); f.git("worktree", "remove", checkout);
+  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /Setup hook failed/);
+  assert.equal(f.git("rev-parse", branch), before); assert.equal(f.git("show", `${branch}:plans/${id}/steps/01-first.md`), "completed step history");
+  assert.equal(fs.existsSync(checkout), false);
+});
+
+test("resume detects target movement during missing checkout registration", t => {
+  const f = fixture(t, "plans:\n  setup_hook: 'touch hook-ran'\nexecution:\n  backend: worktree\n  worktree_dir: ../.worktrees\n");
+  const started = firstStart(id, f.config, f.cwd, { fetch: false }); const checkout = started.path!;
+  f.git("worktree", "remove", "--force", checkout); const tip = f.git("rev-parse", `plan/${id}`);
+  f.git("commit", "--allow-empty", "-m", "advance target"); const prior = f.git("rev-parse", "HEAD^");
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "resume-ref-wrapper-")); t.after(() => fs.rmSync(bin, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(bin, "git"), `#!/bin/sh\n/usr/bin/git "$@"\nresult=$?\nif [ "$result" -eq 0 ] && [ "$1" = worktree ] && [ "$2" = add ]; then /usr/bin/git update-ref refs/heads/main ${prior}; fi\nexit "$result"\n`, { mode: 0o755 });
+  const old = process.env.PATH; process.env.PATH = `${bin}:${old}`;
+  try { assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /refs\/heads\/main changed during preparation/); }
+  finally { process.env.PATH = old; }
+  assert.equal(f.git("rev-parse", `plan/${id}`), tip); assert.equal(fs.existsSync(checkout), true);
+  assert.equal(fs.existsSync(path.join(checkout, "hook-ran")), false);
+  assert.equal(fs.existsSync(path.join(checkout, ".specplane/config.yaml")), false);
+});
+
+test("git status source refuses an invalid stored in-progress resume", t => {
+  const f = fixture(t, "execution:\n  backend: external\n");
+  firstStart(id, f.config, f.cwd, { fetch: false });
+  const file = `plans/${id}/PLAN.md`;
+  f.put(file, fs.readFileSync(path.join(f.cwd, file), "utf8").replace("status: ready", "status: in_progress"));
+  f.git("commit", "-am", "invalid stored status"); const branchTip = f.git("rev-parse", `plan/${id}`);
+  assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /invalid stored status/);
+  assert.equal(f.git("rev-parse", `plan/${id}`), branchTip);
+});

@@ -73,13 +73,13 @@ function defaultTip(def: string, cwd: string): string {
 }
 
 /** ID of the base plan `plan/<id>` is stacked on when that plan is now `done` on the default branch, else null. Read-only. */
-export function mergedStackBase(id: string, config: Config, cwd: string): string | null {
+export function mergedStackBase(id: string, config: Config, cwd: string, target?: string): string | null {
   const branch = `plan/${id}`;
   const marker = findLatest(branch, "stack", cwd);
   if (!marker) return null;
   const subject = run("git", ["log", "-1", "--format=%s", marker], { cwd }).trim();
   const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
-  const tip = defaultTip(defaultBranch(cwd), cwd);
+  const tip = defaultTip(target ?? defaultBranch(cwd), cwd);
   if (baseId && planAt(tip, baseId, config, cwd)?.status === "done" && readTrailers(marker, cwd).has("Specplane-Stack-Base")) return baseId;
   return null;
 }
