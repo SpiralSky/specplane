@@ -2,7 +2,7 @@
 plan: 2026-11-02-target-lifecycle
 step: 1
 title: "Resolve targets and validate immutable execution bindings"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Integration target resolution and execution binding"
   - spec: "architecture/file-formats"
