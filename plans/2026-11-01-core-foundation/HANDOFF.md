@@ -86,3 +86,29 @@ None.
 ### What the next step must know
 
 Observed manual evidence: npm run build passed; focused direct tests 8/8 passed outside sandbox after subprocess EPERM; consolidated review and cached diff check passed. Resume verified HEAD and exact index/working SHA-256 bytes against preserved evidence. Covers canonical repository/checkout/plan identities, ordered acquisition, subset rollback, alias and cross-process contention, malformed-data refusal, proven-dead undelegated-owner reclamation, immutable keys/request snapshot, symlink/nonregular and nonblocking FIFO checks. Full suite not run; existing CLI writers not wired; delegation is step 4. No spec gaps. Context expanded to coordination contract, gate primitive, build/test and recorder contracts.
+
+## Step 04: Delegation and cancellation
+
+**Date**: 2026-11-02
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/core/writer-leases.ts`: Complete-set delegation, single-use worker tokens, cancellation and explicit recovery
+- `packages/cli/src/core/writer-leases.test.ts`: Delegation, stale tokens, cancellation, recovery and interrupted updates
+
+### Deviations from the plan
+
+Authorized legacy bootstrap: exact reviewed staged set; no recording-set manifest or core-issued receipts.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+Observed manual checks: npm run build passed; focused lease tests 12/12 passed outside sandbox after subprocess EPERM; diff check and consolidated review passed. No spec gaps. Context expanded to lease implementation/tests, package configuration and plan-step contract. Worker requires known PID and trusts caller stopped acknowledgment; host cancellation and recording integration remain future work. Recovery tests simulate dead PIDs. Full suite not run. Worker ended with no remaining writers/build/tests; approximate 11:29–11:51 UTC calendar, active and approval timing unknown.

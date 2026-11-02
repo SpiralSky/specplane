@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { acquireWriterLease, checkoutIdentity, LeaseRefused } from './writer-leases.js';
+import { acquireWriterLease, checkoutIdentity, LeaseRefused, useDelegatedLease, recoverDelegatedLease } from './writer-leases.js';
 function fixture() {
  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'writer-leases-'));
  const main = path.join(root, 'main'), other = path.join(root, 'other'), alias = path.join(root, 'alias');
@@ -102,5 +102,61 @@ test('dangling links and FIFOs fail closed without blocking', () => {
   assert.throws(() => acquireWriterLease({ checkouts: [f.main], requestId: 'next' }), /nonregular/);
   assert.throws(() => lease.assertOwned(), /nonregular/);
   fs.unlinkSync(file); fs.writeFileSync(file, saved); lease.release();
+ } finally { f.cleanup(); }
+});
+
+test('delegation binds the complete set and recording consumes the token', () => {
+ const f = fixture(); try {
+  const lease = acquireWriterLease({ checkouts: [f.main], plans: ['plan'], repository: true, requestId: 'request' });
+  const grant = lease.delegate({ checkout: f.alias, step: 4, pid: process.pid });
+  const worker = useDelegatedLease(grant);
+  worker.assertOwned(); locked(() => lease.assertOwned());
+  assert.throws(() => useDelegatedLease({ ...grant, step: 5 }).assertOwned(), /stale/);
+  assert.throws(() => useDelegatedLease({ ...grant, keys: grant.keys.slice(1) }).assertOwned(), /stale/);
+  assert.throws(() => lease.release(), /stop is unproved/);
+  worker.consume(); assert.throws(() => worker.assertOwned(), /stale/);
+  lease.release();
+  const replacement = acquireWriterLease({ checkouts: [f.main], plans: ['plan'], repository: true, requestId: 'request' });
+  assert.throws(() => worker.consume(), /stale/); replacement.release();
+ } finally { f.cleanup(); }
+});
+test('cancellation preserves edits and uncertain stop retains leases until acknowledged', () => {
+ const f = fixture(); try {
+  const lease = acquireWriterLease({ checkouts: [f.main], requestId: 'cancel' });
+  const grant = lease.delegate({ checkout: f.main, step: 1, pid: process.pid });
+  const edit = path.join(f.main, 'partial'); fs.writeFileSync(edit, 'work');
+  lease.acknowledgeStop('uncertain');
+  assert.throws(() => lease.release(), /recovery is required/);
+  assert.throws(() => acquireWriterLease({ checkouts: [f.main], requestId: 'next' }), /delegated/);
+  assert.throws(() => useDelegatedLease(grant).assertOwned(), /stale/);
+  lease.acknowledgeStop('stopped'); lease.release();
+  assert.equal(fs.readFileSync(edit, 'utf8'), 'work');
+  const next = acquireWriterLease({ checkouts: [f.main], requestId: 'next' }); next.release();
+ } finally { f.cleanup(); }
+});
+test('dead owner with live worker cannot be reclaimed; recovery inspects before invalidation', () => {
+ const f = fixture(); try {
+  const lease = acquireWriterLease({ checkouts: [f.main], plans: ['plan'], requestId: 'old' });
+  const grant = lease.delegate({ checkout: f.main, step: 1, pid: process.pid });
+  for (const file of records(f.runtime)) { const record = JSON.parse(fs.readFileSync(file, 'utf8')); record.pid = 2147483647; fs.writeFileSync(file, JSON.stringify(record)); }
+  assert.throws(() => acquireWriterLease({ checkouts: [f.main], plans: ['plan'], requestId: 'new' }), /delegated/);
+  assert.throws(() => recoverDelegatedLease(grant, () => assert.fail('worker still alive')), /Cannot prove/);
+  for (const file of records(f.runtime)) { const record = JSON.parse(fs.readFileSync(file, 'utf8')); record.worker.pid = 2147483647; fs.writeFileSync(file, JSON.stringify(record)); }
+  const deadGrant = { ...grant, pid: 2147483647 };
+  assert.throws(() => recoverDelegatedLease(deadGrant, () => { throw new Error('partial state needs reconciliation'); }), /partial state/);
+  assert.throws(() => acquireWriterLease({ checkouts: [f.main], plans: ['plan'], requestId: 'new' }), /delegated/);
+  let inspected = false; recoverDelegatedLease(deadGrant, () => { inspected = true; }); assert.ok(inspected);
+  const replacement = acquireWriterLease({ checkouts: [f.main], plans: ['plan'], requestId: 'new' });
+  assert.throws(() => useDelegatedLease(grant).assertOwned(), /stale/); replacement.release();
+ } finally { f.cleanup(); }
+});
+
+test('interrupted delegation cannot be reclaimed as an undelegated lease', () => {
+ const f = fixture(); try {
+  const lease = acquireWriterLease({ checkouts: [f.main], requestId: 'old' });
+  lease.delegate({ checkout: f.main, step: 1, pid: process.pid });
+  const file = records(f.runtime)[0], record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  record.pid = 2147483647; record.worker = null; fs.writeFileSync(file, JSON.stringify(record));
+  assert.throws(() => acquireWriterLease({ checkouts: [f.main], requestId: 'new' }), /delegated/);
  } finally { f.cleanup(); }
 });

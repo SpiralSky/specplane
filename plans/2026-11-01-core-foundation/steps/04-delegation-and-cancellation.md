@@ -2,7 +2,7 @@
 plan: 2026-11-01-core-foundation
 step: 4
 title: "Delegation and cancellation"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Shared conductor and extension boundary"
   - spec: "architecture/reference-cli#Writer coordination"
