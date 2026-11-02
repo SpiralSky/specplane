@@ -34,7 +34,7 @@ export function planAt(cwd: string, commit: string, config: Config, id: string):
   if (!data || !validator(PLAN_SCHEMA)(data) || data.id !== id) fail(`Invalid plan record for ${id} at ${commit}.`);
   return data as unknown as PlanFrontmatter;
 }
-function specAt(cwd: string, commit: string, config: Config, raw: string): { id: string; text: string } {
+export function specAt(cwd: string, commit: string, config: Config, raw: string): { id: string; text: string } {
   let id = raw.split("#")[0]; let roots = config.spec_roots;
   const colon = id.indexOf(":");
   if (colon !== -1) { const name = id.slice(0, colon); id = id.slice(colon + 1); roots = roots.filter(r => r.name === name); if (!roots.length) throw new UnknownRootError(name); }

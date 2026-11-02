@@ -64,6 +64,32 @@ function guard<T>(dir: string, fn: () => T): T {
   }
   try { return fn(); } finally { fs.closeSync(fd); fs.unlinkSync(file); }
 }
+/** Read-only contention check for previews. The result is advisory: another
+ * writer may acquire a lease after inspection, so execution must acquire it. */
+export function inspectWriterLease(request: LeaseRequest): void {
+  if (!nonempty(request.requestId) || !request.checkouts.length || request.checkouts.some(c => !nonempty(c)) || request.plans?.some(p => !nonempty(p))) throw new Error('A request identity, checkout and valid plan IDs are required.');
+  const identities = request.checkouts.map(checkoutIdentity);
+  const commonDir = identities[0].commonDir;
+  if (identities.some(i => i.commonDir !== commonDir)) throw new Error('All checkouts must belong to the same repository.');
+  const keys: Key[] = [
+    ...(request.repository ? [{ kind: 'repository' as const, identity: commonDir }] : []),
+    ...[...new Set(request.plans ?? [])].sort().map(identity => ({ kind: 'plan' as const, identity })),
+    ...[...new Set(identities.map(i => i.gitDir))].sort().map(identity => ({ kind: 'checkout' as const, identity })),
+  ];
+  const dir = path.join(commonDir, 'specplane-runtime');
+  if (!exists(dir)) return;
+  const stat = fs.lstatSync(dir);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new LeaseRefused('Runtime directory is not a real directory; inspect manually.', 'RECOVERY_REQUIRED');
+  if (exists(path.join(dir, 'writer.guard'))) throw new LeaseRefused('Writer guard exists; contention or recovery requires inspection.', 'LOCKED');
+  for (const key of keys) {
+    const file = fileFor(dir, key);
+    if (!exists(file)) continue;
+    const prior = readRecord(file, key);
+    if (prior.worker !== null || exists(delegationMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has delegated worker evidence; explicit recovery is required.`, 'RECOVERY_REQUIRED');
+    if (!dead(prior.pid)) throw new LeaseRefused(`${key.kind} lease is held by a live or inaccessible owner.`, 'LOCKED');
+  }
+  if (exists(path.join(dir, 'writer.guard'))) throw new LeaseRefused('Writer guard exists; contention or recovery requires inspection.', 'LOCKED');
+}
 /** No waiting or lock upgrades: contention releases the subset before returning. */
 export function acquireWriterLease(request: LeaseRequest): WriterLease {
   if (!nonempty(request.requestId) || !Array.isArray(request.checkouts) || request.checkouts.length === 0 || request.checkouts.some(c => !nonempty(c)) || (request.plans && (!Array.isArray(request.plans) || request.plans.some(p => !nonempty(p))))) throw new Error('A request identity, checkout and valid plan IDs are required.');

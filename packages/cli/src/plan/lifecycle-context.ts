@@ -4,11 +4,35 @@ import { run } from "../git/exec.js";
 import type { Config } from "../types.js";
 import { resolvePlanContext, validatePlanBranches } from "./context.js";
 import { configAt, planAt, samePaths, snapshot } from "./prepare-start.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { listWorktrees } from "../git/worktree.js";
+import { lenientFrontmatter, showFile } from "./activity.js";
+
+/** Uncommitted execution bindings never become managed execution context. */
+export function refusePendingRetarget(id: string, config: Config, cwd: string): void {
+  const tree = listWorktrees(cwd).find(t => !t.bare && t.branch === `plan/${id}`);
+  if (!tree) return;
+  for (const file of [`${config.plans.dir}/${id}/PLAN.md`, `${config.plans.dir}/archive/${id}/PLAN.md`]) {
+    const committed = showFile('HEAD', file, tree.path);
+    if (committed === null) continue;
+    const before = lenientFrontmatter(committed);
+    let working: string;
+    try { working = fs.readFileSync(path.join(tree.path, file), 'utf8'); } catch { throw new PlanStateError('Plan recording is missing; commit or discard pending edits.'); }
+    const staged = showFile('', file, tree.path);
+    for (const text of [working, staged]) {
+      const data = text === null ? null : lenientFrontmatter(text);
+      if (!before || !data || !isDeepStrictEqual(before.execution, data.execution) || before.target_branch !== data.target_branch)
+        throw new PlanStateError('Pending retarget metadata must be committed or discarded before managed execution.');
+    }
+  }
+}
 
 function ref(cwd: string, name: string): string | null {
   try { return run("git", ["rev-parse", "--verify", "--quiet", `${name}^{commit}`], { cwd }).trim(); } catch { return null; }
 }
 export function lifecycleContext(id: string, discovery: Config, cwd: string, operation: "finish" | "restack" = "finish") {
+  refusePendingRetarget(id, discovery, cwd);
   const refs: Record<string, string | null> = {};
   const capture = (name: string) => refs[name] = ref(cwd, name);
   const local = capture(`refs/heads/plan/${id}`), remote = capture(`refs/remotes/origin/plan/${id}`);

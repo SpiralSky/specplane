@@ -24,7 +24,7 @@ program
   .description("Specplane reference CLI")
   .version(pkg.version);
 
-const plan = program.command("plan").description("Work with plans (list, new, show, graph, next, step-done, start, approve, finish, abandon, cleanup, archive, restack)");
+const plan = program.command("plan").description("Work with plans (list, new, show, graph, next, step-done, start, approve, finish, abandon, cleanup, archive, restack, retarget)");
 plan
   .command("list")
   .description("List plans with their effective statuses")
@@ -46,6 +46,12 @@ plan
   .action((opts) => planNewCommand(opts));
 plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
 plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--target <branch>", "select an integration target").option("--dry-run", "prepare without mutation").option("--json", "print the result as JSON").option("--run", "unavailable in standalone CLI; use an installed execution extension").action((id, opts) => planStartCommand(id, opts));
+plan.command("retarget <id>").description("Reconcile the recorded destination without committing").requiredOption("--target <branch>").option("--dry-run").option("--json").action((id: string, opts: { target: string; dryRun?: boolean; json?: boolean }) => {
+  const result = executeOperation({ operation: 'plan.retarget', arguments: { id, target: opts.target, dryRun: !!opts.dryRun } }, { extensionId: 'cli' });
+  if (!result.ok) { process.stderr.write(`${result.error.message}\n`); process.exitCode = 1; return; }
+  if (opts.json) process.stdout.write(`${JSON.stringify(result.value)}\n`);
+  else process.stdout.write(`${id}: ${result.value.old_target} -> ${result.value.new_target}; ${result.value.changed ? (opts.dryRun ? 'preview (refs may change)' : 'updated, uncommitted') : 'unchanged'}\n`);
+});
 plan
   .command("finish <id>")
   .description("Finish a plan: tests, rebase, done and archive commit, merge (lists open spec-gaps.md entries)")
