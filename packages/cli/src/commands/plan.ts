@@ -162,7 +162,7 @@ export interface PlanNewOptions {
 export async function planNew(opts: PlanNewOptions, root: string, config: Config): Promise<string> {
   let id = opts.id?.trim();
   if (!id) {
-    if (!interactive()) throw new PlanUsageError("`plan new` needs `--id` when not run in a terminal.");
+    if (!interactive()) throw new PlanUsageError("Plan ID needed: pass `--id`.");
     const slug = (await ask("Plan slug: ")).toLowerCase();
     id = `${new Date().toISOString().slice(0, 10)}-${slug}`;
   }
