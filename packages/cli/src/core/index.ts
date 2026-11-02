@@ -1,6 +1,7 @@
 /** Import-safe library entry point. The CLI is deliberately not imported here. */
 import { Ajv } from 'ajv';
 import { writeImplementation, type CompletionReceipt } from './completion-writer.js';
+import { LeaseRefused } from './writer-leases.js';
 import { mechanicalRequestSchema, workflowRequestSchema, workflowResultSchema, workflowTestRequestSchema, recordingProposalSchema, contributionEventSchema, confirmationChallengeSchema, confirmationResponseSchema, conductorRequestSchema, contributionQuerySchema } from './schemas.js';
 import { coreInfo } from './build-info.js';
 import { validateCompatibility, type HostSelection } from './compatibility.js';
@@ -26,9 +27,9 @@ export const executeOperation = (request: MechanicalRequest, context: CoreContex
   try {
     const args = request.arguments;
     const status = request.operation === 'spec.complete' ? 'complete' : request.arguments.status;
-    return { protocol: 1, ok: true, value: writeImplementation({ ...args, status }, context.checkout ?? process.cwd()), notices: [] };
+    return { protocol: 1, ok: true, value: writeImplementation({ ...args, status }, context.checkout ?? process.cwd(), { signal: context.signal }), notices: [] };
   } catch (error) {
-    return { protocol: 1, ok: false, error: { code: 'OPERATION_FAILED', message: error instanceof Error ? error.message : String(error), retryable: false, details: null }, notices: [] };
+    return { protocol: 1, ok: false, error: { code: error instanceof LeaseRefused ? error.code : context.signal?.aborted ? 'CANCELLED' : 'OPERATION_FAILED', message: error instanceof Error ? error.message : String(error), retryable: error instanceof LeaseRefused && error.code === 'LOCKED', details: null }, notices: [] };
   }
 };
 export const prepareWorkflow = (_request: WorkflowRequest, _context: CoreContext): Result<never> => checked('prepareWorkflow', validate.request(_request));
