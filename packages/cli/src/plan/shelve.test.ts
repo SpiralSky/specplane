@@ -54,19 +54,24 @@ test('shelve and resume retain a dirty plan checkout and override its stale stat
  fs.writeFileSync(path.join(root,file),text.replace('ready','done'));git(root,'commit','-am','manual done');assert.throws(()=>cleanupPlan(id,config,root,{force:true}),/unverified/);assert.ok(fs.existsSync(wt));assert.equal(git(root,'rev-parse',`plan/${id}`),git(wt,'rev-parse','HEAD'));
 });
 
-test('frontmatter publication failure retains its exact commit and retry publishes it', t => {
+for (const format of ['sha1', 'sha256'] as const) test(`${format} publication failure retains its exact commit and retry publishes it`, t => {
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'shelve-push-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const root=path.join(dir,'repo'), bare=path.join(dir,'remote.git'), wt=path.join(dir,'wt');fs.mkdirSync(root);
  const git=(cwd:string,...args:string[])=>execFileSync('git',args,{cwd,encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:5000}).trim();
  const put=(p:string,s:string)=>{const f=path.join(root,p);fs.mkdirSync(path.dirname(f),{recursive:true});fs.writeFileSync(f,s);};
- git(dir,'init','--bare',bare);git(root,'init','-b','main');git(root,'config','user.name','Test');git(root,'config','user.email','test@example.com');
+ git(dir,'init',`--object-format=${format}`,'--bare',bare);git(root,'init',`--object-format=${format}`,'-b','main');git(root,'config','user.name','Test');git(root,'config','user.email','test@example.com');
  put('.specplane/config.yaml','plans:\n  status_source: frontmatter\n  archive_done: false\n');put('docs/specifications/.keep','');
  const file=`plans/${id}/PLAN.md`, text=`---\nid: ${id}\ntitle: Pause\nstatus: in_progress\nspecs: [feature/example]\n---\n`;
  put(file,text);git(root,'add','.');git(root,'commit','-m','base');const base=git(root,'rev-parse','HEAD');git(root,'remote','add','origin',bare);git(root,'push','-u','origin','main');
  git(root,'worktree','add','-b',`plan/${id}`,wt);fs.writeFileSync(path.join(wt,file),text.replace('specs: [feature/example]',`specs: [feature/example]\nexecution:\n  target_branch: main\n  start_target_branch: main\n  start_base: ${base}`));git(wt,'commit','-am','binding');
  git(root,'worktree','remove',wt);
- const hook=path.join(bare,'hooks','pre-receive');fs.writeFileSync(hook,'#!/bin/sh\nexit 1\n',{mode:0o755});const config=loadConfig(root).config;
- assert.throws(()=>shelveTransition(id,'shelve',config,root),/Publication pending for [0-9a-f]{40}/);const retained=git(root,'rev-parse','HEAD');assert.notEqual(retained,base);assert.equal(git(bare,'rev-parse','refs/heads/main'),base);
+ const config=loadConfig(root).config, oidLength=format==='sha1'?40:64;
+ // A post-commit hook can move HEAD; the retained identity must still name the created commit.
+ const post=path.join(root,'.git','hooks','post-commit');fs.writeFileSync(post,`#!/bin/sh\nprintf '[main ${base}]\n'\ngit update-ref refs/heads/main '${base}'\n`,{mode:0o755});
+ let error='';try{shelveTransition(id,'shelve',config,root);}catch(e){error=String(e);}
+ const created=new RegExp(`Lifecycle commit ([0-9a-f]{${oidLength}}) was retained`).exec(error)?.[1];assert.ok(created,error);assert.equal(git(root,'rev-parse','HEAD'),base);assert.equal(git(root,'rev-parse',`${created}^{commit}`),created);assert.equal(git(root,'rev-parse',`${created}^`),base);fs.rmSync(post);git(root,'reset','--hard',base);
+ const hook=path.join(bare,'hooks','pre-receive');fs.writeFileSync(hook,'#!/bin/sh\nexit 1\n',{mode:0o755});
+ let publicationError='';try{shelveTransition(id,'shelve',config,root);}catch(e){publicationError=String(e);}const retained=git(root,'rev-parse','HEAD');assert.match(publicationError,new RegExp(`Publication pending for ${retained}(?:,|:)`));assert.equal(retained.length,oidLength);assert.notEqual(retained,base);assert.equal(git(bare,'rev-parse','refs/heads/main'),base);
  const moved=execFileSync('git',['commit-tree',`${base}^{tree}`,'-p',base,'-m','external'],{cwd:bare,encoding:'utf8',env:{...process.env,GIT_AUTHOR_NAME:'Test',GIT_AUTHOR_EMAIL:'test@example.com',GIT_COMMITTER_NAME:'Test',GIT_COMMITTER_EMAIL:'test@example.com'},timeout:5000}).trim();git(bare,'update-ref','refs/heads/main',moved,base);assert.throws(()=>shelveTransition(id,'shelve',config,root),/needs reconciliation/);assert.equal(git(bare,'rev-parse','refs/heads/main'),moved);git(bare,'update-ref','refs/heads/main',base,moved);
  const beforePreview=git(root,'status','--porcelain');const preview=shelveTransition(id,'shelve',config,root,{dryRun:true});assert.equal(preview.retry,true);assert.equal(preview.commit,retained);assert.equal(git(bare,'rev-parse','refs/heads/main'),base);assert.equal(git(root,'status','--porcelain'),beforePreview);
  fs.rmSync(hook);const retry=shelveTransition(id,'shelve',config,root);assert.equal(retry.retry,true);assert.equal(retry.commit,retained);assert.equal(git(root,'rev-parse','HEAD'),retained);assert.equal(git(bare,'rev-parse','refs/heads/main'),retained);

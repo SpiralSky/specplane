@@ -149,9 +149,13 @@ export function shelveTransition(id: string, operation: 'shelve' | 'resume', con
       staged = run('git', ['diff', '--cached', '--binary'], { cwd: admin });
       const files = git(admin, 'diff', '--cached', '--name-only').split('\n').sort();
       if (files.join('\n') !== [index, rel].sort().join('\n') || run('git', ['show', `:${rel}`], { cwd: admin }) !== changed || run('git', ['show', `:${index}`], { cwd: admin }) !== generated || fs.readFileSync(file, 'utf8') !== changed || fs.readFileSync(indexFile, 'utf8') !== generated) fail('Index or administrative files changed during transition; inspect before retrying.');
-      const output = run('git', ['-c', 'core.abbrev=40', 'commit', '-m', formatMessage({ type: 'chore', scope: 'specplane', summary: `${operation} ${id}`, trailers: cliTrailers(operation, id) }), '--', rel, index], { cwd: admin });
+      const format = git(admin, 'rev-parse', '--show-object-format');
+      const oidLength = format === 'sha1' ? 40 : format === 'sha256' ? 64 : fail(`Unsupported Git object format: ${format}.`);
+      const output = run('git', ['-c', `core.abbrev=${oidLength}`, 'commit', '-m', formatMessage({ type: 'chore', scope: 'specplane', summary: `${operation} ${id}`, trailers: cliTrailers(operation, id) }), '--', rel, index], { cwd: admin });
       committed = true;
-      created = /^\[[^\n]* ([0-9a-f]{40})\]/m.exec(output)?.[1] ?? null;
+      // Git prints its commit summary after hooks, which may themselves write to stdout.
+      const candidate = [...output.matchAll(new RegExp(`^\\[[^\\n]* ([0-9a-f]{${oidLength}})\\]`, 'gm'))].at(-1)?.[1];
+      if (candidate && git(admin, 'rev-parse', '--verify', `${candidate}^{commit}`) === candidate) created = candidate;
       if (!created) fail('Commit succeeded but its identity could not be determined; inspect the reflog.');
       const head = git(admin, 'rev-parse', 'HEAD');
       verifyFinal(created!);
