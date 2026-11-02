@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import matter from "gray-matter";
 import * as yaml from "js-yaml";
 import { FrontmatterError, FrontmatterMissingError } from "./errors.js";
 
@@ -12,12 +13,10 @@ export function parseFrontmatter(content: string, filePath = "<snapshot>"): { da
   const start = /^﻿?---[ \t]*(?:\r\n|\n|\r)/.exec(content);
   if (!start) throw new FrontmatterMissingError(filePath);
   try {
-    const rest = content.slice(start[0].length);
-    const end = /^---[ \t]*(?:\r\n|\n|\r|$)/m.exec(rest);
-    if (!end) throw new Error("missing closing frontmatter delimiter");
     // js-yaml normally coerces non-string keys. Inspect nodes before coercion.
-    const stack: { children: unknown[] }[] = [];
-    const data = yaml.load(rest.slice(0, end.index), { schema: yaml.JSON_SCHEMA, listener: (event, state) => {
+    const parseYaml = (source: string): object => {
+      const stack: { children: unknown[] }[] = [];
+      return yaml.load(source, { schema: yaml.JSON_SCHEMA, listener: (event, state) => {
       if (event === "open") stack.push({ children: [] });
       else {
         const node = stack.pop()!;
@@ -28,7 +27,12 @@ export function parseFrontmatter(content: string, filePath = "<snapshot>"): { da
         }
         stack.at(-1)?.children.push(state.result);
       }
-    } });
+      } }) as object;
+    };
+    // Gray-matter defines delimiter and body extraction for specs. Normalize lone
+    // CRs so those snapshots receive the same line handling as LF and CRLF.
+    const parsed = matter(content.replace(/\r(?!\n)/g, "\n"), { engines: { yaml: { parse: parseYaml, stringify: (o: object) => yaml.dump(o) } } });
+    const data = parsed.data;
     if (data === null || typeof data !== "object" || Array.isArray(data)) {
       throw new Error("frontmatter is not a mapping");
     }
@@ -43,7 +47,7 @@ export function parseFrontmatter(content: string, filePath = "<snapshot>"): { da
       } else if (value !== null && !["string", "number", "boolean"].includes(typeof value)) throw new Error("non-JSON value");
     };
     validate(data);
-    return { data: data as Record<string, unknown>, body: rest.slice(end.index + end[0].length) };
+    return { data: data as Record<string, unknown>, body: parsed.content };
   } catch (e) {
     throw new FrontmatterError(filePath, `invalid YAML frontmatter: ${(e as Error).message.split("\n")[0]}`);
   }

@@ -26,6 +26,17 @@ test('only the specified bookkeeping fields are excluded', () => {
   assert.notEqual(fingerprintSpec(original), fingerprintSpec(original.replace('unknown: value', 'unknown: changed')));
 });
 
+test('gray-matter closing delimiter suffix remains body content', () => {
+  const content = `---\n${base}--- # comment\nhello\n`;
+  assert.equal(fingerprintSpec(content), hash('{"body":" # comment\\nhello\\n","frontmatter":{"id":"feature/example","title":"Example"}}'));
+  const dir = mkdtempSync(join(tmpdir(), 'completion-delimiter-'));
+  try {
+    const file = join(dir, 'spec.md');
+    writeFileSync(file, content);
+    assert.equal(parseSpec(file).body, ' # comment\nhello\n');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('metadata schema accepts manual and future-version records, rejects malformed records without modifying files', () => {
   const dir = mkdtempSync(join(tmpdir(), 'completion-'));
   const file = join(dir, 'spec.md');
@@ -33,11 +44,22 @@ test('metadata schema accepts manual and future-version records, rejects malform
     for (const entry of ['implementation: {status: complete}', `implementation: {status: complete, assessed_spec_hash: future:sha256:${'a'.repeat(64)}}`]) {
       writeFileSync(file, spec(`${entry}\n`)); assert.equal(parseSpec(file).frontmatter.implementation?.status, 'complete');
     }
+    writeFileSync(file, spec(`implementation: {status: complete, assessed_dependencies: {"docs root:feature/other": "spec-v1:sha256:${'a'.repeat(64)}"}}\n`));
+    assert.ok(parseSpec(file).frontmatter.implementation?.assessed_dependencies?.['docs root:feature/other']);
     for (const entry of ['implementation: {status: unknown}', 'implementation: {status: complete, extra: 1}', 'implementation: {status: complete, evidence: [""]}', 'implementation: {status: complete, assessed_spec_hash: bad}', `implementation: {status: complete, assessed_dependencies: {"feature/other": "spec-v1:sha256:${'a'.repeat(64)}"}}`, 'implementation: {status: complete, status: partial}', 'implementation: {status: complete, assessed_dependencies: {"base:feature/other#part": bad}}']) {
       const input = spec(`${entry}\n`); writeFileSync(file, input); assert.throws(() => parseSpec(file), entry); assert.equal(readFileSync(file, 'utf8'), input);
     }
     for (const extra of ['foo: .inf\n', '42: value\n', 'foo: !custom value\n', 'foo: one\nfoo: two\n']) assert.throws(() => fingerprintSpec(spec(extra)), extra);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('closure accepts identities in configured roots containing spaces', () => {
+  const root = { id: 'docs root:feature/example', content: spec('extends: feature/other\n') };
+  const result = fingerprintClosure(root, { resolve(ref, fromRoot) {
+    assert.equal(fromRoot, 'docs root');
+    return { id: `${fromRoot}:${ref}`, content: spec() };
+  } });
+  assert.deepEqual(Object.keys(result.assessed_dependencies), ['docs root:feature/other']);
 });
 
 test('closure resolves anchored edges from each declaring root, deduplicates cycles and records membership', () => {
