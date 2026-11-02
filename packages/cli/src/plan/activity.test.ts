@@ -154,11 +154,24 @@ test("plan list without --live has no activity keys", () => {
   assert.match(text, /steps 0\/2, next 1 Step 1 \(pending\), where none/);
 });
 
-test("generate --print: stdout only; --live marks effective statuses; plain output unchanged", () => {
+test("plan index --print: stdout only; --live marks effective statuses; plain output unchanged", () => {
   const root = repo();
   git(root, "branch", `plan/${ID}`);
+  const unbound = cliRun(root, "plan", "index", "--print", "--live");
+  assert.equal(unbound.code, 1);
+  assert.equal(unbound.out, "");
+  assert.match(unbound.err, /Legacy target history is ambiguous/);
+  const base = git(root, "rev-parse", "main").trim();
+  git(root, "switch", "-q", `plan/${ID}`);
+  const planFile = path.join(root, `plans/${ID}/PLAN.md`);
+  fs.writeFileSync(planFile, plan(ID).replace("specs: [feature/x]", `specs: [feature/x]\nexecution:\n  target_branch: main\n  start_target_branch: main\n  start_base: ${base}`));
+  git(root, "add", planFile);
+  git(root, "commit", "-q", "-m", "record start binding");
+  git(root, "switch", "-q", "main");
   const plain = cliRun(root, "plan", "index", "--print");
   const liveOut = cliRun(root, "plan", "index", "--print", "--live");
+  assert.equal(liveOut.code, 0, liveOut.err);
+  assert.match(liveOut.err, /notice: live context uses local and previously fetched refs/);
   assert.equal(plain.code, 0);
   assert.match(plain.out, /\| ready \|/);
   assert.match(liveOut.out, /\| in_progress \|/);
