@@ -9,8 +9,8 @@ import { formatJson } from "../output/json.js";
 import { makeReport } from "../report.js";
 import { ID_PATTERN } from "../schemas.js";
 import { resolveSpecId } from "../spec/resolve.js";
-import { assessFile } from "../spec/completion.js";
-import { parseSpec } from "../spec/parse.js";
+import { assessContent, completionSnapshot } from "../spec/completion.js";
+import { parseSpecContent } from "../spec/parse.js";
 import type { ImplementationAssessment } from "../core/completion.js";
 import { loadSpecs, validateSpecs } from "../spec/validate.js";
 import type { Config, SpecRootConfig, ValidationReport } from "../types.js";
@@ -138,11 +138,12 @@ export interface SpecListOptions {
 export function specList(opts: SpecListOptions, root: string, config: Config): { rows: SpecListRow[]; problems: string[] } {
   const only = opts.root === undefined ? undefined : findRoot(config, opts.root);
   if (opts.type !== undefined) checkType(opts.type);
-  const { specs, findings } = loadSpecs(config, root);
+  const { specs, findings, contents } = loadSpecs(config, root);
+  const snapshot = completionSnapshot(config, root, contents);
   const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
   const rows = specs
     .filter((s) => (only === undefined || s.root.name === only.name) && (opts.type === undefined || s.id.startsWith(`${opts.type}/`)) && (opts.status === undefined || s.frontmatter.status === opts.status))
-    .map((s) => ({ id: s.id, title: s.frontmatter.title, status: s.frontmatter.status, author: s.frontmatter.author, root: s.root.name, ...assessFile(s.id, s.root.name, s.file, config, root) }))
+    .map((s) => ({ id: s.id, title: s.frontmatter.title, status: s.frontmatter.status, author: s.frontmatter.author, root: s.root.name, ...assessContent(s.id, s.root.name, s.content!, snapshot) }))
     .sort((a, b) => cmp(a.id, b.id) || cmp(a.root, b.root));
   const problems = findings
     .filter((f) => f.type === "schema" && f.spec !== undefined && (only === undefined || f.file.startsWith(`${toPosix(only.path)}/`)))
@@ -178,10 +179,11 @@ export function specShowCommand(id: string, opts: { root?: string; json?: boolea
     const root = checkoutRoot();
     const config = load(root);
     const raw = opts.root !== undefined && !id.includes(":") ? `${opts.root}:${id}` : id;
-    const hit = resolveSpecId(raw, config, undefined, root);
-    parseSpec(hit.path);
-    const content = fs.readFileSync(hit.path, "utf8");
-    const assessment = assessFile(hit.id, hit.root, hit.path, config, root);
+    const { contents } = loadSpecs(config, root);
+    const hit = resolveSpecId(raw, config, undefined, root, file => contents.has(file));
+    const content = contents.get(hit.path)!;
+    parseSpecContent(content, hit.path);
+    const assessment = assessContent(hit.id, hit.root, content, completionSnapshot(config, root, contents));
     if (opts.json) process.stdout.write(JSON.stringify({ id: hit.id, root: hit.root, path: toPosix(path.relative(root, hit.path)), content, ...assessment }, null, 2) + "\n");
     else process.stdout.write(`${content}${content.endsWith("\n") ? "" : "\n"}\nImplementation: ${assessment.implementation_status ?? "unrecorded"}\nAssessment: ${assessment.assessment_status}\n${assessment.assessment_reasons.map(r => `  ${r.spec}: ${r.message}\n`).join("")}Fingerprint matches do not verify code.\n`);
   } catch (e) {

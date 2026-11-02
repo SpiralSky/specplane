@@ -1,15 +1,14 @@
-import * as fs from "node:fs";
 import { evaluateImplementation, type CompletionSnapshot } from "../core/completion.js";
 import { resolveSpecId } from "./resolve.js";
 import type { Config } from "../types.js";
 
-export function completionSnapshot(config: Config, root: string): CompletionSnapshot {
+export function completionSnapshot(config: Config, root: string, contents: ReadonlyMap<string, string>): CompletionSnapshot {
   return { resolve(reference, fromRoot) {
-    const hit = resolveSpecId(reference, config, fromRoot, root);
-    return { id: `${hit.root}:${hit.id}`, content: fs.readFileSync(hit.path, "utf8") };
+    const hit = resolveSpecId(reference, config, fromRoot, root, file => contents.has(file));
+    return { id: `${hit.root}:${hit.id}`, content: contents.get(hit.path)! };
   } };
 }
 
-export function assessFile(id: string, rootName: string, file: string, config: Config, root: string) {
-  return evaluateImplementation({ id: `${rootName}:${id}`, content: fs.readFileSync(file, "utf8") }, completionSnapshot(config, root));
+export function assessContent(id: string, rootName: string, content: string, snapshot: CompletionSnapshot) {
+  return evaluateImplementation({ id: `${rootName}:${id}`, content }, snapshot);
 }

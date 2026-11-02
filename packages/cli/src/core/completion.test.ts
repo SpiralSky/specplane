@@ -110,3 +110,18 @@ test('assessment reports membership and root changes in deterministic order', ()
   assert.equal(assessment.assessment_status, 'reassessment_needed');
   assert.deepEqual(assessment.assessment_reasons.map(r => r.code), ['root_changed', 'dependency_added', 'dependency_removed']);
 });
+
+test('a missing recorded dependency is also removed when current traversal is complete', () => {
+  const content = spec();
+  const oldHash = fingerprintSpec(spec('', '# Former dependency\n'));
+  const root = { id: 'base:feature/example', content: spec(`implementation: ${JSON.stringify({ status: 'complete', assessed_spec_hash: fingerprintSpec(content), assessed_dependencies: { 'base:feature/old': oldHash } })}\n`) };
+  const result = evaluateImplementation(root, { resolve() { throw new Error('missing'); } });
+  assert.equal(result.assessment_status, 'unverifiable');
+  assert.deepEqual(result.assessment_reasons.map(r => r.code), ['dependency_removed', 'dependency_unavailable']);
+});
+
+test('malformed dependency metadata is a schema error, not unavailability', () => {
+  const plain = spec('extends: feature/other\n');
+  const root = { id: 'base:feature/example', content: spec(`extends: feature/other\nimplementation: ${JSON.stringify({ status: 'complete', assessed_spec_hash: fingerprintSpec(plain), assessed_dependencies: {} })}\n`) };
+  assert.throws(() => evaluateImplementation(root, { resolve: () => ({ id: 'base:feature/other', content: spec('implementation: {status: nonsense}\n') }) }), /Invalid spec metadata/);
+});

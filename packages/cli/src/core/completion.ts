@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { parseFrontmatter } from "../frontmatter.js";
 import { QUALIFIED_SPEC_PATTERN, SPEC_COMMON_SCHEMA, validator } from "../schemas.js";
 import type { ImplementationDeclaration } from "../types.js";
+import { FrontmatterError } from "../errors.js";
 
 const excluded = new Set(["status", "author", "contributors", "based_on", "implementation"]);
 function compareKeys(a: string, b: string): number {
@@ -67,9 +68,13 @@ export interface ImplementationAssessment {
 
 /** Assess supplied content only. Evidence annotations do not verify implementation. */
 export function evaluateImplementation(root: CompletionSpecSnapshot, snapshot: CompletionSnapshot): ImplementationAssessment {
-  const data = parseFrontmatter(root.content).data;
   const check = validator(SPEC_COMMON_SCHEMA);
-  if (!check(data)) throw new Error(`Invalid spec metadata: ${JSON.stringify(check.errors)}`);
+  const validateContent = (node: CompletionSpecSnapshot) => {
+    const data = parseFrontmatter(node.content, node.id).data;
+    if (!check(data)) throw new FrontmatterError(node.id, `Invalid spec metadata: ${JSON.stringify(check.errors)}`);
+    return data;
+  };
+  const data = validateContent(root);
   const impl = data.implementation as ImplementationDeclaration | undefined;
   const result: ImplementationAssessment = { implementation_status: impl?.status ?? null, assessment_status: "unrecorded", assessment_reasons: [] };
   if (!impl || impl.status !== "complete" || !impl.assessed_spec_hash) return result;
@@ -88,30 +93,34 @@ export function evaluateImplementation(root: CompletionSpecSnapshot, snapshot: C
   const unavailable = new Set<string>();
   const visit = (node: CompletionSpecSnapshot) => {
     const from = node.id.slice(0, node.id.indexOf(":"));
-    const fm = parseFrontmatter(node.content).data;
+    const fm = validateContent(node);
     const refs = [fm.extends, fm.implements].flatMap(v => v === undefined ? [] : Array.isArray(v) ? v : [v]);
     for (const ref of refs) {
       if (typeof ref !== "string") throw new Error(`Invalid dependency in ${node.id}`);
       const raw = ref.split("#", 1)[0];
-      try {
-        const child = snapshot.resolve(raw, from);
-        if (!new RegExp(QUALIFIED_SPEC_PATTERN).test(child.id)) throw new Error("Invalid resolved identity");
-        if (visited.has(child.id)) continue;
-        visited.add(child.id);
-        current.set(child.id, fingerprintSpec(child.content));
-        visit(child);
-      } catch {
+      let child: CompletionSpecSnapshot;
+      try { child = snapshot.resolve(raw, from); }
+      catch {
         incomplete = true;
         const id = raw.includes(":") ? raw : `${from}:${raw}`;
         if (!unavailable.has(id)) { unavailable.add(id); add("dependency_unavailable", id, recorded?.[id] ?? null, null, `Dependency unavailable: ${id}.`); }
+        continue;
       }
+      if (!new RegExp(QUALIFIED_SPEC_PATTERN).test(child.id)) throw new Error("Invalid resolved identity");
+      if (visited.has(child.id)) continue;
+      visited.add(child.id);
+      validateContent(child);
+      current.set(child.id, fingerprintSpec(child.content));
+      visit(child);
     }
   };
   visit(root);
   for (const [id, hash] of Object.entries(recorded ?? {})) {
     if (current.has(id) || unavailable.has(id)) continue;
-    try { snapshot.resolve(id, root.id.slice(0, root.id.indexOf(":"))); }
-    catch { incomplete = true; unavailable.add(id); add("dependency_unavailable", id, hash, null, `Dependency unavailable: ${id}.`); }
+    let child: CompletionSpecSnapshot;
+    try { child = snapshot.resolve(id, root.id.slice(0, root.id.indexOf(":"))); }
+    catch { unavailable.add(id); add("dependency_unavailable", id, hash, null, `Dependency unavailable: ${id}.`); continue; }
+    validateContent(child);
   }
   if (!recorded && (current.size > 0 || incomplete)) add("coverage_unrecorded", root.id, null, null, "Dependency coverage was not recorded.");
   if (recorded) {

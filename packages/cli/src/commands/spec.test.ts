@@ -6,6 +6,9 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { CONFIG, makeRepo, spec } from "../test-repo.js";
 import { fingerprintSpec } from "../core/completion.js";
+import { loadConfig } from "../config.js";
+import { loadSpecs } from "../spec/validate.js";
+import { assessContent, completionSnapshot } from "../spec/completion.js";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "cli.js");
 const fm = (id: string, extra: Record<string, unknown> = {}) => spec({ id, title: `T ${id}`, status: "draft", author: "user", ...extra });
@@ -120,6 +123,38 @@ test('validation distinguishes unavailable assessment from invalid metadata', ()
   const invalid = run(root, 'spec', 'validate', 'feature/alpha', '--json');
   assert.equal(invalid.code, 1);
   assert.equal(JSON.parse(invalid.out).errors[0].type, 'schema');
+});
+
+test('assessment uses the captured root and dependency bytes after files change', () => {
+  const root = repo();
+  const rootFile = path.join(root, 'specs/features/alpha.md');
+  const depFile = path.join(root, 'specs/features/shared.md');
+  const depContent = fs.readFileSync(depFile, 'utf8');
+  const withoutDeclaration = fm('feature/alpha', { extends: 'feature/shared' });
+  const content = fm('feature/alpha', { extends: 'feature/shared', implementation: { status: 'complete', assessed_spec_hash: fingerprintSpec(withoutDeclaration), assessed_dependencies: { 'base:feature/shared': fingerprintSpec(depContent) } } });
+  fs.writeFileSync(rootFile, content);
+  const config = loadConfig(root).config;
+  const inventory = loadSpecs(config, root);
+  const saved = inventory.specs.find(s => s.file === rootFile)!;
+  fs.writeFileSync(rootFile, content + 'changed\n');
+  fs.unlinkSync(depFile);
+  const result = assessContent(saved.id, saved.root.name, saved.content!, completionSnapshot(config, root, inventory.contents));
+  assert.equal(saved.content, content);
+  assert.equal(result.assessment_status, 'current');
+  assert.deepEqual(result.assessment_reasons, []);
+});
+
+test('malformed dependency metadata produces a schema error for assessment', () => {
+  const root = repo();
+  const file = path.join(root, 'specs/features/alpha.md');
+  const plain = fm('feature/alpha', { extends: 'feature/shared' });
+  fs.writeFileSync(file, fm('feature/alpha', { extends: 'feature/shared', implementation: { status: 'complete', assessed_spec_hash: fingerprintSpec(plain), assessed_dependencies: {} } }));
+  fs.writeFileSync(path.join(root, 'specs/features/shared.md'), fm('feature/shared', { implementation: { status: 'invalid' } }));
+  const validation = run(root, 'spec', 'validate', 'feature/alpha', '--json');
+  const report = JSON.parse(validation.out);
+  assert.equal(validation.code, 1);
+  assert.ok(report.errors.some((error: { type: string }) => error.type === 'schema'));
+  assert.ok(!report.warnings.some((warning: { type: string }) => warning.type === 'implementation-unverifiable'));
 });
 
 test("spec validate: all, named, and JSON", () => {

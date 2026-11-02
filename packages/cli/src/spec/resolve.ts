@@ -27,6 +27,7 @@ export function resolveSpecId(
   config: Config,
   fromRoot?: string,
   repoRoot?: string,
+  exists: (file: string) => boolean = fs.existsSync,
 ): ResolvedSpec {
   const base = repoRoot ?? checkoutRoot();
   const roots = new Map(config.spec_roots.map((r) => [r.name, r]));
@@ -45,7 +46,7 @@ export function resolveSpecId(
   const file = (r: SpecRootConfig) =>
     path.join(base, r.path, TYPE_DIRS[type], ...`${rest.join("/")}.md`.split("/"));
   const hit = (r: SpecRootConfig): ResolvedSpec | null =>
-    fs.existsSync(file(r)) ? { root: r.name, id, path: file(r) } : null;
+    exists(file(r)) ? { root: r.name, id, path: file(r) } : null;
 
   if (qualified !== undefined) {
     const found = hit(roots.get(qualified)!);
