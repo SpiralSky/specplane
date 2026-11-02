@@ -84,7 +84,9 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
   if (branchExists(`plan/${planId}`, root) || remoteBranchExists(`plan/${planId}`, root)) lifecycleContext(planId, config, root, "restack");
   else {
     const report = planReport(planId, config, root, null);
-    const status = targetPlanRecord(planId, config, root, report)?.data.status;
+    const target = targetPlanRecord(planId, config, root, report);
+    if (!target) refuse("Cannot record step: authoritative target record is unavailable.");
+    const status = target.data.status;
     if (status === "shelved" || status === "abandoned") refuse(`Cannot record step: plan is ${status}.`);
   }
   const outcome = opts.outcome as StepOutcome;

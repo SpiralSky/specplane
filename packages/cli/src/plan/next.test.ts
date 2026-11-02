@@ -9,7 +9,7 @@ import { makeRepo } from "../test-repo.js";
 import { computeNext, type NextInput, type PlanNext } from "./next.js";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "cli.js");
-const ENV = {
+const ENV: NodeJS.ProcessEnv = {
   ...process.env,
   GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t",
   SPECPLANE_AGENT: "", SPECPLANE_SESSION: "",
@@ -148,4 +148,86 @@ test("plan next has no side effects and prints only JSON with --json", () => {
   const human = sp(r.checkout, "plan", "next", ID);
   assert.match(human.out, /Action: spawn_step/);
   assert.deepEqual(snap(), before);
+});
+
+test("next reads the selected remote-only execution tree and target status without changing refs", () => {
+  const r = repo("branch", { "01-a.md": step(1, "pending") });
+  fs.writeFileSync(path.join(r.root, `plans/${ID}/steps/01-a.md`), step(1, "blocked", "context:\n  - spec: feature/xx#remote-part\n  - file: remote.txt\n"));
+  fs.writeFileSync(path.join(r.root, "specs/features/xx.md"), "---\nid: feature/xx\ntitle: X\nstatus: approved\nauthor: user\n---\n# X\n\n## Remote part\n");
+  fs.writeFileSync(path.join(r.root, "remote.txt"), "remote");
+  fs.writeFileSync(path.join(r.root, `plans/${ID}/spec-gaps.md`), "## G1: Remote decision\n**Kind**: proposal\n**Step**: 1\n**Case**: c\n**Resolution**: r\n**Target spec**: feature/xx\n**Status**: open\n");
+  git(r.root, "add", "-A"); git(r.root, "commit", "-q", "-m", "execution inputs");
+  const tip = git(r.root, "rev-parse", "HEAD");
+  git(r.root, "switch", "-q", "main");
+  git(r.root, "update-ref", `refs/remotes/origin/plan/${ID}`, tip);
+  git(r.root, "branch", "-D", `plan/${ID}`);
+  const refs = git(r.root, "for-each-ref");
+  const n = next(r.root);
+  assert.equal(n.checkout, null);
+  assert.equal(n.step?.status, "blocked");
+  assert.deepEqual(n.context.map(c => c.path), ["specs/features/xx.md", "remote.txt"]);
+  assert.deepEqual(n.openGaps.map(g => g.id), ["G1"]);
+  assert.equal(n.action, "ask_human");
+  assert.deepEqual(n.attention.map(a => a.kind), ["blocked", "gap_decision"]);
+  assert.equal(git(r.root, "for-each-ref"), refs);
+  const list = sp(r.root, "plan", "list", "--live", "--json");
+  assert.equal(list.code, 0, list.err);
+  assert.doesNotMatch(list.out, /Attention is unavailable/);
+  const plan = path.join(r.root, `plans/${ID}/PLAN.md`);
+  fs.writeFileSync(plan, fs.readFileSync(plan, "utf8").replace("status: ready", "status: shelved\nshelved_from: ready"));
+  git(r.root, "add", "-A"); git(r.root, "commit", "-q", "-m", "shelve target");
+  assert.equal(next(r.root).effectiveStatus, "shelved");
+  assert.equal(next(r.root).action, "none");
+  git(r.root, "switch", "-q", "-c", "other");
+  git(r.root, "update-ref", "-d", "refs/heads/main");
+  assert.notEqual(sp(r.root, "plan", "next", ID, "--json").code, 0);
+});
+
+test("unstarted plan reads the selected target snapshot even if absent from the invoking checkout", () => {
+  const r = repo("branch", { "01-a.md": step(1, "pending") });
+  git(r.root, "switch", "-q", "main");
+  git(r.root, "branch", "-D", `plan/${ID}`);
+  git(r.root, "switch", "-q", "-c", "other");
+  fs.rmSync(path.join(r.root, "plans", ID), { recursive: true });
+  git(r.root, "add", "-A"); git(r.root, "commit", "-q", "-m", "remove invoking copy");
+  const n = next(r.root);
+  assert.equal(n.step?.number, 1);
+  assert.equal(n.effectiveStatus, "ready");
+  assert.equal(n.action, "none");
+});
+
+test("target shelving refuses forced recording in a retained checkout", () => {
+  const r = repo("worktree", { "01-a.md": step(1, "done") });
+  const plan = path.join(r.root, `plans/${ID}/PLAN.md`);
+  fs.writeFileSync(plan, fs.readFileSync(plan, "utf8").replace("status: ready", "status: shelved\nshelved_from: ready"));
+  git(r.root, "add", "-A"); git(r.root, "commit", "-q", "-m", "shelve target");
+  const before = git(r.checkout, "rev-parse", "HEAD");
+  const result = sp(r.checkout, "plan", "step-done", ID, "--step", "1", "--outcome", "done", "--summary", "rerun", "--force", "--reason", "verify");
+  assert.notEqual(result.code, 0);
+  assert.match(result.err, /shelved/i);
+  assert.equal(git(r.checkout, "rev-parse", "HEAD"), before);
+  assert.equal(git(r.checkout, "status", "--porcelain"), "");
+});
+
+test("target dependencies block an open PR and PR lookup uses the recorded target", () => {
+  const r = repo("worktree", { "01-a.md": step(1, "pending") });
+  const dep = "2026-01-01-dep";
+  const plan = path.join(r.root, `plans/${ID}/PLAN.md`);
+  fs.writeFileSync(plan, fs.readFileSync(plan, "utf8").replace("specs: [feature/xx]", `specs: [feature/xx]\ndepends_on: [${dep}]`));
+  const depdir = path.join(r.root, "plans", dep); fs.mkdirSync(depdir, { recursive: true });
+  const depfile = path.join(depdir, "PLAN.md");
+  fs.writeFileSync(depfile, `---\nid: ${dep}\ntitle: Dep\nstatus: ready\nspecs: [feature/xx]\n---\n# Dep\n`);
+  git(r.root, "add", "-A"); git(r.root, "commit", "-q", "-m", "add target dependency");
+  git(r.root, "remote", "add", "origin", "https://github.com/example/disposable.git");
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "fake-forge-"));
+  const log = path.join(bin, "calls");
+  fs.writeFileSync(path.join(bin, "gh"), `#!/bin/sh\nprintf '%s\\n' "$*" >> '${log}'\nif [ "$1" = '--version' ]; then echo fake; else echo '[{"url":"https://example.invalid/pr"}]'; fi\n`, { mode: 0o755 });
+  const oldPath = ENV.PATH; ENV.PATH = `${bin}:${oldPath}`;
+  try {
+    assert.equal(next(r.root).effectiveStatus, "blocked");
+    fs.writeFileSync(depfile, fs.readFileSync(depfile, "utf8").replace("status: ready", "status: done"));
+    git(r.root, "add", "-A"); git(r.root, "commit", "-q", "-m", "complete dependency");
+    assert.equal(next(r.root).effectiveStatus, "review");
+    assert.match(fs.readFileSync(log, "utf8"), /pr list .*--base main/);
+  } finally { ENV.PATH = oldPath; fs.rmSync(bin, { recursive: true, force: true }); }
 });

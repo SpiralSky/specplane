@@ -104,7 +104,7 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
       specs: fm.specs,
       archived,
       ...report,
-      ...(opts.live ? { ...getPlanActivity(fm.id, config, root, report.target_branch, branch?.ref ?? target?.ref ?? null), attention: (() => { if (branch && (!getPlanActivity(fm.id, config, root, report.target_branch, branch.ref).checkout || branch.ref === report.ref_freshness.plan_remote && branch.ref !== report.ref_freshness.plan_local)) return [{kind:"unavailable", detail:"Attention is unavailable for this selected execution snapshot.", command:`specplane plan show ${fm.id}`}]; try { return attentionFor(planNext(fm.id, config, root)); } catch (e) { return [{kind:"unavailable",detail:(e as Error).message,command:`specplane plan show ${fm.id}`}]; } })() } : {}),
+      ...(opts.live ? { ...getPlanActivity(fm.id, config, root, report.target_branch, branch?.ref ?? target?.ref ?? null), attention: (() => { try { return attentionFor(planNext(fm.id, config, root)); } catch (e) { return [{kind:"unavailable",detail:(e as Error).message,command:`specplane plan show ${fm.id}`}]; } })() } : {}),
     }); })
     .filter((r) => opts.status === undefined || r.effective_status === opts.status)
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
