@@ -142,3 +142,75 @@ test("plan approve --dry-run prints the plan and changes nothing", () => {
   assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
   assert.match(read(root, `plans/${ID}/PLAN.md`), /^status: draft$/m);
 });
+
+test("approval preserves unrelated staged work and commits the exact HEAD rendering", () => {
+  const root = repo({
+    "specs/features/base.md": fm("feature/base"),
+    [`plans/${ID}/PLAN.md`]: plan(ID),
+    "implementation.txt": "old\n",
+  });
+  fs.writeFileSync(path.join(root, "implementation.txt"), "staged\n");
+  git(root, "add", "implementation.txt");
+  fs.writeFileSync(path.join(root, "implementation.txt"), "working\n");
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(git(root, "show", ":implementation.txt"), "staged");
+  assert.equal(read(root, "implementation.txt"), "working\n");
+  const committed = read(root, "plans/PLANS.md");
+  const rendered = run(root, "plan", "index", "--print");
+  assert.equal(rendered.code, 0, rendered.err);
+  assert.equal(rendered.out, committed);
+});
+
+test("approval refuses dirty approval evidence and keeps the checkout intact", () => {
+  const root = repo({ "specs/features/base.md": fm("feature/base", "draft"), [`plans/${ID}/PLAN.md`]: plan(ID) });
+  fs.writeFileSync(path.join(root, "specs/features/base.md"), fm("feature/base"));
+  const before = git(root, "rev-parse", "HEAD");
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /changed administrative inputs/);
+  assert.equal(git(root, "rev-parse", "HEAD"), before);
+  assert.equal(read(root, "specs/features/base.md"), fm("feature/base"));
+  assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
+});
+
+test("approval rolls back its own files after a failing commit hook", () => {
+  const original = plan(ID);
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: original, "other": "old\n" });
+  fs.writeFileSync(path.join(root, "other"), "staged\n");
+  git(root, "add", "other");
+  const hook = path.join(root, ".git/hooks/pre-commit");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const before = git(root, "rev-parse", "HEAD");
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 2);
+  assert.equal(git(root, "rev-parse", "HEAD"), before);
+  assert.equal(read(root, `plans/${ID}/PLAN.md`), original);
+  assert.equal(fs.existsSync(path.join(root, "plans/PLANS.md")), false);
+  assert.equal(git(root, "diff", "--cached", "--name-only"), "other");
+});
+
+test("approval uses the committed custom path and symbolic target fallback", () => {
+  const root = repo({ ".specplane/config.yaml": `${CONFIG}\nplans:\n  dir: roadmap\n`, "specs/features/base.md": fm("feature/base"), [`roadmap/${ID}/PLAN.md`]: plan(ID) });
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 0, r.err);
+  const generated = read(root, "roadmap/PLANS.md");
+  assert.match(generated, /repository default/);
+  const rendered = run(root, "plan", "index", "--print");
+  assert.equal(rendered.code, 0, rendered.err);
+  assert.equal(rendered.out, generated);
+});
+
+test("approval reports its exact retained commit when a post-commit hook moves HEAD", () => {
+  const root = repo({ "specs/features/base.md": fm("feature/base"), [`plans/${ID}/PLAN.md`]: plan(ID) });
+  const before = git(root, "rev-parse", "HEAD");
+  const hook = path.join(root, ".git/hooks/post-commit");
+  fs.writeFileSync(hook, `#!/bin/sh\ngit update-ref refs/heads/main ${before}\n`, { mode: 0o755 });
+  const r = run(root, "plan", "approve", ID);
+  assert.equal(r.code, 1);
+  const created = /Approval commit ([0-9a-f]{40}) retained/.exec(r.err)?.[1];
+  assert.ok(created, r.err);
+  assert.equal(git(root, "rev-parse", "HEAD"), before);
+  assert.equal(git(root, "rev-parse", `${created}^`), before);
+  assert.match(git(root, "show", `${created}:plans/${ID}/PLAN.md`), /status: ready/);
+});
