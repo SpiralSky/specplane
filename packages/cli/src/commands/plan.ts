@@ -239,12 +239,24 @@ export async function planNewCommand(opts: PlanNewOptions): Promise<void> {
 /** PLAN.md text (frontmatter included) of an active or archived plan. */
 export function planShow(id: string, root: string, config: Config): string {
   const branch = selectedPlanBranch(id, config, root);
-  let text: string;
-  if (branch) text = branch.text;
-  else text = fs.readFileSync(path.join(planDir(id, config, root), "PLAN.md"), "utf8");
-  const report = planReport(id, config, root, lenientFrontmatter(text));
-  if (!branch) text = targetPlanRecord(id, config, root, report)?.text ?? text;
-  return `${text}${text.endsWith("\n") ? "" : "\n"}\nDerived plan context:\n${JSON.stringify(report, null, 2)}\n`;
+  const committed = committedPlanRecord(id, config, root);
+  let localText: string | null = committed?.text ?? null;
+  if (!localText && !branch) {
+    try { localText = fs.readFileSync(path.join(planDir(id, config, root), "PLAN.md"), "utf8"); }
+    catch (e) { if (!(e instanceof PlanNotFoundError)) throw e; }
+  }
+  const report = planReport(id, config, root, branch?.data ?? (localText ? lenientFrontmatter(localText) : null));
+  const target = targetPlanRecord(id, config, root, report);
+  const text = branch?.text ?? target?.text ?? localText;
+  if (text === null) throw new PlanNotFoundError(id);
+  const fm = (target?.data ?? branch?.data ?? lenientFrontmatter(text)) as unknown as PlanFrontmatter;
+  const dependencies = new Map<string, PlanFrontmatter>();
+  for (const dep of fm.depends_on ?? []) { const record = targetPlanRecord(dep, config, root, report); if (record) dependencies.set(dep, record.data as unknown as PlanFrontmatter); }
+  const effective_status = getEffectiveStatus(fm, dependencies, target?.config ?? config, {
+    branchExists: pid => branchExists(`plan/${pid}`, root) || remoteBranchExists(`plan/${pid}`, root),
+    hasOpenPr: pid => !!report.target_branch && hasOpenPR(`plan/${pid}`, {cwd: root, forge: (target?.config ?? config).plans.forge, base: report.target_branch}),
+  });
+  return `${text}${text.endsWith("\n") ? "" : "\n"}\nDerived plan context:\n${JSON.stringify({ ...report, effective_status }, null, 2)}\n`;
 }
 
 export function planShowCommand(id: string): void {

@@ -6,7 +6,7 @@ import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { findLatest, readTrailers } from "../git/commit.js";
 import { run } from "../git/exec.js";
 import { defaultBranch } from "../git/repo.js";
-import { resolvePlanContext, validateExecutionBinding, validatePlanBranches, type PlanBranchSnapshot } from "./context.js";
+import { resolvePlanContext, validateExecutionBinding, validatePlanBranches, validateTargetBranch, type PlanBranchSnapshot } from "./context.js";
 import * as fs from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { CONFIG_PATH, parseConfigText } from "../config.js";
@@ -121,21 +121,24 @@ export function planReport(id: string, config: Config, cwd: string, fallback: Re
   const local = oid(`refs/heads/plan/${id}`), remote = oid(`refs/remotes/origin/plan/${id}`);
   const branch = selectedPlanBranch(id, config, cwd);
   const hint = !branch && !local && !remote && oid("HEAD") ? recordAt("HEAD", id, config, cwd)?.data ?? fallback : fallback;
+  const validHint = hint && hint.id === id && validator(PLAN_SCHEMA)(hint) ? hint : null;
+  const intended = !local && !remote ? (validHint?.target_branch as string | undefined) ?? config.plans.target_branch : undefined;
+  if (intended !== undefined) validateTargetBranch(cwd, intended, id);
   const report: PlanReport = { target_branch: null, start_base: null, comparison_base: null, plan_branch_status: null, target_status: null, integration_status: "unverifiable", integration_reasons: [], pending_target_branch: null, ref_freshness: { fetch, plan_local: local, plan_remote: remote, target_local: null, target_remote: null } };
   const selected = branch?.data ?? (local || remote ? null : hint);
   try {
     if ((local || remote) && !branch) throw new Error("Plan branch record is unavailable.");
-    const context = resolvePlanContext(cwd, { id, ...(branch ? { planBranches: { local: {commit: branch.ref, id, binding: branch.data.execution as PlanBranchSnapshot["binding"], comparisonBase: branch.data.comparison_base as string | undefined} } } : { declared: hint?.target_branch as string | undefined, team: config.plans.target_branch, comparisonBase: hint?.comparison_base as string | undefined }) });
+    const context = resolvePlanContext(cwd, { id, ...(branch ? { planBranches: { local: {commit: branch.ref, id, binding: branch.data.execution as PlanBranchSnapshot["binding"], comparisonBase: branch.data.comparison_base as string | undefined} } } : { declared: validHint?.target_branch as string | undefined, team: config.plans.target_branch }) });
     report.target_branch = context.targetBranch;
     report.start_base = context.binding?.start_base ?? null;
-    report.comparison_base = context.comparisonBase;
+    report.comparison_base = branch ? context.comparisonBase : typeof validHint?.comparison_base === "string" ? validHint.comparison_base : null;
   } catch (e) {
     report.integration_reasons.push((e as Error).message);
     // Only the independently validated branch record can supply unavailable-target provenance.
     const binding = branch?.data.execution as { target_branch?: string; start_base?: string } | undefined;
-    report.target_branch = binding?.target_branch ?? null;
+    report.target_branch = binding?.target_branch ?? intended ?? null;
     report.start_base = binding?.start_base ?? null;
-    report.comparison_base = branch && typeof selected?.comparison_base === "string" ? selected.comparison_base : null;
+    report.comparison_base = branch && typeof selected?.comparison_base === "string" ? selected.comparison_base : typeof validHint?.comparison_base === "string" && !local && !remote ? validHint.comparison_base : null;
   }
   report.plan_branch_status = local || remote ? (typeof selected?.status === "string" ? selected.status : null) : null;
   if (report.target_branch) {
@@ -150,6 +153,11 @@ export function planReport(id: string, config: Config, cwd: string, fallback: Re
     const targetRecord = tip ? recordAt(tip, id, config, cwd) : null;
     if (!branch && !selected?.target_branch && targetRecord && targetRecord.config.plans.target_branch !== config.plans.target_branch) throw new PlanStateError("Conflicting target routing configuration.");
     const targetData = targetRecord?.data;
+    if (!branch && targetData) {
+      if (targetData.target_branch !== undefined && targetData.target_branch !== target) throw new PlanStateError("Target plan declaration conflicts with selected target.");
+      report.comparison_base = typeof targetData.comparison_base === "string" ? targetData.comparison_base : null;
+      if (report.comparison_base && !oid(report.comparison_base)) report.integration_reasons.push("Target comparison base is unavailable.");
+    }
     report.target_status = typeof targetData?.status === "string" ? targetData.status : null;
     if (tip && (local || remote) && report.integration_reasons.length === 0) {
       const planTip = branch?.ref ?? local ?? remote!;
