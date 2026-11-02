@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { acquireWriterLease } from "../core/writer-leases.js";
 import { lifecycleContext, checkStackTarget, recheckLifecycleRefs } from "./lifecycle-context.js";
+import { resolveCommit } from "./context.js";
 import { isDeepStrictEqual } from "node:util";
 import { planAt as validatedPlanAt } from "./prepare-start.js";
 import { firstStart, type FirstStartOptions } from "./first-start.js";
@@ -162,10 +163,18 @@ function ignoredFiles(cwd: string): string[] {
   return run("git", ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"], { cwd }).split("\0").filter(Boolean);
 }
 
-function protectIgnoredCollisions(cwd: string, from: string, to: string): void {
+function protectIgnoredCollisions(cwd: string, from: string, to: string, upstream?: string): void {
   const ignored = ignoredFiles(cwd);
   if (!ignored.length) return;
   const changes = run("git", ["diff", "--name-only", "--diff-filter=ACMRT", "-z", from, to], { cwd }).split("\0").filter(Boolean);
+  if (upstream) {
+    // Rebase checks out the new base and then replays each commit. A path can
+    // disappear from both endpoint trees yet still be overwritten mid-replay.
+    const commits = git(["rev-list", `${upstream}..${from}`], cwd).split("\n").filter(Boolean);
+    for (const commit of commits) {
+      changes.push(...run("git", ["diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "--no-renames", "-r", "-z", commit], { cwd }).split("\0").filter(Boolean));
+    }
+  }
   const overlaps = (a: string, b: string) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
   const collision = ignored.find(a => changes.some(b => overlaps(a, b)));
   if (collision) throw new PlanStateError(`Ignored file \`${collision}\` conflicts with the checkout update; preserve or move it before retrying.`);
@@ -297,6 +306,8 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   }
 
   const markerPre = findLatest(branch, "stack", root);
+  const storedStackBase = markerPre ? readTrailers(markerPre, root).get("Specplane-Stack-Base")?.at(-1) : undefined;
+  const stackBase = storedStackBase === undefined ? undefined : resolveCommit(root, storedStackBase, true);
   if (markerPre && readTrailers(markerPre, root).has("Specplane-Stack-Base")) {
     const subject = git(["log", "-1", "--format=%s", markerPre], root);
     const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
@@ -346,10 +357,8 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
 
   // 4. Rebase onto the default branch (restack when stacked).
   const rebaseTip = claimReview ? git(["rev-parse", "HEAD"], targetTree!) : tip;
-  const marker = findLatest(branch, "stack", root);
-  const stackBase = marker ? readTrailers(marker, root).get("Specplane-Stack-Base")?.at(-1) : undefined;
   const before = git(["rev-parse", "HEAD"], root);
-  protectIgnoredCollisions(root, before, rebaseTip);
+  protectIgnoredCollisions(root, before, rebaseTip, stackBase ?? rebaseTip);
   rebaseOnto(rebaseTip, stackBase ?? rebaseTip, branch, root);
   const rebased = git(["rev-parse", "HEAD"], root) !== before;
   if (rebased && testCmd !== "") runTests(testCmd, root);
@@ -460,6 +469,14 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
 /** Step 5: `status: done`, archive when configured, one `finish` commit. */
 function finalCommit(id: string, config: Config, root: string): void {
   const dir = `${config.plans.dir}/${id}`;
+  const protectArchive = () => {
+    const dest = `${config.plans.dir}/archive/${id}`;
+    if (fs.lstatSync(path.join(root, dest), { throwIfNoEntry: false })) throw new PlanStateError(`Cannot archive plan: destination \`${dest}\` already exists. Preserve or move it before retrying finish.`);
+    const relativeDir = path.relative(root, path.resolve(root, dir)).split(path.sep).join("/");
+    const ignored = ignoredFiles(root).find(file => file.startsWith(`${relativeDir}/`));
+    if (ignored) throw new PlanStateError(`Cannot archive plan: ignored file \`${ignored}\` would move. Preserve or move it before retrying finish.`);
+  };
+  if (config.plans.archive_done) protectArchive();
   const file = path.join(root, dir, "PLAN.md");
   const text = fs.readFileSync(file, "utf8");
   const end = text.indexOf("\n---", 3);
@@ -471,6 +488,7 @@ function finalCommit(id: string, config: Config, root: string): void {
     if (config.plans.archive_done) {
       const dest = `${config.plans.dir}/archive/${id}`;
       phase = `moving ${dir} to ${dest}`;
+      protectArchive();
       fs.mkdirSync(path.join(root, config.plans.dir, "archive"), { recursive: true });
       git(["mv", dir, dest], root);
     }
@@ -742,8 +760,9 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
     throw new PlanStateError(`Cannot restack: \`${id}\` is not stacked.`);
   }
   const marker = findLatest(branch, "stack", main);
-  const upstream = marker ? readTrailers(marker, main).get("Specplane-Stack-Base")?.at(-1) : undefined;
-  if (!marker || !upstream) throw new PlanStateError(`Cannot restack: \`${id}\` is not stacked.`);
+  const storedUpstream = marker ? readTrailers(marker, main).get("Specplane-Stack-Base")?.at(-1) : undefined;
+  if (!marker || !storedUpstream) throw new PlanStateError(`Cannot restack: \`${id}\` is not stacked.`);
+  const upstream = resolveCommit(main, storedUpstream, true);
   const subject = run("git", ["log", "-1", "--format=%s", marker], { cwd: main }).trim();
   const baseId = /^chore\(specplane\): stack \S+ on (\S+)$/.exec(subject)?.[1];
   if (!baseId) throw new PlanStateError(`Cannot restack: the stack marker of \`${id}\` does not name a base plan.`);
@@ -772,6 +791,7 @@ export function restackPlan(id: string, config: Config, root: string, opts: { dr
 
   lease?.assertOwned(); recheckLifecycleRefs(main, p.refs);
   // Unlike finish, a conflict leaves the checkout mid-rebase for the human (`feature/tooling`).
+  protectIgnoredCollisions(checkout, branch, newBase, upstream);
   rebaseOnto(newBase, upstream, branch, checkout, { onConflict: "leave" });
   const afterRebase = validatedPlanAt(checkout, "HEAD", config, id);
   if (!afterRebase || !isDeepStrictEqual(afterRebase.execution, p.context.binding) || (afterRebase.comparison_base ?? null) !== p.context.comparisonBase) throw new PlanStateError("Restack changed execution provenance; recovery is required.");

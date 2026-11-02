@@ -237,6 +237,36 @@ test("restack: unmerged base appends a new marker; second run is a no-op", () =>
   assert.equal(git(r.root, "rev-parse", `plan/${B}`), head);
 });
 
+test("restack preserves ignored files touched only by intermediate commits", () => {
+  const r = stacked();
+  const child = wtOf(r, B);
+  commitFile(child, "transient", "temporary", "add transient");
+  git(child, "rm", "-q", "transient");
+  git(child, "commit", "-q", "-m", "remove transient");
+  fs.writeFileSync(path.join(r.root, ".git", "info", "exclude"), "transient\n");
+  const file = path.join(child, "transient");
+  const bytes = Buffer.from([0, 255, 4]);
+  fs.writeFileSync(file, bytes);
+  commitFile(wtOf(r, A), "advance", "base advances", "advance base");
+  const head = git(child, "rev-parse", "HEAD");
+  const result = sp(r.root, "plan", "restack", B);
+  assert.equal(result.code, 1, result.err);
+  assert.match(result.err, /Ignored file.*conflicts/);
+  assert.deepEqual(fs.readFileSync(file), bytes);
+  assert.equal(git(child, "rev-parse", "HEAD"), head);
+});
+
+test("restack rejects a noncanonical stored stack base before rewriting", () => {
+  const r = stacked();
+  const child = wtOf(r, B);
+  git(child, "commit", "--allow-empty", "-q", "-m", `chore(specplane): stack ${B} on ${A}\n\nSpecplane-Workflow: stack\nSpecplane-Plan: ${B}\nSpecplane-Stack-Base: HEAD`);
+  const head = git(child, "rev-parse", "HEAD");
+  const result = sp(r.root, "plan", "restack", B);
+  assert.equal(result.code, 1, result.err);
+  assert.match(result.err, /Invalid stored commit: HEAD/);
+  assert.equal(git(child, "rev-parse", "HEAD"), head);
+});
+
 test("restack: conflicts are listed and the checkout is left mid-rebase; non-stacked plans error", () => {
   const r = stacked();
   commitFile(wtOf(r, B), "a.txt", "b-edit\n", "beta edits a");
