@@ -49,11 +49,12 @@ export function createWorktree(
   branch: string,
   config: Config,
   cwd: string = process.cwd(),
+  opts: { noCheckout?: boolean } = {},
 ): { path: string; created: boolean } {
   const existing = listWorktrees(cwd).find((w) => w.branch === branch);
   if (existing) return { path: existing.path, created: false };
   const target = worktreePath(planId, config, cwd);
-  run("git", ["worktree", "add", target, branch], { cwd });
+  run("git", ["worktree", "add", ...(opts.noCheckout ? ["--no-checkout"] : []), target, branch], { cwd });
   return { path: target, created: true };
 }
 

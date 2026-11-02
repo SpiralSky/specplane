@@ -98,6 +98,8 @@ test("claim hook failure restores only the claim file and its staged entry", t =
 });
 test("failed claim push is recognized and published on retry", t => {
   const f = fixture(t, "plans:\n  status_source: frontmatter\nexecution:\n  backend: external\n");
+  const original = "\uFEFF" + ["---", `id: ${id}`, "title: Example", "status: ready", "specs: [feature/example]", "---", "# Body", ""].join("\r\n");
+  f.put(`plans/${id}/PLAN.md`, original); f.git("commit", "-am", "CRLF claim fixture");
   const remote = fs.mkdtempSync(path.join(os.tmpdir(), "first-start-origin-"));
   t.after(() => fs.rmSync(remote, { recursive: true, force: true }));
   execFileSync("git", ["init", "--bare", "-b", "main", remote], { stdio: "ignore", timeout: 5000 });
@@ -105,6 +107,7 @@ test("failed claim push is recognized and published on retry", t => {
   const hook = path.join(remote, "hooks/pre-receive"); fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
   assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /claim commit .*publication pending/s);
   const claim = f.git("rev-parse", "main"); assert.equal(f.git("branch", "--list", `plan/${id}`), "");
+  assert.equal(fs.readFileSync(path.join(f.cwd, `plans/${id}/PLAN.md`), "utf8"), original.replace("status: ready", "status: in_progress"));
   fs.unlinkSync(hook);
   const result = firstStart(id, f.config, f.cwd, { fetch: false });
   assert.equal(result.startBase, claim); assert.equal(f.git("rev-parse", `plan/${id}^`), claim);
@@ -138,14 +141,16 @@ test("checkout-only writer blocks setup after worktree registration", t => {
   const ready = path.join(helper, "ready"), stop = path.join(helper, "stop");
   const holder = path.join(helper, "holder.mjs");
   const leaseModule = new URL("../core/writer-leases.js", import.meta.url).href;
-  fs.writeFileSync(holder, `import fs from 'node:fs'; import { acquireWriterLease } from ${JSON.stringify(leaseModule)}; const lease = acquireWriterLease({checkouts:[process.argv[2]],requestId:'other-writer'}); fs.writeFileSync(process.argv[3], 'ready'); const timer = setInterval(() => { if (fs.existsSync(process.argv[4])) { lease.release(); fs.writeFileSync(process.argv[4] + ".done", "done"); clearInterval(timer); } }, 20);`);
+  fs.writeFileSync(holder, `import fs from 'node:fs'; import { acquireWriterLease } from ${JSON.stringify(leaseModule)}; const lease = acquireWriterLease({checkouts:[process.argv[2]],requestId:'other-writer'}); fs.writeFileSync(process.argv[2] + "/writer-owned", "keep"); fs.writeFileSync(process.argv[3], 'ready'); const timer = setInterval(() => { if (fs.existsSync(process.argv[4])) { lease.release(); fs.writeFileSync(process.argv[4] + ".done", "done"); clearInterval(timer); } }, 20);`);
   const wrapper = path.join(helper, "git");
-  fs.writeFileSync(wrapper, `#!/bin/sh\n/usr/bin/git "$@"\nresult=$?\nif [ "$result" -eq 0 ] && [ "$1" = worktree ] && [ "$2" = add ]; then\n  ${JSON.stringify(process.execPath)} ${JSON.stringify(holder)} "$3" ${JSON.stringify(ready)} ${JSON.stringify(stop)} >/dev/null 2>&1 &\n  i=0; while [ ! -f ${JSON.stringify(ready)} ] && [ "$i" -lt 200 ]; do sleep 0.02; i=$((i+1)); done\n  [ -f ${JSON.stringify(ready)} ] || exit 9\nfi\nexit "$result"\n`, { mode: 0o755 });
+  fs.writeFileSync(wrapper, `#!/bin/sh\n/usr/bin/git "$@"\nresult=$?\nif [ "$result" -eq 0 ] && [ "$1" = worktree ] && [ "$2" = add ]; then\n  ${JSON.stringify(process.execPath)} ${JSON.stringify(holder)} "$4" ${JSON.stringify(ready)} ${JSON.stringify(stop)} >/dev/null 2>&1 &\n  i=0; while [ ! -f ${JSON.stringify(ready)} ] && [ "$i" -lt 200 ]; do sleep 0.02; i=$((i+1)); done\n  [ -f ${JSON.stringify(ready)} ] || exit 9\nfi\nexit "$result"\n`, { mode: 0o755 });
   const previousPath = process.env.PATH; process.env.PATH = `${helper}:${previousPath}`;
   try {
     assert.throws(() => firstStart(id, f.config, f.cwd, { fetch: false }), /lease.*Recovery:.*plan branch/s);
     const checkout = path.join(os.tmpdir(), ".worktrees", path.basename(f.cwd), id);
     assert.equal(fs.existsSync(checkout), true); assert.equal(fs.existsSync(path.join(checkout, "hook-ran")), false);
+    assert.equal(fs.existsSync(path.join(checkout, ".specplane/config.yaml")), false);
+    assert.equal(fs.readFileSync(path.join(checkout, "writer-owned"), "utf8"), "keep");
     assert.match(f.git("show", `plan/${id}:plans/${id}/PLAN.md`), /start_base:/);
   } finally { process.env.PATH = previousPath; fs.writeFileSync(stop, "stop"); execFileSync("sh", ["-c", 'i=0; while [ ! -f "$1" ] && [ "$i" -lt 250 ]; do sleep 0.02; i=$((i+1)); done; test -f "$1"', "wait", `${stop}.done`], { timeout: 6000 }); }
   t.after(() => { if (fs.existsSync(helper)) fs.rmSync(helper, { recursive: true, force: true }); });
@@ -180,3 +185,16 @@ test("target ref movement during checkout creation prevents setup and preserves 
   const checkout = path.join(os.tmpdir(), ".worktrees", path.basename(f.cwd), id);
   assert.equal(fs.existsSync(checkout), true); assert.equal(fs.existsSync(path.join(checkout, "hook-ran")), false);
 });
+for (const [label, prefix, newline] of [["CRLF", "", "\r\n"], ["BOM and CRLF", "\uFEFF", "\r\n"], ["BOM and LF", "\uFEFF", "\n"]] as const) {
+  test(`claim and binding preserve ${label} frontmatter and body`, t => {
+    const f = fixture(t, "plans:\n  status_source: frontmatter\nexecution:\n  backend: external\n");
+    const original = prefix + ["---", `id: ${id}`, "title: Example", "status: ready", "specs: [feature/example]", "---", "# Body", "untouched", ""].join(newline);
+    f.put(`plans/${id}/PLAN.md`, original); f.git("commit", "-am", "preserve plan presentation");
+    const result = firstStart(id, f.config, f.cwd, { fetch: false });
+    const read = (ref: string) => execFileSync("git", ["show", `${ref}:plans/${id}/PLAN.md`], { cwd: f.cwd, encoding: "utf8", timeout: 5000 });
+    const claimed = original.replace("status: ready", "status: in_progress");
+    assert.equal(read("main"), claimed);
+    const binding = ["execution:", '  target_branch: "main"', '  start_target_branch: "main"', `  start_base: ${result.startBase}`].join(newline);
+    assert.equal(read(`plan/${id}`), claimed.replace(`${newline}---${newline}# Body`, `${newline}${binding}${newline}---${newline}# Body`));
+  });
+}

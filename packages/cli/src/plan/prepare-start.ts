@@ -3,6 +3,7 @@ import { parseConfigText, CONFIG_PATH } from "../config.js";
 import { AmbiguousIdError, PlanNotFoundError, PlanStateError, SpecNotFoundError, UnknownRootError } from "../errors.js";
 import { run } from "../git/exec.js";
 import { readTrailers } from "../git/commit.js";
+import { claimFrontmatter } from "./start-frontmatter.js";
 import { ID_PATTERN, PLAN_SCHEMA, SPEC_COMMON_SCHEMA, SPEC_FEATURE_SCHEMA, SPEC_ARCHITECTURE_SCHEMA, validator } from "../schemas.js";
 import { TYPE_DIRS } from "../spec/resolve.js";
 import type { Config, PlanFrontmatter } from "../types.js";
@@ -63,9 +64,8 @@ function recoverableClaim(cwd: string, commit: string, file: string, id: string)
     if (mode(parents[1]) !== mode(commit)) return false;
     const before = showFile(parents[1], file, cwd), after = showFile(commit, file, cwd);
     if (before === null || after === null) return false;
-    const end = before.indexOf("\n---", 3);
-    if (end < 0 || lenientFrontmatter(before)?.status !== "ready") return false;
-    const expected = before.slice(0, end).replace(/^status:.*$/m, "status: in_progress") + before.slice(end);
+    if (lenientFrontmatter(before)?.status !== "ready") return false;
+    const expected = claimFrontmatter(before);
     return expected === after && expected !== before;
   } catch { return false; }
 }

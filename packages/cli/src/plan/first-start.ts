@@ -12,6 +12,7 @@ import { createWorktree, listWorktrees, removeWorktree } from "../git/worktree.j
 import type { Config } from "../types.js";
 import { getPlanActivity, hasRemote, showFile } from "./activity.js";
 import { runSetupHook } from "./hooks.js";
+import { bindFrontmatter, claimFrontmatter } from "./start-frontmatter.js";
 import { prepareStart, type PreparedStart } from "./prepare-start.js";
 import type { StartResult } from "./flows.js";
 
@@ -24,10 +25,7 @@ function message(workflow: string, id: string, summary: string, extra: Record<st
 function bindingCommit(cwd: string, base: string, file: string, id: string, target: string, startBase: string): string {
   const original = showFile(base, file, cwd);
   if (original === null) throw new PlanStateError(`Plan file ${file} is absent from the start base.`);
-  const end = original.indexOf("\n---", 3);
-  if (!original.startsWith("---\n") || end < 0 || /^execution:/m.test(original.slice(0, end))) throw new PlanStateError("Cannot add execution binding to plan frontmatter.");
-  const encoded = JSON.stringify(target);
-  const updated = `${original.slice(0, end)}\nexecution:\n  target_branch: ${encoded}\n  start_target_branch: ${encoded}\n  start_base: ${startBase}${original.slice(end)}`;
+  const updated = bindFrontmatter(original, target, startBase);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-start-"));
   try {
     const env = { ...process.env, GIT_INDEX_FILE: path.join(tmp, "index") };
@@ -87,9 +85,7 @@ export function firstStart(id: string, discovery: Config, root: string, opts: Fi
     let base = p.base;
     if (frontmatter && targetTree && !p.recoveryClaim) {
       const filename = path.join(targetTree.path, file); const before = fs.readFileSync(filename, "utf8");
-      const end = before.indexOf("\n---", 3); const header = before.slice(0, end);
-      if (end < 0 || !/^status:.*$/m.test(header)) throw new PlanStateError("Cannot safely edit claim status.");
-      const edited = header.replace(/^status:.*$/m, "status: in_progress") + before.slice(end);
+      const edited = claimFrontmatter(before);
       fs.writeFileSync(filename, edited);
       try { run("git", ["commit", "-F", "-", "--", file], { cwd: targetTree.path, input: message("claim", id, `claim ${id} in_progress`) }); }
       catch (e) {
@@ -116,7 +112,7 @@ export function firstStart(id: string, discovery: Config, root: string, opts: Fi
     branchCreated = true;
     const branch = `plan/${id}`; let checkout: string | null = null;
     if (p.config.execution.backend === "worktree") {
-      const worktree = createWorktree(id, branch, p.config, main);
+      const worktree = createWorktree(id, branch, p.config, main, { noCheckout: true });
       checkout = worktree.path;
       if (!worktree.created && !initialTrees.some(w => w.path === checkout)) throw new PlanStateError(`Existing checkout ${checkout} was not leased; retained for recovery.`);
       if (worktree.created) {
@@ -136,7 +132,9 @@ export function firstStart(id: string, discovery: Config, root: string, opts: Fi
         const checkedTrees = listWorktrees(main);
         if (JSON.stringify(checkedTrees) !== JSON.stringify(currentTrees)) throw new PlanStateError(`Checkout set changed during coordination; ${checkout} retained for recovery.`);
         const selected = checkedTrees.find(w => w.path === checkout);
-        if (!selected || selected.branch !== branch || ref(main, `refs/heads/${branch}`) !== binding || ref(checkout, "HEAD") !== binding || run("git", ["status", "--porcelain", "--ignored"], { cwd: checkout }).trim()) throw new PlanStateError(`New checkout ${checkout} changed during coordination; retained for recovery.`);
+        if (!selected || selected.branch !== branch || ref(main, `refs/heads/${branch}`) !== binding || ref(checkout, "HEAD") !== binding || fs.readdirSync(checkout).some(name => name !== ".git") || run("git", ["ls-files", "--stage", "-z"], { cwd: checkout }) !== "") throw new PlanStateError(`New checkout ${checkout} changed during coordination; retained for recovery.`);
+        run("git", ["read-tree", "-m", "-u", "HEAD"], { cwd: checkout });
+        if (run("git", ["status", "--porcelain", "--ignored"], { cwd: checkout }).trim()) throw new PlanStateError(`New checkout ${checkout} changed during population; retained for recovery.`);
       }
       if (worktree.created && p.config.plans.setup_hook.trim()) {
         try { runSetupHook(p.config.plans.setup_hook, checkout); }
