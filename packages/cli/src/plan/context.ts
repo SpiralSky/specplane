@@ -57,7 +57,8 @@ function defaultTarget(cwd: string): string {
     return symbolic.slice("refs/remotes/origin/".length);
   }
   for (const branch of ["main", "master"]) {
-    if (optionalGit(cwd, ["show-ref", "--verify", "--hash", `refs/heads/${branch}`])) return branch;
+    if (optionalGit(cwd, ["show-ref", "--verify", "--hash", `refs/heads/${branch}`]) ||
+        optionalGit(cwd, ["show-ref", "--verify", "--hash", `refs/remotes/origin/${branch}`])) return branch;
   }
   return fail("Repository default branch is unavailable.");
 }
@@ -115,23 +116,33 @@ export function validatePlanBranches(cwd: string, id: string, branches: NonNulla
 }
 /** Resolve captured context without fetching, writing, or guessing missing legacy provenance. */
 export function resolvePlanContext(cwd: string, input: TargetInputs): TargetContext {
-  const { id, explicit, declared, team, binding, previousBinding, legacy } = input;
+  const { id, explicit, declared, team, previousBinding, legacy } = input;
+  let binding = input.binding;
+  let comparisonBase = input.comparisonBase;
+  let started = false;
   if (input.planBranches) {
     const selected = validatePlanBranches(cwd, id, input.planBranches);
-    if (selected && (!isDeepStrictEqual(selected.binding, binding) || selected.comparisonBase !== input.comparisonBase)) {
+    if (!selected && binding) fail("Execution binding has no corresponding plan branch record.");
+    if (selected && ((binding !== undefined && !isDeepStrictEqual(selected.binding, binding)) ||
+        (comparisonBase !== undefined && selected.comparisonBase !== comparisonBase))) {
       fail("Selected execution context conflicts with plan branch record.");
     }
+    if (selected) {
+      started = true;
+      binding = selected.binding;
+      comparisonBase = selected.comparisonBase;
+    }
   }
-  for (const name of [explicit, declared, team]) if (name !== undefined) validateTargetBranch(cwd, name, id);
+  for (const name of [explicit, declared]) if (name !== undefined) validateTargetBranch(cwd, name, id);
   if (binding && legacy) fail("Execution binding and legacy context conflict.");
   let target: string;
   if (binding) {
     validateExecutionBinding(cwd, id, binding, declared, previousBinding);
     target = binding.target_branch;
     if (explicit !== undefined && explicit !== target) fail("Explicit target conflicts with execution binding.");
-  } else if (legacy) {
+  } else if (legacy || started) {
     const currentDefault = defaultTarget(cwd);
-    if (!legacy.originalDefault || legacy.originalDefault !== currentDefault) fail("Legacy target history is ambiguous or repository default changed; recovery is required.");
+    if (!legacy?.originalDefault || legacy.originalDefault !== currentDefault) fail("Legacy target history is ambiguous or repository default changed; recovery is required.");
     target = currentDefault;
     if ((explicit !== undefined && explicit !== target) || (declared !== undefined && declared !== target)) fail("Legacy target conflicts with declaration or explicit target.");
   } else {
@@ -140,6 +151,6 @@ export function resolvePlanContext(cwd: string, input: TargetInputs): TargetCont
   }
   validateTargetBranch(cwd, target, id);
   return { targetBranch: target, targetCommit: targetTip(cwd, target),
-    comparisonBase: input.comparisonBase === undefined ? null : resolveCommit(cwd, input.comparisonBase, true),
-    binding: binding ?? null, legacy: Boolean(legacy), freshness: input.freshness ?? "local" };
+    comparisonBase: comparisonBase === undefined ? null : resolveCommit(cwd, comparisonBase, true),
+    binding: binding ?? null, legacy: Boolean(legacy || (started && !binding)), freshness: input.freshness ?? "local" };
 }

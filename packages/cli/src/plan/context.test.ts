@@ -96,3 +96,39 @@ test("captured plan branches refuse divergence, conflicting identity and rewritt
   git("checkout", "--detach", base); fs.writeFileSync(path.join(cwd, "file"), "fork"); git("commit", "-am", "fork");
   assert.throws(() => resolvePlanContext(cwd, { id, planBranches: { local: newer, remote: { ...older, commit: git("rev-parse", "HEAD") } } }), /Divergent/);
 });
+
+test("started snapshots control binding and require evidence for legacy targets", () => {
+  const { cwd, git, base } = repo();
+  git("branch", "candidate");
+  const snapshot = { id, commit: base, comparisonBase: base };
+  for (const planBranches of [{ local: snapshot }, { remote: snapshot }]) {
+    assert.throws(() => resolvePlanContext(cwd, { id, team: "candidate", planBranches }), /recovery/);
+    assert.throws(() => resolvePlanContext(cwd, { id, legacy: { originalDefault: "master" }, planBranches }), /changed/);
+    const context = resolvePlanContext(cwd, { id, team: `plan/${id}`, legacy: { originalDefault: "main" }, planBranches });
+    assert.equal(context.targetBranch, "main");
+    assert.equal(context.comparisonBase, base);
+    assert.equal(context.legacy, true);
+  }
+  const binding = { target_branch: "main", start_target_branch: "main", start_base: base };
+  const bound = { ...snapshot, binding };
+  const context = resolvePlanContext(cwd, { id, team: `plan/${id}`, planBranches: { remote: bound } });
+  assert.deepEqual(context.binding, binding);
+  assert.equal(context.comparisonBase, base);
+  assert.throws(() => resolvePlanContext(cwd, { id, binding, planBranches: {} }), /no corresponding/);
+  assert.throws(() => resolvePlanContext(cwd, { id, binding, planBranches: { local: snapshot } }), /conflicts/);
+  assert.throws(() => resolvePlanContext(cwd, { id, comparisonBase: base, planBranches: { local: { id, commit: base } } }), /conflicts/);
+});
+
+test("repository default fallback considers local and origin refs in main-first order", () => {
+  const { cwd, git, base } = repo();
+  git("checkout", "--detach");
+  git("branch", "-D", "main");
+  git("update-ref", "refs/remotes/origin/main", base);
+  assert.equal(resolvePlanContext(cwd, { id }).targetBranch, "main");
+  git("update-ref", "refs/remotes/origin/master", base);
+  git("branch", "master", base);
+  assert.equal(resolvePlanContext(cwd, { id }).targetBranch, "main");
+  git("update-ref", "-d", "refs/remotes/origin/main");
+  git("branch", "-D", "master");
+  assert.equal(resolvePlanContext(cwd, { id }).targetBranch, "master");
+});
