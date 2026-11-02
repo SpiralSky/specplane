@@ -1,0 +1,262 @@
+TAP version 13
+# Subtest: absent config returns defaults with a warning
+ok 1 - absent config returns defaults with a warning
+  ---
+  duration_ms: 58.241524
+  type: 'test'
+  ...
+# Subtest: partial config merges with defaults
+ok 2 - partial config merges with defaults
+  ---
+  duration_ms: 7.283632
+  type: 'test'
+  ...
+# Subtest: invalid enum value throws ConfigError
+ok 3 - invalid enum value throws ConfigError
+  ---
+  duration_ms: 1.237372
+  type: 'test'
+  ...
+# Subtest: llm_role review is accepted for both spec types
+ok 4 - llm_role review is accepted for both spec types
+  ---
+  duration_ms: 5.713924
+  type: 'test'
+  ...
+# Subtest: unknown llm_role fails and lists the allowed values
+ok 5 - unknown llm_role fails and lists the allowed values
+  ---
+  duration_ms: 1.414329
+  type: 'test'
+  ...
+# Subtest: unknown keys warn and are dropped
+ok 6 - unknown keys warn and are dropped
+  ---
+  duration_ms: 5.525921
+  type: 'test'
+  ...
+# Subtest: root extends cycle throws ConfigError
+ok 7 - root extends cycle throws ConfigError
+  ---
+  duration_ms: 0.496087
+  type: 'test'
+  ...
+# Subtest: malformed YAML throws ConfigError
+ok 8 - malformed YAML throws ConfigError
+  ---
+  duration_ms: 1.411785
+  type: 'test'
+  ...
+# Subtest: duplicate spec root name
+ok 9 - duplicate spec root name
+  ---
+  duration_ms: 0.708446
+  type: 'test'
+  ...
+# Subtest: missing spec root is an error
+ok 10 - missing spec root is an error
+  ---
+  duration_ms: 0.819854
+  type: 'test'
+  ...
+# Subtest: spec root outside the repository is an error
+ok 11 - spec root outside the repository is an error
+  ---
+  duration_ms: 0.489046
+  type: 'test'
+  ...
+# Subtest: spec root that is not a directory is an error
+ok 12 - spec root that is not a directory is an error
+  ---
+  duration_ms: 0.411239
+  type: 'test'
+  ...
+# Subtest: worktree_dir inside the repository is an error with the worktree backend
+ok 13 - worktree_dir inside the repository is an error with the worktree backend
+  ---
+  duration_ms: 9.174281
+  type: 'test'
+  ...
+# Subtest: worktree_dir is not checked with the branch backend
+ok 14 - worktree_dir is not checked with the branch backend
+  ---
+  duration_ms: 1.451034
+  type: 'test'
+  ...
+# Subtest: DEFAULT_CONFIG equals the defaults table in feature/configuration
+ok 15 - DEFAULT_CONFIG equals the defaults table in feature/configuration
+  ---
+  duration_ms: 4.202014
+  type: 'test'
+  ...
+# Subtest: conductor config: safe defaults and partial notification merge
+ok 16 - conductor config: safe defaults and partial notification merge
+  ---
+  duration_ms: 13.4492
+  type: 'test'
+  ...
+# Subtest: conductor config: accepted modes, transports, limits and event selectors
+ok 17 - conductor config: accepted modes, transports, limits and event selectors
+  ---
+  duration_ms: 19.675404
+  type: 'test'
+  ...
+# Subtest: conductor config: invalid enums, types and unsafe limits are rejected
+ok 18 - conductor config: invalid enums, types and unsafe limits are rejected
+  ---
+  duration_ms: 5.96728
+  type: 'test'
+  ...
+# Subtest: conductor config: command transport requires a nonblank command
+ok 19 - conductor config: command transport requires a nonblank command
+  ---
+  duration_ms: 2.291794
+  type: 'test'
+  ...
+# Subtest: conductor config: unknown nested keys still warn and are dropped
+ok 20 - conductor config: unknown nested keys still warn and are dropped
+  ---
+  duration_ms: 8.431404
+  type: 'test'
+  ...
+# Subtest: session mode: config can force unattended but cannot force attended
+ok 21 - session mode: config can force unattended but cannot force attended
+  ---
+  duration_ms: 0.205329
+  type: 'test'
+  ...
+# Subtest: init emits the complete runtime defaults including conductor settings
+ok 22 - init emits the complete runtime defaults including conductor settings
+  ---
+  duration_ms: 7.520908
+  type: 'test'
+  ...
+# Subtest: three explicit sources preserve stage zero additions, deletions and tracked edits
+ok 23 - three explicit sources preserve stage zero additions, deletions and tracked edits
+  ---
+  duration_ms: 294.19669
+  type: 'test'
+  ...
+# Subtest: config and inventory come from the same selected source
+ok 24 - config and inventory come from the same selected source
+  ---
+  duration_ms: 141.28412
+  type: 'test'
+  ...
+# Subtest: working includes ignored tracked and nonignored new inputs and honors deletions
+ok 25 - working includes ignored tracked and nonignored new inputs and honors deletions
+  ---
+  duration_ms: 114.278323
+  type: 'test'
+  ...
+# Subtest: unborn and detached HEAD have explicit behavior
+ok 26 - unborn and detached HEAD have explicit behavior
+  ---
+  duration_ms: 91.998109
+  type: 'test'
+  ...
+# Subtest: unmerged inputs refuse while output-only conflicts are exposed
+ok 27 - unmerged inputs refuse while output-only conflicts are exposed
+  ---
+  duration_ms: 118.063971
+  type: 'test'
+  ...
+# Subtest: recheck detects discovery, input, index, output and operation changes
+ok 28 - recheck detects discovery, input, index, output and operation changes
+  ---
+  duration_ms: 444.430198
+  type: 'test'
+  ...
+# Subtest: prospective overlay uses only authorized head edits and containment rejects escapes
+ok 29 - prospective overlay uses only authorized head edits and containment rejects escapes
+  ---
+  duration_ms: 64.428474
+  type: 'test'
+  ...
+# Subtest: unmerged config refuses and symlink inputs are not followed
+ok 30 - unmerged config refuses and symlink inputs are not followed
+  ---
+  duration_ms: 53.464224
+  type: 'test'
+  ...
+# Subtest: prospective canonical paths and bytewise ordering match committed snapshots
+ok 31 - prospective canonical paths and bytewise ordering match committed snapshots
+  ---
+  duration_ms: 113.862232
+  type: 'test'
+  ...
+# Subtest: ignored rule files are rechecked even when inventory is unchanged
+ok 32 - ignored rule files are rechecked even when inventory is unchanged
+  ---
+  duration_ms: 233.762757
+  type: 'test'
+  ...
+# Subtest: working discovery skips excluded trees but retains rules for tracked and visible plans
+ok 33 - working discovery skips excluded trees but retains rules for tracked and visible plans
+  ---
+  duration_ms: 388.078193
+  type: 'test'
+  ...
+# Subtest: snapshot branch validation follows Git and accepts repository root plans
+ok 34 - snapshot branch validation follows Git and accepts repository root plans
+  ---
+  duration_ms: 141.460486
+  type: 'test'
+  ...
+# Subtest: external exclude and ancestor rules invalidate working snapshots; symlink directories refuse
+ok 35 - external exclude and ancestor rules invalidate working snapshots; symlink directories refuse
+  ---
+  duration_ms: 265.90262
+  type: 'test'
+  ...
+# Subtest: target precedence, conflicts, legacy ambiguity and unavailable targets preserve work
+ok 36 - target precedence, conflicts, legacy ambiguity and unavailable targets preserve work
+  ---
+  duration_ms: 104.470719
+  type: 'test'
+  ...
+# Subtest: local and remote tips reconcile, divergence refuses, remote-only remains readable
+ok 37 - local and remote tips reconcile, divergence refuses, remote-only remains readable
+  ---
+  duration_ms: 88.287585
+  type: 'test'
+  ...
+# Subtest: inputs and immutable execution bindings require valid branches and full commit objects
+ok 38 - inputs and immutable execution bindings require valid branches and full commit objects
+  ---
+  duration_ms: 187.032481
+  type: 'test'
+  ...
+# Subtest: plan metadata and configured team target are parsed and validated
+ok 39 - plan metadata and configured team target are parsed and validated
+  ---
+  duration_ms: 49.063001
+  type: 'test'
+  ...
+# Subtest: captured plan branches refuse divergence, conflicting identity and rewritten provenance
+ok 40 - captured plan branches refuse divergence, conflicting identity and rewritten provenance
+  ---
+  duration_ms: 193.636871
+  type: 'test'
+  ...
+# Subtest: started snapshots control binding and require evidence for legacy targets
+ok 41 - started snapshots control binding and require evidence for legacy targets
+  ---
+  duration_ms: 121.433306
+  type: 'test'
+  ...
+# Subtest: repository default fallback considers local and origin refs in main-first order
+ok 42 - repository default fallback considers local and origin refs in main-first order
+  ---
+  duration_ms: 73.190806
+  type: 'test'
+  ...
+1..42
+# tests 42
+# suites 0
+# pass 42
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3874.617151

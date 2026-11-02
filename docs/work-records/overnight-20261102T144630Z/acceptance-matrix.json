@@ -407,18 +407,32 @@
     "step": "plan",
     "criterion": 1,
     "text": "Each snapshot resolves its own config and plan inventory; detached/unborn HEAD and staged additions/deletions behave as specified.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "135161c7bb05d4a5d9c987c0f4e3907d0573615b",
+      "index-step1-review.md",
+      "index-step1-integrated-tests.log:42 pass"
+    ],
+    "limitations": [
+      "Git check-ignore nonmatch recognized via current shared GitError formatting; tested runtime works",
+      "Writer lease/output enforcement belongs to step2, lifecycle prospective seam to step3"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
     "step": "plan",
     "criterion": 2,
     "text": "Working includes tracked ignored files and non-ignored new plans; unresolved inputs and changed discovery/index bytes refuse safely.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "135161c7bb05d4a5d9c987c0f4e3907d0573615b",
+      "index-step1-review.md",
+      "index-step1-integrated-tests.log:42 pass"
+    ],
+    "limitations": [
+      "Git check-ignore nonmatch recognized via current shared GitError formatting; tested runtime works",
+      "Writer lease/output enforcement belongs to step2, lifecycle prospective seam to step3"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
@@ -461,16 +475,32 @@
     "step": "01-snapshot-reader",
     "criterion": 1,
     "text": "Each snapshot resolves its own config and plan inventory; detached/unborn HEAD and staged additions/deletions behave as specified.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "135161c7bb05d4a5d9c987c0f4e3907d0573615b",
+      "index-step1-review.md",
+      "index-step1-integrated-tests.log:42 pass"
+    ],
+    "limitations": [
+      "Git check-ignore nonmatch recognized via current shared GitError formatting; tested runtime works",
+      "Writer lease/output enforcement belongs to step2, lifecycle prospective seam to step3"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
     "step": "01-snapshot-reader",
     "criterion": 2,
     "text": "Working includes tracked ignored files and non-ignored new plans; unresolved inputs and changed discovery/index bytes refuse safely.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "135161c7bb05d4a5d9c987c0f4e3907d0573615b",
+      "index-step1-review.md",
+      "index-step1-integrated-tests.log:42 pass"
+    ],
+    "limitations": [
+      "Git check-ignore nonmatch recognized via current shared GitError formatting; tested runtime works",
+      "Writer lease/output enforcement belongs to step2, lifecycle prospective seam to step3"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
