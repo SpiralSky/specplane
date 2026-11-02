@@ -28,6 +28,9 @@ test('codex init is explicit, idempotent and preserves user-owned settings and i
  assert.equal(fs.existsSync(path.join(root,'.claude/skills')),false);
  assert.match(fs.readFileSync(path.join(root,'AGENTS.md'),'utf8'),/^User instructions\./);
  assert.ok(runInit(root,{harness:'codex'}).every(s=>!s.startsWith('Created')&&!s.startsWith('Updated')));
+ git(root,'init','-q','-b','main');
+ git(root,'add','.specplane/config.yaml');
+ git(root,'commit','-qm','fixture baseline');
  assert.equal(runValidate(root).errors.length,0);
 });
 
