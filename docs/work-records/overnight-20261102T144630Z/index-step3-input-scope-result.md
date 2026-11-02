@@ -1,0 +1,13 @@
+# Plan index step 3: approval input scope repair
+
+Base: `6e837ce374f95b67e7e79c4ca1dc1e3f5b89c7ba`; result: `cd2e89e95618ea6d98f8fa354cb77019e942801c` on `overnight/index-3-input-scope`. Working tree clean. Changed `packages/cli/src/commands/approval-read-tree.ts`, `plan-approve.ts`, and `plan-approve.test.ts`.
+
+- Validation inventories follow the shapes of listPlans, listStepFiles, loadSpecs and loadAdrs. Links to known committed regular nonrecord files are allowed in discovery directories; the exact `plans/guide-link.txt -> ../guide.txt` case and nested plan, spec and ADR irrelevant links successfully approve. ADR discovery is limited to its immediate numbered Markdown files; specs only traverse features and architecture.
+- Relevant PLAN, step, HANDOFF, spec-gaps, spec and numbered ADR paths, configured root ancestors, discovery directory links and gitlinks refuse before writes using PlanStateError with repair guidance and no stack. Unknown directory links, including dotted names, are conservatively refused; known file links are established from the captured commit only. Dangling or external links in directory-discovery positions remain ambiguous and are refused. No symlinks are followed.
+- HEAD configuration and snapshot authority and pre-existing write, lease, index and rollback guards were retained. Existing assume-unchanged partial-staging recovery test still passes; no additional dry-run precondition change was made.
+
+Validation in `packages/cli`:
+- `timeout 120s npm ci --offline --cache /workspace/.npm-cache --ignore-scripts`: passed, 23 packages. Initial build before installation failed because `tsc` was absent; no source effects.
+- `timeout 120s npm run build`: passed after install, including after final changes.
+- `timeout 90s node --test --test-concurrency=1 --test-reporter=tap --test-name-pattern='approval ignores unrelated links|approval refuses nonregular|approval refuses gitlinks|approval refuses ambiguous|HEAD config governs|hidden owned file|partial staging recovery|binary Git runner' dist/commands/plan-approve.test.js`: final run under supported escalation, 8 passed, 0 failed, 0 skipped, 13.73s. Prior focused version passed 7/7. Sandboxed run stalled in subprocesses, was stopped by terminating its owned timeout and node processes; it started and may have left disposable test fixtures in /tmp, but did not change the checkout. Escalation succeeded; no rejection.
+- `git diff --check`: passed. Full suite, live host/model tests, publication and integration not run (outside assignment); previous focused review evidence remains in lifecycle review. Noncooperating filesystem races remain subject to earlier recorded limitations.

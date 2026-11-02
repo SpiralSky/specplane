@@ -175,7 +175,8 @@
       "target-step6-cleanup-final-review.md",
       "target-step6-next-review.md",
       "target-step6-integrated-tests.log:536 pass;2 unrelated fixture failures separately corrected",
-      "target-step6-fixture-integrated-tests.log"
+      "target-step6-fixture-integrated-tests.log",
+      "index-step3-lifecycle-review.md:temporaryprospectiverendererseamreplaced"
     ],
     "limitations": [
       "Current matching-index renderer seam must be replaced by plan-index3 snapshot renderer",
@@ -195,7 +196,8 @@
       "target-step6-cleanup-final-review.md",
       "target-step6-next-review.md",
       "target-step6-integrated-tests.log:536 pass;2 unrelated fixture failures separately corrected",
-      "target-step6-fixture-integrated-tests.log"
+      "target-step6-fixture-integrated-tests.log",
+      "index-step3-lifecycle-review.md:temporaryprospectiverendererseamreplaced"
     ],
     "limitations": [
       "Current matching-index renderer seam must be replaced by plan-index3 snapshot renderer",
@@ -374,7 +376,8 @@
       "target-step6-cleanup-final-review.md",
       "target-step6-next-review.md",
       "target-step6-integrated-tests.log:536 pass;2 unrelated fixture failures separately corrected",
-      "target-step6-fixture-integrated-tests.log"
+      "target-step6-fixture-integrated-tests.log",
+      "index-step3-lifecycle-review.md:temporaryprospectiverendererseamreplaced"
     ],
     "limitations": [
       "Current matching-index renderer seam must be replaced by plan-index3 snapshot renderer",
@@ -394,7 +397,8 @@
       "target-step6-cleanup-final-review.md",
       "target-step6-next-review.md",
       "target-step6-integrated-tests.log:536 pass;2 unrelated fixture failures separately corrected",
-      "target-step6-fixture-integrated-tests.log"
+      "target-step6-fixture-integrated-tests.log",
+      "index-step3-lifecycle-review.md:temporaryprospectiverendererseamreplaced"
     ],
     "limitations": [
       "Current matching-index renderer seam must be replaced by plan-index3 snapshot renderer",
@@ -475,9 +479,20 @@
     "step": "plan",
     "criterion": 5,
     "text": "Approval/shelve/resume commit new metadata and its matching index together; post-commit regeneration is byte-identical.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "cd2e89e95618ea6d98f8fa354cb77019e942801c",
+      "index-step3-lifecycle-review.md",
+      "index-plan-integrated-tests.log:582 pass/11fixturefailures",
+      "index-plan-corrected-tests.log:54 pass including allcorrectedfixtures",
+      "index-plan-final-validation.json:0errors90warnings",
+      "7ea64eb45261ea6e564554a5814f17052e166969:generatedindexpostcommitidempotent"
+    ],
+    "limitations": [
+      "Unsupported quoted status source form refuses equally in preview/execution",
+      "Ambiguous nonregular discovery inputs conservatively refuse",
+      "No claim of arbitrary external filesystem race exclusion; live certification deferred"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
@@ -568,8 +583,20 @@
     "step": "03-transaction-snapshots",
     "criterion": 1,
     "text": "Approval/shelve/resume commit new metadata and its matching index together; post-commit regeneration is byte-identical.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "cd2e89e95618ea6d98f8fa354cb77019e942801c",
+      "index-step3-lifecycle-review.md",
+      "index-plan-integrated-tests.log:582 pass/11fixturefailures",
+      "index-plan-corrected-tests.log:54 pass including allcorrectedfixtures",
+      "index-plan-final-validation.json:0errors90warnings",
+      "7ea64eb45261ea6e564554a5814f17052e166969:generatedindexpostcommitidempotent"
+    ],
+    "limitations": [
+      "Unsupported quoted status source form refuses equally in preview/execution",
+      "Ambiguous nonregular discovery inputs conservatively refuse",
+      "No claim of arbitrary external filesystem race exclusion; live certification deferred"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",

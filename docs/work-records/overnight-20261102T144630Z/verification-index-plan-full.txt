@@ -1,0 +1,4095 @@
+TAP version 13
+# Subtest: creates, then leaves unchanged
+ok 1 - creates, then leaves unchanged
+  ---
+  duration_ms: 1.109117
+  type: 'test'
+  ...
+# Subtest: appends after existing text and preserves it
+ok 2 - appends after existing text and preserves it
+  ---
+  duration_ms: 0.357317
+  type: 'test'
+  ...
+# Subtest: updates a changed block, preserving CRLF and surrounding text
+ok 3 - updates a changed block, preserving CRLF and surrounding text
+  ---
+  duration_ms: 1.050579
+  type: 'test'
+  ...
+# Subtest: malformed markers are not touched
+ok 4 - malformed markers are not touched
+  ---
+  duration_ms: 0.141753
+  type: 'test'
+  ...
+# Subtest: missing and workflow-line variants
+ok 5 - missing and workflow-line variants
+  ---
+  duration_ms: 0.114151
+  type: 'test'
+  ...
+# Subtest: decision new: creates the next number with proposed status (Scenario 10)
+ok 6 - decision new: creates the next number with proposed status (Scenario 10)
+  ---
+  duration_ms: 537.865686
+  type: 'test'
+  ...
+# Subtest: decision new starts at 0001 and numbers above any existing NNNN file
+ok 7 - decision new starts at 0001 and numbers above any existing NNNN file
+  ---
+  duration_ms: 994.916321
+  type: 'test'
+  ...
+# Subtest: decision accept: sets accepted, commits, and prints the short SHA
+ok 8 - decision accept: sets accepted, commits, and prints the short SHA
+  ---
+  duration_ms: 531.252445
+  type: 'test'
+  ...
+# Subtest: decision accept refuses an unknown ID and an ADR that is not proposed
+ok 9 - decision accept refuses an unknown ID and an ADR that is not proposed
+  ---
+  duration_ms: 1194.081267
+  type: 'test'
+  ...
+# Subtest: decision accept refuses an uncommitted ADR
+ok 10 - decision accept refuses an uncommitted ADR
+  ---
+  duration_ms: 662.033757
+  type: 'test'
+  ...
+# Subtest: decision accept refuses an ADR with validation errors
+ok 11 - decision accept refuses an ADR with validation errors
+  ---
+  duration_ms: 638.452596
+  type: 'test'
+  ...
+# Subtest: decision accept --dry-run prints the plan and changes nothing
+ok 12 - decision accept --dry-run prints the plan and changes nothing
+  ---
+  duration_ms: 634.128868
+  type: 'test'
+  ...
+# Subtest: plan approve: sets ready, regenerates PLANS.md in the same commit (G2)
+ok 13 - plan approve: sets ready, regenerates PLANS.md in the same commit (G2)
+  ---
+  duration_ms: 844.248517
+  type: 'test'
+  ...
+# Subtest: plan approve: one commit per ID and stops at the first refusal
+ok 14 - plan approve: one commit per ID and stops at the first refusal
+  ---
+  duration_ms: 914.432832
+  type: 'test'
+  ...
+# Subtest: plan approve refuses an unknown ID and a plan that is not draft
+ok 15 - plan approve refuses an unknown ID and a plan that is not draft
+  ---
+  duration_ms: 1266.846177
+  type: 'test'
+  ...
+# Subtest: plan approve refuses a spec that is not approved
+ok 16 - plan approve refuses a spec that is not approved
+  ---
+  duration_ms: 844.356318
+  type: 'test'
+  ...
+# Subtest: plan approve refuses an uncommitted plan folder
+ok 17 - plan approve refuses an uncommitted plan folder
+  ---
+  duration_ms: 750.503605
+  type: 'test'
+  ...
+# Subtest: plan approve reports validation errors and commits nothing
+ok 18 - plan approve reports validation errors and commits nothing
+  ---
+  duration_ms: 697.518326
+  type: 'test'
+  ...
+# Subtest: plan approve --dry-run prints the plan and changes nothing
+ok 19 - plan approve --dry-run prints the plan and changes nothing
+  ---
+  duration_ms: 669.928137
+  type: 'test'
+  ...
+# Subtest: approval preserves unrelated staged work and commits the exact HEAD rendering
+ok 20 - approval preserves unrelated staged work and commits the exact HEAD rendering
+  ---
+  duration_ms: 1395.483436
+  type: 'test'
+  ...
+# Subtest: approval refuses dirty approval evidence and keeps the checkout intact
+ok 21 - approval refuses dirty approval evidence and keeps the checkout intact
+  ---
+  duration_ms: 631.262937
+  type: 'test'
+  ...
+# Subtest: approval rolls back its own files after a failing commit hook
+ok 22 - approval rolls back its own files after a failing commit hook
+  ---
+  duration_ms: 801.463429
+  type: 'test'
+  ...
+# Subtest: approval uses the committed custom path and symbolic target fallback
+ok 23 - approval uses the committed custom path and symbolic target fallback
+  ---
+  duration_ms: 1517.250297
+  type: 'test'
+  ...
+# Subtest: approval reports its exact retained commit when a post-commit hook moves HEAD
+ok 24 - approval reports its exact retained commit when a post-commit hook moves HEAD
+  ---
+  duration_ms: 888.246957
+  type: 'test'
+  ...
+# Subtest: approval validates committed administrative inputs and preserves unrelated staged and working edits
+ok 25 - approval validates committed administrative inputs and preserves unrelated staged and working edits
+  ---
+  duration_ms: 2490.632478
+  type: 'test'
+  ...
+# Subtest: approval refuses changed output even in dry-run
+ok 26 - approval refuses changed output even in dry-run
+  ---
+  duration_ms: 1193.361825
+  type: 'test'
+  ...
+# Subtest: assume-unchanged spec cannot supply approval evidence
+ok 27 - assume-unchanged spec cannot supply approval evidence
+  ---
+  duration_ms: 564.022861
+  type: 'test'
+  ...
+# Subtest: dry-run and approval both refuse an unsupported status representation
+ok 28 - dry-run and approval both refuse an unsupported status representation
+  ---
+  duration_ms: 1305.127492
+  type: 'test'
+  ...
+# Subtest: approval refuses hidden working edits to its output
+ok 29 - approval refuses hidden working edits to its output
+  ---
+  duration_ms: 1194.708949
+  type: 'test'
+  ...
+# Subtest: skip-worktree spec cannot supply approval evidence
+ok 30 - skip-worktree spec cannot supply approval evidence
+  ---
+  duration_ms: 569.227616
+  type: 'test'
+  ...
+# Subtest: working step and ADR cannot repair invalid committed validation evidence
+ok 31 - working step and ADR cannot repair invalid committed validation evidence
+  ---
+  duration_ms: 581.894911
+  type: 'test'
+  ...
+# Subtest: approval read tree is removed after success and validation failure
+ok 32 - approval read tree is removed after success and validation failure
+  ---
+  duration_ms: 26.04603
+  type: 'test'
+  ...
+# Subtest: HEAD config governs approval despite malformed or different staged and working config
+ok 33 - HEAD config governs approval despite malformed or different staged and working config
+  ---
+  duration_ms: 1619.797665
+  type: 'test'
+  ...
+# Subtest: approval refuses nonregular committed validation inputs without following them
+ok 34 - approval refuses nonregular committed validation inputs without following them
+  ---
+  duration_ms: 4516.67558
+  type: 'test'
+  ...
+# Subtest: approval refuses ambiguous discovery directory links even with dotted names
+ok 35 - approval refuses ambiguous discovery directory links even with dotted names
+  ---
+  duration_ms: 1552.645055
+  type: 'test'
+  ...
+# Subtest: approval refuses gitlinks in discovery paths while allowing unrelated links
+ok 36 - approval refuses gitlinks in discovery paths while allowing unrelated links
+  ---
+  duration_ms: 1656.236502
+  type: 'test'
+  ...
+# Subtest: approval ignores unrelated links in configured roots
+ok 37 - approval ignores unrelated links in configured roots
+  ---
+  duration_ms: 1055.245261
+  type: 'test'
+  ...
+# Subtest: hidden owned file and ancestor symlinks never mutate destinations or index
+ok 38 - hidden owned file and ancestor symlinks never mutate destinations or index
+  ---
+  duration_ms: 4068.380229
+  type: 'test'
+  ...
+# Subtest: binary Git runner preserves batch bytes and throws typed errors
+ok 39 - binary Git runner preserves batch bytes and throws typed errors
+  ---
+  duration_ms: 25.428127
+  type: 'test'
+  ...
+# Subtest: partial staging recovery preserves unrelated staged changes
+ok 40 - partial staging recovery preserves unrelated staged changes
+  ---
+  duration_ms: 794.11315
+  type: 'test'
+  ...
+# Subtest: hidden plan symlink to an external file refuses before any output or index mutation
+ok 41 - hidden plan symlink to an external file refuses before any output or index mutation
+  ---
+  duration_ms: 1443.014434
+  type: 'test'
+  ...
+# Subtest: plan list: ready plan without a branch is ready; blocked dependent (Scenario 2)
+ok 42 - plan list: ready plan without a branch is ready; blocked dependent (Scenario 2)
+  ---
+  duration_ms: 1416.973888
+  type: 'test'
+  ...
+# Subtest: plan list: branch makes a ready plan in_progress, blocked wins, done unchanged (Scenarios 1, 2, 6)
+ok 43 - plan list: branch makes a ready plan in_progress, blocked wins, done unchanged (Scenarios 1, 2, 6)
+  ---
+  duration_ms: 1226.096384
+  type: 'test'
+  ...
+# Subtest: plan list: status_source frontmatter ignores branches
+ok 44 - plan list: status_source frontmatter ignores branches
+  ---
+  duration_ms: 1287.139628
+  type: 'test'
+  ...
+# Subtest: plan list: abandoned dependency blocks a ready plan (Scenario 4: abandoned dependency)
+ok 45 - plan list: abandoned dependency blocks a ready plan (Scenario 4: abandoned dependency)
+  ---
+  duration_ms: 730.541682
+  type: 'test'
+  ...
+# Subtest: plan list: JSON fields, sorting, archived, --status filter, human table
+ok 46 - plan list: JSON fields, sorting, archived, --status filter, human table
+  ---
+  duration_ms: 5045.939192
+  type: 'test'
+  ...
+# Subtest: plan list: stack mode blocks two unmerged dependencies and prints the reason
+ok 47 - plan list: stack mode blocks two unmerged dependencies and prints the reason
+  ---
+  duration_ms: 1912.401997
+  type: 'test'
+  ...
+# Subtest: getEffectiveStatus: forge hook derives review; non-ready statuses unchanged
+ok 48 - getEffectiveStatus: forge hook derives review; non-ready statuses unchanged
+  ---
+  duration_ms: 0.325529
+  type: 'test'
+  ...
+# Subtest: plan new: creates draft plan, steps/, HANDOFF.md; validate passes
+not ok 49 - plan new: creates draft plan, steps/, HANDOFF.md; validate passes
+  ---
+  duration_ms: 2157.129843
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/commands/plan.test.js:109:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    notice: plan index freshness source: head
+    Checking .specplane/config.yaml... OK
+    Checking feature/alpha... OK
+      Implementation (base): unrecorded; assessment: unrecorded
+    Checking 2025-12-01-old... OK
+    Checking 2026-01-01-alpha... OK
+    Checking 2026-02-01-beta... OK
+    Checking AGENTS.md... 1 warning
+      [warning] AGENTS.md: Specplane standing instructions in AGENTS.md are missing or out of date; run specplane init.
+    Checking plans/PLANS.md... 1 error
+      [error] plans/PLANS.md: Cannot check plan index freshness (source: head): Unborn HEAD: select --source staged or --source working explicitly.
+    
+    Summary: 7 files checked, 1 error, 1 warning
+    
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/commands/plan.test.js:120:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: plan new: existing ID, unknown spec/plan, bad ID, missing flags exit 1
+ok 50 - plan new: existing ID, unknown spec/plan, bad ID, missing flags exit 1
+  ---
+  duration_ms: 2593.007476
+  type: 'test'
+  ...
+# Subtest: plan new: self-dependency is rejected
+ok 51 - plan new: self-dependency is rejected
+  ---
+  duration_ms: 488.476651
+  type: 'test'
+  ...
+# Subtest: plan new: records validated target and canonical comparison commit; refusals and dry run write nothing
+ok 52 - plan new: records validated target and canonical comparison commit; refusals and dry run write nothing
+  ---
+  duration_ms: 2735.121967
+  type: 'test'
+  ...
+# Subtest: plan new: an abandoned dependency refuses without creating files
+ok 53 - plan new: an abandoned dependency refuses without creating files
+  ---
+  duration_ms: 617.996574
+  type: 'test'
+  ...
+# Subtest: plan new: dry runs validate all inputs and leave repository contents unchanged
+ok 54 - plan new: dry runs validate all inputs and leave repository contents unchanged
+  ---
+  duration_ms: 2404.558588
+  type: 'test'
+  ...
+# Subtest: plan new: archived abandoned dependencies and existing dependency cycles refuse
+ok 55 - plan new: archived abandoned dependencies and existing dependency cycles refuse
+  ---
+  duration_ms: 1090.87284
+  type: 'test'
+  ...
+# Subtest: plan show: active and archived plans; unknown ID exits 1
+ok 56 - plan show: active and archived plans; unknown ID exits 1
+  ---
+  duration_ms: 1808.670931
+  type: 'test'
+  ...
+# Subtest: plan graph: matches the graph in generated PLANS.md
+ok 57 - plan graph: matches the graph in generated PLANS.md
+  ---
+  duration_ms: 1785.199575
+  type: 'test'
+  ...
+# Subtest: search is case-insensitive, prints one block per file, and skips broken files on stderr
+ok 58 - search is case-insensitive, prints one block per file, and skips broken files on stderr
+  ---
+  duration_ms: 699.49984
+  type: 'test'
+  ...
+# Subtest: search no match exits 0 with no output
+ok 59 - search no match exits 0 with no output
+  ---
+  duration_ms: 558.801507
+  type: 'test'
+  ...
+# Subtest: search --kind and --status and --root filters
+ok 60 - search --kind and --status and --root filters
+  ---
+  duration_ms: 4609.265201
+  type: 'test'
+  ...
+# Subtest: search --json fields, spec root, archived plans, deterministic path order
+ok 61 - search --json fields, spec root, archived plans, deterministic path order
+  ---
+  duration_ms: 1267.612433
+  type: 'test'
+  ...
+# Subtest: search groups step files under their plan and names the step in human output
+ok 62 - search groups step files under their plan and names the step in human output
+  ---
+  duration_ms: 1110.919377
+  type: 'test'
+  ...
+# Subtest: search caps matches at three per file
+ok 63 - search caps matches at three per file
+  ---
+  duration_ms: 479.133081
+  type: 'test'
+  ...
+# Subtest: search unknown kind and root exit 1
+ok 64 - search unknown kind and root exit 1
+  ---
+  duration_ms: 1031.426728
+  type: 'test'
+  ...
+# Subtest: spec approve: base and overlay in one command, one commit each (Scenario 7)
+ok 65 - spec approve: base and overlay in one command, one commit each (Scenario 7)
+  ---
+  duration_ms: 680.186484
+  type: 'test'
+  ...
+# Subtest: spec approve: architecture spec implementing an unapproved feature is refused (Scenario 8)
+ok 66 - spec approve: architecture spec implementing an unapproved feature is refused (Scenario 8)
+  ---
+  duration_ms: 574.943015
+  type: 'test'
+  ...
+# Subtest: spec reopen: reports the direct dependants and leaves them unchanged (Scenario 9)
+ok 67 - spec reopen: reports the direct dependants and leaves them unchanged (Scenario 9)
+  ---
+  duration_ms: 653.726668
+  type: 'test'
+  ...
+# Subtest: spec approve refuses an unknown id, a wrong status, and uncommitted changes
+ok 68 - spec approve refuses an unknown id, a wrong status, and uncommitted changes
+  ---
+  duration_ms: 1893.567145
+  type: 'test'
+  ...
+# Subtest: spec approve stops at the first refusal and keeps earlier approvals
+ok 69 - spec approve stops at the first refusal and keeps earlier approvals
+  ---
+  duration_ms: 666.651547
+  type: 'test'
+  ...
+# Subtest: spec approve refuses an overlay whose base is not approved
+ok 70 - spec approve refuses an overlay whose base is not approved
+  ---
+  duration_ms: 477.231716
+  type: 'test'
+  ...
+# Subtest: spec approve refuses an overlay with a stale pin whose base is uncommitted
+ok 71 - spec approve refuses an overlay with a stale pin whose base is uncommitted
+  ---
+  duration_ms: 555.601127
+  type: 'test'
+  ...
+# Subtest: spec approve reports validation errors and restores the file
+ok 72 - spec approve reports validation errors and restores the file
+  ---
+  duration_ms: 501.33515
+  type: 'test'
+  ...
+# Subtest: spec approve records the agent and session trailers when set
+ok 73 - spec approve records the agent and session trailers when set
+  ---
+  duration_ms: 541.120694
+  type: 'test'
+  ...
+# Subtest: spec approve and reopen --dry-run print the plan and commit nothing
+ok 74 - spec approve and reopen --dry-run print the plan and commit nothing
+  ---
+  duration_ms: 1063.291406
+  type: 'test'
+  ...
+# Subtest: spec new feature writes a draft that validates (base and overlay roots)
+ok 75 - spec new feature writes a draft that validates (base and overlay roots)
+  ---
+  duration_ms: 1522.528051
+  type: 'test'
+  ...
+# Subtest: spec new architecture needs --implements without a TTY
+ok 76 - spec new architecture needs --implements without a TTY
+  ---
+  duration_ms: 1439.931688
+  type: 'test'
+  ...
+# Subtest: spec new error texts
+ok 77 - spec new error texts
+  ---
+  duration_ms: 1843.326653
+  type: 'test'
+  ...
+# Subtest: spec list filters and JSON output
+ok 78 - spec list filters and JSON output
+  ---
+  duration_ms: 2449.132968
+  type: 'test'
+  ...
+# Subtest: spec show prints the file; ambiguity and --root
+ok 79 - spec show prints the file; ambiguity and --root
+  ---
+  duration_ms: 2434.159389
+  type: 'test'
+  ...
+# Subtest: list, show and validation share assessment without rewriting the spec
+ok 80 - list, show and validation share assessment without rewriting the spec
+  ---
+  duration_ms: 1473.024997
+  type: 'test'
+  ...
+# Subtest: validation distinguishes unavailable assessment from invalid metadata
+ok 81 - validation distinguishes unavailable assessment from invalid metadata
+  ---
+  duration_ms: 1072.429868
+  type: 'test'
+  ...
+# Subtest: assessment uses the captured root and dependency bytes after files change
+ok 82 - assessment uses the captured root and dependency bytes after files change
+  ---
+  duration_ms: 83.207714
+  type: 'test'
+  ...
+# Subtest: malformed dependency metadata produces a schema error for assessment
+ok 83 - malformed dependency metadata produces a schema error for assessment
+  ---
+  duration_ms: 549.94386
+  type: 'test'
+  ...
+# Subtest: spec validate: all, named, and JSON
+ok 84 - spec validate: all, named, and JSON
+  ---
+  duration_ms: 2520.446977
+  type: 'test'
+  ...
+# Subtest: spec new scaffold carries the section headings of the file-formats templates and validates
+ok 85 - spec new scaffold carries the section headings of the file-formats templates and validates
+  ---
+  duration_ms: 1955.169866
+  type: 'test'
+  ...
+# Subtest: absent config returns defaults with a warning
+ok 86 - absent config returns defaults with a warning
+  ---
+  duration_ms: 49.106641
+  type: 'test'
+  ...
+# Subtest: partial config merges with defaults
+ok 87 - partial config merges with defaults
+  ---
+  duration_ms: 4.854463
+  type: 'test'
+  ...
+# Subtest: invalid enum value throws ConfigError
+ok 88 - invalid enum value throws ConfigError
+  ---
+  duration_ms: 0.872087
+  type: 'test'
+  ...
+# Subtest: llm_role review is accepted for both spec types
+ok 89 - llm_role review is accepted for both spec types
+  ---
+  duration_ms: 3.246233
+  type: 'test'
+  ...
+# Subtest: unknown llm_role fails and lists the allowed values
+ok 90 - unknown llm_role fails and lists the allowed values
+  ---
+  duration_ms: 0.515128
+  type: 'test'
+  ...
+# Subtest: unknown keys warn and are dropped
+ok 91 - unknown keys warn and are dropped
+  ---
+  duration_ms: 3.291011
+  type: 'test'
+  ...
+# Subtest: root extends cycle throws ConfigError
+ok 92 - root extends cycle throws ConfigError
+  ---
+  duration_ms: 0.38412
+  type: 'test'
+  ...
+# Subtest: malformed YAML throws ConfigError
+ok 93 - malformed YAML throws ConfigError
+  ---
+  duration_ms: 0.849262
+  type: 'test'
+  ...
+# Subtest: duplicate spec root name
+ok 94 - duplicate spec root name
+  ---
+  duration_ms: 0.897175
+  type: 'test'
+  ...
+# Subtest: missing spec root is an error
+ok 95 - missing spec root is an error
+  ---
+  duration_ms: 1.380966
+  type: 'test'
+  ...
+# Subtest: spec root outside the repository is an error
+ok 96 - spec root outside the repository is an error
+  ---
+  duration_ms: 0.534718
+  type: 'test'
+  ...
+# Subtest: spec root that is not a directory is an error
+ok 97 - spec root that is not a directory is an error
+  ---
+  duration_ms: 0.474337
+  type: 'test'
+  ...
+# Subtest: worktree_dir inside the repository is an error with the worktree backend
+ok 98 - worktree_dir inside the repository is an error with the worktree backend
+  ---
+  duration_ms: 11.283723
+  type: 'test'
+  ...
+# Subtest: worktree_dir is not checked with the branch backend
+ok 99 - worktree_dir is not checked with the branch backend
+  ---
+  duration_ms: 0.625936
+  type: 'test'
+  ...
+# Subtest: DEFAULT_CONFIG equals the defaults table in feature/configuration
+ok 100 - DEFAULT_CONFIG equals the defaults table in feature/configuration
+  ---
+  duration_ms: 1.453385
+  type: 'test'
+  ...
+# Subtest: conductor config: safe defaults and partial notification merge
+ok 101 - conductor config: safe defaults and partial notification merge
+  ---
+  duration_ms: 16.939967
+  type: 'test'
+  ...
+# Subtest: conductor config: accepted modes, transports, limits and event selectors
+ok 102 - conductor config: accepted modes, transports, limits and event selectors
+  ---
+  duration_ms: 11.368501
+  type: 'test'
+  ...
+# Subtest: conductor config: invalid enums, types and unsafe limits are rejected
+ok 103 - conductor config: invalid enums, types and unsafe limits are rejected
+  ---
+  duration_ms: 5.579627
+  type: 'test'
+  ...
+# Subtest: conductor config: command transport requires a nonblank command
+ok 104 - conductor config: command transport requires a nonblank command
+  ---
+  duration_ms: 1.023096
+  type: 'test'
+  ...
+# Subtest: conductor config: unknown nested keys still warn and are dropped
+ok 105 - conductor config: unknown nested keys still warn and are dropped
+  ---
+  duration_ms: 3.27756
+  type: 'test'
+  ...
+# Subtest: session mode: config can force unattended but cannot force attended
+ok 106 - session mode: config can force unattended but cannot force attended
+  ---
+  duration_ms: 0.134613
+  type: 'test'
+  ...
+# Subtest: init emits the complete runtime defaults including conductor settings
+ok 107 - init emits the complete runtime defaults including conductor settings
+  ---
+  duration_ms: 4.324662
+  type: 'test'
+  ...
+# Subtest: verified matrix enables probed capabilities; unknown host disables them
+ok 108 - verified matrix enables probed capabilities; unknown host disables them
+  ---
+  duration_ms: 65.796033
+  type: 'test'
+  ...
+# Subtest: unknown fields, protocol changes, corrupt bytes, omitted runtime and bad blobs refuse
+ok 109 - unknown fields, protocol changes, corrupt bytes, omitted runtime and bad blobs refuse
+  ---
+  duration_ms: 29.002645
+  type: 'test'
+  ...
+# Subtest: unsigned, malformed and failing report cannot enable host capabilities
+ok 110 - unsigned, malformed and failing report cannot enable host capabilities
+  ---
+  duration_ms: 29.556999
+  type: 'test'
+  ...
+# Subtest: host input and all procedure references are validated and certified intervals use probes
+ok 111 - host input and all procedure references are validated and certified intervals use probes
+  ---
+  duration_ms: 22.966649
+  type: 'test'
+  ...
+# Subtest: instruction orientation metadata is bound to the documentation release
+ok 112 - instruction orientation metadata is bound to the documentation release
+  ---
+  duration_ms: 24.154528
+  type: 'test'
+  ...
+# Subtest: core and CLI preserve evidence and body, cover statuses, dry-run and repeated complete
+ok 113 - core and CLI preserve evidence and body, cover statuses, dry-run and repeated complete
+  ---
+  duration_ms: 634.180909
+  type: 'test'
+  ...
+# Subtest: invalid metadata, missing closure and held checkout lease refuse without altering files
+ok 114 - invalid metadata, missing closure and held checkout lease refuse without altering files
+  ---
+  duration_ms: 95.508713
+  type: 'test'
+  ...
+# Subtest: root option selects the exact root, and qualified IDs retain precedence
+ok 115 - root option selects the exact root, and qualified IDs retain precedence
+  ---
+  duration_ms: 46.225308
+  type: 'test'
+  ...
+# Subtest: preimage checks reject injected config, root, dependency, missing candidate, HEAD, index and symlink races
+ok 116 - preimage checks reject injected config, root, dependency, missing candidate, HEAD, index and symlink races
+  ---
+  duration_ms: 312.385604
+  type: 'test'
+  ...
+# Subtest: initial symlinks and aborted or locked operations refuse
+ok 117 - initial symlinks and aborted or locked operations refuse
+  ---
+  duration_ms: 45.506103
+  type: 'test'
+  ...
+# Subtest: source-aware YAML updates preserve unrelated metadata, comments, delimiter and CRLF
+ok 118 - source-aware YAML updates preserve unrelated metadata, comments, delimiter and CRLF
+  ---
+  duration_ms: 200.431574
+  type: 'test'
+  ...
+# Subtest: an implementation anchor referenced elsewhere refuses rather than changing unrelated metadata
+ok 119 - an implementation anchor referenced elsewhere refuses rather than changing unrelated metadata
+  ---
+  duration_ms: 29.404478
+  type: 'test'
+  ...
+# Subtest: CLI and core report matching previews for each status and refuse invalid input
+ok 120 - CLI and core report matching previews for each status and refuse invalid input
+  ---
+  duration_ms: 2090.50858
+  type: 'test'
+  ...
+# Subtest: lease ownership loss refuses before mutation and leaves no temporary file
+ok 121 - lease ownership loss refuses before mutation and leaves no temporary file
+  ---
+  duration_ms: 30.537593
+  type: 'test'
+  ...
+# Subtest: dry run in a linked checkout creates no common runtime records
+ok 122 - dry run in a linked checkout creates no common runtime records
+  ---
+  duration_ms: 42.434322
+  type: 'test'
+  ...
+# Subtest: outside file and directory symlinks are refused without modifying targets
+ok 123 - outside file and directory symlinks are refused without modifying targets
+  ---
+  duration_ms: 66.651015
+  type: 'test'
+  ...
+# Subtest: spec-v1 serializes sorted mappings, literal Unicode, numbers and exact normalized body
+ok 124 - spec-v1 serializes sorted mappings, literal Unicode, numbers and exact normalized body
+  ---
+  duration_ms: 8.204223
+  type: 'test'
+  ...
+# Subtest: only the specified bookkeeping fields are excluded
+ok 125 - only the specified bookkeeping fields are excluded
+  ---
+  duration_ms: 1.524664
+  type: 'test'
+  ...
+# Subtest: gray-matter closing delimiter suffix remains body content
+ok 126 - gray-matter closing delimiter suffix remains body content
+  ---
+  duration_ms: 41.328368
+  type: 'test'
+  ...
+# Subtest: metadata schema accepts manual and future-version records, rejects malformed records without modifying files
+ok 127 - metadata schema accepts manual and future-version records, rejects malformed records without modifying files
+  ---
+  duration_ms: 5.019432
+  type: 'test'
+  ...
+# Subtest: closure accepts identities in configured roots containing spaces
+ok 128 - closure accepts identities in configured roots containing spaces
+  ---
+  duration_ms: 1.70839
+  type: 'test'
+  ...
+# Subtest: closure resolves anchored edges from each declaring root, deduplicates cycles and records membership
+ok 129 - closure resolves anchored edges from each declaring root, deduplicates cycles and records membership
+  ---
+  duration_ms: 2.007711
+  type: 'test'
+  ...
+# Subtest: assessment preserves known changes with unavailable and unsupported dependencies
+ok 130 - assessment preserves known changes with unavailable and unsupported dependencies
+  ---
+  duration_ms: 5.332813
+  type: 'test'
+  ...
+# Subtest: assessment reports membership and root changes in deterministic order
+ok 131 - assessment reports membership and root changes in deterministic order
+  ---
+  duration_ms: 1.292584
+  type: 'test'
+  ...
+# Subtest: a missing recorded dependency is also removed when current traversal is complete
+ok 132 - a missing recorded dependency is also removed when current traversal is complete
+  ---
+  duration_ms: 1.025753
+  type: 'test'
+  ...
+# Subtest: malformed dependency metadata is a schema error, not unavailability
+ok 133 - malformed dependency metadata is a schema error, not unavailability
+  ---
+  duration_ms: 1.021867
+  type: 'test'
+  ...
+# Subtest: models, sessions, subagent and unknown identities survive rewrite with references
+ok 134 - models, sessions, subagent and unknown identities survive rewrite with references
+  ---
+  duration_ms: 5.383199
+  type: 'test'
+  ...
+# Subtest: invalid, untrusted, empty and conflicting events fail closed
+ok 135 - invalid, untrusted, empty and conflicting events fail closed
+  ---
+  duration_ms: 0.630328
+  type: 'test'
+  ...
+# Subtest: legacy events and correction history survive; unresolved corrections refuse
+ok 136 - legacy events and correction history survive; unresolved corrections refuse
+  ---
+  duration_ms: 0.436707
+  type: 'test'
+  ...
+# Subtest: corrections targeting a rewritten commit survive subsequent rewrites
+ok 137 - corrections targeting a rewritten commit survive subsequent rewrites
+  ---
+  duration_ms: 0.326962
+  type: 'test'
+  ...
+# Subtest: import with arbitrary CLI arguments neither parses them nor writes to checkout
+ok 138 - import with arbitrary CLI arguments neither parses them nor writes to checkout
+  ---
+  duration_ms: 346.254448
+  type: 'test'
+  ...
+# Subtest: closed operation and test schemas reject unknown fields and invalid requests
+ok 139 - closed operation and test schemas reject unknown fields and invalid requests
+  ---
+  duration_ms: 87.056191
+  type: 'test'
+  ...
+# Subtest: public operations reject malformed inputs and explicitly refuse valid unimplemented work
+ok 140 - public operations reject malformed inputs and explicitly refuse valid unimplemented work
+  ---
+  duration_ms: 6.891584
+  type: 'test'
+  ...
+# Subtest: closed receipt and confirmation schemas reject inconsistent or extra fields
+ok 141 - closed receipt and confirmation schemas reject inconsistent or extra fields
+  ---
+  duration_ms: 15.342694
+  type: 'test'
+  ...
+# Subtest: aliases and plan/non-plan writers contend on one checkout
+ok 142 - aliases and plan/non-plan writers contend on one checkout
+  ---
+  duration_ms: 50.54271
+  type: 'test'
+  ...
+# Subtest: ordered sets release their subset after multi-checkout contention
+ok 143 - ordered sets release their subset after multi-checkout contention
+  ---
+  duration_ms: 63.239355
+  type: 'test'
+  ...
+# Subtest: malformed, delegated and guard data fail closed; ownership loss prevents release
+ok 144 - malformed, delegated and guard data fail closed; ownership loss prevents release
+  ---
+  duration_ms: 34.228246
+  type: 'test'
+  ...
+# Subtest: only a proven-dead undelegated owner is reclaimed
+ok 145 - only a proven-dead undelegated owner is reclaimed
+  ---
+  duration_ms: 28.510212
+  type: 'test'
+  ...
+# Subtest: another process cannot acquire an occupied checkout
+ok 146 - another process cannot acquire an occupied checkout
+  ---
+  duration_ms: 74.034111
+  type: 'test'
+  ...
+# Subtest: linked runtime directories and nonregular lease records require recovery
+ok 147 - linked runtime directories and nonregular lease records require recovery
+  ---
+  duration_ms: 29.35954
+  type: 'test'
+  ...
+# Subtest: caller mutations cannot change ownership verification
+ok 148 - caller mutations cannot change ownership verification
+  ---
+  duration_ms: 23.933088
+  type: 'test'
+  ...
+# Subtest: dangling links and FIFOs fail closed without blocking
+ok 149 - dangling links and FIFOs fail closed without blocking
+  ---
+  duration_ms: 31.549551
+  type: 'test'
+  ...
+# Subtest: delegation binds the complete set and recording consumes the token
+ok 150 - delegation binds the complete set and recording consumes the token
+  ---
+  duration_ms: 31.509255
+  type: 'test'
+  ...
+# Subtest: cancellation preserves edits and uncertain stop retains leases until acknowledged
+ok 151 - cancellation preserves edits and uncertain stop retains leases until acknowledged
+  ---
+  duration_ms: 37.641368
+  type: 'test'
+  ...
+# Subtest: dead owner with live worker cannot be reclaimed; recovery inspects before invalidation
+ok 152 - dead owner with live worker cannot be reclaimed; recovery inspects before invalidation
+  ---
+  duration_ms: 44.963978
+  type: 'test'
+  ...
+# Subtest: interrupted delegation cannot be reclaimed as an undelegated lease
+ok 153 - interrupted delegation cannot be reclaimed as an undelegated lease
+  ---
+  duration_ms: 31.070734
+  type: 'test'
+  ...
+# Subtest: listAdrs reads NNNN-*.md and keeps dates as strings
+ok 154 - listAdrs reads NNNN-*.md and keeps dates as strings
+  ---
+  duration_ms: 33.581619
+  type: 'test'
+  ...
+# Subtest: absent decisions directory yields no ADRs
+ok 155 - absent decisions directory yields no ADRs
+  ---
+  duration_ms: 0.737253
+  type: 'test'
+  ...
+# Subtest: AlreadyExistsError texts and exit code
+ok 156 - AlreadyExistsError texts and exit code
+  ---
+  duration_ms: 0.67531
+  type: 'test'
+  ...
+# Subtest: getIndexStatus
+ok 157 - getIndexStatus
+  ---
+  duration_ms: 47.919826
+  type: 'test'
+  ...
+# Subtest: toMermaid: node classes, edges after nodes, classDefs
+ok 158 - toMermaid: node classes, edges after nodes, classDefs
+  ---
+  duration_ms: 0.513726
+  type: 'test'
+  ...
+# Subtest: generateWorkingPlansMd: sections, blocked status, links, determinism
+ok 159 - generateWorkingPlansMd: sections, blocked status, links, determinism
+  ---
+  duration_ms: 44.960337
+  type: 'test'
+  ...
+# Subtest: generateWorkingPlansMd: stack mode blocks a ready plan with two unmerged dependencies
+ok 160 - generateWorkingPlansMd: stack mode blocks a ready plan with two unmerged dependencies
+  ---
+  duration_ms: 28.555381
+  type: 'test'
+  ...
+# Subtest: generateWorkingPlansMd: empty sections render _None._
+ok 161 - generateWorkingPlansMd: empty sections render _None._
+  ---
+  duration_ms: 22.122289
+  type: 'test'
+  ...
+# Subtest: PLANS.md freshness warning
+ok 162 - PLANS.md freshness warning
+  ---
+  duration_ms: 444.915481
+  type: 'test'
+  ...
+# Subtest: init: creates files, preserves AGENTS.md text, idempotent
+ok 163 - init: creates files, preserves AGENTS.md text, idempotent
+  ---
+  duration_ms: 9.84297
+  type: 'test'
+  ...
+# Subtest: init: scaffolds spec roots that do not exist yet
+ok 164 - init: scaffolds spec roots that do not exist yet
+  ---
+  duration_ms: 2.508638
+  type: 'test'
+  ...
+# Subtest: init: uses existing config paths and skips non-empty plans dir
+ok 165 - init: uses existing config paths and skips non-empty plans dir
+  ---
+  duration_ms: 3.314834
+  type: 'test'
+  ...
+# Subtest: source selection, notices, print-only, idempotence and migration
+ok 166 - source selection, notices, print-only, idempotence and migration
+  ---
+  duration_ms: 4844.658402
+  type: 'test'
+  ...
+# Subtest: pure captured render uses target declarations and escapes table text
+ok 167 - pure captured render uses target declarations and escapes table text
+  ---
+  duration_ms: 148.329862
+  type: 'test'
+  ...
+# Subtest: live print resolves execution branch and makes no output writes
+ok 168 - live print resolves execution branch and makes no output writes
+  ---
+  duration_ms: 720.619051
+  type: 'test'
+  ...
+# Subtest: staged recovery permits output conflict and refuses unresolved plan input
+ok 169 - staged recovery permits output conflict and refuses unresolved plan input
+  ---
+  duration_ms: 1666.844117
+  type: 'test'
+  ...
+# Subtest: freshness compares each selected output and reports source even when fresh
+ok 170 - freshness compares each selected output and reports source even when fresh
+  ---
+  duration_ms: 1413.034503
+  type: 'test'
+  ...
+# Subtest: merge recovery uses resolved staged inputs through continuation
+ok 171 - merge recovery uses resolved staged inputs through continuation
+  ---
+  duration_ms: 3285.590849
+  type: 'test'
+  ...
+# Subtest: rebase recovery uses resolved staged inputs through continuation
+ok 172 - rebase recovery uses resolved staged inputs through continuation
+  ---
+  duration_ms: 3285.589719
+  type: 'test'
+  ...
+# Subtest: cherry-pick recovery uses resolved staged inputs through continuation
+ok 173 - cherry-pick recovery uses resolved staged inputs through continuation
+  ---
+  duration_ms: 3110.317403
+  type: 'test'
+  ...
+# Subtest: unborn and detached head behavior is explicit
+ok 174 - unborn and detached head behavior is explicit
+  ---
+  duration_ms: 1572.166173
+  type: 'test'
+  ...
+# Subtest: live status reads authoritative target and queries PR with its recorded base
+ok 175 - live status reads authoritative target and queries PR with its recorded base
+  ---
+  duration_ms: 2188.824008
+  type: 'test'
+  ...
+# Subtest: live frontmatter uses execution status and target terminal overrides
+ok 176 - live frontmatter uses execution status and target terminal overrides
+  ---
+  duration_ms: 3501.10849
+  type: 'test'
+  ...
+# Subtest: live target dependencies and config block before querying a PR in both status modes
+ok 177 - live target dependencies and config block before querying a PR in both status modes
+  ---
+  duration_ms: 1609.898396
+  type: 'test'
+  ...
+# Subtest: live discovers local and fetched remote branch-only records in plan ID order
+ok 178 - live discovers local and fetched remote branch-only records in plan ID order
+  ---
+  duration_ms: 3139.399245
+  type: 'test'
+  ...
+# Subtest: live refuses missing target and incompatible branch bindings without stdout or mutations
+ok 179 - live refuses missing target and incompatible branch bindings without stdout or mutations
+  ---
+  duration_ms: 1901.78549
+  type: 'test'
+  ...
+# Subtest: live PR lookup uses recorded base and ignores PRs to another base
+ok 180 - live PR lookup uses recorded base and ignores PRs to another base
+  ---
+  duration_ms: 710.82861
+  type: 'test'
+  ...
+# Subtest: live unstarted routing respects the selected staged and working declarations
+ok 181 - live unstarted routing respects the selected staged and working declarations
+  ---
+  duration_ms: 1156.939204
+  type: 'test'
+  ...
+# Subtest: live refuses branch config path conflicts
+ok 182 - live refuses branch config path conflicts
+  ---
+  duration_ms: 549.705289
+  type: 'test'
+  ...
+# Subtest: live renderer refuses incomplete status context
+ok 183 - live renderer refuses incomplete status context
+  ---
+  duration_ms: 51.470138
+  type: 'test'
+  ...
+# Subtest: renderer sorts archived records without changing captured inputs
+ok 184 - renderer sorts archived records without changing captured inputs
+  ---
+  duration_ms: 50.906487
+  type: 'test'
+  ...
+# Subtest: three explicit sources preserve stage zero additions, deletions and tracked edits
+ok 185 - three explicit sources preserve stage zero additions, deletions and tracked edits
+  ---
+  duration_ms: 249.423448
+  type: 'test'
+  ...
+# Subtest: config and inventory come from the same selected source
+ok 186 - config and inventory come from the same selected source
+  ---
+  duration_ms: 136.95011
+  type: 'test'
+  ...
+# Subtest: working includes ignored tracked and nonignored new inputs and honors deletions
+ok 187 - working includes ignored tracked and nonignored new inputs and honors deletions
+  ---
+  duration_ms: 95.770161
+  type: 'test'
+  ...
+# Subtest: unborn and detached HEAD have explicit behavior
+ok 188 - unborn and detached HEAD have explicit behavior
+  ---
+  duration_ms: 88.129652
+  type: 'test'
+  ...
+# Subtest: unmerged inputs refuse while output-only conflicts are exposed
+ok 189 - unmerged inputs refuse while output-only conflicts are exposed
+  ---
+  duration_ms: 118.217955
+  type: 'test'
+  ...
+# Subtest: recheck detects discovery, input, index, output and operation changes
+ok 190 - recheck detects discovery, input, index, output and operation changes
+  ---
+  duration_ms: 507.739172
+  type: 'test'
+  ...
+# Subtest: prospective overlay uses only authorized head edits and containment rejects escapes
+ok 191 - prospective overlay uses only authorized head edits and containment rejects escapes
+  ---
+  duration_ms: 53.410275
+  type: 'test'
+  ...
+# Subtest: unmerged config refuses and symlink inputs are not followed
+ok 192 - unmerged config refuses and symlink inputs are not followed
+  ---
+  duration_ms: 50.702102
+  type: 'test'
+  ...
+# Subtest: prospective canonical paths and bytewise ordering match committed snapshots
+ok 193 - prospective canonical paths and bytewise ordering match committed snapshots
+  ---
+  duration_ms: 116.869454
+  type: 'test'
+  ...
+# Subtest: ignored rule files are rechecked even when inventory is unchanged
+ok 194 - ignored rule files are rechecked even when inventory is unchanged
+  ---
+  duration_ms: 216.087685
+  type: 'test'
+  ...
+# Subtest: working discovery skips excluded trees but retains rules for tracked and visible plans
+ok 195 - working discovery skips excluded trees but retains rules for tracked and visible plans
+  ---
+  duration_ms: 414.126056
+  type: 'test'
+  ...
+# Subtest: snapshot branch validation follows Git and accepts repository root plans
+ok 196 - snapshot branch validation follows Git and accepts repository root plans
+  ---
+  duration_ms: 109.916942
+  type: 'test'
+  ...
+# Subtest: external exclude and ancestor rules invalidate working snapshots; symlink directories refuse
+ok 197 - external exclude and ancestor rules invalidate working snapshots; symlink directories refuse
+  ---
+  duration_ms: 262.644976
+  type: 'test'
+  ...
+# Subtest: owned output scratch is ignored exactly while newly discovered plans still invalidate the snapshot
+ok 198 - owned output scratch is ignored exactly while newly discovered plans still invalidate the snapshot
+  ---
+  duration_ms: 239.896559
+  type: 'test'
+  ...
+# Subtest: formatMessage orders trailers and appends attribution last
+ok 199 - formatMessage orders trailers and appends attribution last
+  ---
+  duration_ms: 1.238727
+  type: 'test'
+  ...
+# Subtest: formatMessage enforces 72 chars except chore(specplane)
+ok 200 - formatMessage enforces 72 chars except chore(specplane)
+  ---
+  duration_ms: 0.680085
+  type: 'test'
+  ...
+# Subtest: cliTrailers includes agent/session only when set and non-empty
+ok 201 - cliTrailers includes agent/session only when set and non-empty
+  ---
+  duration_ms: 1.044905
+  type: 'test'
+  ...
+# Subtest: readTrailers and findLatest on a temp repo (last wins)
+ok 202 - readTrailers and findLatest on a temp repo (last wins)
+  ---
+  duration_ms: 53.936964
+  type: 'test'
+  ...
+# Subtest: branchExists and remoteBranchExists
+ok 203 - branchExists and remoteBranchExists
+  ---
+  duration_ms: 28.64878
+  type: 'test'
+  ...
+# Subtest: parseWorktreeList and listWorktrees
+ok 204 - parseWorktreeList and listWorktrees
+  ---
+  duration_ms: 23.973667
+  type: 'test'
+  ...
+# Subtest: repeated contribution trailers survive Git serialization and reads
+ok 205 - repeated contribution trailers survive Git serialization and reads
+  ---
+  duration_ms: 20.193882
+  type: 'test'
+  ...
+# Subtest: rewrite carries events from multiple Git commits with original references
+ok 206 - rewrite carries events from multiple Git commits with original references
+  ---
+  duration_ms: 50.177493
+  type: 'test'
+  ...
+# Subtest: forge: PR queries bind the requested target and merged evidence binds exact head
+ok 207 - forge: PR queries bind the requested target and merged evidence binds exact head
+  ---
+  duration_ms: 43.732403
+  type: 'test'
+  ...
+# Subtest: forge: createPR uses gh with an argument array (no shell)
+ok 208 - forge: createPR uses gh with an argument array (no shell)
+  ---
+  duration_ms: 15.815151
+  type: 'test'
+  ...
+# Subtest: forge: getOpenPR parses --json url output
+ok 209 - forge: getOpenPR parses --json url output
+  ---
+  duration_ms: 28.551678
+  type: 'test'
+  ...
+# Subtest: forge: auto returns null for non-GitHub remote, no remote, or missing gh
+ok 210 - forge: auto returns null for non-GitHub remote, no remote, or missing gh
+  ---
+  duration_ms: 31.658256
+  type: 'test'
+  ...
+# Subtest: forge: github mode throws ForgeError (exit 2) when unavailable
+ok 211 - forge: github mode throws ForgeError (exit 2) when unavailable
+  ---
+  duration_ms: 26.954292
+  type: 'test'
+  ...
+# Subtest: forge: none returns null without calling gh; gh failure becomes ForgeError
+ok 212 - forge: none returns null without calling gh; gh failure becomes ForgeError
+  ---
+  duration_ms: 25.616794
+  type: 'test'
+  ...
+# Subtest: run returns stdout and throws GitError on failure
+ok 213 - run returns stdout and throws GitError on failure
+  ---
+  duration_ms: 23.830377
+  type: 'test'
+  ...
+# Subtest: run does not interpret shell syntax in arguments
+ok 214 - run does not interpret shell syntax in arguments
+  ---
+  duration_ms: 14.602048
+  type: 'test'
+  ...
+# Subtest: checkoutRoot and mainRoot differ inside a linked worktree
+ok 215 - checkoutRoot and mainRoot differ inside a linked worktree
+  ---
+  duration_ms: 37.375993
+  type: 'test'
+  ...
+# Subtest: defaultBranch falls back to main, then master
+ok 216 - defaultBranch falls back to main, then master
+  ---
+  duration_ms: 23.66621
+  type: 'test'
+  ...
+# Subtest: outside a repository throws NotARepoError
+ok 217 - outside a repository throws NotARepoError
+  ---
+  duration_ms: 4.04077
+  type: 'test'
+  ...
+# Subtest: createBranch and deleteBranch
+ok 218 - createBranch and deleteBranch
+  ---
+  duration_ms: 32.733697
+  type: 'test'
+  ...
+# Subtest: rebaseOnto succeeds without conflict
+ok 219 - rebaseOnto succeeds without conflict
+  ---
+  duration_ms: 40.496507
+  type: 'test'
+  ...
+# Subtest: rebaseOnto aborts on conflict and leaves the branch unchanged
+ok 220 - rebaseOnto aborts on conflict and leaves the branch unchanged
+  ---
+  duration_ms: 52.845955
+  type: 'test'
+  ...
+# Subtest: rebaseOnto rethrows GitError when no rebase started
+ok 221 - rebaseOnto rethrows GitError when no rebase started
+  ---
+  duration_ms: 22.848878
+  type: 'test'
+  ...
+# Subtest: createWorktree adds and reuses; removeWorktree refuses dirty unless forced
+ok 222 - createWorktree adds and reuses; removeWorktree refuses dirty unless forced
+  ---
+  duration_ms: 43.385306
+  type: 'test'
+  ...
+# Subtest: removeWorktree removes a clean worktree
+ok 223 - removeWorktree removes a clean worktree
+  ---
+  duration_ms: 32.969162
+  type: 'test'
+  ...
+# notice: plan index freshness source: head
+# Subtest: codex init is explicit, idempotent and preserves user-owned settings and instructions
+not ok 224 - codex init is explicit, idempotent and preserves user-owned settings and instructions
+  ---
+  duration_ms: 64.279664
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/harness/codex.test.js:19:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/harness/codex.test.js:34:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.start (node:internal/test_runner/test:1242:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: neutral init suppresses Claude auto-detection and all harness writes
+ok 225 - neutral init suppresses Claude auto-detection and all harness writes
+  ---
+  duration_ms: 3.624823
+  type: 'test'
+  ...
+# Subtest: codex init does not overwrite an existing customized skill
+ok 226 - codex init does not overwrite an existing customized skill
+  ---
+  duration_ms: 3.66891
+  type: 'test'
+  ...
+# Subtest: Codex background execution explicitly refuses instead of using Claude flags
+ok 227 - Codex background execution explicitly refuses instead of using Claude flags
+  ---
+  duration_ms: 5.22115
+  type: 'test'
+  ...
+# Subtest: representative experimental workflow implements/tests in isolated worktree without plan promotion
+ok 228 - representative experimental workflow implements/tests in isolated worktree without plan promotion
+  ---
+  duration_ms: 2752.772147
+  type: 'test'
+  ...
+# Subtest: experimental workflow rejects a broken implementation through its child tests
+ok 229 - experimental workflow rejects a broken implementation through its child tests
+  ---
+  duration_ms: 2016.327684
+  type: 'test'
+  ...
+# Subtest: codex install refuses a skill directory escaping the repository
+ok 230 - codex install refuses a skill directory escaping the repository
+  ---
+  duration_ms: 4.126949
+  type: 'test'
+  ...
+# Subtest: installed Codex contract is verified against scoped bundled source, never waived
+ok 231 - installed Codex contract is verified against scoped bundled source, never waived
+  ---
+  duration_ms: 39.146981
+  type: 'test'
+  ...
+# Subtest: harness: unknown name throws with known names
+ok 232 - harness: unknown name throws with known names
+  ---
+  duration_ms: 2.320102
+  type: 'test'
+  ...
+# Subtest: harness: --harness and detection call install; neither prints hint
+ok 233 - harness: --harness and detection call install; neither prints hint
+  ---
+  duration_ms: 48.162236
+  type: 'test'
+  ...
+# Subtest: harness: claude templates resolve from the compiled module
+ok 234 - harness: claude templates resolve from the compiled module
+  ---
+  duration_ms: 0.349798
+  type: 'test'
+  ...
+# Subtest: claude plan-step: blocked-step recovery uses the current CLI flag
+ok 235 - claude plan-step: blocked-step recovery uses the current CLI flag
+  ---
+  duration_ms: 11.19072
+  type: 'test'
+  ...
+# Subtest: claude merge: absent file writes the template
+ok 236 - claude merge: absent file writes the template
+  ---
+  duration_ms: 1.025879
+  type: 'test'
+  ...
+# Subtest: claude merge: invalid JSON is reported and not clobbered
+ok 237 - claude merge: invalid JSON is reported and not clobbered
+  ---
+  duration_ms: 4.023543
+  type: 'test'
+  ...
+# Subtest: claude merge: already registered adds nothing, no duplicates
+ok 238 - claude merge: already registered adds nothing, no duplicates
+  ---
+  duration_ms: 0.486264
+  type: 'test'
+  ...
+# Subtest: claude merge: partial registration adds only the missing entries and keeps other keys
+ok 239 - claude merge: partial registration adds only the missing entries and keeps other keys
+  ---
+  duration_ms: 0.502628
+  type: 'test'
+  ...
+# Subtest: claude merge: existing statusLine is kept
+ok 240 - claude merge: existing statusLine is kept
+  ---
+  duration_ms: 0.338491
+  type: 'test'
+  ...
+# Subtest: claude install: files created, hooks executable, idempotent, CLAUDE.md untouched
+ok 241 - claude install: files created, hooks executable, idempotent, CLAUDE.md untouched
+  ---
+  duration_ms: 16.329472
+  type: 'test'
+  ...
+# Subtest: claude install: detection by .claude/ directory
+ok 242 - claude install: detection by .claude/ directory
+  ---
+  duration_ms: 6.694864
+  type: 'test'
+  ...
+# Subtest: packed tarball installs Claude and Codex integrations end to end
+ok 243 - packed tarball installs Claude and Codex integrations end to end
+  ---
+  duration_ms: 3164.961444
+  type: 'test'
+  ...
+# Subtest: session identity: UUIDv5 is stable and distinct by plan/step
+ok 244 - session identity: UUIDv5 is stable and distinct by plan/step
+  ---
+  duration_ms: 1.823531
+  type: 'test'
+  ...
+# Subtest: Claude adapter: unsupported capabilities refuse before launch
+ok 245 - Claude adapter: unsupported capabilities refuse before launch
+  ---
+  duration_ms: 1.607626
+  type: 'test'
+  ...
+# Subtest: Claude adapter: external and branch backends refuse without executing
+ok 246 - Claude adapter: external and branch backends refuse without executing
+  ---
+  duration_ms: 1.087761
+  type: 'test'
+  ...
+# Subtest: Claude adapter: argument array, env, no extra worktree, and adoption
+ok 247 - Claude adapter: argument array, env, no extra worktree, and adoption
+  ---
+  duration_ms: 10.881118
+  type: 'test'
+  ...
+# Subtest: Claude adapter: restart resumes failed session without new identity
+ok 248 - Claude adapter: restart resumes failed session without new identity
+  ---
+  duration_ms: 0.720427
+  type: 'test'
+  ...
+# Subtest: Claude adapter: missing resume and conflicting live identities refuse
+ok 249 - Claude adapter: missing resume and conflicting live identities refuse
+  ---
+  duration_ms: 0.692144
+  type: 'test'
+  ...
+# Subtest: Claude observation: invalid records are never treated as missing
+ok 250 - Claude observation: invalid records are never treated as missing
+  ---
+  duration_ms: 0.430739
+  type: 'test'
+  ...
+# Subtest: Claude adapter: unobservable launch reports uncertainty, no retry
+ok 251 - Claude adapter: unobservable launch reports uncertainty, no retry
+  ---
+  duration_ms: 1.180741
+  type: 'test'
+  ...
+# Subtest: Claude adapter: invalid budgets and missing budget support refuse
+ok 252 - Claude adapter: invalid budgets and missing budget support refuse
+  ---
+  duration_ms: 0.695619
+  type: 'test'
+  ...
+# Subtest: Claude adapter: harness notification is local and never invokes CLI
+ok 253 - Claude adapter: harness notification is local and never invokes CLI
+  ---
+  duration_ms: 0.361025
+  type: 'test'
+  ...
+# Subtest: ID pattern accepts valid IDs
+ok 254 - ID pattern accepts valid IDs
+  ---
+  duration_ms: 0.750342
+  type: 'test'
+  ...
+# Subtest: ID pattern rejects invalid IDs
+ok 255 - ID pattern rejects invalid IDs
+  ---
+  duration_ms: 0.15898
+  type: 'test'
+  ...
+# Subtest: qualified IDs resolve through the root prefix
+ok 256 - qualified IDs resolve through the root prefix
+  ---
+  duration_ms: 10.106159
+  type: 'test'
+  ...
+# notice: plan index freshness source: head
+# Checking .specplane/config.yaml... OK
+# Checking feature/agent-integration... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking feature/configuration... 2 warnings
+#   Implementation (base): unrecorded; assessment: unrecorded
+#   [warning] feature/configuration:221: Possible architecture detail (identifier): "target_branch"
+#   [warning] feature/configuration:226: Possible architecture detail (identifier): "target_branch"
+# Checking feature/decisions... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking feature/plan-execution... 3 warnings
+#   Implementation (base): unrecorded; assessment: unrecorded
+#   [warning] feature/plan-execution:74: Possible architecture detail (identifier): "target_branch"
+#   [warning] feature/plan-execution:80: Possible architecture detail (identifier): "comparison_base"
+#   [warning] feature/plan-execution:380: Possible architecture detail (identifier): "target_branch"
+# Checking feature/plan-index... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking feature/plan-status... 1 warning
+#   Implementation (base): unrecorded; assessment: unrecorded
+#   [warning] feature/plan-status:162: Possible architecture detail (identifier): "shelved_from"
+# Checking feature/plan-steps... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking feature/plan-system... 3 warnings
+#   Implementation (base): unrecorded; assessment: unrecorded
+#   [warning] feature/plan-system:83: Possible architecture detail (identifier): "shelved_from"
+#   [warning] feature/plan-system:84: Possible architecture detail (identifier): "target_branch"
+#   [warning] feature/plan-system:86: Possible architecture detail (identifier): "comparison_base"
+# Checking feature/spec-overlays... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking feature/spec-policies... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking feature/spec-precedence... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking feature/spec-system... 1 warning
+#   Implementation (base): unrecorded; assessment: unrecorded
+#   [warning] feature/spec-system:297: Possible architecture detail (identifier): "reassessment_needed"
+# Checking feature/tooling... 6 warnings
+#   Implementation (base): unrecorded; assessment: unrecorded
+#   [warning] feature/tooling:262: Possible architecture detail (identifier): "target_branch"
+#   [warning] feature/tooling:262: Possible architecture detail (identifier): "start_base"
+#   [warning] feature/tooling:262: Possible architecture detail (identifier): "comparison_base"
+#   [warning] feature/tooling:511: Possible architecture detail (identifier): "implementation_status"
+#   [warning] feature/tooling:511: Possible architecture detail (identifier): "assessment_status"
+#   [warning] feature/tooling:511: Possible architecture detail (identifier): "assessment_reasons"
+# Checking architecture/agent-skills... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking architecture/ci... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking architecture/file-formats... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking architecture/reference-cli... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking architecture/repository-layout... OK
+#   Implementation (base): unrecorded; assessment: unrecorded
+# Checking feature/claude-integration... 27 warnings
+#   Implementation (claude): unrecorded; assessment: unrecorded
+#   [warning] feature/claude-integration:48: `feature/claude-integration` may contradict `feature/agent-integration`: "Approval commands collect the human decision directly and never use model out..." (overlay) vs "the standalone CLI remains complete for manual use, including explicit human ..." (base).
+#   [warning] feature/claude-integration:50: `feature/claude-integration` may contradict `feature/agent-integration`: "Project skills can provide reasoning-only fallback workflows but must not mas..." (overlay) vs "An **extension** means any plugin, extension, or mod from a harness ecosystem..." (base).
+#   [warning] feature/claude-integration:120: `feature/claude-integration` may contradict `feature/agent-integration`: "Memory is per-user and is never the source of truth: a plan's progress lives ..." (overlay) vs "**Workflow procedures**: the step context contract, the HANDOFF.md format, th..." (base).
+#   [warning] feature/claude-integration:224: `feature/claude-integration` may contradict `feature/agent-integration`: "Shared docs never imply a host can execute an unsupported operation." (overlay) vs "Mechanical commands execute directly through deterministic handlers, without ..." (base).
+#   [warning] feature/claude-integration:40: `feature/claude-integration` may contradict `feature/agent-integration`: "Because the rules file is Specplane-owned, upgrading Specplane updates it wit..." (overlay) vs "Specplane must never overwrite or reorder their content." (base).
+#   [warning] feature/claude-integration:95: `feature/claude-integration` may contradict `feature/agent-integration`: "**Defaults**: pre-commit validation, the policy guard, and session context ar..." (overlay) vs "Specplane never selects a runtime from installed files, registry order, or a ..." (base).
+#   [warning] feature/claude-integration:48: `feature/claude-integration` may contradict `feature/agent-integration`: "The extension packages these procedures for consumers and adds host invocatio..." (overlay) vs "invocation details belong to each extension and must not replace another exte..." (base).
+#   [warning] feature/claude-integration:16: `feature/claude-integration` may contradict `feature/agent-integration`: "It is an extending overlay spec in the `claude` root: it extends `feature/age..." (overlay) vs "Extensions are defined in the harness's overlay root and must not contradict ..." (base).
+#   [warning] feature/claude-integration:26: `feature/claude-integration` may contradict `feature/agent-integration`: "Receives the Specplane standing instructions in every session, and workflow p..." (overlay) vs "Host built-ins remain host-owned and are never shadowed by Specplane commands." (base).
+#   [warning] feature/claude-integration:187: `feature/claude-integration` may contradict `feature/agent-integration`: "Then the skill shows the written body and writes the file only after the user..." (overlay) vs "Never write the spec body." (base).
+#   [warning] feature/claude-integration:60: `feature/claude-integration` may contradict `feature/agent-integration`: "| `/approve` | `approve` | Approve specs, plans, or decision records by ID (`..." (overlay) vs "The agent never approves on its own initiative, and never sets `status: appro..." (base).
+#   [warning] feature/claude-integration:54: `feature/claude-integration` may contradict `feature/agent-integration`: "| `/spec-assist` | `spec-assist` | Help the user write a feature spec (withou..." (overlay) vs "| `authorship: user`, `llm_role: review` | Agent may not write the spec body." (base).
+#   [warning] feature/claude-integration:88: `feature/claude-integration` may contradict `feature/agent-integration`: "**Policy guard**: when the agent edits a spec, apply the spec type's `llm_rol..." (overlay) vs "| `authorship: user`, `llm_role: none` | Agent may not edit or suggest change..." (base).
+#   [warning] feature/claude-integration:50: `feature/claude-integration` may contradict `feature/agent-integration`: "Multiple contributing models are retained even when the user switches models ..." (overlay) vs "a model or session identity never grants policy authority." (base).
+#   [warning] feature/claude-integration:60: `feature/claude-integration` may contradict `feature/agent-integration`: "| `/approve` | `approve` | Approve specs, plans, or decision records by ID (`..." (overlay) vs "Automation never approves, finishes or merges plans." (base).
+#   [warning] feature/claude-integration:101: `feature/claude-integration` may contradict `feature/agent-integration`: "Sessions on other machines publish each finished step, so the next session an..." (overlay) vs "Restarting never duplicates a live session;" (base).
+#   [warning] feature/claude-integration:120: `feature/claude-integration` may contradict `feature/plan-steps`: "Memory is per-user and is never the source of truth: a plan's progress lives ..." (overlay) vs "Step files live in `plans/<id>/steps/` and are named with a two-digit sequenc..." (base).
+#   [warning] feature/claude-integration:87: `feature/claude-integration` may contradict `feature/plan-steps`: "**Pre-commit validation**: run `specplane validate` before the agent makes a ..." (overlay) vs "`file:` paths exist in the repository (warning if absent at validation time, ..." (base).
+#   [warning] feature/claude-integration:48: `feature/claude-integration` may contradict `feature/spec-policies`: "Approval commands collect the human decision directly and never use model out..." (overlay) vs "Contribution provenance (`feature/spec-system`) records multiple human and mo..." (base).
+#   [warning] feature/claude-integration:88: `feature/claude-integration` may contradict `feature/spec-policies`: "under `review` or `assist`, ask the user to approve the exact edit." (overlay) vs "`review`: the LLM may ask clarifying questions, suggest edits, and flag issue..." (base).
+#   [warning] feature/claude-integration:40: `feature/claude-integration` may contradict `feature/spec-policies`: "Because the rules file is Specplane-owned, upgrading Specplane updates it wit..." (overlay) vs "It must not write body text before the user has finalised the content, and mu..." (base).
+#   [warning] feature/claude-integration:12: `feature/claude-integration` may contradict `feature/spec-policies`: "these branch changes await human final review." (overlay) vs "`none`: the LLM must not edit, review, or suggest changes to the spec body." (base).
+#   [warning] feature/claude-integration:88: `feature/claude-integration` may contradict `feature/spec-policies`: "**Policy guard**: when the agent edits a spec, apply the spec type's `llm_rol..." (overlay) vs "The two settings apply together: `authorship: llm` or `either` never relaxes ..." (base).
+#   [warning] feature/claude-integration:46: `feature/claude-integration` may contradict `feature/spec-policies`: "The base spec (`feature/agent-integration`) defines which workflow integratio..." (overlay) vs "When `require_approved_features: true`, an architecture spec may not transiti..." (base).
+#   [warning] feature/claude-integration:55: `feature/claude-integration` may contradict `feature/spec-policies`: "| `/spec-draft-architecture` | `spec-draft-architecture` | Draft an architect..." (overlay) vs "Architecture specs in `draft` or `review` are never flagged, so architecture ..." (base).
+#   [warning] feature/claude-integration:55: `feature/claude-integration` may contradict `feature/spec-policies`: "| `/spec-draft-architecture` | `spec-draft-architecture` | Draft an architect..." (overlay) vs "The following are architecture details and must not appear in feature specs:" (base).
+#   [warning] feature/claude-integration:35: `feature/claude-integration` may contradict `feature/spec-policies`: "Claude Code receives the standing instructions (`feature/agent-integration\#ag..." (overlay) vs "| `specs.feature.leak_guard_allow` | list of strings | `[]` | Project interfa..." (base).
+# Checking architecture/claude-integration... OK
+#   Implementation (claude): unrecorded; assessment: unrecorded
+# Checking feature/codex-integration... 13 warnings
+#   Implementation (codex): unrecorded; assessment: unrecorded
+#   [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/agent-integration`: "Provenance never grants approval authority." (overlay) vs "Contribution and approval provenance follow `feature/spec-system`;" (base).
+#   [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/agent-integration`: "Shared docs never imply a host can execute an unsupported operation." (overlay) vs "Mechanical commands execute directly through deterministic handlers, without ..." (base).
+#   [warning] feature/codex-integration:16: `feature/codex-integration` may contradict `feature/agent-integration`: "Installing Codex support does not select a background runtime or affect a co-..." (overlay) vs "Specplane never selects a runtime from installed files, registry order, or a ..." (base).
+#   [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/agent-integration`: "Unknown host/session/model identities remain unknown." (overlay) vs "Host built-ins remain host-owned and are never shadowed by Specplane commands." (base).
+#   [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/agent-integration`: "Orient users and agents to optional plans, arbitrary Git branches, separate r..." (overlay) vs "| `authorship: user`, `llm_role: review` | Agent may not write the spec body." (base).
+#   [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/agent-integration`: "Orient users and agents to optional plans, arbitrary Git branches, separate r..." (overlay) vs "| `authorship: user`, `llm_role: none` | Agent may not edit or suggest change..." (base).
+#   [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/agent-integration`: "Unknown host/session/model identities remain unknown." (overlay) vs "a model or session identity never grants policy authority." (base).
+#   [warning] feature/codex-integration:19: `feature/codex-integration` may contradict `feature/agent-integration`: "Report unavailable command, session, budget, or interaction capabilities expl..." (overlay) vs "Unsupported session or budget capabilities are refusals, never a fallback to ..." (base).
+#   [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/spec-policies`: "Orient users and agents to optional plans, arbitrary Git branches, separate r..." (overlay) vs "`review`: the LLM may ask clarifying questions, suggest edits, and flag issue..." (base).
+#   [warning] feature/codex-integration:35: `feature/codex-integration` may contradict `feature/spec-policies`: "Orient users and agents to optional plans, arbitrary Git branches, separate r..." (overlay) vs "`none`: the LLM must not edit, review, or suggest changes to the spec body." (base).
+#   [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/spec-system`: "Provenance never grants approval authority." (overlay) vs "Approval provenance remains separate and identifies the human decision and ex..." (base).
+#   [warning] feature/codex-integration:20: `feature/codex-integration` may contradict `feature/spec-system`: "Preserve each model that contributes to a spec, across model switches and lat..." (overlay) vs "Assessments describe the definition in the inspected checkout or explicitly s..." (base).
+#   [warning] feature/codex-integration:19: `feature/codex-integration` may contradict `feature/spec-system`: "Report unavailable command, session, budget, or interaction capabilities expl..." (overlay) vs "an unavailable dependency reports unverifiable, never current." (base).
+# Checking architecture/codex-integration... 9 warnings
+#   Implementation (codex): unrecorded; assessment: unrecorded
+#   [warning] architecture/codex-integration:25: `architecture/codex-integration` may contradict `architecture/agent-skills`: "installing a package never changes sandbox or approval policy." (overlay) vs "A content change under `assist` returns to Finalise and exact-text approval b..." (base).
+#   [warning] architecture/codex-integration:78: `architecture/codex-integration` may contradict `architecture/agent-skills`: "The skill must not independently edit step status/HANDOFF or commit before th..." (overlay) vs "Existing status records prior approval only;" (base).
+#   [warning] architecture/codex-integration:100: `architecture/codex-integration` may contradict `architecture/agent-skills`: "ordinary docs lookup never installs, refreshes or accesses the network." (overlay) vs "Docs lookup is read-only and independent of repository setup;" (base).
+#   [warning] architecture/codex-integration:29: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Repository delivery places the entry skill at `.agents/skills/specplane/SKILL..." (overlay) vs "Repository workflows must never hardcode paths." (base).
+#   [warning] architecture/codex-integration:21: `architecture/codex-integration` may contradict `architecture/agent-skills`: "plain init and `--harness none` write neutral scaffolding." (overlay) vs "Specplane does not write this table and `init` never touches it;" (base).
+#   [warning] architecture/codex-integration:13: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Existing lifecycle status describes prior approval, not approval or implement..." (overlay) vs "Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>..." (base).
+#   [warning] architecture/codex-integration:13: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Existing lifecycle status describes prior approval, not approval or implement..." (overlay) vs "the agent never runs this on its own initiative and never grants review appro..." (base).
+#   [warning] architecture/codex-integration:25: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Hook scripts must exist in the execution environment and use the host's norma..." (overlay) vs "With the `external` backend, say that the environment runs the finish flow it..." (base).
+#   [warning] architecture/codex-integration:76: `architecture/codex-integration` may contradict `architecture/agent-skills`: "Human approval and finish/merge remain explicit user actions;" (overlay) vs "Never invoke approval or finish/merge automatically." (base).
+# Checking decision/0001... OK
+# Checking decision/0002... OK
+# Checking decision/0003... OK
+# Checking decision/0004... OK
+# Checking decision/0005... OK
+# Checking 2026-10-28-reference-cli-core... OK
+# Checking 2026-10-29-assist-and-approve... OK
+# Checking 2026-10-29-claude-harness-files... 1 warning
+#   [warning] 2026-10-29-claude-harness-files: Context file `.claude/settings.local.json` does not exist (it may not exist yet).
+# Checking 2026-10-29-claude-instructions-and-enforcement... OK
+# Checking 2026-10-29-claude-plugin-hardening... OK
+# Checking 2026-10-29-cli-claude-harness-init... OK
+# Checking 2026-10-29-cli-forge-ci-publish... OK
+# Checking 2026-10-29-cli-plan-commands... 1 warning
+#   [warning] 2026-10-29-cli-plan-commands: `feature/tooling\#`specplane generate`` does not match a heading in `feature/tooling`.
+# Checking 2026-10-29-cli-plan-flows... OK
+# Checking 2026-10-29-cli-spec-search... OK
+# Checking 2026-10-29-feature-spec-alignment... OK
+# Checking 2026-10-30-plan-conductor... OK
+# Checking 2026-10-30-plan-primitives... OK
+# Checking 2026-11-01-claude-delivery... OK
+# Checking 2026-11-01-codex-delivery... OK
+# Checking 2026-11-01-core-foundation... OK
+# Checking 2026-11-01-extension-conformance... OK
+# Checking 2026-11-01-extension-packaging... OK
+# Checking 2026-11-01-manual-lifecycle... OK
+# Checking 2026-11-01-workflow-recording... OK
+# Checking 2026-11-02-completion-assessment... OK
+# Checking 2026-11-02-plan-index... OK
+# Checking 2026-11-02-product-docs... OK
+# Checking 2026-11-02-target-lifecycle... OK
+# Checking AGENTS.md... OK
+# Checking .claude/rules/specplane.md... OK
+# Checking plans/PLANS.md... 1 warning
+#   [warning] plans/PLANS.md: plans/PLANS.md is out of date (source: head); run specplane plan index.
+# Checking .claude/skills/approve/SKILL.md... 1 warning
+#   [warning] .claude/skills/approve/SKILL.md: Skill `approve` implements `architecture/agent-skills\#approve` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/decision-new/SKILL.md... 1 warning
+#   [warning] .claude/skills/decision-new/SKILL.md: Skill `decision-new` implements `architecture/agent-skills\#decision-new` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/plan-abandon/SKILL.md... 1 warning
+#   [warning] .claude/skills/plan-abandon/SKILL.md: Skill `plan-abandon` implements `architecture/agent-skills\#plan-abandon` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/plan-create/SKILL.md... 1 warning
+#   [warning] .claude/skills/plan-create/SKILL.md: Skill `plan-create` implements `architecture/agent-skills\#plan-create` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/plan-finish/SKILL.md... 1 warning
+#   [warning] .claude/skills/plan-finish/SKILL.md: Skill `plan-finish` implements `architecture/agent-skills\#plan-finish` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/plan-start/SKILL.md... 1 warning
+#   [warning] .claude/skills/plan-start/SKILL.md: Skill `plan-start` implements `architecture/agent-skills\#plan-start` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/plan-status/SKILL.md... 1 warning
+#   [warning] .claude/skills/plan-status/SKILL.md: Skill `plan-status` implements `architecture/agent-skills\#plan-status` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/plan-step/SKILL.md... 1 warning
+#   [warning] .claude/skills/plan-step/SKILL.md: Skill `plan-step` implements `architecture/agent-skills\#plan-step` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/spec-assist/SKILL.md... 1 warning
+#   [warning] .claude/skills/spec-assist/SKILL.md: Skill `spec-assist` implements `architecture/agent-skills\#spec-assist` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/spec-draft-architecture/SKILL.md... 1 warning
+#   [warning] .claude/skills/spec-draft-architecture/SKILL.md: Skill `spec-draft-architecture` implements `architecture/agent-skills\#spec-draft-architecture` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking .claude/skills/validate/SKILL.md... 1 warning
+#   [warning] .claude/skills/validate/SKILL.md: Skill `validate` implements `architecture/agent-skills\#validate` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/approve/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/approve/SKILL.md: Skill `approve` implements `architecture/agent-skills\#approve` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/decision-new/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/decision-new/SKILL.md: Skill `decision-new` implements `architecture/agent-skills\#decision-new` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/plan-abandon/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/plan-abandon/SKILL.md: Skill `plan-abandon` implements `architecture/agent-skills\#plan-abandon` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/plan-create/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/plan-create/SKILL.md: Skill `plan-create` implements `architecture/agent-skills\#plan-create` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/plan-finish/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/plan-finish/SKILL.md: Skill `plan-finish` implements `architecture/agent-skills\#plan-finish` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/plan-start/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/plan-start/SKILL.md: Skill `plan-start` implements `architecture/agent-skills\#plan-start` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/plan-status/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/plan-status/SKILL.md: Skill `plan-status` implements `architecture/agent-skills\#plan-status` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/plan-step/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/plan-step/SKILL.md: Skill `plan-step` implements `architecture/agent-skills\#plan-step` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/spec-assist/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/spec-assist/SKILL.md: Skill `spec-assist` implements `architecture/agent-skills\#spec-assist` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/spec-draft-architecture/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/spec-draft-architecture/SKILL.md: Skill `spec-draft-architecture` implements `architecture/agent-skills\#spec-draft-architecture` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/claude/templates/skills/validate/SKILL.md... 1 warning
+#   [warning] harnesses/claude/templates/skills/validate/SKILL.md: Skill `validate` implements `architecture/agent-skills\#validate` pinned at `74958ce`, which has changed; review `git diff 74958ce c27e3f1`, update the skill, then update its contract comment.
+# Checking harnesses/codex/templates/skills/specplane/SKILL.md... 1 warning
+#   [warning] harnesses/codex/templates/skills/specplane/SKILL.md: Skill `specplane` implements `architecture/codex-integration\#workflow-contract` pinned at `78dccf7`, which has changed; review `git diff 78dccf7 e1311e7`, update the skill, then update its contract comment.
+# Summary: 78 files checked, 0 errors, 91 warnings
+# notice: plan index source: head
+# notice: plan index source: head
+# Subtest: validate exits 0 on the specs-framework repository
+ok 257 - validate exits 0 on the specs-framework repository
+  ---
+  duration_ms: 1809.603836
+  type: 'test'
+  ...
+# Subtest: generate --print emits Active plans and a Mermaid block, deterministically
+ok 258 - generate --print emits Active plans and a Mermaid block, deterministically
+  ---
+  duration_ms: 1235.479201
+  type: 'test'
+  ...
+# Subtest: spec pin --check exits 0 on the specs-framework repository
+ok 259 - spec pin --check exits 0 on the specs-framework repository
+  ---
+  duration_ms: 560.113536
+  type: 'test'
+  ...
+# Subtest: activity: local branch fields
+ok 260 - activity: local branch fields
+  ---
+  duration_ms: 813.5749
+  type: 'test'
+  ...
+# Subtest: activity: checkout is the worktree of the plan branch
+ok 261 - activity: checkout is the worktree of the plan branch
+  ---
+  duration_ms: 826.612118
+  type: 'test'
+  ...
+# Subtest: activity: no remote, not started, no throw
+ok 262 - activity: no remote, not started, no throw
+  ---
+  duration_ms: 806.90725
+  type: 'test'
+  ...
+# Subtest: activity: shallow clone does not throw
+ok 263 - activity: shallow clone does not throw
+  ---
+  duration_ms: 830.574724
+  type: 'test'
+  ...
+# Subtest: activity: ahead_of_remote and single fetch from a bare remote
+ok 264 - activity: ahead_of_remote and single fetch from a bare remote
+  ---
+  duration_ms: 1906.7092
+  type: 'test'
+  ...
+# Subtest: activity: remote-only plan is listed live; --no-fetch skips the fetch
+ok 265 - activity: remote-only plan is listed live; --no-fetch skips the fetch
+  ---
+  duration_ms: 1877.765847
+  type: 'test'
+  ...
+# Subtest: plan list without --live has no activity keys
+ok 266 - plan list without --live has no activity keys
+  ---
+  duration_ms: 1391.573012
+  type: 'test'
+  ...
+# Subtest: plan index --print: stdout only; --live marks effective statuses; plain output unchanged
+ok 267 - plan index --print: stdout only; --live marks effective statuses; plain output unchanged
+  ---
+  duration_ms: 2650.300209
+  type: 'test'
+  ...
+# Subtest: alerts: none has no delivery or filesystem side effects
+ok 268 - alerts: none has no delivery or filesystem side effects
+  ---
+  duration_ms: 2.635527
+  type: 'test'
+  ...
+# Subtest: alerts: harness deduplicates across calls/restarts and re-alerts after resolution
+ok 269 - alerts: harness deduplicates across calls/restarts and re-alerts after resolution
+  ---
+  duration_ms: 2.050555
+  type: 'test'
+  ...
+# Subtest: alerts: event filter groups considerations and supports dedupe disabled
+ok 270 - alerts: event filter groups considerations and supports dedupe disabled
+  ---
+  duration_ms: 0.785406
+  type: 'test'
+  ...
+# Subtest: alerts: command receives documented env without shell interpolation of details
+ok 271 - alerts: command receives documented env without shell interpolation of details
+  ---
+  duration_ms: 1.022243
+  type: 'test'
+  ...
+# Subtest: alerts: uncertain transport failures do not throw or automatically resend
+ok 272 - alerts: uncertain transport failures do not throw or automatically resend
+  ---
+  duration_ms: 0.965537
+  type: 'test'
+  ...
+# Subtest: alerts: malformed cache suppresses uncertain repeat delivery
+ok 273 - alerts: malformed cache suppresses uncertain repeat delivery
+  ---
+  duration_ms: 0.594167
+  type: 'test'
+  ...
+# Subtest: alerts: duplicate copies of one consideration are delivered only once
+ok 274 - alerts: duplicate copies of one consideration are delivered only once
+  ---
+  duration_ms: 0.484902
+  type: 'test'
+  ...
+# Subtest: target precedence, conflicts, legacy ambiguity and unavailable targets preserve work
+ok 275 - target precedence, conflicts, legacy ambiguity and unavailable targets preserve work
+  ---
+  duration_ms: 98.824431
+  type: 'test'
+  ...
+# Subtest: local and remote tips reconcile, divergence refuses, remote-only remains readable
+ok 276 - local and remote tips reconcile, divergence refuses, remote-only remains readable
+  ---
+  duration_ms: 83.781857
+  type: 'test'
+  ...
+# Subtest: inputs and immutable execution bindings require valid branches and full commit objects
+ok 277 - inputs and immutable execution bindings require valid branches and full commit objects
+  ---
+  duration_ms: 205.783255
+  type: 'test'
+  ...
+# Subtest: plan metadata and configured team target are parsed and validated
+ok 278 - plan metadata and configured team target are parsed and validated
+  ---
+  duration_ms: 45.015179
+  type: 'test'
+  ...
+# Subtest: captured plan branches refuse divergence, conflicting identity and rewritten provenance
+ok 279 - captured plan branches refuse divergence, conflicting identity and rewritten provenance
+  ---
+  duration_ms: 182.361292
+  type: 'test'
+  ...
+# Subtest: started snapshots control binding and require evidence for legacy targets
+ok 280 - started snapshots control binding and require evidence for legacy targets
+  ---
+  duration_ms: 125.925927
+  type: 'test'
+  ...
+# Subtest: repository default fallback considers local and origin refs in main-first order
+ok 281 - repository default fallback considers local and origin refs in main-first order
+  ---
+  duration_ms: 71.093051
+  type: 'test'
+  ...
+# Subtest: finish: local merge without a remote (Scenarios 4, 4a)
+ok 282 - finish: local merge without a remote (Scenarios 4, 4a)
+  ---
+  duration_ms: 1971.478945
+  type: 'test'
+  ...
+# Subtest: finish: --no-fetch skips the fetch; pushes and merges still happen
+ok 283 - finish: --no-fetch skips the fetch; pushes and merges still happen
+  ---
+  duration_ms: 2575.011221
+  type: 'test'
+  ...
+# Subtest: finish: lists open spec-gaps entries without blocking
+ok 284 - finish: lists open spec-gaps entries without blocking
+  ---
+  duration_ms: 1475.529727
+  type: 'test'
+  ...
+# Subtest: finish: step not done stops with no writes (Scenario 5a)
+ok 285 - finish: step not done stops with no writes (Scenario 5a)
+  ---
+  duration_ms: 2049.214464
+  type: 'test'
+  ...
+# Subtest: finish: wrong branch and dirty tree fail with no writes
+ok 286 - finish: wrong branch and dirty tree fail with no writes
+  ---
+  duration_ms: 1954.503242
+  type: 'test'
+  ...
+# Subtest: finish: failing tests stop the flow without a commit (Scenario 5)
+ok 287 - finish: failing tests stop the flow without a commit (Scenario 5)
+  ---
+  duration_ms: 1458.33984
+  type: 'test'
+  ...
+# Subtest: finish: tests re-run after a rebase that applied commits
+ok 288 - finish: tests re-run after a rebase that applied commits
+  ---
+  duration_ms: 1505.564903
+  type: 'test'
+  ...
+# Subtest: finish: rebase conflict aborts and leaves the branch unchanged
+ok 289 - finish: rebase conflict aborts and leaves the branch unchanged
+  ---
+  duration_ms: 1622.554337
+  type: 'test'
+  ...
+# Subtest: finish: without --yes and no human, stops ready; a re-run merges (resume)
+ok 290 - finish: without --yes and no human, stops ready; a re-run merges (resume)
+  ---
+  duration_ms: 1966.046974
+  type: 'test'
+  ...
+# Subtest: finish: merge stops when the main checkout is on another branch
+ok 291 - finish: merge stops when the main checkout is on another branch
+  ---
+  duration_ms: 1538.976877
+  type: 'test'
+  ...
+# Subtest: finish: local merge pushes the default branch when a remote exists
+ok 292 - finish: local merge pushes the default branch when a remote exists
+  ---
+  duration_ms: 2293.300572
+  type: 'test'
+  ...
+# Subtest: finish: pull_request pushes the branch and prints instructions
+ok 293 - finish: pull_request pushes the branch and prints instructions
+  ---
+  duration_ms: 1408.092642
+  type: 'test'
+  ...
+# Subtest: finish: pull_request with a forge pushes, opens a PR from the plan, prints the URL
+ok 294 - finish: pull_request with a forge pushes, opens a PR from the plan, prints the URL
+  ---
+  duration_ms: 1358.859004
+  type: 'test'
+  ...
+# Subtest: finish: pull_request with forge none prints manual instructions and never calls gh
+ok 295 - finish: pull_request with forge none prints manual instructions and never calls gh
+  ---
+  duration_ms: 1467.500554
+  type: 'test'
+  ...
+# Subtest: finish: pull_request without a remote fails with no writes
+ok 296 - finish: pull_request without a remote fails with no writes
+  ---
+  duration_ms: 1360.824936
+  type: 'test'
+  ...
+# Subtest: finish: frontmatter mode claims review on the default branch first
+ok 297 - finish: frontmatter mode claims review on the default branch first
+  ---
+  duration_ms: 2010.556437
+  type: 'test'
+  ...
+# Subtest: finish: branch backend switches back to the default branch and deletes the branch
+ok 298 - finish: branch backend switches back to the default branch and deletes the branch
+  ---
+  duration_ms: 1908.046208
+  type: 'test'
+  ...
+# Subtest: finish: external backend rejects local_merge
+ok 299 - finish: external backend rejects local_merge
+  ---
+  duration_ms: 1358.264499
+  type: 'test'
+  ...
+# Subtest: finish uses recorded nondefault target and requires fresh acceptance after finalization
+ok 300 - finish uses recorded nondefault target and requires fresh acceptance after finalization
+  ---
+  duration_ms: 2036.292335
+  type: 'test'
+  ...
+# Subtest: finish refuses a missing target checkout before changing the plan
+ok 301 - finish refuses a missing target checkout before changing the plan
+  ---
+  duration_ms: 1432.522342
+  type: 'test'
+  ...
+# Subtest: finish rebases on a remote-ahead recorded target and advertises its PR base
+ok 302 - finish rebases on a remote-ahead recorded target and advertises its PR base
+  ---
+  duration_ms: 1827.71778
+  type: 'test'
+  ...
+# Subtest: target movement invalidates earlier acceptance and requires another invocation
+ok 303 - target movement invalidates earlier acceptance and requires another invocation
+  ---
+  duration_ms: 2818.334757
+  type: 'test'
+  ...
+# Subtest: finish refuses a wrong-base open PR before changing or pushing the plan
+ok 304 - finish refuses a wrong-base open PR before changing or pushing the plan
+  ---
+  duration_ms: 1552.030369
+  type: 'test'
+  ...
+# Subtest: confirmation refuses when target moves during the human challenge
+ok 305 - confirmation refuses when target moves during the human challenge
+  ---
+  duration_ms: 1604.145254
+  type: 'test'
+  ...
+# Subtest: a manual done edit does not impersonate a completed finish
+ok 306 - a manual done edit does not impersonate a completed finish
+  ---
+  duration_ms: 1855.583574
+  type: 'test'
+  ...
+# Subtest: forge receives the recorded nondefault PR base
+ok 307 - forge receives the recorded nondefault PR base
+  ---
+  duration_ms: 1991.95958
+  type: 'test'
+  ...
+# Subtest: finalized PR retry requires fresh publication confirmation after target moves
+ok 308 - finalized PR retry requires fresh publication confirmation after target moves
+  ---
+  duration_ms: 3575.017447
+  type: 'test'
+  ...
+# Subtest: finalization confirmation preserves callback-time target file and index edits
+ok 309 - finalization confirmation preserves callback-time target file and index edits
+  ---
+  duration_ms: 1128.940789
+  type: 'test'
+  ...
+# Subtest: verification edits to target checkout refuse before review claim
+ok 310 - verification edits to target checkout refuse before review claim
+  ---
+  duration_ms: 1757.740821
+  type: 'test'
+  ...
+# Subtest: finish rejects a draft target lifecycle record
+ok 311 - finish rejects a draft target lifecycle record
+  ---
+  duration_ms: 1498.644685
+  type: 'test'
+  ...
+# Subtest: unattended finalization reports readiness without claiming finish
+ok 312 - unattended finalization reports readiness without claiming finish
+  ---
+  duration_ms: 1432.502955
+  type: 'test'
+  ...
+# Subtest: publication refuses a refreshed remote plan tracking ref after confirmation
+ok 313 - publication refuses a refreshed remote plan tracking ref after confirmation
+  ---
+  duration_ms: 1317.240232
+  type: 'test'
+  ...
+# Subtest: publication refuses a plan head moved during confirmation
+ok 314 - publication refuses a plan head moved during confirmation
+  ---
+  duration_ms: 1373.871813
+  type: 'test'
+  ...
+# Subtest: failed local target push reports integrated commit and retry publishes without another merge
+ok 315 - failed local target push reports integrated commit and retry publishes without another merge
+  ---
+  duration_ms: 1879.822237
+  type: 'test'
+  ...
+# Subtest: integrated recovery refuses unrelated and linked target checkouts before exact plan cleanup
+ok 316 - integrated recovery refuses unrelated and linked target checkouts before exact plan cleanup
+  ---
+  duration_ms: 3583.436429
+  type: 'test'
+  ...
+# Subtest: finalized PR retry displays current gaps in both confirmations
+ok 317 - finalized PR retry displays current gaps in both confirmations
+  ---
+  duration_ms: 1827.63065
+  type: 'test'
+  ...
+# Subtest: local merge preserves an ignored file colliding with a plan file
+ok 318 - local merge preserves an ignored file colliding with a plan file
+  ---
+  duration_ms: 1242.864242
+  type: 'test'
+  ...
+# Subtest: finish preserves ignored files touched only by intermediate replay commits
+ok 319 - finish preserves ignored files touched only by intermediate replay commits
+  ---
+  duration_ms: 1078.236138
+  type: 'test'
+  ...
+# Subtest: finish preserves an ignored rename destination during replay
+ok 320 - finish preserves an ignored rename destination during replay
+  ---
+  duration_ms: 1373.907436
+  type: 'test'
+  ...
+# Subtest: finish rejects a noncanonical stored stack base before rewriting
+ok 321 - finish rejects a noncanonical stored stack base before rewriting
+  ---
+  duration_ms: 1315.08271
+  type: 'test'
+  ...
+# Subtest: finish refuses to archive ignored files, including those created during confirmation
+ok 322 - finish refuses to archive ignored files, including those created during confirmation
+  ---
+  duration_ms: 2286.548931
+  type: 'test'
+  ...
+# Subtest: finish preserves an existing ignored-only archive destination
+ok 323 - finish preserves an existing ignored-only archive destination
+  ---
+  duration_ms: 1217.703392
+  type: 'test'
+  ...
+# Subtest: finish retains a plan checkout containing unrelated ignored files
+ok 324 - finish retains a plan checkout containing unrelated ignored files
+  ---
+  duration_ms: 1169.03693
+  type: 'test'
+  ...
+# Subtest: integrated recovery retains ignored files in the plan checkout
+ok 325 - integrated recovery retains ignored files in the plan checkout
+  ---
+  duration_ms: 1889.732174
+  type: 'test'
+  ...
+# Subtest: branch backend resumes target publication without deleting the retained plan branch
+ok 326 - branch backend resumes target publication without deleting the retained plan branch
+  ---
+  duration_ms: 2467.664781
+  type: 'test'
+  ...
+# Subtest: branch backend preserves ignored files colliding with an advanced target
+ok 327 - branch backend preserves ignored files colliding with an advanced target
+  ---
+  duration_ms: 1070.321229
+  type: 'test'
+  ...
+# Subtest: finalization hook failure reports retained checkout for recovery
+ok 328 - finalization hook failure reports retained checkout for recovery
+  ---
+  duration_ms: 1117.645317
+  type: 'test'
+  ...
+# Subtest: failed PR creation reports the already-pushed plan head
+ok 329 - failed PR creation reports the already-pushed plan head
+  ---
+  duration_ms: 1556.532512
+  type: 'test'
+  ...
+# Subtest: finalized local retry after rebase requires renewed acceptance before merge
+ok 330 - finalized local retry after rebase requires renewed acceptance before merge
+  ---
+  duration_ms: 2985.965054
+  type: 'test'
+  ...
+# Subtest: failed review claim push is published on retry before finalization
+ok 331 - failed review claim push is published on retry before finalization
+  ---
+  duration_ms: 2695.103845
+  type: 'test'
+  ...
+# Subtest: finalization failure preserves unexpected hook edits for recovery
+ok 332 - finalization failure preserves unexpected hook edits for recovery
+  ---
+  duration_ms: 1157.38736
+  type: 'test'
+  ...
+# Subtest: finish rejects a draft branch lifecycle status
+ok 333 - finish rejects a draft branch lifecycle status
+  ---
+  duration_ms: 1289.914971
+  type: 'test'
+  ...
+# Subtest: finish reaches approval gate for a migrated active Git-mode plan
+ok 334 - finish reaches approval gate for a migrated active Git-mode plan
+  ---
+  duration_ms: 1430.907278
+  type: 'test'
+  ...
+# Subtest: first start binds the authoritative nondefault target in a metadata-only commit
+ok 335 - first start binds the authoritative nondefault target in a metadata-only commit
+  ---
+  duration_ms: 331.839732
+  type: 'test'
+  ...
+# Subtest: dry run and refusal leave no branch or runtime files
+ok 336 - dry run and refusal leave no branch or runtime files
+  ---
+  duration_ms: 123.774306
+  type: 'test'
+  ...
+# Subtest: repository lease excludes start before mutation
+ok 337 - repository lease excludes start before mutation
+  ---
+  duration_ms: 50.732437
+  type: 'test'
+  ...
+# Subtest: failed setup retains binding branch and removes only new checkout
+ok 338 - failed setup retains binding branch and removes only new checkout
+  ---
+  duration_ms: 193.983724
+  type: 'test'
+  ...
+# Subtest: frontmatter claim uses target checkout and leaves unrelated checkout unchanged
+ok 339 - frontmatter claim uses target checkout and leaves unrelated checkout unchanged
+  ---
+  duration_ms: 164.356221
+  type: 'test'
+  ...
+# Subtest: stale captured target ref refuses before a plan branch is created
+ok 340 - stale captured target ref refuses before a plan branch is created
+  ---
+  duration_ms: 76.58828
+  type: 'test'
+  ...
+# Subtest: CLI previews the selected target and rejects standalone run without writes
+ok 341 - CLI previews the selected target and rejects standalone run without writes
+  ---
+  duration_ms: 993.808869
+  type: 'test'
+  ...
+# Subtest: claim hook failure restores only the claim file and its staged entry
+ok 342 - claim hook failure restores only the claim file and its staged entry
+  ---
+  duration_ms: 123.355533
+  type: 'test'
+  ...
+# Subtest: failed claim push is recognized and published on retry
+ok 343 - failed claim push is recognized and published on retry
+  ---
+  duration_ms: 316.636091
+  type: 'test'
+  ...
+# Subtest: stack marker precedes binding and records the dependency tip
+ok 344 - stack marker precedes binding and records the dependency tip
+  ---
+  duration_ms: 233.037662
+  type: 'test'
+  ...
+# Subtest: target plan lease contention refuses before binding
+ok 345 - target plan lease contention refuses before binding
+  ---
+  duration_ms: 41.993085
+  type: 'test'
+  ...
+# Subtest: checkout-only writer blocks setup after worktree registration
+ok 346 - checkout-only writer blocks setup after worktree registration
+  ---
+  duration_ms: 279.92749
+  type: 'test'
+  ...
+# Subtest: failed branch update reports the orphan commit without claiming a branch
+ok 347 - failed branch update reports the orphan commit without claiming a branch
+  ---
+  duration_ms: 146.89298
+  type: 'test'
+  ...
+# Subtest: human start output reports provenance and no host launch command
+ok 348 - human start output reports provenance and no host launch command
+  ---
+  duration_ms: 681.700422
+  type: 'test'
+  ...
+# Subtest: target ref movement during checkout creation prevents setup and preserves checkout
+ok 349 - target ref movement during checkout creation prevents setup and preserves checkout
+  ---
+  duration_ms: 175.312885
+  type: 'test'
+  ...
+# Subtest: claim and binding preserve CRLF frontmatter and body
+ok 350 - claim and binding preserve CRLF frontmatter and body
+  ---
+  duration_ms: 152.713984
+  type: 'test'
+  ...
+# Subtest: claim and binding preserve BOM and CRLF frontmatter and body
+ok 351 - claim and binding preserve BOM and CRLF frontmatter and body
+  ---
+  duration_ms: 151.153856
+  type: 'test'
+  ...
+# Subtest: claim and binding preserve BOM and LF frontmatter and body
+ok 352 - claim and binding preserve BOM and LF frontmatter and body
+  ---
+  duration_ms: 157.644594
+  type: 'test'
+  ...
+# Subtest: resume preserves dirty reused checkout and skips failing setup
+ok 353 - resume preserves dirty reused checkout and skips failing setup
+  ---
+  duration_ms: 457.748644
+  type: 'test'
+  ...
+# Subtest: failed missing-checkout resume keeps committed step history
+ok 354 - failed missing-checkout resume keeps committed step history
+  ---
+  duration_ms: 456.823748
+  type: 'test'
+  ...
+# Subtest: resume detects target movement during missing checkout registration
+ok 355 - resume detects target movement during missing checkout registration
+  ---
+  duration_ms: 438.391251
+  type: 'test'
+  ...
+# Subtest: git status source resumes stored in_progress during migration without changing binding or history
+ok 356 - git status source resumes stored in_progress during migration without changing binding or history
+  ---
+  duration_ms: 329.067419
+  type: 'test'
+  ...
+# Subtest: git status source resumes stored review during migration without changing binding or history
+ok 357 - git status source resumes stored review during migration without changing binding or history
+  ---
+  duration_ms: 284.41453
+  type: 'test'
+  ...
+# Subtest: git status source refuses to resume a draft plan
+ok 358 - git status source refuses to resume a draft plan
+  ---
+  duration_ms: 280.741745
+  type: 'test'
+  ...
+# Subtest: git status source refuses to resume a done plan
+ok 359 - git status source refuses to resume a done plan
+  ---
+  duration_ms: 230.60206
+  type: 'test'
+  ...
+# Subtest: git status source refuses to resume a abandoned plan
+ok 360 - git status source refuses to resume a abandoned plan
+  ---
+  duration_ms: 238.493918
+  type: 'test'
+  ...
+# Subtest: trusted historical evidence resumes legacy without inventing a start base
+ok 361 - trusted historical evidence resumes legacy without inventing a start base
+  ---
+  duration_ms: 331.044148
+  type: 'test'
+  ...
+# Subtest: remote-ahead resume refuses equally in preview and execution
+ok 362 - remote-ahead resume refuses equally in preview and execution
+  ---
+  duration_ms: 457.299912
+  type: 'test'
+  ...
+# Subtest: remote-only unbound legacy history has no local creation evidence
+ok 363 - remote-only unbound legacy history has no local creation evidence
+  ---
+  duration_ms: 79.623136
+  type: 'test'
+  ...
+# Subtest: resume reports a newly recreated checkout as created
+ok 364 - resume reports a newly recreated checkout as created
+  ---
+  duration_ms: 888.227316
+  type: 'test'
+  ...
+# Subtest: start: --no-fetch skips the fetch and works from local refs
+ok 365 - start: --no-fetch skips the fetch and works from local refs
+  ---
+  duration_ms: 1323.847087
+  type: 'test'
+  ...
+# Subtest: start: first start creates branch and worktree, runs hook, announces (Scenario 1)
+ok 366 - start: first start creates branch and worktree, runs hook, announces (Scenario 1)
+  ---
+  duration_ms: 2272.37304
+  type: 'test'
+  ...
+# Subtest: start: unapproved spec fails before any write (Scenario 2)
+ok 367 - start: unapproved spec fails before any write (Scenario 2)
+  ---
+  duration_ms: 688.4836
+  type: 'test'
+  ...
+# Subtest: start: dependency not done (Scenario 3), and non-ready plan
+ok 368 - start: dependency not done (Scenario 3), and non-ready plan
+  ---
+  duration_ms: 1388.974595
+  type: 'test'
+  ...
+# Subtest: start: stacking on one unmerged dependency writes a marker commit (Scenario 6)
+ok 369 - start: stacking on one unmerged dependency writes a marker commit (Scenario 6)
+  ---
+  duration_ms: 1612.981179
+  type: 'test'
+  ...
+# Subtest: start: stacking on two unmerged dependencies fails
+ok 370 - start: stacking on two unmerged dependencies fails
+  ---
+  duration_ms: 2253.117926
+  type: 'test'
+  ...
+# Subtest: start: setup hook failure removes the worktree (Scenario 7)
+ok 371 - start: setup hook failure removes the worktree (Scenario 7)
+  ---
+  duration_ms: 768.22116
+  type: 'test'
+  ...
+# Subtest: start: resume re-uses branch and worktree and skips dependency and approval checks (Scenario 8)
+ok 372 - start: resume re-uses branch and worktree and skips dependency and approval checks (Scenario 8)
+  ---
+  duration_ms: 1532.216645
+  type: 'test'
+  ...
+# Subtest: start: resume tracks a remote-only branch
+ok 373 - start: resume tracks a remote-only branch
+  ---
+  duration_ms: 1455.007551
+  type: 'test'
+  ...
+# Subtest: start: branch backend needs a clean tree, then switches
+ok 374 - start: branch backend needs a clean tree, then switches
+  ---
+  duration_ms: 1309.689396
+  type: 'test'
+  ...
+# Subtest: list --live: prints the checkout, and one notice when the fetch fails
+ok 375 - list --live: prints the checkout, and one notice when the fetch fails
+  ---
+  duration_ms: 4536.819905
+  type: 'test'
+  ...
+# Subtest: start: external backend only creates the branch and announces
+ok 376 - start: external backend only creates the branch and announces
+  ---
+  duration_ms: 763.233537
+  type: 'test'
+  ...
+# Subtest: start: frontmatter mode writes a claim commit on the default branch and pushes it
+ok 377 - start: frontmatter mode writes a claim commit on the default branch and pushes it
+  ---
+  duration_ms: 851.138088
+  type: 'test'
+  ...
+# Subtest: start: frontmatter claim refuses when the main checkout is not on the default branch
+ok 378 - start: frontmatter claim refuses when the main checkout is not on the default branch
+  ---
+  duration_ms: 673.026252
+  type: 'test'
+  ...
+# Subtest: start: ambiguous unbound legacy history is refused without writes
+ok 379 - start: ambiguous unbound legacy history is refused without writes
+  ---
+  duration_ms: 677.614756
+  type: 'test'
+  ...
+# Subtest: text and file parsers agree on entries and diagnostics
+ok 380 - text and file parsers agree on entries and diagnostics
+  ---
+  duration_ms: 9.23972
+  type: 'test'
+  ...
+# Subtest: run gate: safety and human gates cannot be forced
+ok 381 - run gate: safety and human gates cannot be forced
+  ---
+  duration_ms: 2.977445
+  type: 'test'
+  ...
+# Subtest: run gate: completion, no-step and force semantics
+ok 382 - run gate: completion, no-step and force semantics
+  ---
+  duration_ms: 0.248485
+  type: 'test'
+  ...
+# Subtest: limits reject invalid and unbounded values
+ok 383 - limits reject invalid and unbounded values
+  ---
+  duration_ms: 0.406382
+  type: 'test'
+  ...
+# Subtest: locks exclude second conductor, preserve unknown locks and release ownership
+ok 384 - locks exclude second conductor, preserve unknown locks and release ownership
+  ---
+  duration_ms: 2.120343
+  type: 'test'
+  ...
+# Subtest: dead PID lock is reclaimed without leaving guard
+ok 385 - dead PID lock is reclaimed without leaving guard
+  ---
+  duration_ms: 1.81977
+  type: 'test'
+  ...
+# Subtest: no cycle
+ok 386 - no cycle
+  ---
+  duration_ms: 1.066716
+  type: 'test'
+  ...
+# Subtest: simple cycle
+ok 387 - simple cycle
+  ---
+  duration_ms: 1.021248
+  type: 'test'
+  ...
+# Subtest: multi-node cycle reachable from outside
+ok 388 - multi-node cycle reachable from outside
+  ---
+  duration_ms: 0.148393
+  type: 'test'
+  ...
+# Subtest: dangling edges are ignored by cycle detection
+ok 389 - dangling edges are ignored by cycle detection
+  ---
+  duration_ms: 0.110296
+  type: 'test'
+  ...
+# Subtest: runSetupHook runs through a shell in cwd
+ok 390 - runSetupHook runs through a shell in cwd
+  ---
+  duration_ms: 5.886354
+  type: 'test'
+  ...
+# Subtest: runSetupHook throws SetupHookError with the spec message on non-zero exit
+ok 391 - runSetupHook throws SetupHookError with the spec message on non-zero exit
+  ---
+  duration_ms: 2.090408
+  type: 'test'
+  ...
+# Subtest: abandon: commits on main, archives, removes worktree, and resumes cleanup
+ok 392 - abandon: commits on main, archives, removes worktree, and resumes cleanup
+  ---
+  duration_ms: 2767.315573
+  type: 'test'
+  ...
+# Subtest: abandon: dirty worktree refuses without --force and leaves no partial state
+ok 393 - abandon: dirty worktree refuses without --force and leaves no partial state
+  ---
+  duration_ms: 2994.060948
+  type: 'test'
+  ...
+# Subtest: abandon: wrong branch and done plans fail with no writes
+ok 394 - abandon: wrong branch and done plans fail with no writes
+  ---
+  duration_ms: 2247.425574
+  type: 'test'
+  ...
+# Subtest: cleanup: refuses until done on main; then removes worktree and branch; idempotent
+ok 395 - cleanup: refuses until done on main; then removes worktree and branch; idempotent
+  ---
+  duration_ms: 3218.553422
+  type: 'test'
+  ...
+# Subtest: archive: moves done and abandoned plans; errors otherwise
+ok 396 - archive: moves done and abandoned plans; errors otherwise
+  ---
+  duration_ms: 2725.731277
+  type: 'test'
+  ...
+# Subtest: restack: after a squash merge only beta's own commits are replayed (Scenario 6a)
+ok 397 - restack: after a squash merge only beta's own commits are replayed (Scenario 6a)
+  ---
+  duration_ms: 10747.714156
+  type: 'test'
+  ...
+# Subtest: manual done without integration refuses restack and finish without changing the child
+ok 398 - manual done without integration refuses restack and finish without changing the child
+  ---
+  duration_ms: 5514.528908
+  type: 'test'
+  ...
+# Subtest: restack accepts contained dependency head but refuses removed branch without evidence
+ok 399 - restack accepts contained dependency head but refuses removed branch without evidence
+  ---
+  duration_ms: 4524.534693
+  type: 'test'
+  ...
+# Subtest: restack: unmerged base appends a new marker; second run is a no-op
+ok 400 - restack: unmerged base appends a new marker; second run is a no-op
+  ---
+  duration_ms: 2830.045309
+  type: 'test'
+  ...
+# Subtest: restack and its dry run preserve ignored files touched only by intermediate commits
+ok 401 - restack and its dry run preserve ignored files touched only by intermediate commits
+  ---
+  duration_ms: 2807.821127
+  type: 'test'
+  ...
+# Subtest: restack rejects a noncanonical stored stack base before rewriting
+ok 402 - restack rejects a noncanonical stored stack base before rewriting
+  ---
+  duration_ms: 2308.718171
+  type: 'test'
+  ...
+# Subtest: restack: conflicts are listed and the checkout is left mid-rebase; non-stacked plans error
+ok 403 - restack: conflicts are listed and the checkout is left mid-rebase; non-stacked plans error
+  ---
+  duration_ms: 2847.474055
+  type: 'test'
+  ...
+# Subtest: restack refuses a cross-target base without rewriting the child
+ok 404 - restack refuses a cross-target base without rewriting the child
+  ---
+  duration_ms: 2314.68469
+  type: 'test'
+  ...
+# Subtest: restack reports rewritten head when the new marker commit fails
+ok 405 - restack reports rewritten head when the new marker commit fails
+  ---
+  duration_ms: 2263.738524
+  type: 'test'
+  ...
+# Subtest: restack refuses a draft target record before rewriting
+ok 406 - restack refuses a draft target record before rewriting
+  ---
+  duration_ms: 2535.156571
+  type: 'test'
+  ...
+# Subtest: restack preview accepts migrated active Git-mode records
+ok 407 - restack preview accepts migrated active Git-mode records
+  ---
+  duration_ms: 2523.01924
+  type: 'test'
+  ...
+# Subtest: abandon: shelved target rolls back a failed commit and retries publication of the same commit
+ok 408 - abandon: shelved target rolls back a failed commit and retries publication of the same commit
+  ---
+  duration_ms: 3801.869409
+  type: 'test'
+  ...
+# Subtest: archive refuses ignored files and staged changes without moving them
+ok 409 - archive refuses ignored files and staged changes without moving them
+  ---
+  duration_ms: 952.762482
+  type: 'test'
+  ...
+# Subtest: cleanup uses the recorded non-default target and preserves ignored checkout files
+ok 410 - cleanup uses the recorded non-default target and preserves ignored checkout files
+  ---
+  duration_ms: 2285.07917
+  type: 'test'
+  ...
+# Subtest: abandon refuses unsupported YAML status without writing
+ok 411 - abandon refuses unsupported YAML status without writing
+  ---
+  duration_ms: 734.778243
+  type: 'test'
+  ...
+# Subtest: abandon retries cleanup after a post-commit ignored file appears
+ok 412 - abandon retries cleanup after a post-commit ignored file appears
+  ---
+  duration_ms: 3332.479345
+  type: 'test'
+  ...
+# Subtest: abandon preserves concurrent plan edits when commit fails
+ok 413 - abandon preserves concurrent plan edits when commit fails
+  ---
+  duration_ms: 913.92356
+  type: 'test'
+  ...
+# Subtest: abandon retries published cleanup after a post-commit ignored file appears
+ok 414 - abandon retries published cleanup after a post-commit ignored file appears
+  ---
+  duration_ms: 3761.49393
+  type: 'test'
+  ...
+# Subtest: abandon retains a hook-modified commit without publishing it
+ok 415 - abandon retains a hook-modified commit without publishing it
+  ---
+  duration_ms: 967.702295
+  type: 'test'
+  ...
+# Subtest: abandon retains the actual commit when a post-commit hook creates a same-tree child
+ok 416 - abandon retains the actual commit when a post-commit hook creates a same-tree child
+  ---
+  duration_ms: 1707.174191
+  type: 'test'
+  ...
+# Subtest: abandon rejects a modified pending record without deleting the branch
+ok 417 - abandon rejects a modified pending record without deleting the branch
+  ---
+  duration_ms: 3072.266637
+  type: 'test'
+  ...
+# Subtest: abandon recovers the exact 64-character commit in a SHA-256 repository
+ok 418 - abandon recovers the exact 64-character commit in a SHA-256 repository
+  ---
+  duration_ms: 3412.797371
+  type: 'test'
+  ...
+# Subtest: abandon retains moved HEAD and staged edits when a failing hook updates the ref
+ok 419 - abandon retains moved HEAD and staged edits when a failing hook updates the ref
+  ---
+  duration_ms: 937.09022
+  type: 'test'
+  ...
+# Subtest: abandon refuses an existing pending record before writing the plan
+ok 420 - abandon refuses an existing pending record before writing the plan
+  ---
+  duration_ms: 770.154711
+  type: 'test'
+  ...
+# Subtest: abandon refuses disabled reflog recording before writes
+ok 421 - abandon refuses disabled reflog recording before writes
+  ---
+  duration_ms: 742.18278
+  type: 'test'
+  ...
+# Subtest: earlier blocked step wins over later pending step; missing context file is a warning
+ok 422 - earlier blocked step wins over later pending step; missing context file is a warning
+  ---
+  duration_ms: 1561.976351
+  type: 'test'
+  ...
+# Subtest: earlier pending step runs before a later step that is already done
+ok 423 - earlier pending step runs before a later step that is already done
+  ---
+  duration_ms: 1598.468282
+  type: 'test'
+  ...
+# Subtest: checkout is null on the branch and external backends unless the branch is checked out
+ok 424 - checkout is null on the branch and external backends unless the branch is checked out
+  ---
+  duration_ms: 3642.903563
+  type: 'test'
+  ...
+# Subtest: open proposal gap takes precedence over spawn_step; finish_ready when all done
+ok 425 - open proposal gap takes precedence over spawn_step; finish_ready when all done
+  ---
+  duration_ms: 3294.397266
+  type: 'test'
+  ...
+# Subtest: dirty checkout asks a human
+ok 426 - dirty checkout asks a human
+  ---
+  duration_ms: 1649.973845
+  type: 'test'
+  ...
+# Subtest: blocked issues reflect the retained checkout HANDOFF, including uncommitted changes
+ok 427 - blocked issues reflect the retained checkout HANDOFF, including uncommitted changes
+  ---
+  duration_ms: 1621.255533
+  type: 'test'
+  ...
+# Subtest: remote tree preserves all accepted gap headings and requires a decision
+ok 428 - remote tree preserves all accepted gap headings and requires a decision
+  ---
+  duration_ms: 1520.924216
+  type: 'test'
+  ...
+# Subtest: decision context resolves independently in checkout and selected tree
+ok 429 - decision context resolves independently in checkout and selected tree
+  ---
+  duration_ms: 2327.330727
+  type: 'test'
+  ...
+# Subtest: attention is deduplicated by kind
+ok 430 - attention is deduplicated by kind
+  ---
+  duration_ms: 0.901959
+  type: 'test'
+  ...
+# Subtest: plan next has no side effects and prints only JSON with --json
+ok 431 - plan next has no side effects and prints only JSON with --json
+  ---
+  duration_ms: 3371.222015
+  type: 'test'
+  ...
+# Subtest: next reads the selected remote-only execution tree and target status without changing refs
+ok 432 - next reads the selected remote-only execution tree and target status without changing refs
+  ---
+  duration_ms: 4872.879649
+  type: 'test'
+  ...
+# Subtest: unstarted plan reads the selected target snapshot even if absent from the invoking checkout
+ok 433 - unstarted plan reads the selected target snapshot even if absent from the invoking checkout
+  ---
+  duration_ms: 1478.102605
+  type: 'test'
+  ...
+# Subtest: target shelving refuses forced recording in a retained checkout
+ok 434 - target shelving refuses forced recording in a retained checkout
+  ---
+  duration_ms: 1578.952999
+  type: 'test'
+  ...
+# Subtest: target dependencies block an open PR and PR lookup uses the recorded target
+ok 435 - target dependencies block an open PR and PR lookup uses the recorded target
+  ---
+  duration_ms: 2628.877861
+  type: 'test'
+  ...
+# Subtest: non-default target supplies status and forge while selected tree supplies context paths
+ok 436 - non-default target supplies status and forge while selected tree supplies context paths
+  ---
+  duration_ms: 4764.866162
+  type: 'test'
+  ...
+# Subtest: listPlans finds active and archived plans
+ok 437 - listPlans finds active and archived plans
+  ---
+  duration_ms: 11.501782
+  type: 'test'
+  ...
+# Subtest: planDir resolves active and archived, throws for unknown
+ok 438 - planDir resolves active and archived, throws for unknown
+  ---
+  duration_ms: 0.901918
+  type: 'test'
+  ...
+# Subtest: listPlans returns [] when the plans directory is absent
+ok 439 - listPlans returns [] when the plans directory is absent
+  ---
+  duration_ms: 0.253592
+  type: 'test'
+  ...
+# Subtest: parsePlan returns typed frontmatter
+ok 440 - parsePlan returns typed frontmatter
+  ---
+  duration_ms: 38.551587
+  type: 'test'
+  ...
+# Subtest: parseStep returns typed frontmatter with context
+ok 441 - parseStep returns typed frontmatter with context
+  ---
+  duration_ms: 5.680925
+  type: 'test'
+  ...
+# Subtest: parseStep rejects a step number that mismatches the filename
+ok 442 - parseStep rejects a step number that mismatches the filename
+  ---
+  duration_ms: 0.655096
+  type: 'test'
+  ...
+# Subtest: parsePlan/parseStep reject id and plan mismatches
+ok 443 - parsePlan/parseStep reject id and plan mismatches
+  ---
+  duration_ms: 1.430344
+  type: 'test'
+  ...
+# Subtest: prepares committed target and preserves dirty invoking files
+ok 444 - prepares committed target and preserves dirty invoking files
+  ---
+  duration_ms: 178.080805
+  type: 'test'
+  ...
+# Subtest: refuses target-local missing plan, unapproved spec and conflicting paths
+ok 445 - refuses target-local missing plan, unapproved spec and conflicting paths
+  ---
+  duration_ms: 207.80304
+  type: 'test'
+  ...
+# Subtest: refuses ambiguous legacy and divergent target refs without writes
+ok 446 - refuses ambiguous legacy and divergent target refs without writes
+  ---
+  duration_ms: 119.774392
+  type: 'test'
+  ...
+# Subtest: stack preparation validates dependency binding and prospective specification revision
+ok 447 - stack preparation validates dependency binding and prospective specification revision
+  ---
+  duration_ms: 303.012247
+  type: 'test'
+  ...
+# Subtest: explicit target and recorded resume ignore malformed unrelated HEAD plan
+ok 448 - explicit target and recorded resume ignore malformed unrelated HEAD plan
+  ---
+  duration_ms: 207.032976
+  type: 'test'
+  ...
+# Subtest: resume refuses conflicting target and branch immutable metadata
+ok 449 - resume refuses conflicting target and branch immutable metadata
+  ---
+  duration_ms: 451.293165
+  type: 'test'
+  ...
+# Subtest: malformed or misidentified approved specification cannot authorize start
+ok 450 - malformed or misidentified approved specification cannot authorize start
+  ---
+  duration_ms: 174.772738
+  type: 'test'
+  ...
+# Subtest: first start refuses an orphaned execution binding without modifying refs
+ok 451 - first start refuses an orphaned execution binding without modifying refs
+  ---
+  duration_ms: 110.08173
+  type: 'test'
+  ...
+# Subtest: resume permits migrated active statuses but first start and resume reject inactive states
+ok 452 - resume permits migrated active statuses but first start and resume reject inactive states
+  ---
+  duration_ms: 923.908494
+  type: 'test'
+  ...
+# Subtest: preview and core update preserve provenance and unrelated changes
+ok 453 - preview and core update preserve provenance and unrelated changes
+  ---
+  duration_ms: 4240.38157
+  type: 'test'
+  ...
+# Subtest: captured target ref changing before validation refuses without a write
+ok 454 - captured target ref changing before validation refuses without a write
+  ---
+  duration_ms: 240.585286
+  type: 'test'
+  ...
+# Subtest: explicit GitHub requires origin for preview and update
+ok 455 - explicit GitHub requires origin for preview and update
+  ---
+  duration_ms: 321.539953
+  type: 'test'
+  ...
+# Subtest: local bare origin needs no forge evidence when forge is none
+ok 456 - local bare origin needs no forge evidence when forge is none
+  ---
+  duration_ms: 544.418737
+  type: 'test'
+  ...
+# Subtest: forge evidence is scoped to origin and rechecked before writing
+ok 457 - forge evidence is scoped to origin and rechecked before writing
+  ---
+  duration_ms: 277.808806
+  type: 'test'
+  ...
+# Subtest: staged administrative changes and recovery markers refuse
+ok 458 - staged administrative changes and recovery markers refuse
+  ---
+  duration_ms: 420.577006
+  type: 'test'
+  ...
+# Subtest: preview preserves private runtime and index bytes
+ok 459 - preview preserves private runtime and index bytes
+  ---
+  duration_ms: 222.459274
+  type: 'test'
+  ...
+# Subtest: active lease, dirty recording and ref races refuse without writes
+ok 460 - active lease, dirty recording and ref races refuse without writes
+  ---
+  duration_ms: 454.892787
+  type: 'test'
+  ...
+# Subtest: unavailable forge evidence refuses
+ok 461 - unavailable forge evidence refuses
+  ---
+  duration_ms: 208.098895
+  type: 'test'
+  ...
+# Subtest: wrong pull request base and unavailable gh evidence refuse
+ok 462 - wrong pull request base and unavailable gh evidence refuse
+  ---
+  duration_ms: 382.65727
+  type: 'test'
+  ...
+# Subtest: changed recording preimage and lifecycle conflicts refuse
+ok 463 - changed recording preimage and lifecycle conflicts refuse
+  ---
+  duration_ms: 413.616696
+  type: 'test'
+  ...
+# Subtest: git mode permits active migration states and refuses draft and terminal states
+ok 464 - git mode permits active migration states and refuses draft and terminal states
+  ---
+  duration_ms: 966.810665
+  type: 'test'
+  ...
+# Subtest: ref changed during final forge query refuses without writing
+ok 465 - ref changed during final forge query refuses without writing
+  ---
+  duration_ms: 302.43712
+  type: 'test'
+  ...
+# Subtest: unfinished cross-target stack refuses
+ok 466 - unfinished cross-target stack refuses
+  ---
+  duration_ms: 305.835969
+  type: 'test'
+  ...
+# Subtest: missing old branch requires independent historical identity
+ok 467 - missing old branch requires independent historical identity
+  ---
+  duration_ms: 214.988795
+  type: 'test'
+  ...
+# Subtest: retarget preserves the comparison base alongside starting provenance
+ok 468 - retarget preserves the comparison base alongside starting provenance
+  ---
+  duration_ms: 330.121731
+  type: 'test'
+  ...
+# Subtest: preserves inline metadata comments and an empty target history
+ok 469 - preserves inline metadata comments and an empty target history
+  ---
+  duration_ms: 258.804497
+  type: 'test'
+  ...
+# Subtest: preserves CRLF, BOM, comments and body bytes
+ok 470 - preserves CRLF, BOM, comments and body bytes
+  ---
+  duration_ms: 1.392153
+  type: 'test'
+  ...
+# Subtest: preserves flow binding source and appends to its history
+ok 471 - preserves flow binding source and appends to its history
+  ---
+  duration_ms: 1.489809
+  type: 'test'
+  ...
+# Subtest: appends a flow history in a block binding
+ok 472 - appends a flow history in a block binding
+  ---
+  duration_ms: 0.7053
+  type: 'test'
+  ...
+# Subtest: finish and restack contexts permit migrated active states and reject inactive states
+ok 473 - finish and restack contexts permit migrated active states and reject inactive states
+  ---
+  duration_ms: 1552.160362
+  type: 'test'
+  ...
+# Subtest: conductor: fake successful step advances to human finish without finalizing
+ok 474 - conductor: fake successful step advances to human finish without finalizing
+  ---
+  duration_ms: 6.132369
+  type: 'test'
+  ...
+# Subtest: conductor: unchanged step is never retried automatically
+ok 475 - conductor: unchanged step is never retried automatically
+  ---
+  duration_ms: 0.9179
+  type: 'test'
+  ...
+# Subtest: conductor: blocked, gap, dirty and divergence stop before spawning
+ok 476 - conductor: blocked, gap, dirty and divergence stop before spawning
+  ---
+  duration_ms: 1.698894
+  type: 'test'
+  ...
+# Subtest: conductor: initially blocked plan emits its selected harness alert
+ok 477 - conductor: initially blocked plan emits its selected harness alert
+  ---
+  duration_ms: 1.216709
+  type: 'test'
+  ...
+# Subtest: conductor: interruption leaves a running session alone
+ok 478 - conductor: interruption leaves a running session alone
+  ---
+  duration_ms: 0.920824
+  type: 'test'
+  ...
+# Subtest: conductor: dry-run makes no runtime files and never spawns
+ok 479 - conductor: dry-run makes no runtime files and never spawns
+  ---
+  duration_ms: 1.378963
+  type: 'test'
+  ...
+# Subtest: conductor: distinct plans honor parallel bound and duplicate IDs fail before launch
+ok 480 - conductor: distinct plans honor parallel bound and duplicate IDs fail before launch
+  ---
+  duration_ms: 11.979829
+  type: 'test'
+  ...
+# Subtest: conductor: reserves bounded session budgets and refuses unsupported enforcement
+ok 481 - conductor: reserves bounded session budgets and refuses unsupported enforcement
+  ---
+  duration_ms: 1.368828
+  type: 'test'
+  ...
+# Subtest: conductor: concurrent invocation of one plan refuses a duplicate session
+ok 482 - conductor: concurrent invocation of one plan refuses a duplicate session
+  ---
+  duration_ms: 1.001996
+  type: 'test'
+  ...
+# Subtest: conductor: uncertain launch outcomes retain their attempted budget reservation
+ok 483 - conductor: uncertain launch outcomes retain their attempted budget reservation
+  ---
+  duration_ms: 0.613372
+  type: 'test'
+  ...
+# Subtest: conductor: initially blocked dry-run never writes alert cache
+ok 484 - conductor: initially blocked dry-run never writes alert cache
+  ---
+  duration_ms: 0.318108
+  type: 'test'
+  ...
+# Subtest: shelve and resume retain a dirty plan checkout and override its stale status
+ok 485 - shelve and resume retain a dirty plan checkout and override its stale status
+  ---
+  duration_ms: 7141.982457
+  type: 'test'
+  ...
+# Subtest: sha1 publication failure retains its exact commit and retry publishes it
+ok 486 - sha1 publication failure retains its exact commit and retry publishes it
+  ---
+  duration_ms: 3839.110021
+  type: 'test'
+  ...
+# Subtest: sha256 publication failure retains its exact commit and retry publishes it
+ok 487 - sha256 publication failure retains its exact commit and retry publishes it
+  ---
+  duration_ms: 3371.005282
+  type: 'test'
+  ...
+# Subtest: schema and forced conductor gate preserve the shelving invariant
+ok 488 - schema and forced conductor gate preserve the shelving invariant
+  ---
+  duration_ms: 2.795791
+  type: 'test'
+  ...
+# Subtest: recorded non-default target, custom paths and remote-only branch use target state
+ok 489 - recorded non-default target, custom paths and remote-only branch use target state
+  ---
+  duration_ms: 3736.83416
+  type: 'test'
+  ...
+# Subtest: appends a §4.1 section, sets status, commits with ordered trailers
+ok 490 - appends a §4.1 section, sets status, commits with ordered trailers
+  ---
+  duration_ms: 620.475232
+  type: 'test'
+  ...
+# Subtest: Specplane-Session is written when set and the next step is picked by number
+ok 491 - Specplane-Session is written when set and the next step is picked by number
+  ---
+  duration_ms: 573.298387
+  type: 'test'
+  ...
+# Subtest: refuses an already done step
+ok 492 - refuses an already done step
+  ---
+  duration_ms: 613.89872
+  type: 'test'
+  ...
+# Subtest: refuses done on a blocked step without --force; --force allows it and keeps both sections
+ok 493 - refuses done on a blocked step without --force; --force allows it and keeps both sections
+  ---
+  duration_ms: 1167.169643
+  type: 'test'
+  ...
+# Subtest: refuses blocked without a BLOCKED: open issue; accepts one
+ok 494 - refuses blocked without a BLOCKED: open issue; accepts one
+  ---
+  duration_ms: 1812.690137
+  type: 'test'
+  ...
+# Subtest: refuses a --gap ID with no spec-gaps.md entry
+ok 495 - refuses a --gap ID with no spec-gaps.md entry
+  ---
+  duration_ms: 1166.334334
+  type: 'test'
+  ...
+# Subtest: refuses when HANDOFF.md already has a later step section
+ok 496 - refuses when HANDOFF.md already has a later step section
+  ---
+  duration_ms: 645.672019
+  type: 'test'
+  ...
+# Subtest: skipped writes None. for changes and needs a deviation
+ok 497 - skipped writes None. for changes and needs a deviation
+  ---
+  duration_ms: 1190.755317
+  type: 'test'
+  ...
+# Subtest: a failed commit restores the files
+ok 498 - a failed commit restores the files
+  ---
+  duration_ms: 590.769346
+  type: 'test'
+  ...
+# Subtest: a subject over 72 characters is refused before any write
+ok 499 - a subject over 72 characters is refused before any write
+  ---
+  duration_ms: 586.287896
+  type: 'test'
+  ...
+# Subtest: forced completed-step rerun records reason without deleting earlier history
+ok 500 - forced completed-step rerun records reason without deleting earlier history
+  ---
+  duration_ms: 1164.273552
+  type: 'test'
+  ...
+# Subtest: reports recorded target, pending edit and unintegrated done
+ok 501 - reports recorded target, pending edit and unintegrated done
+  ---
+  duration_ms: 335.530794
+  type: 'test'
+  ...
+# Subtest: discovers local and remote-only branch missing from checkout
+ok 502 - discovers local and remote-only branch missing from checkout
+  ---
+  duration_ms: 1296.88544
+  type: 'test'
+  ...
+# Subtest: missing, divergent and legacy refs remain unverifiable
+ok 503 - missing, divergent and legacy refs remain unverifiable
+  ---
+  duration_ms: 250.527396
+  type: 'test'
+  ...
+# Subtest: divergent plan branches fail list and show instead of choosing an identity
+ok 504 - divergent plan branches fail list and show instead of choosing an identity
+  ---
+  duration_ms: 154.784252
+  type: 'test'
+  ...
+# Subtest: merged forge evidence must match exact head and target and be present in target history
+ok 505 - merged forge evidence must match exact head and target and be present in target history
+  ---
+  duration_ms: 304.34006
+  type: 'test'
+  ...
+# Subtest: remote-ahead content, activity and pending edits use the correct commits
+ok 506 - remote-ahead content, activity and pending edits use the correct commits
+  ---
+  duration_ms: 1357.382316
+  type: 'test'
+  ...
+# Subtest: invalid branch bindings and target records are refused
+ok 507 - invalid branch bindings and target records are refused
+  ---
+  duration_ms: 221.179144
+  type: 'test'
+  ...
+# Subtest: target committed plan and dependencies override dirty invoking state
+ok 508 - target committed plan and dependencies override dirty invoking state
+  ---
+  duration_ms: 605.277851
+  type: 'test'
+  ...
+# Subtest: conflicting target config paths are refused
+ok 509 - conflicting target config paths are refused
+  ---
+  duration_ms: 96.637244
+  type: 'test'
+  ...
+# Subtest: remote-ahead target drives unstarted activity and human uncertainty is explicit
+ok 510 - remote-ahead target drives unstarted activity and human uncertainty is explicit
+  ---
+  duration_ms: 334.367784
+  type: 'test'
+  ...
+# Subtest: human list renders pending destination and uncertainty
+ok 511 - human list renders pending destination and uncertainty
+  ---
+  duration_ms: 803.590578
+  type: 'test'
+  ...
+# Subtest: unavailable starting object keeps structurally validated provenance inspectable
+ok 512 - unavailable starting object keeps structurally validated provenance inspectable
+  ---
+  duration_ms: 109.343343
+  type: 'test'
+  ...
+# Subtest: malformed target done record cannot establish integration
+ok 513 - malformed target done record cannot establish integration
+  ---
+  duration_ms: 118.336432
+  type: 'test'
+  ...
+# Subtest: unstarted unavailable or divergent target retains committed intended context
+ok 514 - unstarted unavailable or divergent target retains committed intended context
+  ---
+  duration_ms: 137.963289
+  type: 'test'
+  ...
+# Subtest: show discovers unstarted configured target and uses authoritative comparison baseline
+ok 515 - show discovers unstarted configured target and uses authoritative comparison baseline
+  ---
+  duration_ms: 152.778638
+  type: 'test'
+  ...
+# Subtest: show derives review using target dependencies and PR base
+ok 516 - show derives review using target dependencies and PR base
+  ---
+  duration_ms: 190.829192
+  type: 'test'
+  ...
+# Subtest: unstarted comparison is taken from target over stale invoking hint
+ok 517 - unstarted comparison is taken from target over stale invoking hint
+  ---
+  duration_ms: 173.275621
+  type: 'test'
+  ...
+# Subtest: flags file paths and directory paths
+ok 518 - flags file paths and directory paths
+  ---
+  duration_ms: 5.731363
+  type: 'test'
+  ...
+# Subtest: path inside a fenced code block, or in the allow list, is not flagged
+ok 519 - path inside a fenced code block, or in the allow list, is not flagged
+  ---
+  duration_ms: 1.278085
+  type: 'test'
+  ...
+# Subtest: link targets are ignored
+ok 520 - link targets are ignored
+  ---
+  duration_ms: 0.434484
+  type: 'test'
+  ...
+# Subtest: flags technology names, case-insensitively and whole-word
+ok 521 - flags technology names, case-insensitively and whole-word
+  ---
+  duration_ms: 1.360299
+  type: 'test'
+  ...
+# Subtest: config keys and built-in names are not flagged
+ok 522 - config keys and built-in names are not flagged
+  ---
+  duration_ms: 0.236807
+  type: 'test'
+  ...
+# Subtest: flags code identifiers of each shape
+ok 523 - flags code identifiers of each shape
+  ---
+  duration_ms: 0.962399
+  type: 'test'
+  ...
+# Subtest: flags schema syntax lines outside code blocks only
+ok 524 - flags schema syntax lines outside code blocks only
+  ---
+  duration_ms: 0.362385
+  type: 'test'
+  ...
+# Subtest: reports body line numbers
+ok 525 - reports body line numbers
+  ---
+  duration_ms: 0.336497
+  type: 'test'
+  ...
+# Subtest: configured allow terms are removed
+ok 526 - configured allow terms are removed
+  ---
+  duration_ms: 0.347323
+  type: 'test'
+  ...
+# Subtest: JSON Schema is a tech name, except in code fences or the allow list
+ok 527 - JSON Schema is a tech name, except in code fences or the allow list
+  ---
+  duration_ms: 0.991083
+  type: 'test'
+  ...
+# Subtest: bare file names with code extensions are path warnings
+ok 528 - bare file names with code extensions are path warnings
+  ---
+  duration_ms: 0.456708
+  type: 'test'
+  ...
+# Subtest: bare file name exclusions
+ok 529 - bare file name exclusions
+  ---
+  duration_ms: 1.033877
+  type: 'test'
+  ...
+# Subtest: parses a feature spec
+ok 530 - parses a feature spec
+  ---
+  duration_ms: 36.234516
+  type: 'test'
+  ...
+# Subtest: parses a feature spec with allow_architecture and based_on
+ok 531 - parses a feature spec with allow_architecture and based_on
+  ---
+  duration_ms: 1.364716
+  type: 'test'
+  ...
+# Subtest: parses an architecture spec
+ok 532 - parses an architecture spec
+  ---
+  duration_ms: 2.032662
+  type: 'test'
+  ...
+# Subtest: missing required field throws FrontmatterError naming the field
+ok 533 - missing required field throws FrontmatterError naming the field
+  ---
+  duration_ms: 0.632383
+  type: 'test'
+  ...
+# Subtest: bad enum, missing reason, missing implements, bad YAML throw FrontmatterError
+ok 534 - bad enum, missing reason, missing implements, bad YAML throw FrontmatterError
+  ---
+  duration_ms: 1.290935
+  type: 'test'
+  ...
+# Subtest: file without frontmatter throws FrontmatterMissingError
+ok 535 - file without frontmatter throws FrontmatterMissingError
+  ---
+  duration_ms: 0.273252
+  type: 'test'
+  ...
+# Subtest: isInfoFile is exact and case-sensitive
+ok 536 - isInfoFile is exact and case-sensitive
+  ---
+  duration_ms: 0.107783
+  type: 'test'
+  ...
+# Subtest: normalisedHash ignores frontmatter status and author only
+ok 537 - normalisedHash ignores frontmatter status and author only
+  ---
+  duration_ms: 1.717968
+  type: 'test'
+  ...
+# Subtest: current pin: no findings; body change: base-changed with message
+ok 538 - current pin: no findings; body change: base-changed with message
+  ---
+  duration_ms: 245.95051
+  type: 'test'
+  ...
+# Subtest: frontmatter-only status/author change is not a base change
+ok 539 - frontmatter-only status/author change is not a base change
+  ---
+  duration_ms: 109.703655
+  type: 'test'
+  ...
+# Subtest: pinned blob missing from the object store: still fires, says diff unavailable
+ok 540 - pinned blob missing from the object store: still fires, says diff unavailable
+  ---
+  duration_ms: 74.382604
+  type: 'test'
+  ...
+# Subtest: approved spec with a stale pin is an error, also under pin_bases off
+ok 541 - approved spec with a stale pin is an error, also under pin_bases off
+  ---
+  duration_ms: 252.640635
+  type: 'test'
+  ...
+# Subtest: missing pins follow specs.pin_bases
+ok 542 - missing pins follow specs.pin_bases
+  ---
+  duration_ms: 358.216354
+  type: 'test'
+  ...
+# Subtest: based_on key not in extends/implements is an error; qualified keys match
+ok 543 - based_on key not in extends/implements is an error; qualified keys match
+  ---
+  duration_ms: 150.71059
+  type: 'test'
+  ...
+# Subtest: body anchors: unmatched slug warns; prose form and code fences are not checked
+ok 544 - body anchors: unmatched slug warns; prose form and code fences are not checked
+  ---
+  duration_ms: 68.840292
+  type: 'test'
+  ...
+# Subtest: writePins: only based_on changes; insertion after extends; round trip
+ok 545 - writePins: only based_on changes; insertion after extends; round trip
+  ---
+  duration_ms: 12.58145
+  type: 'test'
+  ...
+# Subtest: spec pin writes pins, prints lines, validate is then clean; refuses uncommitted base
+ok 546 - spec pin writes pins, prints lines, validate is then clean; refuses uncommitted base
+  ---
+  duration_ms: 139.250543
+  type: 'test'
+  ...
+# Subtest: skill drift: stale pin, unresolved anchor, missing comment
+ok 547 - skill drift: stale pin, unresolved anchor, missing comment
+  ---
+  duration_ms: 35.308463
+  type: 'test'
+  ...
+# Subtest: skill drift: scans harness templates and registry dirs, only for installed harnesses
+ok 548 - skill drift: scans harness templates and registry dirs, only for installed harnesses
+  ---
+  duration_ms: 15.536712
+  type: 'test'
+  ...
+# Subtest: feature ID resolves to an absolute path
+ok 549 - feature ID resolves to an absolute path
+  ---
+  duration_ms: 1.370344
+  type: 'test'
+  ...
+# Subtest: architecture IDs map to architecture/, anchors are stripped
+ok 550 - architecture IDs map to architecture/, anchors are stripped
+  ---
+  duration_ms: 0.256396
+  type: 'test'
+  ...
+# Subtest: unknown ID throws SpecNotFoundError
+ok 551 - unknown ID throws SpecNotFoundError
+  ---
+  duration_ms: 0.419061
+  type: 'test'
+  ...
+# Subtest: qualified ID naming an undeclared root throws UnknownRootError
+ok 552 - qualified ID naming an undeclared root throws UnknownRootError
+  ---
+  duration_ms: 0.203126
+  type: 'test'
+  ...
+# Subtest: qualified ID looks in that root only
+ok 553 - qualified ID looks in that root only
+  ---
+  duration_ms: 0.327243
+  type: 'test'
+  ...
+# Subtest: sibling overlays with the same ID are ambiguous without fromRoot
+ok 554 - sibling overlays with the same ID are ambiguous without fromRoot
+  ---
+  duration_ms: 0.297478
+  type: 'test'
+  ...
+# Subtest: fromRoot resolves through the extends chain
+ok 555 - fromRoot resolves through the extends chain
+  ---
+  duration_ms: 0.290568
+  type: 'test'
+  ...
+# Subtest: single hit without fromRoot resolves
+ok 556 - single hit without fromRoot resolves
+  ---
+  duration_ms: 0.172861
+  type: 'test'
+  ...
+# Subtest: slugify is GitHub-style
+ok 557 - slugify is GitHub-style
+  ---
+  duration_ms: 1.230384
+  type: 'test'
+  ...
+# Subtest: findHeading ignores section numbers, code markup and case; accepts prefixes
+ok 558 - findHeading ignores section numbers, code markup and case; accepts prefixes
+  ---
+  duration_ms: 0.558801
+  type: 'test'
+  ...
+# Subtest: hasAnchor accepts slugs and heading text
+ok 559 - hasAnchor accepts slugs and heading text
+  ---
+  duration_ms: 0.402746
+  type: 'test'
+  ...
+# Subtest: headingSlugs: punctuation, duplicate suffixes, fenced code skipped
+ok 560 - headingSlugs: punctuation, duplicate suffixes, fenced code skipped
+  ---
+  duration_ms: 1.533109
+  type: 'test'
+  ...
+# Subtest: clean repository is valid
+not ok 561 - clean repository is valid
+  ---
+  duration_ms: 66.985373
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/validate.test.js:13:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/validate.test.js:15:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.start (node:internal/test_runner/test:1242:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: mismatched ID is an error
+ok 562 - mismatched ID is an error
+  ---
+  duration_ms: 6.252818
+  type: 'test'
+  ...
+# Subtest: missing frontmatter is a schema error; INFO.md with frontmatter is an error, without is ignored
+ok 563 - missing frontmatter is a schema error; INFO.md with frontmatter is an error, without is ignored
+  ---
+  duration_ms: 14.231485
+  type: 'test'
+  ...
+# Subtest: leak guard: path and tech_name warnings, with exclusions
+not ok 564 - leak guard: path and tech_name warnings, with exclusions
+  ---
+  duration_ms: 6.890638
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/validate.test.js:32:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/validate.test.js:42:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: ordering: approved architecture spec with non-approved feature is an error; draft is not
+not ok 565 - ordering: approved architecture spec with non-approved feature is an error; draft is not
+  ---
+  duration_ms: 15.5022
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/validate.test.js:44:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   {
+    +     file: 'plans/PLANS.md',
+    +     message: 'Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)\n' +
+    +       'Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).',
+    +     severity: 'error',
+    +     type: 'freshness'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      file: 'plans/PLANS.md'
+      message: |-
+        Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)
+        Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+      severity: 'error'
+      type: 'freshness'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/validate.test.js:49:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: unresolved implements/supersedes are errors
+ok 566 - unresolved implements/supersedes are errors
+  ---
+  duration_ms: 5.135795
+  type: 'test'
+  ...
+# Subtest: overlay with the same ID as a base spec is a shadowing error
+ok 567 - overlay with the same ID as a base spec is a shadowing error
+  ---
+  duration_ms: 5.546374
+  type: 'test'
+  ...
+# Subtest: extends: valid overlay passes; standalone root and unresolved target error
+not ok 568 - extends: valid overlay passes; standalone root and unresolved target error
+  ---
+  duration_ms: 6.909297
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/validate.test.js:62:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   {
+    +     file: 'plans/PLANS.md',
+    +     message: 'Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)\n' +
+    +       'Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).',
+    +     severity: 'error',
+    +     type: 'freshness'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      file: 'plans/PLANS.md'
+      message: |-
+        Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)
+        Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+      severity: 'error'
+      type: 'freshness'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/validate.test.js:67:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: overlay contradiction heuristic warns
+ok 569 - overlay contradiction heuristic warns
+  ---
+  duration_ms: 7.418233
+  type: 'test'
+  ...
+# Subtest: based_on key must appear in extends or implements; anchors warn
+ok 570 - based_on key must appear in extends or implements; anchors warn
+  ---
+  duration_ms: 9.016711
+  type: 'test'
+  ...
+# Subtest: authorship: llm author on a review spec under user authorship warns
+ok 571 - authorship: llm author on a review spec under user authorship warns
+  ---
+  duration_ms: 5.658889
+  type: 'test'
+  ...
+# Subtest: plan dependency cycle and dangling dependency are errors
+ok 572 - plan dependency cycle and dangling dependency are errors
+  ---
+  duration_ms: 14.044799
+  type: 'test'
+  ...
+# Subtest: dependency on an abandoned plan is an error; stored in_progress warns under git status_source
+ok 573 - dependency on an abandoned plan is an error; stored in_progress warns under git status_source
+  ---
+  duration_ms: 5.54373
+  type: 'test'
+  ...
+# Subtest: step number must match the file name
+ok 574 - step number must match the file name
+  ---
+  duration_ms: 10.320584
+  type: 'test'
+  ...
+# Subtest: step numbering: missing and duplicate numbers are errors
+ok 575 - step numbering: missing and duplicate numbers are errors
+  ---
+  duration_ms: 5.71651
+  type: 'test'
+  ...
+# Subtest: step context: anchors, decisions, files, drafts
+ok 576 - step context: anchors, decisions, files, drafts
+  ---
+  duration_ms: 9.773601
+  type: 'test'
+  ...
+# Subtest: skipped and blocked steps need a matching HANDOFF section
+not ok 577 - skipped and blocked steps need a matching HANDOFF section
+  ---
+  duration_ms: 11.497562
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/validate.test.js:160:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   {
+    +     file: 'plans/PLANS.md',
+    +     message: 'Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)\n' +
+    +       'Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).',
+    +     severity: 'error',
+    +     type: 'freshness'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      file: 'plans/PLANS.md'
+      message: |-
+        Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)
+        Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+      severity: 'error'
+      type: 'freshness'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/validate.test.js:168:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: HANDOFF repeated sections: only the latest outcome is checked
+not ok 578 - HANDOFF repeated sections: only the latest outcome is checked
+  ---
+  duration_ms: 6.301162
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/validate.test.js:170:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    an earlier blocked section stays valid once the step is re-run
+    + actual - expected
+    
+    + [
+    +   {
+    +     file: 'plans/PLANS.md',
+    +     message: 'Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)\n' +
+    +       'Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).',
+    +     severity: 'error',
+    +     type: 'freshness'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      file: 'plans/PLANS.md'
+      message: |-
+        Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)
+        Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+      severity: 'error'
+      type: 'freshness'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/validate.test.js:178:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: spec-gaps.md: valid entries pass; format, kind, status, step and target are checked
+not ok 579 - spec-gaps.md: valid entries pass; format, kind, status, step and target are checked
+  ---
+  duration_ms: 6.592379
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/validate.test.js:188:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   {
+    +     file: 'plans/PLANS.md',
+    +     message: 'Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)\n' +
+    +       'Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).',
+    +     severity: 'error',
+    +     type: 'freshness'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      file: 'plans/PLANS.md'
+      message: |-
+        Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)
+        Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+      severity: 'error'
+      type: 'freshness'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/validate.test.js:195:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: spec-gaps.md: out-of-order numbers are errors; an archived feature-spec-proposals.md is ignored
+not ok 580 - spec-gaps.md: out-of-order numbers are errors; an archived feature-spec-proposals.md is ignored
+  ---
+  duration_ms: 10.075446
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/validate.test.js:214:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   {
+    +     file: 'plans/PLANS.md',
+    +     message: 'Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)\n' +
+    +       'Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).',
+    +     severity: 'error',
+    +     type: 'freshness'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      file: 'plans/PLANS.md'
+      message: |-
+        Cannot check plan index freshness (source: head): Git command failed: `git rev-parse --path-format=absolute --git-path MERGE_HEAD`: fatal: not a git repository (or any parent up to mount point /)
+        Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+      severity: 'error'
+      type: 'freshness'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/validate.test.js:229:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: plan specs: unresolved is an error, deprecated warns
+ok 581 - plan specs: unresolved is an error, deprecated warns
+  ---
+  duration_ms: 6.088215
+  type: 'test'
+  ...
+# Subtest: ADR rules: duplicate number, id mismatch, superseded_by, related_specs
+ok 582 - ADR rules: duplicate number, id mismatch, superseded_by, related_specs
+  ---
+  duration_ms: 8.536908
+  type: 'test'
+  ...
+# Subtest: ADR supersession cycle is reported once from its lowest-numbered ADR
+ok 583 - ADR supersession cycle is reported once from its lowest-numbered ADR
+  ---
+  duration_ms: 5.553714
+  type: 'test'
+  ...
+# Subtest: freshness: missing AGENTS.md warns; current block does not
+ok 584 - freshness: missing AGENTS.md warns; current block does not
+  ---
+  duration_ms: 9.536795
+  type: 'test'
+  ...
+# Subtest: config errors become a config finding
+ok 585 - config errors become a config finding
+  ---
+  duration_ms: 2.553827
+  type: 'test'
+  ...
+# Subtest: config: a missing spec root is a config error
+ok 586 - config: a missing spec root is a config error
+  ---
+  duration_ms: 1.935075
+  type: 'test'
+  ...
+# Subtest: output formats
+not ok 587 - output formats
+  ---
+  duration_ms: 5.143397
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/validate.test.js:283:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/validate.test.js:287:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: rules freshness: missing or differing warns; matching does not
+ok 588 - rules freshness: missing or differing warns; matching does not
+  ---
+  duration_ms: 21.746014
+  type: 'test'
+  ...
+# Subtest: deprecated reference: extends warns, exit status unaffected
+ok 589 - deprecated reference: extends warns, exit status unaffected
+  ---
+  duration_ms: 5.738419
+  type: 'test'
+  ...
+# Subtest: non-deprecated reference gives no deprecated warning
+ok 590 - non-deprecated reference gives no deprecated warning
+  ---
+  duration_ms: 5.36442
+  type: 'test'
+  ...
+# Subtest: specplane-validate.yml parses and runs specplane validate
+ok 591 - specplane-validate.yml parses and runs specplane validate
+  ---
+  duration_ms: 7.623723
+  type: 'test'
+  ...
+# Subtest: specplane-generate.yml parses, filters paths, and commits only on change
+ok 592 - specplane-generate.yml parses, filters paths, and commits only on change
+  ---
+  duration_ms: 0.838333
+  type: 'test'
+  ...
+# Subtest: .gitattributes marks PLANS.md as generated
+ok 593 - .gitattributes marks PLANS.md as generated
+  ---
+  duration_ms: 0.183347
+  type: 'test'
+  ...
+1..593
+# tests 593
+# suites 0
+# pass 582
+# fail 11
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 235623.865817

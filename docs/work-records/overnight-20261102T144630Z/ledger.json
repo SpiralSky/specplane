@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "5d9748c9cac75c1b5413a4d6d0d34f4643c8c78d",
+  "integrated_commit": "7ea64eb45261ea6e564554a5814f17052e166969",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -364,13 +364,21 @@
     {
       "step": "plan-index/3 lifecycle nonregularscope final",
       "agent": "index_3_input_scope",
-      "status": "running",
-      "base": "6e837ce374f95b67e7e79c4ca1dc1e3f5b89c7ba"
+      "status": "reviewed and integrated;milestoneverified",
+      "base": "6e837ce374f95b67e7e79c4ca1dc1e3f5b89c7ba",
+      "commit": "cd2e89e95618ea6d98f8fa354cb77019e942801c"
+    },
+    {
+      "step": "plan-index/3 integratedregressionfixtures",
+      "agent": "index_3_regression",
+      "status": "reviewed and integrated;milestoneverified",
+      "base": "e154d972ee7944bd8437bd337e083e1f97ba7969",
+      "commit": "d223a766245fbcb373fe5063da277e7de6f3259d"
     }
   ],
   "next": [
-    "Review final approval snapshot/path fixes, integrate then full index milestone regression and generated PLANS update/checkpoint",
-    "Workflowrecording1/2/3/4 -> manual1/2/3 -> docs -> packaging -> deliveryhosts -> conformance"
+    "Dispatch workflow-recording original step1 preparation/statebinding on current reviewedindexbaseline",
+    "Workflow2receipts ->workflow3manualrecording ->workflow4validation/recording ->manual3steps ->docs ->packaging ->deliveryhosts ->conformance"
   ],
   "timing": {
     "worker_elapsed": "pending",
@@ -380,7 +388,7 @@
   "processes": [],
   "remote_checkpoint": {
     "branch": "overnight/specplane-20261102T144630Z",
-    "commit": "5d43316feb0bc5940c39f48354e8f6365405b59d",
+    "commit": "2e98845517bf44408242c1d649119032ffe79b10",
     "status": "pushed"
   },
   "baseline_validation": {
@@ -436,9 +444,9 @@
   "midrun_validation": {
     "errors": 0,
     "warnings": 90,
-    "log": "target-step6-validation.json"
+    "log": "index-plan-final-validation.json"
   },
-  "updated_utc": "2026-11-02T19:09:43.438274+00:00",
+  "updated_utc": "2026-11-02T19:22:14.325854+00:00",
   "combined_regression": {
     "passed": 480,
     "failed": 0,
@@ -446,8 +454,8 @@
     "log": "target-step4-integrated-tests.log"
   },
   "acceptance_counts": {
-    "verified": 66,
-    "pending": 134,
+    "verified": 68,
+    "pending": 132,
     "blocked": 2
   },
   "target6_regression": {
@@ -477,6 +485,24 @@
       "integrated_affected_passed": 8,
       "failed": 0,
       "log": "index-step2-activity-integrated-tests.log"
+    }
+  },
+  "index_plan_regression": {
+    "total": 593,
+    "passed": 582,
+    "failed": 11,
+    "skipped": 0,
+    "duration_ms": 235623.865817,
+    "log": "index-plan-integrated-tests.log",
+    "resolution": {
+      "fixture_commits": [
+        "967c2ac",
+        "d223a766245fbcb373fe5063da277e7de6f3259d"
+      ],
+      "integrated_affected_passed": 54,
+      "failed": 0,
+      "log": "index-plan-corrected-tests.log",
+      "note": "All11fullrunfailurescorrectedviafixtureHEADbaselines; full582/593thenaffected54/54, no repeatedfullsuiteclaim"
     }
   }
 }
