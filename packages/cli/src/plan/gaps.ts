@@ -46,11 +46,16 @@ interface Block {
  * findings; references (step numbers, target specs) are checked by `validatePlans`.
  */
 export function parseGaps(file: string): { entries: GapEntry[]; problems: GapProblem[] } {
+  return parseGapsText(fs.readFileSync(file, "utf8"));
+}
+
+/** Parse the same format from a selected Git tree or other text source. */
+export function parseGapsText(text: string): { entries: GapEntry[]; problems: GapProblem[] } {
   const problems: GapProblem[] = [];
   const blocks: Block[] = [];
   let current: Block | null = null;
 
-  fs.readFileSync(file, "utf8")
+  text
     .split(/\r?\n/)
     .forEach((text, i) => {
       const h = /^##\s+(.*)$/.exec(text);

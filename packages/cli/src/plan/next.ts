@@ -14,7 +14,7 @@ import type { Config, PlanFrontmatter, StepFrontmatter } from "../types.js";
 import { getPlanActivity, planReport, selectedPlanBranch, showFile, targetPlanRecord } from "./activity.js";
 import { refusePendingRetarget } from "./lifecycle-context.js";
 import { mergedStackBase } from "./flows.js";
-import { parseGaps, type GapEntry } from "./gaps.js";
+import { parseGaps, parseGapsText, type GapEntry } from "./gaps.js";
 import { listStepFiles, parsePlan, parseStep } from "./parse.js";
 import { listPlans } from "./resolve.js";
 import { getEffectiveStatus, type EffectiveStatus } from "./status.js";
@@ -185,7 +185,9 @@ function resolveContext(step: StepFrontmatter, config: Config, base: string, war
       }
     } else if ("decision" in item) {
       const m = /^decision\/(\d{4})$/.exec(item.decision);
-      const adr = m ? listAdrs(config, base).find((a) => a.number === m[1]) : undefined;
+      let adr: ReturnType<typeof listAdrs>[number] | undefined;
+      try { adr = m ? listAdrs(config, base).find((a) => a.number === m[1]) : undefined; }
+      catch (e) { if (!(e instanceof SpecplaneError)) throw e; }
       if (!adr) warnings.push(`Context decision \`${item.decision}\` does not resolve to an ADR.`);
       out.push({ kind: "decision", id: item.decision, path: adr ? rel(base, adr.file) : null, anchor: null });
     } else {
@@ -219,11 +221,7 @@ function snapshotNext(id: string, ref: string, config: Config, root: string, war
     } catch (e) { warnings.push(`Skipped ${path.basename(file)}: ${(e as Error).message}`); }
   }
   const gapText = showFile(ref, `${dir}/spec-gaps.md`, root) ?? "";
-  const gaps: GapEntry[] = [];
-  for (const match of gapText.matchAll(/^## G(\d+):\s*(.+)\s*$([\s\S]*?)(?=^## |$(?![\s\S]))/gm)) {
-    const field = (name: string) => new RegExp(`^\\*\\*${name}\\*\\*:\\s*(.*)$`, "m").exec(match[3])?.[1].trim() ?? "";
-    gaps.push({ n: Number(match[1]), caseTitle: match[2].trim(), kind: field("Kind"), step: null, case: field("Case"), resolution: field("Resolution"), targets: [], status: field("Status"), line: 0 });
-  }
+  const gaps = parseGapsText(gapText).entries;
   const first = [...steps].sort((a, b) => a.number - b.number).find(s => s.status !== "done" && s.status !== "skipped");
   const context: NextContextItem[] = [];
   for (const item of first ? stepFms.get(first.number)!.context ?? [] : []) {
@@ -244,7 +242,11 @@ function snapshotNext(id: string, ref: string, config: Config, root: string, war
       const files = (tryGit(["ls-tree", "-r", "--name-only", ref, "--", `${config.decisions.dir}/`], root) ?? "").split("\n");
       const file = number && files.find(f => path.posix.dirname(f) === config.decisions.dir && new RegExp(`^${number}-.*\\.md$`).test(path.posix.basename(f)));
       let valid = false;
-      if (file) { const text = showFile(ref, file, root); if (text !== null) valid = validator(ADR_SCHEMA)(parseFrontmatter(text, file).data); }
+      if (file) {
+        const text = showFile(ref, file, root);
+        try { if (text !== null) valid = validator(ADR_SCHEMA)(parseFrontmatter(text, file).data); }
+        catch (e) { if (!(e instanceof SpecplaneError)) throw e; }
+      }
       if (!valid) warnings.push(`Context decision \`${item.decision}\` does not resolve to an ADR.`);
       context.push({ kind: "decision", id: item.decision, path: valid ? file! : null, anchor: null });
     } else {
@@ -301,8 +303,11 @@ export function planNext(id: string, config: Config, root: string): PlanNext {
     diverged = (activity.ahead_of_remote ?? 0) > 0 && behind > 0;
   }
   const dirty = checkout !== null && (tryGit(["status", "--porcelain"], checkout) ?? "").trim() !== "";
+  const handoff = checkoutRecord && path.join(checkoutRecord.dir, "HANDOFF.md");
+  const blockedIssues = handoff ? (fs.existsSync(handoff) ? fs.readFileSync(handoff, "utf8") : "")
+    .split("\n").filter(line => line.includes("BLOCKED:")).map(line => line.trim().replace(/^[-*]\s+/, "")) : activity.blocked_issues;
   return computeNext({ plan: id, title: fm.title, effectiveStatus, started: activity.where !== "none", ...inputs, checkout,
-    blockedIssues: activity.blocked_issues, warnings, restackBase: local ? mergedStackBase(id, ownConfig, root, report.target_branch ?? undefined) : null, diverged, dirty });
+    blockedIssues, warnings, restackBase: local ? mergedStackBase(id, ownConfig, root, report.target_branch ?? undefined) : null, diverged, dirty });
 }
 
 /** Human summary of a `PlanNext`. */
