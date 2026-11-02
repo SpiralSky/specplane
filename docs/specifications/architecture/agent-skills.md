@@ -4,7 +4,7 @@ title: "Agent skills: config resolution and harness-neutral prompt contracts"
 status: approved
 author: mixed
 implements: [feature/agent-integration, feature/spec-precedence, feature/spec-policies, feature/spec-system, feature/plan-steps, feature/plan-execution, feature/tooling]
-based_on: { feature/agent-integration: "1e7327b" }
+based_on: { feature/agent-integration: "6fd87da" }
 ---
 
 <!-- Plan index proposal 2026-11-02: user agreed naming/source semantics and approved the companion feature patch, now applied. Architecture revision awaits review; not implemented behavior. -->
