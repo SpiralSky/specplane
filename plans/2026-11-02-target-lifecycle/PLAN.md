@@ -1,7 +1,7 @@
 ---
 id: 2026-11-02-target-lifecycle
 title: "Target binding and lifecycle reconciliation"
-status: draft
+status: ready
 specs: ["architecture/reference-cli", "architecture/file-formats", "feature/plan-execution", "feature/configuration", "feature/tooling", "feature/plan-system"]
 depends_on: ["2026-11-01-core-foundation"]
 ---
