@@ -6,8 +6,11 @@ import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { findLatest, readTrailers } from "../git/commit.js";
 import { run } from "../git/exec.js";
 import { defaultBranch } from "../git/repo.js";
-import { resolvePlanContext, type PlanBranchSnapshot } from "./context.js";
+import { resolvePlanContext, validateExecutionBinding, validatePlanBranches, type PlanBranchSnapshot } from "./context.js";
 import * as fs from "node:fs";
+import { isDeepStrictEqual } from "node:util";
+import { CONFIG_PATH, parseConfigText } from "../config.js";
+import { PLAN_SCHEMA, validator } from "../schemas.js";
 import { mergedPRCommit } from "../git/forge.js";
 import { PlanStateError } from "../errors.js";
 import { listWorktrees } from "../git/worktree.js";
@@ -59,6 +62,51 @@ export function planTextAt(ref: string, id: string, config: Config, cwd: string)
   return showFile(ref, `${config.plans.dir}/${id}/PLAN.md`, cwd) ?? showFile(ref, `${config.plans.dir}/archive/${id}/PLAN.md`, cwd);
 }
 
+/** Inspect a committed tree with its own path configuration, rejecting mixed interpretations. */
+function recordAt(ref: string, id: string, discovery: Config, cwd: string): { text: string; data: Record<string, unknown>; config: Config } | null {
+  const configText = showFile(ref, CONFIG_PATH, cwd);
+  if (configText === null && planTextAt(ref, id, discovery, cwd) === null) return null;
+  const config = parseConfigText(configText, cwd, { checkSpecRoots: false }).config;
+  if (config.plans.dir !== discovery.plans.dir || !isDeepStrictEqual(config.spec_roots, discovery.spec_roots)) throw new PlanStateError(`Conflicting plan or specification path interpretation at ${ref}.`);
+  const active = showFile(ref, `${config.plans.dir}/${id}/PLAN.md`, cwd);
+  const archived = showFile(ref, `${config.plans.dir}/archive/${id}/PLAN.md`, cwd);
+  if (active !== null && archived !== null) throw new PlanStateError(`Multiple records for plan ${id} at ${ref}.`);
+  const text = active ?? archived;
+  if (text === null) return null;
+  const data = lenientFrontmatter(text);
+  if (!data || data.id !== id || !validator(PLAN_SCHEMA)(data)) throw new PlanStateError(`Invalid plan record for ${id} at ${ref}.`);
+  return { text, data, config };
+}
+
+export function committedPlanRecord(id: string, config: Config, cwd: string): { text: string; data: Record<string, unknown>; config: Config } | null {
+  return tryGit(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], cwd) === null ? null : recordAt("HEAD", id, config, cwd);
+}
+
+export function selectedPlanBranch(id: string, config: Config, cwd: string): { ref: string; text: string; data: Record<string, unknown> } | null {
+  const oid = (ref: string) => tryGit(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], cwd)?.trim() || null;
+  const local = oid(`refs/heads/plan/${id}`), remote = oid(`refs/remotes/origin/plan/${id}`);
+  const l = local ? recordAt(local, id, config, cwd) : null, r = remote ? recordAt(remote, id, config, cwd) : null;
+  if ((local && !l) || (remote && !r)) return null;
+  for (const record of [l, r]) if (record?.data.execution) validateExecutionBinding(cwd, id, record.data.execution as NonNullable<PlanBranchSnapshot["binding"]>, record.data.target_branch as string | undefined, undefined, true);
+  const snap = (commit: string, record: NonNullable<typeof l>): PlanBranchSnapshot => ({ commit, id, binding: record.data.execution as PlanBranchSnapshot["binding"], comparisonBase: record.data.comparison_base as string | undefined });
+  const selected = validatePlanBranches(cwd, id, { ...(local && l ? {local: snap(local, l)} : {}), ...(remote && r ? {remote: snap(remote, r)} : {}) }, true);
+  if (!selected) return null;
+  const record = selected.commit === remote && r ? r : l!;
+  if (selected.binding) validateExecutionBinding(cwd, id, selected.binding, record.data.target_branch as string | undefined, undefined, true);
+  return { ref: selected.commit, ...record };
+}
+
+export function targetPlanRecord(id: string, config: Config, cwd: string, report: PlanReport): { ref: string; text: string; data: Record<string, unknown>; config: Config } | null {
+  const { target_local: local, target_remote: remote } = report.ref_freshness;
+  let tip = local ?? remote;
+  if (local && remote && local !== remote) {
+    if (tryGit(["merge-base", "--is-ancestor", local, remote], cwd) !== null) tip = remote;
+    else if (tryGit(["merge-base", "--is-ancestor", remote, local], cwd) === null) return null;
+  }
+  const record = tip ? recordAt(tip, id, config, cwd) : null;
+  return tip && record ? {ref: tip, ...record} : null;
+}
+
 export interface PlanReport {
   target_branch: string | null; start_base: string | null; comparison_base: string | null;
   plan_branch_status: string | null; target_status: string | null;
@@ -71,26 +119,23 @@ export interface PlanReport {
 export function planReport(id: string, config: Config, cwd: string, fallback: Record<string, unknown> | null, fetch: PlanReport["ref_freshness"]["fetch"] = "local"): PlanReport {
   const oid = (ref: string) => tryGit(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], cwd)?.trim() || null;
   const local = oid(`refs/heads/plan/${id}`), remote = oid(`refs/remotes/origin/plan/${id}`);
-  const read = (ref: string | null) => { const text = ref ? planTextAt(ref, id, config, cwd) : null; return text === null ? null : lenientFrontmatter(text); };
-  const l = read(local), r = read(remote);
-  const snapshot = (sha: string, data: Record<string, unknown> | null): PlanBranchSnapshot => ({ commit: sha, id: String(data?.id ?? ""), binding: data?.execution as PlanBranchSnapshot["binding"], comparisonBase: data?.comparison_base as string | undefined });
+  const branch = selectedPlanBranch(id, config, cwd);
+  const hint = !branch && !local && !remote && oid("HEAD") ? recordAt("HEAD", id, config, cwd)?.data ?? fallback : fallback;
   const report: PlanReport = { target_branch: null, start_base: null, comparison_base: null, plan_branch_status: null, target_status: null, integration_status: "unverifiable", integration_reasons: [], pending_target_branch: null, ref_freshness: { fetch, plan_local: local, plan_remote: remote, target_local: null, target_remote: null } };
-  const remoteAhead = !!(local && remote && local !== remote && tryGit(["merge-base", "--is-ancestor", local, remote], cwd) !== null);
-  let selected = remoteAhead ? r : local ? l : remote ? r : fallback;
+  const selected = branch?.data ?? (local || remote ? null : hint);
   try {
-    if ((local && !l) || (remote && !r)) throw new Error("Plan branch record is unavailable.");
-    const context = resolvePlanContext(cwd, { id, ...(local || remote ? { planBranches: { ...(local ? { local: snapshot(local, l) } : {}), ...(remote ? { remote: snapshot(remote, r) } : {}) } } : { declared: fallback?.target_branch as string | undefined, team: config.plans.target_branch, comparisonBase: fallback?.comparison_base as string | undefined }) });
+    if ((local || remote) && !branch) throw new Error("Plan branch record is unavailable.");
+    const context = resolvePlanContext(cwd, { id, ...(branch ? { planBranches: { local: {commit: branch.ref, id, binding: branch.data.execution as PlanBranchSnapshot["binding"], comparisonBase: branch.data.comparison_base as string | undefined} } } : { declared: hint?.target_branch as string | undefined, team: config.plans.target_branch, comparisonBase: hint?.comparison_base as string | undefined }) });
     report.target_branch = context.targetBranch;
     report.start_base = context.binding?.start_base ?? null;
     report.comparison_base = context.comparisonBase;
   } catch (e) {
-    if (/Divergent plan branches|Conflicting plan branch|provenance changed|binding was removed|target history changed|Original execution provenance changed|identity/i.test((e as Error).message)) throw new PlanStateError((e as Error).message);
     report.integration_reasons.push((e as Error).message);
-    // Recorded values remain useful even when the corresponding refs are unavailable.
-    const binding = selected?.execution as { target_branch?: string; start_base?: string } | undefined;
+    // Only the independently validated branch record can supply unavailable-target provenance.
+    const binding = branch?.data.execution as { target_branch?: string; start_base?: string } | undefined;
     report.target_branch = binding?.target_branch ?? null;
     report.start_base = binding?.start_base ?? null;
-    report.comparison_base = typeof selected?.comparison_base === "string" ? selected.comparison_base : null;
+    report.comparison_base = branch && typeof selected?.comparison_base === "string" ? selected.comparison_base : null;
   }
   report.plan_branch_status = local || remote ? (typeof selected?.status === "string" ? selected.status : null) : null;
   if (report.target_branch) {
@@ -102,10 +147,12 @@ export function planReport(id: string, config: Config, cwd: string, fallback: Re
       if (tryGit(["merge-base", "--is-ancestor", tl, tr], cwd) !== null) tip = tr;
       else if (tryGit(["merge-base", "--is-ancestor", tr, tl], cwd) === null) tip = null;
     }
-    const targetData = read(tip);
+    const targetRecord = tip ? recordAt(tip, id, config, cwd) : null;
+    if (!branch && !selected?.target_branch && targetRecord && targetRecord.config.plans.target_branch !== config.plans.target_branch) throw new PlanStateError("Conflicting target routing configuration.");
+    const targetData = targetRecord?.data;
     report.target_status = typeof targetData?.status === "string" ? targetData.status : null;
     if (tip && (local || remote) && report.integration_reasons.length === 0) {
-      const planTip = remoteAhead ? remote! : local ?? remote!;
+      const planTip = branch?.ref ?? local ?? remote!;
       if (tryGit(["merge-base", "--is-ancestor", planTip, tip], cwd) !== null && report.target_status === "done") {
         report.integration_status = "integrated"; report.integration_reasons.push("Plan branch is contained in the target and its target record is done.");
       } else if (report.target_status === "done" && (() => { const merge = mergedPRCommit(`plan/${id}`, target, planTip, { cwd, forge: config.plans.forge }); return !!merge && tryGit(["merge-base", "--is-ancestor", merge, tip!], cwd) !== null; })()) {
@@ -118,8 +165,10 @@ export function planReport(id: string, config: Config, cwd: string, fallback: Re
   if (!report.integration_reasons.length) report.integration_reasons.push("Integration evidence is unavailable.");
   const checkout = local ? listWorktrees(cwd).find(w => w.branch === `plan/${id}`)?.path : null;
   if (checkout) {
+    const localRecord = recordAt(local!, id, config, cwd);
+    const localTarget = (localRecord?.data.execution as { target_branch?: unknown } | undefined)?.target_branch;
     for (const file of [`${config.plans.dir}/${id}/PLAN.md`, `${config.plans.dir}/archive/${id}/PLAN.md`]) {
-      try { const data = lenientFrontmatter(fs.readFileSync(path.join(checkout, file), "utf8")); const pending = (data?.execution as { target_branch?: unknown } | undefined)?.target_branch; if (typeof pending === "string" && pending !== report.target_branch) report.pending_target_branch = pending; break; } catch { /* absent */ }
+      try { const data = lenientFrontmatter(fs.readFileSync(path.join(checkout, file), "utf8")); const pending = (data?.execution as { target_branch?: unknown } | undefined)?.target_branch; if (typeof pending === "string" && pending !== localTarget) report.pending_target_branch = pending; break; } catch { /* absent */ }
     }
   }
   return report;
@@ -223,7 +272,7 @@ function lastStepCommit(ref: string, cwd: string): PlanActivity["last_step_commi
 }
 
 /** Activity of one plan; never throws for a missing remote, missing branch, or shallow history. */
-export function getPlanActivity(id: string, config: Config, root: string, target?: string | null): PlanActivity {
+export function getPlanActivity(id: string, config: Config, root: string, target?: string | null, selectedRef?: string | null): PlanActivity {
   const local = branchExists(`plan/${id}`, root);
   const remote = remoteBranchExists(`plan/${id}`, root);
   const where = local ? "local" : remote ? "remote" : "none";
@@ -238,7 +287,7 @@ export function getPlanActivity(id: string, config: Config, root: string, target
     checkout = wt?.path ?? null;
   }
 
-  const readRef = ref ?? (target && (branchExists(target, root) ? target : remoteBranchExists(target, root) ? `origin/${target}` : null)) ?? defaultBranch(root);
+  const readRef = selectedRef === undefined ? ref ?? (target && (branchExists(target, root) ? target : remoteBranchExists(target, root) ? `origin/${target}` : null)) ?? defaultBranch(root) : selectedRef;
   let ahead: number | null = null;
   if (local && remote) {
     const n = Number(tryGit(["rev-list", "--count", `origin/plan/${id}..plan/${id}`], root)?.trim());
@@ -249,9 +298,9 @@ export function getPlanActivity(id: string, config: Config, root: string, target
     backend,
     where,
     checkout,
-    steps: readSteps(readRef, id, config, root),
-    blocked_issues: readBlockedIssues(readRef, id, config, root),
-    last_step_commit: ref ? lastStepCommit(ref, root) : null,
+    steps: readRef ? readSteps(readRef, id, config, root) : { total: 0, done: 0, skipped: 0, blocked: 0, next: null },
+    blocked_issues: readRef ? readBlockedIssues(readRef, id, config, root) : [],
+    last_step_commit: ref && readRef ? lastStepCommit(readRef, root) : null,
     ahead_of_remote: ahead,
   };
 }

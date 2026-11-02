@@ -13,7 +13,7 @@ import { ID_RE_PLAN, planBody } from "../plan/new-template.js";
 import { hasOpenPR } from "../git/forge.js";
 import { branchExists, remoteBranchExists } from "../git/branch.js";
 import { checkoutRoot } from "../git/repo.js";
-import { fetchPlanBranches, getPlanActivity, hasRemote, remotePlanFrontmatter, remotePlanIds, localPlanIds, planReport, planTextAt, lenientFrontmatter, type PlanActivity, type PlanReport } from "../plan/activity.js";
+import { fetchPlanBranches, getPlanActivity, hasRemote, remotePlanIds, localPlanIds, planReport, selectedPlanBranch, targetPlanRecord, committedPlanRecord, lenientFrontmatter, type PlanActivity, type PlanReport } from "../plan/activity.js";
 import { formatNext, planNext } from "../plan/next.js";
 import { attentionFor, type Attention } from "../plan/alerts.js";
 import { runPlans, type RunOptions } from "../plan/run.js";
@@ -62,7 +62,8 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
   const parsed: { fm: PlanFrontmatter; archived: boolean }[] = [];
   for (const rec of listPlans(config, root)) {
     try {
-      parsed.push({ fm: parsePlan(rec.dir).frontmatter, archived: rec.archived });
+      const committed = committedPlanRecord(rec.id, config, root);
+      parsed.push({ fm: committed ? committed.data as unknown as PlanFrontmatter : parsePlan(rec.dir).frontmatter, archived: rec.archived });
     } catch (e) {
       if (!(e instanceof SpecplaneError)) throw e;
       problems.push(`Skipped ${rec.id}: ${e.message}`);
@@ -76,39 +77,41 @@ export function planList(opts: PlanListOptions, root: string, config: Config): {
     const known = new Set(parsed.map((p) => p.fm.id));
     for (const id of new Set([...localPlanIds(root), ...remotePlanIds(root)])) {
       if (known.has(id)) continue;
-      const fm = remotePlanFrontmatter(id, config, root, branchExists(`plan/${id}`, root) ? `plan/${id}` : `origin/plan/${id}`);
+      const fm = selectedPlanBranch(id, config, root)?.data as unknown as PlanFrontmatter | undefined;
       if (fm) parsed.push({ fm, archived: false });
       else problems.push(`Skipped ${id}: PLAN.md on origin/plan/${id} is missing or invalid.`);
     }
   }
+  for (const item of parsed) {
+    const branch = selectedPlanBranch(item.fm.id, config, root);
+    const report = planReport(item.fm.id, config, root, item.fm as unknown as Record<string, unknown>, freshness);
+    const target = targetPlanRecord(item.fm.id, config, root, report);
+    if (target || branch) item.fm = (target?.data ?? branch!.data) as unknown as PlanFrontmatter;
+  }
   const byId = new Map(parsed.map((p) => [p.fm.id, p.fm]));
   const blockedReasons = new Map<string, string>();
-  for (const p of parsed) {
-    const reason = blockedReason(p.fm, byId, config);
-    if (reason !== null) blockedReasons.set(p.fm.id, reason);
-  }
   const git = {
     branchExists: (id: string) => branchExists(`plan/${id}`, root) || remoteBranchExists(`plan/${id}`, root),
     hasOpenPr: (id: string) => { const fm = byId.get(id); const target = planReport(id, config, root, fm as unknown as Record<string, unknown> ?? null, freshness).target_branch; return target ? hasOpenPR(`plan/${id}`, { cwd: root, forge: config.plans.forge, base: target }) : false; },
   };
   const rows: (PlanListRow | LivePlanListRow)[] = parsed
-    .map(({ fm, archived }) => { const report = planReport(fm.id, config, root, fm as unknown as Record<string, unknown>, freshness); return ({
+    .map(({ fm, archived }) => { const report = planReport(fm.id, config, root, fm as unknown as Record<string, unknown>, freshness); const branch = selectedPlanBranch(fm.id, config, root); const target = targetPlanRecord(fm.id, config, root, report); const targetConfig = target?.config ?? config; const dependencies = new Map(byId); if (target) for (const id of fm.depends_on ?? []) { const dep = targetPlanRecord(id, config, root, report); if (dep) dependencies.set(id, dep.data as unknown as PlanFrontmatter); else dependencies.delete(id); } const reason = blockedReason(fm, dependencies, targetConfig); if (reason) blockedReasons.set(fm.id, reason); return ({
       id: fm.id,
       title: fm.title,
       stored_status: fm.status,
-      effective_status: getEffectiveStatus(fm, byId, config, git),
+      effective_status: getEffectiveStatus(fm, dependencies, targetConfig, git),
       depends_on: fm.depends_on ?? [],
       specs: fm.specs,
       archived,
       ...report,
-      ...(opts.live ? { ...getPlanActivity(fm.id, config, root, report.target_branch), attention: (() => { try { return attentionFor(planNext(fm.id, config, root)); } catch (e) { return [{kind:"unavailable",detail:(e as Error).message,command:`specplane plan show ${fm.id}`}]; } })() } : {}),
+      ...(opts.live ? { ...getPlanActivity(fm.id, config, root, report.target_branch, branch?.ref ?? target?.ref ?? null), attention: (() => { if (branch?.data.execution || (branch && branch.ref === report.ref_freshness.plan_remote && branch.ref !== report.ref_freshness.plan_local)) return [{kind:"unavailable", detail:"Attention is unavailable for this selected execution snapshot.", command:`specplane plan show ${fm.id}`}]; try { return attentionFor(planNext(fm.id, config, root)); } catch (e) { return [{kind:"unavailable",detail:(e as Error).message,command:`specplane plan show ${fm.id}`}]; } })() } : {}),
     }); })
     .filter((r) => opts.status === undefined || r.effective_status === opts.status)
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
   if (opts.live) {
     for (const r of rows) {
-      if (r.archived || r.effective_status === "done" || r.effective_status === "abandoned" || !branchExists(`plan/${r.id}`, root)) continue;
-      const baseId = mergedStackBase(r.id, config, root);
+      if (r.archived || r.effective_status === "done" || r.effective_status === "abandoned" || !branchExists(`plan/${r.id}`, root) || !r.target_branch || r.integration_status === "unverifiable") continue;
+      const baseId = mergedStackBase(r.id, config, root, r.target_branch);
       if (baseId) notices.push(`Base plan \`${baseId}\` has merged; run \`specplane plan restack ${r.id}\`.`);
     }
   }
@@ -133,7 +136,7 @@ export function formatPlanList(rows: (PlanListRow | LivePlanListRow)[], blockedR
   return rows
     .map((r) => {
       const reason = r.effective_status === "blocked" ? blockedReasons.get(r.id) : undefined;
-      return `${r.id.padEnd(w1)}  ${r.title.padEnd(w2)}  ${r.effective_status}${reason ? `  ${reason}` : ""}  target ${r.target_branch ?? "unknown"}, start ${r.start_base ?? "unknown"}${r.comparison_base ? `, comparison ${r.comparison_base}` : ""}, integration ${r.integration_status}\n` + ("where" in r ? activityLine(r) : "");
+      return `${r.id.padEnd(w1)}  ${r.title.padEnd(w2)}  ${r.effective_status}${reason ? `  ${reason}` : ""}  target ${r.target_branch ?? "unknown"}, start ${r.start_base ?? "unknown"}${r.comparison_base ? `, comparison ${r.comparison_base}` : ""}, integration ${r.integration_status}${r.pending_target_branch ? `, pending target ${r.pending_target_branch}` : ""}, refs ${r.ref_freshness.fetch}${r.integration_status === "unverifiable" ? `, reason ${r.integration_reasons.join("; ")}` : ""}\n` + ("where" in r ? activityLine(r) : "");
     })
     .join("");
 }
@@ -235,11 +238,12 @@ export async function planNewCommand(opts: PlanNewOptions): Promise<void> {
 
 /** PLAN.md text (frontmatter included) of an active or archived plan. */
 export function planShow(id: string, root: string, config: Config): string {
-  const ref = branchExists(`plan/${id}`, root) ? `plan/${id}` : remoteBranchExists(`plan/${id}`, root) ? `origin/plan/${id}` : null;
+  const branch = selectedPlanBranch(id, config, root);
   let text: string;
-  if (ref) text = planTextAt(ref, id, config, root) ?? fs.readFileSync(path.join(planDir(id, config, root), "PLAN.md"), "utf8");
+  if (branch) text = branch.text;
   else text = fs.readFileSync(path.join(planDir(id, config, root), "PLAN.md"), "utf8");
   const report = planReport(id, config, root, lenientFrontmatter(text));
+  if (!branch) text = targetPlanRecord(id, config, root, report)?.text ?? text;
   return `${text}${text.endsWith("\n") ? "" : "\n"}\nDerived plan context:\n${JSON.stringify(report, null, 2)}\n`;
 }
 
