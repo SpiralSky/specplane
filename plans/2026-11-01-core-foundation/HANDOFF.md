@@ -60,3 +60,29 @@ None.
 ### What the next step must know
 
 Observed manual checks, not core-issued receipts: npm run build passed; direct core compatibility tests 5/5 and boundary tests 4/4 passed; packed external TypeScript consumer compiled and ESM import passed using existing Ajv dependencies; coordinator independently compiled without skipLibCheck. Targeted Codex regression passed 8/8 outside the sandbox after sandbox spawnSync git EPERM. Full npm test was interrupted after output stalled at its first file and is unverified. Fresh dependency installation was not tested. Package compatibility uses a complete package inventory excluding the self-referential extension manifest and inventory itself; the on-disk extension manifest is compared separately. Instruction assets bind orientation through specplane-orientation metadata. Mechanical/workflow operations explicitly refuse until implemented; leases, evidence semantics and live host certification remain future work. Context expanded to file formats, tooling and packaging/test code. No spec gaps were identified. Preserve bootstrap origin/HEAD and old conductor; stop after this step.
+
+## Step 03: Ordered writer leases
+
+**Date**: 2026-11-02
+**Outcome**: done
+
+### What changed
+
+- `packages/cli/src/core/writer-leases.ts`: Canonical identities, ordered lease acquisition, rollback and safe owner recovery
+- `packages/cli/src/core/writer-leases.test.ts`: Identity, contention, recovery and hostile filesystem coverage
+
+### Deviations from the plan
+
+Authorized legacy bootstrap: exact reviewed staged set; recorder lacks recording-set manifests and core-issued receipts.
+
+### Gaps found in specs
+
+None.
+
+### Open issues
+
+None.
+
+### What the next step must know
+
+Observed manual evidence: npm run build passed; focused direct tests 8/8 passed outside sandbox after subprocess EPERM; consolidated review and cached diff check passed. Resume verified HEAD and exact index/working SHA-256 bytes against preserved evidence. Covers canonical repository/checkout/plan identities, ordered acquisition, subset rollback, alias and cross-process contention, malformed-data refusal, proven-dead undelegated-owner reclamation, immutable keys/request snapshot, symlink/nonregular and nonblocking FIFO checks. Full suite not run; existing CLI writers not wired; delegation is step 4. No spec gaps. Context expanded to coordination contract, gate primitive, build/test and recorder contracts.

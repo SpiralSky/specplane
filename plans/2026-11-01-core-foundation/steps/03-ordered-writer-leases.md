@@ -2,7 +2,7 @@
 plan: 2026-11-01-core-foundation
 step: 3
 title: "Ordered writer leases"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Writer coordination"
   - file: "packages/cli/src/plan/gate.ts"
