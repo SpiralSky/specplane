@@ -73,7 +73,7 @@ Feature specs describe **what** the project does:
 - Edge cases, error conditions, and rejection criteria.
 - Acceptance scenarios.
 
-Feature specs must not describe implementation: no file paths, module names, technology choices, data schemas, or algorithms. This is enforced by the architecture-leak guard (see `feature/spec-policies`).
+Feature specs describe the contract, including technical mechanisms when those mechanisms are themselves observable requirements or the workflow being evaluated. Incidental implementation choices belong in architecture. The architecture-leak guard is an advisory aid; technical vocabulary alone does not establish a violation. Existing `allow_architecture` and `architecture_reason` fields can document why a mechanism belongs in the contract (see `feature/spec-policies`).
 
 ### Architecture specs
 
@@ -120,6 +120,7 @@ Every spec file begins with YAML frontmatter. The schema is defined below.
 | `contributors` | list | no | — | Human/model contributor summaries with creation, revision, or review roles; detailed history is revision-linked. |
 | `supersedes` | list of IDs | no | `[]` | IDs of specs this one replaces. Superseded specs are set to `deprecated`. |
 | `extends` | string or list of IDs | no | — | For overlay specs only. A single ID or a list. See `feature/spec-overlays`. |
+| `implementation` | completion record | no | absent | Optional implementation declaration and assessed content fingerprint; independent of review status. |
 | `based_on` | map of ID → git blob hash | no | — | Pins each referenced spec (keys from `extends` or `implements`) to the blob at last review. Stale pins warn and block approval. See `feature/spec-overlays#base-pins`. |
 
 ### Additional fields for feature specs only
@@ -282,3 +283,30 @@ Then it reports an error: "`docs/specifications/features/INFO.md` has frontmatte
 - A spec with `status: deprecated` may still be referenced for historical traceability; the reference produces a warning, not an error.
 - Nested slugs (e.g. `features/overlays/extension.md` → `feature/overlays/extension`) are supported. Folder nesting inside `features/` or `architecture/` is allowed.
 - The `INFO.md` name is case-sensitive. `info.md` is treated as a regular spec file (and will fail validation because it lacks the required frontmatter).
+
+## Optional coordination and implementation completion
+
+Specplane supports ordinary Git workflows without requiring plans, prescribed branch names, or a fixed integration branch. It records specification review, implementation evidence, and optional plan progress separately. By default, discrepancies are reported for user judgment; enforcement is an explicit policy choice.
+
+A reviewed definition may precede implementation, or specs and implementation may change together. Multiple branches may carry different definitions or implementations. Branch names confer no lifecycle role. Approval is agreement on intended behaviour; completion is a declaration about implementation; evidence records the checks supporting an assessment. None implies the others.
+
+Optional `implementation` metadata records `status: incomplete`, `partial`, or `complete`, independently of the spec's review `status`. Absent metadata means unrecorded, not incomplete. Manual edits are valid; plans, special commit trailers and CLI use are not required. Changing completion does not approve the spec or merge anything. An agent records completion when instructed or as an explicitly requested workflow outcome, not merely because it drafted a spec or completed a plan.
+
+A completion declaration may include an assessed content fingerprint. The mark-complete operation captures the current definition and its declared requirement dependencies. Fingerprints use a documented, versioned rule that excludes review, attribution and completion bookkeeping. A metadata-only completion update does not invalidate itself. Changes to substantive content, even editorial changes, can require reassessment; semantic equivalence is not inferred.
+
+Reports distinguish stored completion from derived assessment: `current`, `reassessment_needed`, `unrecorded`, or `unverifiable`. Matching fingerprints mean only that completion was declared against this definition. A mismatch preserves the declaration and reports reassessment needed. A missing fingerprint reports unrecorded assessment; an unsupported fingerprint version or unavailable dependency reports unverifiable assessment. These findings warn by default and do not silently rewrite metadata or prevent ordinary Git operations. Invalid metadata remains a format error.
+
+Marking complete again explicitly acknowledges the current definition and refreshes the assessment. If further implementation is needed, the user can instead set partial or incomplete. Verification evidence and implementation-revision references are optional and remain separate. Content fingerprints do not detect code regressions, authenticate a reviewer, or prove that tests passed.
+
+Declared requirement dependencies are the resolved `extends` and `implements` references, recursively, with cycles handled without infinite traversal. Completion captures their content fingerprints; changed dependency content or membership requires reassessment. Missing declared dependencies prevent creation of a current assessment without overwriting the prior declaration. Arbitrary prose links are not inferred as dependencies. For an anchored reference, assessment conservatively covers the whole referenced spec. A child spec's completion or approval metadata alone does not invalidate a parent's implementation assessment.
+
+Assessments describe the definition in the inspected checkout or explicitly selected revision, never a global result across every candidate. Copying a matching spec fingerprint to another implementation is not evidence about that implementation.
+
+### Acceptance: completion and reassessment
+
+- A user marks a spec complete without a plan; review status and Git history are unchanged until the user commits.
+- A manual complete declaration without a fingerprint remains valid and reports unrecorded assessment.
+- Editing a completed spec's requirements preserves stored complete and reports reassessment needed; explicitly marking complete again records the new definition.
+- Changing only completion, review or contributor bookkeeping does not invalidate the content fingerprint.
+- Changing a declared requirement dependency requires reassessment; an unavailable dependency reports unverifiable, never current.
+- Changing code without changing the spec does not produce a claim that the implementation remains verified.

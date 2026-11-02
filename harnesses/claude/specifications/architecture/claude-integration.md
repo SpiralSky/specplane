@@ -7,6 +7,13 @@ implements: [claude:feature/claude-integration, feature/agent-integration]
 based_on: { "claude:feature/claude-integration": "4dc646b", feature/agent-integration: "1e7327b" }
 ---
 
+<!-- Plan index proposal 2026-11-02: user agreed naming/source semantics and approved the companion feature patch, now applied. Architecture revision awaits review; not implemented behavior. -->
+
+
+<!-- Architecture reconciliation 2026-11-02: current feature contracts govern this draft revision. Stored lifecycle status and dependency pins are preserved; this edit is not approval or evidence of implementation. -->
+
+<!-- Draft revision 2026-11-02: reconciles the user-approved optional-workflows feature text, completion assessment and shared docs. Existing lifecycle status describes prior approval, not approval or implementation of this architecture revision. -->
+
 <!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
 
 <!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
@@ -74,18 +81,18 @@ The CLI package bundles `harnesses/<name>/templates/` at build time (see § `spe
 
 Claude Code loads every file in `.claude/rules/` at session start (a rule without `paths:` frontmatter applies to the whole session), so this file delivers the standing instructions without touching `CLAUDE.md`. It has no `paths:` frontmatter: the rules must hold before Claude touches any spec file.
 
-`templates/rules/specplane.md` is the canonical standing text (`architecture/agent-skills#standing-instructions`, `v1`) followed by a short Claude Code section, about 20 lines in all:
+`templates/rules/specplane.md` is the canonical standing text (`architecture/agent-skills#standing-instructions`, the release contract version) followed by a short Claude Code section. Advance managed-text metadata when delivering the revised orientation; keep it compact without omitting the conceptual distinctions:
 
 ```markdown
-<!-- specplane:standing v1 — installed by `specplane init --harness claude`; overwritten on update -->
+<!-- specplane:standing v<N> — installed by `specplane init --harness claude`; overwritten on update -->
 <standing instructions text, with this Workflows line:>
 - **Workflows**: `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`, `/approve`, `/plan-start`, `/decision-new`, `/plan-status`, `/plan-abandon`.
 
 ### Claude Code
 - Read spec and plan files with `Read` (offset/limit for large specs); find files with `Glob`.
 - HANDOFF.md is the source of truth for plan progress; memory is only a pointer to it.
-- In a plan checkout, the session start context names the plan and its next step; work only on that step.
-- Commits: put `Specplane-Agent: $SPECPLANE_AGENT` and `Specplane-Session: $SPECPLANE_SESSION` in the trailers when those variables are set.
+- In a plan checkout, session context names the plan and next step; when managed plan execution is invoked, work only on that step. Ordinary work remains available.
+- Managed workflow commits: include reported `Specplane-Agent` and `Specplane-Session` context when available. Ordinary commits require no Specplane trailers; environment variables do not opt a task into a workflow.
 ```
 
 **Interaction with `AGENTS.md`.** Claude Code reads `AGENTS.md` only when the repository has no `CLAUDE.md` (or when the user imports it). In that case Claude sees the standing text twice (rules file and `AGENTS.md` block); the duplicate is a few lines and is accepted. `validate` counts `.claude/rules/specplane.md` as a delivery file for the standing instructions (`architecture/reference-cli#standing-instructions-agentsstandingts`).
@@ -158,7 +165,7 @@ Invocation controls apply to the delivered reasoning assets, not native commands
 
 ### Shared preamble (`## Preconditions`)
 
-Every skill begins with the same two checks:
+Repository workflow skills begin with the following checks. Documentation handlers and conceptual docs lookup bypass repository/config checks and access their bundled core directly:
 
 1. **Specplane configured**: if `.specplane/config.yaml` does not exist at the repository root (an `AGENTS.md` alone does not count; many repositories have one without Specplane), say "This repository is not set up for Specplane. Run `specplane init --harness claude`." and stop (`feature/agent-integration`: skills are no-ops without Specplane).
 2. **Core availability**: native handlers use their bundled compatible core, independently of a global `specplane` on PATH. Missing/incompatible core disables the handler before mutation; never hand-edit plan records as an emulation of deterministic dispatch. Reasoning-only fallback sessions may use a verified standalone CLI. If neither is available, report the limitation and offer explicitly labeled manual instructions without claiming that checks or native commands ran.
@@ -213,15 +220,15 @@ How it works:
 
 1. No-op (exit 0) without `.specplane/config.yaml` or `jq`.
 2. Spec type: read the frontmatter `id:` of the target — from `.tool_input.content` for `Write`, else from the file at `.tool_input.file_path` (`.tool_input.notebook_path` for `NotebookEdit`; first `---` block only). The type is the ID's prefix when it is `feature/` or `architecture/` (an optional `<root>:` qualifier is stripped).
-3. **Approval check**, before the type-based early return: when the target is a spec, a `PLAN.md` or step file (`<plans.dir>/<id>/PLAN.md`, `<plans.dir>/<id>/steps/*.md`), or an ADR (`<decisions.dir>/NNNN-*.md`), and the edit sets `status: approved`, `status: ready`, or `status: accepted`, deny: `permissionDecision: "deny"`, reason `Approval is the user's decision: run /approve <id> instead of editing status.` The new text is `.tool_input.content` for `Write`, each `.edits[].new_string` for `MultiEdit`, and `.tool_input.new_string` for `Edit`; a new file written with one of those statuses is denied the same way, and an edit that leaves the status unchanged is not affected. This check applies under every `llm_role`, including `draft`.
+3. **Approval check**, before the type-based early return, comparing parsed preimage and reconstructed postimage top-level status only: when the target is a spec, a `PLAN.md` or step file (`<plans.dir>/<id>/PLAN.md`, `<plans.dir>/<id>/steps/*.md`), or an ADR (`<decisions.dir>/NNNN-*.md`), and the edit sets `status: approved`, `status: ready`, or `status: accepted`, deny: `permissionDecision: "deny"`, reason `Approval is the user's decision: run /approve <id> instead of editing status.` The new text is `.tool_input.content` for `Write`, each `.edits[].new_string` for `MultiEdit`, and `.tool_input.new_string` for `Edit`; a new file written with one of those statuses is denied the same way, and an edit that leaves the status unchanged is not affected. This check applies under every `llm_role`, including `draft`.
 4. Targets that are not specs, plans, or ADRs → exit 0. A spec's type comes from its own ID, so no spec root needs resolving.
-5. `llm_role`: read `specs.<type>.llm_role` from the config with `awk` (the `llm_role:` key inside the `<type>:` block inside the top-level `specs:` block, comments stripped); default `assist` for `feature`, `draft` for `architecture`.
-6. Decision for specs, printed as PreToolUse JSON on stdout with exit 0:
-   - `none` → `permissionDecision: "deny"`, reason `Policy (specs.<type>.llm_role: none) forbids editing <type> specs. Tell the user instead.`
+5. `llm_role`: obtain `specs.<type>.llm_role` from the shared config loader; default `assist` for `feature`, `draft` for `architecture`. Invalid config produces a diagnostic rather than being treated as a permissive unknown role.
+6. First reconstruct the complete proposed document and compare parsed top-level lifecycle status and body with the preimage. Nested `implementation.status` is not review status. A metadata-only implementation declaration leaves body authorship unchanged and does not require spec-body approval; preserve normal host permissions and explicit user intent. Unknown/invalid structures are reported rather than guessed. For body edits, apply the configured role, printed as PreToolUse JSON on stdout with exit 0:
+   - `none` → `permissionDecision: "deny"`, reason `Policy (specs.<type>.llm_role: none) forbids editing <type> spec bodies. Tell the user instead.`
    - `review` or `assist` → `permissionDecision: "ask"`, reason `Policy (specs.<type>.llm_role: <role>): the user must approve this exact edit.` The user sees the edit and decides; in a non-interactive session the ask cannot be granted, which blocks the edit as intended.
-   - `draft`, or any other value → exit 0 with no output (normal permission handling).
+   - `draft` → exit 0 with no output (normal permission handling); unknown roles are config errors, not permission to write.
 
-The guard does not see edits made through `Bash` (`sed -i`, redirection); the standing instructions cover those. It complements `spec-assist`'s approval rule rather than replacing it.
+Use the compatible core's parser and policy evaluator for document reconstruction, configured roots and defaults; do not mistake a regex match of a nested status for a lifecycle transition. A whole-file Write preserving `status: approved` is not a new approval. The guard does not see edits made through `Bash` (`sed -i`, redirection); the standing instructions cover those. It complements `spec-assist`'s approval rule rather than replacing it.
 
 ### Session context (enabled by default)
 
@@ -230,8 +237,8 @@ The guard does not see edits made through `Bash` (`sed -i`, redirection); the st
 1. No-op without `.specplane/config.yaml`.
 2. If `CLAUDE_ENV_FILE` is set, append shell-quoted `export SPECPLANE_AGENT=claude-code` and, only when actually reported, `export SPECPLANE_SESSION=<session_id>`, so the CLI and the agent's commits carry the `architecture/file-formats` §8.2 context trailers. These variables describe session context only; they are not the contribution ledger and a startup model never identifies every later action.
 3. If the current branch is `plan/<id>`: find the plan folder (`<plans.dir>/<id>`, plans dir read as in the handoff check), read each step file's `step`, `title`, and `status`, and print `hookSpecificOutput.additionalContext`:
-   `Specplane: this checkout is plan <id> (branch plan/<id>). Steps done: <d>/<n>. Next step: <NN> <title> (<status>). Run /plan-step to execute it; work on that step only. Open blockers: <count of BLOCKED: lines in HANDOFF.md>.`
-   When every step is done: `… All steps are done; run /plan-finish.`
+   `Specplane: this checkout is plan <id> (branch plan/<id>). Steps done: <d>/<n>. Next step: <NN> <title> (<status>). Run the available plan-step entry point to execute it; managed execution works on that step only. This context does not prohibit ordinary work. Open blockers: <count of BLOCKED: lines in HANDOFF.md>.`
+   When every step is done: `… All steps are recorded done/skipped; request plan-finish to verify readiness.` Resolve target lifecycle through the core before recommending execution; shelved, abandoned, pending-retarget and ambiguous contexts show recovery/inspection guidance instead. No startup hook starts or finishes a plan.
 4. Otherwise print nothing.
 
 The mod's action capture supplies `architecture/file-formats#capture-and-event-transport`: correlate each spec edit/review with the host's action-time model and native session evidence, including subagent observations. Use the installed host declarations to verify the relevant tool/turn/session fields; `$.session.model` queried at the end of a turn alone cannot prove which model made an earlier edit. When action-time identity is unavailable or switches cannot be correlated, emit unknown identity and an incomplete-capture notice. The startup hook must not overwrite prior events. Capture/deduplication, corrections, and commit trailer emission run through the shared core.
@@ -242,7 +249,7 @@ The mod's action capture supplies `architecture/file-formats#capture-and-event-t
 
 `◆ <plan slug> · step <NN>/<n> <title, truncated to 30> · <status>` with `⚠ blocked` appended when the next step is `blocked`.
 
-It reads only the step files in the checkout (no git network calls, no CLI), so it stays fast under Claude Code's refresh rate. Users who already have a status line keep it; the script header shows how to call it from their own.
+It uses a read-only bundled-core query over local/fetched refs, without network calls, so it stays fast under Claude Code's refresh rate and honors target-side shelving/abandonment. Show a freshness/unavailable-context label rather than promising that stale step files are executable. Users who already have a status line keep it; the script header shows how to call it from their own.
 
 Registration (`templates/settings.json`):
 
@@ -288,7 +295,7 @@ Registration (`templates/settings.json`):
 | Script | Event / matcher | Action |
 |--------|-----------------|--------|
 | `specplane-handoff-check.sh` | `PostToolUse` / `Bash` | If the command was a `git commit` (same pattern as the pre-commit hook) and the new commit's trailers (`git log -1 --format='%(trailers:only,unfold)'`) include `Specplane-Workflow: step`, take `<id>` from its `Specplane-Plan` trailer and check `git show --name-only --format= HEAD` for `<plans.dir>/<id>/HANDOFF.md` (plans dir from `.specplane/config.yaml`: the first `dir:` key inside the top-level `plans:` block, read with `sed`; default `plans`). If absent, print `Warning: step commit did not update <path>.` to stdout. Always exits 0. |
-| `specplane-generate.sh` | `PostToolUse` / `Edit\|Write` | If `.tool_input.file_path` ends in `/PLAN.md` and `specplane` is installed, run `specplane generate`, sending its output to stderr. Always exits 0. |
+| `specplane-generate.sh` | `PostToolUse` / `Edit\|Write` | If `.tool_input.file_path` ends in `/PLAN.md` and `specplane` is installed, run `specplane plan index --source working`, sending its output to stderr. Always exits 0. |
 
 Registration snippets (documented in each script's header comment):
 
@@ -314,7 +321,7 @@ each placed in the `hooks.PostToolUse` array.
 
 ## Worktree and cloud sessions
 
-An agent session works on **one plan, and within it one step at a time**. The harness is built around that unit:
+When managed plan execution is invoked, an agent session works on **one plan, and within it one step at a time**. The following rules scope that workflow; other sessions and ordinary work on arbitrary branches need no plan:
 
 | Where the session runs | How it is scoped | How others see its progress |
 |------------------------|------------------|-----------------------------|
@@ -327,7 +334,7 @@ Rules:
 - **One writer per plan.** Steps are sequential, so two sessions never work on the same plan at once. `plan-step` fetches the plan branch first and stops if it has diverged (`architecture/agent-skills` § plan-step, step 1). Parallel work happens across plans, each in its own checkout.
 - **Fresh context per step.** Prefer a new session (or a subagent) per step over one long session: the step file, HANDOFF.md, and § Session context carry everything the next step needs.
 - **Commits identify the run.** Every step commit carries `Specplane-Agent` and, from § Session context, `Specplane-Session`, so the live view and `git log` show which session made which step even when several machines push to the same repository.
-- **Cloud sessions are unattended** (§ Session mode): the policy guard's `ask` cannot be granted there, so feature-spec edits under `assist` are blocked, and contradictions become `BLOCKED:` items.
+- **Cloud sessions are unattended** (§ Session mode): a new body edit under `assist` requires valid exact-text human authorization; without it the edit is blocked. Metadata-only completion declarations remain distinct. Contradictions during managed execution become `BLOCKED:` items.
 
 ---
 
@@ -339,13 +346,13 @@ This historical heading is retained for existing plan anchors. Optionality refer
 
 ### Data source
 
-The plugin never keeps its own copy of plan state. It runs `specplane plan list --json --live` (`architecture/reference-cli` § Plan activity) every 60 s, with `--no-fetch` except on every fifth run, and immediately after a `git commit` or `git push` tool call in the session. Without the CLI it shows only the current checkout's plan, read from its step files.
+The plugin never keeps its own copy of plan state. It invokes its bundled core's equivalent of `specplane plan list --json --live` (`architecture/reference-cli` § Plan activity) every 60 s, with `--no-fetch` except on every fifth run, and immediately after a `git commit` or `git push` tool call in the session. Without the CLI it shows only the current checkout's plan, read from its step files.
 
 ### Plans pane
 
 A pane titled **Specplane** beside the chat, opened with `/specplane`:
 
-- One row per plan that is `in_progress` or `review`, or that has a branch (shelved plans remain visible with a `shelved` label and are excluded from active-execution counts): plan slug; where it runs (worktree path, `remote` when only `origin/plan/<id>` exists, `external`); `step <done>/<total>` and the next step's title; age of the last step commit with its `Specplane-Agent` and a short `Specplane-Session`; `⚠ <n> blocked` from `blocked_issues`; `↑<n>` when `ahead_of_remote` > 0.
+- One row per plan that is `in_progress` or `review`, or that has a branch (shelved plans remain visible with a `shelved` label and are excluded from active-execution counts): plan slug and recorded target; starting commit and optional comparison baseline on expansion; stored/effective status and integration evidence (including done awaiting merge); where it runs (worktree path, `remote` when only `origin/plan/<id>` exists, `external`); `step <done>/<total>` and the next step's title; age of the last step commit with its `Specplane-Agent` and a short `Specplane-Session`; `⚠ <n> blocked` from `blocked_issues`; `↑<n>` when `ahead_of_remote` > 0.
 - Selecting a row expands its blocked issues and the next step's acceptance criteria. For a shelved plan, show the explicit `specplane plan resume <id>` command instead of an execute-step action; no selection or refresh resumes work. Buttons copy the command to continue in that checkout (`cd <checkout> && claude /plan-step`), or put `Read <HANDOFF.md path>` into the prompt. In a non-interactive session (`claude -p`), where the prompt cannot be filled, the second button is labelled "Copy HANDOFF path" and copies the path instead.
 - The pane is read-only: it never starts, finishes, or edits plans.
 
@@ -355,7 +362,7 @@ The plugin keeps a session mode, shown in the status area and switched with `/sp
 
 | Mode | Set automatically when | Effect |
 |------|------------------------|--------|
-| `step` | the session starts on a `plan/<id>` branch | Adds a system-prompt section scoping the session to the next step (plan, step file, HANDOFF.md path, acceptance criteria). Denies `Edit`/`Write` outside the checkout, and on other steps' files and `PLAN.md` (the CLI changes plan status, not the agent). A band above the prompt shows `step NN: <title> · criteria <checked>/<total>`, refreshed when the step file changes. |
+| `step` | the session starts on a `plan/<id>` branch | Shows the next managed step (plan, target, step file, HANDOFF.md path, acceptance criteria). During an invoked managed step, scope enforcement denies edits outside that checkout or to other steps' administrative files; core owns recording. Automatic mode display alone does not require all work to be a plan step or prohibit explicitly requested manual declarations. Return to off for ordinary work. A band above the prompt shows `step NN: <title> · criteria <checked>/<total>`, refreshed when the step file changes. |
 | `spec` | never | Adds a system-prompt section with the authorship policy for each spec type from the config and the spec templates (`architecture/file-formats` §1.3–1.4). Status shows `spec · feature: <llm_role> · architecture: <llm_role>`. |
 | `off` | otherwise | No changes. |
 
@@ -399,7 +406,7 @@ A memory entry that disagrees with the plan files is stale; the plan files win.
 
 ## `specplane init` output for Claude Code
 
-The Claude harness is set up only when `specplane init --harness claude` is explicitly requested. Detection of `.claude/` is inventory/validation evidence, not installation or execution selection. That explicit operation delivers the versioned extension package through the supported host installation flow and reports any remaining enablement step; it also writes supporting repository assets:
+The Claude harness is set up only when `specplane init --harness claude` is explicitly requested. Detection of `.claude/` is inventory/validation evidence, not installation or execution selection. That explicit operation prepares the versioned extension package and reports the separate host installation/enablement steps; it never enables a global host package as a side effect. It writes supporting repository assets:
 
 - Internal reasoning skills, `.claude/rules/specplane.md`, and `.claude/hooks/*.sh` (mode `0755`). Refresh uses `architecture/reference-cli#explicit-upgrade-transaction`: replace unmodified owned assets, preserve customized files, and retire recognized legacy public prompt skills only when the replacement is ready. Conflicts are reported with exact paths and disable the affected native name until resolved.
 - The registrations via § Settings merge.
@@ -427,7 +434,7 @@ Implemented by a plan that depends on the reference CLI core plan (not by the pl
   - Policy guard: for `Write` content and for an existing file with `id: feature/x`, `id: claude:feature/x`, and `id: architecture/x`, under config `llm_role` values `none`, `assist`, `draft`, and the key absent (defaults): `deny`, `ask`, no output respectively. No output for a plan step file, an ADR (`id: decision/0001`), a file without frontmatter, a missing config, and missing `jq`. Every case exits 0.
   - Session context: on branch `plan/x` in a temp git repo with two step files (one `done`), the context names step 02 and `1/2`; all done → mentions `/plan-finish`; off a plan branch → no output; with `CLAUDE_ENV_FILE` set, the file gains the two `export` lines.
   - Status line: the expected line in a plan checkout; empty output elsewhere.
-  - Optional hooks: the generate hook runs the stub only for a `PLAN.md` path; the handoff check warns for a commit with `Specplane-Workflow: step` trailers that lacks HANDOFF.md (in a temp git repo), and is silent for other commits. Both always exit 0.
+  - Optional hooks: the generate hook passes `plan index --source working` to the stub only for a `PLAN.md` path; the handoff check warns for a commit with `Specplane-Workflow: step` trailers that lacks HANDOFF.md (in a temp git repo), and is silent for other commits. Both always exit 0.
 - Settings merge is tested with the CLI (`src/harness/claude.ts`): absent file, invalid JSON, already registered, partial registration, existing `statusLine`.
 - The plugin has its own tests (`harnesses/claude/plugin/`, run with `claude plugin test`): mode switching, the `step`-mode edit denials, and pane rows built from a fixture `plan list --json` output.
 - `harnesses/claude/tests/check-sync.sh` diffs each file under `templates/` against its installed path in the Specplane repository (per § Template source) and exits 1 listing any difference or missing file. The `settings.json` comparison is a subset comparison, not byte-identical: every registration in the template must be present in the installed `.claude/settings.json`, which may contain further user entries.
@@ -449,10 +456,18 @@ The interaction port uses a verified direct human UI operation (target `$.ui.ask
 
 Compatibility is checked against the installed host's mod declarations and named tested versions. Documentation establishes the design, not live implementation compatibility. Tests must assert zero model calls for mechanical handlers, direct text results, explicit reasoning delegation, collision handling, missing-API refusal, approval interaction, and headless behavior.
 
-Design sources inspected 2026-11-01: [Mods overview](https://code.claude.com/docs/en/plugins/mods/overview), [Add a command](https://code.claude.com/docs/en/plugins/mods/api#add-a-command), and [Mods reference](https://code.claude.com/docs/en/plugins/mods/reference). The mod API directly supports functions running on commands without a Claude turn, so a mod packaged as a plugin is preferred over settings-hook interception.
+Design sources inspected 2026-11-01: [Mods overview](https://code.claude.com/docs/en/plugins/mods/overview), [Add a command](https://code.claude.com/docs/en/plugins/mods/api#add-a-command), and [Mods reference](https://code.claude.com/docs/en/plugins/mods/reference). These sources informed the target mod design; current host support still requires the installed-declaration and live-version checks above. No source citation certifies an active dispatcher.
 
 ## Experimental Claude spawn adapter
 
 See proposed `decision/0005` and `harness/session.ts`. Capability checks inspect local `--version`, `--help`, and `agents --help`. Required flags are `--bg`, `--cwd`, `--name`, `--session-id`, `--permission-mode`, `--permission-prompts`, `--resume`, plus `--max-budget-usd` when requested. Arguments use an array, never shell interpolation. No `--worktree`, `--tmux`, dangerous bypass, or `claude rm` is used.
 
 The adapter's observation protocol accepts only an array (or `{agents: [...]}`) of records with sessionId, running/done/failed status, positive PID, absolute cwd, and name. Unknown output is an explicit capability error, not missing-session evidence. This protocol and flag set are verified with injected fake command runners only: **Claude is absent on the implementing computer, so no live version/schema or budget enforcement is certified**. Missing capabilities fail closed. Existing running identity is adopted by the adapter; the conductor itself refuses duplicate active invocation and offers attach/logs. A known non-running identity resumes. Launch uncertainty is never retried automatically.
+
+## Shared documentation delivery and completion interface
+
+Package the compatible core's documentation bundle and manifest alongside its runtime inventory. The docs handler resolves that package before any repository preamble and returns the core/docs versions in every structured response. Register read-only documentation index/topic/search handlers through verified native dispatch, using the same typed docs operations as the CLI. The adapter returns shared topic bytes unchanged and can add host-specific invocation/capability notices separately. Query the host command inventory first; on name collision retain the host command and advertise the available documentation entry point rather than shadowing it. A host lacking native dispatch still exposes the bundled CLI docs through its established manual path.
+
+Managed instruction assets contain the shared release orientation and documentation/contract versions. Resolve documentation relative to the installed package, not the product source checkout or an unrelated global executable. Installation verifies topic and manifest hashes. Explicit upgrade preserves custom/user-owned content under the shared upgrade transaction; ordinary docs lookup never installs, refreshes or accesses the network.
+
+Completion handlers call shared `spec.complete`/`spec.implementation` operations, preserving separate review state and the current checkout's declared dependencies. They neither require a plan nor manufacture evidence. Completion guidance and manual edits remain valid outside managed plan workflows. Test docs/version parity with that bundled core, offline consumer usage, collision handling, stale guidance, and the ordinary-work/no-plan cases separately from live native-host certification.

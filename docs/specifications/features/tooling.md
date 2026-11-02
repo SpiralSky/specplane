@@ -25,7 +25,7 @@ Contribution inspection presents all recorded human/model contributors and their
 
 ## General conventions
 
-- Every command reads `.specplane/config.yaml` from the current repository root. If the config is absent, defaults apply and a warning says so (see `feature/configuration`).
+- Repository operations read `.specplane/config.yaml` from the current repository root. Documentation commands do not require a repository or configuration. If the config is absent, defaults apply and a warning says so (see `feature/configuration`).
 - All relative paths are resolved relative to the repository root (the directory containing `.git`), not the current working directory.
 - Exit code `0` on success, non-zero on any error.
 - Errors are written to stderr. Normal output is written to stdout.
@@ -235,6 +235,8 @@ Prompts for plan fields and creates a new plan folder with `PLAN.md` and a `step
 - `--title <title>`
 - `--specs <id,...>`
 - `--depends-on <id,...>`
+- `--target <branch>`: write the plan's intended integration target.
+- `--comparison-base <commit>`: resolve and record an immutable comparison commit, independently of the target.
 
 **Error cases**:
 - Plan with that ID already exists → exit 1, "Plan `<id>` already exists. Choose a different slug."
@@ -257,9 +259,11 @@ Lists plans and their effective statuses.
 
 **JSON output**: array of objects with fields `id`, `title`, `stored_status`, `effective_status`, `depends_on`, `specs`, `archived`; with `--live`, also the activity fields defined in `architecture/reference-cli` § Plan activity.
 
+Reports include the resolved integration target and, for started plans, the exact starting commit; an optional comparison baseline is displayed separately. `--json` adds `target_branch`, `start_base` (null before start), and `comparison_base` (null when absent). Missing or conflicting target information is reported, never replaced silently with the repository default.
+
 ### `specplane plan show <id>`
 
-Prints the PLAN.md for the given plan.
+Prints the PLAN.md for the given plan, together with its resolved/recorded target, starting commit when available, and optional comparison baseline. A plan absent from the current checkout can be discovered through its local or fetched remote plan branch; ambiguous identity or conflicting execution metadata refuses rather than selecting a candidate by guesswork.
 
 ### `specplane plan graph`
 
@@ -270,6 +274,7 @@ Prints the Mermaid dependency graph to stdout (the same graph that appears in PL
 Executes the start flow for a plan. See `feature/plan-execution`. When resuming a stacked plan whose base plan has since merged, prints 'Base plan `<base-id>` has merged; run `specplane plan restack <id>`.' and continues; resume never rewrites history.
 
 **Options**:
+- `--target <branch>`: select the integration target for first start; must agree with a target declared in the plan. On resume it must match the recorded target. Omission uses the recorded target, or for first start the plan setting, team setting, then repository default.
 - `--no-fetch`: do not fetch from the remote before starting; work from the local refs as they are.
 
 ### `specplane plan shelve <id>`
@@ -282,6 +287,10 @@ Resumes a shelved plan by restoring its prior stored status and reporting the re
 
 Both commands exit 0 on completed transition and 1 on refusal or failure. They print the plan ID and resulting status. A repeated invocation refuses without changes; a partially recorded transaction reports recovery information instead of treating a retry as a new transition.
 
+### `specplane plan retarget <id> --target <branch>`
+
+Explicitly reconcile a managed plan's current destination as defined in `feature/plan-execution`. Preserve original start and comparison context. Support `--dry-run` and `--json`. A successful operation reports old/new destinations and changed records; it does not rebase, merge, push or change a PR base. Unresolved identity, lifecycle or dependency conflicts fail before writes.
+
 ### `specplane plan finish <id>`
 
 Executes the finish flow for a plan. See `feature/plan-execution`.
@@ -291,7 +300,7 @@ Executes the finish flow for a plan. See `feature/plan-execution`.
 
 ### `specplane plan restack <id>`
 
-Restacks a stacked plan: replays only the plan's own commits onto the new base. See `feature/plan-execution` § Restacking. When the base plan has merged, the new base is the default branch and the plan is no longer stacked afterwards; when the base plan's branch has been rewritten, the new base is that branch's new tip. Conflicts stop the command and are surfaced to the human; they are never resolved automatically.
+Restacks a stacked plan: replays only the plan's own commits onto the new base. See `feature/plan-execution` § Restacking. When the base plan has merged, the new base is the integration target and the plan is no longer stacked afterwards; when the base plan's branch has been rewritten, the new base is that branch's new tip. Conflicts stop the command and are surfaced to the human; they are never resolved automatically.
 
 **Options**:
 - `--dry-run`: print the base the plan would be replayed onto and the commits that would be replayed; change nothing.
@@ -315,7 +324,7 @@ Abandons a plan. See `feature/plan-execution` § Abandoning a plan.
 
 ### `specplane plan cleanup <id>`
 
-Removes the worktree and deletes branch `plan/<id>` after the plan has merged (finish flow step 7). Refuses to delete the branch unless the plan is `done` on the default branch. Idempotent.
+Removes the worktree and deletes branch `plan/<id>` after the plan has merged (finish flow step 7). Refuses to delete the branch unless the plan is `done` on the integration target. Idempotent.
 
 **Options**:
 - `--force`: remove the worktree even if it has uncommitted changes.
@@ -389,7 +398,7 @@ Validates the entire repository: all specs, all plans, config, and cross-referen
 - Plan dependency cycles, dangling plan IDs in `depends_on`, and dependencies on abandoned plans.
 - Dangling or deprecated spec IDs in plans.
 - ADR rules: IDs, duplicate numbers, `superseded_by`, `related_specs` (see `feature/decisions`).
-- PLANS.md freshness (warning if it differs from what `specplane generate` would write).
+- PLANS.md freshness (warning if it differs from what `specplane plan index` would write).
 - Standing-instructions freshness (warning if the Specplane standing instructions are missing, malformed, or older than the installed Specplane; see `feature/agent-integration`).
 
 **Options**:
@@ -401,15 +410,18 @@ Validates the entire repository: all specs, all plans, config, and cross-referen
 
 ---
 
-## `specplane generate`
+## `specplane plan index`
 
-Regenerates `PLANS.md` from the committed plan files (see `feature/plan-index`). The output is deterministic.
+Rebuilds only the plans index `PLANS.md`, including its dependency graph (see `feature/plan-index`). The same selected inputs produce identical non-live output. This command replaces `specplane generate`; the old name is removed without an alias and reports migration guidance.
 
 **Output**: `<plans.dir>/PLANS.md` is written (or updated).
 
 **Options**:
+- `--source head|staged|working`: select plan/config inputs; default `head`. Head reads the currently checked-out commit, including detached HEAD. Staged reads the proposed next commit, including staged additions/deletions but excluding unstaged changes. Working reads current files, including tracked edits and new non-ignored plans; ignored untracked files are excluded, while tracked files remain included even if an ignore pattern matches. Report the selected source and excluded pending changes. Sources never switch implicitly.
 - `--print`: print the generated content to stdout instead of writing the file.
 - `--live`: use live effective statuses (git branches and pull requests) instead of index statuses. Only allowed with `--print`, so the committed file never contains live state; `--live` alone exits 1 with "`--live` requires `--print`."
+
+An unborn HEAD refuses the default source with guidance to select staged or working explicitly. Unknown sources and unresolved selected plan/config inputs fail before writes. Config and plan discovery use the same selected source. The command writes only the generated index; it never stages, commits, approves or changes plan records. During merge, rebase or cherry-pick conflict recovery, resolve and stage the source records, run `specplane plan index --source staged`, then stage the generated output and continue. Default/head generation refuses to overwrite a conflicted index during recovery and names the staged command.
 
 ---
 
@@ -484,4 +496,30 @@ Then `<decisions.dir>/0004-cache-policy.md` is created with `id: decision/0004` 
 - `specplane spec new` with a slug containing uppercase letters normalises it to lowercase.
 - `specplane plan start` run twice on the same plan (branch already exists) resumes the plan rather than failing.
 - Commands behave the same in the main checkout and in a plan worktree; paths derived from `execution.worktree_dir` always resolve against the main checkout (see `feature/configuration`).
-- `--dry-run` is not supported for `generate` (it only reads and writes one file; `--print` is the equivalent).
+- `--dry-run` is not supported for `plan index` (it only reads and writes one file; `--print` is the equivalent).
+
+## Implementation completion commands and reporting
+
+### `specplane spec complete <id>`
+
+Record `implementation.status: complete` and the assessed fingerprint of the current working-tree definition and its declared requirement dependencies. This is an explicit declaration, not a test runner or proof of correctness. Repeating the command after a definition change acknowledges the new definition. It does not change review status, create a plan, commit, push, or merge. It works on any branch and with uncommitted spec edits. Validate inputs and resolve dependencies before writing; on failure preserve prior metadata and unrelated edits. Support `--dry-run` and `--json`.
+
+### `specplane spec implementation <id> --status incomplete|partial|complete`
+
+Set implementation status without requiring a plan. `complete` has the same semantics as `spec complete`. Incomplete and partial do not record a current complete assessment; any retained historical assessment is labelled historical. Manual edits to the same fields are valid. No command infers test results or approval from the status value.
+
+Spec list/show and spec/repository validation report stored implementation status and derived assessment separately, including dependency reasons. JSON includes `implementation_status` (null when absent), `assessment_status`, and `assessment_reasons`. Reassessment and unverifiable findings are warnings by default; they do not make validation fail solely because an assessment is stale. Format errors remain errors. Command JSON receipts identify the spec, the declaration, the fingerprint and changed file; they never report checks that were not run.
+
+## `specplane docs [<topic>]`
+
+Read bundled Specplane documentation; without a topic show the orientation and topic index. This command works offline, outside a repository, and without configuration. It does not initialize or mutate a repository. Documentation describes the installed core release; project specification lookup remains `spec show` and `search`.
+
+Stable initial topic IDs: `getting-started`, `concepts`, `completion`, `workflows/plans`, and `commands/spec-complete`. Cross-references resolve within the bundled documentation. Unknown topics return exit 1 with discovery guidance. Successful lookup returns exit 0.
+
+### `specplane docs search <text>`
+
+Search bundled documentation, returning matching topic IDs and excerpts. No matches returns exit 0 with an empty result. Empty queries fail with exit 1. Search is separate from repository search and requires no embeddings, network service or account.
+
+Both documentation commands support `--json`. A topic result includes topic ID, title, release version, documentation version, source references, related topic IDs and content. Index/search output contains a versioned envelope and ordered items. Harness documentation commands call the same documentation operation in their compatible bundled core and identify that core's version; they may add host invocation details without changing shared semantics. Documentation does not imply host capabilities absent from the active integration.
+
+Acceptance: a fresh user outside Git reads orientation and completion guidance offline; CLI and a harness using the same core return the same topic content; unknown topics fail without writes; searching docs never returns project requirements as though they were product documentation.

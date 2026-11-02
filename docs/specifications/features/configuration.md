@@ -218,6 +218,15 @@ Controls which specs must be approved before a plan may start.
 
 ---
 
+### `plans.target_branch`
+
+**Type**: string (optional)
+**Default**: repository default branch when omitted
+
+The team's default integration branch for new plans, such as `dev`. A plan may declare its own `target_branch`, and first start may explicitly select a target when the plan has none. The branch must exist when starting; no branch is silently created. An explicit start selection must agree with a target already declared in the plan. Started plans retain their recorded target when this setting changes. Selecting a branch neither approves its specs nor authorizes a merge. See `feature/plan-execution` § Integration target and comparison baseline.
+
+---
+
 ### `plans.status_source`
 
 **Type**: enum  
@@ -229,7 +238,7 @@ Controls how the derived statuses `in_progress` and `review` are determined. See
 | Value | Behaviour |
 |-------|-----------|
 | `git` | `in_progress` is derived from whether branch `plan/<id>` exists. `review` is derived from whether an open PR exists for that branch (requires forge integration, see `plans.forge`; falls back to `in_progress` if unavailable). |
-| `frontmatter` | `in_progress` and `review` are stored in the frontmatter explicitly and updated by claim commits on the default branch. |
+| `frontmatter` | `in_progress` and `review` are stored in the frontmatter explicitly and updated by claim commits on the integration target. |
 
 ---
 
@@ -244,7 +253,7 @@ Controls the finish flow for plans. See `feature/plan-execution`.
 | Value | Behaviour |
 |-------|-----------|
 | `pull_request` | Finish flow opens a pull request. A human reviews and merges. |
-| `local_merge` | After the human confirms, the finish flow merges the plan branch into the default branch in the main checkout and cleans up immediately. No pull request is opened. With `plans.forge: none` this is the fully local mode: no remote or forge is needed. See `feature/plan-execution` § Local merge. |
+| `local_merge` | After the human confirms, the finish flow merges the plan branch into the integration target in a checkout of the selected target and cleans up immediately. No pull request is opened. With `plans.forge: none` this is the fully local mode: no remote or forge is needed. See `feature/plan-execution` § Local merge. |
 
 ---
 
@@ -419,3 +428,9 @@ Execution backend, isolation, limits, and notification preferences are shared po
 Command transport receives `SPECPLANE_PLAN`, `SPECPLANE_KIND`, `SPECPLANE_DETAIL`, `SPECPLANE_COMMAND`, `SPECPLANE_SESSION`, and `SPECPLANE_CHECKOUT`. Specplane never enables a transport or external notification channel itself.
 
 `execution.max_parallel` is a positive integer, default 1, limiting distinct concurrent plans. `execution.max_budget_usd` is a positive finite number or null (default, no configured bound). The conductor reserves the bound in equal shares across its maximum session attempts. Unsupported budget enforcement is a refusal; reservations include uncertain launch attempts and are not a measurement of cost.
+
+## Scope of policy and managed workflows
+
+Configuration describes explicit repository policies and defaults for operations users elect to run; installing Specplane does not require plans or prescribed branches for ordinary development. Approval requirements for managed start apply to that start operation, not all Git activity. Ordinary commits do not require Specplane trailers. Review authority and agent authorship settings remain separate from implementation completion and cannot be inferred from completion metadata.
+
+Alignment, completion-freshness and instruction-freshness findings are advisory by default. Existing format errors and concrete safety failures of a requested mutation remain errors. Teams may explicitly enforce selected findings in their CI; no implicit Git hook or new blanket enforcement mode is installed by this change.

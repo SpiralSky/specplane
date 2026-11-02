@@ -32,9 +32,11 @@ Feature specs are authoritative for:
 - Acceptance criteria and scenarios.
 - Rules and invariants stated from the user's perspective.
 
-### Rule 3: Gaps must be recorded
+### Rule 3: Record gaps in the applicable workflow
 
 When the implementer uses the feature spec to fill a gap in the architecture spec, the gap must be recorded. The gap record is an entry of kind `gap` in the plan's `spec-gaps.md` (see "Spec gaps record" below); the step's `HANDOFF.md` "Gaps found in specs" section lists the entry's ID (see `feature/plan-steps`).
+
+Outside a managed plan, report the gap or assumption in the user's chosen record or conversation; do not require creation of a plan folder or handoff. Plan-specific recording requirements below apply only when using that workflow.
 
 Recording a gap allows the architecture spec to be updated to include the detail, so future implementers do not need to re-derive it from the feature spec.
 
@@ -66,13 +68,13 @@ The harness detects session mode; `execution.session_mode: unattended` may force
 
 A contradiction is a signal that one or both specs need to be updated. The resolution is a spec edit, not a code decision.
 
-### Rule 5: Specs describe desired current state
+### Rule 5: Definitions and implementation may advance separately
 
-Specs describe the desired state of the implementation at the time they are approved. They are not changelogs.
+Specs describe intended behaviour, not a changelog or proof of implementation. Reviewed definitions may land before implementation, or spec and code changes may land together in the same commit or review. Neither sequence, a plan, nor a particular branch name is required. Multiple feature-definition branches and alternative implementations are valid.
 
-A plan that changes behaviour includes spec edits on its own branch. Spec and code land in the same review. This ensures the approved specs always reflect what is currently implemented.
+A code behaviour change may implement an existing requirement, fix a regression, or change the contract. A diff alone does not distinguish them. Alignment assessments identify their spec revision, implementation revision when known, evidence, and limitations. Automated review presents possible contradictions as reasoned findings, not proven contract changes. Declared completion and its freshness follow `feature/spec-system` independently of review approval.
 
-An approved spec edited on a plan branch keeps `status: approved`: approval of the plan's pull request (or local merge) is approval of the spec edit. The spec authorship policy still applies to the edit itself — for example, under `specs.feature.llm_role: assist` the agent proposes the feature spec change and a human makes it. Spec approval requirements for starting a plan (`plans.require_approved_specs`) are checked only when the plan first starts, so a plan's own spec edits never block its resumption.
+Existing approval metadata does not establish that newly edited text was reviewed. Spec authorship policy remains applicable. A combined code/spec review may include an explicit human approval of that spec revision; a merge alone must not fabricate such a decision. Managed start checks are scoped to the requested operation, not a prohibition on manual implementation or Git use.
 
 ### Rule 6: Cases neither spec covers
 
@@ -138,8 +140,8 @@ And the step's HANDOFF.md lists that entry's ID.
 
 Given a plan changes the validation error message format,
 When the plan is executed,
-Then the spec edit (`feature/spec-system` or `architecture/file-formats`, as appropriate) is committed on the same plan branch as the implementation change,
-So that the PR for review contains both the spec update and the code change.
+Then the spec may be reviewed first on a separate branch or together with the implementation,
+And review status, implementation completion, and evidence remain distinct in either workflow.
 
 ---
 

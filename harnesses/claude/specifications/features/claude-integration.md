@@ -88,7 +88,7 @@ Claude Code supports hooks — shell commands that run before or after Claude to
 - **Policy guard**: when the agent edits a spec, apply the spec type's `llm_role` as defined in `feature/spec-policies#meaning-of-each-value`; under `review` or `assist`, ask the user to approve the exact edit. Deny any agent edit that sets a spec to `approved`, a plan to `ready`, or a decision record to `accepted`; those changes go through `/approve`. Policy is enforced when it matters instead of relying on the agent to remember it.
 - **Session context**: when a session starts in a plan's checkout, tell the agent which plan it is in and which step is next.
 - **Post-step HANDOFF.md check**: verify that HANDOFF.md was updated by a step commit.
-- **Auto-generate PLANS.md**: run `specplane generate` after a plan file changes.
+- **Auto-generate PLANS.md**: run `specplane plan index --source working` after a plan file changes, so the uncommitted edit appears in the index. It does not stage or commit the output.
 
 A **status line** shows the current plan, step progress, and blockers when the session is in a plan checkout.
 
@@ -216,3 +216,9 @@ Resolved: OQ-2 (skills vs. bash aliases — § Slash commands), OQ-3 (subagents 
 ## Experimental background conductor
 
 The conductor uses an observable session in the Specplane-owned checkout, not a second harness worktree. A harness alert is surfaced only through the adapter; external delivery remains governed by existing user settings. Specplane does not enable or bypass notifications. The local Claude executable must support the required capabilities; unavailable or incompatible versions are refused rather than guessed compatible. No live Claude session has been verified in the Dot cloud environment used for this branch.
+
+## Shared documentation and optional workflow guidance
+
+Deliver the shared conceptual orientation and expose documentation through the compatible bundled core's `docs` operation. Native documentation entry points return the same versioned topics as that core's CLI; host invocation and live capability notices may supplement them. Preserve existing host command names on collision and provide discovery of the available entry point. No network service or source checkout is required.
+
+Orient users and agents to optional plans, arbitrary Git branches, separate review/completion states, valid manual completion edits and fingerprint reassessment. Plan-only checkout and recording rules apply when that workflow is invoked. Shared docs never imply a host can execute an unsupported operation. Update managed guidance explicitly with the release's documentation and contract versions, preserving user-owned material.

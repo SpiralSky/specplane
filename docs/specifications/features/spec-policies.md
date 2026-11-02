@@ -233,3 +233,9 @@ Then a hard error is produced: "`architecture_reason` is required and must be no
 - The heuristic guard does not scan `INFO.md` files; those are free-form documentation.
 - The LLM-review stage of the guard is skipped when `specs.feature.llm_role: none` (reviewing is a form of suggesting changes, which that role forbids).
 - If `forbid_architecture: false` and `allow_architecture: true` are both set, the `allow_architecture` field is redundant but not an error.
+
+## Contract mechanisms and optional coordination
+
+Technical language alone does not establish misplaced architecture. A mechanism that defines the observable workflow or experiment may belong in the feature contract; incidental implementation choices belong in architecture. Architecture-leak findings are advisory and explain the suspected distinction. Do not automatically remove technical requirements. `allow_architecture` and its reason remain supported as explicit context.
+
+Implementation completion is independent of review approval. Manual completion edits are valid and do not confer review authority. Authorship policy still governs agent editing of spec bodies; optional plans and ordinary Git use do not grant an agent permission to approve on its own. Plan-specific checkout, step-recording and commit requirements apply only to managed plan execution.

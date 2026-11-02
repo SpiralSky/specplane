@@ -81,6 +81,9 @@ The date prefix makes ID collisions very unlikely when multiple plans are create
 | `title` | string | yes | — | Human-readable description of the plan's goal. |
 | `status` | enum | yes | — | Stored status; new plans start as `draft`. See `feature/plan-status`. |
 | `shelved_from` | enum | only when shelved | — | Previous stored status restored by resume: `ready` in Git mode; `in_progress` or `review` in frontmatter mode. Absent in all other states. |
+| `target_branch` | string | no | team configuration, then repository default | Intended integration branch; recorded at first start; later changes require explicit reconciliation. |
+| `execution` | recorded context | after first start for new plans | — | Managed destination and original implementation starting context; retained across resume, restack and finish, with explicit destination changes recorded separately. Legacy plans may lack it. |
+| `comparison_base` | full commit ID | no | — | Optional immutable baseline for comparing candidates; distinct from the implementation starting commit. |
 | `specs` | list of IDs | yes | — | Spec IDs (feature and/or architecture) this plan implements. Non-empty. |
 | `depends_on` | list of IDs | no | `[]` | Plan IDs this plan depends on. Must be done before this plan can start (default mode). |
 
@@ -104,7 +107,7 @@ The PLAN.md body contains the following sections (order is conventional, not enf
 2. **Scope**: what is in scope for this plan.
 3. **Non-goals**: what is explicitly out of scope (to prevent scope creep).
 4. **Specs implemented**: the spec IDs in `specs`, with a brief note on which aspect each covers.
-5. **Acceptance criteria**: observable conditions that confirm the plan is complete. These are checked in the finish flow.
+5. **Acceptance criteria**: observable conditions that confirm the plan is complete. For comparative work, include the metric definitions, evaluation conditions and evidence required against the comparison baseline. These are checked in the finish flow.
 6. **Risks**: known risks or uncertainties.
 7. **Steps**: an ordered list of the steps, with a one-line summary of each.
 
@@ -115,6 +118,8 @@ The PLAN.md body contains the following sections (order is conventional, not enf
 The `depends_on` field lists plan IDs that must be complete before this plan may start.
 
 ### Dependency constraints
+
+Dependency completion is assessed on the plan's integration target. Completion elsewhere is insufficient until that work and its completed record are integrated into this target. Unfinished stacked dependencies must share the target. See `feature/plan-execution`.
 
 - A plan cannot start while any plan in its `depends_on` list has a status other than `done`.
 - This applies by default (`dependency_mode: wait_for_merge`). See `feature/plan-execution` for the `stack` alternative.
@@ -181,3 +186,9 @@ Then validation passes. Body section structure is conventional, not enforced.
 - A plan with an empty `depends_on` list (or the field omitted) has no dependencies and may start immediately once spec requirements are met.
 - A plan may reference a deprecated spec; validation issues a warning but does not block plan creation.
 - The `archive/` subfolder inside `plans/` is not a plan folder. Its contents are completed plan folders moved there by the archive operation.
+
+## Optional managed plans
+
+A plan is an optional coordination record, not a prerequisite for writing specs, implementation, completion metadata or evidence. Ordinary Git branches need not be registered or named after plans. The managed execution workflow's `plan/<id>` convention applies only to branches it creates. Associating an arbitrary existing branch with managed execution is not required to work on that branch manually.
+
+Manual plan status edits remain representable; a done declaration is not proof of successful tests, merged work, spec completion, or approval. Managed finish/cleanup independently check their actual preconditions rather than trusting a status edit as authority to mutate or delete Git state. Implementation completion is recorded explicitly per spec and never propagated automatically from plan completion.

@@ -19,11 +19,11 @@ This spec defines how Specplane integrates with AI agents: what instructions the
 
 Specplane's instructions to agents come in two parts:
 
-- **Standing instructions**: a short text the agent has in every session, because some rules apply even when no workflow is running. It covers only:
+- **Standing instructions**: a short text the agent has in every session, because some rules apply even when no workflow is running. It starts with the orientation below and covers:
   1. **Finding things**: Specplane is in use; read the config before acting on specs or plans, and resolve paths from it.
   2. **Authorship policies**: what each `llm_role` value permits.
   3. **Precedence rules**: architecture spec first, feature spec for gaps, stop on contradictions.
-  4. **Plans and commits**: work on a plan only in its checkout, one step at a time; HANDOFF.md is the source of truth; commit messages follow the Specplane format.
+  4. **Optional plans and commits**: managed plan execution uses its designated checkout and recording workflow. Ordinary work needs neither a plan nor Specplane commit trailers. Manual implementation-completion edits are valid.
   5. **Workflows**: how to invoke the workflow integrations in this harness.
 - **Workflow procedures**: the step context contract, the HANDOFF.md format, the step commit, and the common flows (assist with a feature spec, draft an architecture spec, create a plan, execute the next step, finish a plan). These live in the workflow integrations (§ Workflow integrations), which load only when used.
 
@@ -213,10 +213,7 @@ When the agent is asked to do something the authorship policy forbids, it:
 
 ### Architecture-leak guard enforcement
 
-When the agent writes or edits a feature spec, it applies the architecture-leak check to its own output before saving:
-- Checks for paths, identifiers, technology names, schemas.
-- If found, removes or replaces the architecture detail and notes the change.
-- If `allow_architecture: true` is set, proceeds without checking.
+When reviewing feature text, distinguish observable technical requirements from incidental implementation choices. Report suspected misplaced detail with reasoning; do not delete a requirement solely because it names a technology or mechanism. `allow_architecture` documents intentional technical contracts. Explicit repository authorship policy still controls who may edit the text.
 
 ### Spec ordering enforcement
 
@@ -260,7 +257,7 @@ Then the agent reads `feature/search` (approved), produces a draft, sets `author
 
 Given the agent is assisting with `feature/search`,
 And it proposes the sentence "The search index uses an inverted list stored in SQLite",
-Then before saving, it removes the sentence and notes: "Removed architecture detail ('inverted list', 'SQLite') from feature spec draft."
+Then it flags the sentence as a possible implementation choice, explains why, and asks whether that mechanism is part of the intended feature contract; it does not silently remove it.
 
 ### Scenario 4: `plan-step` skill oriented from HANDOFF.md
 
@@ -315,3 +312,17 @@ Then it does not approve `feature/search`, and it tells the user that the `appro
 An extension may offer automated plan execution using the shared conductor and its explicitly supplied host adapter. Unsupported session or budget capabilities are refusals, never a fallback to another host. Automation never approves, finishes or merges plans. A consideration is a blocked step, unresolved proposal/assumption, finish-review readiness, restack, divergence, dirty checkout, exhausted execution limit, or failure. The conductor stops and presents the decision with a resolving command. Delivery follows `execution.notify` and remains user-owned. Distinct plans may run concurrently; one step per plan may run at a time. Restarting never duplicates a live session; attach to that session instead. A known non-running session can be resumed with its stable identity.
 
 Acceptance: a mechanical command makes zero model calls; a missing adapter launches nothing; co-installed extensions leave shared guidance unchanged; changing a shared workflow contract requires both extensions to be reviewed.
+
+## Shared orientation and product documentation
+
+The standing orientation explains purpose before commands:
+
+> Specplane tracks intended behaviour, specification review, and implementation completion separately. Plans are optional, and branches have no prescribed role. A reviewed spec may describe functionality not yet implemented; specs and implementation may also change together. Completion is a declaration; its fingerprint identifies the definition assessed, not proof of code correctness. Changed definitions may require reassessment. Read repository configuration for paths and explicit policies. Use `specplane docs` for concepts and the relevant managed workflow before invoking it.
+
+The short orientation is always delivered through the existing managed-instruction mechanism. Detailed conceptual, command and workflow documentation comes from the same bundled source for people, CLI clients, and harness integrations. Consumers need neither Specplane's source repository nor internet access. Product documentation is distinct from the consuming project's specs. Installed repository guidance links to stable documentation topic IDs, not paths to files available only in Specplane's own repository.
+
+Each release reviews orientation, documentation, command examples and workflow procedures together against implemented capabilities. Record documentation/contract versions and source fingerprints. New draft source specs do not automatically advertise unreleased commands. Validation warns about stale or missing managed guidance; explicit initialization/refresh updates only owned content and preserves user instructions and customized assets under the existing upgrade rules. Checking freshness never performs an implicit upgrade.
+
+Harness documentation entry points use the same compatible core documentation operation. Host-specific invocation and capability notices remain separate from the shared topic. Optional semantic retrieval may improve discovery later, but is not needed for initial onboarding and cannot replace always-present orientation or authoritative versioned topic text.
+
+Acceptance is exercised in a separate consumer fixture with no Specplane source specs: ordinary work without a plan, manual completion edits, changed completed requirements, arbitrary branches, offline docs, and co-installed harnesses. Test deterministic delivery/content/version parity separately from agent interpretation; an agent exercise is evidence of those cases, not proof all agents understand the workflow. An agent does not invent a plan requirement or claim a matching spec hash proves the implementation.

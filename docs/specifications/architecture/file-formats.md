@@ -3,8 +3,13 @@ id: architecture/file-formats
 title: "File formats: frontmatter schemas, naming, markdown conventions, and templates"
 status: approved
 author: mixed
-implements: [feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions]
+implements: [feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions, feature/configuration, feature/plan-index, feature/tooling]
 ---
+
+<!-- Plan index proposal 2026-11-02: user agreed naming/source semantics and approved the companion feature patch, now applied. Architecture revision awaits review; not implemented behavior. -->
+
+
+<!-- Architecture reconciliation 2026-11-02: current feature contracts govern this draft revision. Stored lifecycle status and dependency pins are preserved; this edit is not approval or evidence of implementation. -->
 
 <!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
 
@@ -26,7 +31,12 @@ This spec defines the exact format of every Specplane file type, including JSON 
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["id", "title", "status", "author"],
+  "required": [
+    "id",
+    "title",
+    "status",
+    "author"
+  ],
   "additionalProperties": true,
   "properties": {
     "id": {
@@ -34,50 +44,141 @@ This spec defines the exact format of every Specplane file type, including JSON 
       "pattern": "^(feature|architecture)/[a-z0-9](?:[a-z0-9-]|/(?!/))*[a-z0-9]$",
       "description": "Path-derived spec ID: the type prefix, then at least two characters from a-z, 0-9, hyphen, and single slashes; it starts and ends with a letter or digit and never contains //. Immutable after creation."
     },
-    "title": { "type": "string", "minLength": 1 },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
     "status": {
       "type": "string",
-      "enum": ["draft", "review", "approved", "deprecated"]
+      "enum": [
+        "draft",
+        "review",
+        "approved",
+        "deprecated"
+      ]
     },
     "author": {
       "type": "string",
-      "enum": ["user", "llm", "mixed"]
+      "enum": [
+        "user",
+        "llm",
+        "mixed"
+      ]
     },
     "contributors": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "kind", "roles"],
+        "required": [
+          "id",
+          "kind",
+          "roles"
+        ],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "kind": { "enum": ["human", "model"] },
-          "display_name": { "type": "string" },
-          "provider": { "type": "string", "minLength": 1 },
-          "model_id": { "type": "string", "minLength": 1 },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "human",
+              "model"
+            ]
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model_id": {
+            "type": "string",
+            "minLength": 1
+          },
           "roles": {
-            "type": "array", "minItems": 1, "uniqueItems": true,
-            "items": { "enum": ["create", "revise", "review"] }
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "create",
+                "revise",
+                "review"
+              ]
+            }
           }
         }
       }
     },
     "supersedes": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "default": []
     },
     "extends": {
       "oneOf": [
-        { "type": "string" },
-        { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
       ],
       "description": "For overlay specs only. One ID or a list of IDs. Format: '<root>:<type>/<slug>' or '<type>/<slug>'."
     },
     "based_on": {
       "type": "object",
-      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{7,40}$"
+      },
       "description": "Optional, any spec type. Maps a referenced spec ID to the abbreviated git blob hash of that spec's file when this spec was last reviewed against it. Keys must appear in 'extends' or 'implements'."
+    },
+    "implementation": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "incomplete",
+            "partial",
+            "complete"
+          ]
+        },
+        "assessed_spec_hash": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*:sha256:[0-9a-f]{64}$"
+        },
+        "assessed_dependencies": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "implementation_revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
 }
@@ -241,7 +342,7 @@ Keep required `author: user|llm|mixed` for compatibility. Add optional `contribu
 
 Contributor IDs are unique within a spec and stable across its revisions. Duplicate known provider/model pairs refer to one summary; separate events preserve their different sessions. Do not conflate human contributors using only a display name. Runtime-reported model aliases are recorded as observed; do not claim they establish an underlying immutable model version. Unknown contributions remain separate unless explicit evidence identifies them. `author` summarizes creation/revision of the body: review-only contributions and cosmetic metadata edits do not change it.
 
-Detailed contribution events are recorded as repeatable `Specplane-Contribution` Git commit trailers, one compact JSON object per event: `spec` (root-qualified spec ID), `contributor` (summary ID), `role`, `source` (`runtime` or `declared`), and optional `harness`, `session_id`, `provider`, `model_id`. The containing commit and its spec blob identify the revision; do not embed a self-referential commit hash. The contributor summary is updated in the same commit as the affected spec, and the event history is append-only through subsequent commits. Corrections append a replacement event with an additional `corrects: {commit, ordinal}` reference to the earlier event (ordinal is zero-based within that commit), preserving the original evidence. Corrected summaries are derived from the replacement events without deleting original trailers. External analytics exports are opt-in and separate from recording local attribution.
+When contribution history is recorded by a managed commit-producing workflow, detailed contribution events are recorded as repeatable `Specplane-Contribution` Git commit trailers, one compact JSON object per event: `spec` (root-qualified spec ID), `contributor` (summary ID), `role`, `source` (`runtime` or `declared`), and optional `harness`, `session_id`, `provider`, `model_id`. The containing commit and its spec blob identify the revision; do not embed a self-referential commit hash. In that workflow the contributor summary is updated in the same commit as the affected spec, and event history is append-only through subsequent commits. Ordinary edits and completion declarations do not require such trailers or an automatic commit; absent history is reported as unrecorded rather than fabricated. Corrections append a replacement event with an additional `corrects: {commit, ordinal}` reference to the earlier event (ordinal is zero-based within that commit), preserving the original evidence. Corrected summaries are derived from the replacement events without deleting original trailers. External analytics exports are opt-in and separate from recording local attribution.
 
 Record each contributing model separately, including model switches inside one session and later edits in other sessions. Attribute the model that did the work at the time, not the final session model. A switch with no spec contribution adds no contributor. Display names are cosmetic. Do not invent model or session IDs, deduce identity from assistant prose, or turn the orchestration ID into a claimed native session ID. Preserve contribution trailers when a finish flow rewrites or squashes commits; otherwise report incomplete history rather than manufacturing it.
 
@@ -265,43 +366,142 @@ Commit readers preserve repeated `Specplane-Contribution` values in order; a las
 
 ## 2. Plan files
 
+<!-- Draft revision 2026-11-02: reconciles the user-approved optional-workflows feature text, completion assessment and shared docs. Existing lifecycle status describes prior approval, not approval or implementation of this architecture revision. -->
+
 ### 2.1 PLAN.md frontmatter JSON Schema
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["id", "title", "status", "specs"],
+  "required": [
+    "id",
+    "title",
+    "status",
+    "specs"
+  ],
   "additionalProperties": false,
-  "allOf": [{
-    "if": { "properties": { "status": { "const": "shelved" } }, "required": ["status"] },
-    "then": { "required": ["shelved_from"] },
-    "else": { "not": { "required": ["shelved_from"] } }
-  }],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "shelved"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "shelved_from"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "shelved_from"
+          ]
+        }
+      }
+    }
+  ],
   "properties": {
     "id": {
       "type": "string",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9][a-z0-9-]*[a-z0-9]$",
       "description": "YYYY-MM-DD-<slug>. Immutable. Must match the folder name."
     },
-    "title": { "type": "string", "minLength": 1 },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
     "status": {
       "type": "string",
-      "enum": ["draft", "ready", "in_progress", "review", "shelved", "done", "abandoned"],
+      "enum": [
+        "draft",
+        "ready",
+        "in_progress",
+        "review",
+        "shelved",
+        "done",
+        "abandoned"
+      ],
       "description": "in_progress and review are valid only when plans.status_source is frontmatter; with status_source git they produce a warning (see feature/plan-status)."
+    },
+    "target_branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "comparison_base": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "execution": {
+      "type": "object",
+      "required": [
+        "target_branch",
+        "start_target_branch",
+        "start_base"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "target_branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "start_base": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "start_target_branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "from",
+              "to"
+            ],
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
     },
     "shelved_from": {
       "type": "string",
-      "enum": ["ready", "in_progress", "review"]
+      "enum": [
+        "ready",
+        "in_progress",
+        "review"
+      ]
     },
     "specs": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "minItems": 1
     },
     "depends_on": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "default": []
     }
   }
@@ -309,6 +509,8 @@ Commit readers preserve repeated `Specplane-Contribution` values in order; a las
 ```
 
 `shelved` is stored in both status-source modes. Semantic validation additionally requires `shelved_from: ready` in Git mode or `in_progress`/`review` in frontmatter mode, and rejects archived shelved plans. Resume or abandonment removes `shelved_from`; step files and their status schema are unchanged.
+
+`target_branch` is an optional intended integration branch. Validate it with Git's branch-name rules and reject the plan's own implementation branch as a target. `comparison_base`, when present, is a full commit ID resolved at creation and never rewritten by execution; it is not a start base or merge destination. New starts write the CLI-owned `execution` binding on the plan branch, committing only that addition with workflow `start`. `execution.start_target_branch` and `start_base` are original provenance and never rewritten by managed execution. `execution.target_branch` is the current destination and changes only through explicit retarget reconciliation, appending `{from, to}` to `target_changes`. A declared top-level `target_branch` must agree with the current destination; retarget updates it when present. Validate the change chain from the starting target to the current target. Resume, restack, config edits and finish do not retarget. A stacked start records the dependency tip in `start_base`. Preserve the binding when archived. Legacy plans may lack it, as described in reference-cli; never fabricate historical values. Commit IDs must resolve to commit objects with the repository's object format, beyond schema shape validation. All new fields are optional for old plan files.
 
 ### 2.2 PLAN.md body sections
 
@@ -511,7 +713,9 @@ The "None." token is used when a section has nothing to report. All sections are
 
 For `skipped`, "What changed" is "None." and "Deviations from the plan" states why the step was skipped. For `blocked`, "Open issues" contains at least one `BLOCKED:` item. "Gaps found in specs" lists one line per `spec-gaps.md` entry (§4.2) the step added, by ID.
 
-**Repeated sections.** When a `blocked` step is run again and ends, a new section with the same `## Step NN: <step title>` heading is appended; earlier sections are never edited. A step may therefore have several sections. The **latest** section for a step (the last one in the file with that step number) is authoritative: its `**Outcome**` must equal the step's frontmatter `status` in the same commit. Earlier sections may have any outcome; an earlier `blocked` section stays as the record of why the step stopped.
+Verification results use the existing "What the next step must know" subsection: include the checked criteria, test commands, observed outcomes/counts and limitations. Structured workflow recording derives these from validated evidence and includes the tested state digest plus receipt IDs/digests labelled local evidence (reference-cli § Test execution receipts). The manual fallback labels its observations without claiming core receipts. Test source files and this summary are committed with the step; private execution receipts/raw output are not published automatically. A missing local receipt does not erase the recorded summary or establish independently verified results.
+
+**Repeated sections.** When a `blocked` step is run again and ends, or a completed step is explicitly rerun with `--step N --force --reason TEXT`, a new section with the same `## Step NN: <step title>` heading is appended; earlier sections are never edited. A step may therefore have several sections. The **latest** section for a step (the last one in the file with that step number) is authoritative: its `**Outcome**` must equal the step's frontmatter `status` in the same commit. Earlier sections may have any outcome; an earlier `blocked` section stays as the record of why the step stopped. An explicitly authorized rerun may append an earlier-numbered step after later-numbered sections; file order records execution history, not a reordered step plan. Its deviations include `Forced rerun: <reason>`, and its commit carries `Specplane-Force-Reason` (§ Experimental conductor audit trailers). Normal recording retains the ordering guards in reference-cli.
 
 ### 4.2 spec-gaps.md
 
@@ -543,22 +747,24 @@ Rules:
 
 ### 5.1 Format
 
+Generation uses the explicit head (default), staged, working, or authorized internal transaction snapshot defined in `architecture/reference-cli` § PLANS.md generation. A prospective snapshot includes the exact plan/config changes being committed, so regeneration from the resulting commit is byte-identical. Only explicit working selection includes unstaged edits and non-ignored untracked inputs; staged selection includes only staged changes. No saved index includes live branch/PR activity. Both active and archived tables include Target. Committed output resolves the plan-specific destination, then the indexed snapshot's team setting, then the literal `repository default` label; live output resolves the default and uses the recorded execution destination. The label avoids deriving committed output from mutable remote/default refs. A pending uncommitted retarget is labelled separately, never substituted into the committed index. This is a branch-local inventory, not a global completion ledger. The example uses `dev` as a selected destination, not a required branch name.
+
 ````markdown
-<!-- GENERATED FILE — do not edit by hand. Regenerate with: specplane generate -->
+<!-- GENERATED FILE — do not edit by hand. Regenerate with: specplane plan index -->
 
 # Plans
 
 ## Active plans
 
-| ID | Title | Status | Dependencies | Specs |
-|----|-------|--------|--------------|-------|
-| [2026-10-28-plan-index-generator](2026-10-28-plan-index-generator/PLAN.md) | Generate PLANS.md | ready | [2026-10-20-frontmatter-schema](archive/2026-10-20-frontmatter-schema/PLAN.md) | feature/plan-index |
+| ID | Title | Status | Target | Dependencies | Specs |
+|----|-------|--------|--------|--------------|-------|
+| [2026-10-28-plan-index-generator](2026-10-28-plan-index-generator/PLAN.md) | Generate PLANS.md | ready | dev | [2026-10-20-frontmatter-schema](archive/2026-10-20-frontmatter-schema/PLAN.md) | feature/plan-index |
 
 ## Archived plans
 
-| ID | Title | Status | Specs |
-|----|-------|--------|-------|
-| [2026-10-20-frontmatter-schema](archive/2026-10-20-frontmatter-schema/PLAN.md) | Frontmatter schema | done | feature/spec-system |
+| ID | Title | Status | Target | Specs |
+|----|-------|--------|--------|-------|
+| [2026-10-20-frontmatter-schema](archive/2026-10-20-frontmatter-schema/PLAN.md) | Frontmatter schema | done | dev | feature/spec-system |
 
 ## Dependency graph
 
@@ -572,6 +778,7 @@ graph TD
     classDef review fill:#60a5fa,color:#fff
     classDef done fill:#9ca3af,color:#fff
     classDef abandoned fill:#9ca3af,color:#fff,text-decoration:line-through
+    classDef shelved fill:#fef3c7,color:#92400e,stroke:#d97706
 ```
 ````
 
@@ -736,6 +943,7 @@ related_specs: []
         "require_approved_specs": { "type": "string", "enum": ["none","feature","feature_and_architecture"] },
         "status_source":         { "type": "string", "enum": ["git","frontmatter"] },
         "merge":                 { "type": "string", "enum": ["pull_request","local_merge"] },
+        "target_branch":         { "type": "string", "minLength": 1 },
         "dependency_mode":       { "type": "string", "enum": ["wait_for_merge","stack"] },
         "archive_done":          { "type": "boolean" },
         "setup_hook":            { "type": "string" },
@@ -783,13 +991,13 @@ The schema is strict so that typos are caught, but `feature/configuration` requi
 
 `specs.pin_bases` sets how missing pins are reported: `off` not at all; `warn` (default) a warning when a spec with `extends` has no pin for a base; `require` an error for any unpinned `extends` or `implements` entry. Stale pins are checked under every setting: a stale pin is a warning (`base-changed`), and a spec with a stale pin cannot be `approved` (error).
 
-Cross-field rules not expressible in the schema (errors): duplicate root names; a root `extends` an undeclared root; a cycle in root `extends` chains; `execution.worktree_dir` resolving inside the repository.
+Cross-field rules not expressible in the schema (errors): duplicate root names; a root `extends` an undeclared root; a cycle in root `extends` chains; `execution.worktree_dir` resolving inside the main checkout when the worktree backend is selected; an invalid Git branch name in `plans.target_branch`; command notification transport with an empty/blank command. Target existence is checked at start, not required just to load config.
 
 ---
 
 ## 8. Commit messages
 
-Every commit Specplane makes, and every commit an agent makes while following a Specplane workflow, uses this format: a [Conventional Commits](https://www.conventionalcommits.org/) subject, an optional body, and git trailers that carry the machine-readable data.
+Only commands or explicitly selected managed workflows that create commits require this format. Ordinary user/agent work outside those workflows needs no Specplane trailers. Completion and documentation commands do not create commits. Every commit created by a managed workflow uses this format: a [Conventional Commits](https://www.conventionalcommits.org/) subject, an optional body, and git trailers that carry the machine-readable data.
 
 ```
 <type>(<scope>): <summary>
@@ -839,14 +1047,15 @@ Harness attribution trailers (`Co-Authored-By:`) follow the harness's own conven
 | `plan-create` | agent (`plan-create`) | any | `docs(<slug>): create plan` |
 | `spec` | agent (`spec-draft-architecture`, approved `spec-assist` edits) | any | `docs(specs): <summary>` |
 | `approve` | CLI `spec approve`, `spec reopen`, `plan approve`, `decision accept` | any | `docs(specs): approve <id>`, `docs(specs): reopen <id>`, `docs(<plan-id>): approve plan`, `docs(decisions): accept <id>` |
-| `claim` | CLI start/finish (frontmatter mode) | default | `chore(specplane): claim <id> <status>` |
+| `start` | CLI first start, execution binding | `plan/<id>` | `chore(specplane): start <id>` |
+| `claim` | CLI start/finish (frontmatter mode) | integration target | `chore(specplane): claim <id> <status>` |
 | `stack` | CLI start/restack (empty commit) | `plan/<id>` | `chore(specplane): stack <id> on <base-id>` |
 | `finish` | CLI finish (done + archive) | `plan/<id>` | `chore(specplane): finish <id>` |
-| `abandon` | CLI abandon | default | `chore(specplane): abandon <id>` |
+| `abandon` | CLI abandon | integration target | `chore(specplane): abandon <id>` |
 | `archive` | CLI archive | current | `chore(specplane): archive <id>` |
-| `shelve` | CLI plan shelve | default | `chore(specplane): shelve <id>` |
-| `resume` | CLI plan resume | default | `chore(specplane): resume <id>` |
-| `generate` | CI job or hook | default | `chore(specplane): regenerate PLANS.md [skip ci]` |
+| `shelve` | CLI plan shelve | integration target | `chore(specplane): shelve <id>` |
+| `resume` | CLI plan resume | integration target | `chore(specplane): resume <id>` |
+| `generate` | CI job or hook | indexed branch | `chore(specplane): regenerate PLANS.md [skip ci]` |
 
 A step that needs a small group of commits gives each the `step` trailers; the last one includes the step file and the HANDOFF.md section.
 
@@ -859,3 +1068,23 @@ A step that needs a small group of commits gives each the `step` trailers; the l
 ## Experimental conductor audit trailers
 
 A forced completed-step rerun adds `Specplane-Force-Reason` after standard step identity trailers. It is a single-line explanation, not approval. Earlier HANDOFF sections are preserved; the latest occurrence remains authoritative. Runtime locks and alert caches reside under Git’s private common directory and never establish plan completion.
+
+## 10. Implementation assessment format and canonical content
+
+`implementation` is optional and independent of review `status`. Manual declarations may omit assessment fields. Evidence strings and implementation revision references are declared annotations, not verified results. Retained assessment fields under partial/incomplete are historical; readers must not describe them as a current complete assessment.
+
+### Fingerprint algorithm `spec-v1`
+
+Serialize a JSON object with exactly `frontmatter` and `body`, then SHA-256 its UTF-8 bytes and prefix the lowercase hex digest with `spec-v1:sha256:`. Parse frontmatter with duplicate-key rejection and no custom tags; values must be JSON-compatible (dates are strings, non-finite numbers and non-string mapping keys are rejected). Recursively sort mapping keys by Unicode code-point order, retain array order, emit compact JSON with no insignificant spaces, literal Unicode and standard JSON escapes. Represent finite numbers with ECMAScript JSON number serialization. No Unicode normalization is performed.
+
+The `frontmatter` value retains all fields except this exhaustive bookkeeping exclusion list: `status`, `author`, `contributors`, `based_on`, and `implementation`. Unknown fields are included conservatively. The `body` is everything after the closing frontmatter delimiter and its terminating newline, normalizing CRLF and CR to LF. Preserve all other whitespace, comments, headings and trailing newlines; cosmetic edits can therefore require reassessment. This algorithm is independent of Git object format and accepts uncommitted files. Changing its rules requires a new version; never silently reinterpret an old digest.
+
+`assessed_spec_hash` identifies the assessed root definition. Semantically validate dependency-map keys as canonical root-qualified spec IDs without anchors or aliases; unknown or unavailable referenced roots produce unverifiable assessment, while malformed keys are format errors. `assessed_dependencies` maps canonical root-qualified IDs to whole-file content fingerprints for the recursively resolved `extends` and `implements` closure. Strip section anchors for dependency identity; include the entire referenced spec. Exclude the root itself, deduplicate nodes, visit each once and terminate cycles. Use the same selected checkout/revision and configured root resolution for the entire graph. Dependency membership is part of comparison; completion/approval metadata changes alone do not affect digests. Prose links are not dependency edges.
+
+A command-generated complete assessment always includes the dependency map, even when empty. A manual root fingerprint without that map is usable only if the current dependency closure is empty; otherwise assessment is unverifiable because dependency coverage was not recorded. Missing referenced content, ambiguous IDs and unsupported algorithm versions produce unverifiable, not current. Syntactically malformed metadata is a format error. Only complete declarations with matching root and dependency fingerprints are current. Complete without a root fingerprint is unrecorded; partial, incomplete and absent declarations have unrecorded current assessment, with retained historical evidence labelled separately.
+
+Assessment evaluation uses this order: absent/partial/incomplete declarations or complete without a root fingerprint yield `unrecorded`; malformed records are format errors; any unsupported recorded fingerprint version yields `unverifiable`; unavailable referenced content or ambiguous resolution yields `unverifiable`; otherwise any root, dependency fingerprint or dependency membership mismatch yields `reassessment_needed`; otherwise yield `current`. Report all known mismatch and unavailable-check reasons even when `unverifiable` takes precedence. This preserves the feature contract that an unavailable dependency or unsupported version reports unverifiable rather than claiming a fully comparable assessment. Comparing a fingerprint does not validate code, approve a spec, authenticate a declaration or prove tests passed.
+
+### Documentation bundle manifest
+
+A product documentation bundle contains `manifest.json` and UTF-8 Markdown topic files. Manifest fields: `format_version: 1`, `core_version`, `docs_version`, `contract_version`, and `topics`. Each topic has `id`, `title`, relative `path`, `sha256`, `related` topic IDs, and `sources` entries containing canonical contract ID, optional anchor and source SHA-256. IDs and paths are unique; paths must remain inside the bundle and may not traverse symlinks. All related IDs resolve. Source snapshots are packaged for audit; each source entry also names a contained relative snapshot `path` whose exact bytes match its SHA-256. `topics` is ordered and determines index order. The manifest contains `orientation: {path, sha256}` for the compact shared orientation; its path obeys the same containment and integrity rules. No source repository or network is required. Source fingerprints express provenance, not executable capability.

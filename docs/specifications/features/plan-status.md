@@ -11,6 +11,12 @@ Plan status tracks where a plan is in its lifecycle. Specplane separates **store
 
 ---
 
+## Branch context
+
+Status is scoped to the plan's recorded integration target, with the selected target used before start. Required approval and dependency evidence is read in that branch context, not unconditionally from main. The authoritative lifecycle record remains on that target; an older implementation checkout cannot override shelving or abandonment. An open PR counts toward review only when its base is the recorded target. Reports distinguish a done commit on the plan branch awaiting merge from completed work present on the target.
+
+A plan integrated into a candidate or development branch is done for that target. This is not approval to adopt the candidate into main. Independent candidates use distinct plan IDs and retain separate approval, progress and evaluation evidence.
+
 ## Stored statuses
 
 Stored statuses live in `PLAN.md` frontmatter and are changed through normal commits and PRs.
@@ -19,7 +25,7 @@ Stored statuses live in `PLAN.md` frontmatter and are changed through normal com
 |--------|---------|
 | `draft` | The plan is not yet ready to execute. Specs may be incomplete, steps may not be fully defined. |
 | `ready` | The plan is approved for execution. Dependencies and spec requirements will be checked at start time. |
-| `done` | The plan is complete. Set in the final commit of the plan branch; it reaches the default branch when that branch is merged. |
+| `done` | The plan is complete. Set in the final commit of the plan branch; it reaches the integration target when that branch is merged. |
 | `abandoned` | The plan will not be completed. Kept for traceability. |
 | `shelved` | Started work is paused with the intention that it may resume. Plan records, branch, worktree, and step progress are retained. Stored in both status-source modes. |
 
@@ -86,9 +92,9 @@ The `plans.status_source` config key controls how `in_progress` and `review` are
 `in_progress` and `review` are **derived** from git and forge state. The frontmatter is not updated for these states.
 
 **Advantages**:
-- No "claim commits" needed on main. Main is not dirtied by status updates.
-- Compatible with protected branches (no direct pushes to main required).
-- Status is always accurate; it cannot be stale.
+- No claim commits are needed on the integration target for derived progress.
+- Compatible with protected branches (no direct pushes required for derived progress).
+- Status reflects the local and fetched refs used for the query; offline reports disclose freshness.
 
 **Disadvantages**:
 - Requires reading git state (branch list) and optionally forge state (PR list) on every status query.
@@ -97,12 +103,12 @@ The `plans.status_source` config key controls how `in_progress` and `review` are
 
 ### `status_source: frontmatter`
 
-`in_progress` and `review` are **stored** in frontmatter like `draft`, `ready`, `done`, and `abandoned`. They are written by **claim commits** made directly on the default branch, so that the default branch — the place people read status from — shows them:
+`in_progress` and `review` are **stored** in frontmatter like `draft`, `ready`, `done`, and `abandoned`. They are written by **claim commits** made directly on the integration target, so that the integration target — the place people read status from — shows them:
 
-1. **Start**: before the plan branch is created, a claim commit sets `status: in_progress` on the default branch. The plan branch is then created from that commit, so it carries the same value.
-2. **Finish**: before the final commit, a claim commit sets `status: review` on the default branch; the plan branch is then rebased onto the default branch (picking up `review`), and the final commit changes `review` to `done`.
+1. **Start**: before the plan branch is created, a claim commit sets `status: in_progress` on the integration target. The plan branch is then created from that commit, so it carries the same value.
+2. **Finish**: before the final commit, a claim commit sets `status: review` on the integration target; the plan branch is then rebased onto the integration target (picking up `review`), and the final commit changes `review` to `done`.
 
-Because each claim commit is made before the plan branch picks it up, the plan branch never edits the status line concurrently with the default branch, and merging does not conflict.
+Because each claim commit is made before the plan branch picks it up, the plan branch never edits the status line concurrently with the integration target, and merging does not conflict.
 
 **Advantages**:
 - Status is explicit and readable in the file without running git commands.
@@ -110,7 +116,7 @@ Because each claim commit is made before the plan branch picks it up, the plan b
 - Status history is tracked in git blame.
 
 **Disadvantages**:
-- Claim commits require direct pushes to the default branch, so this mode does not suit protected branches.
+- Claim commits require direct pushes to the integration target, so this mode does not suit protected branches.
 - Status can become stale if a claim commit is skipped (for example, when work starts without the start flow).
 - Manual status edits made on the plan branch can still conflict with claim commits on `PLAN.md`.
 
@@ -135,14 +141,14 @@ Archiving is a filing operation for `done` or `abandoned` plan records, not a li
 
 ## The `done` transition and archiving
 
-`done` is set in the plan branch's **final commit**, together with the archive operation (when `archive_done: true`). The finish flow (see `feature/plan-execution`) does this after rebasing onto the default branch:
+`done` is set in the plan branch's **final commit**, together with the archive operation (when `archive_done: true`). The finish flow (see `feature/plan-execution`) does this after rebasing onto the integration target:
 
 1. The agent or user edits `PLAN.md` to set `status: done`.
 2. The agent moves the plan folder to `<plans.dir>/archive/<id>/` (including its steps and `HANDOFF.md`).
 3. Both changes are committed to the plan branch.
-4. The plan branch is merged into the default branch through a pull request or a local merge.
+4. The plan branch is merged into the integration target through a pull request or a local merge.
 
-When the merge happens, the plan becomes done and archived at the same moment its work appears on the default branch. The default branch never contains a `ready` plan that is actually finished but not yet marked.
+When the merge happens, the plan becomes done and archived at the same moment its work appears on the integration target. The integration target never contains a `ready` plan that is actually finished but not yet marked.
 
 Commits made after the final commit (for example, fixes requested in review) are ordinary plan-branch commits; any edit to the plan's own files happens under its archived path. If review rejects the plan outright, the final commit is reverted on the plan branch, and the plan is either resumed or abandoned.
 
@@ -211,9 +217,9 @@ Then the effective status is `in_progress` (review falls back to in_progress).
 Given `status_source: frontmatter`,
 And plan `2026-10-28-search-indexer` has `status: ready`,
 When the start flow runs,
-Then a claim commit setting `status: in_progress` is made on the default branch,
+Then a claim commit setting `status: in_progress` is made on the integration target,
 And the branch `plan/2026-10-28-search-indexer` is created from that commit,
-And reading `PLAN.md` on the default branch shows `in_progress`.
+And reading `PLAN.md` on the integration target shows `in_progress`.
 
 ---
 
@@ -242,3 +248,7 @@ And no implementation step or model session is started by the resume operation.
 - `blocked` is only derived for plans with `status: ready`. A `draft` plan with unmet dependencies is not shown as `blocked` — it is simply `draft`.
 - When `dependency_mode: stack`, `blocked` is computed only for a `ready` plan that cannot start: a dependency is shelved, or it has two or more dependencies that are not done. A shelved dependency reports "Cannot stack on shelved dependency: <id>; resume it first.". Otherwise, a plan with two or more unmerged dependencies is displayed as `blocked`, with the message "Cannot stack on more than one unmerged dependency: <a>, <b>." A `ready` plan with at most one unmerged dependency that is not shelved is not `blocked`; it may start from that dependency's branch tip (see `feature/plan-execution` for the limits).
 - Derived statuses depend on the reader's git state (which branches have been fetched). Two people may see different effective statuses until they fetch; the stored status is the same for everyone.
+
+## Declarations versus operation evidence
+
+Manual status edits are valid records of user intent. A stored `done` declaration alone does not prove integration, tests, approval, or implementation completion. Reports keep those facts separate. A managed operation inspects actual repository state and refuses an unsafe or ambiguous mutation without forbidding further manual Git work. Cleanup requires evidence of integration into the selected target; a manually copied done record is insufficient. If squash/rebase history cannot establish integration automatically, report the evidence needed for explicit reconciliation rather than deleting work by assumption.

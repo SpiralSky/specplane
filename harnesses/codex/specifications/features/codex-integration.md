@@ -27,3 +27,9 @@ The Codex extension provides Specplane agent workflows inside supported Codex su
 - A dangling skill symlink targeting a nonexistent outside file is refused without creating that file.
 - Requesting unsupported background execution launches nothing. A missing native handler is not silently replaced with an agent prompt.
 - Two models contributing in one session and a third in a later revision all remain visible in contribution history.
+
+## Shared documentation and optional workflow guidance
+
+Deliver the shared conceptual orientation and expose documentation through the compatible bundled core's `docs` operation. Native documentation entry points return the same versioned topics as that core's CLI; host invocation and live capability notices may supplement them. Preserve existing host command names on collision and provide discovery of the available entry point. No network service or source checkout is required.
+
+Orient users and agents to optional plans, arbitrary Git branches, separate review/completion states, valid manual completion edits and fingerprint reassessment. Plan-only checkout and recording rules apply when that workflow is invoked. Shared docs never imply a host can execute an unsupported operation. Update managed guidance explicitly with the release's documentation and contract versions, preserving user-owned material.
