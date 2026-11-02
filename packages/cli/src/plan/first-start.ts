@@ -13,8 +13,8 @@ import type { Config } from "../types.js";
 import { getPlanActivity, hasRemote, showFile } from "./activity.js";
 import { runSetupHook } from "./hooks.js";
 import { bindFrontmatter, claimFrontmatter } from "./start-frontmatter.js";
-import { prepareStart, type PreparedStart } from "./prepare-start.js";
-import type { StartResult } from "./flows.js";
+import { prepareStart, type PreparedStart, type LegacyDefaultEvidence } from "./prepare-start.js";
+import { mergedStackBase, type StartResult } from "./flows.js";
 
 function ref(cwd: string, name: string): string | null {
   try { return run("git", ["rev-parse", "--verify", "--quiet", `${name}^{commit}`], { cwd }).trim(); } catch { return null; }
@@ -54,24 +54,30 @@ export function recheckStartRefs(cwd: string, refs: Record<string, string | null
 export function acquireStartCheckouts(id: string, plans: string[], checkouts: string[]): WriterLease {
   return acquireWriterLease({ repository: true, plans: [id, ...plans], checkouts, requestId: `start-${randomUUID()}` });
 }
-export interface FirstStartOptions { fetch?: boolean; target?: string; dryRun?: boolean }
-export function firstStart(id: string, discovery: Config, root: string, opts: FirstStartOptions = {}): StartResult & { dryRun?: boolean; target: string; startBase: string; freshness: string; target_branch: string; start_base: string; comparison_base: string | null; ref_freshness: string } {
+function checkResumeRef(p: PreparedStart): void {
+  const local = p.refs[`refs/heads/plan/${p.plan.id}`];
+  if (!p.first && local && local !== p.base) throw new PlanStateError("Local plan branch differs from the selected recorded history; reconcile it before resuming.");
+}
+export interface FirstStartOptions { fetch?: boolean; target?: string; dryRun?: boolean; /** Trusted caller attestation of an independently verified historical-default record. */ legacyEvidence?: LegacyDefaultEvidence }
+export function firstStart(id: string, discovery: Config, root: string, opts: FirstStartOptions = {}): StartResult {
   const main = mainRoot(root);
   if (opts.dryRun) {
-    const p = prepareStart(id, discovery, root, { target: opts.target });
-    if (!p.first) throw new PlanStateError("Resume of an existing plan requires the next lifecycle implementation; no changes made.");
-    checkCheckout(p, root, listWorktrees(main));
-    return { planId: id, branch: `plan/${id}`, backend: p.config.execution.backend, resumed: false, path: null, nextCommand: null, next: null, notices: [], dryRun: true, target: p.context.targetBranch, startBase: p.base, freshness: p.context.freshness, target_branch: p.context.targetBranch, start_base: p.base, comparison_base: p.context.comparisonBase, ref_freshness: p.context.freshness };
+    const p = prepareStart(id, discovery, root, { target: opts.target, legacyEvidence: opts.legacyEvidence });
+    checkResumeRef(p);
+    if (p.first) checkCheckout(p, root, listWorktrees(main));
+    else if (p.config.execution.backend === "branch" && run("git", ["status", "--porcelain"], { cwd: root }).trim()) throw new PlanStateError("Cannot resume plan: the working tree has uncommitted changes. Commit or stash them first.");
+    return { planId: id, branch: `plan/${id}`, backend: p.config.execution.backend, resumed: !p.first, path: null, nextCommand: null, next: null, notices: [], checkoutCreated: null, dryRun: true, target: p.context.targetBranch, startBase: p.first ? p.base : p.context.binding?.start_base ?? null, freshness: p.context.freshness, target_branch: p.context.targetBranch, start_base: p.first ? p.base : p.context.binding?.start_base ?? null, legacy: p.context.legacy, comparison_base: p.context.comparisonBase, ref_freshness: p.context.freshness };
   }
   const initialTrees = listWorktrees(main);
   const planIds = run("git", ["for-each-ref", "--format=%(refname)", "refs/heads/plan/", "refs/remotes/origin/plan/"], { cwd: main }).split("\n").map(name => name.replace(/^refs\/(?:heads|remotes\/origin)\/plan\//, "")).filter(Boolean);
   let lease: WriterLease | null = acquireStartCheckouts(id, planIds, initialTrees.filter(w => !w.bare).map(w => w.path));
-  let claim: string | null = null; let binding: string | null = null; let branchCreated = false; let published = false;
+  let claim: string | null = null; let binding: string | null = null; let branchCreated = false; let resumed = false; let published = false;
   try {
     lease.assertOwned();
     if (hasRemote(main) && opts.fetch !== false) run("git", ["fetch", "origin", "+refs/heads/*:refs/remotes/origin/*"], { cwd: main });
-    const p = prepareStart(id, discovery, root, { target: opts.target, freshness: hasRemote(main) && opts.fetch !== false ? "fetched" : "local" });
-    if (!p.first) throw new PlanStateError("Resume of an existing plan requires the next lifecycle implementation; no changes made.");
+    const p = prepareStart(id, discovery, root, { target: opts.target, freshness: hasRemote(main) && opts.fetch !== false ? "fetched" : "local", legacyEvidence: opts.legacyEvidence });
+    resumed = !p.first;
+    checkResumeRef(p);
     if (p.context.targetBranch.startsWith("plan/") && !planIds.includes(p.context.targetBranch.slice(5))) throw new PlanStateError("Target plan appeared during fetch; retry to acquire its lease.");
     if (p.stackId && !planIds.includes(p.stackId)) throw new PlanStateError("Stack dependency appeared during fetch; retry to acquire its lease.");
     const trees = listWorktrees(main);
@@ -79,11 +85,12 @@ export function firstStart(id: string, discovery: Config, root: string, opts: Fi
     const targetTree = trees.find(w => w.branch === p.context.targetBranch);
     const file = `${p.config.plans.dir}/${id}/PLAN.md`;
     const frontmatter = p.config.plans.status_source === "frontmatter";
-    checkCheckout(p, root, trees);
+    if (p.first) checkCheckout(p, root, trees);
+    else if (p.config.execution.backend === "branch" && run("git", ["status", "--porcelain"], { cwd: root }).trim()) throw new PlanStateError("Cannot resume plan: the working tree has uncommitted changes. Commit or stash them first.");
     lease.assertOwned();
     recheckStartRefs(main, p.refs);
     let base = p.base;
-    if (frontmatter && targetTree && !p.recoveryClaim) {
+    if (p.first && frontmatter && targetTree && !p.recoveryClaim) {
       const filename = path.join(targetTree.path, file); const before = fs.readFileSync(filename, "utf8");
       const edited = claimFrontmatter(before);
       fs.writeFileSync(filename, edited);
@@ -100,20 +107,26 @@ export function firstStart(id: string, discovery: Config, root: string, opts: Fi
       }
       claim = ref(targetTree.path, "HEAD");
     }
-    if (frontmatter && targetTree) {
+    if (p.first && frontmatter && targetTree) {
       if (p.recoveryClaim) claim = p.recoveryClaim;
       if (hasRemote(main)) { run("git", ["push", "origin", p.context.targetBranch], { cwd: targetTree.path }); published = true; }
       if (!p.stackId) base = claim!;
     }
-    const startBase = base;
-    if (p.stackId) base = run("git", ["commit-tree", `${base}^{tree}`, "-p", base, "-F", "-"], { cwd: main, input: message("stack", id, `stack ${id} on ${p.stackId}`, { "Specplane-Stack-Base": base }) }).trim();
-    binding = bindingCommit(main, base, file, id, p.context.targetBranch, startBase);
-    run("git", ["update-ref", `refs/heads/plan/${id}`, binding, ""], { cwd: main });
-    branchCreated = true;
-    const branch = `plan/${id}`; let checkout: string | null = null;
+    const startBase = p.first ? base : p.context.binding?.start_base ?? null;
+    if (p.first && p.stackId) base = run("git", ["commit-tree", `${base}^{tree}`, "-p", base, "-F", "-"], { cwd: main, input: message("stack", id, `stack ${id} on ${p.stackId}`, { "Specplane-Stack-Base": base }) }).trim();
+    if (p.first) {
+      binding = bindingCommit(main, base, file, id, p.context.targetBranch, startBase ?? base);
+      run("git", ["update-ref", `refs/heads/plan/${id}`, binding, ""], { cwd: main });
+      branchCreated = true;
+    } else {
+      const local = p.refs[`refs/heads/plan/${id}`];
+      if (!local) { run("git", ["branch", "--track", `plan/${id}`, `refs/remotes/origin/plan/${id}`], { cwd: main }); branchCreated = true; }
+      binding = p.base;
+    }
+    const branch = `plan/${id}`; let checkout: string | null = null; let checkoutCreated: boolean | null = null;
     if (p.config.execution.backend === "worktree") {
       const worktree = createWorktree(id, branch, p.config, main, { noCheckout: true });
-      checkout = worktree.path;
+      checkout = worktree.path; checkoutCreated = worktree.created;
       if (!worktree.created && !initialTrees.some(w => w.path === checkout)) throw new PlanStateError(`Existing checkout ${checkout} was not leased; retained for recovery.`);
       if (worktree.created) {
         // Never upgrade a lease: release, reacquire the entire ordered set, and
@@ -142,9 +155,11 @@ export function firstStart(id: string, discovery: Config, root: string, opts: Fi
       }
     } else if (p.config.execution.backend === "branch") run("git", ["switch", branch], { cwd: root });
     const next = getPlanActivity(id, p.config, main).steps.next;
-    return { planId: id, branch, backend: p.config.execution.backend, resumed: false, path: checkout, nextCommand: null, next, notices: [], target: p.context.targetBranch, startBase, freshness: p.context.freshness, target_branch: p.context.targetBranch, start_base: startBase, comparison_base: p.context.comparisonBase, ref_freshness: p.context.freshness };
+    const stackBase = !p.first ? mergedStackBase(id, p.config, main, p.context.targetBranch) : null;
+    const notices = stackBase ? [`Base plan \`${stackBase}\` has merged; run \`specplane plan restack ${id}\`.`] : [];
+    return { planId: id, branch, backend: p.config.execution.backend, resumed: !p.first, path: checkout, checkoutCreated, nextCommand: null, next, notices, target: p.context.targetBranch, startBase, freshness: p.context.freshness, target_branch: p.context.targetBranch, start_base: startBase, legacy: p.context.legacy, comparison_base: p.context.comparisonBase, ref_freshness: p.context.freshness };
   } catch (e) {
-    if (claim || binding) throw new PlanStateError(`${String(e)}\nRecovery: ${claim ? `claim commit ${claim}${published ? " published" : hasRemote(main) ? "; publication pending" : ""}. ` : ""}${binding ? branchCreated ? `start commit ${binding} is on plan branch; inspect checkout before retry.` : `orphan start commit ${binding}; no plan branch was created by this invocation.` : ""}`);
+    if (claim || binding) throw new PlanStateError(`${String(e)}\nRecovery: ${claim ? `claim commit ${claim}${published ? " published" : hasRemote(main) ? "; publication pending" : ""}. ` : ""}${binding ? resumed ? `plan branch retains commit ${binding}; inspect checkout before retry.` : branchCreated ? `start commit ${binding} is on plan branch; inspect checkout before retry.` : `orphan start commit ${binding}; no plan branch was created by this invocation.` : ""}`);
     throw e;
   } finally { if (lease) lease.release(); }
 }

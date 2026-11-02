@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { test } from "node:test";
+import { test, after } from "node:test";
 import { fileURLToPath } from "node:url";
 import { makeRepo } from "../test-repo.js";
 
@@ -26,7 +26,7 @@ const sp = (cwd: string, ...a: string[]) => {
 
 const A = "2026-01-01-alpha";
 const planMd = (status = "ready") =>
-  `---\nid: ${A}\ntitle: "T"\nstatus: ${status}\nspecs: [feature/x]\n---\n# P\n\n## Acceptance criteria\n\n- [ ] it works\n`;
+  `---\nid: ${A}\ntitle: "T"\nstatus: ${status}\nspecs: [feature/example]\n---\n# P\n\n## Acceptance criteria\n\n- [ ] it works\n`;
 const stepMd = (n: number, status: string) => `---\nplan: ${A}\nstep: ${n}\ntitle: s${n}\nstatus: ${status}\n---\n# s\n`;
 
 interface Opts {
@@ -37,6 +37,9 @@ interface Opts {
   planStatus?: string;
   merge?: string;
 }
+const ownedDirs: string[] = [];
+after(() => { for (const dir of ownedDirs) fs.rmSync(dir, { recursive: true, force: true }); });
+
 interface R { root: string; wt: string; origin: string; co: string }
 
 /** Repo on `main`, plan started via the CLI, steps set to the given statuses and committed on the plan branch. */
@@ -44,14 +47,16 @@ function repo(o: Opts = {}): R {
   const wt = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-fwt-"));
   const root = makeRepo({
     ".specplane/config.yaml": `spec_roots:\n  - name: base\n    path: specs\nplans:\n  dir: plans\n  merge: ${o.merge ?? "local_merge"}\n  require_approved_specs: none\n${o.planCfg ?? ""}execution:\n  worktree_dir: ${wt}\n${o.exec ?? ""}`,
-    "specs/features/x.md": "---\nid: feature/x\ntitle: X\nstatus: approved\nauthor: user\n---\n# X\n",
+    "specs/features/example.md": "---\nid: feature/example\ntitle: X\nstatus: approved\nauthor: user\n---\n# X\n",
     [`plans/${A}/PLAN.md`]: planMd(o.planStatus),
     "base.txt": "base\n",
   });
+  ownedDirs.push(root, wt);
   git(root, "init", "-q", "-b", "main");
   git(root, "add", "-A");
   git(root, "commit", "-q", "-m", "init");
   const origin = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-forigin-"));
+  ownedDirs.push(origin);
   if (o.remote) {
     git(origin, "init", "-q", "--bare", "-b", "main");
     git(root, "remote", "add", "origin", origin);
@@ -112,13 +117,13 @@ test("finish: lists open spec-gaps entries without blocking", () => {
   const r = repo();
   fs.writeFileSync(
     path.join(r.co, "plans", A, "spec-gaps.md"),
-    "# Spec gaps — " + A + "\n\n## G1: missing text\n\n**Kind**: assumption\n**Step**: 1\n**Case**: no message for X\n**Resolution**: used Y\n**Target spec**: `feature/x`\n**Status**: open\n\n## G2: settled\n\n**Kind**: gap\n**Step**: 1\n**Case**: Z\n**Resolution**: done\n**Target spec**: `feature/x`\n**Status**: applied\n",
+    "# Spec gaps — " + A + "\n\n## G1: missing text\n\n**Kind**: assumption\n**Step**: 1\n**Case**: no message for X\n**Resolution**: used Y\n**Target spec**: `feature/example`\n**Status**: open\n\n## G2: settled\n\n**Kind**: gap\n**Step**: 1\n**Case**: Z\n**Resolution**: done\n**Target spec**: `feature/example`\n**Status**: applied\n",
   );
   git(r.co, "add", "-A");
   git(r.co, "commit", "-q", "-m", "gaps");
   const res = fin(r, "--yes");
   assert.equal(res.code, 0, res.err);
-  assert.match(res.err, /Open spec gaps:\n  G1 \(assumption, feature\/x\): no message for X/);
+  assert.match(res.err, /Open spec gaps:\n  G1 \(assumption, feature\/example\): no message for X/);
   assert.doesNotMatch(res.err, /G2/, "only open entries are listed");
 });
 
@@ -226,6 +231,7 @@ function ghRepo(planCfg: string, ghOut: string): { r: R; env: NodeJS.ProcessEnv;
   git(r.root, "config", "remote.origin.url", "https://github.com/o/r.git");
   git(r.root, "config", `url.${r.origin}.insteadOf`, "https://github.com/o/r.git");
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-gh-"));
+  ownedDirs.push(bin);
   const log = path.join(bin, "calls.log");
   fs.writeFileSync(path.join(bin, "gh"), `#!/bin/sh\nprintf '%s\\n' "$@" >> '${log}'\necho -- >> '${log}'\n[ "$1" = "--version" ] && exit 0\necho '${ghOut}'\n`, { mode: 0o755 });
   return { r, env: { ...ENV, PATH: `${bin}${path.delimiter}${process.env.PATH}` }, log };
