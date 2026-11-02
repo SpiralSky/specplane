@@ -103,15 +103,23 @@ test('live target dependencies and config block before querying a PR in both sta
  }
 });
 
-test('live discovers local and fetched remote branch-only records with their target config', () => {
+test('live discovers local and fetched remote branch-only records in plan ID order', () => {
  for (const remote of [false,true]) {
-  const r=repo(); const other='2026-01-02-branch-only'; const file=`plans/${other}/PLAN.md`;
+  const r=repo(); const earlier='2025-12-31-earlier', later='2026-01-02-later';
   r.git('checkout','-qb','release'); r.put('.specplane/config.yaml','plans:\n  status_source: frontmatter\n');
-  r.put(file,plan('target only').replaceAll(id,other)); r.git('add','-A'); r.git('commit','-qm','target'); const sha=r.git('rev-parse','HEAD');
-  r.git('checkout','-qb',`plan/${other}`); r.put(file,plan('branch only',`execution:\n  target_branch: release\n  start_target_branch: release\n  start_base: ${sha}\n`).replaceAll(id,other).replace('status: ready','status: review')); r.git('commit','-qam','execution');
-  r.git('checkout','-q','master'); if (remote) { r.git('update-ref',`refs/remotes/origin/plan/${other}`,r.git('rev-parse',`plan/${other}`)); r.git('branch','-D',`plan/${other}`); }
-  const before=r.git('status','--porcelain=v1'); const result=r.sp('plan','index','--print','--live'); assert.equal(result.status,0,result.stderr); assert.match(result.stdout,/\| branch only \| review \| release \|/); assert.equal(r.git('status','--porcelain=v1'),before); assert.equal(fs.existsSync(path.join(r.root,'plans/PLANS.md')),false);
-  const ordinary=r.sp('plan','index','--print'); assert.equal(ordinary.status,0,ordinary.stderr); assert.doesNotMatch(ordinary.stdout,/branch only/);
+  for (const other of [earlier,later]) r.put(`plans/${other}/PLAN.md`,plan('target only').replaceAll(id,other));
+  r.git('add','-A'); r.git('commit','-qm','target'); const sha=r.git('rev-parse','HEAD');
+  for (const other of [earlier,later]) {
+   r.git('checkout','-qb',`plan/${other}`,'release');
+   r.put(`plans/${other}/PLAN.md`,plan(other,`execution:\n  target_branch: release\n  start_target_branch: release\n  start_base: ${sha}\n`).replaceAll(id,other).replace('status: ready','status: review')); r.git('commit','-qam','execution');
+  }
+  r.git('checkout','-q','master'); if (remote) for (const other of [earlier,later]) { r.git('update-ref',`refs/remotes/origin/plan/${other}`,r.git('rev-parse',`plan/${other}`)); r.git('branch','-D',`plan/${other}`); }
+  const before=r.git('status','--porcelain=v1'), refs=r.git('show-ref'), head=r.git('rev-parse','HEAD'), headRef=r.git('symbolic-ref','HEAD');
+  const result=r.sp('plan','index','--print','--live'); assert.equal(result.status,0,result.stderr);
+  const rows=result.stdout.split('\n').filter(line => line.startsWith('| [')).map(line => line.match(/^\| \[([^\]]+)\]/)![1]);
+  assert.deepEqual(rows,[earlier,id,later]); assert.match(result.stdout,/\| review \| release \|/);
+  assert.equal(r.git('status','--porcelain=v1'),before); assert.equal(r.git('show-ref'),refs); assert.equal(r.git('rev-parse','HEAD'),head); assert.equal(r.git('symbolic-ref','HEAD'),headRef); assert.equal(fs.existsSync(path.join(r.root,'plans/PLANS.md')),false);
+  const ordinary=r.sp('plan','index','--print'); assert.equal(ordinary.status,0,ordinary.stderr); assert.doesNotMatch(ordinary.stdout,/earlier|later/);
  }
 });
 
@@ -121,7 +129,7 @@ test('live refuses missing target and incompatible branch bindings without stdou
   const target=kind==='missing'?'missing':'master';
   r.put(file,plan('branch',`execution:\n  target_branch: ${target}\n  start_target_branch: ${target}\n  start_base: ${kind==='invalid'?'not-a-sha':sha}\n`)); r.git('commit','-qam','branch');
   if (kind==='divergent') { r.git('update-ref',`refs/remotes/origin/plan/${id}`,r.git('rev-parse','HEAD')); r.git('checkout','-q','master'); r.git('checkout','-qb','other'); r.put(file,plan('other',`execution:\n  target_branch: master\n  start_target_branch: master\n  start_base: ${sha}\n`)); r.git('commit','-qam','other'); r.git('branch','-f',`plan/${id}`,'HEAD'); }
-  r.git('checkout','-q','master'); const before=r.git('status','--porcelain=v1'); const result=r.sp('plan','index','--print','--live'); assert.notEqual(result.status,0,kind); assert.equal(result.stdout,'',kind); assert.notEqual(result.stderr,''); assert.equal(r.git('status','--porcelain=v1'),before); assert.equal(fs.existsSync(path.join(r.root,'plans/PLANS.md')),false);
+  r.git('checkout','-q','master'); const before=r.git('status','--porcelain=v1'), refs=r.git('show-ref'), head=r.git('rev-parse','HEAD'), headRef=r.git('symbolic-ref','HEAD'); const result=r.sp('plan','index','--print','--live'); assert.notEqual(result.status,0,kind); assert.equal(result.stdout,'',kind); assert.notEqual(result.stderr,''); assert.equal(r.git('status','--porcelain=v1'),before); assert.equal(r.git('show-ref'),refs); assert.equal(r.git('rev-parse','HEAD'),head); assert.equal(r.git('symbolic-ref','HEAD'),headRef); assert.equal(fs.existsSync(path.join(r.root,'plans/PLANS.md')),false);
  }
 });
 
@@ -152,4 +160,17 @@ test('live renderer refuses incomplete status context', () => {
  const r=repo(); const snapshot=capturePlanSnapshot(r.root,'head');
  assert.throws(() => generatePlansMd(snapshot,{live:true,liveContext:{statuses:new Map(),targets:new Map([[id,'master']])}}),/Live status unavailable/);
  assert.throws(() => generatePlansMd(snapshot,{live:true,liveContext:{statuses:new Map([[id,'ready']]),targets:new Map()}}),/Live target unavailable/);
+});
+
+test('renderer sorts archived records without changing captured inputs', () => {
+ const r=repo(); const snapshot=capturePlanSnapshot(r.root,'head');
+ const captured=snapshot.plans.map(file => [file.path,file.bytes.toString('hex')]); const digest=snapshot.digest;
+ const fm = { id, title:'archive', status:'done', specs:['feature/alpha'] } as const;
+ const early='2025-12-31-earlier', late='2026-01-02-later';
+ const records=[{id:late,archived:true,fm:{...fm,id:late,specs:[...fm.specs]}},{id:early,archived:true,fm:{...fm,id:early,specs:[...fm.specs]}}];
+ const statuses=new Map([[id,'ready' as const],[early,'done' as const],[late,'done' as const]]), targets=new Map([[id,'master'],[early,'master'],[late,'master']]);
+ const output=generatePlansMd(snapshot,{live:true,liveContext:{statuses,targets,additionalRecords:records}});
+ const archived=output.split('## Archived plans')[1].split('## Dependency graph')[0];
+ assert.ok(archived.indexOf(early) < archived.indexOf(late)); assert.deepEqual(records.map(r => r.id),[late,early]);
+ assert.equal(snapshot.digest,digest); assert.deepEqual(snapshot.plans.map(file => [file.path,file.bytes.toString('hex')]),captured);
 });

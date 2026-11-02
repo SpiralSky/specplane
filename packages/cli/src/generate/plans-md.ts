@@ -27,7 +27,7 @@ const linkPart = (s: string) => encodeURIComponent(s);
 export function generatePlansMd(snapshot: PlanSnapshot, opts: { live?: boolean; liveContext?: LiveContext } = {}): string {
   if (opts.live && !opts.liveContext) throw new Error('Live rendering requires live context.');
   if (!opts.live && opts.liveContext) throw new Error('Live context requires live rendering.');
-  const records = [...snapshotRecords(snapshot), ...(opts.liveContext?.additionalRecords ?? [])], config = snapshot.config;
+  const records = [...snapshotRecords(snapshot), ...(opts.liveContext?.additionalRecords ?? [])].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0), config = snapshot.config;
   if (opts.live && new Set(records.map(r => r.id)).size !== records.length) throw new Error('Ambiguous live plan identity.');
   const byId = new Map(records.map(r => [r.id, r.fm]));
   const link = (id: string) => {
