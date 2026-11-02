@@ -100,7 +100,7 @@ const finWithCallback = (r: R, callbackBody: string) => {
   const flow = new URL("./flows.js", import.meta.url).href;
   const config = new URL("../config.js", import.meta.url).href;
   const script = `import { finishPlan } from ${JSON.stringify(flow)}; import { loadConfig } from ${JSON.stringify(config)}; import { execFileSync } from "node:child_process"; import fs from "node:fs";
-    let count = 0; try { const result = await finishPlan(process.argv[1], loadConfig(process.cwd()).config, process.cwd(), { confirm: async () => { count++; ${callbackBody} return true; } }); console.log(result.outcome); }
+    let count = 0; try { const result = await finishPlan(process.argv[1], loadConfig(process.cwd()).config, process.cwd(), { confirm: async q => { count++; ${callbackBody} return true; } }); console.log(result.outcome); }
     catch (e) { console.error(String(e)); process.exitCode = 1; }`;
   const x = spawnSync(process.execPath, ["--input-type=module", "-e", script, A], { cwd: r.co, encoding: "utf8", env: ENV });
   return { code: x.status, out: x.stdout, err: x.stderr };
@@ -558,11 +558,128 @@ test("failed local target push reports integrated commit and retry publishes wit
   const merged = sha(r.root, "HEAD");
   assert.equal(git(r.root, "rev-list", "--parents", "-n", "1", "HEAD").split(" ").length, 3);
   fs.unlinkSync(hook);
-  const retry = fin(r, "--yes");
+  const retry = finConfirmed(r);
   assert.equal(retry.code, 0, retry.err);
   assert.equal(sha(r.root, "HEAD"), merged);
   assert.equal(sha(r.origin, "main"), merged);
   assert.equal(branchExists(r.root, `plan/${A}`), false);
+});
+
+test("integrated recovery refuses unrelated and linked target checkouts before exact plan cleanup", () => {
+  const r = repo({ remote: true });
+  const target = path.join(r.wt, "target");
+  const other = path.join(r.wt, "other");
+  git(r.root, "switch", "-q", "-c", "admin");
+  git(r.root, "worktree", "add", "-q", target, "main");
+  git(r.root, "worktree", "add", "-q", "-b", "unrelated", other, "main");
+  fs.writeFileSync(path.join(other, "private.txt"), "preserve me\n");
+  git(other, "add", "private.txt");
+  git(other, "commit", "-q", "-m", "unrelated data");
+  const unrelatedHead = sha(other, "HEAD");
+  const hook = path.join(r.origin, "hooks", "pre-receive");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  assert.equal(finConfirmed(r).code, 1);
+  fs.unlinkSync(hook);
+  const before = git(r.root, "worktree", "list", "--porcelain");
+  for (const cwd of [other, target]) {
+    const result = sp(cwd, "plan", "finish", A, "--yes");
+    assert.equal(result.code, 1, result.err);
+    assert.match(result.err, /clean registered checkout/);
+    assert.equal(git(r.root, "worktree", "list", "--porcelain"), before);
+    assert.equal(sha(other, "HEAD"), unrelatedHead);
+    assert.equal(fs.readFileSync(path.join(other, "private.txt"), "utf8"), "preserve me\n");
+    assert.equal(git(other, "branch", "--show-current"), "unrelated");
+  }
+  const retry = finConfirmed(r);
+  assert.equal(retry.code, 0, retry.err);
+  assert.ok(!fs.existsSync(r.co));
+  assert.ok(fs.existsSync(target));
+  assert.ok(fs.existsSync(other));
+  assert.equal(branchExists(r.root, `plan/${A}`), false);
+});
+
+test("finalized PR retry displays current gaps in both confirmations", () => {
+  const r = repo({ remote: true, merge: "pull_request", planCfg: "  forge: none\n" });
+  fs.writeFileSync(path.join(r.co, "plans", A, "spec-gaps.md"), "# Gaps\n\n## G1: missing text\n\n**Kind**: assumption\n**Step**: 1\n**Case**: no message for X\n**Resolution**: used Y\n**Target spec**: `feature/example`\n**Status**: open\n");
+  git(r.co, "add", "-A");
+  git(r.co, "commit", "-q", "-m", "record gap");
+  const first = finWithCallback(r, "if (count === 2) return false;");
+  assert.equal(first.code, 0, first.err);
+  const retry = finWithCallback(r, `if (!q.includes("it works") || !q.includes("G1 (assumption, feature/example): no message for X")) throw new Error("missing acceptance evidence " + count);`);
+  assert.equal(retry.code, 0, retry.err);
+  assert.match(retry.out, /pushed/);
+});
+
+test("local merge preserves an ignored file colliding with a plan file", () => {
+  const r = repo();
+  fs.writeFileSync(path.join(r.root, ".git", "info", "exclude"), "collision.txt\n");
+  fs.writeFileSync(path.join(r.root, "collision.txt"), "user content\n");
+  fs.writeFileSync(path.join(r.co, "collision.txt"), "plan content\n");
+  git(r.co, "add", "-f", "collision.txt");
+  git(r.co, "commit", "-q", "-m", "add collision");
+  const result = finConfirmed(r);
+  assert.equal(result.code, 1, `${result.out} ${result.err}`);
+  assert.equal(fs.readFileSync(path.join(r.root, "collision.txt"), "utf8"), "user content\n");
+  assert.ok(fs.existsSync(r.co));
+});
+
+test("finish retains a plan checkout containing unrelated ignored files", () => {
+  const r = repo();
+  fs.writeFileSync(path.join(r.root, ".git", "info", "exclude"), "private.txt\n");
+  fs.writeFileSync(path.join(r.co, "private.txt"), "keep\n");
+  const result = finConfirmed(r);
+  assert.equal(result.code, 0, result.err);
+  assert.match(result.err, /checkout retained because it contains ignored files/);
+  assert.equal(fs.readFileSync(path.join(r.co, "private.txt"), "utf8"), "keep\n");
+  assert.ok(branchExists(r.root, `plan/${A}`));
+});
+
+test("integrated recovery retains ignored files in the plan checkout", () => {
+  const r = repo({ remote: true });
+  fs.writeFileSync(path.join(r.root, ".git", "info", "exclude"), "private.txt\n");
+  fs.writeFileSync(path.join(r.co, "private.txt"), "keep\n");
+  const hook = path.join(r.origin, "hooks", "pre-receive");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  assert.equal(finConfirmed(r).code, 1);
+  fs.unlinkSync(hook);
+  const retry = finConfirmed(r);
+  assert.equal(retry.code, 0, retry.err);
+  assert.match(retry.err, /contains ignored files/);
+  assert.equal(fs.readFileSync(path.join(r.co, "private.txt"), "utf8"), "keep\n");
+  assert.ok(branchExists(r.root, `plan/${A}`));
+});
+
+test("branch backend resumes target publication without deleting the retained plan branch", () => {
+  const r = repo({ remote: true, exec: "  backend: branch\n" });
+  const hook = path.join(r.origin, "hooks", "pre-receive");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const failed = finConfirmed(r);
+  assert.equal(failed.code, 1, failed.err);
+  fs.unlinkSync(hook);
+  const unattended = fin(r, "--yes");
+  assert.equal(unattended.code, 0, unattended.err);
+  assert.match(unattended.err, /awaits publication confirmation/);
+  assert.notEqual(sha(r.root, "main"), sha(r.origin, "main"));
+  const retry = finConfirmed(r);
+  assert.equal(retry.code, 0, retry.err);
+  assert.equal(sha(r.root, "main"), sha(r.origin, "main"));
+  assert.ok(branchExists(r.root, `plan/${A}`));
+});
+
+test("branch backend preserves ignored files colliding with an advanced target", () => {
+  const r = repo({ exec: "  backend: branch\n" });
+  fs.writeFileSync(path.join(r.root, ".git", "info", "exclude"), "collision.txt\n");
+  fs.writeFileSync(path.join(r.root, "collision.txt"), "user content\n");
+  const tree = path.join(r.wt, "target");
+  git(r.root, "worktree", "add", "-q", tree, "main");
+  fs.writeFileSync(path.join(tree, "collision.txt"), "target content\n");
+  git(tree, "add", "-f", "collision.txt");
+  git(tree, "commit", "-q", "-m", "target advance");
+  const result = finConfirmed(r);
+  assert.equal(result.code, 1, result.err);
+  assert.match(result.err, /Ignored file.*conflicts/);
+  assert.equal(fs.readFileSync(path.join(r.root, "collision.txt"), "utf8"), "user content\n");
+  assert.equal(git(r.root, "branch", "--show-current"), `plan/${A}`);
 });
 
 test("finalization hook failure reports retained checkout for recovery", () => {

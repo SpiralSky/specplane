@@ -158,6 +158,19 @@ function clean(cwd: string): boolean {
   return tryRun(["status", "--porcelain"], cwd)?.trim() === "";
 }
 
+function ignoredFiles(cwd: string): string[] {
+  return run("git", ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"], { cwd }).split("\0").filter(Boolean);
+}
+
+function protectIgnoredCollisions(cwd: string, from: string, to: string): void {
+  const ignored = ignoredFiles(cwd);
+  if (!ignored.length) return;
+  const changes = run("git", ["diff", "--name-only", "--diff-filter=ACMRT", "-z", from, to], { cwd }).split("\0").filter(Boolean);
+  const overlaps = (a: string, b: string) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
+  const collision = ignored.find(a => changes.some(b => overlaps(a, b)));
+  if (collision) throw new PlanStateError(`Ignored file \`${collision}\` conflicts with the checkout update; preserve or move it before retrying.`);
+}
+
 /** Run `plans.test_command` in `cwd` (output to stderr); throws on a non-zero exit. */
 function runTests(cmd: string, cwd: string): void {
   const r = spawnSync(cmd, { cwd, shell: true, stdio: ["ignore", 2, 2] });
@@ -211,17 +224,29 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   // A previous merge may have succeeded even though its target push failed.
   if (p.target.status === "done") {
     const reviewed = git(["rev-parse", `refs/heads/${branch}`], main);
+    const registered = trees.find(w => w.branch === branch && !w.bare);
+    const switchedBranchBackend = backend === "branch" && !registered && samePath(root, main) && samePath(root, targetTree ?? "") && git(["rev-parse", "--abbrev-ref", "HEAD"], root) === def;
+    if (!switchedBranchBackend && (!registered || !samePath(registered.path, root) || git(["rev-parse", "--abbrev-ref", "HEAD"], root) !== branch || git(["rev-parse", "HEAD"], root) !== reviewed || !clean(root)))
+      throw new PlanStateError(`Recovery requires the clean registered checkout of \`${branch}\` at its recorded head.`);
     const finishTrailers = readTrailers(reviewed, main);
     if (merge !== "local_merge" || p.plan.status !== "done" || finishTrailers.get("Specplane-Workflow")?.at(-1) !== "finish" || finishTrailers.get("Specplane-Plan")?.at(-1) !== id || !targetTree || git(["rev-parse", "HEAD"], targetTree) !== p.context.targetCommit || !clean(targetTree) || tryRun(["merge-base", "--is-ancestor", reviewed, p.context.targetCommit], main) === null)
       throw new PlanStateError("Target is done without evidence of this plan head being integrated; reconcile before retrying.");
     lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
     if (remote && p.refs[`refs/remotes/origin/${def}`] !== p.context.targetCommit) {
+      const challenge = `Publish recovered \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${p.context.targetCommit}\` now?`;
+      if (!opts.confirm || !await opts.confirm(challenge)) return { planId: id, outcome: "ready", prUrl: null, finalized: true, notices: [`Integrated target \`${def}\` at \`${p.context.targetCommit}\` awaits publication confirmation.`] };
+      lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+      if (JSON.stringify(trees) !== JSON.stringify(listWorktrees(main)) || git(["rev-parse", "--abbrev-ref", "HEAD"], targetTree) !== def || git(["rev-parse", "HEAD"], targetTree) !== p.context.targetCommit || !clean(targetTree) || revParse(branch, main) !== reviewed) throw new PlanStateError("Integrated target or checkout changed during publication confirmation; retry.");
       try { run("git", ["push", "origin", def], { cwd: targetTree }); }
       catch (e) { throw new PlanStateError(`Plan ${branch} is integrated at ${p.context.targetCommit}, but target publication failed; retry after resolving the push: ${String(e)}`); }
     }
-    if (!samePath(root, main) && clean(root) && revParse(branch, main) === reviewed) { dropWorktree(root, false, main); deleteBranch(branch, main); }
-    else if (samePath(root, main) && git(["rev-parse", "--abbrev-ref", "HEAD"], root) !== branch && revParse(branch, main) === reviewed) deleteBranch(branch, main);
-    return { planId: id, outcome: "merged", prUrl: null, notices: [`Recovered integrated plan at ${p.context.targetCommit}.`] };
+    lease.assertOwned();
+    if (JSON.stringify(trees) !== JSON.stringify(listWorktrees(main)) || revParse(branch, main) !== reviewed || (!switchedBranchBackend && (git(["rev-parse", "--abbrev-ref", "HEAD"], root) !== branch || git(["rev-parse", "HEAD"], root) !== reviewed || !clean(root))))
+      throw new PlanStateError("Integrated plan checkout changed before cleanup; retain it for recovery.");
+    const recoveryNotices = [`Recovered integrated plan at ${p.context.targetCommit}.`];
+    if (registered && !samePath(root, main) && ignoredFiles(root).length === 0) { dropWorktree(registered.path, false, main); deleteBranch(branch, main); }
+    else recoveryNotices.push("Plan checkout retained because it is the main checkout or contains ignored files; inspect it before explicit cleanup.");
+    return { planId: id, outcome: "merged", prUrl: null, notices: recoveryNotices };
   }
 
   // 1. Readiness (no writes; fetch only updates remote-tracking refs).
@@ -324,6 +349,7 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   const marker = findLatest(branch, "stack", root);
   const stackBase = marker ? readTrailers(marker, root).get("Specplane-Stack-Base")?.at(-1) : undefined;
   const before = git(["rev-parse", "HEAD"], root);
+  protectIgnoredCollisions(root, before, rebaseTip);
   rebaseOnto(rebaseTip, stackBase ?? rebaseTip, branch, root);
   const rebased = git(["rev-parse", "HEAD"], root) !== before;
   if (rebased && testCmd !== "") runTests(testCmd, root);
@@ -335,9 +361,12 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   recheckLifecycleRefs(main, targetRefs);
   // 5. Final commit (the PLAN.md may move to the archive, so read the criteria first).
   const criteria = acceptanceCriteria(fs.readFileSync(path.join(dir, "PLAN.md"), "utf8"));
+  const gapsFile = path.join(dir, "spec-gaps.md");
+  const openGaps = fs.existsSync(gapsFile) ? formatOpenGaps(parseGaps(gapsFile).entries) : [];
+  const gapsNotice = openGaps.length ? `Open spec gaps:\n${openGaps.map(g => `  ${g}`).join("\n")}` : null;
   if (alreadyDone) {
     const reviewed = git(["rev-parse", "HEAD"], root);
-    const challenge = [...(criteria.length ? [`Acceptance criteria:\n${criteria.join("\n")}`] : []), `Accept finish \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
+    const challenge = [...(criteria.length ? [`Acceptance criteria:\n${criteria.join("\n")}`] : []), ...(gapsNotice ? [gapsNotice] : []), `Accept finish \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
     if (!opts.confirm || !await opts.confirm(challenge)) {
       notices.push(`Plan \`${id}\` is ready for fresh finish acceptance: head \`${reviewed}\`, target \`${def}\` at \`${rebaseTip}\`.`);
       return { planId: id, outcome: "ready", prUrl: null, finalized: alreadyDone, notices };
@@ -372,7 +401,7 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     const publicationReviewed = git(["rev-parse", "HEAD"], root);
     {
       const reviewed = publicationReviewed;
-      const challenge = [...(criteria.length ? [`Acceptance criteria (confirm before publishing):\n${criteria.map(c => `  ${c}`).join("\n")}`] : []), `Publish \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
+      const challenge = [...(criteria.length ? [`Acceptance criteria (confirm before publishing):\n${criteria.map(c => `  ${c}`).join("\n")}`] : []), ...(gapsNotice ? [gapsNotice] : []), `Publish \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
       if (!opts.confirm || !await opts.confirm(challenge)) {
         notices.push(`Plan \`${id}\` is ready for publication after interactive confirmation: head \`${reviewed}\`, target \`${def}\` at \`${rebaseTip}\`.`);
         return { planId: id, outcome: "ready", prUrl: null, finalized: true, notices };
@@ -416,9 +445,11 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     if (tryRun(["merge-base", "--is-ancestor", reviewed, integrated], main) === null || planAt(integrated, id, config, main)?.status !== "done" || revParse(branch, main) !== reviewed) throw new PlanStateError("Merge succeeded but integration evidence changed; retain the plan checkout for recovery.");
     if (canSwitch) deleteBranch(branch, main);
     else if (!samePath(root, main)) {
-      if (!clean(root)) throw new PlanStateError("Merge succeeded but the plan checkout changed; retain it for recovery.");
-      dropWorktree(root, false, main);
-      deleteBranch(branch, main);
+      lease.assertOwned();
+      const registered = listWorktrees(main).find(w => w.branch === branch && samePath(w.path, root));
+      if (!registered || registered.head !== reviewed || git(["rev-parse", "--abbrev-ref", "HEAD"], root) !== branch || git(["rev-parse", "HEAD"], root) !== reviewed || revParse(branch, main) !== reviewed || !clean(root)) throw new PlanStateError("Merge succeeded but the plan checkout changed; retain it for recovery.");
+      if (ignoredFiles(root).length) notices.push("Merge succeeded; plan checkout retained because it contains ignored files. Inspect them before explicit cleanup.");
+      else { dropWorktree(root, false, main); deleteBranch(branch, main); }
     } else notices.push("Merge succeeded; retain the plan checkout for explicit cleanup.");
     outcome = "merged";
   }
@@ -432,13 +463,18 @@ function finalCommit(id: string, config: Config, root: string): void {
   const file = path.join(root, dir, "PLAN.md");
   const text = fs.readFileSync(file, "utf8");
   const end = text.indexOf("\n---", 3);
-  fs.writeFileSync(file, text.slice(0, end).replace(/^status:.*$/m, "status: done") + text.slice(end));
-  git(["add", "--", `${dir}/PLAN.md`], root);
-  if (config.plans.archive_done) {
-    const dest = `${config.plans.dir}/archive/${id}`;
-    fs.mkdirSync(path.join(root, config.plans.dir, "archive"), { recursive: true });
-    git(["mv", dir, dest], root);
-  }
+  let phase = "writing done status";
+  try {
+    fs.writeFileSync(file, text.slice(0, end).replace(/^status:.*$/m, "status: done") + text.slice(end));
+    phase = "staging done status";
+    git(["add", "--", `${dir}/PLAN.md`], root);
+    if (config.plans.archive_done) {
+      const dest = `${config.plans.dir}/archive/${id}`;
+      phase = `moving ${dir} to ${dest}`;
+      fs.mkdirSync(path.join(root, config.plans.dir, "archive"), { recursive: true });
+      git(["mv", dir, dest], root);
+    }
+  } catch (e) { throw new PlanStateError(`Finish preparation failed while ${phase}; inspect the checkout and index for partial edits: ${String(e)}`); }
   const msg = formatMessage({ type: "chore", scope: "specplane", summary: `finish ${id}`, trailers: cliTrailers("finish", id) });
   const head = git(["rev-parse", "HEAD"], root);
   const raw = (args: string[]) => run("git", args, { cwd: root });
@@ -466,7 +502,8 @@ function localMerge(id: string, branch: string, def: string, remote: boolean, ba
   const resume = `The done commit stays on \`${branch}\`; run \`specplane plan finish ${id}\` again after fixing it.`;
   if (backend === "branch") {
     // The main checkout is the plan checkout; it is clean after the final commit.
-    run("git", ["switch", def], { cwd: main });
+    protectIgnoredCollisions(main, branch, def);
+    run("git", ["switch", "--no-overwrite-ignore", def], { cwd: main });
   }
   const mainBranch = git(["rev-parse", "--abbrev-ref", "HEAD"], main);
   if (mainBranch !== def) {
@@ -478,7 +515,8 @@ function localMerge(id: string, branch: string, def: string, remote: boolean, ba
   if (tryRun(["merge-base", "--is-ancestor", def, branch], main) === null) {
     throw new PlanStateError(`Cannot merge plan \`${id}\`: \`${def}\` moved after the rebase. Run \`specplane plan finish ${id}\` again to rebase.`);
   }
-  run("git", ["merge", "--no-ff", "-m", `Merge ${branch}`, branch], { cwd: main });
+  protectIgnoredCollisions(main, def, branch);
+  run("git", ["merge", "--no-overwrite-ignore", "--no-ff", "-m", `Merge ${branch}`, branch], { cwd: main });
   if (remote) {
     const integrated = git(["rev-parse", "HEAD"], main);
     try { run("git", ["push", "origin", def], { cwd: main }); }
