@@ -439,18 +439,36 @@
     "step": "plan",
     "criterion": 3,
     "text": "Default head rendering is deterministic with the Target column; --live requires --print and print writes nothing.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "843b208c79c9893cdfb9ffcec274b52660acc716",
+      "index-step2-review.md",
+      "index-step2-integrated-tests.log:69pass/1legacyfixturefail",
+      "1d12d89eaa4b7de5aab173b9d413fa131a0962dc",
+      "index-step2-activity-integrated-tests.log:8 pass"
+    ],
+    "limitations": [
+      "Live missing authoritative target conservatively refuses; forge simulated",
+      "Freshness same-selected-output and lifecycle compatibility seam belong step3"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
     "step": "plan",
     "criterion": 4,
     "text": "Old generate command refuses with migration guidance; CI targets the selected branch and uses head; unchanged output is not rewritten.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "843b208c79c9893cdfb9ffcec274b52660acc716",
+      "index-step2-review.md",
+      "index-step2-integrated-tests.log:69pass/1legacyfixturefail",
+      "1d12d89eaa4b7de5aab173b9d413fa131a0962dc",
+      "index-step2-activity-integrated-tests.log:8 pass"
+    ],
+    "limitations": [
+      "Live missing authoritative target conservatively refuses; forge simulated",
+      "Freshness same-selected-output and lifecycle compatibility seam belong step3"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
@@ -466,9 +484,16 @@
     "step": "plan",
     "criterion": 6,
     "text": "Resolved staged merge/rebase/cherry-pick inputs appear in recovery rendering; unmerged plan/config inputs refuse while output-only conflict is allowed.",
-    "status": "pending",
-    "evidence": [],
-    "limitations": []
+    "status": "verified",
+    "evidence": [
+      "cab049fca2b8e8adc730bc727dc382c3627a4f1e",
+      "index-step3-recovery-review.md",
+      "index-step3-recovery-integrated-tests.log:4 pass",
+      "index-step3-recovery-final-tests.log:42 pass before narrowfinaledit"
+    ],
+    "limitations": [
+      "Lifecycle criterion1 stillawaiting separate review/integration"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
@@ -507,16 +532,36 @@
     "step": "02-index-command",
     "criterion": 1,
     "text": "Default head rendering is deterministic with the Target column; --live requires --print and print writes nothing.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "843b208c79c9893cdfb9ffcec274b52660acc716",
+      "index-step2-review.md",
+      "index-step2-integrated-tests.log:69pass/1legacyfixturefail",
+      "1d12d89eaa4b7de5aab173b9d413fa131a0962dc",
+      "index-step2-activity-integrated-tests.log:8 pass"
+    ],
+    "limitations": [
+      "Live missing authoritative target conservatively refuses; forge simulated",
+      "Freshness same-selected-output and lifecycle compatibility seam belong step3"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
     "step": "02-index-command",
     "criterion": 2,
     "text": "Old generate command refuses with migration guidance; CI targets the selected branch and uses head; unchanged output is not rewritten.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "843b208c79c9893cdfb9ffcec274b52660acc716",
+      "index-step2-review.md",
+      "index-step2-integrated-tests.log:69pass/1legacyfixturefail",
+      "1d12d89eaa4b7de5aab173b9d413fa131a0962dc",
+      "index-step2-activity-integrated-tests.log:8 pass"
+    ],
+    "limitations": [
+      "Live missing authoritative target conservatively refuses; forge simulated",
+      "Freshness same-selected-output and lifecycle compatibility seam belong step3"
+    ]
   },
   {
     "plan": "2026-11-02-plan-index",
@@ -531,8 +576,16 @@
     "step": "03-transaction-snapshots",
     "criterion": 2,
     "text": "Resolved staged merge/rebase/cherry-pick inputs appear in recovery rendering; unmerged plan/config inputs refuse while output-only conflict is allowed.",
-    "status": "pending",
-    "evidence": []
+    "status": "verified",
+    "evidence": [
+      "cab049fca2b8e8adc730bc727dc382c3627a4f1e",
+      "index-step3-recovery-review.md",
+      "index-step3-recovery-integrated-tests.log:4 pass",
+      "index-step3-recovery-final-tests.log:42 pass before narrowfinaledit"
+    ],
+    "limitations": [
+      "Lifecycle criterion1 stillawaiting separate review/integration"
+    ]
   },
   {
     "plan": "2026-11-01-workflow-recording",

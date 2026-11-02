@@ -1,0 +1,17 @@
+# Plan index step 3A approval snapshot validation repair
+
+Checkout `/workspace/overnight/index-3-lifecycle-repair`, branch `overnight/index-3-lifecycle-repair`, base `d711e6296269a2d699b640ec9a9fddb376aa2553`, result `f0b5b98cdd3cd8facd0a131b78e165dc68f91009`. Changed `packages/cli/src/commands/plan-approve.ts`, `plan-approve.test.ts`, new `approval-read-tree.ts`. Clean checkout after commit; no other source, spec, plan, handoff, lifecycle state or publication changes. Writers stopped.
+
+## Criteria and evidence
+
+- Approval validates required spec status and all plan/dependency/step/HANDOFF/ADR references using a private disposable materialization of captured HEAD; HEAD configuration governs policy. Working config path disagreement for plan/spec/ADR roots is refused with reconciliation guidance. Tests demonstrate HEAD approved with dirty draft, HEAD draft with working approved, assume-unchanged and skip-worktree concealment, committed invalid decision reference despite working step edits, and unrelated plan, ADR, step, config and staged spec changes preserved. All validation references use committed data. Actual committed validation errors still refuse.
+- Prospective status change and index rendering are performed before dry-run reports success; unsupported quoted status is refused in both modes. Preview preserves state. Owned PLAN.md changes and dirty index output (including assume-unchanged hidden changes) refuse; unrelated staged bytes survive. HEAD post-commit index equals standalone HEAD rendering. Existing real-Git rollback, custom paths, local branch fallback and hook moved-HEAD exact retained hash cases pass.
+- Temporary tree cleanup verified for successful and throwing callbacks. Reads do not create worktrees, branches or modify source records. Repository/plan/checkout leases, snapshot/index/branch preimages, metadata-only staging, post-commit checks and rollback retained. Git object batches are bounded to 32 MiB except individual larger blobs. The helper copies regular files and does not follow committed symlinks or submodules; paths dependent on these are conservatively absent from validation rather than followed outside the snapshot.
+- Shelf/resume and staged conflict recovery are unchanged by this repair. Predecessor evidence is in `index-step3-lifecycle-result.md`; staged recovery is 3B's separate scope. This repair has not independently rerun shelve tests, direct-editor race exhaustion, SHA-256 post-commit approval or pre-commit ref movement. Live certification, managed approval and publication remain deferred per run policy.
+
+## Commands and outcomes
+
+- `npm ci --offline --cache /workspace/.npm-cache --ignore-scripts` from `packages/cli`: passed, 23 packages.
+- `npm run build --prefix packages/cli`: final passed.
+- With approved escalation, from `packages/cli`: `timeout 120s node --test-reporter=tap dist/commands/plan-approve.test.js`: final 20 passed, 0 failed, 0 skipped, 16.4 seconds. Earlier intermediate run failed 14/15 because binary batch input used the Git wrapper's unsupported `encoding: buffer`; corrected using a Buffer input and reran successfully. Earlier 16, 17, and 19-test runs passed before the additional cases. No automatic approval rejection.
+- `git diff --check`: passed before commit. Full suite and live hosts not run; no software-under-test model calls. All Git tests use disposable local repositories, not production approvals.

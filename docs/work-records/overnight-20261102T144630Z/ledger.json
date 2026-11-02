@@ -4,7 +4,7 @@
   "source_branch": "origin/dot/codex-integration-20261101",
   "source_commit": "3a5b9972c938f76c042f00e7e6c28d3b053cdc59",
   "snapshot_commit": "e12fd62fee34f190f25ad923764e53a3dd301066",
-  "integrated_commit": "c3794b943cc36861680f12405e1338b6aadfd6af",
+  "integrated_commit": "5d9748c9cac75c1b5413a4d6d0d34f4643c8c78d",
   "original_checkout": {
     "path": "/workspace/specplane",
     "branch": "work",
@@ -313,13 +313,64 @@
     {
       "step": "plan-index/2 repair",
       "agent": "index_2_repair",
+      "status": "reviewed;original findings fixed;combinedliveorder fix running",
+      "base": "9708a685d87900e6c8be95eb21bfcd49108207ca",
+      "commit": "d9b1f2e44b51c3a13cc709d381c34048dac7d4f3"
+    },
+    {
+      "step": "plan-index/2 final ordering",
+      "agent": "index_2_order",
+      "status": "reviewed and integrated;69/70 combined plus corrected8/8affected",
+      "base": "d9b1f2e44b51c3a13cc709d381c34048dac7d4f3",
+      "commit": "843b208c79c9893cdfb9ffcec274b52660acc716"
+    },
+    {
+      "step": "plan-index/2 activity fixture",
+      "agent": "index_2_activity_fixture",
       "status": "running",
-      "base": "9708a685d87900e6c8be95eb21bfcd49108207ca"
+      "base": "22169badd2a892e4e01e475160cf73fed6b5960d"
+    },
+    {
+      "step": "plan-index/3-lifecycle",
+      "agent": "index_3_lifecycle",
+      "status": "implemented;changesrequested;HEADvalidation/dryrun repair active",
+      "base": "4bba867a33a5bee3092659e40ce5ed4e99cde18c",
+      "branch": "overnight/index-3-lifecycle",
+      "commit": "d711e6296269a2d699b640ec9a9fddb376aa2553"
+    },
+    {
+      "step": "plan-index/3-recovery",
+      "agent": "index_3_recovery",
+      "status": "reviewed and integrated;4 targetedintegrationpass",
+      "base": "4bba867a33a5bee3092659e40ce5ed4e99cde18c",
+      "branch": "overnight/index-3-recovery",
+      "commit": "cab049fca2b8e8adc730bc727dc382c3627a4f1e",
+      "tests": "42focusedpass before narrowfinalchange;4targetedpass after;hook74pass"
+    },
+    {
+      "step": "plan-index/3 lifecycle repair",
+      "agent": "index_3_lifecycle_repair",
+      "status": "implemented;newnonregularpath/configfindings under freshrepair",
+      "base": "d711e6296269a2d699b640ec9a9fddb376aa2553",
+      "commit": "f0b5b98cdd3cd8facd0a131b78e165dc68f91009"
+    },
+    {
+      "step": "plan-index/3 lifecycle final",
+      "agent": "index_3_lifecycle_final",
+      "status": "implemented;prior3findings fixed;overbroadnonregularscope freshrepair",
+      "base": "f0b5b98cdd3cd8facd0a131b78e165dc68f91009",
+      "commit": "6e837ce374f95b67e7e79c4ca1dc1e3f5b89c7ba"
+    },
+    {
+      "step": "plan-index/3 lifecycle nonregularscope final",
+      "agent": "index_3_input_scope",
+      "status": "running",
+      "base": "6e837ce374f95b67e7e79c4ca1dc1e3f5b89c7ba"
     }
   ],
   "next": [
-    "Review index2 live repair then integrate/tests; index3 must replace lifecycle adapter and resolve selected output/source freshness",
-    "Index2 command/rendering -> index3 transaction seam -> workflow recording -> manual lifecycle -> docs -> packaging -> delivery -> conformance"
+    "Review final approval snapshot/path fixes, integrate then full index milestone regression and generated PLANS update/checkpoint",
+    "Workflowrecording1/2/3/4 -> manual1/2/3 -> docs -> packaging -> deliveryhosts -> conformance"
   ],
   "timing": {
     "worker_elapsed": "pending",
@@ -329,7 +380,7 @@
   "processes": [],
   "remote_checkpoint": {
     "branch": "overnight/specplane-20261102T144630Z",
-    "commit": "9f405f1c789bd2d95287456abd5c557824f66ffe",
+    "commit": "5d43316feb0bc5940c39f48354e8f6365405b59d",
     "status": "pushed"
   },
   "baseline_validation": {
@@ -387,7 +438,7 @@
     "warnings": 90,
     "log": "target-step6-validation.json"
   },
-  "updated_utc": "2026-11-02T18:34:46.966246+00:00",
+  "updated_utc": "2026-11-02T19:09:43.438274+00:00",
   "combined_regression": {
     "passed": 480,
     "failed": 0,
@@ -395,8 +446,8 @@
     "log": "target-step4-integrated-tests.log"
   },
   "acceptance_counts": {
-    "verified": 60,
-    "pending": 140,
+    "verified": 66,
+    "pending": 134,
     "blocked": 2
   },
   "target6_regression": {
@@ -413,6 +464,19 @@
       "failed": 0,
       "log": "target-step6-fixture-integrated-tests.log",
       "note": "full run536/538; both failing fixture cases corrected and affected suite8/8, no claim of repeated full suite"
+    }
+  },
+  "index2_regression": {
+    "total": 70,
+    "passed": 69,
+    "failed": 1,
+    "log": "index-step2-integrated-tests.log",
+    "cause": "legacy activity fixture creates unbound branch; fresh diagnostic repair running",
+    "resolution": {
+      "fixture_commit": "1d12d89eaa4b7de5aab173b9d413fa131a0962dc",
+      "integrated_affected_passed": 8,
+      "failed": 0,
+      "log": "index-step2-activity-integrated-tests.log"
     }
   }
 }

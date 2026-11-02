@@ -1,0 +1,450 @@
+TAP version 13
+# Subtest: getIndexStatus
+ok 1 - getIndexStatus
+  ---
+  duration_ms: 45.987607
+  type: 'test'
+  ...
+# Subtest: toMermaid: node classes, edges after nodes, classDefs
+ok 2 - toMermaid: node classes, edges after nodes, classDefs
+  ---
+  duration_ms: 0.408664
+  type: 'test'
+  ...
+# Subtest: generateWorkingPlansMd: sections, blocked status, links, determinism
+ok 3 - generateWorkingPlansMd: sections, blocked status, links, determinism
+  ---
+  duration_ms: 36.932061
+  type: 'test'
+  ...
+# Subtest: generateWorkingPlansMd: stack mode blocks a ready plan with two unmerged dependencies
+ok 4 - generateWorkingPlansMd: stack mode blocks a ready plan with two unmerged dependencies
+  ---
+  duration_ms: 17.909819
+  type: 'test'
+  ...
+# Subtest: generateWorkingPlansMd: empty sections render _None._
+ok 5 - generateWorkingPlansMd: empty sections render _None._
+  ---
+  duration_ms: 16.59019
+  type: 'test'
+  ...
+# Subtest: PLANS.md freshness warning
+ok 6 - PLANS.md freshness warning
+  ---
+  duration_ms: 153.809915
+  type: 'test'
+  ...
+# Subtest: init: creates files, preserves AGENTS.md text, idempotent
+ok 7 - init: creates files, preserves AGENTS.md text, idempotent
+  ---
+  duration_ms: 12.981289
+  type: 'test'
+  ...
+# Subtest: init: scaffolds spec roots that do not exist yet
+ok 8 - init: scaffolds spec roots that do not exist yet
+  ---
+  duration_ms: 3.850109
+  type: 'test'
+  ...
+# Subtest: init: uses existing config paths and skips non-empty plans dir
+ok 9 - init: uses existing config paths and skips non-empty plans dir
+  ---
+  duration_ms: 2.869956
+  type: 'test'
+  ...
+# Subtest: source selection, notices, print-only, idempotence and migration
+ok 10 - source selection, notices, print-only, idempotence and migration
+  ---
+  duration_ms: 4797.323954
+  type: 'test'
+  ...
+# Subtest: pure captured render uses target declarations and escapes table text
+ok 11 - pure captured render uses target declarations and escapes table text
+  ---
+  duration_ms: 127.888235
+  type: 'test'
+  ...
+# Subtest: live print resolves execution branch and makes no output writes
+ok 12 - live print resolves execution branch and makes no output writes
+  ---
+  duration_ms: 783.924782
+  type: 'test'
+  ...
+# Subtest: staged recovery permits output conflict and refuses unresolved plan input
+ok 13 - staged recovery permits output conflict and refuses unresolved plan input
+  ---
+  duration_ms: 1660.376874
+  type: 'test'
+  ...
+# Subtest: unborn and detached head behavior is explicit
+ok 14 - unborn and detached head behavior is explicit
+  ---
+  duration_ms: 1676.697041
+  type: 'test'
+  ...
+# Subtest: live status reads authoritative target and queries PR with its recorded base
+ok 15 - live status reads authoritative target and queries PR with its recorded base
+  ---
+  duration_ms: 2222.682107
+  type: 'test'
+  ...
+# Subtest: live frontmatter uses execution status and target terminal overrides
+ok 16 - live frontmatter uses execution status and target terminal overrides
+  ---
+  duration_ms: 3776.693009
+  type: 'test'
+  ...
+# Subtest: live target dependencies and config block before querying a PR in both status modes
+ok 17 - live target dependencies and config block before querying a PR in both status modes
+  ---
+  duration_ms: 1607.801381
+  type: 'test'
+  ...
+# Subtest: live discovers local and fetched remote branch-only records in plan ID order
+ok 18 - live discovers local and fetched remote branch-only records in plan ID order
+  ---
+  duration_ms: 3099.443367
+  type: 'test'
+  ...
+# Subtest: live refuses missing target and incompatible branch bindings without stdout or mutations
+ok 19 - live refuses missing target and incompatible branch bindings without stdout or mutations
+  ---
+  duration_ms: 1915.782793
+  type: 'test'
+  ...
+# Subtest: live PR lookup uses recorded base and ignores PRs to another base
+ok 20 - live PR lookup uses recorded base and ignores PRs to another base
+  ---
+  duration_ms: 676.766325
+  type: 'test'
+  ...
+# Subtest: live unstarted routing respects the selected staged and working declarations
+ok 21 - live unstarted routing respects the selected staged and working declarations
+  ---
+  duration_ms: 1064.192315
+  type: 'test'
+  ...
+# Subtest: live refuses branch config path conflicts
+ok 22 - live refuses branch config path conflicts
+  ---
+  duration_ms: 537.962787
+  type: 'test'
+  ...
+# Subtest: live renderer refuses incomplete status context
+ok 23 - live renderer refuses incomplete status context
+  ---
+  duration_ms: 53.851374
+  type: 'test'
+  ...
+# Subtest: renderer sorts archived records without changing captured inputs
+ok 24 - renderer sorts archived records without changing captured inputs
+  ---
+  duration_ms: 53.025482
+  type: 'test'
+  ...
+# Subtest: three explicit sources preserve stage zero additions, deletions and tracked edits
+ok 25 - three explicit sources preserve stage zero additions, deletions and tracked edits
+  ---
+  duration_ms: 276.689156
+  type: 'test'
+  ...
+# Subtest: config and inventory come from the same selected source
+ok 26 - config and inventory come from the same selected source
+  ---
+  duration_ms: 149.885824
+  type: 'test'
+  ...
+# Subtest: working includes ignored tracked and nonignored new inputs and honors deletions
+ok 27 - working includes ignored tracked and nonignored new inputs and honors deletions
+  ---
+  duration_ms: 111.180357
+  type: 'test'
+  ...
+# Subtest: unborn and detached HEAD have explicit behavior
+ok 28 - unborn and detached HEAD have explicit behavior
+  ---
+  duration_ms: 92.639574
+  type: 'test'
+  ...
+# Subtest: unmerged inputs refuse while output-only conflicts are exposed
+ok 29 - unmerged inputs refuse while output-only conflicts are exposed
+  ---
+  duration_ms: 111.882737
+  type: 'test'
+  ...
+# Subtest: recheck detects discovery, input, index, output and operation changes
+ok 30 - recheck detects discovery, input, index, output and operation changes
+  ---
+  duration_ms: 486.767823
+  type: 'test'
+  ...
+# Subtest: prospective overlay uses only authorized head edits and containment rejects escapes
+ok 31 - prospective overlay uses only authorized head edits and containment rejects escapes
+  ---
+  duration_ms: 59.432239
+  type: 'test'
+  ...
+# Subtest: unmerged config refuses and symlink inputs are not followed
+ok 32 - unmerged config refuses and symlink inputs are not followed
+  ---
+  duration_ms: 55.933621
+  type: 'test'
+  ...
+# Subtest: prospective canonical paths and bytewise ordering match committed snapshots
+ok 33 - prospective canonical paths and bytewise ordering match committed snapshots
+  ---
+  duration_ms: 142.559828
+  type: 'test'
+  ...
+# Subtest: ignored rule files are rechecked even when inventory is unchanged
+ok 34 - ignored rule files are rechecked even when inventory is unchanged
+  ---
+  duration_ms: 248.685559
+  type: 'test'
+  ...
+# Subtest: working discovery skips excluded trees but retains rules for tracked and visible plans
+ok 35 - working discovery skips excluded trees but retains rules for tracked and visible plans
+  ---
+  duration_ms: 387.938696
+  type: 'test'
+  ...
+# Subtest: snapshot branch validation follows Git and accepts repository root plans
+ok 36 - snapshot branch validation follows Git and accepts repository root plans
+  ---
+  duration_ms: 114.626009
+  type: 'test'
+  ...
+# Subtest: external exclude and ancestor rules invalidate working snapshots; symlink directories refuse
+ok 37 - external exclude and ancestor rules invalidate working snapshots; symlink directories refuse
+  ---
+  duration_ms: 193.721525
+  type: 'test'
+  ...
+# Subtest: owned output scratch is ignored exactly while newly discovered plans still invalidate the snapshot
+ok 38 - owned output scratch is ignored exactly while newly discovered plans still invalidate the snapshot
+  ---
+  duration_ms: 182.197434
+  type: 'test'
+  ...
+# Subtest: activity: local branch fields
+ok 39 - activity: local branch fields
+  ---
+  duration_ms: 826.572478
+  type: 'test'
+  ...
+# Subtest: activity: checkout is the worktree of the plan branch
+ok 40 - activity: checkout is the worktree of the plan branch
+  ---
+  duration_ms: 952.800502
+  type: 'test'
+  ...
+# Subtest: activity: no remote, not started, no throw
+ok 41 - activity: no remote, not started, no throw
+  ---
+  duration_ms: 897.444633
+  type: 'test'
+  ...
+# Subtest: activity: shallow clone does not throw
+ok 42 - activity: shallow clone does not throw
+  ---
+  duration_ms: 871.458306
+  type: 'test'
+  ...
+# Subtest: activity: ahead_of_remote and single fetch from a bare remote
+ok 43 - activity: ahead_of_remote and single fetch from a bare remote
+  ---
+  duration_ms: 2058.700556
+  type: 'test'
+  ...
+# Subtest: activity: remote-only plan is listed live; --no-fetch skips the fetch
+ok 44 - activity: remote-only plan is listed live; --no-fetch skips the fetch
+  ---
+  duration_ms: 2036.594757
+  type: 'test'
+  ...
+# Subtest: plan list without --live has no activity keys
+ok 45 - plan list without --live has no activity keys
+  ---
+  duration_ms: 1677.234796
+  type: 'test'
+  ...
+# Subtest: generate --print: stdout only; --live marks effective statuses; plain output unchanged
+not ok 46 - generate --print: stdout only; --live marks effective statuses; plain output unchanged
+  ---
+  duration_ms: 1123.4397
+  type: 'test'
+  location: '/workspace/overnight/review/packages/cli/dist/plan/activity.test.js:142:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /\| in_progress \|/. Input:
+    
+    ''
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: ''
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/overnight/review/packages/cli/dist/plan/activity.test.js:149:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: target precedence, conflicts, legacy ambiguity and unavailable targets preserve work
+ok 47 - target precedence, conflicts, legacy ambiguity and unavailable targets preserve work
+  ---
+  duration_ms: 134.653336
+  type: 'test'
+  ...
+# Subtest: local and remote tips reconcile, divergence refuses, remote-only remains readable
+ok 48 - local and remote tips reconcile, divergence refuses, remote-only remains readable
+  ---
+  duration_ms: 109.444535
+  type: 'test'
+  ...
+# Subtest: inputs and immutable execution bindings require valid branches and full commit objects
+ok 49 - inputs and immutable execution bindings require valid branches and full commit objects
+  ---
+  duration_ms: 214.319322
+  type: 'test'
+  ...
+# Subtest: plan metadata and configured team target are parsed and validated
+ok 50 - plan metadata and configured team target are parsed and validated
+  ---
+  duration_ms: 50.922585
+  type: 'test'
+  ...
+# Subtest: captured plan branches refuse divergence, conflicting identity and rewritten provenance
+ok 51 - captured plan branches refuse divergence, conflicting identity and rewritten provenance
+  ---
+  duration_ms: 201.509585
+  type: 'test'
+  ...
+# Subtest: started snapshots control binding and require evidence for legacy targets
+ok 52 - started snapshots control binding and require evidence for legacy targets
+  ---
+  duration_ms: 131.866644
+  type: 'test'
+  ...
+# Subtest: repository default fallback considers local and origin refs in main-first order
+ok 53 - repository default fallback considers local and origin refs in main-first order
+  ---
+  duration_ms: 91.847799
+  type: 'test'
+  ...
+# Subtest: reports recorded target, pending edit and unintegrated done
+ok 54 - reports recorded target, pending edit and unintegrated done
+  ---
+  duration_ms: 332.508083
+  type: 'test'
+  ...
+# Subtest: discovers local and remote-only branch missing from checkout
+ok 55 - discovers local and remote-only branch missing from checkout
+  ---
+  duration_ms: 1341.768298
+  type: 'test'
+  ...
+# Subtest: missing, divergent and legacy refs remain unverifiable
+ok 56 - missing, divergent and legacy refs remain unverifiable
+  ---
+  duration_ms: 243.508203
+  type: 'test'
+  ...
+# Subtest: divergent plan branches fail list and show instead of choosing an identity
+ok 57 - divergent plan branches fail list and show instead of choosing an identity
+  ---
+  duration_ms: 143.49392
+  type: 'test'
+  ...
+# Subtest: merged forge evidence must match exact head and target and be present in target history
+ok 58 - merged forge evidence must match exact head and target and be present in target history
+  ---
+  duration_ms: 320.317844
+  type: 'test'
+  ...
+# Subtest: remote-ahead content, activity and pending edits use the correct commits
+ok 59 - remote-ahead content, activity and pending edits use the correct commits
+  ---
+  duration_ms: 1464.847397
+  type: 'test'
+  ...
+# Subtest: invalid branch bindings and target records are refused
+ok 60 - invalid branch bindings and target records are refused
+  ---
+  duration_ms: 229.597447
+  type: 'test'
+  ...
+# Subtest: target committed plan and dependencies override dirty invoking state
+ok 61 - target committed plan and dependencies override dirty invoking state
+  ---
+  duration_ms: 637.264715
+  type: 'test'
+  ...
+# Subtest: conflicting target config paths are refused
+ok 62 - conflicting target config paths are refused
+  ---
+  duration_ms: 102.973532
+  type: 'test'
+  ...
+# Subtest: remote-ahead target drives unstarted activity and human uncertainty is explicit
+ok 63 - remote-ahead target drives unstarted activity and human uncertainty is explicit
+  ---
+  duration_ms: 344.458875
+  type: 'test'
+  ...
+# Subtest: human list renders pending destination and uncertainty
+ok 64 - human list renders pending destination and uncertainty
+  ---
+  duration_ms: 789.542991
+  type: 'test'
+  ...
+# Subtest: unavailable starting object keeps structurally validated provenance inspectable
+ok 65 - unavailable starting object keeps structurally validated provenance inspectable
+  ---
+  duration_ms: 112.376137
+  type: 'test'
+  ...
+# Subtest: malformed target done record cannot establish integration
+ok 66 - malformed target done record cannot establish integration
+  ---
+  duration_ms: 128.756197
+  type: 'test'
+  ...
+# Subtest: unstarted unavailable or divergent target retains committed intended context
+ok 67 - unstarted unavailable or divergent target retains committed intended context
+  ---
+  duration_ms: 143.438637
+  type: 'test'
+  ...
+# Subtest: show discovers unstarted configured target and uses authoritative comparison baseline
+ok 68 - show discovers unstarted configured target and uses authoritative comparison baseline
+  ---
+  duration_ms: 145.112418
+  type: 'test'
+  ...
+# Subtest: show derives review using target dependencies and PR base
+ok 69 - show derives review using target dependencies and PR base
+  ---
+  duration_ms: 206.092318
+  type: 'test'
+  ...
+# Subtest: unstarted comparison is taken from target over stale invoking hint
+ok 70 - unstarted comparison is taken from target over stale invoking hint
+  ---
+  duration_ms: 194.630784
+  type: 'test'
+  ...
+1..70
+# tests 70
+# suites 0
+# pass 69
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 24203.212677
