@@ -1,4 +1,6 @@
 import { test } from 'node:test';
+import nativeFs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -68,4 +70,22 @@ test('captured journal hardlinks and directory symlinks require recovery',async(
   if(symlink){fs.renameSync(dir,dir+'-original');fs.symlinkSync(dir+'-original',dir);}else fs.linkSync(file,path.join(f.cwd,'linked-record'));
   const result=await readContributions({requestId:e.requestId},f.context);assert.equal(result.ok,false);if(!result.ok)assert.equal(result.error.code,'RECOVERY_REQUIRED');
  }finally{f.close();}}
+});
+
+test('capture refuses a review parent replaced between traversal and open',async(t)=>{
+ const f=await setup();try{
+  const e=f.event('A');f.observations.set(e.eventId,e);
+  const parent=path.join(f.cwd,'reviews'),replacement=path.join(f.cwd,'replacement');
+  fs.mkdirSync(replacement);fs.writeFileSync(path.join(replacement,path.basename(e.action.evidencePath)),'Performed review');
+  const open=nativeFs.openSync;let swapped=false;
+  const mocked=t.mock.method(nativeFs,'openSync',((file:fs.PathLike,flags:fs.OpenMode,mode?:fs.Mode)=>{
+   if(!swapped&&String(file).startsWith('/proc/self/fd/')&&String(file).endsWith('/reviews')){
+    swapped=true;fs.renameSync(parent,parent+'-original');fs.symlinkSync(replacement,parent);
+   }
+   return open(file,flags,mode);
+  }) as typeof nativeFs.openSync);
+  syncBuiltinESMExports();
+  try{const result=await captureContribution(e,f.context);assert.ok(swapped);assert.equal(result.ok,false);assert.equal(f.calls(),0);assert.deepEqual(fs.readdirSync(replacement),[path.basename(e.action.evidencePath)]);}
+  finally{mocked.mock.restore();syncBuiltinESMExports();}
+ }finally{f.close();}
 });

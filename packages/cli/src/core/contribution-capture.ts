@@ -1,6 +1,6 @@
 /** Private, preparation-bound capture. Commit integration remains deliberately unavailable. */
-import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { readContainedFile, withContainedDirectory, type ContainedDirectory } from './contained-files.js';
 import { lazyValidator } from '../lazy-validator.js';
 import { loadConfig } from '../config.js';
 import { resolveSpecId } from '../spec/resolve.js';
@@ -13,17 +13,9 @@ const queryShape = lazyValidator(contributionQuerySchema);
 const ledger = new WeakMap<PreparedState, Map<string, {event: ContributionEvent; digest: string}>>();
 function fail(code: string, message: string): never { throw Object.assign(new Error(message), {code}); }
 function refusal(e: unknown): Result<never> { return {protocol:1,ok:false,error:{code:(e as any)?.code ?? 'INVALID_EVIDENCE',message:e instanceof Error?e.message:String(e),retryable:(e as any)?.code==='LOCKED',details:null},notices:[]}; }
-function regular(root: string, relative: string): Buffer {
- if (!relative || path.isAbsolute(relative) || relative.includes('\\') || relative.includes('\0') || relative.split('/').some(p=>!p||p==='.'||p==='..'||p==='.git')) fail('INVALID_EVIDENCE','Uncontained contribution evidence path');
- const parts=relative.split('/');let current=root;
- for(const [i,part] of parts.entries()) { current=path.join(current,part);const st=fs.lstatSync(current);if(st.isSymbolicLink() || (i===parts.length-1?!st.isFile()||st.nlink!==1:!st.isDirectory()))fail('INVALID_EVIDENCE','Nonregular contribution path'); }
- const fd=fs.openSync(current,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
- try { const st=fs.fstatSync(fd);if(!st.isFile()||st.nlink!==1)fail('INVALID_EVIDENCE','Nonregular contribution evidence');return fs.readFileSync(fd); } finally { fs.closeSync(fd); }
-}
-function directory(state: PreparedState, create: boolean): string {
- let current=checkoutIdentity(state.request.checkout).commonDir;
- for(const part of ['specplane-runtime','contributions',state.request.requestId]) { current=path.join(current,part);if(create){try{fs.mkdirSync(current,{mode:0o700});}catch(e){if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;}}const st=fs.lstatSync(current);if(!st.isDirectory()||st.isSymbolicLink())fail('RECOVERY_REQUIRED','Nonregular contribution journal directory'); }
- return current;
+const regular = readContainedFile;
+function directory<T>(state: PreparedState, create: boolean, action: (dir: ContainedDirectory) => T): T {
+ return withContainedDirectory(checkoutIdentity(state.request.checkout).commonDir, `specplane-runtime/contributions/${state.request.requestId}`, create, action);
 }
 function checkAction(state: PreparedState, event: ContributionEvent): void {
  validateContribution(event,()=>true);
@@ -41,14 +33,16 @@ function checkAction(state: PreparedState, event: ContributionEvent): void {
 function entries(state: PreparedState): ContributionEvent[] {
  const map=ledger.get(state)??new Map();
  try {
-  let dir:string;
-  try { dir=directory(state,false); } catch(e) {
+  try {
+   directory(state,false,dir=>{
+    for(const [id,record] of map)if(sha256(dir.read(`${id}.json`))!==record.digest)fail('RECOVERY_REQUIRED','Contribution journal changed or unavailable');
+    const files=dir.list(),expected=[...map.keys()].map(id=>`${id}.json`).sort();
+    if(canonical(files)!==canonical(expected))fail('RECOVERY_REQUIRED','Unrecognized contribution journal records require reconciliation');
+   });
+  } catch(e) {
    if((e as NodeJS.ErrnoException).code==='ENOENT'&&!map.size)return [];
    throw e;
   }
-  for(const [id,record] of map)if(sha256(regular(dir,`${id}.json`))!==record.digest)fail('RECOVERY_REQUIRED','Contribution journal changed or unavailable');
-  const files=fs.readdirSync(dir).sort(),expected=[...map.keys()].map(id=>`${id}.json`).sort();
-  if(canonical(files)!==canonical(expected))fail('RECOVERY_REQUIRED','Unrecognized contribution journal records require reconciliation');
   return [...map.values()].map(r=>structuredClone(r.event)).sort((a,b)=>a.eventId.localeCompare(b.eventId));
  } catch(e) { fail('RECOVERY_REQUIRED',`Contribution capture requires reconciliation: ${e instanceof Error?e.message:String(e)}`); }
 }
@@ -66,9 +60,9 @@ export async function captureContribution(event: ContributionEvent, context: Cor
    const captured=observed===null?null:structuredClone(observed);
    if(!captured||canonical(captured)!==canonical(event))fail('INVALID_EVIDENCE','No matching immutable host action observation');
    await assertPrepared(event.requestId,context);checkAction(state,captured);entries(state);
-   const dir=directory(state,true),content=canonical(captured),file=path.join(dir,`${captured.eventId}.json`);
-   let fd:number;try{fd=fs.openSync(file,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_EXCL|fs.constants.O_NOFOLLOW,0o600);}catch(e){if((e as NodeJS.ErrnoException).code==='EEXIST')fail('RECOVERY_REQUIRED','Unowned existing contribution record requires reconciliation');throw e;}
-   try{fs.writeFileSync(fd,content);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
+   const content=canonical(captured);
+   try { directory(state,true,dir=>dir.writeExclusive(`${captured.eventId}.json`,content)); }
+   catch(e){if((e as NodeJS.ErrnoException).code==='EEXIST')fail('RECOVERY_REQUIRED','Unowned existing contribution record requires reconciliation');throw e;}
    const map=ledger.get(state)??new Map();map.set(captured.eventId,{event:structuredClone(captured),digest:sha256(content)});ledger.set(state,map);
    return {protocol:1,ok:true,value:{event:structuredClone(captured),status:'pending',recorded:false},notices:[]};
   });
