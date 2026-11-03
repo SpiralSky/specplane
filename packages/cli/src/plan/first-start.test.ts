@@ -16,7 +16,7 @@ function fixture(t: import("node:test").TestContext, configText = "") {
   t.after(() => { fs.rmSync(path.join(os.tmpdir(), ".worktrees", path.basename(cwd)), { recursive: true, force: true }); fs.rmSync(cwd, { recursive: true, force: true }); });
   const git = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 5000 }).trim();
   const put = (name: string, text: string) => { const file = path.join(cwd, name); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
-  git("init", "-b", "main"); git("config", "user.name", "Test"); git("config", "user.email", "test@example.com");
+  git("init", "-b", "main"); git("config", "core.autocrlf", "false"); git("config", "user.name", "Test"); git("config", "user.email", "test@example.com");
   put(".specplane/config.yaml", configText);
   put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Example\nstatus: ready\nspecs: [feature/example]\n---\n`);
   put("docs/specifications/features/example.md", "---\nid: feature/example\ntitle: Example\nauthor: user\nstatus: approved\n---\n");

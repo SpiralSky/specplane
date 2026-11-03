@@ -16,7 +16,7 @@ function repo() {
  const git = (...args: string[]) => execFileSync('git', args, {cwd: root, encoding:'utf8', stdio:['ignore','pipe','pipe']}).trim();
  const put = (file: string, text: string) => { const f=path.join(root,file); fs.mkdirSync(path.dirname(f),{recursive:true}); fs.writeFileSync(f,text); };
  const sp = (...args: string[]) => spawnSync(process.execPath,[cli,...args],{cwd:root,encoding:'utf8',timeout:20000});
- git('init','-q'); git('config','user.name','Test'); git('config','user.email','test@example.com');
+ git('init','-q','-b','master'); git('config','core.autocrlf','false'); git('config','user.name','Test'); git('config','user.email','test@example.com');
  put(`plans/${id}/PLAN.md`,plan('head')); git('add','-A'); git('commit','-qm','base');
  return {root,git,put,sp};
 }

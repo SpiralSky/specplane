@@ -21,3 +21,6 @@ jobs:
 
       - name: Validate
         run: specplane validate
+
+      - name: Check documentation for personal paths
+        run: python3 scripts/check-personal-paths.py

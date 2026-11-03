@@ -1,127 +1,52 @@
-# Plan: remove machine-specific local paths from published Git history
+# Remove machine-specific local paths from published Git history
 
-Status: proposed maintenance checklist; execution not started.
+Status: **approved branch-history cleanup published and verified on 2026-11-03**. No claim is made that every external clone, fork or hosting cache has been erased.
 
-This file records the requested remediation work. It is not a managed Specplane
-implementation plan, does not grant lifecycle approval, and does not authorize a
-history rewrite, force-push, branch deletion or repository visibility change.
+This is the maintenance record, not a managed Specplane implementation plan. The user approved the exact three remote replacements before publication. No plan/spec lifecycle states were changed.
 
-## Objective
+## Scope and result
 
-Replace identifying, machine-specific absolute paths in published repository
-content with portable references, including affected historical versions.
-Preserve code behavior, useful diagnostic context and unrelated local work.
-Prevent future work records from publishing machine-specific paths.
-
-## Known findings and scope
-
-The audit of the push ending at `3a5b997` found identifying local paths in:
+The expanded inventory inspected five advertised origin branches: 304 commits and 1,564 distinct historical file blobs. Identifying home paths occurred in three blobs, in:
 
 - `docs/work-records/2026-11-01-conductor-disposition-review.json`
 - `docs/work-records/2026-11-01-implementation-proposal-review.json`
 - `docs/work-records/2026-11-02-core-foundation-bootstrap.json`
 
-An architecture document also matched a generic home-path pattern; distinguish
-portable examples from real identifying paths before deciding what to replace.
-The initial scan covered 221 new file blobs in the 31-commit push, not the entire
-repository history. Expand the inventory before determining rewrite scope.
+Those paths now use portable workspace/worktree placeholders. The generic home-path example in `architecture/repository-layout` was retained. Commit emails are normal attribution and were explicitly excluded from cleanup by the user; the Gmail address was found only in commit metadata, not tracked file contents in the inspected history. Generic cloud paths, legitimate test paths and useful review evidence were not indiscriminately deleted.
 
-Do not repeat the original identifying paths in this plan, public reports,
-replacement examples, commit messages or test fixtures. Keep the exact-match
-inventory and replacement map outside tracked content in a protected location.
+The initial bounded credential/private-network pattern scan found no matches. This is not an exhaustive secret audit. Exact identifying paths and the replacement map are stored only in the private backup, never in this record or tracked fixtures.
 
-Personal email addresses in commit metadata were a separate finding, already
-present in earlier history. Removing email addresses, internal development notes
-or any other category of information is outside this plan unless separately
-requested. No credential rotation is implied by the path-only finding.
+| Remote branch | Previous tip | Approved rewritten tip |
+| --- | --- | --- |
+| `dot/codex-integration-20261101` | `3a5b997` | `958973c` |
+| `overnight/specplane-20261102T144630Z` | `ae326ef` | `2175faf` |
+| `snapshot/specplane-overnight-inputs-20261102` | `e12fd62` | `024562c` |
 
-## 1. Inventory and coordinate
+`main` and `dot/complete-framework-20261031` were unchanged. Preparation commits may subsequently advance the overnight branch normally; the table records the exact approved rewrite transaction.
 
-- [ ] Fetch and enumerate relevant remote branches, tags and other accessible
-  published references; record exact remote tips without changing them.
-- [ ] Inspect all reachable historical file versions, filenames, commit/tag
-  messages and relevant metadata for identifying machine paths. Do not limit
-  the search to current files or the initial pushed range.
-- [ ] Classify matches as identifying paths, portable examples or intentional
-  runtime/test paths. Specify replacements for identifying content only.
-- [ ] Identify active local/cloud workers, open pull requests, clones and
-  worktrees that could reintroduce old history. Arrange a maintenance window
-  before executing the rewrite; do not interrupt ongoing work without authority.
-- [ ] Prepare a concrete list of affected refs and proposed replacements for
-  human review. Do not silently broaden scope to email or other information.
+## Verification and preservation
 
-## 2. Preserve recoverable state
+- Original refs/history were saved in a verified complete Git bundle. Uncommitted files were backed up separately. Backups are outside the repository, owner-readable only, at `~/.local/share/specplane/history-backups/2026-11-03/`.
+- Rehearsal used an isolated mirror and `git filter-repo`, preserving commit messages and emails. Every one of the 126 changed commit trees was compared against its original: only the approved literal path substitutions occurred, and affected JSON parsed successfully.
+- Embedded old commit references were inventoried in 73 current files. These are retained as historical evidence, with the private commit map identifying their rewritten equivalents. No immutable provenance was silently re-authored; current dependency-pin checks passed. The scan found no changed-ID references in current specification files; the plan-side match was the archived core HANDOFF.
+- An open-PR search returned no open pull requests. Ref leases protect against concurrent advancement; no claim is made about unknown external workers or clones.
+- The three replacements were pushed atomically with explicit expected-tip leases. No other refs were deleted or updated.
+- A fresh remote mirror verified all five advertised tips and scanned all 3,779 reachable objects for the approved identifying patterns: no matches remained.
+- The active checkout moved to the rewritten overnight baseline. All 13 preparation file hashes matched after migration. Its temporary stash was dropped only after verification.
+- Existing plan worktrees and the old local integration branch were retained. They contain old ancestry and must not be merged or pushed back into cleaned history. Reapply any genuinely unique work as reviewed patches on a clean base.
 
-- [ ] Save a verified backup of original refs and objects outside the repository
-  and outside any public artifact location. This backup retains the original
-  information and must remain private.
-- [ ] Separately preserve uncommitted changes, untracked work records and the
-  target-lifecycle worktree's partial implementation with hashes and base refs.
-- [ ] Preserve the old conductor branch/worktree and other existing checkouts;
-  do not delete them as a side effect of cleanup.
-- [ ] Perform the rewrite rehearsal in an isolated clone. Never begin with the
-  dirty working checkout or assume a Git bundle includes uncommitted files.
+Full machine-readable verification: `2026-11-03-path-cleanup-result.json` in this directory. Original IDs inside historical reports refer to pre-rewrite history, not to newly verified executions at rewritten IDs.
 
-## 3. Rehearse redaction and reconcile references
+## Recurrence prevention
 
-- [ ] Replace repository file locations with repository-relative paths. Identify
-  checkouts by plan ID and branch; use `<workspace>` or `<worktree>` placeholders
-  where an absolute-path diagnostic example is necessary.
-- [ ] Use a reviewed Git history-rewriting tool in the isolated clone to apply
-  the approved replacements across every affected published ref.
-- [ ] Preserve an old-to-new commit mapping privately. Inspect embedded commit
-  references, spec dependency pins, contribution origins/corrections and
-  execution bindings affected by rewritten objects. Preserve historical truth;
-  do not manufacture review evidence or silently replace immutable provenance.
-- [ ] Determine the supported reconciliation for each affected reference before
-  publication. If any cannot be preserved or truthfully reconciled, report the
-  exact limitation and obtain a decision rather than bypassing it.
-- [ ] Verify that only approved path redactions and necessary, separately
-  justified reference reconciliation changed content. Validate JSON/Markdown,
-  repository consistency and relevant tests when executable content is affected.
-- [ ] Scan all rewritten reachable history again for the approved identifying
-  patterns, including intermediate commits and tags, not merely the final tree.
+`scripts/check-personal-paths.py` scans tracked documentation for identifying Unix/macOS/Windows home paths without echoing the private path. It permits explicit generic example usernames and portable placeholders. CI invokes it. Self-tests and an isolated Git-repository check verified rejection of a synthetic identifying path and acceptance of generic examples and emails. No real identifying path was added to the fixture.
 
-## 4. Approve and publish the reviewed rewrite
+Runtime state belongs in local private storage. Shared handoffs use repository-relative paths or portable placeholders. Commit email metadata remains permitted; unnecessary personal email in documentation should be reviewed separately.
 
-- [ ] Present the replacement summary, ref list, expected remote tips, rewritten
-  tips, validation results, provenance implications and rollback procedure.
-- [ ] Obtain explicit authorization for the exact history rewrite and required
-  non-fast-forward remote updates. This checklist is not that authorization.
-- [ ] Recheck remote tips immediately before publication. If another writer has
-  advanced a ref, stop that update and reconcile; do not overwrite newer work.
-- [ ] Update only the approved refs with lease protection appropriate to the
-  reviewed state. Do not use an indiscriminate mirror push or delete unrelated
-  refs. Report partial publication accurately and preserve recovery evidence.
-- [ ] Verify the published refs and scan a fresh clone of the rewritten history.
+## Remaining external-copy limits
 
-## 5. Reconcile retained copies and prevent recurrence
+The remote branch history and active checkout are clean within the verified scope. Old local retained branches, private backups, other clones, forks, cached commit views and inaccessible pull-request references may still retain original objects. Do not delete private recovery material or retained worktrees incidentally.
 
-- [ ] Coordinate clone/worktree migration so old commits are not merged or
-  pushed back. Reapply preserved local work against the rewritten bases with
-  reviewed patches; avoid restoring the original ancestry unintentionally.
-- [ ] Identify pull-request refs, cached views, forks and external clones that
-  may retain originals. Check the hosting provider's current cleanup procedure
-  and report what can and cannot be removed. A branch rewrite alone is not a
-  guarantee that every external copy has disappeared.
-- [ ] Keep machine-specific runtime state in untracked local storage. Use
-  portable paths in shared handoffs and work records.
-- [ ] Add a narrowly scoped check for identifying home-directory paths in
-  documentation/work-record changes, with explicit treatment of generic
-  examples. Confirm it detects a synthetic identifying path without introducing
-  the real path into a tracked fixture.
-- [ ] Record final verification, remaining exposure and backup retention policy.
-  Do not destroy private backups or retained worktrees without explicit approval.
+GitHub's [sensitive-data removal guidance](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository) distinguishes ref rewriting from removal of cached views and other copies. GitHub may decline non-sensitive-data cleanup. No support request was sent. Coordinating other clones or requesting cache removal remains optional follow-up requiring the relevant owner/provider; it does not block implementation on the cleaned review branch.
 
-## Completion criteria
-
-- Approved identifying paths are absent from all rewritten published history
-  within the agreed ref scope, verified from a fresh clone.
-- Repository behavior and required reference/provenance integrity are preserved,
-  or every unresolved limitation has been explicitly accepted and documented.
-- Unrelated work is preserved and active checkouts have a migration procedure.
-- Remaining copies outside the rewritten refs are disclosed accurately.
-- Shared documentation uses portable references and a recurrence check exists.
-
-Until these criteria are met, report the work as pending or partially remediated;
-do not equate deleting paths from the latest files with removing them from history.
+No further force-push is authorized by this record. Any new rewrite needs its own concrete review and authorization.

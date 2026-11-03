@@ -1,0 +1,104 @@
+{
+  "date": "2026-11-03",
+  "kind": "preimplementation maintenance; no roadmap step started",
+  "baseline_before_rewrite": "ae326ef",
+  "rewritten_baseline": "2175faf",
+  "next_step": {
+    "plan": "2026-11-01-workflow-recording",
+    "step": 1,
+    "title": "Preparation and state binding",
+    "active_hours": [
+      0.5,
+      1.25
+    ],
+    "risks": [
+      "Non-plan workflow scope must not be silently omitted.",
+      "Package compatibility is asynchronous; preserve typed refusal paths.",
+      "Missing test mappings remain uncertain, not assumed inspection-only."
+    ]
+  },
+  "execution_policy": "direct session, no subagents; exactly one original roadmap step per handoff",
+  "checks": {
+    "build": "passed",
+    "full_cli_suite": {
+      "passed": 593,
+      "failed": 0,
+      "skipped": 0,
+      "git_settings": "normal user settings, without environment overrides",
+      "command": "npm run build; node --test --test-reporter=tap --test-timeout=300000 dist/**/*.test.js (packages/cli)"
+    },
+    "hooks": {
+      "passed": 74,
+      "failed": 0
+    },
+    "hook_sync": "passed",
+    "privacy_guard": "self-test and isolated Git-repository rejection/acceptance checks passed",
+    "validation": {
+      "errors": 0,
+      "warnings": 89,
+      "after_approved_spec_commit": true
+    },
+    "package": "prior same-runtime local pack verified CLI/core/types artifacts and no test JS; no publication",
+    "dependency_pins": "All pins current after approved spec commit"
+  },
+  "approved_decisions": [
+    "Three exact path-only remote replacements published with atomic push and expected-tip leases.",
+    "Five exact contract clarifications approved and applied; formal approval states unchanged.",
+    "Commit emails remain unchanged."
+  ],
+  "source_changes": [
+    "Test fixtures explicitly choose their branch and disable newline normalization inside disposable repos.",
+    "Installed Claude generation hook matches the existing plan-index template.",
+    "Documentation personal-path guard added to CI."
+  ],
+  "remaining_implementation_findings": [
+    {
+      "finding": "Implicit conductor selection",
+      "plan": "2026-11-01-manual-lifecycle",
+      "step": 3
+    },
+    {
+      "finding": "Installer dangling symlink containment",
+      "plan": "2026-11-01-extension-packaging",
+      "step": 2
+    },
+    {
+      "finding": "Co-installed harness guidance selection",
+      "plan": "2026-11-01-extension-packaging",
+      "step": 3
+    },
+    {
+      "finding": "Incomplete Codex consumer procedure",
+      "plan": "2026-11-01-codex-delivery",
+      "step": 2
+    },
+    {
+      "finding": "Generated standing instructions behind corrected contract",
+      "plans": [
+        "2026-11-02-product-docs/3",
+        "2026-11-01-extension-packaging/3"
+      ]
+    }
+  ],
+  "limitations": [
+    "No live host certification or package publication.",
+    "Later cloud-only workflow/manual prototype not available in this clone.",
+    "Old local branches/worktrees retain original ancestry; do not republish or merge it.",
+    "Historical ledger/matrix and plan progress retained without fabricated completion records."
+  ],
+  "evidence": {
+    "preimplementation-full-tests.tap": {
+      "sha256": "6efc5a8652dd45154695d21e0187efc579cbc3ef02b507092ae3240711579db0",
+      "storage": "private session evidence, not core-issued receipts"
+    },
+    "preimplementation-hooks.txt": {
+      "sha256": "1c9b4ef9229d0f4855c165121542537299665c2b05999aba651efa495832b205",
+      "storage": "private session evidence, not core-issued receipts"
+    },
+    "final-validation.json": {
+      "sha256": "b2939174936746a7014cdefaeee9a371454c11d7821a71caddfb2b6c94376a21",
+      "storage": "private session evidence, not core-issued receipts"
+    }
+  },
+  "contract_commit": "16301f7"
+}

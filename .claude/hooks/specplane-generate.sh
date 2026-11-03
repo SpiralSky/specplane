@@ -8,6 +8,6 @@ command -v specplane >/dev/null 2>&1 || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 file=$(jq -r '.tool_input.file_path // empty' 2>/dev/null) || exit 0
 case "$file" in
-  */PLAN.md) specplane generate >&2 || true ;;
+  */PLAN.md) specplane plan index --source working >&2 || true ;;
 esac
 exit 0

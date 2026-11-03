@@ -8,7 +8,7 @@ import { capturePlanSnapshot as capture, recheckPlanSnapshot as recheck, prospec
 
 function repo(): string {
   const r = fs.mkdtempSync(path.join(os.tmpdir(), 'snapshot-'));
-  git(r, 'init', '-q'); git(r, 'config', 'user.email', 'test@example.com'); git(r, 'config', 'user.name', 'Test'); return r;
+  git(r, 'init', '-q', '-b', 'master'); git(r, 'config', 'core.autocrlf', 'false'); git(r, 'config', 'user.email', 'test@example.com'); git(r, 'config', 'user.name', 'Test'); return r;
 }
 function git(r: string, ...args: string[]): string { return execFileSync('git', args, { cwd: r, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 }); }
 function put(r: string, p: string, text: string): void { fs.mkdirSync(path.dirname(path.join(r, p)), { recursive: true }); fs.writeFileSync(path.join(r, p), text); }
