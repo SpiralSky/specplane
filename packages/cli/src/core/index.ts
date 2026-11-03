@@ -41,11 +41,11 @@ export function executeOperation(request: MechanicalRequest, context: CoreContex
   }
 }
 export { prepareWorkflow } from './workflow-preparation.js';
-export const executeWorkflowTest = (_request: WorkflowTestRequest, _context: CoreContext): Result<never> => checked('executeWorkflowTest', validate.test(_request));
-export const validateWorkflowResult = (_prepared: WorkflowRequest, _result: WorkflowResult, _context: CoreContext): Result<never> => checked('validateWorkflowResult', validate.request(_prepared) && validate.result(_result));
-export const recordWorkflow = (_proposal: RecordingProposal, _context: CoreContext): Result<never> => checked('recordWorkflow', validate.proposal(_proposal));
-export const prepareConfirmation = (_operation: MechanicalRequest, _context: CoreContext): Result<never> => checked('prepareConfirmation', validate.operation(_operation));
-export const confirmOperation = (_challenge: ConfirmationChallenge, _response: ConfirmationResponse, _context: CoreContext): Result<never> => checked('confirmOperation', validate.challenge(_challenge) && validate.response(_response));
+export { executeWorkflowTest } from './workflow-execution.js';
+export { validateWorkflowResult, recordWorkflow } from './workflow-recording.js';
+export type { WorkflowRecordingReceipt } from './workflow-recording.js';
+export { prepareConfirmedOperation as prepareConfirmation, confirmConfirmedOperation as confirmOperation } from './confirmed-operations.js';
+export type { ConfirmedOperationReceipt } from './confirmed-operations.js';
 export const cancelWorkflow = (_requestId: string, _context: CoreContext): Result<never> => unavailable('cancelWorkflow');
 export const inspectWorkflow = (_requestId: string, _context: CoreContext): Result<never> => unavailable('inspectWorkflow');
 export const runConductor = (_request: ConductorRequest, _context: CoreContext & { adapter: SessionAdapter }): Result<never> => checked('runConductor', validate.conductor(_request) && !!_context?.adapter && ['probe', 'launch', 'observe', 'resume', 'recovery', 'cancel'].every(key => typeof (_context.adapter as unknown as Record<string, unknown>)[key] === 'function') && typeof _context.adapter.name === 'string');

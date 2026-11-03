@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { type Harness, Report, skillDirsIn, templatesDir } from "./index.js";
+import { assertInstallDestination, InstallationPathError, writeInstallFile } from "./containment.js";
 
 /** Workflows line for the standing instructions when the Claude harness is installed. */
 export const CLAUDE_WORKFLOWS_LINE =
@@ -104,6 +105,7 @@ function scriptCommands(group: unknown): string[] {
 
 function installSettings(root: string, report: Report, tplDir: string): void {
   const abs = path.join(root, ".claude", "settings.json");
+  assertInstallDestination(root, abs);
   const template = JSON.parse(fs.readFileSync(path.join(tplDir, "settings.json"), "utf8")) as Json;
   const exists = fs.existsSync(abs);
   const res = mergeSettings(exists ? fs.readFileSync(abs, "utf8") : null, template);
@@ -113,11 +115,10 @@ function installSettings(root: string, report: Report, tplDir: string): void {
   }
   for (const n of res.notes) report.add(n);
   if (!exists) {
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
-    fs.writeFileSync(abs, res.content!);
+    writeInstallFile(root, abs, res.content!);
     report.created(abs);
   } else if (res.content !== null) {
-    fs.writeFileSync(abs, res.content);
+    writeInstallFile(root, abs, res.content);
     report.add(`Updated .claude/settings.json (${res.added} entries added)`);
   } else {
     report.skipped(abs, "already registered");
@@ -130,22 +131,30 @@ export const claude: Harness = {
   workflowsLine: CLAUDE_WORKFLOWS_LINE,
   install(root, report) {
     const tplDir = templatesDir("claude");
-    for (const rel of listFiles(tplDir)) {
+    const files = listFiles(tplDir);
+    // Refuse the complete harness before any writes if any destination is unsafe.
+    try { for (const rel of files) assertInstallDestination(root, path.join(root, ".claude", rel)); }
+    catch (error) {
+      if (!(error instanceof InstallationPathError)) throw error;
+      report.add(`Skipped Claude integration (${error.message}; no harness files written)`);
+      return;
+    }
+    for (const rel of files) {
       if (rel === "settings.json") continue;
       const dest = path.join(root, ".claude", rel);
       const src = fs.readFileSync(path.join(tplDir, rel));
       const exec = rel.startsWith("hooks/") && rel.endsWith(".sh");
+      assertInstallDestination(root, dest);
       if (!fs.existsSync(dest)) {
-        fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.writeFileSync(dest, src);
+        writeInstallFile(root, dest, src);
         report.created(dest);
       } else if (!fs.readFileSync(dest).equals(src)) {
-        fs.writeFileSync(dest, src);
-        report.updated(dest);
+        report.skipped(dest, "customized or unrecognized file preserved; compare with bundled Claude template before updating");
+        continue;
       } else {
         report.skipped(dest, "up to date");
       }
-      if (exec) fs.chmodSync(dest, 0o755);
+      if (exec) { assertInstallDestination(root, dest); fs.chmodSync(dest, 0o755); }
     }
     installSettings(root, report, tplDir);
     report.add("Claude Code integration files written to `.claude/`.");

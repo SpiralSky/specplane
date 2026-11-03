@@ -1,0 +1,229 @@
+{
+  "date": "2026-11-03",
+  "kind": "direct-session review-branch implementation; not a managed step receipt",
+  "baseline": "01a8f999acbde93f429099ce02705e2acb66adbe",
+  "started_utc": "2026-11-03T06:08:52.651834+00:00",
+  "status": "implemented, directly reviewed and verified",
+  "formal_lifecycle": "unchanged; source plan progress files remain CLI-owned",
+  "streams": {
+    "recording": {
+      "scope": "execution receipts and exact-set recording",
+      "status": "receipts reviewed and passing; exact-set integration test fixture repaired; structured plan recording underway"
+    },
+    "confirmation": {
+      "scope": "trusted one-use primitive and approval operation wiring",
+      "status": "primitive and single-target approval adapters passing; public API import check pending broader run"
+    },
+    "packaging": {
+      "scope": "contained writes and preservation of customized assets",
+      "status": "focused tests passed; full migration transaction pending"
+    }
+  },
+  "verification": {
+    "build": "passed on final integration source",
+    "first_main_focused_suite": {
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0
+    },
+    "confirmation_primitive": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    "execution_receipts": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 9.45,
+      "scope": "final receipt implementation before validation/recording integration"
+    },
+    "confirmation_operations_and_cli": {
+      "passed": 66,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 35.16,
+      "scope": "production source; adapter test public-export import changed afterward"
+    },
+    "recorder_first_attempt": {
+      "passed": 41,
+      "failed": 21,
+      "cause": "legacy-target ambiguity in migrated test fixture; fixture now supplies explicit execution binding",
+      "sandbox_failure": false
+    },
+    "public_approval_and_index": {
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
+    "recorder_after_fixture_repair": {
+      "passed": 20,
+      "failed": 1,
+      "cause": "already-staged deletion missing from copied private index; fixed by initializing private index from HEAD"
+    },
+    "recorder_focused": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 36.71,
+      "scope": "before final literal-path staging and independent-review hook hardening"
+    },
+    "pipeline_focused": {
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "before final publication binding, gap validation, and policy refinements"
+    },
+    "repository_validation": {
+      "errors": 0,
+      "warnings": 89
+    },
+    "full_regression": {
+      "status": "passed",
+      "test_file_concurrency": 4,
+      "log": "local temporary evidence; not core-issued receipts",
+      "sandbox_attempt": "stalled after one file-level result with no individual test counts; stopped with exit 130 and rerun outside sandbox",
+      "outside_sandbox": true,
+      "passed": 671,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "runner_seconds": 154.97078059
+    },
+    "failed_development_attempts": [
+      "Initial build called from repository root had no package.json; corrected working directory.",
+      "Initial integration typecheck found in-progress TypeScript narrowing errors; repaired.",
+      "Earlier receipt focused test found empty Node describe miscounting; repaired and final receipt suite passed."
+    ]
+  },
+  "review_repairs": [
+    "Receipt wire paths made relative to request evidence directory.",
+    "Execution state digest includes HEAD.",
+    "Returned artifacts copied to avoid mutating private ledger.",
+    "Skipped parent TAP suites cannot expose passing descendant suites.",
+    "JUnit contradictory outcomes and invalid hierarchy remain diagnostic.",
+    "Empty Node suites use reporter suite diagnostics and count zero cases.",
+    "TAP ordinal mismatches remain diagnostic.",
+    "Generated recorder progress files reject symlinks and hardlinks.",
+    "Recorder preserves original index through a private commit index and checks lock ownership.",
+    "Bound publication destination during validation and recheck before commit/push; require one explicit same-plan push destination.",
+    "Validate gap syntax and newly introduced gap IDs.",
+    "Rollback revalidates generated-file ancestors before restoring bytes.",
+    "Postcommit verification checks branch, commit identity and exact required trailers before publication.",
+    "Stage exact paths with literal pathspecs.",
+    "Bind and verify actual commit trailers with case-insensitive duplicate detection; branch changes during hooks require recovery."
+  ],
+  "limitations": [
+    "No live host certification or model/session provenance claims.",
+    "Non-plan result recording, trusted contribution capture, context expansion without re-preparation, and cross-process recovery remain unsupported.",
+    "Successful structured recording retains its preparation lease until the trusted host acknowledges stopped workers; public cancellation/inspection lifecycle wiring remains pending.",
+    "Overlay approval requires exact pin preview; multi-target and finish/abandon/finalized-assist decisions remain unsupported.",
+    "Manual spec/ADR approval CLI coordination does not yet acquire shared writer leases; core adapters do.",
+    "Packaging locking, ownership manifests, recovery journal, atomic activation and hostile concurrent parent-directory replacement remain pending.",
+    "Execution adapter must enforce permissions, launch without shell, capture full output and settle only after process-tree stop; real cancellation fixtures verify direct-child stop.",
+    "Parser support is a conservative subset of Node TAP v13 and JUnit XML; unsupported report shapes remain diagnostic.",
+    "Public plan-step recording conservatively refuses spec/ADR/plan-directory edits except selected spec-gaps; use dedicated reviewed operations.",
+    "Source plan lifecycle statuses and historical acceptance matrices remain unchanged."
+  ],
+  "timing": {
+    "active_generation_time": null,
+    "approval_wait": "not isolated; one outside-sandbox regression approval request",
+    "worker_times_overlap": true,
+    "elapsed_minutes": 23.12
+  },
+  "remaining_original_steps": 17,
+  "checkpoint_utc": "2026-11-03T06:20:34.010790+00:00",
+  "scope_completed": [
+    "Workflow recording step 02: private execution receipts, TAP/JUnit actual-case validation, stale/forged/failed/skipped evidence guards.",
+    "Workflow recording step 03: manual exact-set input, private-index atomic recording, exact failure restoration and recovery refusal, migrated CLI/manual procedures.",
+    "Manual lifecycle step 01: trusted one-use revision-bound confirmation primitive."
+  ],
+  "scope_partial": [
+    "Workflow recording step 04: public plan-step validation/recording and same-process commit/publication retries; remaining scope listed below.",
+    "Manual lifecycle step 02: single-target spec approval/reopening, plan approval and ADR acceptance adapters.",
+    "Packaging step 02: containment preflight/rechecks and preservation of customized/unrecognized installed files."
+  ],
+  "decisions_and_assumptions": [
+    {
+      "id": "WR-INTEGRATION-01",
+      "kind": "conservative supported subset",
+      "status": "remaining scope",
+      "resolution": "Reject non-plan mutations, uncaptured provenance and unsupported confirmation variants rather than infer authorization."
+    },
+    {
+      "id": "WR-INTEGRATION-02",
+      "kind": "recovery boundary",
+      "status": "remaining scope",
+      "resolution": "Private in-process state authorizes receipt/record retries; a new process must reconcile rather than trust journal JSON alone."
+    },
+    {
+      "id": "WR-INTEGRATION-03",
+      "kind": "host boundary",
+      "status": "adapter requirement",
+      "resolution": "Execution/interaction ports are trusted host capabilities; tests do not certify native host permissions, human provenance or process-tree behavior."
+    }
+  ],
+  "reviewed_source_sha256": {
+    ".claude/skills/plan-step/SKILL.md": "c4ba0113b2afdad231bd6cfb42951e171651d007bb25b1936a9145d76bedefa6",
+    "harnesses/claude/templates/skills/plan-step/SKILL.md": "c4ba0113b2afdad231bd6cfb42951e171651d007bb25b1936a9145d76bedefa6",
+    "harnesses/codex/templates/skills/specplane/SKILL.md": "1c955e3a45837e7cc6e3e06bd79da3b5a6f710855c85b3241753118e82fa1b90",
+    "packages/cli/src/cli.ts": "5acc3b357f80f9339ca1715ce4f1c3305992b8e60c6a03b9874a72bb1d25d974",
+    "packages/cli/src/commands/decision.ts": "8b589111c11f8e8c3074b163960efbd7d2030d76afa6260be9ee13cd1ebd218f",
+    "packages/cli/src/commands/init.ts": "aac9bfacb701db2412db3f7f260eb0735608fbf8982b9d39377330453e012b4e",
+    "packages/cli/src/commands/plan-approve.ts": "6d3f1fbd74fa8a53a4add81c986e7df0898a9c08b5b78d01ff5b1fde258b0bc0",
+    "packages/cli/src/commands/spec-approve.ts": "17617dd7fd599ef1b4aa6ad2462d45ddc677b47487db569ba8e59f9613f43a57",
+    "packages/cli/src/core/confirmation.test.ts": "db5a614a8b91bdd99fd0d6ffccfdbbb4872183d140a1a764a328227ad6e2a29d",
+    "packages/cli/src/core/confirmation.ts": "9774261847aa806cd499a49c0cfcb1a01bda1f891eb168baa5b01db0b97e1983",
+    "packages/cli/src/core/confirmed-operations.test.ts": "d1c91b535095ec0673e5d55619e9f4a392f5ae1a47b2f4035f28c8147604e997",
+    "packages/cli/src/core/confirmed-operations.ts": "752601f8ba7703d3deb5d729ed61362458b1832e37d434c122137bc058d63401",
+    "packages/cli/src/core/contracts.ts": "33c4204aa4ef51b6346603ee9af975edd65c153442a8dc95ccba1cdb6e6d39d3",
+    "packages/cli/src/core/index.test.ts": "0724b9932ecf96d2aa5e33dfe5c68233083e72d13a6e095a9447ff4bb1e3767e",
+    "packages/cli/src/core/index.ts": "1db1f7b35eae28ddc08ab97c805d5cec947ee9db11425492049c770b8f1090de",
+    "packages/cli/src/core/test-reporters.ts": "7e3405439cf0d9f10865f06ac930f08f6451045ff98e53c4588b8b8baf901298",
+    "packages/cli/src/core/workflow-execution.test.ts": "9787c240d4d49877f852e81631f5a8b0574658e27cd0e487faf36ea4d9ac8843",
+    "packages/cli/src/core/workflow-execution.ts": "1f5bbcdd54bc9fbe72240d23a9e2179958f2ae14be620fc9ed61f7b46f6a25bd",
+    "packages/cli/src/core/workflow-preparation.ts": "50fac5fe97ea14a75d52df4d22d486cafc7fb352789e3ee9e5bd8ed4a8e43f6a",
+    "packages/cli/src/core/workflow-recording.test.ts": "8fbb78de06235882d41663d9cc91a9c953a9635320e07cc411f229b3f3e69ed3",
+    "packages/cli/src/core/workflow-recording.ts": "572de2c7d17c29cc285f1ef7060db8ffc58678d4293fdd0b9cd39d08cac3f4df",
+    "packages/cli/src/core/workflow-test-fixture.ts": "e33f7be2661fa971a2d7884f312e431803fc9f4cc0844e1ecad2ce4b76524846",
+    "packages/cli/src/harness/claude.ts": "fb2e57aa1e9e6732cba4e8f978e704e068f35049426d8a8c78e5c09a92cbc150",
+    "packages/cli/src/harness/codex.ts": "4e8c616638f14452155434ce41ad8bb66a010da5bb0642841de35a59455d87f9",
+    "packages/cli/src/harness/containment.test.ts": "c9853f4ee20151d4dfefd9a0f75d6effcb386df4221577aba5f838b0b46b8cab",
+    "packages/cli/src/harness/containment.ts": "1bf160698c03c439339f0d775a74d4ccc05fb3eee6e2eba31cb350e15ffac194",
+    "packages/cli/src/harness/harness.test.ts": "437654149597c30fcddbf2519065e05dfcf033ba1c0e32ae1633711d6bf9c088",
+    "packages/cli/src/plan/recording-set.test.ts": "e400f2e5dc872e19d77e6d503ce67c41c9b4ea6c9a1f00ddf863f8c005cf210d",
+    "packages/cli/src/plan/recording-set.ts": "e29f154f99c7fa2fe3b338d1b586a8990328e42e695c22005fdbb22638b052ce",
+    "packages/cli/src/plan/step-done.test.ts": "2db5b75829c21ad08dfd6710c4f19037b253fc1ec2ca389c9dcf8102a9a19f04",
+    "packages/cli/src/plan/step-done.ts": "021873ace2f0e11be202ea250705962c1cbc4e173143b95a9510f1471cb024dd"
+  },
+  "review": {
+    "main": "Reviewed shared interfaces, private ledger/path integrity, confirmation state/preview binding, recorder exact-set/index recovery and publication retry behavior.",
+    "independent": "Second worker review identified rollback ancestor-link and postcommit identity/trailer gaps; repaired with failing-hook fixtures.",
+    "formal_lifecycle": "No source PLAN, plan HANDOFF, step statuses, spec approval or ADR acceptance edited."
+  },
+  "completed_utc": "2026-11-03T06:31:59.824069+00:00",
+  "evidence": {
+    "specplane-integration-full.tap": {
+      "sha256": "a138494c81f1f6cce713c9eac4b61da1e4476893c7f938426f2b7925ea2fb82b",
+      "storage": "local temporary evidence, not core-issued execution receipts"
+    },
+    "specplane-integration-full-unrestricted.tap": {
+      "sha256": "990295cf56b131cfa10922fca287e1be5bc9926c18b3f81de56aaa5c1ceee8e2",
+      "storage": "local temporary evidence, not core-issued execution receipts"
+    },
+    "specplane-integration-validation.json": {
+      "sha256": "b2939174936746a7014cdefaeee9a371454c11d7821a71caddfb2b6c94376a21",
+      "storage": "local temporary evidence, not core-issued execution receipts"
+    }
+  },
+  "user_preferences": {
+    "future_implementation_subagents": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "astra": "prohibited for future implementation assignments",
+      "existing_workers": "may finish current assignments",
+      "source": "explicit user instruction in this session",
+      "global_settings_changed": false
+    }
+  }
+}

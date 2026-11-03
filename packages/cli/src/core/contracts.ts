@@ -8,11 +8,16 @@ export type Artifact = { path: string; digest: Digest; kind: 'file' | 'test' };
 export type TestRequirement = { suiteId: string; format: 'node-tap-v13' | 'junit-xml' };
 export type Criterion = { id: string; text: string; sourcePath: string; sourceDigest: Digest; testRequirements: TestRequirement[] };
 export type WorkflowTestRequest = { requestId: string; criterionIds: string[]; executable: string; args: string[]; reportFormat: TestRequirement['format'] };
-export type ExecutionPort = { execute(request: { executable: string; args: string[]; checkout: string; signal?: AbortSignal }): Promise<{ exitCode: number | null; signal: string | null; stdout: Uint8Array; stderr: Uint8Array }> };
+/** Trusted host boundary: resolve executable names, enforce host permissions, launch without
+ * a shell using the supplied environment, and propagate cancellation to the process tree.
+ * Resolve/reject only after launch refusal or acknowledged worker stop; never truncate output. */
+export type ExecutionPort = { execute(request: { executable: string; args: string[]; checkout: string; env: Record<string, string>; signal?: AbortSignal }): Promise<{ executable: string; exitCode: number | null; signal: string | null; stdout: Uint8Array; stderr: Uint8Array }> };
 export type ClockPort = { now(): Date };
 export type GitPort = { run(args: string[], checkout: string): Promise<{ stdout: string; stderr: string; exitCode: number }> };
 export type FileSystemPort = { read(path: string): Promise<Uint8Array>; lstat(path: string): Promise<{ isFile(): boolean; isDirectory(): boolean; isSymbolicLink(): boolean }> };
-export type InteractionPort = { confirm(message: string): Promise<boolean> };
+/** Supplied by the trusted host only, never request JSON. Show the complete challenge
+ * through a direct-human surface; a model-produced response is not consent. */
+export type InteractionPort = { confirm(challenge: ConfirmationChallenge): Promise<ConfirmationResponse | null> };
 export type CoreContext = { compatibility?: { manifest: unknown; host: import('./compatibility.js').HostSelection }; checkout?: string; extensionId: string; signal?: AbortSignal; git?: GitPort; filesystem?: FileSystemPort; clock?: ClockPort; interaction?: InteractionPort; execution?: ExecutionPort };
 export type MechanicalRequest =
   | { operation: 'spec.complete'; arguments: { id: string; root?: string; dryRun?: boolean } }

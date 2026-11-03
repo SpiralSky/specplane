@@ -82,7 +82,7 @@ function commitAdr(root: string, file: string, id: string): string {
   return abbrev(run("git", ["rev-parse", "HEAD"], { cwd: root }).trim(), root);
 }
 
-function acceptOne(rawId: string, config: Config, root: string, dryRun: boolean): boolean {
+export function acceptDecision(rawId: string, config: Config, root: string, dryRun: boolean, quiet = false): boolean {
   const id = /^\d{4}$/.test(rawId) ? `decision/${rawId}` : rawId;
   const { adrs, findings } = loadAdrs(config, root);
   const adr = adrs.find((a) => a.frontmatter.id === id);
@@ -98,20 +98,21 @@ function acceptOne(rawId: string, config: Config, root: string, dryRun: boolean)
   const report = validateAdrs(adrs, config, root, findings);
   const errors = report.errors.filter((f) => f.adr === id);
   if (errors.length > 0) {
+    if (quiet) throw new DecisionStateError(formatHuman(makeReport(errors, [id])));
     process.stderr.write(formatHuman(makeReport(errors, [id])));
     process.exitCode = 1;
     return false;
   }
 
   if (dryRun) {
-    process.stdout.write(`would accept ${id}\n`);
-    process.stdout.write(`would commit docs(decisions): accept ${id}\n`);
+    if (!quiet) process.stdout.write(`would accept ${id}\n`);
+    if (!quiet) process.stdout.write(`would commit docs(decisions): accept ${id}\n`);
     return true;
   }
 
   writeStatus(adr.file, "accepted");
   const sha = commitAdr(root, rel, id);
-  process.stdout.write(`accepted ${id} ${sha}\n`);
+  if (!quiet) process.stdout.write(`accepted ${id} ${sha}\n`);
   return true;
 }
 
@@ -121,7 +122,7 @@ export function decisionAcceptCommand(ids: string[], opts: { dryRun?: boolean })
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
     for (const id of ids) {
-      if (!acceptOne(id, config, root, opts.dryRun === true)) return;
+      if (!acceptDecision(id, config, root, opts.dryRun === true)) return;
     }
   } catch (e) {
     if (!reportError(e)) throw e;

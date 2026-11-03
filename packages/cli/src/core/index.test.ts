@@ -34,8 +34,8 @@ test('public operations reject malformed inputs and explicitly refuse valid unim
   assert.equal(valid.ok, false); if (!valid.ok) assert.equal(valid.error.code, 'UNSUPPORTED_CAPABILITY');
   const invalid = executeOperation({ operation: 'docs.index', arguments: { extra: true } } as never, ctx);
   assert.equal(invalid.ok, false); if (!invalid.ok) assert.equal(invalid.error.code, 'INVALID_EVIDENCE');
-  const testResult = executeWorkflowTest({ requestId: 'x', criterionIds: ['a'], executable: 'node', args: [], reportFormat: 'node-tap-v13' }, ctx);
-  assert.equal(testResult.ok, false); if (!testResult.ok) assert.equal(testResult.error.code, 'UNSUPPORTED_CAPABILITY');
+  const testResult = await executeWorkflowTest({ requestId: 'x', criterionIds: ['a'], executable: 'node', args: [], reportFormat: 'node-tap-v13' }, ctx);
+  assert.equal(testResult.ok, false); if (!testResult.ok) assert.equal(testResult.error.code, 'STALE_STATE');
 });
 test('closed receipt and confirmation schemas reject inconsistent or extra fields', async () => {
   const { testReceiptSchema, confirmationResponseSchema } = await import('./schemas.js');

@@ -1,19 +1,22 @@
 import * as fs from "node:fs";
-import { randomUUID } from "node:crypto";
-import { acquireWriterLease } from "../core/writer-leases.js";
+import { createHash, randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { acquireWriterLease, checkoutIdentity, type WriterLease } from "../core/writer-leases.js";
 import { listWorktrees } from "../git/worktree.js";
 import { lifecycleContext, refusePendingRetarget } from "./lifecycle-context.js";
 import { planReport, targetPlanRecord } from "./activity.js";
 import { branchExists, remoteBranchExists } from "../git/branch.js";
 import * as path from "node:path";
-import { PlanStateError } from "../errors.js";
+import { GitError, PlanStateError } from "../errors.js";
 import { writeStatus } from "../frontmatter.js";
 import { run } from "../git/exec.js";
-import { cliTrailers, formatMessage, type Trailers } from "../git/commit.js";
+import { cliTrailers, formatMessage, readTrailerEntries, type Trailers } from "../git/commit.js";
 import type { Config } from "../types.js";
 import { parseGaps } from "./gaps.js";
 import { listStepFiles, parsePlan, parseStep } from "./parse.js";
 import { planDir } from "./resolve.js";
+import { assertRecordingPaths, readRecordingSet, validateRecordingSet, type RecordingSet } from "./recording-set.js";
+import { planNext } from "./next.js";
 
 export const STEP_OUTCOMES = ["done", "blocked", "skipped"] as const;
 export type StepOutcome = (typeof STEP_OUTCOMES)[number];
@@ -31,6 +34,7 @@ export interface StepDoneOptions {
   /** `spec-gaps.md` IDs (`G3` or `3`) this step added. */
   gap?: string[];
   nextKnows?: string;
+  recordingSet?: string;
   step?: number;
   /** Force marking a `blocked` step done, overriding the blocker guard. */
   force?: boolean;
@@ -77,8 +81,30 @@ function refuse(message: string): never {
  * commit (`architecture/file-formats` §4.1, §8). Every refusal happens before the first write;
  * a failed commit restores both files. Never pushes.
  */
-export function stepDone(planId: string, opts: StepDoneOptions, config: Config, root: string): StepDoneResult {
-  const lease = acquireWriterLease({ repository: true, plans: [planId], checkouts: listWorktrees(root).filter(t => !t.bare).map(t => t.path), requestId: `step-done-${randomUUID()}` });
+export function stepDone(planId: string, opts: StepDoneOptions, config: Config, root: string, heldLease?: WriterLease, internalManifest?: RecordingSet): StepDoneResult {
+  // This whole operation is synchronous. Suppress optional index refreshes in
+  // read-only Git children so even an early refusal preserves the index bytes.
+  // Required Git locks (including our real index lock) remain enabled.
+  const optionalLocks = process.env.GIT_OPTIONAL_LOCKS;
+  process.env.GIT_OPTIONAL_LOCKS = '0';
+  try { return recordStep(planId, opts, config, root, heldLease, internalManifest); }
+  finally {
+    if (optionalLocks === undefined) delete process.env.GIT_OPTIONAL_LOCKS;
+    else process.env.GIT_OPTIONAL_LOCKS = optionalLocks;
+  }
+}
+
+function recordStep(planId: string, opts: StepDoneOptions, config: Config, root: string, heldLease?: WriterLease, internalManifest?: RecordingSet): StepDoneResult {
+  if (internalManifest && !heldLease) refuse("Internal recording manifests require a held writer lease.");
+  // Internal embedding transport only; never sourced from operation JSON.
+  if (heldLease) {
+    heldLease.assertOwned();
+    const identity = checkoutIdentity(root);
+    for (const [kind, value] of [['repository', identity.commonDir], ['plan', planId], ['checkout', identity.gitDir]]) {
+      if (!heldLease.keys.some(key => key.kind === kind && key.identity === value)) refuse(`Recording lease is missing ${kind} ownership.`);
+    }
+  }
+  const lease = heldLease ?? acquireWriterLease({ repository: true, plans: [planId], checkouts: listWorktrees(root).filter(t => !t.bare).map(t => t.path), requestId: `step-done-${randomUUID()}` });
   try {
   refusePendingRetarget(planId, config, root);
   if (branchExists(`plan/${planId}`, root) || remoteBranchExists(`plan/${planId}`, root)) lifecycleContext(planId, config, root, "restack");
@@ -102,7 +128,9 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
   parsePlan(dir);
 
   // Select the step: `--step`, else the lowest-numbered step that is not done or skipped.
-  const steps = listStepFiles(dir).map((f) => parseStep(f));
+  const stepFiles = listStepFiles(dir);
+  assertRecordingPaths(root, stepFiles.map(file => path.relative(root, file).split(path.sep).join('/')));
+  const steps = stepFiles.map((f) => parseStep(f));
   let target = opts.step === undefined ? steps.find((s) => s.frontmatter.status !== "done" && s.frontmatter.status !== "skipped") : steps.find((s) => s.frontmatter.step === opts.step);
   if (!target) {
     refuse(opts.step === undefined ? `Plan \`${planId}\` has no step left to finish: every step is done or skipped. Run \`specplane plan finish ${planId}\`.` : `Plan \`${planId}\` has no step ${opts.step}.`);
@@ -110,10 +138,15 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
   const fm = target.frontmatter;
   const nn = pad(fm.step);
   const forceReason = opts.reason?.trim();
-  if (forceReason && (!opts.force || /[\r\n]/.test(forceReason))) refuse("A force reason requires --force and must be one line.");
-  if ((fm.status === "done" || fm.status === "skipped") && !(opts.force && forceReason)) {
+  if (opts.reason !== undefined && (!opts.force || opts.step === undefined || !forceReason || /[\r\n]/.test(opts.reason))) refuse("A force reason requires --force, an explicit --step, and a nonempty single line.");
+  const rerun = (fm.status === "done" || fm.status === "skipped") && opts.step !== undefined && opts.force && !!forceReason;
+  if ((fm.status === "done" || fm.status === "skipped") && !rerun) {
     refuse(`Step ${nn} is already \`${fm.status}\`: nothing to append. Pick another step with \`--step\`, or reopen it by hand if it must be redone.`);
   }
+  const next = planNext(planId, config, root);
+  if (!['ready', 'in_progress', 'review'].includes(next.effectiveStatus) || next.attention.some(a => ['restack', 'diverged'].includes(a.kind))) refuse(`Cannot record step: ${next.reason}`);
+  if (!next.checkout || fs.realpathSync(next.checkout) !== fs.realpathSync(root)) refuse("Cannot record step outside its designated checkout.");
+  if (!rerun && next.step?.number !== fm.step) refuse("Cannot record an out-of-order step; select the lowest pending step.");
   if (fm.status === "blocked" && outcome !== "blocked" && !opts.force) {
     refuse(`Step ${nn} is \`blocked\` and \`--outcome ${outcome}\` was passed. Fix the blocker first, or pass \`--force\` to override.`);
   }
@@ -148,9 +181,10 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
 
   // HANDOFF.md: append-only, so a later section for another step makes the log invalid.
   const handoffFile = path.join(dir, "HANDOFF.md");
+  assertRecordingPaths(root, [path.relative(root, handoffFile).split(path.sep).join('/')]);
   const before = fs.existsSync(handoffFile) ? fs.readFileSync(handoffFile, "utf8") : `# HANDOFF — ${planId}\n`;
   const later = sectionSteps(before).filter((n) => n > fm.step);
-  if (later.length > 0 && !(opts.force && forceReason)) {
+  if (later.length > 0 && !rerun) {
     refuse(`HANDOFF.md already has a section for step ${pad(Math.max(...later))}, after step ${nn}. Sections are append-only; repair the log by hand before appending.`);
   }
 
@@ -191,12 +225,13 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
   for (const k of ["Specplane-Workflow", "Specplane-Plan"]) if (trailers[k]) ordered[k] = trailers[k];
   ordered["Specplane-Step"] = nn;
   for (const k of ["Specplane-Agent", "Specplane-Session"]) if (trailers[k]) ordered[k] = trailers[k];
+  if (forceReason) ordered["Specplane-Force-Reason"] = forceReason;
   for (const t of opts.trailer ?? []) {
     const m = /^([A-Za-z][A-Za-z0-9-]*):\s*(.+)$/.exec(t.trim());
     if (!m) refuse(`\`--trailer ${t}\` must have the form \`Key: value\`.`);
+    if (/^Specplane-/i.test(m[1])) refuse("Harness attribution cannot override core Specplane trailers.");
     ordered[m[1]] = m[2];
   }
-  if (forceReason) ordered["Specplane-Force-Reason"] = forceReason;
   const slug = planId.replace(/^\d{4}-\d{2}-\d{2}-/, "");
   const message = formatMessage({
     type,
@@ -206,28 +241,113 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
     trailers: ordered,
   });
 
-  // Writes: HANDOFF.md section and step status together; restored if the commit fails.
+  const relative = (file: string) => path.relative(root, file).split(path.sep).join("/");
+  const generated = [relative(handoffFile), relative(target.file)];
+  const manifest = internalManifest ? structuredClone(internalManifest) : readRecordingSet(opts.recordingSet, root);
+  const reviewed = validateRecordingSet(manifest, root, planId, generated, changed, outcome);
+  // Commit through a private index: a failed hook must not destroy the caller's
+  // exact staging state. The real index lock also serializes ordinary Git writers.
+  const gitDir = run("git", ["rev-parse", "--absolute-git-dir"], { cwd: root }).trim();
+  const indexFile = path.join(gitDir, "index"), indexLock = `${indexFile}.lock`;
+  const temporaryIndex = path.join(gitDir, `specplane-step-${randomUUID()}.index`);
+  const indexBefore = fs.existsSync(indexFile) ? fs.readFileSync(indexFile) : null;
+  const hash = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const bytes = (file: string): Buffer | null => {
+    try { const st = fs.lstatSync(file); return st.isFile() && !st.isSymbolicLink() ? fs.readFileSync(file) : null; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; }
+  };
+  const equal = (a: Buffer | null, b: Buffer | null) => a === null ? b === null : b !== null && a.equals(b);
+  const privateGit = (...args: string[]): string => {
+    try { return execFileSync("git", args, { cwd: root, encoding: "utf8", env: { ...process.env, GIT_INDEX_FILE: temporaryIndex }, input: args[0] === "commit" ? message : undefined }).trim(); }
+    catch (error) { const e = error as { stderr?: Buffer | string; message?: string }; throw new GitError(`git ${args.join(" ")}`, e.stderr?.toString().trim() || e.message || "unknown error"); }
+  };
   const stepBefore = fs.readFileSync(target.file, "utf8");
   const handoffExisted = fs.existsSync(handoffFile);
   const body = before.endsWith("\n") ? before : `${before}\n`;
-  fs.writeFileSync(handoffFile, `${body}\n${section}`);
-  writeStatus(target.file, outcome);
-  const rel = path.relative(root, dir).split(path.sep).join("/");
+  const handoffAfter = `${body}\n${section}`;
+  let stepAfter: string | undefined;
+  let generatedWritten = false, committed = false, recovery = false;
+  let lockStat: fs.Stats | undefined;
+  const lock = fs.openSync(indexLock, "wx", 0o600);
   try {
-    run("git", ["add", "--", rel], { cwd: root });
-    run("git", ["commit", "-F", "-"], { cwd: root, input: message });
-  } catch (e) {
-    fs.writeFileSync(target.file, stepBefore);
-    if (handoffExisted) fs.writeFileSync(handoffFile, before);
-    else fs.rmSync(handoffFile, { force: true });
-    try {
-      run("git", ["reset", "-q", "--", rel], { cwd: root });
-    } catch {
-      /* best effort: the files are restored either way */
+    lockStat = fs.fstatSync(lock);
+    if (!equal(bytes(indexFile), indexBefore)) refuse("Recording recovery required: index changed before recording; inspect before retrying.");
+    lease.assertOwned();
+    validateRecordingSet(manifest, root, planId, generated, changed, outcome);
+    if (indexBefore) fs.writeFileSync(temporaryIndex, indexBefore, { mode: 0o600 });
+    // Start from HEAD, including paths already deleted from the caller's index,
+    // so explicit deletion pathspecs remain stageable in this private index.
+    privateGit("read-tree", "HEAD");
+    generatedWritten = true;
+    fs.writeFileSync(handoffFile, handoffAfter);
+    writeStatus(target.file, outcome);
+    stepAfter = fs.readFileSync(target.file, "utf8");
+    // Validate the complete intended commit once more after generated writes.
+    const complete: RecordingSet = { ...manifest, changes: [...manifest.changes,
+      { path: generated[0], beforeDigest: handoffExisted ? hash(before) : "missing", afterDigest: hash(handoffAfter), purpose: "generated handoff" },
+      ...(stepBefore === stepAfter ? [] : [{ path: generated[1], beforeDigest: hash(stepBefore), afterDigest: hash(stepAfter), purpose: "generated outcome" }]),
+    ] };
+    const allReasons = complete.changes.map(c => `${c.path}:${c.purpose}`);
+    validateRecordingSet(complete, root, planId, [], allReasons, "done");
+    privateGit("--literal-pathspecs", "add", "--", ...reviewed, ...generated);
+    const expectedTree = privateGit("write-tree");
+    lease.assertOwned();
+    validateRecordingSet(complete, root, planId, [], allReasons, "done");
+    if (!equal(bytes(indexFile), indexBefore)) refuse("Recording recovery required: index changed during recording; inspect before retrying.");
+    privateGit("commit", "-F", "-");
+    committed = true;
+    const recordedHead = run("git", ["rev-parse", "HEAD"], { cwd: root }).trim();
+    const expectedCore = new Map(Object.entries(ordered).filter(([key]) => /^Specplane-/i.test(key)).map(([key, value]) => [key.toLowerCase(), value]));
+    const actualCore = new Map<string, string[]>();
+    for (const [key, value] of readTrailerEntries(recordedHead, root)) {
+      if (/^Specplane-/i.test(key)) {
+        const normalized = key.toLowerCase();
+        actualCore.set(normalized, [...(actualCore.get(normalized) ?? []), value]);
+      }
     }
+    if (run("git", ["branch", "--show-current"], { cwd: root }).trim() !== manifest.branch ||
+        actualCore.size !== expectedCore.size || [...expectedCore].some(([key, value]) => {
+          const values = actualCore.get(key);
+          return values?.length !== 1 || values[0] !== value;
+        })) refuse("Recording recovery required: committed branch or core trailers differ from the reviewed operation.");
+    if (run("git", ["rev-parse", "HEAD^{tree}"], { cwd: root }).trim() !== expectedTree ||
+        run("git", ["rev-parse", "HEAD^"], { cwd: root }).trim() !== manifest.head ||
+        run("git", ["rev-parse", "HEAD"], { cwd: root }).trim() !== recordedHead ||
+        privateGit("write-tree") !== expectedTree || privateGit("status", "--porcelain").length > 0 ||
+        !equal(bytes(indexFile), indexBefore) || !equal(bytes(handoffFile), Buffer.from(handoffAfter)) || !equal(bytes(target.file), Buffer.from(stepAfter))) {
+      refuse("Recording recovery required: committed state changed unexpectedly; inspect HEAD, index and generated files before retrying.");
+    }
+    // Publish the completed private index only after checking the real preimage.
+    const ownedLock = fs.lstatSync(indexLock);
+    if (ownedLock.ino !== lockStat.ino || ownedLock.dev !== lockStat.dev) refuse("Recording recovery required: index lock ownership changed.");
+    fs.writeFileSync(lock, fs.readFileSync(temporaryIndex));
+    fs.renameSync(indexLock, indexFile);
+  } catch (e) {
+    const headChanged = run("git", ["rev-parse", "HEAD"], { cwd: root }).trim() !== manifest.head;
+    if (committed || headChanged || !equal(bytes(indexFile), indexBefore)) recovery = true;
+    // A hook may replace a parent directory with a link while retaining matching
+    // leaf bytes. Never let recovery follow that link when restoring preimages.
+    if (generatedWritten && !recovery) {
+      try { assertRecordingPaths(root, generated); }
+      catch { recovery = true; }
+    }
+    if (generatedWritten && !recovery) {
+      if (stepAfter !== undefined && equal(bytes(target.file), Buffer.from(stepAfter))) fs.writeFileSync(target.file, stepBefore);
+      else if (!equal(bytes(target.file), Buffer.from(stepBefore))) recovery = true;
+      if (equal(bytes(handoffFile), Buffer.from(handoffAfter))) {
+        if (handoffExisted) fs.writeFileSync(handoffFile, before);
+        else fs.unlinkSync(handoffFile);
+      } else recovery = true;
+    }
+    if (recovery) refuse(`Recording recovery required: concurrent or committed changes were preserved. Inspect HEAD, index, HANDOFF and step; private index retained at ${temporaryIndex}. Original error: ${(e as Error).message}`);
     throw e;
+  } finally {
+    fs.closeSync(lock);
+    const currentLock = fs.existsSync(indexLock) ? fs.lstatSync(indexLock) : null;
+    if (lockStat && currentLock?.ino === lockStat.ino && currentLock.dev === lockStat.dev) fs.unlinkSync(indexLock);
+    if (!recovery) fs.rmSync(temporaryIndex, { force: true });
   }
   const commit = run("git", ["rev-parse", "--short", "HEAD"], { cwd: root }).trim();
   return { planId, step: fm.step, outcome, commit, handoff: path.relative(root, handoffFile).split(path.sep).join("/") };
-  } finally { lease.release(); }
+  } finally { if (!heldLease) lease.release(); }
 }

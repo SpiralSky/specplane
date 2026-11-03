@@ -88,7 +88,7 @@ function commitChange(root: string, file: string, summary: string): string {
   return abbrev(run("git", ["rev-parse", "HEAD"], { cwd: root }).trim(), root);
 }
 
-function approveOne(rawId: string, config: Config, root: string, dryRun: boolean): boolean {
+export function approveSpec(rawId: string, config: Config, root: string, dryRun: boolean, quiet = false): boolean {
   const { spec, specs } = loadOne(rawId, config, root);
   const id = displayId(spec);
   const status = spec.frontmatter.status;
@@ -105,9 +105,9 @@ function approveOne(rawId: string, config: Config, root: string, dryRun: boolean
 
   const subject = `approve ${id}`;
   if (dryRun) {
-    process.stdout.write(`would approve ${id}\n`);
-    for (const target of targets) process.stdout.write(`would re-pin base ${target.ref}\n`);
-    process.stdout.write(`would commit docs(specs): ${subject}\n`);
+    if (!quiet) process.stdout.write(`would approve ${id}\n`);
+    for (const target of targets) if (!quiet) process.stdout.write(`would re-pin base ${target.ref}\n`);
+    if (!quiet) process.stdout.write(`would commit docs(specs): ${subject}\n`);
     return true;
   }
 
@@ -120,6 +120,7 @@ function approveOne(rawId: string, config: Config, root: string, dryRun: boolean
     const report = validateSpec(updated, config, root);
     if (!report.valid) {
       fs.writeFileSync(spec.file, original);
+      if (quiet) throw new ApprovalRefusedError(formatHuman(report));
       process.stderr.write(formatHuman(report));
       process.exitCode = 1;
       return false;
@@ -127,7 +128,7 @@ function approveOne(rawId: string, config: Config, root: string, dryRun: boolean
   }
 
   const sha = commitChange(root, spec.rel, subject);
-  process.stdout.write(`approved ${id} ${sha}\n`);
+  if (!quiet) process.stdout.write(`approved ${id} ${sha}\n`);
   return true;
 }
 
@@ -136,7 +137,7 @@ export function specApproveCommand(ids: string[], opts: { dryRun?: boolean }): v
     const root = checkoutRoot();
     const config = load(root);
     for (const id of ids) {
-      if (!approveOne(id, config, root, opts.dryRun === true)) return;
+      if (!approveSpec(id, config, root, opts.dryRun === true)) return;
     }
   } catch (e) {
     if (!reportError(e)) throw e;
@@ -175,7 +176,13 @@ function dependants(target: LoadedSpec, config: Config, root: string): LoadedSpe
   return out;
 }
 
-function reopenOne(rawId: string, config: Config, root: string, dryRun: boolean): void {
+/** Shared core guidance uses the same dependency interpretation as the CLI. */
+export function reopenDependants(rawId: string, config: Config, root: string): string[] {
+  const { spec } = loadOne(rawId, config, root);
+  return dependants(spec, config, root).map(dep => `${displayId(dep)} ${dep.frontmatter.status} — reopen with: specplane spec reopen ${displayId(dep)}`);
+}
+
+export function reopenSpec(rawId: string, config: Config, root: string, dryRun: boolean, quiet = false): void {
   const { spec } = loadOne(rawId, config, root);
   const id = displayId(spec);
   const status = spec.frontmatter.status;
@@ -184,23 +191,23 @@ function reopenOne(rawId: string, config: Config, root: string, dryRun: boolean)
 
   const subject = `reopen ${id}`;
   if (dryRun) {
-    process.stdout.write(`would reopen ${id}\n`);
-    process.stdout.write(`would commit docs(specs): ${subject}\n`);
+    if (!quiet) process.stdout.write(`would reopen ${id}\n`);
+    if (!quiet) process.stdout.write(`would commit docs(specs): ${subject}\n`);
     return;
   }
 
   writeStatus(spec.file, "review");
   const sha = commitChange(root, spec.rel, subject);
-  process.stdout.write(`reopened ${id} ${sha}\n`);
+  if (!quiet) process.stdout.write(`reopened ${id} ${sha}\n`);
   for (const dep of dependants(spec, config, root)) {
-    process.stdout.write(`${displayId(dep)} ${dep.frontmatter.status} — reopen with: specplane spec reopen ${displayId(dep)}\n`);
+    if (!quiet) process.stdout.write(`${displayId(dep)} ${dep.frontmatter.status} — reopen with: specplane spec reopen ${displayId(dep)}\n`);
   }
 }
 
 export function specReopenCommand(id: string, opts: { dryRun?: boolean }): void {
   try {
     const root = checkoutRoot();
-    reopenOne(id, load(root), root, opts.dryRun === true);
+    reopenSpec(id, load(root), root, opts.dryRun === true);
   } catch (e) {
     if (!reportError(e)) throw e;
   }

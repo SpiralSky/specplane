@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import { withApprovalReadTree } from "./approval-read-tree.js";
-import { acquireWriterLease, inspectWriterLease } from "../core/writer-leases.js";
+import { acquireWriterLease, inspectWriterLease, checkoutIdentity, type WriterLease } from "../core/writer-leases.js";
 import { capturePlanSnapshot, prospectivePlanSnapshot, recheckPlanSnapshot } from "../generate/snapshot.js";
 import { loadAdrs } from "../decisions/validate.js";
 import {
@@ -69,10 +69,14 @@ function checkRequiredSpecs(planId: string, specs: string[], config: Config, roo
   }
 }
 
-function approveOne(rawId: string, root: string, dryRun: boolean): boolean {
+export function approvePlan(rawId: string, root: string, dryRun: boolean, options: { lease?: WriterLease; quiet?: boolean; preview?: (changes: { path: string; before: string | null; after: string }[]) => void } = {}): boolean {
   const request = { repository: true, plans: [rawId], checkouts: [root], requestId: `approve-${randomUUID()}` };
-  const lease = dryRun ? null : acquireWriterLease(request);
-  if (dryRun) inspectWriterLease(request);
+  const lease = options.lease ?? (dryRun ? null : acquireWriterLease(request));
+  if (options.lease) {
+    const identity = checkoutIdentity(root);
+    if (!lease!.keys.some(k => k.kind === "repository" && k.identity === identity.commonDir) || !lease!.keys.some(k => k.kind === "checkout" && k.identity === identity.gitDir) || !lease!.keys.some(k => k.kind === "plan" && k.identity === rawId)) throw new PlanStateError("Approval requires the complete held writer lease set.");
+    lease!.assertOwned();
+  } else if (dryRun) inspectWriterLease(request);
   try {
   const snapshot = capturePlanSnapshot(root, "head");
   const head = snapshot.identity;
@@ -82,7 +86,7 @@ function approveOne(rawId: string, root: string, dryRun: boolean): boolean {
     if (fs.existsSync(markerPath)) throw new PlanStateError("Cannot approve during an unfinished Git operation.");
   }
   const config = snapshot.config;
-  for (const w of snapshot.warnings) process.stderr.write(`${w.message}\n`);
+  for (const w of snapshot.warnings) if (!options.quiet) process.stderr.write(`${w.message}\n`);
   for (const p of [config.plans.dir, config.decisions.dir, ...config.spec_roots.map(r => r.path)]) {
     if (path.isAbsolute(p) || path.relative(root, path.resolve(root, p)).startsWith("..")) throw new PlanStateError(`Approval configuration path must stay inside the repository: ${p}`);
   }
@@ -103,6 +107,7 @@ function approveOne(rawId: string, root: string, dryRun: boolean): boolean {
   checkOwnedPath(root, planRelFile, false);
   if (!captured || hasUncommittedChanges(planRelFile, root) || !fs.existsSync(path.join(dir, "PLAN.md")) || !captured.bytes.equals(fs.readFileSync(path.join(dir, "PLAN.md")))) throw new UncommittedChangesError(planRelFile);
   if (errors.length > 0) {
+    if (options.quiet) throw new PlanStateError(formatHuman(makeReport(errors, [id])));
     process.stderr.write(formatHuman(makeReport(errors, [id])));
     process.exitCode = 1;
     return false;
@@ -131,10 +136,11 @@ function approveOne(rawId: string, root: string, dryRun: boolean): boolean {
   const changed = original.slice(0, header.index) + header[1] + header[2].replace(/^status\s*:[^\r\n]*/m, "status: ready") + header[3] + original.slice(header.index + header[0].length);
   if (changed === original) throw new PlanStateError("Cannot safely edit plan status.");
   const generated = generatePlansMd(prospectivePlanSnapshot(root, snapshot, new Map([[planRelFile, Buffer.from(changed)]])));
+  options.preview?.([{ path: planRelFile, before: original, after: changed }, { path: plansRel, before: expectedOutput?.toString('utf8') ?? null, after: generated }]);
   if (dryRun) {
-    process.stdout.write(`would approve ${id}\n`);
-    process.stdout.write(`would regenerate ${plansRel}\n`);
-    process.stdout.write(`would commit docs(${id}): approve plan\n`);
+    if (!options.quiet) process.stdout.write(`would approve ${id}\n`);
+    if (!options.quiet) process.stdout.write(`would regenerate ${plansRel}\n`);
+    if (!options.quiet) process.stdout.write(`would commit docs(${id}): approve plan\n`);
     return true;
   }
 
@@ -167,7 +173,7 @@ function approveOne(rawId: string, root: string, dryRun: boolean): boolean {
     created = [...stdout.matchAll(new RegExp(`^\\[[^\\n]* ([0-9a-f]{${len}})\\]`, "gm"))].at(-1)?.[1] ?? null;
     lease!.assertOwned();
     if (!created || git("rev-parse", "HEAD") !== created || git("symbolic-ref", "HEAD") !== branch || git("rev-list", "--parents", "-n", "1", created) !== `${created} ${head}` || run("git", ["show", `${created}:${planRelFile}`], { cwd: root }) !== changed || run("git", ["show", `${created}:${plansRel}`], { cwd: root }) !== generated || otherIndex() !== beforeIndex || git("diff-tree", "--no-commit-id", "--name-only", "-r", created).split("\n").sort().join("\n") !== [planRelFile, plansRel].sort().join("\n") || fs.readFileSync(planFile, "utf8") !== changed || fs.readFileSync(output, "utf8") !== generated) throw new Error("Committed approval or checkout changed during hooks.");
-    process.stdout.write(`approved ${id} ${abbrev(created, root)}\n`);
+    if (!options.quiet) process.stdout.write(`approved ${id} ${abbrev(created, root)}\n`);
   } catch (error) {
     if (committed || git("rev-parse", "HEAD") !== head) throw new PlanStateError(`Approval commit ${created ?? "identity unavailable"} retained; inspect recovery state: ${String(error)}`);
     const planSafe = fs.existsSync(planFile) && fs.readFileSync(planFile, "utf8") === changed;
@@ -192,14 +198,14 @@ function approveOne(rawId: string, root: string, dryRun: boolean): boolean {
     throw error;
   }
   return true;
-  } finally { lease?.release(); }
+  } finally { if (!options.lease) lease?.release(); }
 }
 
 export function planApproveCommand(ids: string[], opts: { dryRun?: boolean }): void {
   try {
     const root = checkoutRoot();
     for (const id of ids) {
-      if (!approveOne(id, root, opts.dryRun === true)) return;
+      if (!approvePlan(id, root, opts.dryRun === true)) return;
     }
   } catch (e) {
     if (!reportError(e)) throw e;

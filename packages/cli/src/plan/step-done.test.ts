@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { makeRepo } from "../test-repo.js";
@@ -18,9 +20,25 @@ const git = (cwd: string, ...a: string[]) => {
   assert.equal(r.status, 0, `git ${a.join(" ")}: ${r.stderr}`);
   return r.stdout.trim();
 };
-const sp = (cwd: string, env: Record<string, string>, ...a: string[]) => {
+const spRaw = (cwd: string, env: Record<string, string>, ...a: string[]) => {
   const r = spawnSync(process.execPath, [cli, ...a], { cwd, encoding: "utf8", env: { ...ENV, ...env }, input: "" });
   return { code: r.status, out: r.stdout, err: r.stderr };
+};
+const digest = (s: Buffer | string) => createHash('sha256').update(s).digest('hex');
+function recordingSet(root: string, changes: string[]): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'specplane-reviewed-set-'));
+  const file = path.join(dir, 'manifest.json');
+  fs.writeFileSync(file, JSON.stringify({ protocol: 1, head: head(root), branch: git(root, 'branch', '--show-current'), changes: changes.map(change => {
+    const colon = change.indexOf(':'), relative = change.slice(0, colon).trim();
+    const before = spawnSync('git', ['show', `HEAD:${relative}`], { cwd: root, env: ENV });
+    return { path: relative, purpose: change.slice(colon + 1).trim(), beforeDigest: before.status === 0 ? digest(before.stdout) : 'missing', afterDigest: fs.existsSync(path.join(root, relative)) ? digest(fs.readFileSync(path.join(root, relative))) : 'missing' };
+  }) }));
+  return file;
+}
+const sp = (root: string, env: Record<string, string>, ...args: string[]) => {
+  const file = recordingSet(root, args.flatMap((arg, i) => arg === '--changed' ? [args[i + 1]] : []));
+  try { return spRaw(root, env, ...args, '--recording-set', file); }
+  finally { fs.rmSync(path.dirname(file), { recursive: true, force: true }); }
 };
 
 const ID = "2026-01-01-alpha";
@@ -40,6 +58,11 @@ function repo(steps: Record<string, string>, handoff = "# HANDOFF\n", extra: Rec
   git(root, "init", "-q", "-b", "main");
   git(root, "add", "-A");
   git(root, "commit", "-q", "-m", "init");
+  const planFile = path.join(root, PLAN, 'PLAN.md');
+  fs.writeFileSync(planFile, fs.readFileSync(planFile, 'utf8').replace('\nspecs:', `\nexecution:\n  target_branch: main\n  start_target_branch: main\n  start_base: ${git(root, 'rev-parse', 'HEAD')}\nspecs:`));
+  git(root, 'add', '--', `${PLAN}/PLAN.md`);
+  git(root, 'commit', '-q', '-m', 'bind fixture execution');
+  git(root, "switch", "-q", "-c", `plan/${ID}`);
   return root;
 }
 const head = (root: string) => git(root, "rev-parse", "HEAD");
@@ -47,6 +70,9 @@ const clean = (root: string) => git(root, "status", "--porcelain");
 
 test("appends a §4.1 section, sets status, commits with ordered trailers", () => {
   const root = repo({ "01-a.md": step(1, "pending"), "02-b.md": step(2, "pending") }, "# HANDOFF\n", { [`${PLAN}/spec-gaps.md`]: GAPS });
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.writeFileSync(path.join(root, 'src/a.ts'), 'new module\n');
+  fs.writeFileSync(path.join(root, 'src/b.ts'), 'wire it\n');
   const r = sp(root, {}, "plan", "step-done", ID, "--outcome", "done", "--summary", "add thing", "--type", "feat",
     "--changed", "src/a.ts:new module", "--changed", "src/b.ts:wire it", "--gap", "G1", "--next-knows", "Use A.",
     "--trailer", "Co-Authored-By: Bot <b@x>");
@@ -152,3 +178,147 @@ test("forced completed-step rerun records reason without deleting earlier histor
   assert.match(h,/Forced rerun: verify regression/);
   assert.match(fs.readFileSync(path.join(root,PLAN,"PLAN.md"),"utf8"),/status: in_progress/);
 });
+
+test('records reviewed additions and deletions outside the plan folder, with full staging', () => {
+  const root = repo({ '01-a.md': step(1, 'pending') }, '# HANDOFF\n', { 'old.txt': 'remove\n' });
+  fs.unlinkSync(path.join(root, 'old.txt'));
+  fs.writeFileSync(path.join(root, 'new.txt'), 'new\n');
+  git(root, 'add', '--', 'old.txt', 'new.txt');
+  const result = sp(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'replace file', '--changed', 'old.txt:remove', '--changed', 'new.txt:add');
+  assert.equal(result.code, 0, result.err);
+  assert.equal(clean(root), '');
+  assert.deepEqual(git(root, 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD').split('\n').sort(), ['new.txt', 'old.txt', `${PLAN}/HANDOFF.md`, `${PLAN}/steps/01-a.md`].sort());
+});
+
+test('requires explicit manifest; status-only records use an empty reviewed set', () => {
+  const root = repo({ '01-a.md': step(1, 'pending') });
+  const before = head(root);
+  const missing = spRaw(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'status');
+  assert.equal(missing.code, 1); assert.match(missing.err, /--recording-set/);
+  assert.equal(head(root), before); assert.equal(clean(root), '');
+  const result = sp(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'status');
+  assert.equal(result.code, 0, result.err);
+  assert.deepEqual(git(root, 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD').split('\n').sort(), [`${PLAN}/HANDOFF.md`, `${PLAN}/steps/01-a.md`].sort());
+});
+
+test('unreviewed plan-folder files and core progress edits refuse without staging', () => {
+  const root = repo({ '01-a.md': step(1, 'pending') });
+  const unexpected = path.join(root, PLAN, 'notes.md');
+  fs.writeFileSync(unexpected, 'unrelated');
+  refused(root, ['--outcome', 'done', '--summary', 'x'], /unreviewed change/);
+  fs.unlinkSync(unexpected);
+  fs.appendFileSync(path.join(root, PLAN, 'HANDOFF.md'), 'edited');
+  refused(root, ['--outcome', 'done', '--summary', 'x'], /core progress edit/);
+});
+
+test('partial staging refuses and retains exact caller index and working bytes', () => {
+  const root = repo({ '01-a.md': step(1, 'pending') }, '# HANDOFF\n', { 'source.txt': 'base' });
+  fs.writeFileSync(path.join(root, 'source.txt'), 'staged'); git(root, 'add', 'source.txt');
+  fs.writeFileSync(path.join(root, 'source.txt'), 'working');
+  clean(root);
+  const index = fs.readFileSync(path.join(root, '.git/index'));
+  refused(root, ['--outcome', 'done', '--summary', 'x', '--changed', 'source.txt:edit'], /partial staging/);
+  assert.deepEqual(fs.readFileSync(path.join(root, '.git/index')), index);
+  assert.equal(fs.readFileSync(path.join(root, 'source.txt'), 'utf8'), 'working');
+});
+
+test('early refusal does not refresh index bytes after a tracked mtime changes', () => {
+  const root = repo({ '01-a.md': step(1, 'pending') }, '# HANDOFF\n', { 'source.txt': 'same bytes' });
+  const index = fs.readFileSync(path.join(root, '.git/index'));
+  fs.utimesSync(path.join(root, 'source.txt'), new Date(), new Date(Date.now() + 30_000));
+  const result = spRaw(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'x');
+  assert.equal(result.code, 1, result.err); assert.match(result.err, /--recording-set/);
+  assert.deepEqual(fs.readFileSync(path.join(root, '.git/index')), index);
+});
+
+test('failed commit preserves exact mixed staging, caller edits and generated preimages', () => {
+  const root = repo({ '01-a.md': step(1, 'pending') }, '# HANDOFF\n', { 'staged.txt': 'before', 'unstaged.txt': 'before' });
+  fs.writeFileSync(path.join(root, 'staged.txt'), 'after'); git(root, 'add', 'staged.txt');
+  fs.writeFileSync(path.join(root, 'unstaged.txt'), 'after');
+  clean(root);
+  const index = fs.readFileSync(path.join(root, '.git/index'));
+  fs.writeFileSync(path.join(root, '.git/hooks/commit-msg'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  const result = sp(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'x', '--changed', 'staged.txt:edit', '--changed', 'unstaged.txt:edit');
+  assert.equal(result.code, 2, result.err);
+  assert.deepEqual(fs.readFileSync(path.join(root, '.git/index')), index);
+  assert.equal(fs.readFileSync(path.join(root, PLAN, 'HANDOFF.md'), 'utf8'), '# HANDOFF\n');
+  assert.equal(fs.readFileSync(path.join(root, PLAN, 'steps/01-a.md'), 'utf8'), step(1, 'pending'));
+  assert.equal(fs.readFileSync(path.join(root, 'staged.txt'), 'utf8'), 'after');
+  assert.equal(fs.readFileSync(path.join(root, 'unstaged.txt'), 'utf8'), 'after');
+  assert.equal(fs.existsSync(path.join(root, '.git/index.lock')), false);
+});
+
+test('failed hook editing generated content reports recovery and preserves the edit', () => {
+  const root = repo({ '01-a.md': step(1, 'pending') });
+  fs.writeFileSync(path.join(root, '.git/hooks/commit-msg'), `#!/bin/sh\nprintf 'concurrent edit\\n' > '${PLAN}/HANDOFF.md'\nexit 1\n`, { mode: 0o755 });
+  const result = sp(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'x');
+  assert.equal(result.code, 1, result.err); assert.match(result.err, /recovery required/);
+  assert.equal(fs.readFileSync(path.join(root, PLAN, 'HANDOFF.md'), 'utf8'), 'concurrent edit\n');
+  assert.ok(fs.readdirSync(path.join(root, '.git')).some(file => /^specplane-step-.*\.index$/.test(file)));
+});
+
+test('failed hook swapping a generated parent for a symlink never rolls back outside the checkout', () => {
+  const root = repo({ '01-a.md': step(1, 'pending') });
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'specplane-rollback-outside-'));
+  try {
+    const copied = path.join(outside, 'copied');
+    const original = path.join(outside, 'original');
+    fs.writeFileSync(path.join(root, '.git/hooks/commit-msg'),
+      `#!/bin/sh\nset -e\ncp -R '${PLAN}' '${copied}'\nmv '${PLAN}' '${original}'\nln -s '${copied}' '${PLAN}'\nexit 1\n`, { mode: 0o755 });
+    const before = head(root);
+    const result = sp(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'x');
+    assert.equal(result.code, 1, result.err); assert.match(result.err, /recovery required/);
+    assert.equal(head(root), before);
+    assert.equal(fs.lstatSync(path.join(root, PLAN)).isSymbolicLink(), true);
+    // Both copies retain the exact generated after-state. Restoring pending or
+    // removing the appended section here would mutate the outside directory.
+    assert.equal(fs.readFileSync(path.join(copied, 'steps/01-a.md'), 'utf8'), step(1, 'done'));
+    assert.match(fs.readFileSync(path.join(copied, 'HANDOFF.md'), 'utf8'), /\*\*Outcome\*\*: done/);
+    assert.deepEqual(fs.readFileSync(path.join(copied, 'HANDOFF.md')), fs.readFileSync(path.join(original, 'HANDOFF.md')));
+  } finally { fs.rmSync(outside, { recursive: true, force: true }); }
+});
+
+for (const mutation of ['strip-trailers', 'duplicate-trailer', 'switch-branch'] as const) {
+  test(`committed ${mutation} mutation requires recovery instead of recording success`, () => {
+    const root = repo({ '01-a.md': step(1, 'pending') });
+    const hook = mutation === 'switch-branch' ? 'post-commit' : 'commit-msg';
+    const script = mutation === 'strip-trailers' ? 'sed -i "/^Specplane-/d" "$1"' :
+      mutation === 'duplicate-trailer' ? `printf 'specplane-plan: ${ID}\\n' >> "$1"` :
+      'git branch hook-branch HEAD\ngit symbolic-ref HEAD refs/heads/hook-branch';
+    fs.writeFileSync(path.join(root, '.git/hooks', hook), `#!/bin/sh\nset -e\n${script}\n`, { mode: 0o755 });
+    const before = head(root);
+    const result = sp(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'x');
+    assert.equal(result.code, 1, result.err); assert.match(result.err, /recovery required.*committed branch or core trailers/s);
+    assert.notEqual(head(root), before, 'the existing commit must remain available for recovery');
+    assert.equal(fs.readFileSync(path.join(root, PLAN, 'steps/01-a.md'), 'utf8'), step(1, 'done'));
+    assert.match(fs.readFileSync(path.join(root, PLAN, 'HANDOFF.md'), 'utf8'), /\*\*Outcome\*\*: done/);
+    assert.ok(fs.readdirSync(path.join(root, '.git')).some(file => /^specplane-step-.*\.index$/.test(file)));
+  });
+}
+
+test('force reasons require an explicit step and nonblank original single-line text', () => {
+  for (const args of [ ['--force', '--reason', 'why'], ['--step', '1', '--force', '--reason', ' '], ['--step', '1', '--force', '--reason', 'why\n'], ['--step', '1', '--reason', 'why'] ]) {
+    const root = repo({ '01-a.md': step(1, 'done'), '02-b.md': step(2, 'pending') });
+    refused(root, ['--outcome', 'done', '--summary', 'x', ...args], /force reason/);
+  }
+});
+
+for (const kind of ['symlink', 'dangling', 'hardlink'] as const) {
+  test(`core-owned HANDOFF ${kind} refuses before any write`, () => {
+    const root = repo({ '01-a.md': step(1, 'pending') });
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'specplane-progress-outside-'));
+    const original = path.join(outside, 'handoff');
+    try {
+      if (kind !== 'dangling') fs.writeFileSync(original, '# external handoff\n');
+      const file = path.join(root, PLAN, 'HANDOFF.md');
+      fs.unlinkSync(file);
+      if (kind === 'hardlink') fs.linkSync(original, file); else fs.symlinkSync(original, file);
+      const before = head(root);
+      const result = sp(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'x');
+      assert.equal(result.code, 1, result.err); assert.match(result.err, /links and nonregular/);
+      assert.equal(head(root), before);
+      if (kind !== 'dangling') assert.equal(fs.readFileSync(original, 'utf8'), '# external handoff\n');
+      else assert.equal(fs.existsSync(original), false);
+    } finally { fs.rmSync(outside, { recursive: true, force: true }); }
+  });
+}

@@ -5,6 +5,7 @@ import { CONFIG_PATH, loadConfig } from "../config.js";
 import { SpecplaneError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { type Harness, NO_HARNESS_HINT, Report, selectHarnesses } from "../harness/index.js";
+import { assertInstallDestination, writeInstallFile } from "../harness/containment.js";
 
 /** Full default configuration (`feature/configuration` § Full schema with defaults). */
 export const DEFAULT_CONFIG_YAML = `# Specplane configuration. See feature/configuration for every key.
@@ -68,22 +69,27 @@ export function runInit(
   root: string,
   opts: { harness?: string; registry?: Harness[] } = {},
 ): string[] {
+  assertInstallDestination(root, path.join(root, CONFIG_PATH));
+  const { config } = loadConfig(root, { checkSpecRoots: false });
+  const base = config.spec_roots.find((r) => r.name === "base") ?? config.spec_roots[0];
+  for (const destination of [CONFIG_PATH, path.join(base.path, "features", "INFO.md"),
+    path.join(base.path, "architecture", "INFO.md"), "AGENTS.md", path.join(config.plans.dir, ".gitkeep")]) {
+    assertInstallDestination(root, path.join(root, destination));
+  }
   const selected = selectHarnesses(root, opts.harness, opts.registry);
   const out: string[] = [];
   const rel = (p: string) => path.relative(root, p).split(path.sep).join("/");
   const createIfAbsent = (abs: string, content: string) => {
+    assertInstallDestination(root, abs);
     if (fs.existsSync(abs)) {
       out.push(`Skipped ${rel(abs)} (already exists)`);
       return;
     }
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
-    fs.writeFileSync(abs, content);
+    writeInstallFile(root, abs, content);
     out.push(`Created ${rel(abs)}`);
   };
 
   createIfAbsent(path.join(root, CONFIG_PATH), DEFAULT_CONFIG_YAML);
-  const { config } = loadConfig(root, { checkSpecRoots: false });
-  const base = config.spec_roots.find((r) => r.name === "base") ?? config.spec_roots[0];
   createIfAbsent(path.join(root, base.path, "features", "INFO.md"), FEATURES_INFO);
   createIfAbsent(path.join(root, base.path, "architecture", "INFO.md"), ARCHITECTURE_INFO);
 
@@ -95,7 +101,7 @@ export function runInit(
   } else if (res.action === "unchanged") {
     out.push("Skipped AGENTS.md (Specplane block is up to date)");
   } else {
-    fs.writeFileSync(agents, res.content);
+    writeInstallFile(root, agents, res.content);
     out.push(
       res.action === "created"
         ? "Created AGENTS.md"

@@ -133,6 +133,7 @@ plan
   .option("--open-issue <text>", "open issue (repeatable; `BLOCKED: ...` when blocked)", collect)
   .option("--gap <id>", "spec-gaps.md entry this step added, e.g. G3 (repeatable)", collect)
   .option("--next-knows <text>", "what the next step must know")
+  .option("--recording-set <file>", "required reviewed digest-bound JSON manifest outside the checkout")
   .option("--step <n>", "step number (default: the lowest step not done or skipped)", (v) => Number(v))
   .option("--force", "override the blocker guard and mark the step done anyway")
   .option("--reason <text>", "audit reason required when re-recording a completed step")

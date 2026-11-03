@@ -339,6 +339,15 @@ export async function assertPrepared(requestId: string, context: CoreContext): P
 }
 /** Called only by the embedding lifecycle after it has proved the worker stopped. */
 export function releaseStoppedPreparation(requestId: string): void {
+  if (activities.has(requestId)) return refuse('LOCKED', 'Cannot release a workflow with an active phase.');
   const state = prepared.get(requestId); if (!state) return;
   state.lease.release(); prepared.delete(requestId);
+}
+
+const activities = new Map<string, 'execution' | 'validation' | 'recording'>();
+/** Reserve before asynchronous checks so no phase can overlap execution. */
+export async function withPreparedActivity<T>(requestId: string, activity: 'execution' | 'validation' | 'recording', body: () => Promise<T>): Promise<T> {
+  if (activities.has(requestId)) return refuse('LOCKED', `Workflow already running ${activities.get(requestId)}.`);
+  activities.set(requestId, activity);
+  try { return await body(); } finally { activities.delete(requestId); }
 }

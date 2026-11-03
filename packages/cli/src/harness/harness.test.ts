@@ -123,7 +123,8 @@ test("claude install: files created, hooks executable, idempotent, CLAUDE.md unt
   fs.writeFileSync(path.join(root, ".claude/rules/specplane.md"), "changed");
   fs.chmodSync(hook, 0o644);
   const second = runInit(root, { harness: "claude" });
-  assert.ok(second.includes("Updated .claude/rules/specplane.md"));
+  assert.ok(second.some(line => line.startsWith("Skipped .claude/rules/specplane.md (customized or unrecognized file preserved")));
+  assert.equal(fs.readFileSync(path.join(root, ".claude/rules/specplane.md"), "utf8"), "changed");
   assert.ok(second.includes("Skipped .claude/skills/plan-step/SKILL.md (up to date)"));
   assert.ok(second.includes("Skipped .claude/settings.json (already registered)"));
   assert.equal(fs.statSync(hook).mode & 0o777, 0o755);

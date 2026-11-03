@@ -1,36 +1,27 @@
 {
   "updated": "2026-11-03",
-  "status": "provisional planning estimate, not measured throughput or a deadline",
-  "execution": "direct session, no subagents; exactly one original roadmap step per handoff",
-  "remaining_original_steps": 20,
-  "completed_implementation_scope": "core foundation plus target lifecycle, plan index and completion assessment; shared-anchor refusal accepted as a limitation, not universal YAML support; workflow recording step 01 preparation/state binding (direct-session review record, formal lifecycle unchanged)",
+  "status": "previous hour estimates retired; recalibrate from measured parallel integration batches",
+  "execution": "main agent coordinates up to three parallel workers within current four-agent limit; continue eligible work after checkpoints",
+  "remaining_original_steps": 17,
+  "completed_implementation_scope": "core foundation plus target lifecycle, plan index and completion assessment; shared-anchor refusal accepted as a limitation, not universal YAML support; workflow recording step 01 preparation/state binding (direct-session review record, formal lifecycle unchanged); execution receipts, manual exact-set recording, and confirmation primitive (full integration regression passed)",
   "formal_lifecycle": "unchanged; source plan statuses do not reflect review-branch implementation coverage",
-  "remaining_active_hours": [
-    7,
-    15
-  ],
-  "contingency_hours": [
-    3,
-    6
-  ],
-  "total_with_contingency_hours": [
-    10,
-    21
-  ],
-  "basis": "Removed the completed preparation step from the bottom-up scope and rounded remaining workflow-recording effort to 1.5\u20133 hours. One direct-session observation does not establish model throughput; remaining estimates retain concurrency, evidence, and host risks. No elapsed-time subtraction is used as proof of completion.",
+  "remaining_active_hours": null,
+  "contingency_hours": null,
+  "total_with_contingency_hours": null,
+  "basis": "Reuse audit found substantial existing approval, finish, recorder and conductor implementation. Prior summed serial estimates were not measured throughput. Preparation completed in 18.2 minutes elapsed; this alone does not establish a full-roadmap deadline. This parallel integration batch passed 671 regression tests in 154.97 seconds after a stalled sandbox attempt; scope remains mixed and does not establish a reliable whole-roadmap deadline.",
   "plans": [
     {
       "id": "2026-11-01-workflow-recording",
-      "steps": 3,
-      "active_hours": [
+      "steps": 1,
+      "retired_active_hours": [
         1.5,
         3
       ]
     },
     {
       "id": "2026-11-01-manual-lifecycle",
-      "steps": 3,
-      "active_hours": [
+      "steps": 2,
+      "retired_active_hours": [
         1,
         2
       ]
@@ -38,7 +29,7 @@
     {
       "id": "2026-11-02-product-docs",
       "steps": 3,
-      "active_hours": [
+      "retired_active_hours": [
         0.75,
         1.5
       ]
@@ -46,7 +37,7 @@
     {
       "id": "2026-11-01-extension-packaging",
       "steps": 3,
-      "active_hours": [
+      "retired_active_hours": [
         1,
         2
       ]
@@ -54,7 +45,7 @@
     {
       "id": "2026-11-01-claude-delivery",
       "steps": 3,
-      "active_hours": [
+      "retired_active_hours": [
         1,
         3
       ]
@@ -62,7 +53,7 @@
     {
       "id": "2026-11-01-codex-delivery",
       "steps": 3,
-      "active_hours": [
+      "retired_active_hours": [
         1,
         2
       ]
@@ -70,7 +61,7 @@
     {
       "id": "2026-11-01-extension-conformance",
       "steps": 2,
-      "active_hours": [
+      "retired_active_hours": [
         0.75,
         1.5
       ]
@@ -78,24 +69,55 @@
   ],
   "next_step": {
     "plan": "2026-11-01-workflow-recording",
-    "step": 2,
-    "title": "Execution receipts",
-    "active_hours": [
-      0.5,
-      1.25
-    ],
+    "step": 4,
+    "title": "Workflow validation and recording \u2014 remaining coverage",
     "risks": [
-      "Core-owned execution receipts must reuse the retained preparation lease and private state.",
-      "Permission refusal, cancellation, stale state and skipped/missing suites must never establish passing evidence.",
-      "Do not weaken uncertain mappings or invent test coverage."
+      "Plan-step path passed final regression; complete remaining step 04 coverage without weakening existing guards.",
+      "Non-plan recording, trusted contribution events and cross-process recovery remain unsupported.",
+      "Do not release retained workflow leases until trusted host acknowledges worker stop."
     ]
   },
-  "update_rule": "Before the step, freeze its estimate. At handoff record outcome, actual elapsed time, known approval/wait time, active time or unknown, tests, remaining scope and revised low/high estimate with reasons. Never subtract elapsed time as completed scope, or treat an incomplete step as complete. Stop after one step or its blocked handoff.",
+  "update_rule": "Record scope and start time per parallel batch; report integrated completion, elapsed time, token/tool/test/review/wait measurements where observable, and uncertainty. Continue eligible authorized work. Do not add overlapping worker durations as elapsed time or mark formal lifecycle states through this record.",
   "latest_attempt": {
-    "record": "docs/work-records/2026-11-03-workflow-preparation-result.json",
-    "outcome": "step 01 implemented and reviewed on review branch; formal lifecycle unchanged",
-    "elapsed_minutes": 18.2,
+    "record": "docs/work-records/2026-11-03-workflow-integration-result.json",
+    "outcome": "three original implementation steps completed plus bounded recording/approval/installation integration; formal lifecycle unchanged",
+    "elapsed_minutes": 23.12,
     "active_time": "unknown",
-    "approval_wait": "unknown"
+    "approval_wait": "not isolated"
+  },
+  "retired_estimate": {
+    "remaining_active_hours": [
+      7,
+      15
+    ],
+    "contingency_hours": [
+      3,
+      6
+    ],
+    "total_with_contingency_hours": [
+      10,
+      21
+    ]
+  },
+  "current_batch": {
+    "started_utc": "2026-11-03T06:08:52.651834+00:00",
+    "baseline": "01a8f999acbde93f429099ce02705e2acb66adbe",
+    "scope": [
+      "Execution receipts",
+      "Trusted confirmation primitive",
+      "Installation containment and customization preservation",
+      "Exact-set recording review and integration",
+      "Bounded structured plan-step validation/recording",
+      "Single-target confirmation approval adapters"
+    ],
+    "status": "reviewed and verified"
+  },
+  "subagent_policy": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "astra": "prohibited for future implementation assignments",
+    "existing_workers": "may finish current assignments",
+    "source": "explicit user instruction in this session",
+    "global_settings_changed": false
   }
 }
