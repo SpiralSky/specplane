@@ -21,10 +21,11 @@ export interface WorkerDelegation { commonDir: string; keys: readonly Key[]; req
 export interface DelegatedLease { assertOwned(): void; consume(): void }
 
 export interface LeaseRequest { checkouts: string[]; plans?: string[]; repository?: boolean; requestId: string }
-export interface WriterLease { readonly keys: readonly Key[]; readonly reclaimed: boolean; assertOwned(): void; delegate(input: { checkout: string; step: number; pid: number }): WorkerDelegation; acknowledgeStop(result: 'stopped' | 'uncertain'): void; release(): void }
+export interface WriterLease { readonly keys: readonly Key[]; readonly reclaimed: boolean; assertOwned(): void; /** Mark host work before exposing a request. */ retainHostWorker(): void; /** Trusted embedding only, after all host workers stop. */ releaseStoppedHost(): void; delegate(input: { checkout: string; step: number; pid: number }): WorkerDelegation; acknowledgeStop(result: 'stopped' | 'uncertain'): void; release(): void }
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 const fileFor = (dir: string, key: Key) => path.join(dir, `${key.kind}-${hash(key.identity)}.json`);
 const delegationMarker = (dir: string, generation: string) => path.join(dir, `delegation-${hash(generation)}.marker`);
+const hostMarker = (dir: string, generation: string) => path.join(dir, `host-${hash(generation)}.marker`);
 const nonempty = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
 function validWorker(w: any): w is Worker | null {
   return w === null || (!!w && typeof w === 'object' && !Array.isArray(w) &&
@@ -87,6 +88,7 @@ export function inspectWriterLease(request: LeaseRequest): void {
     const prior = readRecord(file, key);
     if (prior.worker !== null || exists(delegationMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has delegated worker evidence; explicit recovery is required.`, 'RECOVERY_REQUIRED');
     if (!dead(prior.pid)) throw new LeaseRefused(`${key.kind} lease is held by a live or inaccessible owner.`, 'LOCKED');
+    if (exists(hostMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has host worker evidence; explicit recovery is required.`, 'RECOVERY_REQUIRED');
   }
   if (exists(path.join(dir, 'writer.guard'))) throw new LeaseRefused('Writer guard exists; contention or recovery requires inspection.', 'LOCKED');
 }
@@ -117,6 +119,7 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
           const prior = readRecord(file, key);
           if (prior.worker !== null || exists(delegationMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has delegated worker evidence; explicit recovery is required.`, 'RECOVERY_REQUIRED');
           if (!dead(prior.pid)) throw new LeaseRefused(`${key.kind} lease is held by a live or inaccessible owner.`, 'LOCKED');
+          if (exists(hostMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has host worker evidence; explicit recovery is required.`, 'RECOVERY_REQUIRED');
           fs.unlinkSync(file); reclaimed = true;
         }
         const record: RecordData = { version: 1, kind: key.kind, identity: key.identity, pid: process.pid, generation, requestId, token, worker: null };
@@ -129,9 +132,10 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
       throw e;
     }
   });
-  let released = false;
+  let released = false, hostRetained = false;
   const verify = () => {
     if (released) throw new LeaseRefused('Lease has already been released.', 'RECOVERY_REQUIRED');
+    if (hostRetained && !exists(hostMarker(dir, generation))) throw new LeaseRefused('Host worker evidence is missing; inspect coordination state.', 'RECOVERY_REQUIRED');
     for (const key of keys) {
       const record = readRecord(fileFor(dir, key), key);
       if (record.pid !== process.pid || record.token !== token || record.generation !== generation || record.requestId !== requestId) throw new LeaseRefused('Lease ownership changed; inspect coordination state.', 'RECOVERY_REQUIRED');
@@ -151,9 +155,32 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
       throw new LeaseRefused('Delegation state is missing or inconsistent; inspect coordination state.', 'RECOVERY_REQUIRED');
     return first;
   };
+  const release = (hostStopped = false) => guard(dir, () => {
+    verify();
+    if (exists(hostMarker(dir, generation)) && !hostStopped) throw new LeaseRefused('Host worker stop is unproved; recovery is required.', 'RECOVERY_REQUIRED');
+    const records = readAll();
+    if (records.some(r => r.worker !== null)) {
+      const worker = sameWorker(records);
+      if (worker.state !== 'stopped' && worker.state !== 'consumed') throw new LeaseRefused('Worker stop is unproved; recovery is required.', 'RECOVERY_REQUIRED');
+    } else if (exists(delegationMarker(dir, generation))) {
+      throw new LeaseRefused('Incomplete delegation requires recovery.', 'RECOVERY_REQUIRED');
+    }
+    for (const key of [...keys].reverse()) fs.unlinkSync(fileFor(dir, key));
+    if (exists(delegationMarker(dir, generation))) fs.unlinkSync(delegationMarker(dir, generation));
+    if (exists(hostMarker(dir, generation))) fs.unlinkSync(hostMarker(dir, generation));
+    released = true;
+  });
   return { keys: publicKeys, reclaimed, assertOwned: () => guard(dir, () => {
     verify();
     if (exists(delegationMarker(dir, generation)) || readAll().some(r => r.worker !== null)) throw new LeaseRefused('Delegated lease cannot be used by its owner.', 'LOCKED');
+  }), retainHostWorker: () => guard(dir, () => {
+    verify();
+    if (exists(delegationMarker(dir, generation)) || readAll().some(r => r.worker !== null)) throw new LeaseRefused('Lease is already delegated.', 'LOCKED');
+    // Persist before the prepared request can escape to a host turn. Unknown
+    // host process trees require trusted acknowledgment, never PID inference.
+    const fd = fs.openSync(hostMarker(dir, generation), 'wx', 0o600);
+    try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+    hostRetained = true;
   }), delegate: input => {
     const checkout = checkoutIdentity(input.checkout);
     if (checkout.commonDir !== commonDir || !keys.some(k => k.kind === 'checkout' && k.identity === checkout.gitDir) ||
@@ -161,7 +188,7 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
       throw new Error('Delegation requires a held checkout, step and worker PID.');
     return guard(dir, () => {
       verify();
-      if (exists(delegationMarker(dir, generation)) || readAll().some(r => r.worker !== null)) throw new LeaseRefused('Lease is already delegated.', 'LOCKED');
+      if (exists(hostMarker(dir, generation)) || exists(delegationMarker(dir, generation)) || readAll().some(r => r.worker !== null)) throw new LeaseRefused('Lease is already delegated.', 'LOCKED');
       const worker: Worker = { pid: input.pid, token: randomUUID(), checkout: checkout.gitDir, step: input.step, keysDigest: hash(JSON.stringify(keys)), state: 'active' };
       // Create the generation marker first: an interrupted multi-record update must never be reclaimed as undelegated.
       const marker = fs.openSync(delegationMarker(dir, generation), 'wx', 0o600);
@@ -175,19 +202,7 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
     if (worker.state !== 'active' && worker.state !== 'uncertain') throw new LeaseRefused('Worker is already stopped or recorded.', 'RECOVERY_REQUIRED');
     if (result !== 'stopped' && result !== 'uncertain') throw new Error('A stopped or uncertain acknowledgment is required.');
     updateWorker({ ...worker, state: result });
-  }), release: () => guard(dir, () => {
-    verify();
-    const records = readAll();
-    if (records.some(r => r.worker !== null)) {
-      const worker = sameWorker(records);
-      if (worker.state !== 'stopped' && worker.state !== 'consumed') throw new LeaseRefused('Worker stop is unproved; recovery is required.', 'RECOVERY_REQUIRED');
-    } else if (exists(delegationMarker(dir, generation))) {
-      throw new LeaseRefused('Incomplete delegation requires recovery.', 'RECOVERY_REQUIRED');
-    }
-    for (const key of [...keys].reverse()) fs.unlinkSync(fileFor(dir, key));
-    if (exists(delegationMarker(dir, generation))) fs.unlinkSync(delegationMarker(dir, generation));
-    released = true;
-  }) };
+  }), release: () => release(), releaseStoppedHost: () => release(true) };
 }
 
 /** Worker-side access reuses the held set; it never acquires another lease. */

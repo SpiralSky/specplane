@@ -1,0 +1,81 @@
+{
+  "date": "2026-11-03",
+  "kind": "direct-session review-branch implementation; not a managed step receipt",
+  "baseline": "4c9f42b57a5557ecc181a19be6de8e11efcc7f3f",
+  "started_utc": "2026-11-03T06:53:59Z",
+  "status": "implemented, reviewed and verified",
+  "formal_lifecycle": "unchanged",
+  "scope": [
+    "Durable prepared-host worker evidence bound to the retained writer generation",
+    "Refuse dead-owner reclamation for every key in the prepared lease set",
+    "Trusted stopped-host release preserves existing delegation checks"
+  ],
+  "verification": {
+    "build": "passed",
+    "focused": {
+      "passed": 56,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 22.103949771,
+      "test_file_concurrency": 4,
+      "outside_sandbox": false
+    },
+    "full_regression": {
+      "passed": 686,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 206.115931814,
+      "outside_sandbox": true,
+      "test_file_concurrency": 4
+    },
+    "repository_validation": {
+      "errors": 0,
+      "warnings": 89
+    },
+    "diff_check": "passed",
+    "sandbox_full_attempt": "Stopped after stalling before meaningful full-suite progress; rerun outside sandbox with scoped approval."
+  },
+  "review": [
+    "Persist the private generation marker before exposing the prepared request; no asynchronous gap follows retention.",
+    "Preview and acquisition both refuse dead-owner reclamation when host evidence exists; live-owner contention remains LOCKED.",
+    "Ordinary release refuses unproved host stop; only the existing trusted stopped-preparation boundaries use stopped-host release.",
+    "Delegation and retained host work cannot overlap; stopped-host release still checks delegated worker state.",
+    "Lost retained marker refuses same-process ownership and release.",
+    "Marker persistence errors fail closed; crash guard behavior remains unchanged."
+  ],
+  "evidence": [
+    "Child process calls real plan-step preparation and exits. Parent separately attempts checkout, plan and repository acquisition/preview, a replacement preparation, inspection and cancellation. Runtime bytes and partial edit bytes are preserved.",
+    "Focused tests cover trusted release cleanup, blocked ordinary release, delegation contention and missing marker refusal, alongside existing preparation/execution/recording/cancellation tests."
+  ],
+  "assumptions_and_gaps": [
+    {
+      "kind": "assumption",
+      "target": "architecture/reference-cli#Writer coordination; #Structured reasoning boundary",
+      "description": "A host may use a process tree without a locally verifiable worker PID. Persist conservative generation-bound host evidence and require explicit recovery after owner death. Do not infer a stopped worker from a dead owner."
+    }
+  ],
+  "limitations": [
+    "No cross-process prepared-state reconstruction, trusted stop recovery API or publication retry recovery is implemented by this batch.",
+    "The marker records possible host activity without claiming native host session identity or worker PID evidence.",
+    "Recovery after owner exit requires manual inspection; do not delete coordination records solely because the owner PID is dead.",
+    "This verifies process-exit persistence and fail-closed contention, not power-loss durability or live host certification.",
+    "Non-plan recording and trusted contribution capture remain pending.",
+    "No managed plan/spec/ADR lifecycle approval or completion is recorded.",
+    "Historical prepared workflows without this marker are not retroactively protected."
+  ],
+  "development_attempts": [
+    "An initial build was invoked from repository root and failed because package.json is under packages/cli; the package-directory build passed.",
+    "One test-edit script was invoked from the package directory with repository-relative paths and made no changes; rerun from repository root succeeded."
+  ],
+  "delegation": "No subagents used in this batch.",
+  "checkpoint_utc": "2026-11-03T06:55:41.789189+00:00",
+  "completed_utc": "2026-11-03T07:04:33.870858+00:00",
+  "elapsed_minutes": 10.58,
+  "timing_limitations": "Active generation time, approval wait and total tool time are not isolated; elapsed time includes investigation, review and tests.",
+  "reviewed_source_sha256": {
+    "packages/cli/src/core/writer-leases.ts": "6f5ae71f33911cf6c058630bdd53495138d949393084c5339d98ee5a7faa5932",
+    "packages/cli/src/core/writer-leases.test.ts": "284944b60830fdd3c7f2e6bfa209725023f63f8a492ee194a2d2594beb98ef35",
+    "packages/cli/src/core/workflow-preparation.ts": "2484f3f3a1d2c27d5d76c5c6e1a9623761534d06d91fc0608e6bb48b46a65892",
+    "packages/cli/src/core/workflow-lifecycle.test.ts": "0f2277c5382972ab66bf6097100c0335ced0e61edd86f75c5c423a3e76f30bab"
+  }
+}

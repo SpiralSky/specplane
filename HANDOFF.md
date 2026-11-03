@@ -2,6 +2,16 @@
 
 ## Current continuation checkpoint
 
+Continuation remains on the existing review branch. Prepared workflows now persist private generation-bound host-worker evidence before exposing the request. Checkout, plan and repository lease acquisition and previews refuse dead-owner reclamation while this evidence exists. Ordinary release refuses unproved host stop; the existing trusted stopped-preparation boundaries release the full set and marker after acknowledgment. Partial edits remain intact. Native host process/session identities are not inferred.
+
+Evidence: `docs/work-records/2026-11-03-workflow-host-evidence-result.json`. Build and 56 focused tests passed. Full regression passed 686 tests, 0 failures, 0 skipped (206.12 seconds, four test files at a time, outside the sandbox after stopping a stalled sandbox attempt). Repository validation returned 0 errors and 89 existing warnings. Formal plan/spec/ADR lifecycle states remain unchanged.
+
+This closes the unsafe dead-owner reclamation path for newly prepared workflows, with a real child-process preparation/owner-exit regression. It does not implement cross-process prepared-state reconstruction or recovery: after an owner exits, recovery remains an explicit manual inspection requirement. Never remove these coordination records solely because the parent PID is dead. Non-plan recording and trusted contribution capture remain pending. Existing historical preparations without the new marker are not retroactively protected.
+
+Preserve unrelated untracked `problems.md` and `docs/work-records/2026-11-03-session-throughput-analysis.json`. Continue workflow recording step 04 coverage on this review branch using the existing private preparation and evidence machinery. Do not change formal source plan progress to describe review-branch implementation.
+
+## Previous lifecycle checkpoint
+
 Continuation remains on the existing review branch. Public `cancelWorkflow` and `inspectWorkflow` now use preparation-owned state, propagate cancellation to execution, and require a preparation-bound trusted host acknowledgment before releasing a writer lease. Partial edits are preserved. Cancellation after recording reports the existing commit and unfinished publication, including known-but-unverified commit diagnostics if recovery inspection fails. Inspection does not recreate missing recording directories. Repeated same-process cancellation/inspection is supported after release.
 
 Evidence and current verification: `docs/work-records/2026-11-03-workflow-lifecycle-result.json`. Build passed. Full regression passed 682 tests before the final stop-failure diagnostic enrichment; final focused regression passed 45 tests after that repair. Repository validation: 0 errors, 89 existing warnings. Formal plan/spec/ADR lifecycle states remain unchanged. Non-plan recording, trusted contribution capture and cross-process recovery remain pending. In particular, preparation does not yet persist delegated host-worker evidence: dead-owner reclamation is not sufficient proof that host workers stopped. Do not claim cross-process safety from the same-process cancellation tests.

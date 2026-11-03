@@ -305,6 +305,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
     if (context.signal?.aborted) refuse('CANCELLED', 'Preparation cancelled.');
     const cancellation = new AbortController();
     const boundContext = { ...context, signal: context.signal ? AbortSignal.any([context.signal, cancellation.signal]) : cancellation.signal };
+    lease.retainHostWorker();
     prepared.set(requestId, { cancellation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' ? null : request.selection.input });
     lease = undefined;
     return { protocol: 1, ok: true, value: envelope, notices };
@@ -351,7 +352,7 @@ export function finishStoppedPreparation(requestId: string): void {
   if (activities.has(requestId)) return refuse('RECOVERY_REQUIRED', 'Worker acknowledgment arrived while a core phase remains active; lease retained.');
   const state = prepared.get(requestId);
   if (!state || state.leaseReleased) return;
-  state.lease.release(); state.leaseReleased = true;
+  state.lease.releaseStoppedHost(); state.leaseReleased = true;
 }
 export function preparedActivity(requestId: string): 'idle' | 'execution' | 'validation' | 'recording' {
   return activities.get(requestId) ?? 'idle';
@@ -360,7 +361,7 @@ export function preparedActivity(requestId: string): 'idle' | 'execution' | 'val
 export function releaseStoppedPreparation(requestId: string): void {
   if (activities.has(requestId)) return refuse('LOCKED', 'Cannot release a workflow with an active phase.');
   const state = prepared.get(requestId); if (!state) return;
-  if (!state.leaseReleased) state.lease.release(); prepared.delete(requestId);
+  if (!state.leaseReleased) state.lease.releaseStoppedHost(); prepared.delete(requestId);
 }
 
 const activities = new Map<string, 'execution' | 'validation' | 'recording'>();

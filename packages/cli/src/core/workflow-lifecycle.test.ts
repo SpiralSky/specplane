@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { acquireWriterLease, inspectWriterLease, checkoutIdentity, LeaseRefused } from './writer-leases.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
@@ -162,4 +164,36 @@ test('host stop method is bound before asynchronous preparation can yield', asyn
   if (!prepared.ok) return;
   try { assert.equal((await cancelWorkflow(prepared.value.requestId, context)).ok, true); assert.equal(calls, 1); }
   finally { releaseStoppedPreparation(prepared.value.requestId); }
+});
+
+
+test('prepared host evidence survives owner exit and prevents another process reclaiming any writer key', async () => {
+  const r = repo(), p = await fixture('plan-step');
+  const context: CoreContext = { checkout: r.cwd, extensionId: p.host.extensionId, compatibility: { manifest: p.manifest, host: p.host } };
+  const initiation = { protocol: 1, workflow: 'plan-step', extensionId: context.extensionId, checkout: r.cwd, mode: 'attended', selection: { planId: id } };
+  const script = `import { prepareWorkflow } from ${JSON.stringify(new URL('./index.js', import.meta.url).href)};
+    const { initiation, context } = JSON.parse(process.argv[1]);
+    const result = await prepareWorkflow(initiation, context);
+    if (!result.ok) throw new Error(JSON.stringify(result));
+    console.log(result.value.requestId);`;
+  const requestId = execFileSync(process.execPath, ['--input-type=module', '-e', script, JSON.stringify({ initiation, context })], { encoding: 'utf8', env: { ...process.env, NODE_TEST_CONTEXT: '' } }).trim();
+  r.put('partial.txt', 'preserve after owner exit');
+  const runtime = path.join(checkoutIdentity(r.cwd).commonDir, 'specplane-runtime');
+  const before = Object.fromEntries(fs.readdirSync(runtime).map(name => [name, fs.readFileSync(path.join(runtime, name), 'utf8')]));
+  assert.equal(Object.keys(before).filter(name => name.startsWith('host-')).length, 1);
+  const recovery = (error: unknown) => error instanceof LeaseRefused && error.code === 'RECOVERY_REQUIRED' && /host worker evidence/.test(error.message);
+  for (const request of [
+    { checkouts: [r.cwd], requestId: 'checkout-only' },
+    { checkouts: [r.cwd], plans: [id], requestId: 'plan' },
+    { checkouts: [r.cwd], repository: true, requestId: 'repository' },
+  ]) {
+    assert.throws(() => inspectWriterLease(request), recovery);
+    assert.throws(() => acquireWriterLease(request), recovery);
+  }
+  code(inspectWorkflow(requestId, context), 'STALE_STATE');
+  code(await cancelWorkflow(requestId, { ...context, lifecycle: stopped }), 'STALE_STATE');
+  const refused = await prepareWorkflow(initiation as Parameters<typeof prepareWorkflow>[0], context);
+  code(refused, 'RECOVERY_REQUIRED');
+  assert.deepEqual(Object.fromEntries(fs.readdirSync(runtime).map(name => [name, fs.readFileSync(path.join(runtime, name), 'utf8')])), before);
+  assert.equal(fs.readFileSync(path.join(r.cwd, 'partial.txt'), 'utf8'), 'preserve after owner exit');
 });

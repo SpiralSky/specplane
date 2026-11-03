@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { acquireWriterLease, checkoutIdentity, LeaseRefused, useDelegatedLease, recoverDelegatedLease } from './writer-leases.js';
+import { acquireWriterLease, inspectWriterLease, checkoutIdentity, LeaseRefused, useDelegatedLease, recoverDelegatedLease } from './writer-leases.js';
 function fixture() {
  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'writer-leases-'));
  const main = path.join(root, 'main'), other = path.join(root, 'other'), alias = path.join(root, 'alias');
@@ -158,5 +158,31 @@ test('interrupted delegation cannot be reclaimed as an undelegated lease', () =>
   const file = records(f.runtime)[0], record = JSON.parse(fs.readFileSync(file, 'utf8'));
   record.pid = 2147483647; record.worker = null; fs.writeFileSync(file, JSON.stringify(record));
   assert.throws(() => acquireWriterLease({ checkouts: [f.main], requestId: 'new' }), /delegated/);
+ } finally { f.cleanup(); }
+});
+
+
+test('host worker evidence retains the complete lease set until trusted stop', () => {
+ const f = fixture(); try {
+  const request = { checkouts: [f.main], plans: ['plan'], repository: true, requestId: 'host' };
+  const lease = acquireWriterLease(request);
+  lease.retainHostWorker(); lease.assertOwned();
+  assert.throws(() => lease.release(), /Host worker stop is unproved/);
+  locked(() => lease.delegate({ checkout: f.main, step: 1, pid: process.pid }));
+  locked(() => inspectWriterLease(request));
+  assert.equal(fs.readdirSync(f.runtime).filter(name => name.startsWith('host-')).length, 1);
+  lease.releaseStoppedHost();
+  assert.equal(fs.readdirSync(f.runtime).length, 0);
+  const next = acquireWriterLease(request); next.release();
+ } finally { f.cleanup(); }
+});
+
+test('missing retained host evidence refuses ownership and even trusted release', () => {
+ const f = fixture(); try {
+  const lease = acquireWriterLease({ checkouts: [f.main], requestId: 'host' });
+  lease.retainHostWorker();
+  fs.unlinkSync(path.join(f.runtime, fs.readdirSync(f.runtime).find(name => name.startsWith('host-'))!));
+  assert.throws(() => lease.assertOwned(), /Host worker evidence is missing/);
+  assert.throws(() => lease.releaseStoppedHost(), /Host worker evidence is missing/);
  } finally { f.cleanup(); }
 });

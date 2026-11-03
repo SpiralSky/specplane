@@ -3,7 +3,7 @@
   "status": "previous hour estimates retired; recalibrate from measured parallel integration batches",
   "execution": "main agent coordinates up to three parallel workers within current four-agent limit; continue eligible work after checkpoints",
   "remaining_original_steps": 17,
-  "completed_implementation_scope": "core foundation plus target lifecycle, plan index and completion assessment; shared-anchor refusal accepted as a limitation, not universal YAML support; workflow recording step 01 preparation/state binding (direct-session review record, formal lifecycle unchanged); execution receipts, manual exact-set recording, and confirmation primitive (full integration regression passed); public same-process workflow cancellation/inspection with trusted stopped-worker acknowledgment",
+  "completed_implementation_scope": "core foundation plus target lifecycle, plan index and completion assessment; shared-anchor refusal accepted as a limitation, not universal YAML support; workflow recording step 01 preparation/state binding (direct-session review record, formal lifecycle unchanged); execution receipts, manual exact-set recording, and confirmation primitive (full integration regression passed); public same-process workflow cancellation/inspection with trusted stopped-worker acknowledgment; durable prepared-host evidence preventing unsafe dead-owner reclamation",
   "formal_lifecycle": "unchanged; source plan statuses do not reflect review-branch implementation coverage",
   "remaining_active_hours": null,
   "contingency_hours": null,
@@ -72,18 +72,18 @@
     "step": 4,
     "title": "Workflow validation and recording \u2014 remaining coverage",
     "risks": [
-      "Same-process cancellation and inspection verified; cross-process recovery remains pending.",
-      "Prepared workflows still lack durable delegated host-worker evidence; do not infer worker stop from a dead parent.",
+      "Durable prepared-host evidence now blocks dead-owner reclamation; cross-process prepared-state reconstruction and explicit trusted recovery remain pending.",
+      "Historical preparations without the new marker are not retroactively protected.",
       "Non-plan recording and trusted contribution events remain unsupported."
     ]
   },
   "update_rule": "Record scope and start time per parallel batch; report integrated completion, elapsed time, token/tool/test/review/wait measurements where observable, and uncertainty. Continue eligible authorized work. Do not add overlapping worker durations as elapsed time or mark formal lifecycle states through this record.",
   "latest_attempt": {
-    "record": "docs/work-records/2026-11-03-workflow-lifecycle-result.json",
-    "outcome": "Same-process cancellation/inspection and trusted lease release; formal lifecycle unchanged",
-    "elapsed_minutes": 15.06,
+    "record": "docs/work-records/2026-11-03-workflow-host-evidence-result.json",
+    "outcome": "Durable host-worker evidence prevents dead-owner reclamation; explicit cross-process recovery remains pending; formal lifecycle unchanged",
+    "elapsed_minutes": 10.58,
     "active_time": "unknown",
-    "approval_wait": "not isolated; includes requested local configuration and speed check"
+    "approval_wait": "not isolated"
   },
   "retired_estimate": {
     "remaining_active_hours": [
@@ -100,10 +100,10 @@
     ]
   },
   "current_batch": {
-    "started_utc": "2026-11-03T06:36:50.543940+00:00",
-    "baseline": "696e295560a447ab635e2e2df5b88664b4803d87",
+    "started_utc": "2026-11-03T06:53:59Z",
+    "baseline": "4c9f42b57a5557ecc181a19be6de8e11efcc7f3f",
     "scope": [
-      "Public workflow cancellation, inspection and trusted stopped-worker acknowledgment"
+      "Durable prepared-host worker evidence; refuse dead-owner reclamation until trusted stop"
     ],
     "status": "reviewed and verified"
   },
