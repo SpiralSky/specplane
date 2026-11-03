@@ -40,7 +40,7 @@ export function executeOperation(request: MechanicalRequest, context: CoreContex
     return { protocol: 1, ok: false, error: { code: error instanceof LeaseRefused ? error.code : context.signal?.aborted ? 'CANCELLED' : 'OPERATION_FAILED', message: error instanceof Error ? error.message : String(error), retryable: error instanceof LeaseRefused && error.code === 'LOCKED', details: null }, notices: [] };
   }
 }
-export const prepareWorkflow = (_request: WorkflowRequest, _context: CoreContext): Result<never> => checked('prepareWorkflow', validate.request(_request));
+export { prepareWorkflow } from './workflow-preparation.js';
 export const executeWorkflowTest = (_request: WorkflowTestRequest, _context: CoreContext): Result<never> => checked('executeWorkflowTest', validate.test(_request));
 export const validateWorkflowResult = (_prepared: WorkflowRequest, _result: WorkflowResult, _context: CoreContext): Result<never> => checked('validateWorkflowResult', validate.request(_prepared) && validate.result(_result));
 export const recordWorkflow = (_proposal: RecordingProposal, _context: CoreContext): Result<never> => checked('recordWorkflow', validate.proposal(_proposal));

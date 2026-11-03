@@ -1,0 +1,137 @@
+{
+  "date": "2026-11-03",
+  "kind": "direct-session review-branch implementation; not a managed step receipt",
+  "baseline": "5365e01",
+  "plan": "2026-11-01-workflow-recording",
+  "step": 1,
+  "title": "Preparation and state binding",
+  "outcome": "implemented and directly reviewed",
+  "formal_lifecycle": "unchanged; PLAN/step/HANDOFF files remain CLI-owned and untouched",
+  "scope_completed": [
+    "Closed WorkflowInitiation and asynchronous public prepareWorkflow for plan-step and all five non-plan workflows.",
+    "Private package/host compatibility binding, inventory/procedure digests, canonical base snapshots and retained ordered writer leases.",
+    "Remote fetch and fast-forward before capture; divergence, dirty baseline, wrong checkout, lifecycle/dependency and rerun guards.",
+    "Configured roots, spec reference closure, context and target state binding.",
+    "Reviewed suite/format mapping validation, explicit uncertain mappings and protected policy/criteria rechecks.",
+    "Non-plan request text and conservative edit scope, including draft-body editing with protected metadata."
+  ],
+  "criteria_review": [
+    {
+      "criterion": "Remote plan fast-forward precedes snapshot; divergence refuses.",
+      "assessment": "met",
+      "evidence": "Public-API test uses a local bare origin and second clone; verifies returned HEAD and bytes match remote update and divergent local commit is preserved."
+    },
+    {
+      "criterion": "Dirty baseline, changed policy/criteria and wrong checkout follow settled contract; schema gaps recorded.",
+      "assessment": "met",
+      "evidence": "Focused tests cover dirty/untracked preservation, branch/checkout mismatch, immutable private snapshot, changed step/config/target, reruns and terminal target refusal. WR-PREP-01 resolved by user-delegated choice; scope.input implementation assumption recorded below."
+    },
+    {
+      "criterion": "Preparation binds target context and reviewed suite/report mappings; absent mappings remain uncertain.",
+      "assessment": "met",
+      "evidence": "Target context/ref inputs, package contracts and test/inspection mappings bound; stale/duplicate/unknown/wrong-workflow mappings refuse; missing mapping remains privately uncertain with notices."
+    }
+  ],
+  "decisions_and_assumptions": [
+    {
+      "id": "WR-PREP-01",
+      "status": "resolved",
+      "basis": "User said: Alright, you decide for this one, then continue. Prior session history supports mechanical approval.",
+      "resolution": "Removed approve from WorkflowInitiation; retained prepareConfirmation and mechanical approval path. No confirmation implementation in this step."
+    },
+    {
+      "id": "WR-PREP-02",
+      "kind": "schema detail",
+      "status": "implementation clarification recorded for review",
+      "resolution": "Non-plan scope.input preserves requested text without authorization. Empty edit paths mean proposals/discussion; new files and confirmation-gated writes still require dedicated operations. Companion architecture clarification added without lifecycle approval."
+    },
+    {
+      "id": "WR-PREP-03",
+      "kind": "conservative preparation behavior",
+      "status": "recorded assumption",
+      "resolution": "No invented test coverage or inspection approval for missing mappings. A workflow without explicit acceptance checkboxes gets a policy/procedure criterion bound to config and remains uncertain. Later validation must not convert this fallback to met."
+    }
+  ],
+  "verification": {
+    "build": "passed on final implementation",
+    "full_cli_regression": {
+      "passed": 604,
+      "failed": 0,
+      "skipped": 0,
+      "outside_sandbox": true,
+      "scope": "Before final input-protection refinements; not claimed as a full-suite run of final bytes."
+    },
+    "final_focused_suite": {
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0,
+      "outside_sandbox": true,
+      "files": [
+        "workflow-preparation.test.js",
+        "compatibility.test.js",
+        "index.test.js",
+        "writer-leases.test.js"
+      ],
+      "scope": "Final implementation, including 12 preparation tests."
+    },
+    "repository_validation": {
+      "errors": 0,
+      "warnings": 89
+    },
+    "diff_check": "passed",
+    "sandbox_attempts": "Full suite had file-level timeouts/failures; final focused attempt had a file-level failure. These are failed environment attempts, not passing evidence; both were rerun outside the sandbox.",
+    "personal_path_guard": "passed on tracked documentation; selected new work-record JSON contains no identifying home paths"
+  },
+  "evidence": {
+    "specplane-preparation-regression-unrestricted.tap": {
+      "sha256": "410b058173c80ad4a08a229b73d50dca7bf5dceda4de03d8a85606ef6c107a24",
+      "storage": "local temporary evidence, not core-issued execution receipts"
+    },
+    "specplane-preparation-focused-unrestricted.tap": {
+      "sha256": "d189837d79621850b5c0e7e271d26010a33a4dbe92d2011d33dcfec0443cfb84",
+      "storage": "local temporary evidence, not core-issued execution receipts"
+    },
+    "specplane-preparation-validation.json": {
+      "sha256": "b2939174936746a7014cdefaeee9a371454c11d7821a71caddfb2b6c94376a21",
+      "storage": "local temporary evidence, not core-issued execution receipts"
+    },
+    "specplane-preparation-final-validation.json": {
+      "sha256": "b2939174936746a7014cdefaeee9a371454c11d7821a71caddfb2b6c94376a21",
+      "storage": "local temporary evidence, not core-issued execution receipts"
+    }
+  },
+  "reviewed_source_sha256": {
+    "packages/cli/src/core/contracts.ts": "22b7b3fc4c5765ab08ebf80794df0d12c4a14479ebd26a6548079f10f2cc8c03",
+    "packages/cli/src/core/index.ts": "d5b28916528f7dd9f02c3f9718131dca2dc235ce343ad03e159d8482b813e478",
+    "packages/cli/src/core/schemas.ts": "58853f72be7bb089989535c9d49dbb60b639cba677a22bf656d190b2e90b21be",
+    "packages/cli/src/core/workflow-preparation.ts": "9ef483ca2b3c1fbc1f0de9d98706286f7c40889e90703a53f3568bcc4a2a3d78",
+    "packages/cli/src/core/workflow-preparation.test.ts": "b5972843d707df703c443bd169c59190b46c8c5819bd62d7ffe51bc261d3f891",
+    "packages/cli/src/plan/step-done.ts": "aa6195be15be84c8a95bb81ce266d0a178994157edcd731199ed545c6ee1e403",
+    "docs/specifications/architecture/reference-cli.md": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+  },
+  "timing": {
+    "started_utc": "2026-11-03T05:30:36.754000+00:00",
+    "recorded_utc": "2026-11-03T05:48:51.562495+00:00",
+    "elapsed_minutes": 18.2,
+    "active_time": "unknown; tests and review overlapped",
+    "approval_wait": "unknown; escalation request wall time includes tool execution"
+  },
+  "remaining_scope": "Execution receipts (step 02), manual exact-set recording (03), workflow validation/recording (04), then the six later plans. Public downstream workflow operations remain unsupported until their assigned steps.",
+  "limitations": [
+    "No live host certification, publication, model/session provenance or fabricated core-issued receipts.",
+    "Private prepared state is retained in the owning process; later phases must reuse assertPrepared and the retained lease. Recovery/cancellation/recording integration remains later scope.",
+    "Missing reviewed mappings remain uncertain. Preparation alone never establishes completion or human approval.",
+    "Historical overnight acceptance matrix remains unchanged; this record supplies new review-branch implementation coverage."
+  ],
+  "remaining_original_steps": 20,
+  "next_step": {
+    "plan": "2026-11-01-workflow-recording",
+    "step": 2,
+    "title": "Execution receipts",
+    "active_hours": [
+      0.5,
+      1.25
+    ]
+  },
+  "stop_rule": "One original roadmap step completed; stop and do not invoke step 02 automatically."
+}

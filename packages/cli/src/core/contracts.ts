@@ -13,7 +13,7 @@ export type ClockPort = { now(): Date };
 export type GitPort = { run(args: string[], checkout: string): Promise<{ stdout: string; stderr: string; exitCode: number }> };
 export type FileSystemPort = { read(path: string): Promise<Uint8Array>; lstat(path: string): Promise<{ isFile(): boolean; isDirectory(): boolean; isSymbolicLink(): boolean }> };
 export type InteractionPort = { confirm(message: string): Promise<boolean> };
-export type CoreContext = { checkout?: string; extensionId: string; signal?: AbortSignal; git?: GitPort; filesystem?: FileSystemPort; clock?: ClockPort; interaction?: InteractionPort; execution?: ExecutionPort };
+export type CoreContext = { compatibility?: { manifest: unknown; host: import('./compatibility.js').HostSelection }; checkout?: string; extensionId: string; signal?: AbortSignal; git?: GitPort; filesystem?: FileSystemPort; clock?: ClockPort; interaction?: InteractionPort; execution?: ExecutionPort };
 export type MechanicalRequest =
   | { operation: 'spec.complete'; arguments: { id: string; root?: string; dryRun?: boolean } }
   | { operation: 'spec.implementation'; arguments: { id: string; status: 'incomplete' | 'partial' | 'complete'; root?: string; dryRun?: boolean } }
@@ -26,7 +26,9 @@ export type MechanicalOperation = MechanicalRequest['operation'];
 
 export type WorkflowBase = { head: string; branch: string; configDigest: Digest; inputDigests: Record<string, Digest | 'missing'>; indexDigest: Digest; digest: Digest };
 export type WorkflowContextEntry = { path: string; anchor?: string; digest: Digest };
-export type WorkflowScope = { kind: string; specIds: string[]; allowedEditPaths: string[]; planId?: string; step?: number; expectedStatus?: string; checkout?: string; leaseId?: string };
+export type WorkflowScope = { input?: string; kind: string; specIds: string[]; allowedEditPaths: string[]; planId?: string; step?: number; expectedStatus?: string; checkout?: string; leaseId?: string };
+export type WorkflowName = 'plan-step' | 'spec-assist' | 'spec-draft-architecture' | 'plan-create' | 'validate' | 'decision-new';
+export type WorkflowInitiation = { protocol: 1; workflow: WorkflowName; extensionId: string; checkout: string; mode: 'attended' | 'unattended' } & ({ workflow: 'plan-step'; selection: { planId: string; step?: number; force?: boolean; reason?: string } } | { workflow: Exclude<WorkflowName, 'plan-step'>; selection: { specIds: string[]; input: string } });
 export type WorkflowRequest = { protocol: 1; requestId: string; workflow: string; extensionId: string; checkout: string; mode: 'attended' | 'unattended'; base: WorkflowBase; scope: WorkflowScope; context: WorkflowContextEntry[]; criteria: Criterion[]; procedureDigests: Record<string, Digest | 'missing'> };
 export type WorkflowResult = { protocol: 1; requestId: string; baseDigest: Digest; outcome: 'done' | 'blocked' | 'cancelled'; summary: string; changes: { path: string; beforeDigest: Digest | 'missing'; afterDigest: Digest | 'missing'; purpose: string }[]; criterionEvidence: { criterionId: string; assessment: 'met' | 'unmet' | 'uncertain'; rationale: string; artifacts: Artifact[] }[]; gaps: string[]; contextExpansion: { path: string; anchor?: string; reason: string }[]; contributionEvents: ContributionEvent[]; openIssues: string; nextKnows: string };
 export type RecordingProposal = { protocol: 1; requestId: string; resultDigest: Digest; currentStateDigest: Digest; paths: string[]; evidenceDigest: Digest; requiresConfirmation: boolean } & MechanicalRequest;

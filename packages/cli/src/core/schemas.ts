@@ -76,7 +76,7 @@ const digestMap = { type: 'object', propertyNames: text, additionalProperties: c
 const base = object({ head: objectId, branch: text, configDigest: digest, inputDigests: digestMap, indexDigest: digest, digest });
 const scopeProperties = { kind: text, specIds: strings, allowedEditPaths: strings };
 const planScope = object({ ...scopeProperties, kind: { const: 'plan-step' }, planId: text, step: { type: 'integer', minimum: 1 }, expectedStatus: text, checkout: text, leaseId: text });
-const nonPlanScopes = ['spec-assist', 'spec-draft-architecture', 'plan-create', 'plan-finish', 'validate', 'decision-new'].map(kind => object({ ...scopeProperties, kind: { const: kind } }));
+const nonPlanScopes = ['spec-assist', 'spec-draft-architecture', 'plan-create', 'plan-finish', 'validate', 'decision-new'].map(kind => object({ ...scopeProperties, input: { type: 'string' }, kind: { const: kind } }));
 export const workflowRequestSchema = object({ protocol: { const: 1 }, requestId: text, workflow: text, extensionId: text, checkout: text, mode: { enum: ['attended', 'unattended'] }, base, scope: { oneOf: [planScope, ...nonPlanScopes] }, context: array(context), criteria: array(criterion), procedureDigests: digestMap });
 
 export const confirmationChallengeSchema = object({ challengeId: text, operation: text, targets: strings, stateDigest: digest, payloadDigest: digest, evidenceDigest: digest, expiresAt: text, summary: text });
@@ -91,3 +91,13 @@ export const testExecutionResultSchema = object({ artifact: object({ path: relat
 
 export const conductorRequestSchema = object({ plans: { ...strings, minItems: 1, uniqueItems: true }, until: { enum: ['step', 'finish'] }, maxSteps: { type: 'integer', minimum: 1 }, maxParallel: { type: 'integer', minimum: 1 }, maxBudgetUsd: { type: 'number', exclusiveMinimum: 0 }, timeoutSeconds: { type: 'number', exclusiveMinimum: 0 }, step: { type: 'integer', minimum: 1 }, force: { type: 'boolean' }, reason: text, dryRun: { type: 'boolean' } }, ['plans']);
 export const contributionQuerySchema = object({ spec: text, requestId: text }, []);
+
+const initiationFields = { protocol: { const: 1 }, extensionId: text, checkout: text, mode: { enum: ['attended', 'unattended'] } };
+export const workflowInitiationSchema = { oneOf: [
+  object({ ...initiationFields, workflow: { const: 'plan-step' }, selection: object({ planId: { type: 'string', pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*$' }, step: { type: 'integer', minimum: 1 }, force: { type: 'boolean' }, reason: text }, ['planId']) }),
+  object({ ...initiationFields, workflow: { enum: ['spec-assist', 'spec-draft-architecture', 'plan-create', 'validate', 'decision-new'] }, selection: object({ specIds: { type: 'array', uniqueItems: true, items: { type: 'string', pattern: '^[a-zA-Z0-9_-]+:(feature|architecture)/[a-z0-9/-]+$' } }, input: { type: 'string' } }) })
+] };
+export const reviewedTestMappingSchema = object({ schemaVersion: { const: 1 }, workflow: text, criteria: array({ oneOf: [
+  object({ sourcePath: relativePath, sourceDigest: digest, criterionIndex: { type: 'integer', minimum: 1 }, evidence: { const: 'test' }, testRequirements: { ...array(requirement), minItems: 1, uniqueItems: true } }),
+  object({ sourcePath: relativePath, sourceDigest: digest, criterionIndex: { type: 'integer', minimum: 1 }, evidence: { const: 'inspection' }, testRequirements: { ...array(requirement), maxItems: 0 } })
+] }) });

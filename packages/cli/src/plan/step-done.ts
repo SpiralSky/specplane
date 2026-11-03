@@ -60,7 +60,7 @@ function today(): string {
 }
 
 /** `## Step NN:` headings of a HANDOFF.md text, as step numbers in file order. */
-function sectionSteps(text: string): number[] {
+export function sectionSteps(text: string): number[] {
   return [...text.matchAll(/^##\s+Step\s+(\d+)\b/gm)].map((m) => Number(m[1]));
 }
 

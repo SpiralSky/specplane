@@ -2,26 +2,29 @@
 
 ## Current state
 
-The direct-session attempt at workflow-recording step 01 stopped before implementation on contract conflict WR-PREP-01. Resume this same incomplete step after resolving the conflict. No original roadmap step was completed. This handoff supersedes the old cloud-input handoff, overnight coordinator prompt, historical recovery instructions and earlier worker/model arrangements.
+Workflow-recording step 01, “Preparation and state binding,” is implemented and directly reviewed on the existing review branch. Stop after this step. The next session may resume at step 02, “Execution receipts.” Formal plan lifecycle statuses remain unchanged.
 
 The active branch is `overnight/specplane-20261102T144630Z`. Its reviewed overnight baseline was rewritten from `ae326ef` to `2175faf` solely to remove identifying local paths. Preparation changes are recorded in the commits following that baseline; use actual HEAD, not the old IDs, when starting work.
+
+Preparation baseline checks (the newer step results are below):
 
 - Full CLI regression: **593 passed, 0 failed, 0 skipped**, with the user's normal Git settings. Build passed. Tests ran outside the sandbox after the earlier `spawnSync git EPERM` diagnosis.
 - Hook tests: **74 passed, 0 failed**; installed/template synchronization passed.
 - Repository validation: **0 errors, 89 existing warnings** after the approved specification commit; dependency pins are current.
 - Personal-path guard: self-test and isolated-repository rejection/acceptance checks passed. It is included in CI.
-- Source repairs only made fixture branches/newline handling explicit and synchronized the installed generation hook. No remaining roadmap step was implemented.
+- The preparation session only repaired fixture branches/newline handling and synchronized the installed generation hook; it implemented no roadmap step.
 
 Details: `docs/work-records/2026-11-03-preimplementation-review.json`, `docs/work-records/2026-11-03-path-cleanup-result.json`, and `docs/work-records/2026-11-03-workflow-contract-clarifications.json`.
 
 ## Next session: one step, then handoff
 
-Latest attempt: `docs/work-records/2026-11-03-workflow-preparation-investigation.json`. `architecture/reference-cli` lists `approve` in structured reasoning initiation, but `architecture/agent-skills` explicitly makes approval mechanical with no reasoning asset. The current request schema has no approval scope. Repository instructions require stopping on contradictory specs. A user decision was requested: recommended resolution removes `approve` from reasoning initiation; the alternative needs an explicit preparation-only approval envelope. Neither contract has been edited. Tests were not run because no implementation changed. Elapsed/active time are unknown; approval waiting is unresolved. The frozen 30–75-minute step estimate and 21-step forecast remain provisional and unchanged because no implementation scope was completed.
+Latest result: `docs/work-records/2026-11-03-workflow-preparation-result.json`. WR-PREP-01 is resolved under the user's delegated choice: approval remains mechanical via `prepareConfirmation` and is excluded from reasoning initiation. Preparation now supports plan steps and all five non-plan workflows, binds private compatibility/state, retains leases and leaves missing test mappings uncertain. Non-plan `scope.input` and conservative write scope are clarified in architecture; no lifecycle approval was granted.
 
+Verification: build passed; full regression **604 passed, 0 failed, 0 skipped** before final guard refinements; final focused suite **33 passed, 0 failed, 0 skipped** on final source. Both passing suites ran outside the sandbox. Repository validation: **0 errors, 89 warnings**. See the result record for failed sandbox attempts, evidence digests and timing. Public test execution/validation/recording APIs remain unsupported until their assigned later steps. Internal `assertPrepared` and retained leases must be reused; do not create parallel state or accept caller-authored snapshots.
 
 Work directly in the session. **Do not spawn subagents or resume the coordinator/worker framework. Complete at most one original roadmap step, update the estimate and handoff, then stop even if another step is eligible.** If blocked or interrupted, hand off that same incomplete step; do not count it as complete or advance to another one.
 
-Next assignment: **`2026-11-01-workflow-recording`, step 01, “Preparation and state binding.”** Read its step file and configured architecture references, especially the newly clarified initiation, compatibility and reviewed-test-mapping contracts. Implement the full selected step, including applicable non-plan workflows; do not label a plan-only subset complete. The later manual-lifecycle step owns trusted confirmation integration.
+Next assignment: **`2026-11-01-workflow-recording`, step 02, “Execution receipts.”** Read its step file and configured architecture references. Reuse preparation’s private state and leases for test launch, output capture and receipt validation. Do not begin step 03 in that session. The later manual-lifecycle plan owns trusted confirmation integration.
 
 The overnight implementation used the user's ordinary-Git review-branch exception. That exception remains the recorded context; changing to direct sessions does not fabricate managed lifecycle completion. Source PLAN/step/HANDOFF statuses were deliberately preserved and do not describe the implementation already integrated into this review branch. Use a separate review-branch work record for the next assignment. If the user invokes managed plan execution instead, follow AGENTS.md's CLI routing and report its actual readiness/dependency gates; never hand-edit statuses or silently migrate old plan branches to bypass them.
 
@@ -36,9 +39,9 @@ Before implementation:
 
 ## Estimate and model choice
 
-**21 original steps remain across seven plans.** Provisional remaining active session effort: **7.5–16 hours**, plus **3–6 hours contingency**. Next step: **30–75 minutes**. These are bottom-up planning estimates, not measured model throughput or a deadline. Live host/API blockers add unknown waiting. The old 50–102-hour estimate is retired rather than presented as current.
+**20 original steps remain across seven plans.** Provisional remaining active session effort: **7–15 hours**, plus **3–6 hours contingency**. Next step: **30–75 minutes**. These are bottom-up planning estimates, not measured model throughput or a deadline. Live host/API blockers add unknown waiting. The old 50–102-hour estimate is retired rather than presented as current.
 
-At every handoff record completed versus remaining scope, observed elapsed time, known approval/wait time, active time or `unknown`, and revised low/high ranges with reasons. Remove completed scope from the forecast; do not subtract elapsed time as though it proved completion. Recalibrate after the first direct-session step.
+At every handoff record completed versus remaining scope, observed elapsed time, known approval/wait time, active time or `unknown`, and revised low/high ranges with reasons. Remove completed scope from the forecast; do not subtract elapsed time as though it proved completion. The first direct-session step is now complete; its elapsed time is recorded in the result JSON, active time and isolated approval wait are unknown. Remaining estimates remove completed scope and do not extrapolate model throughput from one observation.
 
 Recommended next-session model: **GPT-6.1 Sol, medium reasoning** for workflow recording. This is a speed/capability compromise for state, lease and evidence logic. **GPT-6 Luna, high reasoning** is an option for later tightly scoped docs or mechanical changes with explicit criteria; existing specifications do not remove the judgment needed for concurrency and trusted-confirmation work. Escalate a difficult task's reasoning/model instead of weakening acceptance checks. No model or speed setting was changed in this session.
 
@@ -46,9 +49,9 @@ Official guidance checked 2026-11-03: https://learn.chatgpt.com/docs/models and 
 
 ## Preserved implementation and remaining issues
 
-Target lifecycle and plan index are implemented and reviewed. Completion assessment is implemented with the now-approved safe-refusal limitation for shared YAML anchors. Core foundation was completed earlier. Historical acceptance-matrix statuses remain evidence of that run, not newly manufactured verification.
+Target lifecycle and plan index are implemented and reviewed. Completion assessment is implemented with the now-approved safe-refusal limitation for shared YAML anchors. Core foundation was completed earlier. Workflow preparation/state binding is now implemented and reviewed as well. Historical acceptance-matrix statuses remain evidence of that run; the new result JSON supplies direct-session coverage without rewriting old evidence.
 
-Workflow recording (4 steps), manual lifecycle (3), product docs (3), packaging (3), Claude delivery (3), Codex delivery (3), and conformance (2) remain. Dependency order is recording → manual lifecycle → docs → packaging → host deliveries → conformance. Both host deliveries are sequential in direct sessions unless the user changes that arrangement. Live certification and publication remain separate.
+Workflow recording (3 remaining steps), manual lifecycle (3), product docs (3), packaging (3), Claude delivery (3), Codex delivery (3), and conformance (2) remain. Dependency order is recording → manual lifecycle → docs → packaging → host deliveries → conformance. Both host deliveries are sequential in direct sessions unless the user changes that arrangement. Live certification and publication remain separate.
 
 `problems.md` preserves five implementation findings. Their owners are recorded in the preparation review: conductor selection → manual lifecycle step 3; dangling-symlink containment → packaging step 2; coexistence → packaging step 3; complete Codex procedure → Codex delivery step 2; generated policy guidance drift → docs/packaging guidance work. Do not implement these as an untracked batch before the selected step.
 

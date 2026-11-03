@@ -2,29 +2,29 @@
   "updated": "2026-11-03",
   "status": "provisional planning estimate, not measured throughput or a deadline",
   "execution": "direct session, no subagents; exactly one original roadmap step per handoff",
-  "remaining_original_steps": 21,
-  "completed_implementation_scope": "core foundation plus target lifecycle, plan index and completion assessment; shared-anchor refusal accepted as a limitation, not universal YAML support",
+  "remaining_original_steps": 20,
+  "completed_implementation_scope": "core foundation plus target lifecycle, plan index and completion assessment; shared-anchor refusal accepted as a limitation, not universal YAML support; workflow recording step 01 preparation/state binding (direct-session review record, formal lifecycle unchanged)",
   "formal_lifecycle": "unchanged; source plan statuses do not reflect review-branch implementation coverage",
   "remaining_active_hours": [
-    7.5,
-    16
+    7,
+    15
   ],
   "contingency_hours": [
     3,
     6
   ],
   "total_with_contingency_hours": [
-    10.5,
-    22
+    10,
+    21
   ],
-  "basis": "Bottom-up scope estimate for 21 remaining steps after approved contract clarification and a clean regression baseline. Historical 50\u2013102-hour estimate was not calibrated. This forecast is judgment, not a model benchmark; live host/API blockers may add unbounded waiting.",
+  "basis": "Removed the completed preparation step from the bottom-up scope and rounded remaining workflow-recording effort to 1.5\u20133 hours. One direct-session observation does not establish model throughput; remaining estimates retain concurrency, evidence, and host risks. No elapsed-time subtraction is used as proof of completion.",
   "plans": [
     {
       "id": "2026-11-01-workflow-recording",
-      "steps": 4,
+      "steps": 3,
       "active_hours": [
-        2,
-        4
+        1.5,
+        3
       ]
     },
     {
@@ -78,25 +78,24 @@
   ],
   "next_step": {
     "plan": "2026-11-01-workflow-recording",
-    "step": 1,
-    "title": "Preparation and state binding",
+    "step": 2,
+    "title": "Execution receipts",
     "active_hours": [
       0.5,
       1.25
     ],
     "risks": [
-      "Non-plan workflow scope must not be silently omitted.",
-      "Package compatibility is asynchronous; preserve typed refusal paths.",
-      "Missing test mappings remain uncertain, not assumed inspection-only.",
-      "WR-PREP-01: approve initiation conflicts with mechanical-only approval contract; resolve before dependent implementation."
+      "Core-owned execution receipts must reuse the retained preparation lease and private state.",
+      "Permission refusal, cancellation, stale state and skipped/missing suites must never establish passing evidence.",
+      "Do not weaken uncertain mappings or invent test coverage."
     ]
   },
   "update_rule": "Before the step, freeze its estimate. At handoff record outcome, actual elapsed time, known approval/wait time, active time or unknown, tests, remaining scope and revised low/high estimate with reasons. Never subtract elapsed time as completed scope, or treat an incomplete step as complete. Stop after one step or its blocked handoff.",
   "latest_attempt": {
-    "record": "docs/work-records/2026-11-03-workflow-preparation-investigation.json",
-    "outcome": "blocked before implementation on WR-PREP-01; no completed scope removed",
-    "elapsed": "unknown",
+    "record": "docs/work-records/2026-11-03-workflow-preparation-result.json",
+    "outcome": "step 01 implemented and reviewed on review branch; formal lifecycle unchanged",
+    "elapsed_minutes": 18.2,
     "active_time": "unknown",
-    "approval_wait": "unresolved; unknown duration"
+    "approval_wait": "unknown"
   }
 }
