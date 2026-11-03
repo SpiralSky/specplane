@@ -5,19 +5,21 @@ import * as path from 'node:path';
 import {tmpdir} from 'node:os';
 import {execFileSync} from 'node:child_process';
 import { fixture,repo,stepFile,id } from './workflow-test-fixture.js';
-import { prepareWorkflow,executeWorkflowTest,validateWorkflowResult,recordWorkflow,cancelWorkflow,inspectWorkflow } from './index.js';
+import { prepareWorkflow,executeWorkflowTest,validateWorkflowResult,recordWorkflow,cancelWorkflow,inspectWorkflow,captureContribution } from './index.js';
 import { releaseStoppedPreparation,sha256 } from './workflow-preparation.js';
 import {validateExecutionArtifact} from './workflow-execution.js';
 import type {CoreContext,WorkflowResult} from './contracts.js';
-async function setup(remote=false, lifecycle?:CoreContext['lifecycle']){
+async function setup(remote=false, lifecycle?:CoreContext['lifecycle'], contributions?:CoreContext['contributions'], review=false){
  const r=repo();let bare='';if(remote){bare=fs.mkdtempSync(path.join(tmpdir(),'record-remote-'));execFileSync('git',['init','--bare',bare],{stdio:'ignore'});r.git('remote','add','origin',bare);r.git('push','-u','origin',`plan/${id}`);r.git('push','origin','main');}
  const mapping={schemaVersion:1,workflow:'plan-step',criteria:[{sourcePath:stepFile,sourceDigest:sha256(fs.readFileSync(path.join(r.cwd,stepFile))),criterionIndex:1,evidence:'test',testRequirements:[{suiteId:'check',format:'node-tap-v13'}]}]};
  const p=await fixture('plan-step','# Contract\n\n## Procedure\n\n```specplane-test-requirements\n'+JSON.stringify(mapping)+'\n```\n');
- const context:CoreContext={lifecycle,checkout:r.cwd,extensionId:p.host.extensionId,compatibility:{manifest:p.manifest,host:p.host},execution:{execute:async args=>{const stdout=execFileSync(process.execPath,args.args,{cwd:args.checkout,env:args.env});return {executable:process.execPath,exitCode:0,signal:null,stdout,stderr:Buffer.alloc(0)};}}};
+ const context:CoreContext={lifecycle,contributions,checkout:r.cwd,extensionId:p.host.extensionId,compatibility:{manifest:p.manifest,host:p.host},execution:{execute:async args=>{const stdout=execFileSync(process.execPath,args.args,{cwd:args.checkout,env:args.env});return {executable:process.execPath,exitCode:0,signal:null,stdout,stderr:Buffer.alloc(0)};}}};
  const a=await prepareWorkflow({protocol:1,workflow:'plan-step',checkout:r.cwd,extensionId:context.extensionId,mode:'attended',selection:{planId:id}},context);assert.equal(a.ok,true,JSON.stringify(a));if(!a.ok)throw Error('prepare');
  r.put('check.cjs',"require('node:test').test('check',()=>{});");
+ if(review)r.put('review.md','Performed review');
  const execution=await executeWorkflowTest({requestId:a.value.requestId,criterionIds:[a.value.criteria[0].id],executable:'node',args:['--test','--test-reporter=tap','check.cjs'],reportFormat:'node-tap-v13'},context);assert.equal(execution.ok,true,JSON.stringify(execution));if(!execution.ok)throw Error('execute');
  const result:WorkflowResult={protocol:1,requestId:a.value.requestId,baseDigest:a.value.base.digest,outcome:'done',summary:'verify implementation',changes:[{path:'check.cjs',beforeDigest:'missing',afterDigest:sha256(fs.readFileSync(path.join(r.cwd,'check.cjs'))),purpose:'prove behavior'}],criterionEvidence:[{criterionId:a.value.criteria[0].id,assessment:'met',rationale:'Actual child test executed successfully',artifacts:[execution.value.artifact]}],gaps:[],contextExpansion:[],contributionEvents:[],openIssues:'',nextKnows:'Continue the next step.'};
+ if(review)result.changes.push({path:'review.md',beforeDigest:'missing',afterDigest:sha256('Performed review'),purpose:'review evidence'});
  return {...r,p,bare,context,prepared:a.value,result,execution:execution.value,close:()=>releaseStoppedPreparation(a.value.requestId)};
 }
 test('real prepare-edit-execute-validate-record preserves durable summary and matching retry',async()=>{
@@ -35,7 +37,7 @@ test('caller modifications, stale edits, incomplete criteria and forged provenan
  const f=await setup();try{
  for(const result of [{...f.result,criterionEvidence:[]},{...f.result,changes:[]},{...f.result,baseDigest:'0'.repeat(64)},{...f.result,outcome:'cancelled'},{...f.result,criterionEvidence:[{...f.result.criterionEvidence[0],assessment:'uncertain'}]}])assert.equal((await validateWorkflowResult(f.prepared,result as WorkflowResult,f.context)).ok,false);
  const provenance={...f.result,contributionEvents:[{eventId:'fake',requestId:f.prepared.requestId,spec:'base:feature/test',role:'review' as const,source:'runtime' as const,actor:{kind:'model' as const},action:{kind:'review' as const,evidencePath:'source.ts',evidenceDigest:sha256('original')},revision:{reviewedDigest:sha256('original')}}]};
- const refused=await validateWorkflowResult(f.prepared,provenance,f.context);assert.equal(refused.ok,false);if(!refused.ok)assert.equal(refused.error.code,'UNSUPPORTED_CAPABILITY');
+ const refused=await validateWorkflowResult(f.prepared,provenance,f.context);assert.equal(refused.ok,false);if(!refused.ok)assert.equal(refused.error.code,'INVALID_EVIDENCE');
  const p=await validateWorkflowResult(f.prepared,f.result,f.context);assert.equal(p.ok,true);if(!p.ok)return;
  assert.equal((await recordWorkflow({...p.value,paths:[]},f.context)).ok,false);
  const cancelled=await recordWorkflow(p.value,{...f.context,signal:AbortSignal.abort()});assert.equal(cancelled.ok,false);if(!cancelled.ok)assert.equal(cancelled.error.code,'CANCELLED');
@@ -135,5 +137,31 @@ test('missing stopped-worker port after commit retains lease and reports the com
   const cancelled=await cancelWorkflow(f.prepared.requestId,f.context);assert.equal(cancelled.ok,false);
   if(!cancelled.ok){assert.equal(cancelled.error.code,'RECOVERY_REQUIRED');assert.deepEqual(cancelled.error.details,{recording:{commit:recorded.value.commit,publication:'not-required',verified:true}});}
   const inspected=await inspectWorkflow(f.prepared.requestId,f.context);assert.ok(inspected.ok);if(inspected.ok)assert.equal(inspected.value.lease,'held');
+ }finally{f.close();}
+});
+
+
+test('public validation refuses pending captured contributions even when result omits events',async()=>{
+ let observed:import('./contracts.js').ContributionEvent|null=null;
+ const f=await setup(false,undefined,{observe:async()=>observed});
+ try{
+  const report='review.md';f.put(report,'Performed review');
+  observed={eventId:crypto.randomUUID(),requestId:f.prepared.requestId,spec:'base:feature/test',role:'review',source:'runtime',actor:{kind:'model',model_id:'observed'},action:{kind:'review',evidencePath:report,evidenceDigest:sha256('Performed review')},revision:{reviewedDigest:sha256(fs.readFileSync(path.join(f.cwd,'specs/features/test.md')))}};
+  const captured=await captureContribution(observed,f.context);assert.ok(captured.ok,JSON.stringify(captured));
+  const validation=await validateWorkflowResult(f.prepared,f.result,f.context);assert.equal(validation.ok,false);if(!validation.ok)assert.equal(validation.error.code,'UNSUPPORTED_CAPABILITY');assert.equal(f.git('rev-parse','HEAD'),f.prepared.base.head);
+ }finally{f.close();}
+});
+
+test('recording rechecks trusted captures added after proposal validation',async()=>{
+ let observed:import('./contracts.js').ContributionEvent|null=null;
+ const f=await setup(false,undefined,{observe:async()=>observed},true);
+ try{
+  const report='review.md';
+  const validation=await validateWorkflowResult(f.prepared,f.result,f.context);assert.ok(validation.ok,JSON.stringify(validation));if(!validation.ok)return;
+  observed={eventId:crypto.randomUUID(),requestId:f.prepared.requestId,spec:'base:feature/test',role:'review',source:'runtime',actor:{kind:'model',model_id:'observed'},action:{kind:'review',evidencePath:report,evidenceDigest:sha256('Performed review')},revision:{reviewedDigest:sha256(fs.readFileSync(path.join(f.cwd,'specs/features/test.md')))}};
+  assert.ok((await captureContribution(observed,f.context)).ok);
+  const recorded=await recordWorkflow(validation.value,f.context);assert.equal(recorded.ok,false);if(!recorded.ok)assert.equal(recorded.error.code,'UNSUPPORTED_CAPABILITY');
+  assert.equal(f.git('rev-parse','HEAD'),f.prepared.base.head);
+  assert.equal(fs.readFileSync(path.join(f.cwd,report),'utf8'),'Performed review');
  }finally{f.close();}
 });
