@@ -2,6 +2,16 @@
 
 ## Current continuation checkpoint
 
+Continued one bounded part of workflow recording step 04 on the existing overnight review branch: trusted review-only contribution capture and local pending inspection. Preparation binds the trusted per-action host observation callback before asynchronous work. Capture requires an exact host observation, prepared spec membership, applicable policy, reviewed spec digest and contained repository evidence, with rechecks after the callback. Private exclusive capture records and the process-owned digest ledger refuse conflicts, tampering, orphan records and links. Caller-supplied identity or a replacement callback cannot establish runtime provenance. Inspection reports historical pending observations, not current committable evidence.
+
+Evidence: `docs/work-records/2026-11-03-workflow-contribution-capture-result.json`. Build and 25 focused tests passed. Final integrated regression passed **695 tests, 0 failures, 0 skipped** (203.997 seconds, four test files at a time). Repository validation returned 0 errors and 90 warnings, matching this checkout's pre-change count (the older handoff reported 89). Independent read-only review found no blocking findings. Personal-path guard and diff checks passed. Formal plan/spec/ADR lifecycle states remain unchanged.
+
+Recording refuses pending captures even if a result omits its contribution events: do not silently drop provenance. Atomic contributor-summary/event-trailer recording remains unsupported, as do create/edit capture, committed-history queries and cross-process recovery. Production host capture adapters and live certification are not supplied by deterministic test ports. Workflow recording step 04 remains partial. Continue with dedicated non-plan content/creation recording and atomic attribution integration using the existing private preparation and retained leases; retain the host-evidence recovery restrictions below. This session's scope was one bounded continuation, not the full roadmap.
+
+The unrelated untracked files mentioned by prior sessions were absent from this fresh clone; none were removed. Do not change formal source-plan progress to describe this review-branch implementation.
+
+## Previous host-evidence checkpoint
+
 Continuation remains on the existing review branch. Prepared workflows now persist private generation-bound host-worker evidence before exposing the request. Checkout, plan and repository lease acquisition and previews refuse dead-owner reclamation while this evidence exists. Ordinary release refuses unproved host stop; the existing trusted stopped-preparation boundaries release the full set and marker after acknowledgment. Partial edits remain intact. Native host process/session identities are not inferred.
 
 Evidence: `docs/work-records/2026-11-03-workflow-host-evidence-result.json`. Build and 56 focused tests passed. Full regression passed 686 tests, 0 failures, 0 skipped (206.12 seconds, four test files at a time, outside the sandbox after stopping a stalled sandbox attempt). Repository validation returned 0 errors and 89 existing warnings. Formal plan/spec/ADR lifecycle states remain unchanged.

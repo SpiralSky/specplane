@@ -23,7 +23,15 @@ export type FileSystemPort = { read(path: string): Promise<Uint8Array>; lstat(pa
 /** Supplied by the trusted host only, never request JSON. Show the complete challenge
  * through a direct-human surface; a model-produced response is not consent. */
 export type InteractionPort = { confirm(challenge: ConfirmationChallenge): Promise<ConfirmationResponse | null> };
-export type CoreContext = { compatibility?: { manifest: unknown; host: import('./compatibility.js').HostSelection }; checkout?: string; extensionId: string; signal?: AbortSignal; git?: GitPort; filesystem?: FileSystemPort; clock?: ClockPort; interaction?: InteractionPort; execution?: ExecutionPort; lifecycle?: LifecyclePort };
+/** Trusted embedding-host action ledger, bound when preparation starts. The host must
+ * independently observe the action at dispatch/completion, including model switches,
+ * review performance and direct-user declarations. Return null when unproved; never
+ * infer identity from this lookup, assistant prose, startup identity or request IDs.
+ * This port is not supplied by workflow JSON or model tools. */
+export type ContributionPort = { observe(request: Pick<ContributionEvent, 'requestId' | 'eventId' | 'spec' | 'action' | 'revision'>): Promise<ContributionEvent | null> };
+export type ContributionCapture = { event: ContributionEvent; status: 'pending'; recorded: false };
+export type ContributionInspection = { requestId: string; captures: ContributionCapture[]; status: 'pending' | 'unrecorded'; limitations: string[] };
+export type CoreContext = { compatibility?: { manifest: unknown; host: import('./compatibility.js').HostSelection }; checkout?: string; extensionId: string; signal?: AbortSignal; git?: GitPort; filesystem?: FileSystemPort; clock?: ClockPort; interaction?: InteractionPort; execution?: ExecutionPort; lifecycle?: LifecyclePort; contributions?: ContributionPort };
 export type MechanicalRequest =
   | { operation: 'spec.complete'; arguments: { id: string; root?: string; dryRun?: boolean } }
   | { operation: 'spec.implementation'; arguments: { id: string; status: 'incomplete' | 'partial' | 'complete'; root?: string; dryRun?: boolean } }

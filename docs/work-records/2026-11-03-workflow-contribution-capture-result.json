@@ -1,0 +1,99 @@
+{
+  "date": "2026-11-03",
+  "kind": "direct-session review-branch implementation; not a managed step receipt",
+  "baseline": "d88d709923afec6cf797b8c2eb8fea47718c3435",
+  "started_utc": "2026-11-03T07:19:41.098184+00:00",
+  "status": "implemented, reviewed and verified (bounded review-only capture)",
+  "formal_lifecycle": "unchanged",
+  "plan": "2026-11-01-workflow-recording",
+  "step": 4,
+  "scope": [
+    "One bounded continuation: trusted review-only contribution capture and pending inspection",
+    "Prevent result validation and recording from dropping pending observations"
+  ],
+  "implementation": [
+    "Preparation captures the trusted action-observation callback before asynchronous work; later caller port replacement cannot supply evidence.",
+    "Exact immutable host-event match is required, including identity/source, prepared root-qualified spec membership, policy, current reviewed bytes and repository evidence digests.",
+    "Checks run before and after host lookup, with existing preparation/activity/lease/cancellation machinery.",
+    "Private exclusive regular-file journal and process-owned digest ledger preserve identical retries and refuse conflicting events, tampering, orphan records and linked files/directories.",
+    "Pending captures remain local historical observations; inspection does not revalidate current action/spec evidence.",
+    "Result validation and fresh recording refuse pending captures, including omitted contributionEvents, until atomic summary/trailer recording exists."
+  ],
+  "verification": {
+    "focused": {
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 20.304,
+      "command": "npm run build && node --test dist/core/contribution-capture.test.js dist/core/contributions.test.js dist/core/workflow-recording.test.js",
+      "note": "After this run only inspection limitation wording changed; integrated build/regression covers final source."
+    },
+    "integrated": {
+      "build": "passed",
+      "command": "npm run build && node --test --test-concurrency=4 'dist/**/*.test.js'",
+      "passed": 695,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 203.997120684,
+      "test_file_concurrency": 4,
+      "repository_validation": {
+        "errors": 0,
+        "warnings": 90,
+        "baseline_warnings_in_this_checkout": 90
+      },
+      "personal_path_guard": "passed",
+      "diff_check": "passed"
+    }
+  },
+  "review": [
+    "Main reviewed source and tests; found empty-ledger orphan-journal omission, repaired and covered before final focused run.",
+    "Independent read-only review found no blocking findings; reviewed preparation-bound trust, membership/policy, containment, journal recovery and recording omission guard."
+  ],
+  "assumptions_and_gaps": [
+    {
+      "kind": "bounded implementation scope",
+      "target": "architecture/file-formats#Contribution provenance; architecture/reference-cli#Structured reasoning boundary",
+      "description": "Expose the existing capture API through a trusted CoreContext contribution observation port bound at preparation. Implement performed reviews only; no spec body edits or fabricated human declarations. All captures require independently observed host events, including declared identities."
+    }
+  ],
+  "limitations": [
+    "No production host adapter or live host certification: automated ports are deterministic test doubles.",
+    "Create/edit contribution capture remains unsupported pending body-change authorization.",
+    "Atomic contributor-summary and event-trailer commit integration remains unsupported; any pending capture prevents recording rather than being lost.",
+    "Inspection requires an available same-process preparation and request ID; committed-history queries and cross-process recovery remain unsupported.",
+    "Evidence paths currently support contained repository artifacts, not a public API for arbitrary private host evidence paths.",
+    "No managed plan/spec/ADR lifecycle approval or completion; workflow recording step 04 remains partial.",
+    "No power-loss durability or hostile concurrent parent-directory replacement claim."
+  ],
+  "delegation": {
+    "implementation": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium"
+    },
+    "independent_review": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium"
+    },
+    "service_tier": "not independently observed"
+  },
+  "development_attempts": [
+    "Initial worker build from repository root failed because package.json is under packages/cli; corrected directory succeeded.",
+    "An added policy-none test initially dirtied its baseline and failed preparation (24/25 passed); fixture was repaired to commit policy before preparation. Final 25-test run passed."
+  ],
+  "timing_limitations": "Active generation, token usage and approval waits not isolated; elapsed time will include implementation, review and checks.",
+  "completed_utc": "2026-11-03T08:08:44.298579+00:00",
+  "elapsed_minutes": 49.05,
+  "publication": {
+    "branch": "overnight/specplane-20261102T144630Z",
+    "policy": "Normal non-force push of this dedicated review branch only; inspect Git refs for final publication outcome."
+  },
+  "reviewed_source_sha256": {
+    "packages/cli/src/core/contracts.ts": "d0840761cf23c68e4cab774c26fca22208fd8466793debc78e1547619d530352",
+    "packages/cli/src/core/index.ts": "54302327e1457de942f2e0200466929f3fd00ce114fa23d335399fd43b7dd493",
+    "packages/cli/src/core/workflow-preparation.ts": "9bfe06194238f53ee27c492b8af890a00e8d38bb0f0cf46fddf265a03ada0c53",
+    "packages/cli/src/core/workflow-recording.ts": "5ce9ee1d9f7e664eabb2577a55d8a652e21d6d38f6152d133587bedcbd08ae39",
+    "packages/cli/src/core/workflow-recording.test.ts": "a822562cd28ac1619beda01eb7c13b554743e6a9505b5704b8d3241e6c95da51",
+    "packages/cli/src/core/contribution-capture.ts": "726ba95c83db949416205b301b7d2faa5eb840a75aec46bf87beb734aebb72a7",
+    "packages/cli/src/core/contribution-capture.test.ts": "96335353d5560314f5128db0c39b1bbd7d45f485afdb8751c5c2a09d76401109"
+  }
+}

@@ -71,6 +71,7 @@ function specPolicy(text: string): string {
   return sha256(canonical(data));
 }
 export interface PreparedState {
+  captureObservation?: NonNullable<CoreContext['contributions']>['observe'];
   cancellation: AbortController; stopWorker?: NonNullable<CoreContext['lifecycle']>['stopWorkflow']; cancellationPending: boolean; leaseReleased: boolean;
   initiation: WorkflowInitiation; request: WorkflowRequest; context: CoreContext; lease: WriterLease;
   refs: Record<string, string | null>; compatibilityDigests: Record<string, string>;
@@ -116,6 +117,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
   let lease: WriterLease | undefined; const notices: Notice[] = [];
   try {
     if (!validInitiation(request)) refuse('INVALID_EVIDENCE', 'Expected a closed WorkflowInitiation, not a prepared WorkflowRequest.');
+    const captureObservation = typeof context.contributions?.observe === 'function' ? context.contributions.observe.bind(context.contributions) : undefined;
     const stopWorker = typeof context.lifecycle?.stopWorkflow === 'function' ? context.lifecycle.stopWorkflow.bind(context.lifecycle) : undefined;
     // Take private copies before awaiting host/package I/O.
     request = structuredClone(request); context = { ...context, compatibility: context.compatibility && structuredClone(context.compatibility) };
@@ -306,7 +308,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
     const cancellation = new AbortController();
     const boundContext = { ...context, signal: context.signal ? AbortSignal.any([context.signal, cancellation.signal]) : cancellation.signal };
     lease.retainHostWorker();
-    prepared.set(requestId, { cancellation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' ? null : request.selection.input });
+    prepared.set(requestId, { cancellation, captureObservation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' ? null : request.selection.input });
     lease = undefined;
     return { protocol: 1, ok: true, value: envelope, notices };
   } catch (error) {

@@ -9,6 +9,7 @@ import { planDir } from '../plan/resolve.js';
 import { listStepFiles, parseStep } from '../plan/parse.js';
 import { parseGaps,parseGapsText } from '../plan/gaps.js';
 import { validateRecordingSet, type RecordingSet } from '../plan/recording-set.js';
+import { assertContributionRecordingAvailable } from './contribution-capture.js';
 import { checkoutIdentity } from './writer-leases.js';
 import { assertPrepared, canonical, sha256, withPreparedActivity } from './workflow-preparation.js';
 import { validateExecutionArtifact, workflowStateDigest } from './workflow-execution.js';
@@ -59,7 +60,7 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):
  const r=state.request;
  if(result.requestId!==r.requestId||result.baseDigest!==r.base.digest)fail('STALE_STATE','Result does not match prepared identity/base');
  if(result.outcome==='cancelled')fail('CANCELLED','Cancelled workflow preserves edits and does not record');
- if(result.contributionEvents.length)fail('UNSUPPORTED_CAPABILITY','Contribution recording needs trusted captured provenance; caller events are not runtime evidence');
+ assertContributionRecordingAvailable(state,result.contributionEvents);
  if(result.contextExpansion.length)fail('STALE_STATE','Context expansion requires reviewed preparation before recording');
  if(!result.summary.trim()||/[\r\n]/.test(result.summary))fail('INVALID_EVIDENCE','A nonempty single-line commit summary is required');
  if(result.outcome==='blocked'&&!result.openIssues.split('\n').some(l=>l.startsWith('BLOCKED:')))fail('INVALID_EVIDENCE','Blocked result needs a concrete BLOCKED: open issue');
