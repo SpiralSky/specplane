@@ -27,6 +27,7 @@
     "!dist/**/*.test.js",
     "!dist/fixtures.js",
     "!dist/test-repo.js",
+    "!dist/plan/*-fixture.*",
     "README.md",
     "core-release.json",
     "scripts/build-core-info.mjs"

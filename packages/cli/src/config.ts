@@ -4,7 +4,7 @@ import * as yaml from "js-yaml";
 import { ConfigError, NotARepoError } from "./errors.js";
 import { validateTargetBranch } from "./plan/context.js";
 import { mainRoot } from "./git/repo.js";
-import { run } from "./git/exec.js";
+import { isBranchName } from "./git/branch-name.js";
 import { CONFIG_SCHEMA, describeError, dotted, validator } from "./schemas.js";
 import type { Config, SessionMode, Warning } from "./types.js";
 
@@ -99,7 +99,7 @@ function checkCrossFields(config: Config, root: string, opts: LoadConfigOptions)
     try {
       const name = config.plans.target_branch;
       if (opts.snapshot) {
-        if (name.includes('@{') || run('git', ['check-ref-format', '--branch', name], { cwd: root }).trim() !== name) throw new Error('invalid branch');
+        if (!isBranchName(root, name)) throw new Error('invalid branch');
       } else validateTargetBranch(root, name);
     }
     catch { throw new ConfigError("plans.target_branch", "must be a valid Git branch name"); }

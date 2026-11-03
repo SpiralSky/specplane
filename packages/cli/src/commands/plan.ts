@@ -1,4 +1,5 @@
 import { firstStart } from "../plan/first-start.js";
+import { withBranchNameCache } from "../git/branch-name.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig } from "../config.js";
@@ -53,6 +54,10 @@ export type LivePlanListRow = PlanListRow & PlanActivity & { attention: Attentio
 
 /** Rows sorted by ID descending, plus notes for plans that could not be parsed. */
 export function planList(opts: PlanListOptions, root: string, config: Config): { rows: (PlanListRow | LivePlanListRow)[]; problems: string[]; blockedReasons: Map<string, string>; notices: string[] } {
+  return withBranchNameCache(() => collectPlanList(opts, root, config));
+}
+
+function collectPlanList(opts: PlanListOptions, root: string, config: Config): ReturnType<typeof planList> {
   if (opts.status !== undefined && !STATUSES.includes(opts.status)) {
     throw new PlanUsageError(`Unknown plan status \`${opts.status}\`: expected one of ${STATUSES.join(", ")}.`);
   }

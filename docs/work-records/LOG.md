@@ -16,3 +16,25 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Timing: CLI `--help` five-run milliseconds before [517.835, 529.426, 532.638, 543.072, 531.207], mean 530.835; after [184.671, 188.953, 176.631, 176.161, 174.130], mean 180.109 (66.1% lower). Final full-suite wall 100.960 s versus recorded 164 s baseline (38.4% lower), concurrency 4.
 - Checks: build and diff whitespace check passed; final focused suite 83 passed, 0 failed/skipped; final full suite 686 passed, 0 failed/skipped. Import instrumentation confirmed zero eager compilations, cached reuse, error reset and option isolation. Initial sandbox focused run failed 4/9 files; outside sandbox 72/72 passed. An intermediate full suite passed 686/686 in 102.109 s; rerun followed further code changes. Repository validation not run.
 - Open: upstream integration preference pending; contribution capture, non-plan recording and cross-process recovery remain pending. Preserved unrelated untracked `problems.md`.
+
+## 2026-11-03T09:24:13Z — test concurrency benchmark
+
+- Commit tested: `b3dc060`; no implementation or test changes.
+- Scope: user-requested full-suite benchmark at `--test-concurrency=20` on this device (i9-14900HX, 24 physical cores, Node reports 32 available logical CPUs).
+- Checks: `node --test --test-concurrency=20 'dist/**/*.test.js'` outside the sandbox: 686 passed, 0 failed, 0 skipped; 87.776 s wall versus 100.960 s at concurrency 4 (13.184 s / 13.1% lower). Used the existing current build; no rebuild or repository validation run.
+- Limits: single-run comparison, not proof of optimal concurrency or repeated-run stability. Default test command unchanged; unrelated `problems.md` preserved.
+
+## 2026-11-03T09:30:47Z — finish/lifecycle and Bun investigation
+
+- Commit tested: `b3dc060`; no production or test source changes.
+- Checks: Bun 1.3.14 ran the existing compiled finish/lifecycle tests sequentially: 83 passed, 0 failed, 70.63 s; summed test durations finish 45.629 s, lifecycle 24.824 s. Not directly comparable to earlier Node full-suite runs under contention. Full suite under Bun not run.
+- Profile: selected Node squash-restack test passed (one test, 5.849 s); eight CLI invocations consumed 5.641 s, direct Git calls about 0.070 s. A second deep-profile run passed; its two live-list commands issued 640 and 570 subprocess calls, including 177 and 161 branch-format checks. Profiling scripts/results were kept only in /tmp.
+- Findings: split long files to distribute work; reduce repeated immutable/ref-syntax reads within operations without caching mutable state across confirmation; consider direct setup APIs. Bun is promising but process.execPath also switches CLI children to Bun, and Node-TAP-specific tests require separate compatibility review. No runtime/default changes made.
+
+## 2026-11-03T10:31:23Z — integration-test optimization
+
+- Commits: this entry's performance commit on top of `b3dc060`; upstream contribution commits remain unintegrated.
+- Scope: split finish/lifecycle into seven files with per-file fixture ownership; use real start API for setup; keep all 83 original test bodies byte-for-byte; add operation-scoped successful branch-syntax caching to plan listing and one regression covering fresh refs, per-plan restrictions and scope cleanup. No mutable ref/object cache or mock replacement of integration scenarios. Extracted fixture modules excluded from package artifacts. Removed obsolete generated finish/lifecycle test outputs locally after the source moves.
+- Checks: build and diff check passed; focused Bun run initially 128 passed / 1 new wrapper failure, repaired regression then passed. Initial complete Bun probe: 654 passed / 33 failed across ten Node-sensitive files. Complete Node compatibility run: 687 passed, 0 failed/skipped, 61.744 s at concurrency 20 versus 87.776 s before (29.7% lower). Original test-body preservation checked against HEAD through the TypeScript parser.
+- Local runtime verification: Bun 1.3.14 handles 533 tests in 59 files; Node handles 154 tests in ten files. Sequential groups passed in 76.26 s; the final local launcher runs 12 Bun plus 8 Node workers concurrently and passed all 687 in 50.86 s. Machine-only Codex instructions and launcher are excluded through Git's local exclude file; committed runtime/default test command and lockfile are unchanged. No full-suite repeat after final validation; repository validation not run.
+- Limits: single-run performance comparisons. Bun-only execution is not full Node compatibility; retain Node checks for TAP, subprocess environment and exact index behavior. Immutable-object caching was deferred to avoid changing provenance/freshness semantics. Unrelated `problems.md` preserved.

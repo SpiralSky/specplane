@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import { PlanStateError } from "../errors.js";
 import { run } from "../git/exec.js";
+import { isBranchName } from "../git/branch-name.js";
 import { PLAN_SCHEMA, validator } from "../schemas.js";
 import type { ExecutionBinding } from "../types.js";
 
@@ -38,8 +39,7 @@ function optionalGit(cwd: string, args: string[]): string | null {
   try { return run("git", args, { cwd }).trim(); } catch { return null; }
 }
 export function validateTargetBranch(cwd: string, name: string, id?: string): void {
-  if (typeof name !== "string" || !name || name.startsWith("-") ||
-      optionalGit(cwd, ["check-ref-format", "--branch", name]) !== name || name === `plan/${id}`) {
+  if (typeof name !== "string" || !isBranchName(cwd, name) || name === `plan/${id}`) {
     fail(`Invalid integration target branch: ${String(name)}.`);
   }
 }

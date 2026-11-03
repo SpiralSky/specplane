@@ -1,0 +1,230 @@
+import assert from "node:assert/strict";
+
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { test } from "node:test";
+import { createLifecycleFixture } from "./lifecycle-fixture.js";
+
+const { ENV, git, sp, A, B, plan, ownedDirs, repo, wtOf, start, commitFile, count, stacked } = createLifecycleFixture();
+
+test("restack: after a squash merge only beta's own commits are replayed (Scenario 6a)", () => {
+  const r = stacked();
+  const wa = wtOf(r, A);
+  const alphaPlan = path.join(wa, "plans", A, "PLAN.md");
+  fs.writeFileSync(alphaPlan, fs.readFileSync(alphaPlan, "utf8").replace("status: ready", "status: done"));
+  git(wa, "commit", "-qam", "alpha done");
+  git(r.root, "merge", "-q", "--squash", `plan/${A}`);
+  git(r.root, "commit", "-q", "-m", "squash alpha");
+  // A scripted forge ties the squash to the exact dependency head and target.
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-forge-"));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-gh-"));
+  ownedDirs.push(bare, bin);
+  git(bare, "init", "-q", "--bare");
+  git(r.root, "remote", "add", "origin", "https://github.com/example/repo.git");
+  git(r.root, "config", `url.${bare}.insteadOf`, "https://github.com/example/repo.git");
+  git(r.root, "push", "-q", "origin", "main", `plan/${A}`);
+  const head = git(r.root, "rev-parse", `plan/${A}`);
+  const merge = git(r.root, "rev-parse", "main");
+  fs.writeFileSync(path.join(bin, "gh"), `#!/bin/sh\nif [ "$1" = "--version" ]; then echo gh; else echo '[{"headRefOid":"${head}","baseRefName":"main","mergeCommit":{"oid":"${merge}"}}]'; fi\n`, { mode: 0o755 });
+  const oldPath = ENV.PATH;
+  ENV.PATH = `${bin}${path.delimiter}${oldPath}`;
+  try {
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const live = sp(r.root, "plan", "list", "--live", "--no-fetch");
+  assert.equal(live.code, 0, live.err);
+  assert.ok(live.err.includes(`Base plan \`${A}\` has merged; run \`specplane plan restack ${B}\`.`), live.err);
+  const dry = sp(r.root, "plan", "restack", B, "--dry-run");
+  assert.equal(dry.code, 0, dry.err);
+  assert.match(dry.out, /^Would restack .* onto [0-9a-f]+ \(no longer stacked\)$/m);
+  assert.match(dry.out, /^[0-9a-f]{7} beta work$/m, "dry run lists the commits to replay");
+  assert.doesNotMatch(dry.out, /alpha work/, "the stack marker and base commits are not listed");
+  assert.equal(git(r.root, "rev-parse", `plan/${B}`), before, "dry run changes nothing");
+  const res = sp(r.root, "plan", "restack", B);
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.out, /no longer stacked/);
+  const own = git(r.root, "log", "--format=%s", `main..plan/${B}`);
+  assert.match(own, /beta work/);
+  assert.doesNotMatch(own, /alpha work/);
+  assert.equal(git(r.root, "merge-base", "main", `plan/${B}`), git(r.root, "rev-parse", "main"));
+  assert.equal(git(r.root, "show", `plan/${B}:a.txt`), "a");
+  // No longer stacked: a second restack errors, and start's resume hint is gone.
+  const again = sp(r.root, "plan", "restack", B);
+  assert.equal(again.code, 1);
+  assert.match(again.err, /Cannot restack: `2026-01-02-beta` is not stacked\./);
+  const resume = sp(r.root, "plan", "start", B);
+  assert.equal(resume.code, 0, resume.err);
+  assert.doesNotMatch(resume.err, /has merged/);
+  assert.doesNotMatch(sp(r.root, "plan", "list", "--live", "--no-fetch").err, /has merged/);
+  } finally { ENV.PATH = oldPath; }
+});
+
+test("manual done without integration refuses restack and finish without changing the child", () => {
+  const r = stacked();
+  const file = path.join(r.root, "plans", A, "PLAN.md");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: done"));
+  git(r.root, "commit", "-qam", "manual done");
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  assert.doesNotMatch(sp(r.root, "plan", "list", "--live", "--no-fetch").err, /has merged/);
+  for (const args of [["plan", "restack", B, "--dry-run"], ["plan", "restack", B], ["plan", "finish", B]]) {
+    const res = sp(args[1] === "finish" ? wtOf(r, B) : r.root, ...args);
+    assert.equal(res.code, 1, res.err);
+    assert.match(res.err, /integration .* unverified/);
+    assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+    assert.equal(git(r.root, "show", `plan/${B}:a.txt`), "a");
+    assert.equal(git(r.root, "show", `plan/${B}:b.txt`), "b");
+  }
+});
+
+test("restack accepts contained dependency head but refuses removed branch without evidence", () => {
+  for (const removed of [false, true]) {
+    const r = stacked();
+    const wa = wtOf(r, A);
+    const file = path.join(wa, "plans", A, "PLAN.md");
+    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: done"));
+    git(wa, "commit", "-qam", "done");
+    git(r.root, "merge", "-q", "--no-ff", `plan/${A}`, "-m", "integrate alpha");
+    const before = git(r.root, "rev-parse", `plan/${B}`);
+    if (removed) { git(r.root, "worktree", "remove", wa); git(r.root, "branch", "-D", `plan/${A}`); }
+    const res = sp(r.root, "plan", "restack", B);
+    assert.equal(res.code, removed ? 1 : 0, res.err);
+    if (removed) { assert.match(res.err, /integration .* unverified/); assert.equal(git(r.root, "rev-parse", `plan/${B}`), before); }
+    assert.equal(git(r.root, "show", `plan/${B}:a.txt`), "a");
+    assert.equal(git(r.root, "show", `plan/${B}:b.txt`), "b");
+  }
+});
+
+test("restack: unmerged base appends a new marker; second run is a no-op", () => {
+  const r = stacked();
+  const wa = wtOf(r, A);
+  fs.writeFileSync(path.join(wa, "a.txt"), "a2\n");
+  git(wa, "commit", "-q", "--amend", "-a", "--no-edit");
+  const newTip = git(r.root, "rev-parse", `plan/${A}`);
+  const res = sp(r.root, "plan", "restack", B);
+  assert.equal(res.code, 0, res.err);
+  assert.doesNotMatch(res.out, /no longer stacked/);
+  assert.equal(git(r.root, "show", `plan/${B}:a.txt`), "a2");
+  const marker = git(r.root, "log", "-1", "--format=%B", `plan/${B}`);
+  assert.match(marker, /^chore\(specplane\): stack 2026-01-02-beta on 2026-01-01-alpha\n/);
+  assert.match(marker, new RegExp(`Specplane-Stack-Base: ${newTip}`));
+  assert.equal(git(r.root, "log", "--format=%s", `plan/${A}..plan/${B}`).split("\n").filter((l) => /beta work/.test(l)).length, 1);
+  const head = git(r.root, "rev-parse", `plan/${B}`);
+  const again = sp(r.root, "plan", "restack", B);
+  assert.equal(again.code, 0, again.err);
+  assert.match(again.out, /already on the tip/);
+  assert.equal(git(r.root, "rev-parse", `plan/${B}`), head);
+});
+
+test("restack and its dry run preserve ignored files touched only by intermediate commits", () => {
+  const r = stacked();
+  const child = wtOf(r, B);
+  commitFile(child, "transient", "temporary", "add transient");
+  git(child, "rm", "-q", "transient");
+  git(child, "commit", "-q", "-m", "remove transient");
+  fs.writeFileSync(path.join(r.root, ".git", "info", "exclude"), "transient\n");
+  const file = path.join(child, "transient");
+  const bytes = Buffer.from([0, 255, 4]);
+  fs.writeFileSync(file, bytes);
+  commitFile(wtOf(r, A), "advance", "base advances", "advance base");
+  const head = git(child, "rev-parse", "HEAD");
+  const indexPath = path.resolve(child, git(child, "rev-parse", "--git-path", "index"));
+  const index = fs.readFileSync(indexPath);
+  for (const args of [["--dry-run"], []]) {
+    const result = sp(r.root, "plan", "restack", B, ...args);
+    assert.equal(result.code, 1, result.err);
+    assert.match(result.err, /Ignored file.*conflicts/);
+    assert.deepEqual(fs.readFileSync(file), bytes);
+    assert.equal(git(child, "rev-parse", "HEAD"), head);
+    assert.deepEqual(fs.readFileSync(indexPath), index);
+  }
+});
+
+test("restack rejects a noncanonical stored stack base before rewriting", () => {
+  const r = stacked();
+  const child = wtOf(r, B);
+  git(child, "commit", "--allow-empty", "-q", "-m", `chore(specplane): stack ${B} on ${A}\n\nSpecplane-Workflow: stack\nSpecplane-Plan: ${B}\nSpecplane-Stack-Base: HEAD`);
+  const head = git(child, "rev-parse", "HEAD");
+  const result = sp(r.root, "plan", "restack", B);
+  assert.equal(result.code, 1, result.err);
+  assert.match(result.err, /Invalid stored commit: HEAD/);
+  assert.equal(git(child, "rev-parse", "HEAD"), head);
+});
+
+test("restack: conflicts are listed and the checkout is left mid-rebase; non-stacked plans error", () => {
+  const r = stacked();
+  commitFile(wtOf(r, B), "a.txt", "b-edit\n", "beta edits a");
+  const wa = wtOf(r, A);
+  fs.writeFileSync(path.join(wa, "a.txt"), "a2\n");
+  git(wa, "commit", "-q", "--amend", "-a", "--no-edit");
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const res = sp(r.root, "plan", "restack", B);
+  assert.equal(res.code, 1);
+  assert.match(res.err, /has conflicts; resolve manually/);
+  assert.match(res.err, /a\.txt/);
+  assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+  assert.match(git(wtOf(r, B), "status", "--porcelain"), /^UU a\.txt$/m, "rebase left in progress");
+  git(wtOf(r, B), "rebase", "--abort");
+  assert.equal(git(wtOf(r, B), "status", "--porcelain"), "");
+  const plain = sp(r.root, "plan", "restack", A);
+  assert.equal(plain.code, 1);
+  assert.match(plain.err, /is not stacked/);
+  assert.equal(count(r, `plan/${B}`) > 0, true);
+});
+
+test("restack refuses a cross-target base without rewriting the child", () => {
+  const r = stacked();
+  git(r.root, "branch", "release");
+  const wa = wtOf(r, A);
+  const file = path.join(wa, "plans", A, "PLAN.md");
+  const original = fs.readFileSync(file, "utf8");
+  const changed = original.replace(/(start_target_branch: )"main"/, '$1"release"').replace(/(target_branch: )"main"/, '$1"release"');
+  assert.notEqual(changed, original);
+  fs.writeFileSync(file, changed);
+  git(wa, "commit", "-qam", "change base binding");
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const result = sp(r.root, "plan", "restack", B);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /compatible recorded target/);
+  assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+  assert.equal(git(wtOf(r, B), "status", "--porcelain"), "");
+});
+
+test("restack reports rewritten head when the new marker commit fails", () => {
+  const r = stacked();
+  commitFile(wtOf(r, A), "more.txt", "more\n", "advance base");
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const hook = path.join(r.root, ".git", "hooks", "pre-commit");
+  fs.writeFileSync(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  const result = sp(r.root, "plan", "restack", B);
+  fs.unlinkSync(hook);
+  const after = git(r.root, "rev-parse", `plan/${B}`);
+  assert.equal(result.code, 1);
+  assert.notEqual(after, before);
+  assert.match(result.err, new RegExp(`Restack rebase completed at ${after}.*marker creation failed`));
+  assert.equal(git(wtOf(r, B), "status", "--porcelain"), "");
+});
+
+test("restack refuses a draft target record before rewriting", () => {
+  const r = stacked();
+  const file = path.join(r.root, "plans", B, "PLAN.md");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", "status: draft"));
+  git(r.root, "commit", "-qam", "draft child");
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const result = sp(r.root, "plan", "restack", B);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /target status draft/);
+  assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+});
+
+test("restack preview accepts migrated active Git-mode records", () => {
+  const r = stacked();
+  for (const [dir, status] of [[r.root, "in_progress"], [wtOf(r, B), "review"]]) {
+    const file = path.join(dir, "plans", B, "PLAN.md");
+    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("status: ready", `status: ${status}`));
+    git(dir, "commit", "-qam", `migrated ${status}`);
+  }
+  const before = git(r.root, "rev-parse", `plan/${B}`);
+  const result = sp(r.root, "plan", "restack", B, "--dry-run");
+  assert.equal(result.code, 0, result.err);
+  assert.equal(git(r.root, "rev-parse", `plan/${B}`), before);
+});

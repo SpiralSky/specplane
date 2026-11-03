@@ -6,7 +6,7 @@ Continue on review branch `overnight/specplane-20261102T144630Z`, using actual H
 
 Latest recorded implementation: prepared workflows persist private generation-bound host-worker evidence before exposing the request. Checkout, plan and repository lease acquisition and previews refuse dead-owner reclamation while that evidence exists. Ordinary release requires proof of host stop; trusted stopped-preparation boundaries release the full lease set and marker after acknowledgment. Cancellation/inspection use preparation-owned state, preserve partial edits and report unfinished publication after recording.
 
-Latest checks for the lazy-schema compilation checkpoint on top of `7bde247`: build passed; focused suite 83 passed; full suite 686 passed, 0 failed, 0 skipped in 100.960 s at concurrency 4. CLI help averaged 180.109 ms versus 530.835 ms before. Repository validation was not rerun. Progress is logged in `docs/work-records/LOG.md`. Older per-batch records were removed after `d88d709`; recover them from git history only if a specific detail is needed.
+Latest performance checkpoint on top of `b3dc060`: finish/lifecycle coverage is split into seven independently owned test files; fixture setup calls the existing start API; plan listing caches successful branch-name syntax checks only for that operation. Mutable refs, objects and checkout state are not cached. All 83 original finish/lifecycle test bodies are unchanged; one cache-safety regression test was added. Build passed and Node compatibility suite passed all 687 tests in 61.744 s at concurrency 20, versus 87.776 s before. The local mixed-runtime run passed 533 tests on Bun and 154 on Node in 50.86 s. Runtime policy remains Node >=22. Repository validation was not rerun. Progress is logged in `docs/work-records/LOG.md`. Older per-batch records remain recoverable from history before `7bde247`.
 
 Cross-process reconstruction/recovery, non-plan recording and trusted contribution capture remain pending. Dead parent PIDs never prove host workers stopped. Existing preparations without the new evidence marker are not retroactively protected. Reuse private preparation state, retained leases and core-issued receipts; do not reconstruct verified execution from caller JSON or infer native host/session identities.
 
@@ -20,7 +20,7 @@ Then continue the pending workflow-recording coverage below: non-plan recording,
 
 ## Testing policy
 
-Do not run the full suite by default. It takes almost 3 minutes and most changes do not need it.
+Do not run the full suite by default. The latest Node run took about one minute on this machine, and most changes do not need it.
 
 - **While developing:** build, then run only the test files for the changed modules, for example `npm run build && node --test dist/core/workflow-recording.test.js` from `packages/cli`. Use `--test-name-pattern` to narrow further.
 - **Full suite (`npm test`), at most once per change set:** before committing a change to shared code (`core/`, `cli.ts`, `schemas.ts`, shared test fixtures), and before pushing or merging. Rerun it only after a further code change or a failure.
