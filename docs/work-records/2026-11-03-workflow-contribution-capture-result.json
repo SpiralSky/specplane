@@ -85,7 +85,11 @@
   "elapsed_minutes": 49.05,
   "publication": {
     "branch": "overnight/specplane-20261102T144630Z",
-    "policy": "Normal non-force push of this dedicated review branch only; inspect Git refs for final publication outcome."
+    "implementation_commit": "63cd572befd5d421b0374332d924a79f2f4b4d44",
+    "method": "GitHub integration; git push lacked HTTPS credentials",
+    "verified_tree_sha": "2b0b09e729caf4121bbe442a5a9c9fcf2232187c",
+    "local_original_commit": "c43d5140c02b1d4e6972734598380d5bd5674ddf",
+    "note": "Integration-created commit has identical tested tree and baseline parent; commit metadata changes its ID."
   },
   "reviewed_source_sha256": {
     "packages/cli/src/core/contracts.ts": "d0840761cf23c68e4cab774c26fca22208fd8466793debc78e1547619d530352",
@@ -95,5 +99,11 @@
     "packages/cli/src/core/workflow-recording.test.ts": "a822562cd28ac1619beda01eb7c13b554743e6a9505b5704b8d3241e6c95da51",
     "packages/cli/src/core/contribution-capture.ts": "726ba95c83db949416205b301b7d2faa5eb840a75aec46bf87beb734aebb72a7",
     "packages/cli/src/core/contribution-capture.test.ts": "96335353d5560314f5128db0c39b1bbd7d45f485afdb8751c5c2a09d76401109"
+  },
+  "timing_gap_investigation": {
+    "last_test_output_utc": "2026-11-03T07:29:47.188619+00:00",
+    "checkpoint_recorded_utc": "2026-11-03T08:08:44.298579+00:00",
+    "gap_seconds": 2337.11,
+    "finding": "Full regression finished before the later progress response. There is an unexplained gap; no evidence establishes active agent work during it. Checkout and results survived. Available logs do not establish pause cause or environment change."
   }
 }
