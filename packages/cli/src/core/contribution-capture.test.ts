@@ -79,8 +79,8 @@ test('capture refuses a review parent replaced between traversal and open',async
   fs.mkdirSync(replacement);fs.writeFileSync(path.join(replacement,path.basename(e.action.evidencePath)),'Performed review');
   const open=nativeFs.openSync;let swapped=false;
   const mocked=t.mock.method(nativeFs,'openSync',((file:fs.PathLike,flags:fs.OpenMode,mode?:fs.Mode)=>{
-   if(!swapped&&String(file).startsWith('/proc/self/fd/')&&String(file).endsWith('/reviews')){
-    swapped=true;fs.renameSync(parent,parent+'-original');fs.symlinkSync(replacement,parent);
+   if(!swapped&&String(file)===path.join(f.cwd,e.action.evidencePath)){
+    swapped=true;fs.renameSync(parent,parent+'-original');fs.symlinkSync(replacement,parent,process.platform==='win32'?'junction':'dir');
    }
    return open(file,flags,mode);
   }) as typeof nativeFs.openSync);
