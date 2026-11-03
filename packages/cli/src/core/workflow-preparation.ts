@@ -2,7 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { Ajv } from 'ajv';
+import { lazyValidator } from '../lazy-validator.js';
 import { CONFIG_PATH, loadConfig, resolveSessionMode } from '../config.js';
 import { checkoutRoot } from '../git/repo.js';
 import { run } from '../git/exec.js';
@@ -21,8 +21,7 @@ import { acquireWriterLease, LeaseRefused, type WriterLease } from './writer-lea
 import { workflowInitiationSchema, reviewedTestMappingSchema } from './schemas.js';
 import type { CoreContext, Criterion, Result, Notice, WorkflowInitiation, WorkflowRequest, TestRequirement } from './contracts.js';
 
-const ajv = new Ajv({ allErrors: true });
-const validInitiation = ajv.compile(workflowInitiationSchema), validMapping = ajv.compile(reviewedTestMappingSchema);
+const validInitiation = lazyValidator(workflowInitiationSchema, { allErrors: true }), validMapping = lazyValidator(reviewedTestMappingSchema, { allErrors: true });
 export const sha256 = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
 export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;

@@ -2,16 +2,17 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
-import { Ajv } from 'ajv';
+import { lazyValidator } from '../lazy-validator.js';
 import { run } from '../git/exec.js';
 import { PlanStateError } from '../errors.js';
 
 export interface RecordingSet { protocol: 1; head: string; branch: string; changes: { path: string; beforeDigest: string; afterDigest: string; purpose: string }[] }
 const digest = { type: 'string', pattern: '^(missing|[a-f0-9]{64})$' };
-const valid = new Ajv().compile({ type: 'object', additionalProperties: false, required: ['protocol','head','branch','changes'], properties: {
+const recordingSetSchema = { type: 'object', additionalProperties: false, required: ['protocol','head','branch','changes'], properties: {
   protocol: { const: 1 }, head: { type: 'string', pattern: '^([a-f0-9]{40}|[a-f0-9]{64})$' }, branch: { type: 'string', minLength: 1 },
   changes: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['path','beforeDigest','afterDigest','purpose'], properties: { path: { type:'string', minLength:1 }, beforeDigest: digest, afterDigest: digest, purpose: {type:'string',minLength:1} } } }
-} });
+} };
+const valid = lazyValidator(recordingSetSchema);
 function fail(s: string): never { throw new PlanStateError(`Recording set: ${s}`); }
 const hash = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 const git = (root: string, ...args: string[]) => run('git', args, {cwd:root}).trim();

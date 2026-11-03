@@ -1,5 +1,5 @@
 /** Import-safe library entry point. The CLI is deliberately not imported here. */
-import { Ajv } from 'ajv';
+import { lazyValidator } from '../lazy-validator.js';
 import { writeImplementation, type CompletionReceipt } from './completion-writer.js';
 import { transitionFromCheckout, type ShelveReceipt } from '../plan/shelve.js';
 import { retargetPlan, type RetargetReceipt } from '../plan/retarget.js';
@@ -17,8 +17,7 @@ export const checkCompatibility = (manifest: unknown, host: HostSelection) => va
 function unavailable<T>(operation: string): Result<T> {
   return { protocol: 1, ok: false, error: { code: 'UNSUPPORTED_CAPABILITY', message: `${operation} is not implemented by this core release`, retryable: false, details: null }, notices: [] };
 }
-const ajv = new Ajv();
-const validate = { operation: ajv.compile(mechanicalRequestSchema), request: ajv.compile(workflowRequestSchema), result: ajv.compile(workflowResultSchema), test: ajv.compile(workflowTestRequestSchema), proposal: ajv.compile(recordingProposalSchema), contribution: ajv.compile(contributionEventSchema), challenge: ajv.compile(confirmationChallengeSchema), response: ajv.compile(confirmationResponseSchema), conductor: ajv.compile(conductorRequestSchema), query: ajv.compile(contributionQuerySchema) };
+const validate = { operation: lazyValidator(mechanicalRequestSchema), request: lazyValidator(workflowRequestSchema), result: lazyValidator(workflowResultSchema), test: lazyValidator(workflowTestRequestSchema), proposal: lazyValidator(recordingProposalSchema), contribution: lazyValidator(contributionEventSchema), challenge: lazyValidator(confirmationChallengeSchema), response: lazyValidator(confirmationResponseSchema), conductor: lazyValidator(conductorRequestSchema), query: lazyValidator(contributionQuerySchema) };
 function checked(operation: string, valid: boolean): Result<never> {
   return valid ? unavailable(operation) : { protocol: 1, ok: false, error: { code: 'INVALID_EVIDENCE', message: `Invalid ${operation} input`, retryable: false, details: null }, notices: [] };
 }

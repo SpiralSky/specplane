@@ -1,7 +1,7 @@
 /** Plan result validation and exact-set recording. Prepared state remains authoritative. */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Ajv } from 'ajv';
+import { lazyValidator } from '../lazy-validator.js';
 import { loadConfig } from '../config.js';
 import { run } from '../git/exec.js';
 import { stepDone, type StepDoneResult } from '../plan/step-done.js';
@@ -14,7 +14,7 @@ import { assertPrepared, canonical, sha256, withPreparedActivity } from './workf
 import { validateExecutionArtifact, workflowStateDigest } from './workflow-execution.js';
 import { workflowRequestSchema,workflowResultSchema,recordingProposalSchema } from './schemas.js';
 import type { CoreContext,RecordingProposal,Result,WorkflowRequest,WorkflowResult,TestReceipt } from './contracts.js';
-const ajv=new Ajv(),requestSchema=ajv.compile(workflowRequestSchema),resultSchema=ajv.compile(workflowResultSchema),proposalSchema=ajv.compile(recordingProposalSchema);
+const requestSchema=lazyValidator(workflowRequestSchema),resultSchema=lazyValidator(workflowResultSchema),proposalSchema=lazyValidator(recordingProposalSchema);
 class Refusal extends Error{constructor(readonly code:string,message:string){super(message);}}
 function fail(code:string,message:string):never{throw new Refusal(code,message);}
 function error(e:unknown):Result<never>{return {protocol:1,ok:false,error:{code:typeof (e as any)?.code==='string'?(e as any).code:'INVALID_EVIDENCE',message:e instanceof Error?e.message:String(e),retryable:(e as any)?.code==='LOCKED',details:null},notices:[]};}

@@ -2,14 +2,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { Ajv } from 'ajv';
+import { lazyValidator } from '../lazy-validator.js';
 import { run } from '../git/exec.js';
 import { checkoutIdentity, LeaseRefused } from './writer-leases.js';
 import { assertPrepared, canonical, sha256, withPreparedActivity } from './workflow-preparation.js';
 import { parseTestReport } from './test-reporters.js';
 import { testReceiptSchema, workflowTestRequestSchema } from './schemas.js';
 import type { Artifact, CoreContext, Result, TestExecutionResult, TestReceipt, WorkflowTestRequest } from './contracts.js';
-const ajv=new Ajv(), validRequest=ajv.compile(workflowTestRequestSchema),validReceipt=ajv.compile(testReceiptSchema);
+const validRequest=lazyValidator(workflowTestRequestSchema),validReceipt=lazyValidator(testReceiptSchema);
 class EvidenceError extends Error { constructor(readonly code:string,message:string){super(message);} }
 function fail(code:string,message:string):never {throw new EvidenceError(code,message);}
 interface Entry { receipt:TestReceipt; artifact:Artifact; criterionIds:string[]; format:WorkflowTestRequest['reportFormat']; ledgerDigest:string }

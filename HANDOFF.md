@@ -2,35 +2,21 @@
 
 ## Continuation checkpoint
 
-Continue on review branch `overnight/specplane-20261102T144630Z`, using actual HEAD. At this handoff edit the branch was two commits behind its upstream; inspect that divergence before implementation and coordinate any integration rather than resetting or overwriting local work. Preserve the unrelated untracked `problems.md`.
+Continue on review branch `overnight/specplane-20261102T144630Z`, using actual HEAD. Divergence inspected: upstream-only `63cd572` adds trusted review contribution capture and `cff7c78` records its checkpoint; local `7bde247` replaces old work records with the append-only log. Those upstream commits remain unintegrated. Coordinate integration while preserving the log cleanup rather than resetting or overwriting local work. Preserve the unrelated untracked `problems.md`.
 
 Latest recorded implementation: prepared workflows persist private generation-bound host-worker evidence before exposing the request. Checkout, plan and repository lease acquisition and previews refuse dead-owner reclamation while that evidence exists. Ordinary release requires proof of host stop; trusted stopped-preparation boundaries release the full lease set and marker after acknowledgment. Cancellation/inspection use preparation-owned state, preserve partial edits and report unfinished publication after recording.
 
-Latest checks on commit `d88d709`: build passed and full suite 686 passed, 0 failed, 0 skipped (rerun 2026-11-03); repository validation 0 errors, 89 existing warnings (from that commit's own session, not rerun). Progress is logged in `docs/work-records/LOG.md`. Older per-batch records were removed after `d88d709`; recover them from git history only if a specific detail is needed.
+Latest checks for the lazy-schema compilation checkpoint on top of `7bde247`: build passed; focused suite 83 passed; full suite 686 passed, 0 failed, 0 skipped in 100.960 s at concurrency 4. CLI help averaged 180.109 ms versus 530.835 ms before. Repository validation was not rerun. Progress is logged in `docs/work-records/LOG.md`. Older per-batch records were removed after `d88d709`; recover them from git history only if a specific detail is needed.
 
 Cross-process reconstruction/recovery, non-plan recording and trusted contribution capture remain pending. Dead parent PIDs never prove host workers stopped. Existing preparations without the new evidence marker are not retroactively protected. Reuse private preparation state, retained leases and core-issued receipts; do not reconstruct verified execution from caller JSON or infer native host/session identities.
 
-## Next step: compile JSON schemas lazily (do this before all other work)
+## Next step: coordinate upstream contribution capture, then resume recording
 
-Do this first, alone, before recording step 04 or any parallel batch. It is a small performance fix, not a plan step, and needs no subagents.
+The lazy JSON-schema compilation performance fix is complete. Validators compile on first use and cache results while preserving default versus `allErrors: true` options and the existing formatted-schema helper. `workflow-execution.ts` and the indirect eager call in `completion-writer.ts` were included. No tests or expectations changed.
 
-**Problem.** Loading `packages/cli/dist/cli.js` takes ~536 ms (`--help`) against ~79 ms for bare Node (measured 2026-11-03). A CPU profile attributes most of the difference to Ajv compiling JSON schemas at module import. Every CLI command and every test that spawns the CLI pays this, which is the main reason the 1–11 s tests are slow. Baseline full suite: 686 passed, 0 failed, 0 skipped, 164 s wall at concurrency 4.
+Before the next recording batch, reconcile the upstream-only contribution-capture implementation (`63cd572`, with checkpoint `cff7c78`) with the local append-only log cleanup. The user was asked whether to integrate these commits; no answer was received at this checkpoint. Do not restore removed per-batch records or forecasts. The upstream contribution-capture module contains another eager Ajv validator; convert it to the new helper if integrated. Inspect its actual acceptance coverage before assigning follow-up work.
 
-**Eager compilations to change** (all under `packages/cli/src/`):
-
-- `core/index.ts:20–21`: 10 schemas, several duplicated in the modules below
-- `core/workflow-preparation.ts:24–25`, `core/confirmation.ts:45–46`, `core/workflow-recording.ts:17`, `core/confirmed-operations.ts:27`
-- `core/compatibility.ts:26` (uses `allErrors: true`), `core/contributions.ts:6–7`, `plan/recording-set.ts:11`
-
-**Change.** Compile each validator on first use and cache it. `schemas.ts:236` already has a cached `validator(schema)`, but its shared instance enables `allErrors: true` and `ajv-formats`, while most core modules use `new Ajv()` defaults. Do not silently switch them to the shared instance. Add a small cached helper (for example `lazyValidator(schema, options)`) that preserves each module's current options exactly, so error output and accepted inputs do not change. Hoist inline schema literals (`plan/recording-set.ts:11`, the trailer schema in `core/contributions.ts:7`) to module-level constants so the cache key stays stable. Keep the public behaviour identical; this change must not alter any test expectation.
-
-**Acceptance.**
-
-1. No top-level `ajv.compile(...)` or `new Ajv(...)` remains outside the helper (check with grep).
-2. Run the test files of the touched modules (see the testing policy below). They pass unchanged.
-3. Re-measure `node packages/cli/dist/cli.js --help` (five runs, average) and record before/after.
-4. Run the full suite once at the end; record the result and wall time against the 164 s baseline.
-5. Commit as `perf(cli): compile JSON schemas lazily`, and append a `docs/work-records/LOG.md` entry with the measurements.
+Then continue the pending workflow-recording coverage below: non-plan recording, atomic trusted-contribution recording, and cross-process recovery. This performance checkpoint records no managed step completion or lifecycle approval.
 
 ## Testing policy
 

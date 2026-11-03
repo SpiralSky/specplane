@@ -4,7 +4,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { Ajv } from 'ajv';
+import { lazyValidator } from '../lazy-validator.js';
 import type { ConfirmationChallenge, ConfirmationResponse, ClockPort, InteractionPort } from './contracts.js';
 import { confirmationChallengeSchema, confirmationResponseSchema } from './schemas.js';
 import { canonical, sha256 } from './workflow-preparation.js';
@@ -42,8 +42,7 @@ interface Journal {
   response: ConfirmationResponse | null;
   phase: 'displaying' | 'ready' | 'refused' | 'consuming' | 'completed';
 }
-const ajv = new Ajv();
-const validChallenge = ajv.compile(confirmationChallengeSchema), validResponse = ajv.compile(confirmationResponseSchema);
+const validChallenge = lazyValidator(confirmationChallengeSchema), validResponse = lazyValidator(confirmationResponseSchema);
 const TTL = 15 * 60 * 1000;
 const fail = (code: ConfirmationRefused['code'], message: string): never => { throw new ConfirmationRefused(code, message); };
 

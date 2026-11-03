@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { Ajv } from 'ajv';
+import { lazyValidator } from '../lazy-validator.js';
 import { hasAnchor } from '../spec/slug.js';
 import { manifestSchema } from './schemas.js';
 import type { Result } from './contracts.js';
@@ -23,7 +23,7 @@ export interface HostSelection {
 }
 export interface BuildInfo { readonly version: string; readonly protocol: 1; readonly contractVersion: number; readonly docsVersion: string }
 export interface Capabilities { reasoning: boolean; nativeCommands: boolean; backgroundSessions: boolean }
-const validManifest = new Ajv({ allErrors: true }).compile(manifestSchema);
+const validManifest = lazyValidator(manifestSchema, { allErrors: true });
 const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const isHash = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;

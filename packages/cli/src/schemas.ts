@@ -230,14 +230,14 @@ export const CONFIG_SCHEMA = {
   },
 } as const;
 
-const ajv = createAjv();
+let ajv: Ajv | undefined;
 const cache = new Map<object, ValidateFunction>();
 
 /** Compile (once) and return a validator for a schema constant. */
 export function validator(schema: object): ValidateFunction {
   let v = cache.get(schema);
   if (!v) {
-    v = ajv.compile(schema);
+    v = (ajv ??= createAjv()).compile(schema);
     cache.set(schema, v);
   }
   return v;

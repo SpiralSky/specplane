@@ -19,8 +19,8 @@ export interface CompletionReceipt {
   fingerprint: string | null; changed_file: string; changed: boolean; dry_run: boolean;
 }
 const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
-const validate = validator(SPEC_COMMON_SCHEMA);
 function validateSpec(content: string, file: string): Record<string, unknown> {
+  const validate = validator(SPEC_COMMON_SCHEMA);
   const data = parseFrontmatter(content, file).data;
   if (!validate(data)) throw new Error(`Invalid spec metadata in ${file}: ${JSON.stringify(validate.errors)}`);
   return data;

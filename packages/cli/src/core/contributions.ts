@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { Ajv } from 'ajv';
+import { lazyValidator } from '../lazy-validator.js';
 import type { ContributionEvent } from './contracts.js';
 import { contributionEventSchema } from './schemas.js';
 
-const shape = new Ajv().compile(contributionEventSchema);
-const trailerShape = new Ajv().compile({
+const shape = lazyValidator(contributionEventSchema);
+const trailerSchema = {
   type: 'object',
   properties: {
     spec: { type: 'string', minLength: 1 }, contributor: { type: 'string', minLength: 1 },
@@ -14,7 +14,8 @@ const trailerShape = new Ajv().compile({
     action: contributionEventSchema.properties.action, revision: contributionEventSchema.properties.revision,
   },
   required: ['spec', 'contributor', 'role', 'source'],
-});
+};
+const trailerShape = lazyValidator(trailerSchema);
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Must verify resolved spec, policy, action evidence, workflow membership and trusted runtime observation. */
 export type ContributionVerifier = (event: ContributionEvent) => boolean;

@@ -2,7 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { Ajv } from 'ajv';
+import { lazyValidator } from '../lazy-validator.js';
 import { loadConfig } from '../config.js';
 import { checkoutRoot } from '../git/repo.js';
 import { run } from '../git/exec.js';
@@ -24,7 +24,7 @@ import type { Config } from '../types.js';
 
 export interface ConfirmedOperationReceipt { operation: string; targets: string[]; head: string; notices: Notice[] }
 type ApprovalRequest = Extract<MechanicalRequest, { operation: 'spec.approve' | 'spec.reopen' | 'plan.approve' | 'decision.accept' }>;
-const ajv = new Ajv(), validOperation = ajv.compile(mechanicalRequestSchema), validChallenge = ajv.compile(confirmationChallengeSchema), validResponse = ajv.compile(confirmationResponseSchema);
+const validOperation = lazyValidator(mechanicalRequestSchema), validChallenge = lazyValidator(confirmationChallengeSchema), validResponse = lazyValidator(confirmationResponseSchema);
 const pending = new Map<string, { service: ReturnType<typeof createConfirmation<ConfirmedOperationReceipt>>; lease: WriterLease; timer: ReturnType<typeof setTimeout> }>();
 function refusal(code: ConfirmationRefused['code'], message: string): never { throw new ConfirmationRefused(code, message); }
 function error<T>(e: unknown): Result<T> {
