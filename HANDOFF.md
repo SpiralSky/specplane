@@ -2,7 +2,7 @@
 
 ## Current state
 
-Preparation is complete; stop before the next roadmap implementation step. The user will resume in a new session. This handoff supersedes the old cloud-input handoff, overnight coordinator prompt, historical recovery instructions and earlier worker/model arrangements.
+The direct-session attempt at workflow-recording step 01 stopped before implementation on contract conflict WR-PREP-01. Resume this same incomplete step after resolving the conflict. No original roadmap step was completed. This handoff supersedes the old cloud-input handoff, overnight coordinator prompt, historical recovery instructions and earlier worker/model arrangements.
 
 The active branch is `overnight/specplane-20261102T144630Z`. Its reviewed overnight baseline was rewritten from `ae326ef` to `2175faf` solely to remove identifying local paths. Preparation changes are recorded in the commits following that baseline; use actual HEAD, not the old IDs, when starting work.
 
@@ -15,6 +15,9 @@ The active branch is `overnight/specplane-20261102T144630Z`. Its reviewed overni
 Details: `docs/work-records/2026-11-03-preimplementation-review.json`, `docs/work-records/2026-11-03-path-cleanup-result.json`, and `docs/work-records/2026-11-03-workflow-contract-clarifications.json`.
 
 ## Next session: one step, then handoff
+
+Latest attempt: `docs/work-records/2026-11-03-workflow-preparation-investigation.json`. `architecture/reference-cli` lists `approve` in structured reasoning initiation, but `architecture/agent-skills` explicitly makes approval mechanical with no reasoning asset. The current request schema has no approval scope. Repository instructions require stopping on contradictory specs. A user decision was requested: recommended resolution removes `approve` from reasoning initiation; the alternative needs an explicit preparation-only approval envelope. Neither contract has been edited. Tests were not run because no implementation changed. Elapsed/active time are unknown; approval waiting is unresolved. The frozen 30–75-minute step estimate and 21-step forecast remain provisional and unchanged because no implementation scope was completed.
+
 
 Work directly in the session. **Do not spawn subagents or resume the coordinator/worker framework. Complete at most one original roadmap step, update the estimate and handoff, then stop even if another step is eligible.** If blocked or interrupted, hand off that same incomplete step; do not count it as complete or advance to another one.
 

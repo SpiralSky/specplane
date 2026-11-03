@@ -87,8 +87,16 @@
     "risks": [
       "Non-plan workflow scope must not be silently omitted.",
       "Package compatibility is asynchronous; preserve typed refusal paths.",
-      "Missing test mappings remain uncertain, not assumed inspection-only."
+      "Missing test mappings remain uncertain, not assumed inspection-only.",
+      "WR-PREP-01: approve initiation conflicts with mechanical-only approval contract; resolve before dependent implementation."
     ]
   },
-  "update_rule": "Before the step, freeze its estimate. At handoff record outcome, actual elapsed time, known approval/wait time, active time or unknown, tests, remaining scope and revised low/high estimate with reasons. Never subtract elapsed time as completed scope, or treat an incomplete step as complete. Stop after one step or its blocked handoff."
+  "update_rule": "Before the step, freeze its estimate. At handoff record outcome, actual elapsed time, known approval/wait time, active time or unknown, tests, remaining scope and revised low/high estimate with reasons. Never subtract elapsed time as completed scope, or treat an incomplete step as complete. Stop after one step or its blocked handoff.",
+  "latest_attempt": {
+    "record": "docs/work-records/2026-11-03-workflow-preparation-investigation.json",
+    "outcome": "blocked before implementation on WR-PREP-01; no completed scope removed",
+    "elapsed": "unknown",
+    "active_time": "unknown",
+    "approval_wait": "unresolved; unknown duration"
+  }
 }
