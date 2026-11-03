@@ -523,3 +523,7 @@ Search bundled documentation, returning matching topic IDs and excerpts. No matc
 Both documentation commands support `--json`. A topic result includes topic ID, title, release version, documentation version, source references, related topic IDs and content. Index/search output contains a versioned envelope and ordered items. Harness documentation commands call the same documentation operation in their compatible bundled core and identify that core's version; they may add host invocation details without changing shared semantics. Documentation does not imply host capabilities absent from the active integration.
 
 Acceptance: a fresh user outside Git reads orientation and completion guidance offline; CLI and a harness using the same core return the same topic content; unknown topics fail without writes; searching docs never returns project requirements as though they were product documentation.
+
+### Shared-anchor completion limitation
+
+Retain atomic refusal when changing implementation metadata would change the meaning of an alias used by unrelated metadata or require rewriting unrelated source bytes. Report the shared anchor as the reason, preserve the file and index, and ask the author to decouple the alias explicitly before retrying. Do not silently expand the edit scope. This is an explicit supported-format limitation, not full verification of the broad valid-YAML writer criterion. Keep the acceptance-matrix entries blocked until the relevant contract text is reviewed and the existing refusal behavior is accepted.
