@@ -46,8 +46,8 @@ export { validateWorkflowResult, recordWorkflow } from './workflow-recording.js'
 export type { WorkflowRecordingReceipt } from './workflow-recording.js';
 export { prepareConfirmedOperation as prepareConfirmation, confirmConfirmedOperation as confirmOperation } from './confirmed-operations.js';
 export type { ConfirmedOperationReceipt } from './confirmed-operations.js';
-export const cancelWorkflow = (_requestId: string, _context: CoreContext): Result<never> => unavailable('cancelWorkflow');
-export const inspectWorkflow = (_requestId: string, _context: CoreContext): Result<never> => unavailable('inspectWorkflow');
+export { cancelWorkflow, inspectWorkflow } from './workflow-lifecycle.js';
+export type { WorkflowInspection } from './workflow-lifecycle.js';
 export const runConductor = (_request: ConductorRequest, _context: CoreContext & { adapter: SessionAdapter }): Result<never> => checked('runConductor', validate.conductor(_request) && !!_context?.adapter && ['probe', 'launch', 'observe', 'resume', 'recovery', 'cancel'].every(key => typeof (_context.adapter as unknown as Record<string, unknown>)[key] === 'function') && typeof _context.adapter.name === 'string');
 export const captureContribution = (_event: ContributionEvent, _context: CoreContext): Result<never> => checked('captureContribution', validate.contribution(_event));
 export const readContributions = (_query: ContributionQuery, _context: CoreContext): Result<never> => checked('readContributions', validate.query(_query));

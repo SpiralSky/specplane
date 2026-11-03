@@ -12,13 +12,18 @@ export type WorkflowTestRequest = { requestId: string; criterionIds: string[]; e
  * a shell using the supplied environment, and propagate cancellation to the process tree.
  * Resolve/reject only after launch refusal or acknowledged worker stop; never truncate output. */
 export type ExecutionPort = { execute(request: { executable: string; args: string[]; checkout: string; env: Record<string, string>; signal?: AbortSignal }): Promise<{ executable: string; exitCode: number | null; signal: string | null; stdout: Uint8Array; stderr: Uint8Array }> };
+/** Trusted embedding-host proof; never accepted from workflow JSON.
+ * stopped=true requires all reasoning workers and child processes to have stopped;
+ * a missing PID or process alone is not proof.
+ */
+export type LifecyclePort = { stopWorkflow(request: { requestId: string; checkout: string }): Promise<{ stopped: boolean; recoveryRequired: boolean }> };
 export type ClockPort = { now(): Date };
 export type GitPort = { run(args: string[], checkout: string): Promise<{ stdout: string; stderr: string; exitCode: number }> };
 export type FileSystemPort = { read(path: string): Promise<Uint8Array>; lstat(path: string): Promise<{ isFile(): boolean; isDirectory(): boolean; isSymbolicLink(): boolean }> };
 /** Supplied by the trusted host only, never request JSON. Show the complete challenge
  * through a direct-human surface; a model-produced response is not consent. */
 export type InteractionPort = { confirm(challenge: ConfirmationChallenge): Promise<ConfirmationResponse | null> };
-export type CoreContext = { compatibility?: { manifest: unknown; host: import('./compatibility.js').HostSelection }; checkout?: string; extensionId: string; signal?: AbortSignal; git?: GitPort; filesystem?: FileSystemPort; clock?: ClockPort; interaction?: InteractionPort; execution?: ExecutionPort };
+export type CoreContext = { compatibility?: { manifest: unknown; host: import('./compatibility.js').HostSelection }; checkout?: string; extensionId: string; signal?: AbortSignal; git?: GitPort; filesystem?: FileSystemPort; clock?: ClockPort; interaction?: InteractionPort; execution?: ExecutionPort; lifecycle?: LifecyclePort };
 export type MechanicalRequest =
   | { operation: 'spec.complete'; arguments: { id: string; root?: string; dryRun?: boolean } }
   | { operation: 'spec.implementation'; arguments: { id: string; status: 'incomplete' | 'partial' | 'complete'; root?: string; dryRun?: boolean } }

@@ -35,9 +35,9 @@ function bytes(root:string,relative:string):Buffer{
  if(!relative||path.isAbsolute(relative)||relative.includes('\\')||relative.split('/').some(p=>!p||p==='.'||p==='..'||p==='.git'))fail('INVALID_EVIDENCE','Uncontained evidence path');
  let current=root;for(const [i,part]of relative.split('/').entries()){current=path.join(current,part);const st=fs.lstatSync(current);if(st.isSymbolicLink()||(i===relative.split('/').length-1?!st.isFile()||st.nlink!==1:!st.isDirectory()))fail('INVALID_EVIDENCE','Nonregular evidence path');}return fs.readFileSync(current);
 }
-function runtime(state:Prepared):string{
+function runtime(state:Prepared,create=true):string{
  let current=checkoutIdentity(state.request.checkout).commonDir;
- for(const part of ['specplane-runtime','workflows',state.request.requestId]){current=path.join(current,part);try{fs.mkdirSync(current,{mode:0o700});}catch(e){if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;}const st=fs.lstatSync(current);if(!st.isDirectory()||st.isSymbolicLink())fail('RECOVERY_REQUIRED','Nonregular workflow runtime directory');}
+ for(const part of ['specplane-runtime','workflows',state.request.requestId]){current=path.join(current,part);if(create){try{fs.mkdirSync(current,{mode:0o700});}catch(e){if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;}}const st=fs.lstatSync(current);if(!st.isDirectory()||st.isSymbolicLink())fail('RECOVERY_REQUIRED','Nonregular workflow runtime directory');}
  return current;
 }
 function privateWrite(state:Prepared,name:string,value:unknown):string{
@@ -121,7 +121,29 @@ function inspectRecorded(v:Validated):void{
  for(const trailer of [`Specplane-Workflow: step`,`Specplane-Plan: ${receipt.planId}`,`Specplane-Step: ${String(receipt.step).padStart(2,'0')}`])if(!body.split('\n').includes(trailer))fail('RECOVERY_REQUIRED','Recorded commit identity changed');
  const dir=planDir(receipt.planId,loadConfig(cwd).config,cwd),step=listStepFiles(dir).map(parseStep).find(s=>s.frontmatter.step===receipt.step);
  if(step?.frontmatter.status!==receipt.outcome||!fs.readFileSync(path.join(cwd,receipt.handoff),'utf8').includes(v.summary))fail('RECOVERY_REQUIRED','Recorded progress does not match receipt');
- if(sha256(bytes(runtime(v.state),'recorded.json'))!==v.journalDigest)fail('RECOVERY_REQUIRED','Recording journal changed');
+ if(sha256(bytes(runtime(v.state,false),'recorded.json'))!==v.journalDigest)fail('RECOVERY_REQUIRED','Recording journal changed');
+}
+/** Internal lifecycle inspection: never publish or trust a caller-supplied receipt. */
+export function inspectWorkflowRecording(requestId:string,context:CoreContext):WorkflowRecordingReceipt|null{
+ const v=validated.get(requestId);
+ if(!v)return null;
+ if(v.state.leaseReleased){
+  if(!context.checkout||fs.realpathSync(context.checkout)!==v.state.request.checkout||context.extensionId!==v.state.context.extensionId)fail('STALE_STATE','Recording owner changed');
+ }else assertOwner(v,context);
+ if(!v.receipt){
+  const cwd=v.state.request.checkout;
+  if(run('git',['rev-parse','HEAD'],{cwd}).trim()!==v.state.request.base.head || run('git',['branch','--show-current'],{cwd}).trim()!==v.state.request.base.branch)fail('RECOVERY_REQUIRED','HEAD or branch changed without a verified recording receipt; reconcile before release');
+  return null;
+ }
+ try{inspectRecorded(v);}catch(e){
+  const message=e instanceof Error?e.message:String(e);
+  throw Object.assign(new Refusal('RECOVERY_REQUIRED',`Known commit ${v.receipt.commit} requires reconciliation: ${message}`),{details:{recording:{commit:v.receipt.commit,publication:v.receipt.publication,verified:false}}});
+ }
+ const receipt=structuredClone(v.receipt);
+ if(v.state.context.signal?.aborted && (receipt.publication==='failed'||receipt.publication==='cancelled')){
+  receipt.publication='cancelled';receipt.publicationError='Recording committed; publication was cancelled.';
+ }
+ return receipt;
 }
 function publish(v:Validated,context:CoreContext):WorkflowRecordingReceipt{
  const receipt=v.receipt!,cwd=v.state.request.checkout;

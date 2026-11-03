@@ -5,15 +5,15 @@ import * as path from 'node:path';
 import {tmpdir} from 'node:os';
 import {execFileSync} from 'node:child_process';
 import { fixture,repo,stepFile,id } from './workflow-test-fixture.js';
-import { prepareWorkflow,executeWorkflowTest,validateWorkflowResult,recordWorkflow } from './index.js';
+import { prepareWorkflow,executeWorkflowTest,validateWorkflowResult,recordWorkflow,cancelWorkflow,inspectWorkflow } from './index.js';
 import { releaseStoppedPreparation,sha256 } from './workflow-preparation.js';
 import {validateExecutionArtifact} from './workflow-execution.js';
 import type {CoreContext,WorkflowResult} from './contracts.js';
-async function setup(remote=false){
+async function setup(remote=false, lifecycle?:CoreContext['lifecycle']){
  const r=repo();let bare='';if(remote){bare=fs.mkdtempSync(path.join(tmpdir(),'record-remote-'));execFileSync('git',['init','--bare',bare],{stdio:'ignore'});r.git('remote','add','origin',bare);r.git('push','-u','origin',`plan/${id}`);r.git('push','origin','main');}
  const mapping={schemaVersion:1,workflow:'plan-step',criteria:[{sourcePath:stepFile,sourceDigest:sha256(fs.readFileSync(path.join(r.cwd,stepFile))),criterionIndex:1,evidence:'test',testRequirements:[{suiteId:'check',format:'node-tap-v13'}]}]};
  const p=await fixture('plan-step','# Contract\n\n## Procedure\n\n```specplane-test-requirements\n'+JSON.stringify(mapping)+'\n```\n');
- const context:CoreContext={checkout:r.cwd,extensionId:p.host.extensionId,compatibility:{manifest:p.manifest,host:p.host},execution:{execute:async args=>{const stdout=execFileSync(process.execPath,args.args,{cwd:args.checkout,env:args.env});return {executable:process.execPath,exitCode:0,signal:null,stdout,stderr:Buffer.alloc(0)};}}};
+ const context:CoreContext={lifecycle,checkout:r.cwd,extensionId:p.host.extensionId,compatibility:{manifest:p.manifest,host:p.host},execution:{execute:async args=>{const stdout=execFileSync(process.execPath,args.args,{cwd:args.checkout,env:args.env});return {executable:process.execPath,exitCode:0,signal:null,stdout,stderr:Buffer.alloc(0)};}}};
  const a=await prepareWorkflow({protocol:1,workflow:'plan-step',checkout:r.cwd,extensionId:context.extensionId,mode:'attended',selection:{planId:id}},context);assert.equal(a.ok,true,JSON.stringify(a));if(!a.ok)throw Error('prepare');
  r.put('check.cjs',"require('node:test').test('check',()=>{});");
  const execution=await executeWorkflowTest({requestId:a.value.requestId,criterionIds:[a.value.criteria[0].id],executable:'node',args:['--test','--test-reporter=tap','check.cjs'],reportFormat:'node-tap-v13'},context);assert.equal(execution.ok,true,JSON.stringify(execution));if(!execution.ok)throw Error('execute');
@@ -67,4 +67,73 @@ test('plan scope cannot create spec/plan/decision records; non-plan mutation rem
 
 test('publication destination changes after validation refuse before commit',async()=>{
  const f=await setup(true);try{const p=await validateWorkflowResult(f.prepared,f.result,f.context);assert.equal(p.ok,true);if(!p.ok)return;f.git('remote','set-url','--push','origin',f.cwd);const r=await recordWorkflow(p.value,f.context);assert.equal(r.ok,false);if(!r.ok)assert.equal(r.error.code,'STALE_STATE');assert.equal(f.git('rev-parse','HEAD'),f.prepared.base.head);}finally{f.close();}
+});
+
+test('cancel after commit reports verified receipt and releases only after trusted stop',async()=>{
+ let stops=0;
+ const f=await setup(false,{stopWorkflow:async()=>{stops++;return {stopped:true,recoveryRequired:false};}});
+ try{
+  const proposal=await validateWorkflowResult(f.prepared,f.result,f.context);assert.ok(proposal.ok);if(!proposal.ok)return;
+  const recorded=await recordWorkflow(proposal.value,f.context);assert.ok(recorded.ok);if(!recorded.ok)return;
+  const inspected=await inspectWorkflow(f.prepared.requestId,f.context);assert.ok(inspected.ok);if(!inspected.ok)return;
+  assert.equal(inspected.value.recording?.commit,recorded.value.commit);
+  if(inspected.value.recording)inspected.value.recording.commit='caller-mutated';
+  const cancelled=await cancelWorkflow(f.prepared.requestId,f.context);assert.ok(cancelled.ok,JSON.stringify(cancelled));if(!cancelled.ok)return;
+  assert.equal(cancelled.value.recording?.commit,recorded.value.commit);
+  assert.equal(cancelled.value.recording?.publication,'not-required');
+  assert.equal(cancelled.value.lease,'released');assert.equal(stops,1);
+  const repeated=await cancelWorkflow(f.prepared.requestId,f.context);assert.ok(repeated.ok,JSON.stringify(repeated));assert.equal(stops,1);
+  const terminal=await inspectWorkflow(f.prepared.requestId,f.context);assert.ok(terminal.ok,JSON.stringify(terminal));if(terminal.ok)assert.equal(terminal.value.recording?.commit,recorded.value.commit);
+  assert.equal(f.git('rev-parse','HEAD'),recorded.value.commit);assert.equal(f.git('status','--porcelain'),'');
+  const replay=await recordWorkflow(proposal.value,f.context);assert.equal(replay.ok,false);
+ }finally{f.close();}
+});
+test('cancel after failed publication reports existing commit without retrying push',async()=>{
+ const f=await setup(true,{stopWorkflow:async()=>({stopped:true,recoveryRequired:false})});
+ try{
+  const proposal=await validateWorkflowResult(f.prepared,f.result,f.context);assert.ok(proposal.ok);if(!proposal.ok)return;
+  const hook=path.join(f.bare,'hooks','pre-receive');fs.writeFileSync(hook,'#!/bin/sh\nexit 1\n',{mode:0o755});
+  const recorded=await recordWorkflow(proposal.value,f.context);assert.ok(recorded.ok);if(!recorded.ok)return;
+  assert.equal(recorded.value.publication,'failed');fs.writeFileSync(hook,'#!/bin/sh\nexit 0\n');
+  const cancelled=await cancelWorkflow(f.prepared.requestId,f.context);assert.ok(cancelled.ok,JSON.stringify(cancelled));if(!cancelled.ok)return;
+  assert.equal(cancelled.value.recording?.commit,recorded.value.commit);assert.equal(cancelled.value.recording?.publication,'cancelled');
+  assert.equal(execFileSync('git',['rev-parse',`refs/heads/plan/${id}`],{cwd:f.bare,encoding:'utf8'}).trim(),f.prepared.base.head);
+ }finally{f.close();}
+});
+test('changed recorded state refuses cancellation release and preserves changes',async()=>{
+ const f=await setup(false,{stopWorkflow:async()=>({stopped:true,recoveryRequired:false})});
+ try{
+  const proposal=await validateWorkflowResult(f.prepared,f.result,f.context);assert.ok(proposal.ok);if(!proposal.ok)return;
+  const recorded=await recordWorkflow(proposal.value,f.context);assert.ok(recorded.ok);if(!recorded.ok)return;
+  f.put('source.ts','unreviewed after commit');
+  const cancelled=await cancelWorkflow(f.prepared.requestId,f.context);assert.equal(cancelled.ok,false);if(!cancelled.ok)assert.equal(cancelled.error.code,'RECOVERY_REQUIRED');
+  assert.equal(fs.readFileSync(path.join(f.cwd,'source.ts'),'utf8'),'unreviewed after commit');
+  assert.equal(f.git('rev-parse','HEAD'),recorded.value.commit);
+ }finally{f.close();}
+});
+
+test('missing recording directory is read-only recovery and cancellation reports known commit',async()=>{
+ const f=await setup(false,{stopWorkflow:async()=>({stopped:true,recoveryRequired:false})});
+ try{
+  const proposal=await validateWorkflowResult(f.prepared,f.result,f.context);assert.ok(proposal.ok);if(!proposal.ok)return;
+  const recorded=await recordWorkflow(proposal.value,f.context);assert.ok(recorded.ok);if(!recorded.ok)return;
+  const dir=path.join(f.cwd,'.git','specplane-runtime','workflows',f.prepared.requestId);
+  fs.rmSync(dir,{recursive:true});
+  for(const result of [await inspectWorkflow(f.prepared.requestId,f.context),await cancelWorkflow(f.prepared.requestId,f.context)]){
+   assert.equal(result.ok,false);if(!result.ok){assert.equal(result.error.code,'RECOVERY_REQUIRED');assert.deepEqual(result.error.details,{recording:{commit:recorded.value.commit,publication:'not-required',verified:false}});}
+   assert.equal(fs.existsSync(dir),false);
+  }
+  assert.equal(f.git('rev-parse','HEAD'),recorded.value.commit);
+ }finally{f.close();}
+});
+
+test('missing stopped-worker port after commit retains lease and reports the commit',async()=>{
+ const f=await setup();
+ try{
+  const proposal=await validateWorkflowResult(f.prepared,f.result,f.context);assert.ok(proposal.ok);if(!proposal.ok)return;
+  const recorded=await recordWorkflow(proposal.value,f.context);assert.ok(recorded.ok);if(!recorded.ok)return;
+  const cancelled=await cancelWorkflow(f.prepared.requestId,f.context);assert.equal(cancelled.ok,false);
+  if(!cancelled.ok){assert.equal(cancelled.error.code,'RECOVERY_REQUIRED');assert.deepEqual(cancelled.error.details,{recording:{commit:recorded.value.commit,publication:'not-required',verified:true}});}
+  const inspected=await inspectWorkflow(f.prepared.requestId,f.context);assert.ok(inspected.ok);if(inspected.ok)assert.equal(inspected.value.lease,'held');
+ }finally{f.close();}
 });

@@ -1,6 +1,16 @@
 # Session handoff
 
-## Current state
+## Current continuation checkpoint
+
+Continuation remains on the existing review branch. Public `cancelWorkflow` and `inspectWorkflow` now use preparation-owned state, propagate cancellation to execution, and require a preparation-bound trusted host acknowledgment before releasing a writer lease. Partial edits are preserved. Cancellation after recording reports the existing commit and unfinished publication, including known-but-unverified commit diagnostics if recovery inspection fails. Inspection does not recreate missing recording directories. Repeated same-process cancellation/inspection is supported after release.
+
+Evidence and current verification: `docs/work-records/2026-11-03-workflow-lifecycle-result.json`. Build passed. Full regression passed 682 tests before the final stop-failure diagnostic enrichment; final focused regression passed 45 tests after that repair. Repository validation: 0 errors, 89 existing warnings. Formal plan/spec/ADR lifecycle states remain unchanged. Non-plan recording, trusted contribution capture and cross-process recovery remain pending. In particular, preparation does not yet persist delegated host-worker evidence: dead-owner reclamation is not sufficient proof that host workers stopped. Do not claim cross-process safety from the same-process cancellation tests.
+
+The user reiterated that every subagent must use **GPT-6.1 Sol**, and authorized **Fast only at 2–3x cost**, never Ultrafast. Both implementation and review workers in this continuation used `gpt-6.1-sol`, `medium`. At the user's request, local user-level Codex defaults were updated (with a private backup) to `model = "gpt-6.1-sol"`, `model_reasoning_effort = "medium"`, `service_tier = "fast"`, and `[features] fast_mode = true`; other parsed settings were preserved. This supersedes the saved-config description below. Existing running sessions are not claimed to have changed model. Official docs map Fast to request tier `priority`, which the current subagent tool advertises; the local Sol model catalog also names `priority` as Fast. Fast costs 2x purchased credits or 2.5x included usage. A strict-config no-tool timing sample returned 579 output tokens in 16.059 seconds (36.05 tokens/second end to end), including startup/request latency. JSON did not report server-applied tier; this is not proof of decode speed or a controlled speedup.
+
+Preserve unrelated untracked `problems.md` and `docs/work-records/2026-11-03-session-throughput-analysis.json`. The next implementation priority remains workflow recording step 04's remaining coverage, especially durable worker evidence/recovery and trusted contribution capture. Use the new result record alongside the prior integration baseline; do not rewrite historical evidence.
+
+## Previous integration baseline
 
 The integration batch continues on the existing review branch: execution receipts, manual exact-set recording, trusted confirmation and single-target approval adapters are implemented. Structured plan-step validation/recording and installation containment/customization repairs are also integrated, with limitations listed in the current result record. Build and final full CLI regression passed: **671 tests, 0 failures, 0 skipped**. Formal plan lifecycle statuses remain unchanged.
 

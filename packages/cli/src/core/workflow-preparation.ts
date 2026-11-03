@@ -70,7 +70,8 @@ function specPolicy(text: string): string {
   delete data.author; delete data.contributors;
   return sha256(canonical(data));
 }
-interface PreparedState {
+export interface PreparedState {
+  cancellation: AbortController; stopWorker?: NonNullable<CoreContext['lifecycle']>['stopWorkflow']; cancellationPending: boolean; leaseReleased: boolean;
   initiation: WorkflowInitiation; request: WorkflowRequest; context: CoreContext; lease: WriterLease;
   refs: Record<string, string | null>; compatibilityDigests: Record<string, string>;
   editableSpecPolicies: Record<string, string>; inputPaths: string[]; mutableInputs: string[]; capabilities: Capabilities; uncertainCriteria: string[]; input: string | null;
@@ -115,6 +116,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
   let lease: WriterLease | undefined; const notices: Notice[] = [];
   try {
     if (!validInitiation(request)) refuse('INVALID_EVIDENCE', 'Expected a closed WorkflowInitiation, not a prepared WorkflowRequest.');
+    const stopWorker = typeof context.lifecycle?.stopWorkflow === 'function' ? context.lifecycle.stopWorkflow.bind(context.lifecycle) : undefined;
     // Take private copies before awaiting host/package I/O.
     request = structuredClone(request); context = { ...context, compatibility: context.compatibility && structuredClone(context.compatibility) };
     if (context.signal?.aborted) refuse('CANCELLED', 'Preparation cancelled.');
@@ -301,7 +303,9 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
       if ((bytes === null ? 'missing' : sha256(bytes)) !== expected) refuse('STALE_STATE', `Input changed during preparation: ${p}`);
     }
     if (context.signal?.aborted) refuse('CANCELLED', 'Preparation cancelled.');
-    prepared.set(requestId, { initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' ? null : request.selection.input });
+    const cancellation = new AbortController();
+    const boundContext = { ...context, signal: context.signal ? AbortSignal.any([context.signal, cancellation.signal]) : cancellation.signal };
+    prepared.set(requestId, { cancellation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' ? null : request.selection.input });
     lease = undefined;
     return { protocol: 1, ok: true, value: envelope, notices };
   } catch (error) {
@@ -315,9 +319,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
 
 /** Internal boundary for subsequent test/validation/recording phases. Not a wire API. */
 export async function assertPrepared(requestId: string, context: CoreContext): Promise<PreparedState> {
-  const state = prepared.get(requestId);
-  if (!state || state.context.extensionId !== context.extensionId || !context.checkout || fs.realpathSync(context.checkout) !== state.request.checkout) return refuse('STALE_STATE', 'Prepared workflow identity/owner unavailable.');
-  state.lease.assertOwned();
+  const state = assertPreparedIdentity(requestId, context);
   if (state.context.signal?.aborted || context.signal?.aborted) refuse('CANCELLED', 'Prepared workflow cancelled; prove worker stopped before releasing leases.');
   const verified = await validateCompatibility(state.context.compatibility!.manifest, state.context.compatibility!.host, coreInfo);
   if (!verified.ok || canonical(packageDigests(state.context)) !== canonical(state.compatibilityDigests)) refuse('STALE_STATE', 'Prepared package compatibility changed.');
@@ -337,16 +339,34 @@ export async function assertPrepared(requestId: string, context: CoreContext): P
   }
   return state;
 }
+/** Identity/lease-only boundary: cancellation and inspection must work after stale inputs or abortion. */
+export function assertPreparedIdentity(requestId: string, context: CoreContext): PreparedState {
+  const state = prepared.get(requestId);
+  if (!state || state.context.extensionId !== context.extensionId || !context.checkout || !path.isAbsolute(context.checkout) || fs.realpathSync(context.checkout) !== state.request.checkout) return refuse('STALE_STATE', 'Prepared workflow identity/owner unavailable; cross-process recovery is unavailable.');
+  if (!state.leaseReleased) state.lease.assertOwned();
+  return state;
+}
+/** Complete proven cancellation while retaining a safe inspectable terminal state. */
+export function finishStoppedPreparation(requestId: string): void {
+  if (activities.has(requestId)) return refuse('RECOVERY_REQUIRED', 'Worker acknowledgment arrived while a core phase remains active; lease retained.');
+  const state = prepared.get(requestId);
+  if (!state || state.leaseReleased) return;
+  state.lease.release(); state.leaseReleased = true;
+}
+export function preparedActivity(requestId: string): 'idle' | 'execution' | 'validation' | 'recording' {
+  return activities.get(requestId) ?? 'idle';
+}
 /** Called only by the embedding lifecycle after it has proved the worker stopped. */
 export function releaseStoppedPreparation(requestId: string): void {
   if (activities.has(requestId)) return refuse('LOCKED', 'Cannot release a workflow with an active phase.');
   const state = prepared.get(requestId); if (!state) return;
-  state.lease.release(); prepared.delete(requestId);
+  if (!state.leaseReleased) state.lease.release(); prepared.delete(requestId);
 }
 
 const activities = new Map<string, 'execution' | 'validation' | 'recording'>();
 /** Reserve before asynchronous checks so no phase can overlap execution. */
 export async function withPreparedActivity<T>(requestId: string, activity: 'execution' | 'validation' | 'recording', body: () => Promise<T>): Promise<T> {
+  if (prepared.get(requestId)?.context.signal?.aborted) return refuse('CANCELLED', 'Prepared workflow cancelled.');
   if (activities.has(requestId)) return refuse('LOCKED', `Workflow already running ${activities.get(requestId)}.`);
   activities.set(requestId, activity);
   try { return await body(); } finally { activities.delete(requestId); }

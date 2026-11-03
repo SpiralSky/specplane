@@ -1,0 +1,118 @@
+{
+  "date": "2026-11-03",
+  "kind": "direct-session review-branch implementation; not a managed step receipt",
+  "baseline": "696e295560a447ab635e2e2df5b88664b4803d87",
+  "started_utc": "2026-11-03T06:36:50.543940+00:00",
+  "status": "implemented, reviewed and verified",
+  "formal_lifecycle": "unchanged",
+  "scope": [
+    "Public workflow cancellation and inspection",
+    "Preparation-bound trusted host acknowledgment before lease release",
+    "Verified postcommit reporting without publication retry",
+    "Read-only recovery inspection and known-commit diagnostics"
+  ],
+  "verification": {
+    "build": "passed",
+    "focused": {
+      "passed": 44,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 22.086274859,
+      "outside_sandbox": true
+    },
+    "prior_focused": {
+      "passed": 36,
+      "failed": 0,
+      "skipped": 0
+    },
+    "sandbox_expanded_attempt": "Opaque file-level failures in execution and recording tests; subsequent outside-sandbox run passed all 44 tests.",
+    "development_attempts": [
+      "One build accidentally invoked from repository root (no package.json); rerun from packages/cli passed."
+    ],
+    "full_regression": {
+      "passed": 682,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 169.922407256,
+      "outside_sandbox": true,
+      "test_file_concurrency": 4,
+      "scope": "Integrated lifecycle before final stop-failure diagnostic enrichment"
+    },
+    "final_focused": {
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0,
+      "runner_seconds": 24.052290823,
+      "outside_sandbox": true,
+      "scope": "Final source including stop-failure known-commit reporting"
+    },
+    "repository_validation": {
+      "errors": 0,
+      "warnings": 89
+    },
+    "diff_check": "passed"
+  },
+  "review_repairs": [
+    "Bind stop capability before preparation first await",
+    "Copy cancellation context before await",
+    "Preserve terminal same-process inspection after lease release",
+    "Do not recreate missing runtime directories during inspection",
+    "Report known commit with verified:false when journal/state needs reconciliation",
+    "Known commit reported even when stop acknowledgment port is missing or fails"
+  ],
+  "limitations": [
+    "Same-process lifecycle only; no cross-process reconstruction or host certification.",
+    "Prepared workflows do not yet persist delegated host-worker evidence; dead-parent reclamation remains a known recovery gap.",
+    "Non-plan recording and trusted contribution capture remain unsupported.",
+    "Validated proposals with changed HEAD require reconciliation; inspection before validation can report changed HEAD without inferring a recording receipt.",
+    "Stopped acknowledgment is a trusted host capability, not a caller-authored workflow result."
+  ],
+  "subagents": {
+    "implementation": "gpt-6.1-sol",
+    "review": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "tool_service_tier": "priority (official Fast mapping); no per-spawn speed selector"
+  },
+  "configuration_check": {
+    "codex_version": "0.166.0",
+    "saved_model": "gpt-6.1-sol",
+    "saved_reasoning_effort": "medium",
+    "saved_service_tier": "fast",
+    "features_fast_mode": true,
+    "original_backed_up": true,
+    "other_parsed_settings_preserved": true,
+    "local_model_catalog": "gpt-6.1-sol advertises priority service named Fast",
+    "scope": "User-level defaults; no claim to alter already running model sessions",
+    "fast_rate": "2x purchased credits / 2.5x included usage",
+    "ultrafast": "not enabled"
+  },
+  "speed_sample": {
+    "requested_model": "gpt-6.1-sol",
+    "requested_service_tier": "fast",
+    "output_tokens": 579,
+    "reasoning_output_tokens": 0,
+    "elapsed_seconds": 16.059,
+    "output_tokens_per_elapsed_second": 36.05,
+    "strict_config": true,
+    "exit_code": 0,
+    "method": "One no-tool local codex exec response; startup and request latency included.",
+    "limitation": "Not decode throughput or a controlled comparison; ephemeral JSON events did not include server-applied tier and no matching local telemetry was found.",
+    "failed_first_attempt": "Sandbox prevented in-process app-server initialization (read-only filesystem); approved retry succeeded."
+  },
+  "sources": [
+    "https://learn.chatgpt.com/docs/config-file/config-reference",
+    "https://learn.chatgpt.com/docs/agent-configuration/speed"
+  ],
+  "checkpoint_utc": "2026-11-03T06:43:40.601422+00:00",
+  "completed_utc": "2026-11-03T06:51:53.918725+00:00",
+  "elapsed_minutes": 15.06,
+  "reviewed_source_sha256": {
+    "packages/cli/src/core/contracts.ts": "6096286848190d90f10d9a89f51a56520a50f81a35e157f69ed5dcec91abff63",
+    "packages/cli/src/core/index.ts": "48ed879cd2d212eee7a7e531386236da8fee97534b838577c3243c48cd3e5d59",
+    "packages/cli/src/core/workflow-preparation.ts": "fd76eca701edc84f77342bc2509b3339f4b9b50197ddf0704685f567baaf24c9",
+    "packages/cli/src/core/workflow-recording.ts": "400d70bf27fadd7e57d69b8d03bd925d236a73614cb6bc710ea41ed7d951dfa2",
+    "packages/cli/src/core/workflow-recording.test.ts": "44865eb509fef1c302e3f0581c9c399430dd8e22177ce7dfa834143080ffb7bf",
+    "packages/cli/src/core/workflow-lifecycle.ts": "19a24ad42a9b8b6b35d91322b9edb58bbf2502fd4ca191fd5cafb9d086d80222",
+    "packages/cli/src/core/workflow-lifecycle.test.ts": "fa9641044d456cf51ac0d0a1ccbd1b6f45806844af325bf3daa4520196e83607"
+  }
+}
