@@ -1,0 +1,42 @@
+Live check, claude-delivery 03 run 3. Claude Code 2.1.317. 2026-11-04, 15:01 UTC. ONE invocation, not retried.
+
+Result: NOT PASSED. The mod refused the reasoning command at its origin gate before connect, bind or prepare.
+Recorded as D18 in HANDOFF.md. The lease was never taken, so no lease evidence exists.
+
+Fixture (disposable, outside the repository): `git init` plus one empty commit under the session scratchpad, then
+`node packages/cli/dist/cli.js init --harness claude` run from a build of the working tree in which
+packages/cli/dist was built with the reasoning flag set to true (harnesses/claude/plugin/hooks/handlers.ts, startNative).
+That flag was reverted after the run; the committed mod keeps reasoning = false.
+Deviation: the six public skill directories installed by init (decision-new, plan-create, plan-finish, plan-step,
+spec-assist, spec-draft-architecture) were deleted from the fixture only, because each owns a name that a reasoning
+command needs. The specplane-reason-* skills were kept. User Claude settings were not modified.
+
+Command (run from the fixture root):
+  claude -p '/spec-assist search filter draft' --plugin-dir <fixture>/.claude/specplane --output-format stream-json --verbose --max-budget-usd 0.25
+
+Verbatim output, from live-prepare-transcript.jsonl:
+  stderr: Ignoring 1 permissions.allow entry from .claude/settings.json: this workspace has not been trusted. Run Claude Code interactively here once and accept the trust dialog, or set projects["<fixture>"].hasTrustDialogAccepted: true in /home/user/.claude.json.
+  stderr: Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+  system init, plugins: specplane, cc-plugin-agents-md, cc-plugin-telemetry, cc-plugin-privacy, cc-plugin-plugin-authoring
+  system init, mcp_servers: {"name":"plugin:specplane:specplane","status":"connected","source":"plugin"}, {"name":"specplane","status":"connected","source":"plugin"}
+  system init, slash_commands (Specplane entries): plan-status, plan-start, plan-abandon, specplane-docs, specplane-complete, spec-assist, spec-draft-architecture, plan-create, plan-step, plan-finish, decision-new, specplane, specplane-mode
+  assistant text: specplane: /spec-assist changes repository state and runs only from your own command line (origin "sdk" refused). Run it yourself: the spec-assist skill with the specplane CLI
+  result: subtype success, is_error false, num_turns 0, total_cost_usd 0, permission_denials []
+
+Lease directory (live-prepare-lease-trace.txt, polled every 0.5 s): only install/ownership.json was present, at every poll.
+No request lease appeared. The server process was seen at 15:01:49 as:
+  node <fixture>/.claude/specplane/core/dist/harness/claude-mcp-main.js
+
+Facts this run settled, and what it did not:
+  D14 (host finds .claude/specplane/core): CONFIRMED. The plugin loaded from the installed root, and the server process runs from .claude/specplane/core.
+  ${CLAUDE_PLUGIN_ROOT} expansion in mcpServers args: CONFIRMED (the process path above is the expanded path).
+  Server name: the host lists plugin:specplane:specplane as connected. A second entry named specplane (source plugin) also appears; it is not explained by this run.
+  connect (mod's $.mcp.connect), bind, prepare, inspect, close: NOT REACHED.
+  tool.check firing for the mod's own $.mcp.call: NOT OBSERVED.
+  Wire tool name seen by tool.check: NOT OBSERVED.
+  Lease held between calls: NOT OBSERVED.
+  Native reasoning delivery: NOT DELIVERED. Offline tests are unchanged.
+
+Why the gate refuses: harnesses/claude/plugin/hooks/commands.ts, runCommand. A command that is not readOnly
+runs only when the origin is "composer" (the user's own command line). `claude -p` reports origin "sdk".
+Every reasoning command is not readOnly, so under -p it is refused every time, before any server call.
