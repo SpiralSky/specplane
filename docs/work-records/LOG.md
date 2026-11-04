@@ -275,3 +275,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commit `49b98eb`: `harness/conformance-matrix.ts` and `harness/conformance.test` (8): suite traceability, core export map, Codex/Claude host rows, offline docs parity, unobserved-host checks.
 - Claude workflows report pending; exports/workflows criterion left unmet for that reason. No decision needed.
 - Checks: full suite 986 pass, 0 fail, 98 files; `validate` 0 errors, 89 warnings. Not run: Node, live hosts.
+
+## 2026-11-04T18:00Z — extension-conformance 02 release-evidence guards
+- Commit `8eb0fdd`: `harness/release-evidence.ts` and `.test` (4): skill drift vs spec pins, derived Claude/pin blockers, human-only steps.
+- Pins and skill comments deliberately not refreshed (awaiting user implementation review); 89 warnings unchanged.
+- Checks: full suite 990 pass, 0 fail, 99 files. Not run: Node tests, live hosts.
