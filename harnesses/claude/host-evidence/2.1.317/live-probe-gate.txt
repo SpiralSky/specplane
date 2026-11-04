@@ -1,0 +1,26 @@
+Live probe gate for claude-delivery 03 (D9 option a), Claude Code 2.1.317, 2026-11-04.
+
+Result: NOT RUN. The one allowed live invocation was not spent, because the host's own
+static validator rejects the premise it was meant to test: a mod's hooks module may not import node built-ins.
+
+Probe design (kept outside the repository): a mod whose hooks module is a Bun `--target=node` bundle of a
+short register module. It imports node:fs and node:path, and it bundles the real
+packages/cli/src/core/writer-leases.ts to acquire and release a lease on a scratch git repository.
+The bundle also pulls in node:crypto and node:child_process through that module.
+
+Command:
+  claude plugin validate <probe plugin directory>
+
+Verbatim output (error section; the warning and plugin-directory notes are omitted):
+  Validating hooks: <probe plugin directory>/hooks/hooks.json
+
+  ✘ Found 1 error:
+
+    ❯ modules../register.js: plugin: cannot import "node:fs" (from hooks/register.js): a hooks module imports its own files by relative path and "claude-code", nothing else
+
+  Plugin directory checks ... (not part of the error)
+  ✘ Validation failed
+
+Consequence: the validator rule is in the host's declared policy, so option (a) as specified cannot ship as a supported
+mod at 2.1.317. Running the probe anyway would show only what the host tolerates at runtime, not that the mod is supported.
+Nothing was run in the live host, and no user settings were touched.
