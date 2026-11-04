@@ -59,6 +59,20 @@ function walk(root: string, prefix = ''): string[] {
  * location, certifies no host version (`hostCompatibility` stays empty), and records no release pin.
  */
 export async function buildExtensionPackage(options: PackageBuildOptions): Promise<ExtensionManifest> {
+  const existed = fs.existsSync(options.outDir);
+  const manifest = assembleExtensionPackage(options);
+  try {
+    await checkAssembled(options, manifest);
+    return manifest;
+  } catch (error) {
+    fs.rmSync(options.outDir, { recursive: true, force: true });
+    if (existed) fs.mkdirSync(options.outDir);
+    throw error;
+  }
+}
+
+/** The synchronous half of the build: writes the package and its derived metadata, without the compatibility check. */
+export function assembleExtensionPackage(options: PackageBuildOptions): ExtensionManifest {
   const { outDir } = options;
   if (!path.isAbsolute(outDir)) fail('outDir must be absolute');
   const existed = fs.existsSync(outDir);
@@ -111,15 +125,18 @@ export async function buildExtensionPackage(options: PackageBuildOptions): Promi
       ],
     };
     fs.writeFileSync(path.join(outDir, 'specplane-extension.json'), JSON.stringify(manifest));
-    const checked = await validateCompatibility(manifest, {
-      packageRoot: fs.realpathSync(outDir), extensionId: options.extension.id, host: options.extension.host,
-      surface: 'package-build', workflow: options.procedures[0].workflow, probes: { nativeCommands: false, backgroundSessions: false },
-    }, coreInfo);
-    if (!checked.ok) fail(`built package does not validate: ${checked.error.message}`);
     return manifest;
   } catch (error) {
     fs.rmSync(outDir, { recursive: true, force: true });
     if (existed) fs.mkdirSync(outDir);
     throw error;
   }
+}
+
+async function checkAssembled(options: PackageBuildOptions, manifest: ExtensionManifest): Promise<void> {
+  const checked = await validateCompatibility(manifest, {
+    packageRoot: fs.realpathSync(options.outDir), extensionId: options.extension.id, host: options.extension.host,
+    surface: 'package-build', workflow: options.procedures[0].workflow, probes: { nativeCommands: false, backgroundSessions: false },
+  }, coreInfo);
+  if (!checked.ok) fail(`built package does not validate: ${checked.error.message}`);
 }

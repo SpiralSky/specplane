@@ -4,7 +4,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createWorkflowRunner, parseServeArgs } from '../core/index.js';
+import { createWorkflowRunner, parseServeArgs } from '../dist/core/index.js';
 
 const parsed = parseServeArgs(process.argv.slice(2));
 if (!parsed.ok) { process.stderr.write(parsed.message + '\n'); process.exit(2); }

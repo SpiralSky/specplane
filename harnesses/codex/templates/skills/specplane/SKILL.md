@@ -30,6 +30,14 @@ Check `command -v specplane`. For a source checkout, use `node <absolute-checkou
 - A blocked-step recovery requires resolving the blocker before `--force`. An explicit completed-step rerun requires `--step N --force --reason TEXT`; record the reason and preserve all history. Neither overrides approvals or repository safety.
 - End at a reviewable development commit. Do not run `plan finish`, `plan approve`, `spec approve`, `decision accept`, or merge commands without the exact required human authorization. For this workflow, final plan/merge actions stay with the human.
 
+## Packaged runner, shared procedure and fallback
+
+This skill directory is self-contained: `dist/` holds the runtime and its dependencies, `docs/` the shared procedure contracts and documentation, and `specplane-extension.json` with `core/inventory.json` hashes the package. Read `references/shared-procedure.md` for offline docs, completion and optional-workflow guidance; no Specplane source repository is needed.
+
+- Persistent channel: when the surface keeps a process tool channel open, run `node scripts/workflow.mjs serve --checkout <absolute-checkout>` from this directory and use protocol-1 NDJSON so one writer lease spans preparation, reasoning and recording. Host identity and probes come from the embedding session (`SPECPLANE_HOST_EVIDENCE`); absent evidence means preparation is refused.
+- Manual CLI fallback: without a persistent channel, say `Manual CLI fallback` and use the CLI workflows above with a recording-set manifest. Unsupported identity (agent, session, host version) stays unknown, never invented.
+- This package declares `nativeCommands: false` and `backgroundSessions: false`; no native or background Codex capability is claimed.
+
 ## Runtime limitations
 
 `init --harness codex` installs this skill and a managed AGENTS.md block only; it does not install Codex, attach MCP tools, grant persistent permissions, or launch an agent. `init --harness none` writes only neutral scaffolding and suppresses all harness auto-detection, even if `.claude/` exists.
