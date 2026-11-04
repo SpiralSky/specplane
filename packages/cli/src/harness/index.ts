@@ -4,10 +4,13 @@ import { fileURLToPath } from "node:url";
 import { SpecplaneError } from "../errors.js";
 import { claude } from "./claude.js";
 import { codex } from "./codex.js";
+import { type InstallTransaction, runInstallTransaction } from "./containment.transaction.js";
 
 /** Collects the `Created`/`Updated`/`Skipped` lines printed by `init`. */
 export class Report {
   readonly lines: string[] = [];
+  /** Set while `init` runs a single transaction around every harness install. */
+  tx?: InstallTransaction;
   constructor(private readonly root: string) {}
   private rel(abs: string): string {
     return path.relative(this.root, abs).split(path.sep).join("/");
@@ -24,6 +27,12 @@ export class Report {
   add(line: string): void {
     this.lines.push(line);
   }
+}
+
+/** Run `fn` in the report's shared transaction, or in its own committed transaction when installed standalone. */
+export function withInstallTransaction(root: string, report: Report, fn: (tx: InstallTransaction) => void): void {
+  if (report.tx) { fn(report.tx); return; }
+  runInstallTransaction(root, fn, report.lines);
 }
 
 /** An agent harness that `specplane init` can install (`architecture/claude-integration`). */

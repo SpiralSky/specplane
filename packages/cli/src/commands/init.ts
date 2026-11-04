@@ -5,7 +5,8 @@ import { CONFIG_PATH, loadConfig } from "../config.js";
 import { SpecplaneError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { type Harness, HARNESSES, NO_HARNESS_HINT, Report, selectHarnesses } from "../harness/index.js";
-import { assertInstallDestination, writeInstallFile } from "../harness/containment.js";
+import { assertInstallDestination } from "../harness/containment.js";
+import { InstallTransaction } from "../harness/containment.transaction.js";
 
 /** Full default configuration (`feature/configuration` § Full schema with defaults). */
 export const DEFAULT_CONFIG_YAML = `# Specplane configuration. See feature/configuration for every key.
@@ -69,6 +70,15 @@ export function runInit(
   root: string,
   opts: { harness?: string; registry?: Harness[] } = {},
 ): string[] {
+  const tx = InstallTransaction.open(root);
+  try {
+    const lines = [...tx.notes, ...scaffold(root, opts, tx)];
+    tx.commit();
+    return lines;
+  } finally { tx.release(); }
+}
+
+function scaffold(root: string, opts: { harness?: string; registry?: Harness[] }, tx: InstallTransaction): string[] {
   assertInstallDestination(root, path.join(root, CONFIG_PATH));
   const { config } = loadConfig(root, { checkSpecRoots: false });
   const base = config.spec_roots.find((r) => r.name === "base") ?? config.spec_roots[0];
@@ -85,7 +95,7 @@ export function runInit(
       out.push(`Skipped ${rel(abs)} (already exists)`);
       return;
     }
-    writeInstallFile(root, abs, content);
+    tx.stage(abs, content);
     out.push(`Created ${rel(abs)}`);
   };
 
@@ -103,7 +113,7 @@ export function runInit(
   } else if (res.action === "unchanged") {
     out.push("Skipped AGENTS.md (Specplane block is up to date)");
   } else {
-    writeInstallFile(root, agents, res.content);
+    tx.stage(agents, res.content);
     out.push(
       res.action === "created"
         ? "Created AGENTS.md"
@@ -118,6 +128,7 @@ export function runInit(
     out.push(`Skipped ${rel(path.join(plansDir, ".gitkeep"))} (plans directory is not empty)`);
   }
   const report = new Report(root);
+  report.tx = tx;
   for (const h of selected) h.install(root, report);
   out.push(...report.lines);
   if (selected.length === 0) out.push(opts.harness === "none" ? "Harness integration explicitly disabled; only neutral scaffolding written." : NO_HARNESS_HINT);

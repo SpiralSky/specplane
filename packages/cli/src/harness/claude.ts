@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type Harness, Report, skillDirsIn, templatesDir } from "./index.js";
-import { assertInstallDestination, InstallationPathError, writeInstallFile } from "./containment.js";
+import { type Harness, Report, skillDirsIn, templatesDir, withInstallTransaction } from "./index.js";
+import { assertInstallDestination, InstallationPathError } from "./containment.js";
+import type { InstallTransaction } from "./containment.transaction.js";
 
 /** Workflows line for the standing instructions when the Claude harness is installed. */
 export const CLAUDE_WORKFLOWS_LINE =
@@ -103,22 +104,21 @@ function scriptCommands(group: unknown): string[] {
   return hooks.flatMap((h) => (isObj(h) && typeof h.command === "string" ? [h.command] : []));
 }
 
-function installSettings(root: string, report: Report, tplDir: string): void {
+function installSettings(root: string, tx: InstallTransaction, report: Report, tplDir: string): void {
   const abs = path.join(root, ".claude", "settings.json");
-  assertInstallDestination(root, abs);
   const template = JSON.parse(fs.readFileSync(path.join(tplDir, "settings.json"), "utf8")) as Json;
-  const exists = fs.existsSync(abs);
-  const res = mergeSettings(exists ? fs.readFileSync(abs, "utf8") : null, template);
+  const current = tx.read(abs);
+  const res = mergeSettings(current === null ? null : current.toString("utf8"), template);
   if (res.invalid) {
     report.add("Skipped .claude/settings.json (invalid JSON; add the Specplane registration by hand)");
     return;
   }
   for (const n of res.notes) report.add(n);
-  if (!exists) {
-    writeInstallFile(root, abs, res.content!);
+  if (current === null) {
+    tx.stage(abs, res.content!);
     report.created(abs);
   } else if (res.content !== null) {
-    writeInstallFile(root, abs, res.content);
+    tx.stage(abs, res.content);
     report.add(`Updated .claude/settings.json (${res.added} entries added)`);
   } else {
     report.skipped(abs, "already registered");
@@ -139,25 +139,32 @@ export const claude: Harness = {
       report.add(`Skipped Claude integration (${error.message}; no harness files written)`);
       return;
     }
-    for (const rel of files) {
-      if (rel === "settings.json") continue;
-      const dest = path.join(root, ".claude", rel);
-      const src = fs.readFileSync(path.join(tplDir, rel));
-      const exec = rel.startsWith("hooks/") && rel.endsWith(".sh");
-      assertInstallDestination(root, dest);
-      if (!fs.existsSync(dest)) {
-        writeInstallFile(root, dest, src);
-        report.created(dest);
-      } else if (!fs.readFileSync(dest).equals(src)) {
-        report.skipped(dest, "customized or unrecognized file preserved; compare with bundled Claude template before updating");
-        continue;
-      } else {
-        report.skipped(dest, "up to date");
+    withInstallTransaction(root, report, (tx) => {
+      for (const rel of files) {
+        if (rel === "settings.json") continue;
+        const dest = path.join(root, ".claude", rel);
+        const src = fs.readFileSync(path.join(tplDir, rel));
+        const exec = rel.startsWith("hooks/") && rel.endsWith(".sh");
+        switch (tx.classify(dest, src)) {
+          case "absent":
+            tx.stage(dest, src, { owned: true, ...(exec ? { mode: 0o755 } : {}) });
+            report.created(dest);
+            break;
+          case "owned-stale":
+            tx.stage(dest, src, { owned: true, ...(exec ? { mode: 0o755 } : {}) });
+            report.updated(dest);
+            break;
+          case "customized":
+            report.skipped(dest, "customized or unrecognized file preserved; compare with bundled Claude template before updating");
+            break;
+          default:
+            report.skipped(dest, "up to date");
+            if (exec) tx.stage(dest, src, { owned: true, mode: 0o755 });
+        }
       }
-      if (exec) { assertInstallDestination(root, dest); fs.chmodSync(dest, 0o755); }
-    }
-    installSettings(root, report, tplDir);
-    report.add("Claude Code integration files written to `.claude/`.");
+      installSettings(root, tx, report, tplDir);
+      report.add("Claude Code integration files written to `.claude/`.");
+    });
   },
   skillDirs: (root) => skillDirsIn(root, ".claude/skills"),
   rulesFile: ".claude/rules/specplane.md",
