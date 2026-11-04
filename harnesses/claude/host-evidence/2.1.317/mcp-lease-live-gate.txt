@@ -1,0 +1,19 @@
+Live check for claude-delivery 03 under D11 option E (plugin MCP server, `$.mcp.connect` + `$.mcp.call`), Claude Code 2.1.317, 2026-11-04.
+
+Result: NOT RUN. The single allowed live invocation was not spent, because it cannot show the lease criterion.
+
+Why: `prepare` refuses without Claude compatibility inputs. `packages/cli/src/core/workflow-preparation.ts` line 128 returns
+INCOMPATIBLE when the runner context has no `compatibility` (manifest and host selection). The Claude side has no packaged
+`specplane-extension.json` or inventory yet, and `claude-mcp-main.ts` supplies compatibility only from SPECPLANE_HOST_EVIDENCE.
+Without a prepared request no writer lease is acquired, so the live run would show connect and bind only.
+
+Offline evidence that is in place (verbatim summary, command `claude plugin validate harnesses/claude/plugin`):
+  Validation passed with warnings (exit 0). Warnings: author missing; plugin directory icon; the tool.check gate is listed as
+  "gating hook with .catch", so the fail-closed catch is in place. The mod's other gating hooks are also listed with .catch.
+Also run: `claude plugin test harnesses/claude/plugin` -> 27 pass, 0 fail (exit 0).
+Also run: Bun `claude-mcp.test.js` (6 pass) and `claude-handlers.test.js` (8 pass).
+
+Unverified host assumptions, to be checked by the one live run once it can prepare:
+  - Whether `tool.check` runs for the mod's own `$.mcp.call` (if it does, the gate denies the reasoning path).
+  - The connected server name (expected `plugin:specplane:specplane`) and the wire tool name for `tool.check`.
+  - Whether `${CLAUDE_PLUGIN_ROOT}` expands in plugin.json `mcpServers` args for this host.

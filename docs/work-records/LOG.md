@@ -295,3 +295,9 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Built a one-shot probe mod outside the repo (node:fs, node:path, real writer-lease module, bundled for Node). `claude plugin validate` refused it: `cannot import "node:fs"` in a hooks module ("relative path and claude-code, nothing else").
 - The one live invocation was not spent. Evidence: `harnesses/claude/host-evidence/2.1.317/live-probe-gate.txt` (commit `e1d2ff8`). New open decision D11 (options A/B/C) in HANDOFF.
 - D9(a) and D10's reasoning-skill removal stay blocked. Checks: check-sync OK, `validate` 0 errors, 98 warnings. No code changed, so no Bun suite run this session.
+
+## 2026-11-04 claude-delivery 03 under D11 option E (Haiku 5.5 session)
+- Built `claude-mcp.ts` (JSON-RPC stdio, one bind, forwards runner ops; `close` cancels one request) and `claude-mcp-main.ts`; `tool.check` gate and `mcpServers` entry in the mod. Commits `28fbec6`, `b553c17`.
+- Checks: Bun suite 995 pass, 0 fail, 101 files; `claude-mcp.test` 6 pass; `claude plugin test` 27 pass; `claude plugin validate` passed with warnings.
+- Live check not spent: `prepare` needs Claude compatibility inputs that do not exist yet (D12). Evidence: `harnesses/claude/host-evidence/2.1.317/mcp-lease-live-gate.txt`.
+- Reasoning port and skill removal not done. Open: D12, D13. Next: decide D12.
