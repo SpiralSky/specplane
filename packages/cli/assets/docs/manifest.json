@@ -84,7 +84,7 @@
       "id": "workflows/plans",
       "title": "Working with managed plans",
       "path": "topics/workflows/plans.md",
-      "sha256": "facdbcafa60a23a3468af29961f089548c80d083aca4ad7c90f25ee1326377fb",
+      "sha256": "6de001e37b37ebf3c0633717842bd26dea446be6cd2c8975ac86ecc8536f1bfb",
       "related": [
         "concepts",
         "completion"
