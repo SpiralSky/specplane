@@ -280,3 +280,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commit `8eb0fdd`: `harness/release-evidence.ts` and `.test` (4): skill drift vs spec pins, derived Claude/pin blockers, human-only steps.
 - Pins and skill comments deliberately not refreshed (awaiting user implementation review); 89 warnings unchanged.
 - Checks: full suite 990 pass, 0 fail, 99 files. Not run: Node tests, live hosts.
+
+## 2026-11-04 night claude-delivery 02 (Sonnet 5.5 subagent)
+- Commits ded75b2, ae6c6f2, 373e9cc: policy guard reconstructs edits; native handlers (`commands.ts`, `handlers.ts`); six `specplane-reason-*` skills and `harness/claude-handlers.test`.
+- Checks: full Bun suite 988 pass, 0 fail, 100 files; `claude plugin test` 27 pass; `hooks.test.sh` 94 pass; check-sync OK; `plugin validate` passes. Not run: live host, Node tests.
+- Open: D9 (no lease across a reasoning turn: `$.process.spawn` stdin is write-once), D10 (legacy skills collide with native names).
