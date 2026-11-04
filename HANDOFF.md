@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-04T12:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD see `git log`. Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-04T13:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD see `git log`. Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Review-branch implementation work is committed; only local `problems.md` is untracked (preserve it, never stage it).
@@ -12,15 +12,16 @@ Updated 2026-11-04T12:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD s
 - product-docs 01 is implementation-complete: bundle tests (9) pass and examples are executed against the real CLI; docs state that `plan run` and `plan start --run` do not exist. Packaging, host delivery and conformance are not started.
 - manual-lifecycle 03 is implementation-complete: `runPlan`/public `runConductor` take only an extension-supplied Protocol 1 `SessionAdapter` (probe before every launch, session record written before launch, resume, `unknown` is a refusal); `plan run`/`plan start --run` are hidden and print a migration diagnostic; init composes `COEXISTING_WORKFLOWS_LINE` when several harnesses are installed. The legacy sync Claude adapter in `harness/session.ts` is now unused by the conductor (claude-delivery 03 owns the real adapter). Delegation of the lease to a worker (token) is not implemented.
 - extension-packaging 01 is implementation-complete: `harness/package-builder.ts` (`buildExtensionPackage`) copies runtime/dependency trees, docs bundle, reasoning/hook assets and a stamped instruction file into an empty directory, derives `core/inventory.json` and `specplane-extension.json` from written bytes, resolves procedure contracts from the docs bundle sources, and self-validates with `validateCompatibility`; it certifies no host (`hostCompatibility: []`), writes no pin and activates no installer. Tests: `harness/package-builder.test` (3) plus the existing `harness/package-inventory-preparation.test` (4) and `core/compatibility.test`.
-- extension-packaging 02 is implementation-complete: `harness/containment.transaction.ts` (`InstallTransaction`: staged writes, repository lock, preimage and containment rechecks, backups plus journal in `<git-dir>/specplane-runtime/install`, rename-based replacement, rollback/finish on next open, ownership ledger of last-installed digests). `runInit` and the Claude/Codex installers stage into one transaction; owned unmodified files update, customized files are preserved. Limits: cooperative writers; a parent directory swapped inside the recheck-to-rename window is narrowed, not eliminated (no openat); non-git roots use a hashed temp directory; the installed manifest (written last) belongs to step 03.
-- Last full Bun run: 952 pass, 0 fail, 93 files (37.57 s); one earlier full run in the same session was terminated by `timeout 120` with no output (cause not diagnosed; the rerun passed). An earlier session once hit a 30 s stall (`unprepared edits...` in `core/non-plan-recording.test`) that passed on rerun. Under an agent environment (`CLAUDECODE` set) Bun hides `(pass)` lines and `harness/codex.test` fails spuriously; run with `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`.
+- extension-packaging 02 is implementation-complete: `harness/containment.transaction.ts` (`InstallTransaction`: staged writes, repository lock, preimage and containment rechecks, backups plus journal in `<git-dir>/specplane-runtime/install`, rename-based replacement, rollback/finish on next open, ownership ledger of last-installed digests). `runInit` and the Claude/Codex installers stage into one transaction; owned unmodified files update, customized files are preserved. Limits: cooperative writers; a parent directory swapped inside the recheck-to-rename window is narrowed, not eliminated (no openat); non-git roots use a hashed temp directory; the installed manifest is step 03.
+- extension-packaging 03 is implementation-complete: `harness/rollout.ts` (installed manifest `.specplane/installed/<harness>.json`, staged last; evidence-only states with `enabled: "unobserved"`; `decideLegacy`; collision lines naming the unavailable command and exact action). `runInit(..., {refreshGuidance: true})` routes `refreshGuidance` (new `transaction` option) through the install transaction; there is no new CLI flag. Limits: legacy retirement is decision-only (no replacement exists yet and the transaction has no delete); the manifest location and schema are my choice, not specified.
+- Last full Bun run: 958 pass, 0 fail, 94 files (41.51 s); one earlier full run in the same session was terminated by `timeout 120` with no output (cause not diagnosed; the rerun passed). An earlier session once hit a 30 s stall (`unprepared edits...` in `core/non-plan-recording.test`) that passed on rerun. Under an agent environment (`CLAUDECODE` set) Bun hides `(pass)` lines and `harness/codex.test` fails spuriously; run with `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`.
 - Not run: native macOS/Windows, live Claude/Codex hosts, Node tests (policy: Bun only).
 
 ## Open decisions
 - D6: The Codex spec and its bundled snapshot (`harnesses/codex/specifications/architecture/codex-integration.md`, `harnesses/codex/templates/contracts/codex-integration.md`) still say `plan run --harness codex` refuses. Options: (a) edit both under `/spec-assist` and approve; (b) leave as superseded text. Recommend (a). Blocks: nothing in code; contract drift.
-- D8: The rest of the generated standing text (intro paragraph, Precedence, Plans, Commits, Workflows bullets) still differs from the `agent-skills` standing block; only the Authorship bullet was aligned. Options: (a) rewrite `standingText` to the spec text, bumping `STANDING_VERSION` and reconciling the per-harness/coexisting Workflows lines; (b) amend the spec to the shipped text. Recommend (a) in extension-packaging 03. Blocks: nothing.
 
 ## Decided (by coordinator, delegated by the user)
+- D8: Option (a), implemented in extension-packaging 03. `standingText()` is the exact `agent-skills` text, `STANDING_VERSION` is `v2`, and the shared `AGENTS.md` block always carries the neutral Workflows line. Per-harness and coexisting lines were removed (`workflowsLine`, `COEXISTING_WORKFLOWS_LINE`); Claude slash commands now live in the Claude rules file.
 - D7: Title-only search matches return the topic with `excerpts: []` (option a, implemented). The user may amend `reference-cli` later.
 - D4: Resolved. GitHub branches were already clean and the local branches have been scrubbed. Nothing further to do.
 - D5: Resolved in part. `plan-conductor`'s branch and worktree were removed; the `plan abandon 2026-10-30-plan-conductor` status change is deferred to final reconciliation (it must run from a checkout of the integration branch).
@@ -40,7 +41,7 @@ Updated 2026-11-04T12:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD s
 | product-docs | 03 | impl-complete; managed recording pending | both criteria met; `docs/freshness.test` (7); D8 |
 | extension-packaging | 01 | impl-complete; managed recording pending | all 3 criteria met; builder + prep tests; no release pins frozen |
 | extension-packaging | 02 | impl-complete; managed recording pending | both criteria met; `harness/containment.transaction.test` (16); no installed manifest yet (step 03) |
-| extension-packaging | 03 | not started | |
+| extension-packaging | 03 | impl-complete; managed recording pending | all 4 criteria met; `harness/coexistence.test` (7); D8 decided; retirement execution waits for delivery plans |
 | claude-delivery | 01 | blocked | native host API evidence missing |
 | claude-delivery | 02 | not started | |
 | claude-delivery | 03 | not started | |
@@ -51,7 +52,7 @@ Updated 2026-11-04T12:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD s
 | extension-conformance | 02 | not started | |
 
 ## Next session
-Step: **extension-packaging 03** (consumes `refreshGuidance`, `buildExtensionPackage`, `InstallTransaction` and D8; stage the installed manifest last). Real host assets (Claude/Codex runtime, hooks) are still changing, so use the builder only on fixtures until claude/codex-delivery land; do not freeze their hashes as release evidence. After packaging: codex-delivery 01-03 (claude-delivery 01 stays blocked on native host API evidence), then conformance.
+Step: **codex-delivery 01** (claude-delivery 01 stays blocked on native host API evidence), then conformance. Real host assets are still changing, so use the package builder only on fixtures; do not freeze hashes as release evidence. When a replacement handler exists, feed `ReplacementEvidence` to `buildInstalledManifest` and add journaled delete to `InstallTransaction` before retiring legacy skills.
 
 ## How to continue (orchestration)
 The user runs steps through a coordinator session that chains **Sonnet 5.5 subagents sequentially, one step per subagent**. Each subagent acts as a complete session.

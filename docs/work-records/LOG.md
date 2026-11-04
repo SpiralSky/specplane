@@ -249,3 +249,9 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-04T12:00Z — extension-packaging step 02 implementation
 - Dangling-link and common-initializer preflight already existed (`containment.test`, 9). Added `harness/containment.transaction.ts`: lock, preimage rechecks, backups, journal, rollback/finish recovery, ownership ledger; wired into `runInit`, `claude`, `codex`.
 - Tests: `containment.transaction.test` (16: five interruption points, committed-marker finish, mid-apply failure, edit-after-apply, link/parent swap, preimage conflict, lock, stale lock, ownership, non-git). Full Bun 952 pass, 0 fail, 93 files, 37.57 s; no timeout this run.
+
+## 2026-11-04T13:00Z — extension-packaging 03 coexistence and legacy rollout
+- Commits: see `git log` after `f7d1574`.
+- Scope: canonical standing text (D8, v2), neutral shared block for every init order, installed manifest staged last, legacy decision and collision reporting, `refreshGuidance` through the install transaction.
+- Checks: full suite 958 pass, 0 fail, 94 files; `check-sync.sh` OK; hooks untouched.
+- Next: codex-delivery 01.
