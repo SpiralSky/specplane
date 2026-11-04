@@ -215,3 +215,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Corrected immediate-lane expectations: lifecycle A is actionable; docs/packaging queues are gated. Added bounded docs-operation design/foundation inspection follow-ups where not already delivered, explicit handovers and actual dispatch/return/blocked-slot accounting for future parallel continuations.
 - Checks: all 17 referenced remaining step paths across seven plans exist; Markdown fences balanced; `git diff --check` passed. No build/tests run for documentation-only changes; historical 898-pass Bun result not rerun or extended.
 - Accounting: zero accepted steps, 17 unfinished unchanged. Next implementation continuation dispatches eligible disjoint scopes after snapshot/contract review; existing ADR/wire/excerpt, dependency and host-evidence gates remain.
+
+## 2026-11-04T04:55Z — workflow-recording step 04 acceptance review
+- Branch at `4050dd6`+; no source changes. Mapped criteria 1-4 to `workflow-recording`, `recording-recovery`, `non-plan-recording`, `non-plan-workflow`, `creation-workflow` and `plan/step-done-generated` tests; focused 59/59 plus 12/12.
+- Full Bun `./dist`: 897/898 under the agent environment (`harness/codex.test` expects `(pass)` lines Bun hides when `CLAUDECODE` is set); with that variable unset, 898/898, 38.15 s.
+- Recorded D1 (ADR commit kind), D2 (protocol extensions), D3 (branch divergence) in HANDOFF; none resolved. Next: manual-lifecycle 02.

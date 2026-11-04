@@ -1,174 +1,47 @@
 # Session handoff
-
-Updated 2026-11-04 (scheduling/evidence review after the 04:34Z implementation checkpoint). This is the standard continuation record; the separate cloud handoff has been retired. Read `AGENTS.md` and `.specplane/config.yaml` first. The latest implementation added trusted abandonment, asynchronous confirmation completion safety, and typed finish gate/borrowed-lease preparation, with a recorded full 898-test Bun pass. This update changes documentation only; implementation remains review-branch work, not managed step completion. Past parallel work is documented for some batches, but sustained parallel implementation in later sessions is not established by the retained records.
+Updated 2026-11-04T04:55Z. Branch `overnight/specplane-20261102T144630Z`, HEAD at the commit after `4050dd6` (see `git log`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
+- Review-branch implementation work is committed; only local `problems.md` is untracked (preserve it, never stage it).
+- Managed workflow is unavailable: all relevant plans are `status: draft` and `plan start` refuses because `dot/codex-integration-20261101` local and origin refs diverged. "Complete" here means implementation-complete on this branch; managed recording is pending.
+- workflow-recording step 04: all four acceptance criteria are met and tested (see Steps). The ADR creation path and protocol extensions remain open as D1 and D2.
+- Implemented and extendable: preparation-bound leases, exact-set private-index transactions, finalized edits, dedicated spec/plan/ADR render/apply adapters, trusted contribution metadata, recovery and history, trusted `plan.abandon`, async confirmation, typed finish gates (see `docs/work-records/LOG.md`).
+- Docs bundle (`src/docs/bundle.ts`, `assets/docs/`) is prepared; docs operations, packaging, host delivery and conformance are not started.
+- Last full Bun run: 898 pass, 0 fail, 86 files (38.15 s). Under an agent environment (`CLAUDECODE` set) Bun hides `(pass)` lines and `harness/codex.test` fails spuriously; run with `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`.
+- Not run: native macOS/Windows, live Claude/Codex hosts, Node tests (policy: Bun only).
+- Live plan list still refuses with a mixed-path error at the old `plan/2026-10-30-plan-conductor` tip; branch reconciliation is a human decision.
 
-- Review branch: `overnight/specplane-20261102T144630Z`; verified HEAD: `3139ada52e3c99082aa8ccd0be0075de2e561017`.
-- The combined recording implementation and new offline docs bundle are **uncommitted**, including source/tests under `packages/cli/src/core/`, `packages/cli/src/plan/`, `packages/cli/src/docs/`, assets under `packages/cli/assets/docs/`, and package/build validation changes. Inspect `git status --short` and the actual diff before editing. HEAD alone does not contain the implementation; never start workers from bare HEAD without carrying the reviewed working snapshot.
-- Preserve all existing edits and unrelated, local-only `problems.md`. No managed step completion, lifecycle approval, commit or push was performed by this handoff update.
-- Upstream changes were integrated as reviewed patches; the review branch still diverges. Do not force-push, restore removed per-batch records, or merge old plan branches/worktrees with pre-cleanup ancestry. Bring unique needed changes across only as reviewed patches. Preserve private backups and never publish private receipts or identifying recovery material.
-- Formal plan states do not measure this review-branch implementation. Last live-list attempt refused with `Conflicting plan or specification path interpretation at 092a6f8db9b27d44a1b7fb391f1d35d818436da6.` Diagnosed: this is the old `plan/2026-10-30-plan-conductor` tip, whose config lacks the Codex root. The mixed-path refusal is intentional; branch/history reconciliation remains unresolved. Stored status is not a successful live result.
+## Open decisions
+- D1: ADR creation commit kind. `file-formats` §8.3 has no ADR creation kind, so recording ADR creation returns `UNSUPPORTED_CAPABILITY` before any write. Options: (a) add an ADR creation kind to §8.3 and the trailers; (b) keep ADR creation noncommit (as `agent-skills` decision-new does) and document that recording never covers it; (c) record ADR creation under an existing kind. Recommend (b) unless ADR history must be machine-recorded. Blocks: ADR creation through workflow recording only.
+- D2: Protocol extension contract review. `WorkflowResult.creation`, `finalizedEdits`, `ContributionProposal`, `captureProposedContribution` and create-only `beforeDigest: "missing"` are implemented but not in an approved spec. Options: (a) adopt them into `reference-cli`/`agent-skills` via spec edit; (b) narrow them to internal-only; (c) redesign. Recommend (a), keeping mechanical CLI defaults separate from workflow explicit-title/content rules. Blocks: protocol documentation, downstream delivery contracts.
+- D3: Branch reconciliation of `dot/codex-integration-20261101` (local vs origin). Options: rebase/merge local onto origin, reset to origin, or keep the review branch as the source. Recommend the human choose after reviewing divergence. Blocks: `plan start`, all managed recording.
 
-### Implemented, with acceptance still partial
+## Steps
+| Plan | Step | State | Note |
+| --- | --- | --- | --- |
+| workflow-recording | 04 | impl-complete; managed recording pending | Criteria 1-4 met; D1/D2 open |
+| manual-lifecycle | 02 | partial | clean abandon and async/typed gate prep done; public finish, forced dirty removal remain |
+| manual-lifecycle | 03 | not started | depends on 02 |
+| product-docs | 01 | partial | bundle prepared; final content waits on lifecycle |
+| product-docs | 02 | not started | title-only excerpt rule unresolved |
+| product-docs | 03 | not started | |
+| extension-packaging | 01 | partial | inventory/tamper prep tests delivered |
+| extension-packaging | 02 | partial | containment work only |
+| extension-packaging | 03 | not started | |
+| claude-delivery | 01 | blocked | native host API evidence missing |
+| claude-delivery | 02 | not started | |
+| claude-delivery | 03 | not started | |
+| codex-delivery | 01 | not started | |
+| codex-delivery | 02 | not started | |
+| codex-delivery | 03 | not started | |
+| extension-conformance | 01 | not started | |
+| extension-conformance | 02 | not started | |
 
-Workflow-recording step 04 now includes preparation-bound observations/leases; exact-set private-index transactions; existing-spec and non-plan finalized edits/findings; spec/plan creation through dedicated render/apply adapters; exact content confirmation; trusted contribution metadata/trailers; historical inspection; durable prewrite intent; pending reconciliation; and completed-commit recovery. Extend these implementations instead of recreating them.
+## Next session
+Step: manual-lifecycle 02. First task: public trusted finish preparation consent (before the frontmatter review claim and publication), then asynchronous result handling and lease retention on uncertain failures in `plan/flows.ts` and `core/confirmed-operations.ts`. Keep rebase, acceptance, publication and merge gates distinct. Do not redo the recording, docs or Claude audits.
 
-Creation capture uses `beforeDigest: "missing"` for absent files. Plan creation preserves draft/pending metadata and does not create an early HANDOFF. Commit attribution retains the preparation-verified host identity. Generated plan-step edits retain an existing-file boundary. Recovery preserves foreign edits/index locks, verifies exact commit messages, and checks historical config, roots and origin/correction chains.
-
-Target lifecycle, plan index and core foundation were implemented earlier. Completion assessment includes the approved safe-refusal limitation for shared YAML anchors. Audit regressions and incomplete exports without restarting those implementations.
-
-### Last implementation evidence (2026-11-03; not rerun for this edit)
-
-| Check | Recorded result |
-| --- | --- |
-| Build | Passed |
-| Full Node v22.22.2 compatibility, file concurrency 20 | 846/846 passed across 83 source test files; 0 failed/cancelled/skipped; 57.588 s |
-| Focused Node | Recovery/transactions 46/46; creation/proposed/recording 24/24; creation/non-plan workflow 20/20; CLI/planner/helper 55 distinct tests passed |
-| Bun v1.3.14 history | 18/18 passed, 1.79 s |
-| Repository `validate --json` | 0 errors, 89 warnings |
-| Not run | Full mixed-runtime run; native macOS/Windows and live-host certification |
-
-Earlier failed assertions were repaired before the final Node pass. Two broader Bun jobs and one sandboxed Node job stalled and were interrupted, not passed; the Node job subsequently passed with scoped escalation. The implementation checkpoint reported no remaining jobs. Full command/failure history is in `docs/work-records/LOG.md`; reuse evidence only for unchanged source.
-
-## Latest checkpoint (2026-11-04T04:34Z)
-
-- Trusted core `plan.abandon` now uses exact PLAN/index/archive/worktree/branch/publication previews, full repository/plan/checkout leases, and bound checkout/ref/governed-byte snapshots. It can be invoked from the plan worktree it removes; regression coverage proves deletion, replay refusal and lease release. `force: true` refuses as unsupported until a dedicated dirty-content review adapter exists; manual CLI force behavior is unchanged. Retained abandonment outcomes require reconciliation rather than newly inferred consent. Existing clean-index requirements remain; this is not a private-index transaction.
-- Shared confirmation now retains consuming evidence until asynchronous mutations settle, verifies journal and lease before marking completion, and exposes internal `confirmAsync`. Rejection, altered journal or lost ownership leaves uncertainty rather than replayable consent. Synchronous callers remain supported.
-- `finishPlan` now accepts an internal borrowed full lease, cancellation signal and typed `confirmGate` callback. Rebase, finish acceptance, publication and merge have explicit kinds plus plan/branch/head/target identities and exact existing summaries. Manual callback behavior remains intact. Structured rebase compares the current checkout inventory after any frontmatter review claim, and resulting acceptance uses fresh evidence. This is preparation for the core adapter, not public trusted finish delivery: frontmatter review claims and their publication occur before the rebase gate and require initial preparation consent/refactoring before activation. Async public result handling and lease retention on uncertain failures still need integration.
-- Previous prospective finish/abandon indexes, persistent finish retry refusal, rollback/preservation checks, docs source identity validation and Bun isolation repairs remain delivered. Private refusal records do not grant recovery authority; power-loss durability and hostile filesystem swaps remain unverified.
-- Checks: `npm run build` passed. Final Bun v1.3.14 `bun test --parallel=20 --timeout=30000 ./dist`: **898 passed, 0 failed**, 86 files, 39.57 s (outside sandbox, 90-second outer cap). Focused initial seven-file lifecycle run 120/120; expanded run 125 pass/1 fail due a new expected-label assertion, corrected and rebuilt; finish-confirmation 30/30 (16.97 s). Async primitive 12/12 and isolated creation-workflow 5/5 passed. `git diff --check` passed; repository `validate --json`: 0 errors, 89 warnings. No Node tests, native Windows/macOS or live-host certification.
-- Failure history: sandboxed seven-file attempt stalled and was interrupted (130). First full attempt timed out a creation-workflow test at 30 seconds, then hit the 60-second outer cap (124), without a full result. The file passed alone and the unchanged full rerun passed; the transient stall cause is unconfirmed. No skipped assertions or runtime substitution. Full details in LOG.
-- Accounting: zero fully accepted steps; **17 unfinished acceptance steps remain (change 0)**. Partial manual02 closes clean trusted abandonment and async/typed-gate preparation subsets; public finish, forced dirty removal, remaining transaction acceptance and manual03 are unfinished. Lane A stopped after integration; next is public trusted finish preparation consent and asynchronous result/lease handling, retaining distinct gates. Lanes B/C remain dependency-gated with no new useful preparation identified; do not repeat their completed audits. Docs02 title-only excerpts, ADR creation commit semantics and wire proposals remain unresolved; no contract changes adopted.
-- HEAD remains `3139ada52e3c99082aa8ccd0be0075de2e561017`; all work is uncommitted, prior edits and local `problems.md` preserved. No managed completion, approval, commit or push. No active implementation workers or test jobs.
-
-### Prior docs and host checkpoint (2026-11-04T01:38Z)
-
-- Batch 1 recording audit mapped all four step-04 criteria to existing tests and found no new confirmed authority bypass. Concrete ADR and wire-contract proposals are retained in `docs/work-records/LOG.md`; they are not adopted or approved. Installed Codex execution and native direct-human provenance remain unverified.
-- Docs 01 preparation now includes `src/docs/bundle.ts`, eight tests, five minimum topics, orientation, manifest and exact public source snapshots. Package files include `assets/docs`; build invokes `scripts/validate-docs.mjs` after generating core version inventory. Loader is internal and package-relative; CLI/core docs operations remain unavailable. Assets explicitly label unfinished integration. Final content acceptance waits for lifecycle/interfaces to settle.
-- Latest build passed. Node v22.22.2 focused bundle/core-index: 12/12 passed, zero skipped, 1.745 s. Bun v1.3.14 loader checks: 7 passed, one subprocess test deliberately filtered, zero failures, 65 ms. Initial full Bun attempt was 7 pass/1 fail because Node help subprocess stdout was empty; the subprocess check passed under Node. This is a recorded Bun limitation, not a Node failure or a full Bun pass.
-- npm pack dry-run included all ten docs assets, loader and validator; actual packed consumer validation passed outside Git without source or installed dependencies. Full Node compatibility/mixed-runtime suites and repository validation were not rerun for this isolated docs preparation; the historical 846-pass result below applies to the prior recording source. This historical requirement is superseded by the Bun-only testing policy below.
-- Local Claude inventory: PATH selects 2.1.317 (system installation 2.1.316). Read-only help lacks required top-level `--cwd`; budget and permission-prompt flags are print-only. No installed native mod/direct-human API declarations were found. Native delivery remains blocked and live certification unrun. See log for precise evidence.
-- No active workers or test jobs remain. All earlier edits and local-only `problems.md` are preserved; HEAD unchanged, no commit/push/approval/managed completion.
-
-## Next assignments: parallel work without shared-file conflicts
-
-### Were past sessions actually parallel?
-
-Evidence below is from the append-only `docs/work-records/LOG.md`, checked against the current handoff and dirty working tree. These are recorded session reports, not independently reconstructed execution timelines. Multiple changed modules, three proposed lanes, and `bun test --parallel=20` do not prove simultaneous agent work.
-
-| Recorded checkpoint | Evidence and conclusion |
-| --- | --- |
-| Nov 3, 12:59Z | Explicitly reports parallel metadata/policy, transaction, and lease/recovery/history workers with coordinator integration. **Parallel work documented.** |
-| Nov 3, 14:01Z–15:00Z | Reports saved worker source and coordinated creation, recovery and history workers with separate ownership. **Multiple workers documented; precise overlap/utilization not recorded.** |
-| Nov 4, 00:58Z and 02:42Z | Scheduling-only handoff edits; the first reports one read-only audit, the second explicitly launched no workers. **A parallel plan, not execution evidence.** |
-| Nov 4, 01:34Z–01:38Z | Reports completed Sol Fast recording/host audits and finished Batch 1 workers, with docs preparation delivered. **Multiple workers documented; exact simultaneous intervals not recorded.** |
-| Nov 4, 01:43Z–02:34Z | Successive lifecycle improvements and test results, without dispatch/overlap records. **Parallel implementation unverified; checkpoint order alone cannot prove serial execution either.** |
-| Nov 4, 03:00Z–04:34Z | Lifecycle/docs/packaging preparation and Bun repairs delivered, plus an interrupted read-only follow-up. No retained worker start/end/ownership timeline establishes concurrent implementation. Latest handoff says lane A stopped and B/C were gated. **Sustained three-lane execution unverified.** |
-
-Conclusion: earlier sessions did use workers, including explicitly recorded parallel implementation. Do not claim every subsequent session followed the three-lane schedule, or claim they were all serial. Latest recorded state has no active workers/jobs. Future checkpoints must distinguish dispatched, running, returned, integrated and blocked work, rather than presenting the intended schedule as completed execution.
-
-Use **`sol_fast` explicitly** for every implementation/review subagent (GPT-6.1 Sol with Fast processing). Keep the coordinator's model unchanged. Do not substitute a model-only override and call it Fast; if the role is unavailable, report that and continue eligible coordinator work. Use one coordinator and up to three workers, subject to actual tool capacity. No recursive delegation.
-
-The coordinator owns `HANDOFF.md`, `docs/work-records/LOG.md`, shared interfaces (`core/index.ts`, `core/contracts.ts`, `core/schemas.ts`), `cli.ts`, package manifests/lockfiles, release/build scripts, shared fixtures and shared build output. Paths starting `core/`, `commands/`, `plan/`, `harness/` or `agents/` below are relative to `packages/cli/src/`. Workers propose changes outside their assigned files; they do not edit them.
-
-### Active scheduling policy: fill eligible slots, finish criteria, then refill
-
-The user's 2026-11-04 direction is to work on as many independent scopes concurrently as prerequisites and ownership permit. On the next implementation continuation, verify the dirty snapshot and contracts, then dispatch every eligible disjoint scope, up to three `sol_fast` workers; the coordinator integrates shared changes and removes blockers. Lane A is the concrete implementation assignment now. B/C below are conditional queues, not three immediately available implementation jobs. Do not interpret the latest checkpoint's single “Next” item as a serial-only schedule, or dispatch completed audits merely to fill slots. This handoff update itself does not launch implementation.
-
-Before declaring B/C idle, check these bounded follow-ups against existing work: B can return a docs 02 index/topic/literal-search interface and criterion/test mapping, isolating the unresolved title-only excerpt rule; C can map the known `inspectRepository` stub to the foundation contract and propose exact implementation/test files and reusable helpers. Both are read-only proposals with no writable files until coordinator handover; do not repeat the broad public-export audit or an already delivered design. The stub still exists in `core/index.ts` at this review. Coordinator owns its eventual shared export integration. If either proposal already exists, consume it and dispatch only a newly eligible implementation scope; otherwise record the concrete gate and release the slot. This allows useful preparation alongside A without starting a dependent managed step or deciding an unsettled contract.
-
-At dispatch and every ownership change, append a compact entry to LOG with UTC time, lane, actual agent ID/role, exact scope/allowlist, snapshot/interface revision and status. At return, record return/integration time, changed files, checks and next assignment. For idle slots record the missing prerequisite or decision and the event that will reopen them. Report observed overlap only when the dispatch/return records support it; do not infer it from test concurrency. Coordinator build/integration time is work and may legitimately serialize shared changes.
-
-Use the following non-overlapping initial assignments. These are review-branch implementation/preparation scopes under the existing exception, not authorization to start dependent managed steps. Read the exact plan criteria and dependencies before dispatch. A frozen interface permits preparation, not a claim that an unmet predecessor has completed.
-
-| Lane | Initial assignment and exact writable allowlist | Gate and next assignment |
-| --- | --- | --- |
-| A — manual lifecycle 02 | Complete the core trusted finish adapter and remaining confirmation lifetime/private-index acceptance; preserve the delivered clean trusted abandonment adapter; preserve delivered prospective index and persistent retry-refusal behavior. Own `packages/cli/src/core/confirmed-operations.ts`, `packages/cli/src/core/confirmed-operations.test.ts`, `packages/cli/src/plan/flows.ts`, `packages/cli/src/plan/finish-confirmation.test.ts`, `packages/cli/src/plan/finish-flows.test.ts`, `packages/cli/src/plan/finish-preservation.test.ts`, `packages/cli/src/plan/finish-recovery.test.ts`, `packages/cli/src/plan/lifecycle-abandon.test.ts`. | Coordinator handles shared contracts/exports and any additional command adapters. Keep distinct rebase/acceptance/merge gates. After criterion review, move this lane to manual 03 with a newly explicit allowlist; never overlap 02 and 03 writers. |
-| B — product docs 01 | Bundle validation/source-identity work and acceptance mapping are prepared; take only newly eligible content work after lifecycle settlement, not another unchanged audit. Own `packages/cli/src/docs/bundle.ts`, `packages/cli/src/docs/bundle.test.ts`, plus an enumerated list of existing files under `packages/cli/assets/docs/` captured at dispatch. No changing the frozen loader signature without coordinator agreement. | Content dependent on unfinished lifecycle behavior remains labeled and blocked. Once 01 criteria and prerequisites settle, hand the same worker docs 02, then 03; coordinator must first allocate exact new operation/command/test files. Before that, return a docs 02 interface/test design without implementing or activating dependent operations. |
-| C — packaging 01 preparation | Inventory/tamper/compatibility preparation fixtures are delivered and passing; take newly eligible packaging implementation only after dependency review, not duplicate fixtures. Own only new `packages/cli/src/harness/package-inventory-preparation.test.ts`. Existing `harness/pack.test.ts`, installers, templates, release scripts, manifests and assets are read-only. Propose production changes to the coordinator. | This is test preparation, not accepted packaging or installer activation. Do not freeze hashes of changing assets as release evidence. After docs contracts and prerequisites settle, expand this same lane to packaging 01 implementation, then 02 and 03 using an explicit file handover. If no useful independent test preparation remains, return the blocker and release the slot. |
-
-The coordinator owns all files outside these allowlists, including shared interfaces, CLI wiring, logs, handoff, build output and fixtures. While workers run, reconcile the existing ADR/wire proposals into a reviewable decision list and audit previously delivered public exports against acceptance criteria. Do not repeat completed recording/Claude audits without new evidence or make an unapproved contract decision. New missing implementation becomes a scoped follow-up, not an overlapping edit.
-
-Refill a freed slot promptly with the next eligible scope in the following-batches table. Before changing ownership, the outgoing worker must return its diff/results and stop writing; the coordinator records the new allowlist and prerequisite revision. Later, once packaging permits it, Claude and Codex delivery may run together with a third worker preparing independent conformance tests. If a host is externally blocked, use the slot for another eligible scope rather than leaving unrelated work idle. If all remaining work is gated, report the actual gates; do not invent speculative implementation to fill slots.
-
-Workers must not modify another lane's files, shared generated output, approved specs or managed progress. Request a coordinator-mediated interface change when needed, then continue independent work. Only the coordinator builds; serialize builds with tests against `dist`. Tests may overlap only against the same declared frozen build and isolated fixtures. With isolated checkouts, carry the complete dirty snapshot and integrate in dependency order.
-
-### Progress accounting at every checkpoint
-
-A root HANDOFF update is a continuation checkpoint, not a completed plan step. Report: steps fully accepted this checkpoint (possibly zero); partial steps and criteria actually closed; blocked criteria/decisions; remaining acceptance-step count and its change; and each lane's current/next assignment. Keep implementation assessment separate from stored managed status. The retained inventory is 17 unfinished acceptance steps, not 17 untouched implementations; do not decrement it for an audit, a passing subset, or a handoff update alone. Do not stop eligible authorized implementation merely to write a checkpoint: continue the active lanes unless the user requests a stop or the session must end.
-
-### Batch 1 completed: audit findings and prepared docs interface
-
-The three scopes below have completed their initial assignments; do not redispatch the same audits without changed evidence. Docs preparation does not establish managed readiness. The stable loader interface is `loadDocumentationBundle(bundleDirectory?, {core_version, docs_version, contract_version}?)`, returning `{manifest, orientation, topics}`; source reference keys are `{id, anchor?, path, sha256}`. The selected assets directory is `packages/cli/assets/docs/`.
-
-| Worker / step | Exclusive writable scope | Deliverable and gate |
-| --- | --- | --- |
-| A — workflow-recording 04 acceptance audit | Read-only core/spec audit; return findings to coordinator, no repository writes | Return precise ADR/wire contract proposals and missing criterion/test mappings. Coordinator settles shared interfaces before assigning a follow-up implementation scope. ADR behavior changes wait for a supported contract or human decision. |
-| B — product-docs 01 preparation | New `packages/cli/src/docs/bundle.ts`, `bundle.test.ts` and one coordinator-selected package asset directory; freeze manifest shape and asset layout before dispatch | Prepare minimum versioned offline topics, manifest/hash/link validation and release orientation against delivered behavior. Label unavailable capabilities. No installer, CLI, approved-spec or package-script edits. Finalize only after lifecycle behavior and the bundle interface settle. |
-| C — Claude delivery 01 evidence audit | Read-only source/spec audit; return findings to coordinator, no repository writes | Identify actual host/version/surface and direct-human API evidence. Report exact missing evidence. Do not implement native handlers or enable capabilities on mocks. Coordinator records evidence/gaps in the existing log. |
-
-Coordinator audit completed: `inspectRepository` remains foundation work; `runConductor` belongs to manual 03; mechanical dispatch currently covers only completion/implementation, retarget, shelve and resume. Confirmed lifecycle parity belongs to manual 02 and docs operations to docs 02. Historical live-list refusal is diagnosed above. Manual lifecycle 02 now renders exact single-target and ordered multi-target previews, including dependent base/overlay approvals and successive prospective plan indexes. Batches require committed governed inputs and retain one source commit per target. Next exact implementation assignment remains manual lifecycle 02: review and separate remaining finish/rebase/merge gates; retain the batch refusal and recovery boundaries above. Docs 02 may be prepared against the frozen loader after respecting lifecycle dependency boundaries; do not claim finalized docs 01 acceptance yet. ADR semantics still need human reconciliation; independent lifecycle work may continue.
-
-### Following batches: release slots as prerequisites settle
-
-Do not run two steps of the same plan concurrently. Reassign a finished worker to the next eligible step; unrelated plans may overlap only on stable inputs. Before dispatch, expand every module family below into an explicit file allowlist, including tests. Never give two workers overlapping directories or shared fixtures.
-
-| Sequence / worker lane | Ownership and safe overlap | Required outcome |
-| --- | --- | --- |
-| Manual lifecycle 02 → 03 | Step 02: `core/confirmed-operations.*`, `commands/{approval-read-tree,plan-approve,spec-approve,spec-pin}.ts`, their dedicated tests, `plan/flows.ts` and lifecycle/finish tests. After it finishes, step 03 takes `plan/run.*`, `harness/session.*`; coordinator owns CLI/export/standing-guidance integration. Overlap with docs preparation and host evidence, not another lifecycle writer. | Exact overlay-pin and multi-target previews; separate approve/abandon/finish/rebase/merge decisions; then neutral startup and extension-supplied conductor. Remove obsolete standalone run surfaces and default/installed-file harness selection; fake adapters cover launch uncertainty, resume, limits, cancellation and identities. |
-| Product docs 01 → 02 → 03 | One docs worker owns `packages/cli/src/docs/`, `commands/docs.ts`, dedicated tests and the selected bundle assets; step 03 additionally owns `agents/standing.*` after coordinator explicitly releases it. Coordinator wires exports/CLI/build/package changes. | Offline index/topic/literal-search parity outside Git without config/network; deterministic errors/excerpts; read-only freshness and explicit custom-content-preserving refresh. Match actual commands and corrected authorship policy. |
-| Packaging 01 → 02 → 03 | One packaging worker owns `harness/containment.*`, `harness/index.ts`, `harness/{claude,codex}.ts`, `commands/init.ts`, and installer/pack/coexistence tests. Reserve host templates for later delivery owners. Coordinator owns manifests/release scripts. | Complete inventory and contract snapshots; pre-mutation compatibility/tamper checks; ownership digests, serialization, backup/journal/recoverable activation; both install orders and repeated init preserve settings and neutral guidance. |
-| Claude delivery 01 → 02 → 03 and Codex delivery 01 → 02 → 03 | Once shared/package interfaces stabilize, run two workers: Claude owns `harnesses/claude/` delivery assets/tests; Codex owns `harnesses/codex/` delivery assets/tests and separately named new runner modules/tests. Approved specifications are read-only. Existing installer adapters remain packaging-owned until an explicit handover. | Claude: verified native signatures, mechanical handlers, complete procedures and adapter lifecycle. Codex: persistent NDJSON framing/request matching, stale/disconnect/stop/recovery, `executeWorkflowTest` forwarding and complete installed consumer procedure. |
-| Conformance 01 → 02 | Third worker prepares uniquely named cross-package tests while host workers implement stable interfaces. Coordinator assigns new test paths, owns common fixtures and integrates fixes in responsible modules. Pin updates wait for final reviewed target bytes and appropriate authority. | Real integrated matrix, then pin/release evidence review. Isolated tests, mocks and hashes alone do not establish conformance or live certification. |
-
-Packaging depends on completed docs contracts; host deliveries depend on packaging; conformance acceptance depends on both hosts. Prepare independent tests/drafts earlier, but do not activate installers or certify dependent behavior against unfinished inputs. If a lane blocks, use its slot for another eligible step or read-only acceptance review, not speculative changes to blocked contracts.
-
-### Dispatch and integration rules
-
-Every dispatch states: exact step/criteria; verified base plus uncommitted snapshot; prerequisite interface revision; exclusive writable files; read-only dependencies; checkout/build ownership; focused checks; integration order; and forbidden authority changes. Tell each worker: **you are not alone in the codebase; preserve others' edits and send out-of-scope changes to the coordinator.** Return changed files, commands/results and unresolved issues.
-
-In a shared checkout, only the coordinator builds `dist`, and no build overlaps tests using it. Workers may run tests only against a coordinator-declared frozen build. For independent builds, use isolated checkouts containing the full reviewed implementation snapshot, not bare `3139ada`. Isolation does not remove interface conflicts. Integrate in prerequisite order, review combined diffs and test actual dependencies. Retain one owner/session ID per test job; do not duplicate stalled jobs. Reuse workers for repairs and close completed workers.
-
-## Remaining acceptance inventory
-
-This is the retained **17-step / seven-plan implementation assessment**, not live lifecycle status or 17 new implementations. Read each PLAN, exact step, context and plan handoff before dispatch. Directories below are under configured `plans/`.
-
-| Plan | Remaining step files under `steps/` | State / acceptance boundary |
-| --- | --- | --- |
-| `2026-11-01-workflow-recording` | `04-workflow-validation-and-recording.md` | Partial; ADR contract, protocol documentation and external evidence remain |
-| `2026-11-01-manual-lifecycle` | `02-lifecycle-command-integration.md`; `03-neutral-startup-and-extension-conductor.md` | Partial; confirmations exist, lifecycle and conductor integration remain |
-| `2026-11-02-product-docs` | `01-docs-bundle.md`; `02-docs-operations.md`; `03-guidance-freshness.md` | Bundle prepared and focused-tested; final content acceptance, operations and guidance remain |
-| `2026-11-01-extension-packaging` | `01-package-inventory-and-contract-snapshots.md`; `02-containment-and-migration-transaction.md`; `03-coexistence-and-legacy-rollout.md` | Partial containment/customization work; transaction and coexistence acceptance remain |
-| `2026-11-01-claude-delivery` | `01-host-surface-evidence.md`; `02-handlers-and-reasoning-procedures.md`; `03-adapter-lifecycle-and-integration.md` | Host evidence gates native implementation; generic unavailable fallback is not delivery |
-| `2026-11-01-codex-delivery` | `01-persistent-runner.md`; `02-complete-installed-procedure.md`; `03-codex-consumer-integration.md` | Runner, complete consumer procedure and installed integration remain |
-| `2026-11-01-extension-conformance` | `01-cross-package-acceptance-matrix.md`; `02-pin-review-and-release-evidence.md` | Final integrated acceptance and release evidence remain |
-
-Dependency order: recording → manual lifecycle → product docs → packaging → both host deliveries → conformance. Docs also depends on completion assessment and plan index. Actual `depends_on` and authority gates win over this scheduling summary.
-
-Audit the older `2026-10-30-plan-conductor` against the newer manual-lifecycle contract; it requests obsolete standalone `plan run` behavior. Do not implement both designs or silently mark the old plan done. Include missing public exports and regressions in foundation/target/index/completion in the acceptance audit.
-
-Retain all five `problems.md` findings until fully evidenced: conductor selection → manual 03; dangling-link/common initializer containment → packaging 02; registry-order coexistence → packaging 03; incomplete installed Codex procedure → Codex 02; generated authorship drift → docs 03 / packaging 03. Some dangling-link regressions pass; full transactional/concurrent-replacement acceptance does not follow from that.
-
-## Decisions and evidence that must remain explicit
-
-- **ADR creation:** dedicated preview/apply exists, but `file-formats` §8.3 has no ADR creation commit kind. Recording returns `UNSUPPORTED_CAPABILITY` before confirmation/writes. Reconcile `agent-skills` decision-new's noncommit behavior with recording requirements; prepare concrete proposed text if needed. Do not invent a commit kind or approve the proposal yourself.
-- **Protocol:** `WorkflowResult.creation`, `finalizedEdits`, `ContributionProposal`, `captureProposedContribution` and create-only `beforeDigest: "missing"` are implemented extensions awaiting contract review. Preserve mechanical CLI defaults separately from workflow explicit-title/content requirements.
-- **Recovery:** capture-only journals without durable prewrite intent retain evidence and return `RECOVERY_REQUIRED`; finding receipts are process-local. Historical recovery proves recorded intent/commit, never fresh execution. Exact historical action binding may remain unavailable. Empty scaffold directories may remain after rollback. Never reconstruct authority from caller JSON or parent bytes.
-- **Host/leases:** retain preparation-bound host-worker evidence and private receipts. Dead parent PIDs do not prove workers stopped. Never infer native session identities or manufacture human confirmation. Rebase/state changes invalidate prior acceptance.
-- **Containment:** cooperative lease-coordinated writers only. Portable checks cannot certify hostile same-user swaps; suspect paths are not cleaned automatically. Native macOS/Windows and live Claude/Codex evidence remain unrun, not implied by CI configuration or mocks.
-- **Host delivery:** Claude native handlers require named, verified host APIs first. Codex without a persistent channel must give the labeled manual fallback; do not substitute Claude or enable native/background capability flags. Installed procedures must include remote synchronization/refusal, context/HANDOFF, numbered gaps, real assertions, acceptance assessment, exact recording manifest and publication/retry behavior without requiring this source repository.
-
-## Testing and checkpoint policy
-
-Focused checks first. Per the user's 2026-11-04 instruction and root `AGENTS.md`, use **Bun for all future test runs**, including full suites. Build with `npm run build` in `packages/cli`, then run selected compiled files with `bun test --parallel=20 --timeout=30000 ./dist/<selected-files>` or the full suite with `bun test --parallel=20 --timeout=30000 ./dist`. Keep process isolation; never enable within-file `--concurrent`.
-
-Do not run Node tests or the mixed-runtime `.local-tests.mjs` runner. Report runtime-sensitive incompatibilities, stalls and failures without silently skipping tests or falling back to Node. Historical Node evidence remains historical; a Bun pass does not prove Node compatibility. Production runtime and package configuration remain unchanged. No full suite for handoff/docs/spec/record-only edits.
-
-Use `node packages/cli/dist/cli.js` from the root when the build is current; `specplane` was absent from PATH. Run repository `validate --json` when relevant and report warnings separately from test failures. On sandbox errors such as `spawnSync git EPERM`, use the actual permission/escalation mechanism; do not weaken checks. Keep waits bounded and label interrupted jobs accurately.
-
-For every coherent checkpoint, append about five lines to `docs/work-records/LOG.md`: UTC time/commits, scope, exact checks/results/runtime, gaps/unrun evidence, next action. Never rewrite old entries; correct them with a new entry. No per-batch reports or timing forecasts. Update this handoff by replacing superseded state, not accumulating session history.
-
-Ordinary review-branch work follows the previously recorded user exception; it does not complete managed steps. Managed execution still requires the designated `plan/<id>` checkout, CLI routing, readiness gates and plan-local gap recording. Do not hand-edit managed progress, approve specs/plans/ADRs, fabricate receipts, or automatically finish/merge/release. Commit only selected reviewed files with applicable Conventional Commit/trailer rules.
-
-When implementation is requested, continue eligible work through checkpoints; an external blocker in one lane does not stop independent work. At a session boundary, record actual HEAD, remaining edits, completed/partial/blocked criteria, latest tests, live worker/job IDs (or none) and the next exact assignments. Report missing human decisions or host evidence without treating them as successful completion.
+## Rules that matter
+- Bun only: `npm run build` in `packages/cli`, then `bun test --parallel=20 --timeout=30000 ./dist/<files>`; full suite `timeout 120 bun test --parallel=20 --timeout=30000 ./dist` (prefix `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`). Never `--concurrent`; no Node runs.
+- Never approve, push, rewrite history, or edit plan `status:`, step checkboxes or managed progress. Do not invent ADR kinds or contract text.
+- Stage specific paths only; never `problems.md` or `AGENTS.override.md`. Preserve private backups and receipts.
+- Cooperative lease-coordinated writers only; native and live-host evidence stays unrun until produced.
