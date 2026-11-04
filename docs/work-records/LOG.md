@@ -323,3 +323,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Live check (one `claude -p` run in a fixture): host loaded the plugin and started the server from `.claude/specplane/core`. Refused at the origin gate (`sdk`) before prepare; no lease taken. Not passed; D18 recorded.
 - Also found D19 (public skills collide with reasoning names). Focused suites 58 pass; full suite stalled, not rerun per coordinator.
 - Next: user decision on D18, then the Claude architecture-spec edit draft for approval.
+
+## 2026-11-04 claude-delivery D20 items 3-5 offline (UTC 15:50)
+- Commits `44072f9` (compact MCP replies, `detail` pages, validate by requestId, close by binding, 16 KB guard) and `ea58453` (installer `.gitignore` entry for the host tsconfig).
+- Focused suites 84 pass (7 files); plugin test 27 pass; hooks 94 pass; check-sync OK; validate 0 errors, 98 warnings.
+- Full suite stalled again: killed at 240 s with no summary; not rerun. Live invocations: none. D18, D19, D20 items 1, 2, 6 still open.
