@@ -285,3 +285,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commits ded75b2, ae6c6f2, 373e9cc: policy guard reconstructs edits; native handlers (`commands.ts`, `handlers.ts`); six `specplane-reason-*` skills and `harness/claude-handlers.test`.
 - Checks: full Bun suite 988 pass, 0 fail, 100 files; `claude plugin test` 27 pass; `hooks.test.sh` 94 pass; check-sync OK; `plugin validate` passes. Not run: live host, Node tests.
 - Open: D9 (no lease across a reasoning turn: `$.process.spawn` stdin is write-once), D10 (legacy skills collide with native names).
+
+## 2026-11-04 night decisions D9/D10 and legacy skill removal (Haiku 5.5 session)
+- User decided D9 (a, in-process bundled core; one allowed live check in claude-delivery 03) and D10 (remove legacy Claude skills); recorded in HANDOFF "Decided (by the user)".
+- Commit `f57d03e`: removed `validate`, `approve`, `plan-status`, `plan-start`, `plan-abandon` skills from templates and `.claude/skills/`; conformance, pack and coexistence tests updated.
+- Checks: Bun suite 988 pass, 0 fail, 100 files; `claude plugin test` 27 pass; `hooks.test.sh` 94 pass; check-sync OK; `validate` 0 errors, 98 warnings. Not run: live hosts, Node tests.
