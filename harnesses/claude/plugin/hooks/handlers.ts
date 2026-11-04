@@ -5,7 +5,7 @@
 // ./commands (host-independent); this file only binds it to the engine.
 import type { EngineInterface, Register } from 'claude-code'
 import {
-  BUNDLED_CLI, COMPLETION_TOOL, NATIVE_COMMANDS, acceptResult, closeRequest, delegationPrompt, planRegistration, runCommand, serverReply,
+  BUNDLED_CLI, COMPLETION_TOOL, NATIVE_COMMANDS, acceptResult, closeRequest, delegationPrompt, planRegistration, releaseHeld, runCommand, serverReply,
 } from './commands'
 import type { CorePort, Delegation, HumanPort, NativeCommand, ReasoningSession, SpecplaneServer } from './commands'
 
@@ -145,7 +145,11 @@ export function registerNative(on: Parameters<Register>[0]): void {
     const input = (e.input ?? {}) as { requestId?: unknown; result?: unknown }
     const outcome = await acceptResult(pending, input, { session: sessionFor($) })
     return { result: outcome.text }
-  }).catch(() => ({ deny: 'Specplane could not validate this result; nothing was recorded.' }))
+  }).catch(async ($) => {
+    // The result could not be read or handled: release what this module holds, so no lease outlives the failure.
+    await releaseHeld(pending, sessionFor($))
+    return { deny: 'Specplane could not validate this result; nothing was recorded.' }
+  })
 }
 
 

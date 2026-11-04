@@ -138,7 +138,7 @@ async function send(session: ReasoningSession, tool: string, args: Record<string
   try {
     return await session.server.call(tool, { ...args, nonce: session.nonce })
   } catch (error) {
-    return { ok: false, message: `Specplane server call ${tool} failed: ${error instanceof Error ? error.message : String(error)}` }
+    return { ok: false, lost: true, message: `Specplane server call ${tool} failed: ${error instanceof Error ? error.message : String(error)}` }
   }
 }
 
@@ -157,9 +157,38 @@ export async function openSession(session: ReasoningSession): Promise<ServerRepl
   return bound
 }
 
-/** Releases one request's lease. Never throws: a close that fails leaves the server's own end-of-session release. */
-export async function closeRequest(session: ReasoningSession | undefined, requestId: string): Promise<void> {
-  if (session) await send(session, 'close', { requestId })
+/**
+ * Releases one request's lease, or every open request of this binding when no id is given (for a result whose id
+ * cannot be read). Never throws: a close that fails leaves the server's own end-of-session release.
+ */
+export async function closeRequest(session: ReasoningSession | undefined, requestId?: string): Promise<void> {
+  if (session) await send(session, 'close', requestId === undefined ? {} : { requestId })
+}
+
+/** Closes every request this module still holds, by binding, and forgets them. Used when a result cannot be read. */
+export async function releaseHeld(pending: Map<string, Delegation>, session: ReasoningSession | undefined): Promise<void> {
+  if (pending.size === 0) return
+  pending.clear()
+  await closeRequest(session)
+}
+
+/**
+ * Reads a prepared request in `detail` pages, each under the host's result bound. Resolves with the parsed request, or
+ * undefined when a page fails, does not advance, or the joined text is not JSON.
+ */
+export async function readDetail(session: ReasoningSession, requestId: string): Promise<unknown> {
+  let json = ''
+  let offset = 0
+  for (;;) {
+    const page = await send(session, 'detail', { requestId, offset })
+    const value = page.ok ? page.value as { chunk?: unknown; next?: unknown; done?: unknown } | undefined : undefined
+    if (!value || typeof value.chunk !== 'string' || typeof value.done !== 'boolean') return undefined
+    json += value.chunk
+    if (value.done) break
+    if (typeof value.next !== 'number' || value.next <= offset) return undefined
+    offset = value.next
+  }
+  try { return JSON.parse(json) } catch { return undefined }
 }
 
 /** Everything a handler may touch. There is deliberately no model port. */
@@ -171,7 +200,8 @@ export interface HumanPort { confirm(summary: string): Promise<Confirmation> }
 
 /** The plugin's Specplane MCP server as `$.mcp` exposes it. `call` takes the tool's arguments as given. */
 export type ServerConnection = { connected: true } | { connected: false; message: string }
-export interface ServerReply { ok: boolean; value?: unknown; message: string }
+/** `lost` marks a call that threw: the server may have taken a lease it could not report. */
+export interface ServerReply { ok: boolean; value?: unknown; message: string; lost?: boolean }
 export interface SpecplaneServer {
   connect(): Promise<ServerConnection>
   call(tool: string, args: Record<string, unknown>): Promise<ServerReply>
@@ -348,12 +378,19 @@ async function runReasoning(cmd: NativeCommand, raw: string, ctx: RunContext): P
   if (!opened.ok) return refuse(`${opened.message} Nothing was delegated.`, 1)
   const prepared = await send(session, 'prepare', initiation.request)
   const requestId = (prepared.value as { requestId?: unknown } | undefined)?.requestId
-  if (!prepared.ok || typeof requestId !== 'string') return refuse(`${prepared.message} Nothing was delegated.`, 1)
-  if (ctx.signal.aborted) {
-    await closeRequest(session, requestId)
-    return refuse('Cancelled; the prepared request was closed and nothing was delegated.', 130)
+  if (typeof requestId !== 'string') {
+    // A refusal took no lease. A lost call, or a reply that cannot be read, may have taken one: close every request of this binding.
+    if (prepared.ok || prepared.lost) await closeRequest(session)
+    return refuse(`${prepared.message} Nothing was delegated.`, 1)
   }
-  ctx.queue.push({ workflow: cmd.workflow, requestId, assetPath: reasoningAsset(cmd.workflow), request: prepared.value })
+  const request = ctx.signal.aborted ? undefined : await readDetail(session, requestId)
+  if (ctx.signal.aborted || request === undefined) {
+    await closeRequest(session, requestId)
+    return ctx.signal.aborted
+      ? refuse('Cancelled; the prepared request was closed and nothing was delegated.', 130)
+      : refuse('The prepared request could not be read; it was closed and nothing was delegated.', 1)
+  }
+  ctx.queue.push({ workflow: cmd.workflow, requestId, assetPath: reasoningAsset(cmd.workflow), request })
   return ok(`Prepared ${cmd.workflow} request ${requestId}; the reasoning procedure starts when this turn completes.`)
 }
 
@@ -395,12 +432,20 @@ export async function acceptResult(
 ): Promise<{ ok: boolean; text: string }> {
   const id = typeof input.requestId === 'string' ? input.requestId : ''
   const delegation = pending.get(id)
-  if (!delegation) return { ok: false, text: 'No matching prepared Specplane request; nothing was recorded.' }
+  if (!delegation) {
+    // An unreadable id cannot name its lease, so every delegation this module holds is closed.
+    if (!id && pending.size > 0) {
+      await releaseHeld(pending, ctx.session)
+      return { ok: false, text: 'The result names no prepared request; the open Specplane requests were closed. Nothing was recorded.' }
+    }
+    return { ok: false, text: 'No matching prepared Specplane request; nothing was recorded.' }
+  }
   pending.delete(id)
   const session = ctx.session
   if (!session) return { ok: false, text: 'Recording is unavailable; nothing was recorded.' }
   try {
-    const validated = await send(session, 'validate', { prepared: delegation.request, result: input.result })
+    // The server validates against the request it holds for this id; the request is not sent back.
+    const validated = await send(session, 'validate', { requestId: id, result: input.result })
     if (!validated.ok) return { ok: false, text: `${validated.message} Nothing was recorded.` }
     const recorded = await send(session, 'record', validated.value as Record<string, unknown>)
     if (!recorded.ok) return { ok: false, text: `${recorded.message} Nothing was recorded.` }

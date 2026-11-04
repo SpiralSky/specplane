@@ -150,7 +150,17 @@ function fakeServer(script: Script = {}, connection: Record<string, unknown> = {
 }
 const NONCE = 'a'.repeat(32);
 const PREPARED = { requestId: 'r1', criteria: [{ id: 'c1' }] };
-const PREPARE_OK: Script = { prepare: () => ({ ok: true, value: PREPARED, message: '' }) };
+/** Serves the prepared request the way the MCP server does: bounded `detail` pages of its JSON (16 characters here, so paging runs). */
+const detailScript = (value: unknown): Script => ({
+  detail: (args) => {
+    const json = JSON.stringify(value);
+    const offset = args.offset as number;
+    const chunk = json.slice(offset, offset + 16);
+    const next = offset + chunk.length;
+    return { ok: true, value: { requestId: args.requestId, offset, total: json.length, chunk, next: next < json.length ? next : null, done: next >= json.length }, message: '' };
+  },
+});
+const PREPARE_OK: Script = { prepare: () => ({ ok: true, value: { requestId: 'r1' }, message: '' }), ...detailScript(PREPARED) };
 const PROPOSAL = { protocol: 1, requestId: 'r1', resultDigest: 'd' };
 const RESULT = { protocol: 1, requestId: 'r1', outcome: 'done' };
 const session = (server: unknown, binding = { bound: false }) => ({ checkout: '/repo', nonce: NONCE, server, binding });
@@ -182,7 +192,7 @@ test('each reasoning command connects, binds once per session, and prepares with
     assert.equal(queue[0].assetPath, `.claude/skills/specplane-reason-${name}/SKILL.md`, name);
   }
   assert.equal(fake.connects(), 6);
-  assert.deepEqual(fake.calls.map(c => c.tool), ['bind', 'prepare', 'prepare', 'prepare', 'prepare', 'prepare', 'prepare']);
+  assert.deepEqual(fake.calls.filter(c => c.tool !== 'detail').map(c => c.tool), ['bind', 'prepare', 'prepare', 'prepare', 'prepare', 'prepare', 'prepare']);
   assert.ok(fake.calls.every(c => c.args.nonce === NONCE));
   const planStep = fake.calls.find(c => c.args.workflow === 'plan-step')!.args;
   assert.deepEqual(planStep, { protocol: 1, extensionId: 'specplane-claude', checkout: '/repo', mode: 'attended', workflow: 'plan-step', selection: { planId: '2026-11-01-plan' }, nonce: NONCE });
@@ -218,7 +228,7 @@ test('a server that does not connect, or a refused bind, prepares nothing and sa
   assert.equal(b.queue.length, 0);
 });
 
-test('a refused or throwing prepare is reported, queues nothing, and sends no close because no lease was taken', opts, async () => {
+test('a refused prepare is reported and sends no close; a prepare call that throws may hold a lease, so every request is closed', opts, async () => {
   const m = await load();
   const refused = fakeServer({ prepare: () => ({ ok: false, message: 'dirty checkout.' }) });
   const a = context({ session: session(refused.server, { bound: true }) });
@@ -231,6 +241,7 @@ test('a refused or throwing prepare is reported, queues nothing, and sends no cl
   assert.equal(outB.exitCode, 1);
   assert.match(outB.text, /boom/);
   assert.equal(b.queue.length, 0);
+  assert.deepEqual(thrown.calls.at(-1), { tool: 'close', args: { nonce: NONCE } });
 });
 
 test('cancellation after prepare closes the request and delegates nothing', opts, async () => {
@@ -252,7 +263,7 @@ test('a matching result is validated, recorded, and its lease closed last', opts
   const out = await m.acceptResult(pending, { requestId: 'r1', result: RESULT }, { session: ctx.session });
   assert.equal(out.ok, true);
   assert.deepEqual(fake.calls.slice(-3).map(c => c.tool), ['validate', 'record', 'close']);
-  assert.deepEqual(fake.calls.find(c => c.tool === 'validate')!.args, { prepared: PREPARED, result: RESULT, nonce: NONCE });
+  assert.deepEqual(fake.calls.find(c => c.tool === 'validate')!.args, { requestId: 'r1', result: RESULT, nonce: NONCE });
   assert.deepEqual(fake.calls.find(c => c.tool === 'record')!.args, { ...PROPOSAL, nonce: NONCE });
   assert.deepEqual(fake.calls.at(-1)!.args, { requestId: 'r1', nonce: NONCE });
   const calls = fake.calls.length;
@@ -275,6 +286,48 @@ test('close runs whether validation refuses, throws, or recording refuses', opts
     assert.equal(out.ok, false);
     assert.equal(fake.calls.at(-1)!.tool, 'close');
   }
+});
+
+test('a prepared request is read back in detail pages and its whole request is queued', opts, async () => {
+  const m = await load();
+  const fake = fakeServer(PREPARE_OK);
+  const { ctx, queue } = context({ session: session(fake.server) });
+  assert.equal((await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx)).exitCode, undefined);
+  assert.deepEqual(queue[0].request, PREPARED);
+  assert.ok(fake.calls.filter(c => c.tool === 'detail').length > 1, 'the request spans several pages');
+  assert.equal(fake.calls.some(c => c.tool === 'close'), false);
+});
+
+test('a prepare reply that cannot be read closes every request of the binding, since its lease may be held', opts, async () => {
+  const m = await load();
+  const fake = fakeServer({ prepare: () => ({ ok: true, value: 'Result too large; read the file in chunks.', message: 'Result too large; read the file in chunks.' }) });
+  const { ctx, queue } = context({ session: session(fake.server, { bound: true }) });
+  const out = await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  assert.match(out.text, /Nothing was delegated/);
+  assert.equal(queue.length, 0);
+  assert.deepEqual(fake.calls.at(-1), { tool: 'close', args: { nonce: NONCE } });
+});
+
+test('a request whose details cannot be read is closed by its id and delegates nothing', opts, async () => {
+  const m = await load();
+  const fake = fakeServer({ ...PREPARE_OK, detail: () => ({ ok: false, message: 'Specplane server call detail failed: boom' }) });
+  const { ctx, queue } = context({ session: session(fake.server, { bound: true }) });
+  const out = await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  assert.equal(out.exitCode, 1);
+  assert.equal(queue.length, 0);
+  assert.deepEqual(fake.calls.at(-1), { tool: 'close', args: { requestId: 'r1', nonce: NONCE } });
+});
+
+test('a completion result whose request id cannot be read closes the open requests and clears them', opts, async () => {
+  const m = await load();
+  const fake = fakeServer(PREPARE_OK);
+  const { ctx, queue } = context({ session: session(fake.server, { bound: true }) });
+  await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  const pending = new Map([[queue[0].requestId, queue[0]]]);
+  const out = await m.acceptResult(pending, { result: RESULT }, { session: ctx.session });
+  assert.equal(out.ok, false);
+  assert.equal(pending.size, 0);
+  assert.deepEqual(fake.calls.at(-1), { tool: 'close', args: { nonce: NONCE } });
 });
 
 test('a result for an unknown request is refused and closes nothing', opts, async () => {
