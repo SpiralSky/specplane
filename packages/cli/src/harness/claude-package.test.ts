@@ -132,10 +132,11 @@ test('installer stages the plugin root beside core/: the manifest and hooks are 
   const root = makeRepo({});
   runInit(root, { harness: 'claude' });
   const plugin = path.join(root, CLAUDE_PLUGIN_ROOT);
-  for (const rel of ['.claude-plugin/plugin.json', 'hooks/hooks.json', 'hooks/register.tsx', 'hooks/handlers.ts', 'hooks/commands.ts']) {
+  for (const rel of ['.claude-plugin/plugin.json', 'hooks/hooks.json', 'hooks/register.tsx', 'hooks/handlers.ts', 'hooks/commands.ts', 'types/index.d.ts']) {
     assert.ok(fs.existsSync(path.join(plugin, rel)), rel);
   }
-  const manifest = JSON.parse(fs.readFileSync(path.join(plugin, '.claude-plugin/plugin.json'), 'utf8')) as { mcpServers: { specplane: { args: string[] } } };
+  const manifest = JSON.parse(fs.readFileSync(path.join(plugin, '.claude-plugin/plugin.json'), 'utf8')) as { types: string; mcpServers: { specplane: { args: string[] } } };
+  assert.ok(fs.existsSync(path.join(plugin, manifest.types)), `the manifest's types path must resolve in the installed root: ${manifest.types}`);
   assert.equal(manifest.mcpServers.specplane.args[0], '${CLAUDE_PLUGIN_ROOT}/core/dist/harness/claude-mcp-main.js');
   assert.ok(fs.existsSync(path.join(plugin, 'core', CLAUDE_MCP_ENTRY)), 'the server entry the manifest names is staged under core/');
   const installed = JSON.parse(fs.readFileSync(path.join(root, '.specplane/installed/claude.json'), 'utf8')) as { files: { path: string }[] };
