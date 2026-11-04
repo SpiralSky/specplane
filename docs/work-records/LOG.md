@@ -225,3 +225,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Added `preparation` FinishGate before the frontmatter review claim and pending-claim publication; trusted `plan.finish` adapter (initial preparation challenge, fresh per-gate challenges), `confirmOperationAsync`, lease retained on uncertain failure.
 - Manual `spec new/approve/reopen/pin` and `decision new/accept` now take a checkout lease (`core/checkout-coordination.ts`).
 - Tests: `plan/finish-trusted.test`, `commands/coordination.test`; full Bun 904 pass, 0 fail, 88 files. Forced dirty abandon left UNSUPPORTED. D1-D3 decided, D4 opened.
+
+## 2026-11-04T07:00Z — manual-lifecycle step 03 implementation
+- Added the unpublished-claim preparation test; conductor now needs an explicit Protocol 1 adapter (`plan/run.ts`, `core/conductor.ts`), standalone `plan run`/`--run` removed with a diagnostic, init no longer depends on registry order.
+- Tests: `plan/run.test` (18), `plan/neutral-startup.test` (5), `plan/finish-trusted.test` (6); full Bun 917 pass, 0 fail, 89 files. Opened D5 (old conductor plan) and D6 (Codex spec text).
