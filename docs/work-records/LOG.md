@@ -233,3 +233,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-04T08:00Z — product-docs step 01 verification
 - No source changes: the existing bundle already met both criteria. `npm run build` (includes `validate-docs`) passed; `docs/bundle.test` 9 pass. Examples run against the real CLI; `plan run`/`--run` appear only as removed-surface text.
 - Full Bun `./dist`: 917 pass, 0 fail, 89 files (41.19 s). HANDOFF: D4 and D5 decided, managed-recording deferral recorded.
+
+## 2026-11-04T09:00Z — product-docs step 02 implementation
+- Added `docs/operations.ts` (index/topic/search, core exports) and `commands/docs.ts` (`specplane docs [topic]`, `docs search <text...>`, `--json`); unknown/traversal IDs, empty queries and bundle errors exit 1.
+- Tests: `docs/operations.test` (7), `docs/bundle.test` examples still pass; full Bun 925 pass, 0 fail, 90 files. Opened D7 (title-only excerpts: returned with empty excerpts).
