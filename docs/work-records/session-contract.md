@@ -65,5 +65,6 @@ Updated <UTC>. Branch/HEAD. Read AGENTS.md and .specplane/config.yaml first.
 ## Open decisions           (D#: question — options — recommendation — what it blocks)
 ## Steps                    (table of 17: plan / step / impl-complete | partial | blocked | not started / note)
 ## Next session             (exact next step and the first concrete task)
+## How to continue (orchestration) and ## Final reconciliation  (keep these verbatim unless facts changed)
 ## Rules that matter        (Bun-only testing commands; authority limits; no Node; preserve problems.md)
 ```
