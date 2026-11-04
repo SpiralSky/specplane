@@ -36,7 +36,7 @@
   ],
   "scripts": {
     "build": "tsc && node scripts/build-core-info.mjs && node scripts/validate-docs.mjs && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\" && node -e \"require('fs').cpSync('../../harnesses/claude/templates','dist/templates/claude',{recursive:true})\" && node -e \"require('fs').cpSync('../../harnesses/codex/templates','dist/templates/codex',{recursive:true})\"",
-    "test": "npm run build && node --test \"dist/**/*.test.js\"",
+    "test": "npm run build && sh scripts/test.sh",
     "start": "node dist/cli.js",
     "prepack": "npm run build"
   },
