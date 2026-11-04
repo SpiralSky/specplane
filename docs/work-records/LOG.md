@@ -270,3 +270,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commits: `272bb62` (ship `templates/codex` in the package), `14b797d` (consumer tests), plus this entry's commit.
 - `harness/codex-consumer.test` (7) drives the installed script as a scripted client: sync, implement, real assertion, record, publish; failed push, diverged remote, no-plan work, offline docs, stale completion, unverified capabilities.
 - Checks: full suite 978 pass, 0 fail, 97 files, run from `packages/cli`. Not run: Node, live Codex.
+
+## 2026-11-04T17:00Z — extension-conformance 01 acceptance matrix
+- Commit `49b98eb`: `harness/conformance-matrix.ts` and `harness/conformance.test` (8): suite traceability, core export map, Codex/Claude host rows, offline docs parity, unobserved-host checks.
+- Claude workflows report pending; exports/workflows criterion left unmet for that reason. No decision needed.
+- Checks: full suite 986 pass, 0 fail, 98 files; `validate` 0 errors, 89 warnings. Not run: Node, live hosts.
