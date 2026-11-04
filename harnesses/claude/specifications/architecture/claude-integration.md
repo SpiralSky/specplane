@@ -458,11 +458,11 @@ Compatibility is checked against the installed host's mod declarations and named
 
 Design sources inspected 2026-11-01: [Mods overview](https://code.claude.com/docs/en/plugins/mods/overview), [Add a command](https://code.claude.com/docs/en/plugins/mods/api#add-a-command), and [Mods reference](https://code.claude.com/docs/en/plugins/mods/reference). These sources informed the target mod design; current host support still requires the installed-declaration and live-version checks above. No source citation certifies an active dispatcher.
 
-## Experimental Claude spawn adapter
+## Claude session adapter (extension-owned)
 
-See proposed `decision/0005` and `harness/session.ts`. Capability checks inspect local `--version`, `--help`, and `agents --help`. Required flags are `--bg`, `--cwd`, `--name`, `--session-id`, `--permission-mode`, `--permission-prompts`, `--resume`, plus `--max-budget-usd` when requested. Arguments use an array, never shell interpolation. No `--worktree`, `--tmux`, dangerous bypass, or `claude rm` is used.
+Specplane's core and standalone CLI contain no Claude session code and never launch Claude. Automated plan execution for Claude belongs to this extension: it ships its own Protocol 1 `SessionAdapter` in the extension package and passes it explicitly to `runConductor` (see `architecture/reference-cli`). No such adapter is delivered yet; the experimental command-line adapter tested only with fake runners was removed from the core package.
 
-The adapter's observation protocol accepts only an array (or `{agents: [...]}`) of records with sessionId, running/done/failed status, positive PID, absolute cwd, and name. Unknown output is an explicit capability error, not missing-session evidence. This protocol and flag set are verified with injected fake command runners only: **Claude is absent on the implementing computer, so no live version/schema or budget enforcement is certified**. Missing capabilities fail closed. Existing running identity is adopted by the adapter; the conductor itself refuses duplicate active invocation and offers attach/logs. A known non-running identity resumes. Launch uncertainty is never retried automatically.
+Before the extension enables automated execution, it verifies against the installed, named Claude version that the host can launch a session in a given checkout, observe it, resume it, keep a stable session identity, and enforce a requested budget. Executable presence or help text alone is insufficient. Arguments use an array, never shell interpolation; no extra worktree, terminal multiplexer, dangerous permission bypass, or session deletion is used. Unknown observation output is a capability error, not evidence that a session is missing. Missing capabilities fail closed, and launch uncertainty is never retried automatically.
 
 ## Shared documentation delivery and completion interface
 
