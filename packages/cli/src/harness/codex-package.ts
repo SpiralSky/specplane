@@ -44,12 +44,14 @@ function dependencyDirs(root: string): Map<string, string> {
   return found;
 }
 
-/** Builds the Codex skill package (runtime, dependencies, docs, skill files) into an empty directory; synchronous so `init` can use it. */
-export function assembleCodexSkillPackage(outDir: string) {
+/**
+ * The installed CLI's own runtime, production dependencies and documentation bundle, as package inputs. Shared by every
+ * extension package so that each one runs the same core without this repository.
+ */
+export function runtimeInputs(): { runtime: PackageInput[]; docsDir: string } {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const dist = path.resolve(here, "..");
   const root = path.resolve(dist, "..");
-  const skill = path.join(templatesDir("codex"), "skills", "specplane");
   const runtime: PackageInput[] = [
     { from: path.join(root, "package.json"), to: "package.json" },
     { from: path.join(root, "core-release.json"), to: "core-release.json" },
@@ -62,12 +64,19 @@ export function assembleCodexSkillPackage(outDir: string) {
       runtime.push({ from: path.join(from, rel), to: `${to}/${rel}` });
     }
   }
+  return { runtime, docsDir: path.join(root, "assets", "docs") };
+}
+
+/** Builds the Codex skill package (runtime, dependencies, docs, skill files) into an empty directory; synchronous so `init` can use it. */
+export function assembleCodexSkillPackage(outDir: string) {
+  const skill = path.join(templatesDir("codex"), "skills", "specplane");
+  const { runtime, docsDir } = runtimeInputs();
   const options: PackageBuildOptions = {
     outDir,
     extension: { id: "specplane-codex", host: "codex" },
     // Native and background capability flags stay false: nothing here is host evidence.
     capabilities: { reasoning: true, nativeCommands: false, backgroundSessions: false },
-    docsDir: path.join(root, "assets", "docs"),
+    docsDir,
     runtime,
     assets: [
       { from: path.join(skill, "SKILL.md"), to: "SKILL.md", kind: "reasoning" },
