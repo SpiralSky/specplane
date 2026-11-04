@@ -96,3 +96,33 @@ test("trusted finish without a trusted interaction port, or from the wrong check
   assert.equal(h.shown.length, 0);
   contended(r)().release();
 });
+
+test("an unpublished review claim needs its own preparation consent before publication, and declining publishes nothing", async () => {
+  const r = repo({ remote: true, planCfg: FM });
+  const first = host(r.co, c => (c.operation === "plan.finish:rebase" ? "decline" : "confirm"));
+  const p1 = await prepareConfirmation(request, first.context);
+  assert.equal(p1.ok, true); if (!p1.ok) return;
+  assert.equal((await confirmOperationAsync(p1.value, first.response(p1.value), first.context)).ok, true);
+  const claim = sha(r.root, "HEAD");
+  const parent = git(r.root, "rev-parse", "HEAD~1");
+  assert.equal(git(r.origin, "rev-parse", "main"), claim);
+  git(r.origin, "update-ref", "refs/heads/main", parent); // the claim is committed locally but not published
+  contended(r)().release();
+
+  const declined = host(r.co, () => "decline");
+  const p2 = await prepareConfirmation(request, declined.context);
+  assert.equal(p2.ok, false, "declining the preparation consent refuses the operation");
+  assert.deepEqual(declined.shown.map(c => c.operation), ["plan.finish"], "preparation is the only question asked");
+  assert.match(declined.shown[0].summary, /preparation only/);
+  assert.equal(git(r.origin, "rev-parse", "main"), parent, "declined preparation published nothing");
+  assert.equal(sha(r.root, "HEAD"), claim);
+  contended(r)().release();
+
+  const accepted = host(r.co, c => (c.operation === "plan.finish:rebase" ? "decline" : "confirm"));
+  const p3 = await prepareConfirmation(request, accepted.context);
+  assert.equal(p3.ok, true); if (!p3.ok) return;
+  assert.equal((await confirmOperationAsync(p3.value, accepted.response(p3.value), accepted.context)).ok, true);
+  assert.equal(accepted.shown[0].operation, "plan.finish");
+  assert.equal(git(r.origin, "rev-parse", "main"), claim, "consented preparation published the pending claim");
+  contended(r)().release();
+});
