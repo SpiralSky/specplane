@@ -237,3 +237,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-04T09:00Z — product-docs step 02 implementation
 - Added `docs/operations.ts` (index/topic/search, core exports) and `commands/docs.ts` (`specplane docs [topic]`, `docs search <text...>`, `--json`); unknown/traversal IDs, empty queries and bundle errors exit 1.
 - Tests: `docs/operations.test` (7), `docs/bundle.test` examples still pass; full Bun 925 pass, 0 fail, 90 files. Opened D7 (title-only excerpts: returned with empty excerpts).
+
+## 2026-11-04T10:00Z — product-docs step 03 implementation
+- Added `docs/freshness.ts` (read-only `checkGuidance`, explicit `refreshGuidance`), marker metadata in `agents/standing.ts`, a version/hash warning in `validate`, and corrected the generated authorship text plus the orientation sentence (manifest hash updated).
+- Tests: `docs/freshness.test` (7); `validate`, `docs/*`, `agents/*` pass; `check-sync` OK; full Bun 933 pass, 0 fail, 91 files. Opened D8 (rest of standing text differs from the spec).
