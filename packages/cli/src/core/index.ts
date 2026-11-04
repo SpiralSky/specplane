@@ -72,3 +72,6 @@ export type { DocsIndex, DocsTopic, DocsSearch } from '../docs/operations.js';
 
 export { checkGuidance, refreshGuidance } from '../docs/freshness.js';
 export type { GuidanceAsset, GuidanceState, RefreshEntry, RefreshAction } from '../docs/freshness.js';
+
+export { createWorkflowRunner, parseServeArgs, spawnExecutionPort, RUNNER_METHODS } from './workflow-runner.js';
+export type { RunnerOptions, RunnerIo, RunnerResponse, RunnerMethod } from './workflow-runner.js';
