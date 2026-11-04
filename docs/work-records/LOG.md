@@ -255,3 +255,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Scope: canonical standing text (D8, v2), neutral shared block for every init order, installed manifest staged last, legacy decision and collision reporting, `refreshGuidance` through the install transaction.
 - Checks: full suite 958 pass, 0 fail, 94 files; `check-sync.sh` OK; hooks untouched.
 - Next: codex-delivery 01.
+
+## 2026-11-04T14:00Z — codex-delivery 01 persistent runner
+- Commit: `b11eef6`. `core/workflow-runner.ts` (`createWorkflowRunner`, `parseServeArgs`, `spawnExecutionPort`, exported from core), template `harnesses/codex/templates/skills/specplane/scripts/workflow.mjs`, `harness/codex-channel.ts`.
+- Closed NDJSON framing, serialized mutations, LOCKED on overlapping executeTest, cancel bypasses the queue, EOF/close cancel through `cancelWorkflow`; an unproven stop exits 1 with the lease kept.
+- Checks: `core/workflow-runner.test` (7); full suite 965 pass, 0 fail, 95 files. Not run: Node, live Codex, packaging (step 02 delivers the script).

@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-04T13:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD see `git log`. Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-04T14:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD see `git log`. Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Review-branch implementation work is committed; only local `problems.md` is untracked (preserve it, never stage it).
@@ -14,7 +14,8 @@ Updated 2026-11-04T13:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD s
 - extension-packaging 01 is implementation-complete: `harness/package-builder.ts` (`buildExtensionPackage`) copies runtime/dependency trees, docs bundle, reasoning/hook assets and a stamped instruction file into an empty directory, derives `core/inventory.json` and `specplane-extension.json` from written bytes, resolves procedure contracts from the docs bundle sources, and self-validates with `validateCompatibility`; it certifies no host (`hostCompatibility: []`), writes no pin and activates no installer. Tests: `harness/package-builder.test` (3) plus the existing `harness/package-inventory-preparation.test` (4) and `core/compatibility.test`.
 - extension-packaging 02 is implementation-complete: `harness/containment.transaction.ts` (`InstallTransaction`: staged writes, repository lock, preimage and containment rechecks, backups plus journal in `<git-dir>/specplane-runtime/install`, rename-based replacement, rollback/finish on next open, ownership ledger of last-installed digests). `runInit` and the Claude/Codex installers stage into one transaction; owned unmodified files update, customized files are preserved. Limits: cooperative writers; a parent directory swapped inside the recheck-to-rename window is narrowed, not eliminated (no openat); non-git roots use a hashed temp directory; the installed manifest is step 03.
 - extension-packaging 03 is implementation-complete: `harness/rollout.ts` (installed manifest `.specplane/installed/<harness>.json`, staged last; evidence-only states with `enabled: "unobserved"`; `decideLegacy`; collision lines naming the unavailable command and exact action). `runInit(..., {refreshGuidance: true})` routes `refreshGuidance` (new `transaction` option) through the install transaction; there is no new CLI flag. Limits: legacy retirement is decision-only (no replacement exists yet and the transaction has no delete); the manifest location and schema are my choice, not specified.
-- Last full Bun run: 958 pass, 0 fail, 94 files (41.51 s); one earlier full run in the same session was terminated by `timeout 120` with no output (cause not diagnosed; the rerun passed). An earlier session once hit a 30 s stall (`unprepared edits...` in `core/non-plan-recording.test`) that passed on rerun. Under an agent environment (`CLAUDECODE` set) Bun hides `(pass)` lines and `harness/codex.test` fails spuriously; run with `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`.
+- codex-delivery 01 is implementation-complete: `core/workflow-runner.ts` (`createWorkflowRunner`/`parseServeArgs`, exported from core) serves protocol-1 NDJSON `inspect|prepare|executeTest|validate|record|capture|cancel|close` from one persistent process; `harness/codex-channel.ts` picks runner vs labeled manual fallback; template `scripts/workflow.mjs` exists but the Codex installer does not deliver it yet (step 02). Host identity/probes for the script come from `SPECPLANE_HOST_EVIDENCE` (JSON); absent means preparation is refused. Tests: `core/workflow-runner.test` (7). No live Codex evidence.
+- Last full Bun run: 965 pass, 0 fail, 95 files (39.59 s); one earlier full run in the same session was terminated by `timeout 120` with no output (cause not diagnosed; the rerun passed). An earlier session once hit a 30 s stall (`unprepared edits...` in `core/non-plan-recording.test`) that passed on rerun. Under an agent environment (`CLAUDECODE` set) Bun hides `(pass)` lines and `harness/codex.test` fails spuriously; run with `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`.
 - Not run: native macOS/Windows, live Claude/Codex hosts, Node tests (policy: Bun only).
 
 ## Open decisions
@@ -45,14 +46,14 @@ Updated 2026-11-04T13:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD s
 | claude-delivery | 01 | blocked | native host API evidence missing |
 | claude-delivery | 02 | not started | |
 | claude-delivery | 03 | not started | |
-| codex-delivery | 01 | not started | |
+| codex-delivery | 01 | impl-complete; managed recording pending | all 3 criteria met by `core/workflow-runner.test`; live Codex channel unverified |
 | codex-delivery | 02 | not started | |
 | codex-delivery | 03 | not started | |
 | extension-conformance | 01 | not started | |
 | extension-conformance | 02 | not started | |
 
 ## Next session
-Step: **codex-delivery 01** (claude-delivery 01 stays blocked on native host API evidence), then conformance. Real host assets are still changing, so use the package builder only on fixtures; do not freeze hashes as release evidence. When a replacement handler exists, feed `ReplacementEvidence` to `buildInstalledManifest` and add journaled delete to `InstallTransaction` before retiring legacy skills.
+Step: **codex-delivery 02** (claude-delivery 01 stays blocked on native host API evidence), then 03 and conformance. First task: make the Codex installer deliver `scripts/workflow.mjs` and core into the skill directory through the install transaction. Real host assets are still changing, so use the package builder only on fixtures; do not freeze hashes as release evidence. When a replacement handler exists, feed `ReplacementEvidence` to `buildInstalledManifest` and add journaled delete to `InstallTransaction` before retiring legacy skills.
 
 ## How to continue (orchestration)
 The user runs steps through a coordinator session that chains **Sonnet 5.5 subagents sequentially, one step per subagent**. Each subagent acts as a complete session.
