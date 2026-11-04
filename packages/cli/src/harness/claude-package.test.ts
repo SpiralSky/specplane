@@ -9,7 +9,7 @@ import { validateCompatibility, type ExtensionManifest, type HostSelection } fro
 import { runInit } from '../commands/init.js';
 import { makeRepo } from '../test-repo.js';
 import { id, repo } from '../core/workflow-test-fixture.js';
-import { CLAUDE_EXTENSION_ID, CLAUDE_HOST_SELECTION, CLAUDE_MCP_ENTRY, CLAUDE_PACKAGE_DIR, CLAUDE_REASONING_WORKFLOWS } from './claude-package.js';
+import { CLAUDE_EXTENSION_ID, CLAUDE_HOST_SELECTION, CLAUDE_MCP_ENTRY, CLAUDE_PACKAGE_DIR, CLAUDE_PLUGIN_ROOT, CLAUDE_REASONING_WORKFLOWS } from './claude-package.js';
 
 const NONCE = 'nonce-0123456789abcdef';
 const manifestOf = (root: string) => JSON.parse(fs.readFileSync(path.join(root, CLAUDE_PACKAGE_DIR, 'specplane-extension.json'), 'utf8')) as ExtensionManifest;
@@ -126,4 +126,20 @@ test('the installed MCP server binds, prepares a reasoning workflow past compati
   } finally {
     await server.end().catch(() => undefined);
   }
+});
+
+test('installer stages the plugin root beside core/: the manifest and hooks are installed, recorded and idempotent, and the MCP path the manifest names exists', () => {
+  const root = makeRepo({});
+  runInit(root, { harness: 'claude' });
+  const plugin = path.join(root, CLAUDE_PLUGIN_ROOT);
+  for (const rel of ['.claude-plugin/plugin.json', 'hooks/hooks.json', 'hooks/register.tsx', 'hooks/handlers.ts', 'hooks/commands.ts']) {
+    assert.ok(fs.existsSync(path.join(plugin, rel)), rel);
+  }
+  const manifest = JSON.parse(fs.readFileSync(path.join(plugin, '.claude-plugin/plugin.json'), 'utf8')) as { mcpServers: { specplane: { args: string[] } } };
+  assert.equal(manifest.mcpServers.specplane.args[0], '${CLAUDE_PLUGIN_ROOT}/core/dist/harness/claude-mcp-main.js');
+  assert.ok(fs.existsSync(path.join(plugin, 'core', CLAUDE_MCP_ENTRY)), 'the server entry the manifest names is staged under core/');
+  const installed = JSON.parse(fs.readFileSync(path.join(root, '.specplane/installed/claude.json'), 'utf8')) as { files: { path: string }[] };
+  assert.ok(installed.files.some(f => f.path === `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`));
+  const second = runInit(root, { harness: 'claude' });
+  assert.ok(second.some(line => /^Claude plugin root: \d+ files \(0 added, 0 updated, \d+ current, 0 preserved\)/.test(line)), second.join('\n'));
 });

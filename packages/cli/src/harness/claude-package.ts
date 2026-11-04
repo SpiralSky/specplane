@@ -7,6 +7,8 @@ import { templatesDir } from "./index.js";
 
 /** Package root relative to the repository: the plugin's `${CLAUDE_PLUGIN_ROOT}/core` layout (plugin.json `mcpServers`). */
 export const CLAUDE_PACKAGE_DIR = ".claude/specplane/core";
+/** Plugin root the host loads (`--plugin-dir`); holds `.claude-plugin/plugin.json` and `hooks/` beside `core/` (D14). */
+export const CLAUDE_PLUGIN_ROOT = ".claude/specplane";
 export const CLAUDE_EXTENSION_ID = "specplane-claude";
 /** Package-relative path of the host selection the MCP server reads. */
 export const CLAUDE_HOST_EVIDENCE_PATH = "host-evidence/claude-code.json";
