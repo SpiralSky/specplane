@@ -34,4 +34,4 @@ Check `command -v specplane`. For a source checkout, use `node <absolute-checkou
 
 `init --harness codex` installs this skill and a managed AGENTS.md block only; it does not install Codex, attach MCP tools, grant persistent permissions, or launch an agent. `init --harness none` writes only neutral scaffolding and suppresses all harness auto-detection, even if `.claude/` exists.
 
-The current conductor's live session adapter is Claude-specific and capability-gated. `plan run --harness codex` refuses with an explicit unsupported-adapter message. Use Codex/Dot's existing execution session and the CLI workflows above; do not pass Claude flags to Codex or claim a background session was started.
+The standalone CLI has no `plan run` or `plan start --run`, and no Codex background adapter is installed. Use Codex/Dot's existing execution session and the CLI workflows above; do not pass Claude flags to Codex or claim a background session was started.

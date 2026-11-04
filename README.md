@@ -240,6 +240,6 @@ On the unmerged environment-integration branch, build the CLI (`cd packages/cli 
 - `specplane init --harness none` explicitly suppresses all harness auto-detection, including an existing `.claude/` directory.
 - The Codex/Dot agent follows that skill and uses the CLI for read/validate/draft/status operations, then implements and tests in its authorized isolated checkout. Experimental development authorization is recorded separately; draft/review statuses are not promoted.
 - Final plan approval, finalization, and merge remain human decisions. No general approval-bypass mode is added.
-- This is a **CLI workflow integration**, not a live Codex background adapter. `plan run --harness codex` refuses rather than passing Claude flags to Codex. Existing Claude integration remains separate and capability-checked.
+- This is a **CLI workflow integration**, not a live Codex background adapter. The standalone CLI has no `plan run` or `plan start --run`; a host extension must supply its own session adapter to the shared conductor, so nothing is launched from installed files. Existing Claude integration remains separate and capability-checked.
 
 See `docs/specifications/architecture/codex-integration.md` (draft) and `docs/work-records/2026-11-01-codex-integration.md` for measured verification and limits.
