@@ -19,13 +19,16 @@ interface RecordData { version: 1; kind: Kind; identity: string; pid: number; ge
 /** Private transport: never put this value in prompts, commits, or public receipts. */
 export interface WorkerDelegation { commonDir: string; keys: readonly Key[]; requestId: string; generation: string; token: string; checkout: string; step: number; pid: number }
 export interface DelegatedLease { assertOwned(): void; consume(): void }
+/** Private recovery transport; only the trusted embedding lifecycle may retain it. */
+export interface HostLeaseBinding { commonDir: string; keys: readonly Key[]; requestId: string; generation: string; token: string; evidenceDigest?: string }
 
 export interface LeaseRequest { checkouts: string[]; plans?: string[]; repository?: boolean; requestId: string }
-export interface WriterLease { readonly keys: readonly Key[]; readonly reclaimed: boolean; assertOwned(): void; /** Mark host work before exposing a request. */ retainHostWorker(): void; /** Trusted embedding only, after all host workers stop. */ releaseStoppedHost(): void; delegate(input: { checkout: string; step: number; pid: number }): WorkerDelegation; acknowledgeStop(result: 'stopped' | 'uncertain'): void; release(): void }
+export interface WriterLease { readonly keys: readonly Key[]; readonly reclaimed: boolean; assertOwned(): void; /** Mark host work before exposing a request. */ retainHostWorker(): void; recoveryBinding(): HostLeaseBinding; bindRecoveryEvidence(digest: string): void; /** Trusted embedding only, after all host workers stop. */ releaseStoppedHost(): void; delegate(input: { checkout: string; step: number; pid: number }): WorkerDelegation; acknowledgeStop(result: 'stopped' | 'uncertain'): void; release(): void }
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 const fileFor = (dir: string, key: Key) => path.join(dir, `${key.kind}-${hash(key.identity)}.json`);
 const delegationMarker = (dir: string, generation: string) => path.join(dir, `delegation-${hash(generation)}.marker`);
 const hostMarker = (dir: string, generation: string) => path.join(dir, `host-${hash(generation)}.marker`);
+const completedHostMarker = (dir: string, generation: string) => path.join(dir, `completed-host-${hash(generation)}.marker`);
 const nonempty = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
 function validWorker(w: any): w is Worker | null {
   return w === null || (!!w && typeof w === 'object' && !Array.isArray(w) &&
@@ -37,9 +40,12 @@ function validWorker(w: any): w is Worker | null {
 function readRecord(file: string, key: Key): RecordData {
   let v: any;
   try {
+    const before = fs.lstatSync(file);
+    if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) throw new Error('Not a regular file with one link');
     const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
     try {
-      if (!fs.fstatSync(fd).isFile()) throw new Error('Not a regular file');
+      const opened = fs.fstatSync(fd);
+      if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== before.dev || opened.ino !== before.ino) throw new Error('Not the same regular file with one link');
       v = JSON.parse(fs.readFileSync(fd, 'utf8'));
     } finally { fs.closeSync(fd); }
   } catch { throw new LeaseRefused(`Unreadable or nonregular coordination record ${file}; inspect manually.`, 'RECOVERY_REQUIRED'); }
@@ -132,7 +138,13 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
       throw e;
     }
   });
-  let released = false, hostRetained = false;
+  return leaseHandle(commonDir, keys, requestId, generation, token, reclaimed);
+}
+
+function leaseHandle(commonDir: string, keys: Key[], requestId: string, generation: string, token: string, reclaimed: boolean, hostRetained = false, evidenceDigest?: string): WriterLease {
+  const dir = path.join(commonDir, 'specplane-runtime');
+  let released = false;
+  const binding = (): HostLeaseBinding => ({ commonDir, keys: keys.map(k => ({ ...k })), requestId, generation, token, ...(evidenceDigest ? { evidenceDigest } : {}) });
   const verify = () => {
     if (released) throw new LeaseRefused('Lease has already been released.', 'RECOVERY_REQUIRED');
     if (hostRetained && !exists(hostMarker(dir, generation))) throw new LeaseRefused('Host worker evidence is missing; inspect coordination state.', 'RECOVERY_REQUIRED');
@@ -165,6 +177,17 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
     } else if (exists(delegationMarker(dir, generation))) {
       throw new LeaseRefused('Incomplete delegation requires recovery.', 'RECOVERY_REQUIRED');
     }
+    if (hostStopped && hostRetained && evidenceDigest) {
+      if (JSON.stringify(readHostBinding(dir, generation)) !== JSON.stringify(binding())) throw new LeaseRefused('Host recovery binding changed before completion.', 'RECOVERY_REQUIRED');
+      const completed = completedHostMarker(dir, generation), content = JSON.stringify({ version: 1, ...binding() });
+      try {
+        const fd = fs.openSync(completed, 'wx', 0o600);
+        try { fs.writeFileSync(fd, content); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+        if (JSON.stringify(readLeaseBinding(completed)) !== JSON.stringify(binding())) throw new LeaseRefused('Existing completed host proof differs from the released lease.', 'RECOVERY_REQUIRED');
+      }
+    }
     for (const key of [...keys].reverse()) fs.unlinkSync(fileFor(dir, key));
     if (exists(delegationMarker(dir, generation))) fs.unlinkSync(delegationMarker(dir, generation));
     if (exists(hostMarker(dir, generation))) fs.unlinkSync(hostMarker(dir, generation));
@@ -179,8 +202,24 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
     // Persist before the prepared request can escape to a host turn. Unknown
     // host process trees require trusted acknowledgment, never PID inference.
     const fd = fs.openSync(hostMarker(dir, generation), 'wx', 0o600);
-    try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+    try { fs.writeFileSync(fd, JSON.stringify({ version: 1, ...binding() })); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
     hostRetained = true;
+  }), recoveryBinding: () => guard(dir, () => {
+    verify();
+    if (!hostRetained || JSON.stringify(readHostBinding(dir, generation)) !== JSON.stringify(binding())) throw new LeaseRefused('Host recovery binding is unavailable or changed.', 'RECOVERY_REQUIRED');
+    if (exists(delegationMarker(dir, generation)) || readAll().some(r => r.worker !== null)) throw new LeaseRefused('Delegated lease cannot recover as host work.', 'RECOVERY_REQUIRED');
+    return binding();
+  }), bindRecoveryEvidence: digest => guard(dir, () => {
+    verify();
+    if (!/^[a-f0-9]{64}$/.test(digest)) throw new LeaseRefused('Invalid recovery evidence digest.', 'RECOVERY_REQUIRED');
+    if (!hostRetained || JSON.stringify(readHostBinding(dir, generation)) !== JSON.stringify(binding())) throw new LeaseRefused('Host recovery binding is unavailable or changed.', 'RECOVERY_REQUIRED');
+    if (evidenceDigest && evidenceDigest !== digest) throw new LeaseRefused('Recovery evidence was already bound to different bytes.', 'RECOVERY_REQUIRED');
+    if (evidenceDigest === digest) return;
+    const fd = fs.openSync(hostMarker(dir, generation), fs.constants.O_WRONLY | fs.constants.O_NOFOLLOW);
+    try {
+      fs.ftruncateSync(fd, 0); fs.writeFileSync(fd, JSON.stringify({ version: 1, ...binding(), evidenceDigest: digest })); fs.fsyncSync(fd);
+    } finally { fs.closeSync(fd); }
+    evidenceDigest = digest;
   }), delegate: input => {
     const checkout = checkoutIdentity(input.checkout);
     if (checkout.commonDir !== commonDir || !keys.some(k => k.kind === 'checkout' && k.identity === checkout.gitDir) ||
@@ -203,6 +242,95 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
     if (result !== 'stopped' && result !== 'uncertain') throw new Error('A stopped or uncertain acknowledgment is required.');
     updateWorker({ ...worker, state: result });
   }), release: () => release(), releaseStoppedHost: () => release(true) };
+}
+
+/** Empty legacy host markers still block reclamation, but cannot establish recovery identity. */
+function readHostBinding(dir: string, generation: string): HostLeaseBinding { return readLeaseBinding(hostMarker(dir, generation)); }
+function readLeaseBinding(file: string): HostLeaseBinding {
+  try {
+    const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    let v: any;
+    try {
+      const stat = fs.fstatSync(fd);
+      if (!stat.isFile() || stat.nlink !== 1) throw new Error('Nonregular host marker');
+      v = JSON.parse(fs.readFileSync(fd, 'utf8'));
+    } finally { fs.closeSync(fd); }
+    if (!v || Object.keys(v).filter(k => k !== 'evidenceDigest').sort().join(',') !== 'commonDir,generation,keys,requestId,token,version' || v.version !== 1 ||
+        ![v.commonDir, v.generation, v.requestId, v.token].every(nonempty) || !Array.isArray(v.keys) || !v.keys.length ||
+        (v.evidenceDigest !== undefined && (typeof v.evidenceDigest !== 'string' || !/^[a-f0-9]{64}$/.test(v.evidenceDigest))) ||
+        v.keys.some((k: any) => !k || Object.keys(k).sort().join(',') !== 'identity,kind' || !['repository', 'plan', 'checkout'].includes(k.kind) || !nonempty(k.identity))) throw new Error('Malformed host marker');
+    return { commonDir: v.commonDir, keys: v.keys, requestId: v.requestId, generation: v.generation, token: v.token, ...(v.evidenceDigest ? { evidenceDigest: v.evidenceDigest } : {}) };
+  } catch { throw new LeaseRefused('Host recovery marker is unavailable or malformed; inspect manually.', 'RECOVERY_REQUIRED'); }
+}
+
+/** Read-only proof that an evidence-bound host lease was released after trusted
+ * stopping. This never grants writer rights or makes the journal a verified execution.
+ * Callers must still inspect the exact intended commit and current checkout state.
+ */
+export function verifyCompletedHostLease(binding: HostLeaseBinding): void {
+  if (!binding || ![binding.commonDir, binding.requestId, binding.generation, binding.token].every(nonempty) || !/^[a-f0-9]{64}$/.test(binding.evidenceDigest ?? '') || !Array.isArray(binding.keys) || !binding.keys.length)
+    throw new LeaseRefused('Invalid completed host recovery binding.', 'RECOVERY_REQUIRED');
+  const dir = path.join(binding.commonDir, 'specplane-runtime');
+  const stat = fs.lstatSync(dir);
+  if (!stat.isDirectory() || stat.isSymbolicLink() || fs.realpathSync(binding.commonDir) !== binding.commonDir) throw new LeaseRefused('Nonregular completed host recovery directory.', 'RECOVERY_REQUIRED');
+  const expected = readLeaseBinding(completedHostMarker(dir, binding.generation));
+  if (expected.commonDir !== binding.commonDir || expected.requestId !== binding.requestId || expected.generation !== binding.generation || expected.token !== binding.token || expected.evidenceDigest !== binding.evidenceDigest || JSON.stringify(expected.keys.map(k => [k.kind, k.identity])) !== JSON.stringify(binding.keys.map(k => [k.kind, k.identity])) || new Set(binding.keys.map(k => JSON.stringify(k))).size !== binding.keys.length || !binding.keys.some(k => k.kind === 'checkout'))
+    throw new LeaseRefused('Completed host recovery binding changed.', 'RECOVERY_REQUIRED');
+  for (const key of binding.keys) {
+    const file = fileFor(dir, key);
+    if (exists(file) && readRecord(file, key).generation === binding.generation) throw new LeaseRefused('Host lease release is incomplete; reconcile coordination records.', 'RECOVERY_REQUIRED');
+  }
+}
+
+/** INTERNAL trusted lifecycle only: call after independently proving all prior host
+ * workers stopped. A dead owner is an additional condition, never that proof.
+ * Inspection must verify the durable workflow journal and checkout before adoption.
+ */
+function hostRecoveryIdentity(input: HostLeaseBinding) {
+  const binding = structuredClone(input);
+  if (!binding || ![binding.commonDir, binding.requestId, binding.generation, binding.token].every(nonempty) || !Array.isArray(binding.keys) || !binding.keys.length)
+    throw new LeaseRefused('Invalid host recovery binding.', 'RECOVERY_REQUIRED');
+  const dir = path.join(binding.commonDir, 'specplane-runtime');
+  const stat = fs.lstatSync(dir);
+  if (!stat.isDirectory() || stat.isSymbolicLink() || fs.realpathSync(binding.commonDir) !== binding.commonDir) throw new LeaseRefused('Nonregular host recovery directory.', 'RECOVERY_REQUIRED');
+  const keys = binding.keys.map(k => ({ kind: k.kind, identity: k.identity }));
+  return { binding, dir, keys };
+}
+function retainedHostRecords(binding: HostLeaseBinding, dir: string, keys: Key[]) {
+  const { commonDir, requestId, generation, token } = binding;
+  const expected = readHostBinding(dir, generation);
+  if (JSON.stringify(expected) !== JSON.stringify({ commonDir, keys, requestId, generation, token, ...(binding.evidenceDigest ? { evidenceDigest: binding.evidenceDigest } : {}) }) ||
+      new Set(keys.map(k => JSON.stringify(k))).size !== keys.length || !keys.some(k => k.kind === 'checkout') || exists(delegationMarker(dir, generation)))
+    throw new LeaseRefused('Host recovery does not match the complete retained lease set.', 'RECOVERY_REQUIRED');
+  const records = keys.map(k => readRecord(fileFor(dir, k), k));
+  if (records.some(r => r.requestId !== requestId || r.generation !== generation || r.token !== token || r.pid !== records[0].pid || r.worker !== null) || !dead(records[0].pid))
+    throw new LeaseRefused('Host recovery owner is live, inconsistent or delegated.', 'RECOVERY_REQUIRED');
+  return { expected, records };
+}
+/** Refuse live or mismatched owners before consulting a host stop port. This
+ * preflight grants no rights; adoption repeats every check after stopping. */
+export function inspectHostLeaseRecovery(input: HostLeaseBinding): void {
+  const { binding, dir, keys } = hostRecoveryIdentity(input);
+  guard(dir, () => { retainedHostRecords(binding, dir, keys); });
+}
+/** Trusted lifecycle only, after independent proof that all prior host workers stopped. */
+export function recoverHostLease(input: HostLeaseBinding, inspect: () => void): WriterLease {
+  const { binding, dir, keys } = hostRecoveryIdentity(input);
+  const { commonDir, requestId, generation, token } = binding;
+  guard(dir, () => {
+    const { expected, records } = retainedHostRecords(binding, dir, keys);
+    inspect();
+    if (JSON.stringify(readHostBinding(dir, generation)) !== JSON.stringify(expected) || JSON.stringify(keys.map(k => readRecord(fileFor(dir, k), k))) !== JSON.stringify(records) || !dead(records[0].pid) || exists(delegationMarker(dir, generation)))
+      throw new LeaseRefused('Coordination state changed during host recovery.', 'RECOVERY_REQUIRED');
+    // Keep the old generation and marker throughout adoption. Any interrupted
+    // multi-record write remains protected and requires manual reconciliation.
+    for (const [i, key] of keys.entries()) {
+      const fd = fs.openSync(fileFor(dir, key), fs.constants.O_WRONLY | fs.constants.O_NOFOLLOW);
+      try { fs.ftruncateSync(fd, 0); fs.writeFileSync(fd, JSON.stringify({ ...records[i], pid: process.pid })); fs.fsyncSync(fd); }
+      finally { fs.closeSync(fd); }
+    }
+  });
+  return leaseHandle(commonDir, keys, requestId, generation, token, true, true, binding.evidenceDigest);
 }
 
 /** Worker-side access reuses the held set; it never acquires another lease. */

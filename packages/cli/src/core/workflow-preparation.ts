@@ -70,6 +70,8 @@ function specPolicy(text: string): string {
   return sha256(canonical(data));
 }
 export interface PreparedState {
+  creationDate: string;
+  confirmContent?: NonNullable<CoreContext['interaction']>['confirm'];
   captureObservation?: NonNullable<CoreContext['contributions']>['observe'];
   cancellation: AbortController; stopWorker?: NonNullable<CoreContext['lifecycle']>['stopWorkflow']; cancellationPending: boolean; leaseReleased: boolean;
   initiation: WorkflowInitiation; request: WorkflowRequest; context: CoreContext; lease: WriterLease;
@@ -116,6 +118,8 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
   let lease: WriterLease | undefined; const notices: Notice[] = [];
   try {
     if (!validInitiation(request)) refuse('INVALID_EVIDENCE', 'Expected a closed WorkflowInitiation, not a prepared WorkflowRequest.');
+    const creationDate=(context.clock?.now()??new Date()).toISOString().slice(0,10);
+    const confirmContent=typeof context.interaction?.confirm==='function'?context.interaction.confirm.bind(context.interaction):undefined;
     const captureObservation = typeof context.contributions?.observe === 'function' ? context.contributions.observe.bind(context.contributions) : undefined;
     const stopWorker = typeof context.lifecycle?.stopWorkflow === 'function' ? context.lifecycle.stopWorkflow.bind(context.lifecycle) : undefined;
     // Take private copies before awaiting host/package I/O.
@@ -136,7 +140,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
     const discoveryTarget = id ? resolvePlanContext(cwd, { id, planBranches: { local: snapshot(cwd, ref(cwd, `refs/heads/plan/${id}`), id, config), remote: snapshot(cwd, ref(cwd, `refs/remotes/origin/plan/${id}`), id, config) } }).targetBranch : null;
     const plans = id ? [id, ...(discoveryTarget?.startsWith('plan/') ? [discoveryTarget.slice(5)] : [])] : [];
     const requestId = randomUUID();
-    lease = acquireWriterLease({ checkouts: [cwd], plans, repository: Boolean(id), requestId });
+    lease = acquireWriterLease({ checkouts: [cwd], plans, repository: request.workflow!=='validate', requestId });
     clean(cwd);
     if (context.signal?.aborted) refuse('CANCELLED', 'Preparation cancelled.');
     if (id && git(cwd, 'remote').split('\n').includes('origin')) {
@@ -307,7 +311,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
     const cancellation = new AbortController();
     const boundContext = { ...context, signal: context.signal ? AbortSignal.any([context.signal, cancellation.signal]) : cancellation.signal };
     lease.retainHostWorker();
-    prepared.set(requestId, { cancellation, captureObservation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' ? null : request.selection.input });
+    prepared.set(requestId, { creationDate, confirmContent, cancellation, captureObservation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' ? null : request.selection.input });
     lease = undefined;
     return { protocol: 1, ok: true, value: envelope, notices };
   } catch (error) {
@@ -344,7 +348,7 @@ export async function assertPrepared(requestId: string, context: CoreContext): P
 /** Identity/lease-only boundary: cancellation and inspection must work after stale inputs or abortion. */
 export function assertPreparedIdentity(requestId: string, context: CoreContext): PreparedState {
   const state = prepared.get(requestId);
-  if (!state || state.context.extensionId !== context.extensionId || !context.checkout || !path.isAbsolute(context.checkout) || fs.realpathSync(context.checkout) !== state.request.checkout) return refuse('STALE_STATE', 'Prepared workflow identity/owner unavailable; cross-process recovery is unavailable.');
+  if (!state || state.context.extensionId !== context.extensionId || !context.checkout || !path.isAbsolute(context.checkout) || fs.realpathSync(context.checkout) !== state.request.checkout) return refuse('STALE_STATE', 'Prepared execution identity/owner unavailable; completed records can be inspected with recoverWorkflowRecording, but execution resumption is unavailable.');
   if (!state.leaseReleased) state.lease.assertOwned();
   return state;
 }

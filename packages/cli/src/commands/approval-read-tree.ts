@@ -84,3 +84,40 @@ export function withApprovalReadTree<T>(root: string, commit: string, use: (tree
     return use(tree);
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 }
+
+/** Private repository for ordered approval previews. Objects are read from the source;
+ * synthetic commits and indexes stay in the disposable tree and are never published. */
+export function withApprovalProjection<T>(root: string, commit: string, use: (tree: string, advance: (changes: { path: string; after: string }[]) => void) => T, validationPaths: ValidationPaths): T {
+  return withApprovalReadTree(root, commit, tree => {
+    const format = run("git", ["rev-parse", "--show-object-format"], { cwd: root }).trim();
+    const objects = run("git", ["rev-parse", "--path-format=absolute", "--git-path", "objects"], { cwd: root }).trim();
+    if (/[\r\n]/.test(objects)) throw new PlanStateError("Unsupported object directory for approval projection.");
+    run("git", ["init", "--template=", `--object-format=${format}`, "-b", "approval-preview"], { cwd: tree });
+    fs.writeFileSync(path.join(tree, ".git/objects/info/alternates"), `${objects}\n`);
+    for (const [key, value] of [["core.hooksPath", path.join(tree, ".git/disabled-hooks")], ["commit.gpgsign", "false"], ["user.name", "Specplane preview"], ["user.email", "preview@invalid"]]) {
+      run("git", ["config", "--local", key, value], { cwd: tree });
+    }
+    run("git", ["update-ref", "HEAD", commit], { cwd: tree });
+    run("git", ["read-tree", commit], { cwd: tree });
+    // The read tree materializes bytes without executable bits. Restore committed modes.
+    for (const entry of run("git", ["ls-tree", "-rz", commit], { cwd: root }).split("\0")) {
+      if (entry.startsWith("100755 ")) fs.chmodSync(path.join(tree, entry.slice(entry.indexOf("\t") + 1)), 0o755);
+    }
+    return use(tree, changes => {
+      for (const change of changes) {
+        const relative = path.relative(tree, path.resolve(tree, change.path));
+        if (!relative || relative.startsWith(`..${path.sep}`) || relative === '..' || path.isAbsolute(relative) || relative.split(path.sep)[0] === '.git') throw new PlanStateError("Unsafe approval projection output.");
+        const file = path.join(tree, relative);
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, change.after);
+        const mode = fs.statSync(file).mode & 0o111 ? '100755' : '100644';
+        const oid = run("git", ["hash-object", "-w", "--stdin", "--no-filters"], { cwd: tree, input: change.after }).trim();
+        run("git", ["update-index", "--add", "--cacheinfo", mode, oid, change.path], { cwd: tree });
+      }
+      const parent = run("git", ["rev-parse", "HEAD"], { cwd: tree }).trim();
+      const treeId = run("git", ["write-tree"], { cwd: tree }).trim();
+      const next = run("git", ["commit-tree", treeId, "-p", parent, "-m", "Specplane preview only; no approval authority"], { cwd: tree }).trim();
+      run("git", ["update-ref", "HEAD", next, parent], { cwd: tree });
+    });
+  }, validationPaths);
+}

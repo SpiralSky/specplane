@@ -48,9 +48,15 @@ export type { ConfirmedOperationReceipt } from './confirmed-operations.js';
 export { cancelWorkflow, inspectWorkflow } from './workflow-lifecycle.js';
 export type { WorkflowInspection } from './workflow-lifecycle.js';
 export const runConductor = (_request: ConductorRequest, _context: CoreContext & { adapter: SessionAdapter }): Result<never> => checked('runConductor', validate.conductor(_request) && !!_context?.adapter && ['probe', 'launch', 'observe', 'resume', 'recovery', 'cancel'].every(key => typeof (_context.adapter as unknown as Record<string, unknown>)[key] === 'function') && typeof _context.adapter.name === 'string');
-export { captureContribution, readContributions } from './contribution-capture.js';
+export { captureContribution, captureProposedContribution, readContributions } from './contribution-capture.js';
 
 export * from "./completion.js";
 
 export type { CompletionReceipt } from './completion-writer.js';
 export type { RetargetReceipt } from '../plan/retarget.js';
+
+export { recoverWorkflowRecording } from './recording-recovery.js';
+export { inspectCommittedContributions } from './contribution-history.js';
+export type { CommittedContributionInspection, CommittedContribution } from './contribution-history.js';
+
+export { reconcileWorkflowRecording } from './pending-recovery.js';

@@ -288,7 +288,7 @@ for (const mutation of ['strip-trailers', 'duplicate-trailer', 'switch-branch'] 
     fs.writeFileSync(path.join(root, '.git/hooks', hook), `#!/bin/sh\nset -e\n${script}\n`, { mode: 0o755 });
     const before = head(root);
     const result = sp(root, {}, 'plan', 'step-done', ID, '--outcome', 'done', '--summary', 'x');
-    assert.equal(result.code, 1, result.err); assert.match(result.err, /recovery required.*committed branch or core trailers/s);
+    assert.equal(result.code, 1, result.err); assert.match(result.err, mutation === 'switch-branch' ? /recovery required.*committed branch or core trailers/s : /recovery required.*committed message differs from the exact reviewed intent/s);
     assert.notEqual(head(root), before, 'the existing commit must remain available for recovery');
     assert.equal(fs.readFileSync(path.join(root, PLAN, 'steps/01-a.md'), 'utf8'), step(1, 'done'));
     assert.match(fs.readFileSync(path.join(root, PLAN, 'HANDOFF.md'), 'utf8'), /\*\*Outcome\*\*: done/);

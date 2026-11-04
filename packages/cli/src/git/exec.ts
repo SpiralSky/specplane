@@ -11,6 +11,9 @@ export function run(cmd: "git" | "gh", args: string[], opts: { cwd: string; inpu
   try {
     return execFileSync(cmd, args, {
       cwd: opts.cwd,
+      // Snapshot the caller's current environment. Some runtimes retain their
+      // startup environment when child options omit env, including an old PATH.
+      env: { ...process.env },
       encoding: opts.binary ? "buffer" : "utf8",
       maxBuffer: opts.maxBuffer ?? 64 * 1024 * 1024,
       stdio: [opts.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],

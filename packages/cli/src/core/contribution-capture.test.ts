@@ -1,4 +1,6 @@
 import { test } from 'node:test';
+import { filesystemMocks } from '../fixtures.js';
+const mock = await filesystemMocks();
 import nativeFs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import assert from 'node:assert/strict';
@@ -7,7 +9,7 @@ import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fixture,repo,id } from './workflow-test-fixture.js';
 import { prepareWorkflow,captureContribution,readContributions } from './index.js';
-import { releaseStoppedPreparation,sha256,assertPrepared,withPreparedActivity } from './workflow-preparation.js';
+import { releaseStoppedPreparation,sha256,assertPrepared,withPreparedActivity,canonical } from './workflow-preparation.js';
 import { assertContributionRecordingAvailable } from './contribution-capture.js';
 import type {ContributionEvent,CoreContext} from './contracts.js';
 async function setup(withPort=true,policyNone=false){
@@ -24,7 +26,7 @@ test('trusted review capture keeps action models and separate unknowns with stab
  const f=await setup();try{
   for(const e of [f.event('A'),f.event('B'),f.event(),f.event()]){f.observations.set(e.eventId,structuredClone(e));const result=await captureContribution(e,f.context);assert.ok(result.ok,JSON.stringify(result));if(result.ok)result.value.event.actor.model_id='mutated';assert.ok((await captureContribution(e,f.context)).ok);}
   assert.equal(f.calls(),4);const read=await readContributions({requestId:f.prepared.requestId},f.context);assert.ok(read.ok);if(!read.ok)return;assert.equal(read.value.status,'pending');assert.equal(read.value.captures.length,4);assert.equal(read.value.captures.filter(c=>!c.event.actor.model_id).length,2);assert.ok(read.value.captures.every(c=>!c.recorded));
-  const state=await assertPrepared(f.prepared.requestId,f.context);assert.throws(()=>assertContributionRecordingAvailable(state,[]),/atomically/);assert.throws(()=>assertContributionRecordingAvailable(state,[f.event('forged')]),/matching trusted/);
+  const state=await assertPrepared(f.prepared.requestId,f.context);assert.throws(()=>assertContributionRecordingAvailable(state,[]),/exact trusted/);assert.throws(()=>assertContributionRecordingAvailable(state,[f.event('forged')]),/exact trusted/);
  }finally{f.close();}
 });
 test('missing or replaced port and unobserved declarations/identities cannot establish capture',async()=>{
@@ -63,7 +65,7 @@ test('cancellation during awaited observation prevents capture and preserves evi
 
 test('policy-none model reviews and unsupported body-action capture refuse explicitly',async()=>{
  const f=await setup(true,true);try{const e=f.event('A');f.observations.set(e.eventId,e);const result=await captureContribution(e,f.context);assert.equal(result.ok,false);if(!result.ok)assert.equal(result.error.code,'POLICY_DENIED');}finally{f.close();}
- const g=await setup();try{const e=g.event('A'),edit:ContributionEvent={...e,role:'revise',action:{...e.action,kind:'edit'},revision:{beforeDigest:'a'.repeat(64),afterDigest:'b'.repeat(64)}};const result=await captureContribution(edit,g.context);assert.equal(result.ok,false);if(!result.ok)assert.equal(result.error.code,'UNSUPPORTED_CAPABILITY');}finally{g.close();}
+ const g=await setup();try{const e=g.event('A'),edit:ContributionEvent={...e,role:'revise',action:{...e.action,kind:'edit'},revision:{beforeDigest:'a'.repeat(64),afterDigest:'b'.repeat(64)}};const result=await captureContribution(edit,g.context);assert.equal(result.ok,false);if(!result.ok)assert.equal(result.error.code,'POLICY_DENIED');}finally{g.close();}
 });
 test('captured journal hardlinks and directory symlinks require recovery',async()=>{
  for(const symlink of [false,true]){const f=await setup();try{const e=f.event('A');f.observations.set(e.eventId,e);assert.ok((await captureContribution(e,f.context)).ok);const dir=path.join(f.cwd,'.git/specplane-runtime/contributions',e.requestId),file=path.join(dir,`${e.eventId}.json`);
@@ -78,7 +80,7 @@ test('capture refuses a review parent replaced between traversal and open',async
   const parent=path.join(f.cwd,'reviews'),replacement=path.join(f.cwd,'replacement');
   fs.mkdirSync(replacement);fs.writeFileSync(path.join(replacement,path.basename(e.action.evidencePath)),'Performed review');
   const open=nativeFs.openSync;let swapped=false;
-  const mocked=t.mock.method(nativeFs,'openSync',((file:fs.PathLike,flags:fs.OpenMode,mode?:fs.Mode)=>{
+  const mocked=mock.method(nativeFs,'openSync',((file:fs.PathLike,flags:fs.OpenMode,mode?:fs.Mode)=>{
    if(!swapped&&String(file)===path.join(f.cwd,e.action.evidencePath)){
     swapped=true;fs.renameSync(parent,parent+'-original');fs.symlinkSync(replacement,parent,process.platform==='win32'?'junction':'dir');
    }
@@ -87,5 +89,80 @@ test('capture refuses a review parent replaced between traversal and open',async
   syncBuiltinESMExports();
   try{const result=await captureContribution(e,f.context);assert.ok(swapped);assert.equal(result.ok,false);assert.equal(f.calls(),0);assert.deepEqual(fs.readdirSync(replacement),[path.basename(e.action.evidencePath)]);}
   finally{mocked.mock.restore();syncBuiltinESMExports();}
+ }finally{f.close();}
+});
+
+test('pending inspection labels stale action bytes while capture retry refuses them',async()=>{
+ const f=await setup();try{
+  const e=f.event('A');f.observations.set(e.eventId,e);
+  assert.ok((await captureContribution(e,f.context)).ok);
+  f.put(e.action.evidencePath,'Changed after capture');
+  const read=await readContributions({requestId:e.requestId},f.context);
+  assert.ok(read.ok,JSON.stringify(read));if(!read.ok)return;
+  assert.equal(read.value.status,'pending');assert.equal(read.value.captures[0].recorded,false);
+  assert.deepEqual(read.value.captures[0].event,e);
+  assert.ok(read.value.limitations.some(text=>text.includes('not current action/spec bytes')));
+  const retry=await captureContribution(e,f.context);
+  assert.equal(retry.ok,false);if(!retry.ok)assert.equal(retry.error.code,'INVALID_EVIDENCE');
+  assert.equal(f.calls(),1);
+  const state=await assertPrepared(e.requestId,f.context);
+  assert.throws(()=>assertContributionRecordingAvailable(state,[]),/exact trusted/);
+ }finally{f.close();}
+});
+
+for (const failure of ['partial-write', 'sync', 'close'] as const) {
+ test(`interrupted capture ${failure} preserves the unowned journal and refuses retry`,async(t)=>{
+  const f=await setup();try{
+   const e=f.event('A');f.observations.set(e.eventId,e);
+   const file=path.join(f.cwd,'.git/specplane-runtime/contributions',e.requestId,`${e.eventId}.json`);
+   const open=nativeFs.openSync,write=nativeFs.writeFileSync,sync=nativeFs.fsyncSync,close=nativeFs.closeSync;
+   let journalFd:number|undefined,closed=false,injected=false;
+   const mocks:{mock:{restore():void}}[]=[mock.method(nativeFs,'openSync',((target:fs.PathLike,flags:fs.OpenMode,mode?:fs.Mode)=>{
+    const fd=open(target,flags,mode);if(String(target)===file)journalFd=fd;return fd;
+   }) as typeof nativeFs.openSync),mock.method(nativeFs,'closeSync',(fd:number)=>{
+    close(fd);if(fd===journalFd){closed=true;if(failure==='close'){injected=true;throw Object.assign(new Error('injected close failure'),{code:'EIO'});}}
+   })];
+   if(failure==='partial-write')mocks.push(mock.method(nativeFs,'writeFileSync',((target:fs.PathOrFileDescriptor,...args:unknown[])=>{
+    if(target===journalFd){write(target,'{');injected=true;throw Object.assign(new Error('injected partial write'),{code:'ENOSPC'});}
+    return Reflect.apply(write,nativeFs,[target,...args]);
+   }) as typeof nativeFs.writeFileSync));
+   if(failure==='sync')mocks.push(mock.method(nativeFs,'fsyncSync',(fd:number)=>{
+    if(fd===journalFd){injected=true;throw Object.assign(new Error('injected sync failure'),{code:'EIO'});}sync(fd);
+   }));
+   syncBuiltinESMExports();
+   try{
+    const result=await captureContribution(e,f.context);
+    assert.equal(result.ok,false);if(!result.ok)assert.equal(result.error.code,failure==='partial-write'?'ENOSPC':'EIO');
+    assert.ok(injected);assert.ok(closed);
+   }finally{for(const mocked of mocks)mocked.mock.restore();syncBuiltinESMExports();}
+   const retained=fs.readFileSync(file,'utf8');
+   assert.equal(retained,failure==='partial-write'?'{':canonical(e));
+   for(const result of [await readContributions({requestId:e.requestId},f.context),await captureContribution(e,f.context)]){
+    assert.equal(result.ok,false);if(!result.ok)assert.equal(result.error.code,'RECOVERY_REQUIRED');
+   }
+   const state=await assertPrepared(e.requestId,f.context);
+   assert.throws(()=>assertContributionRecordingAvailable(state,[]),{code:'RECOVERY_REQUIRED'});
+   assert.equal(fs.readFileSync(file,'utf8'),retained);assert.equal(f.calls(),1);
+  }finally{f.close();}
+ });
+}
+
+test('exclusive-create collision cannot adopt an identical but unowned contribution',async(t)=>{
+ const f=await setup();try{
+  const e=f.event('A');f.observations.set(e.eventId,e);
+  const file=path.join(f.cwd,'.git/specplane-runtime/contributions',e.requestId,`${e.eventId}.json`);
+  const open=nativeFs.openSync;let injected=false;
+  const mocked=mock.method(nativeFs,'openSync',((target:fs.PathLike,flags:fs.OpenMode,mode?:fs.Mode)=>{
+   if(!injected&&String(target)===file){injected=true;fs.writeFileSync(file,canonical(e));}
+   return open(target,flags,mode);
+  }) as typeof nativeFs.openSync);
+  syncBuiltinESMExports();
+  try{
+   const result=await captureContribution(e,f.context);assert.ok(injected);assert.equal(result.ok,false);
+   if(!result.ok)assert.equal(result.error.code,'RECOVERY_REQUIRED');
+  }finally{mocked.mock.restore();syncBuiltinESMExports();}
+  const retry=await captureContribution(e,f.context);assert.equal(retry.ok,false);
+  if(!retry.ok)assert.equal(retry.error.code,'RECOVERY_REQUIRED');
+  assert.equal(fs.readFileSync(file,'utf8'),canonical(e));assert.equal(f.calls(),1);
  }finally{f.close();}
 });

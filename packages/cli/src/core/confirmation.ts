@@ -162,8 +162,21 @@ export function createConfirmation<T>(binding: ConfirmationBinding<T>, host: {
     record.phase = 'consuming'; persist();
     live();
     const result = mutate();
-    record.phase = 'completed'; persist();
-    return result;
+    function complete(value: Awaited<T> | T) {
+      // Async operations retain consuming evidence until their actual outcome is
+      // known. Never overwrite a journal changed while the operation was pending.
+      verifyJournal(); lease.assertOwned();
+      record.phase = 'completed'; persist();
+      return value;
+    }
+    if (result !== null && (typeof result === 'object' || typeof result === 'function') && typeof (result as { then?: unknown }).then === 'function') {
+      return Promise.resolve(result).then(complete) as T;
+    }
+    return complete(result) as T;
   }
-  return Object.freeze({ prepare, confirm, phase: () => journal?.phase ?? 'unprepared' });
+  /** The owner must retain its lease until this settles, including on rejection. */
+  async function confirmAsync(challenge: ConfirmationChallenge, response: ConfirmationResponse, context: { checkout: string; extensionId: string }): Promise<Awaited<T>> {
+    return await confirm(challenge, response, context);
+  }
+  return Object.freeze({ prepare, confirm, confirmAsync, phase: () => journal?.phase ?? 'unprepared' });
 }

@@ -6,6 +6,8 @@ import * as path from "node:path";
 import { test } from "node:test";
 
 import { createFinishFixture } from "./finish-fixture.js";
+import { capturePlanSnapshot } from "../generate/snapshot.js";
+import { generatePlansMd } from "../generate/plans-md.js";
 
 const { git, gitOk, sp, A, repo, fin, finConfirmed, finWithCallback, sha, branchExists, ghRepo } = createFinishFixture();
 
@@ -114,7 +116,28 @@ test("finalization hook failure reports retained checkout for recovery", () => {
   assert.equal(sha(r.co, "HEAD"), before);
   assert.equal(git(r.co, "status", "--porcelain"), "");
   assert.match(fs.readFileSync(path.join(r.co, "plans", A, "PLAN.md"), "utf8"), /status: ready/);
+  assert.equal(fs.existsSync(path.join(r.co, 'plans/PLANS.md')), false);
   fs.unlinkSync(hook);
+});
+
+test('failed finish commit restores an existing prospective index input', () => {
+  const r = repo({ planCfg: '  archive_done: true\n' });
+  const output = path.join(r.co, 'plans/PLANS.md');
+  const original = generatePlansMd(capturePlanSnapshot(r.co, 'head'));
+  fs.writeFileSync(output, original);
+  git(r.co, 'add', 'plans/PLANS.md');
+  git(r.co, 'commit', '-qm', 'capture prior plan index');
+  const before = sha(r.co, 'HEAD');
+  const common = git(r.co, 'rev-parse', '--path-format=absolute', '--git-common-dir');
+  fs.writeFileSync(path.join(common, 'hooks/pre-commit'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  const result = finConfirmed(r);
+  assert.equal(result.code, 1, result.err);
+  assert.match(result.err, /Operation-owned finish edits were restored/);
+  assert.equal(sha(r.co, 'HEAD'), before);
+  assert.equal(fs.readFileSync(output, 'utf8'), original);
+  assert.equal(git(r.co, 'status', '--porcelain'), '');
+  assert.match(fs.readFileSync(path.join(r.co, 'plans', A, 'PLAN.md'), 'utf8'), /status: ready/);
+  assert.equal(fs.existsSync(path.join(r.co, 'plans/archive', A)), false);
 });
 
 test("failed PR creation reports the already-pushed plan head", () => {

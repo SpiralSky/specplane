@@ -13,6 +13,8 @@ import { assessContent, completionSnapshot } from "../spec/completion.js";
 import { parseSpecContent } from "../spec/parse.js";
 import type { ImplementationAssessment } from "../core/completion.js";
 import { loadSpecs, validateSpecs } from "../spec/validate.js";
+import { withContainedDirectory } from "../core/contained-files.js";
+import { assertRecordingPaths } from "../plan/recording-set.js";
 import type { Config, SpecRootConfig, ValidationReport } from "../types.js";
 
 /** Usage errors that have no dedicated error class (exit 1). */
@@ -73,23 +75,61 @@ export interface SpecNewOptions {
   extends?: string;
 }
 
+export interface CreationScaffold {
+  operation: 'spec.new' | 'plan.new' | 'decision.new';
+  identity: string;
+  path: string;
+  files: { path: string; content: string }[];
+  directories: string[];
+}
+
+/** Shared dedicated-creation writer; previews never call this function. */
+export function applyCreationScaffold(plan: CreationScaffold, root: string): void {
+  const files = structuredClone(plan.files);
+  if (!files.length || new Set(files.map(file => file.path)).size !== files.length) throw new SpecUsageError('Invalid creation scaffold.');
+  assertRecordingPaths(root, files.map(file => file.path));
+  for (const file of files) {
+    try { fs.lstatSync(path.join(root, file.path)); throw new AlreadyExistsError(plan.operation === 'spec.new' ? 'Spec' : plan.operation === 'plan.new' ? 'Plan' : 'Decision', file.path); }
+    catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
+  }
+  for (const file of files) {
+    const parent = path.posix.dirname(file.path);
+    withContainedDirectory(root, parent === '.' ? null : parent, true, directory => directory.writeExclusive(path.posix.basename(file.path), file.content));
+  }
+}
+
+function newSpecIdentity(type: string, rawSlug: string, opts: SpecNewOptions, root: string, config: Config) {
+  checkType(type);
+  const rootCfg = findRoot(config, opts.root ?? 'base'), slug = rawSlug.toLowerCase(), id = `${type}/${slug}`;
+  if (!new RegExp(ID_PATTERN).test(id)) throw new SpecUsageError(`Invalid slug \`${rawSlug}\`: use lowercase letters, digits, and hyphens.`);
+  let exists = true;
+  try { resolveSpecId(id, config, rootCfg.name, root); }
+  catch (e) { if (e instanceof SpecplaneError) exists = false; else throw e; }
+  if (exists) throw new AlreadyExistsError('Spec', id);
+  return { rootCfg, slug, id };
+}
+
+/** Deterministic, noninteractive preview of the dedicated spec creation operation. */
+export function renderSpecNew(type: string, rawSlug: string, opts: SpecNewOptions, root: string, config: Config): CreationScaffold {
+  const { rootCfg, slug, id } = newSpecIdentity(type, rawSlug, opts, root, config);
+  const impl = csv(opts.implements), ext = csv(opts.extends), title = opts.title?.trim() || defaultTitle(slug);
+  if (type === 'architecture' && !impl.length) throw new SpecUsageError('Architecture spec needs `--implements`.');
+  const lines = [`id: ${id}`, `title: ${JSON.stringify(title)}`, 'status: draft', 'author: user'];
+  if (impl.length) lines.push(`implements: ${JSON.stringify(impl)}`);
+  if (ext.length) lines.push(`extends: ${ext.length === 1 ? JSON.stringify(ext[0]) : JSON.stringify(ext)}`);
+  const relative = toPosix(path.join(rootCfg.path, TYPE_DIRS[type], ...`${slug}.md`.split('/')));
+  assertRecordingPaths(root, [relative]);
+  return { operation: 'spec.new', identity: `${rootCfg.name}:${id}`, path: relative, directories: [path.posix.dirname(relative)], files: [{ path: relative, content: `---\n${lines.join('\n')}\n---\n${scaffold(type, title)}` }] };
+}
+
+export function applySpecNew(plan: CreationScaffold, root: string): void {
+  if (plan.operation !== 'spec.new') throw new SpecUsageError('Expected a spec creation scaffold.');
+  applyCreationScaffold(plan, root);
+}
+
 /** Create a spec file; returns its repository-relative path. */
 export async function specNew(type: string, rawSlug: string, opts: SpecNewOptions, root: string, config: Config): Promise<string> {
-  checkType(type);
-  const rootCfg = findRoot(config, opts.root ?? "base");
-  const slug = rawSlug.toLowerCase();
-  const id = `${type}/${slug}`;
-  if (!new RegExp(ID_PATTERN).test(id)) {
-    throw new SpecUsageError(`Invalid slug \`${rawSlug}\`: use lowercase letters, digits, and hyphens.`);
-  }
-  let exists = true;
-  try {
-    resolveSpecId(id, config, rootCfg.name, root);
-  } catch (e) {
-    if (e instanceof SpecplaneError) exists = false;
-    else throw e;
-  }
-  if (exists) throw new AlreadyExistsError("Spec", id);
+  const { slug } = newSpecIdentity(type, rawSlug, opts, root, config);
 
   let impl = csv(opts.implements);
   if (type === "architecture" && impl.length === 0 && interactive()) impl = csv(await ask("Feature spec IDs implemented (comma-separated): "));
@@ -99,14 +139,9 @@ export async function specNew(type: string, rawSlug: string, opts: SpecNewOption
   if (!title && interactive()) title = await ask("Title: ");
   if (!title) title = defaultTitle(slug);
 
-  const ext = csv(opts.extends);
-  const lines = [`id: ${id}`, `title: ${JSON.stringify(title)}`, "status: draft", "author: user"];
-  if (impl.length > 0) lines.push(`implements: ${JSON.stringify(impl)}`);
-  if (ext.length > 0) lines.push(`extends: ${ext.length === 1 ? JSON.stringify(ext[0]) : JSON.stringify(ext)}`);
-  const file = path.join(root, rootCfg.path, TYPE_DIRS[type], ...`${slug}.md`.split("/"));
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, `---\n${lines.join("\n")}\n---\n${scaffold(type, title)}`);
-  return toPosix(path.relative(root, file));
+  const plan = renderSpecNew(type, rawSlug, { ...opts, title, implements: impl.join(',') }, root, config);
+  applySpecNew(plan, root);
+  return plan.path;
 }
 
 export async function specNewCommand(type: string, slug: string, opts: SpecNewOptions): Promise<void> {

@@ -25,6 +25,7 @@ export function validateContribution(event: unknown, verify: ContributionVerifie
   const e = event as ContributionEvent;
   if (!uuid.test(e.eventId) || ({ create: 'create', revise: 'edit', review: 'review' } as const)[e.role] !== e.action.kind) throw new Error('Invalid event ID or role/action');
   if (e.role === 'review' ? !('reviewedDigest' in e.revision) : !('beforeDigest' in e.revision) || e.revision.beforeDigest === e.revision.afterDigest) throw new Error('Invalid contribution revision');
+  if ('beforeDigest' in e.revision && e.role !== 'create' && e.revision.beforeDigest === 'missing') throw new Error('Only creation may have an absent preimage');
   if (!verify(e)) throw new Error('Contribution evidence could not be verified');
 }
 function canonical(value: unknown): string {
@@ -70,6 +71,7 @@ export function carryContributions(commits: readonly { commit: string; values: r
       if (!event.event_id || !uuid.test(event.event_id) || !event.action || !event.revision ||
           ({ create: 'create', revise: 'edit', review: 'review' } as const)[event.role] !== event.action.kind ||
           (event.role === 'review' ? !('reviewedDigest' in event.revision) : !('beforeDigest' in event.revision) || event.revision.beforeDigest === event.revision.afterDigest)) throw new Error('Invalid contribution trailer evidence');
+      if ('beforeDigest' in event.revision && event.role !== 'create' && event.revision.beforeDigest === 'missing') throw new Error('Only creation may have an absent preimage');
     }
     const current = { commit, ordinal };
     if (!valid(current) || (event.origin !== undefined && !valid(event.origin)) || (event.corrects !== undefined && !valid(event.corrects))) throw new Error('Invalid contribution reference');

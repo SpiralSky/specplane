@@ -23,9 +23,9 @@ async function fixture(workflow = 'plan-step', procedure = '# Contract\n\n## Pro
   const contractHash = await put('contracts/test.md', contract);
   const blob = createHash('sha1').update(`blob ${Buffer.byteLength(contract)}\0`).update(contract).digest('hex');
   const orientationHash = await put('docs/orientation.md', 'orientation');
-  const topicHash = await put('docs/topic.md', 'topic');
+  const topics = await Promise.all(['getting-started', 'concepts', 'completion', 'workflows/plans', 'commands/spec-complete'].map(async id => ({ id, title: id, path: `topics/${id}.md`, sha256: await put(`docs/topics/${id}.md`, `# ${id}\n`), related: [] as string[], sources: [] as { id: string; path: string; sha256: string }[] })));
   const sourceHash = await put('docs/source.md', 'source');
-  const docs = JSON.stringify({ format_version: 1, core_version: info.version, docs_version: info.docsVersion, contract_version: 1, orientation: { path: 'orientation.md', sha256: orientationHash }, topics: [{ id: 'getting-started', title: 'Getting started', path: 'topic.md', sha256: topicHash, related: [], sources: [{ id: 'base:feature/test', path: 'source.md', sha256: sourceHash }] }] });
+  const docs = JSON.stringify({ format_version: 1, core_version: info.version, docs_version: info.docsVersion, contract_version: 1, orientation: { path: 'orientation.md', sha256: orientationHash }, topics: topics.map(topic => ({ ...topic, sources: [{ id: 'base:feature/test', path: 'source.md', sha256: sourceHash }] })) });
   const docsHash = await put('docs/manifest.json', docs);
   const report = JSON.stringify({ host: 'codex', version: '1.1.0', build: 'test', surface: 'cli', apis: ['nativeCommands', 'backgroundSessions'], results: [{ name: 'dispatch', passed: true }], date: '2026-01-01' });
   const reportHash = await put('reports/compat.json', report);

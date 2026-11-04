@@ -29,8 +29,8 @@ export type InteractionPort = { confirm(challenge: ConfirmationChallenge): Promi
  * infer identity from this lookup, assistant prose, startup identity or request IDs.
  * This port is not supplied by workflow JSON or model tools. */
 export type ContributionPort = { observe(request: Pick<ContributionEvent, 'requestId' | 'eventId' | 'spec' | 'action' | 'revision'>): Promise<ContributionEvent | null> };
-export type ContributionCapture = { event: ContributionEvent; status: 'pending'; recorded: false };
-export type ContributionInspection = { requestId: string; captures: ContributionCapture[]; status: 'pending' | 'unrecorded'; limitations: string[] };
+export type ContributionCapture = { event: ContributionEvent; status: 'pending'; recorded: false } | { event: ContributionEvent; status: 'recorded'; recorded: true; commit: string };
+export type ContributionInspection = { requestId: string | null; observedHead?: string; history?: import('./contribution-history.js').CommittedContribution[]; captures: ContributionCapture[]; status: 'pending' | 'unrecorded' | 'recorded'; limitations: string[] };
 export type CoreContext = { compatibility?: { manifest: unknown; host: import('./compatibility.js').HostSelection }; checkout?: string; extensionId: string; signal?: AbortSignal; git?: GitPort; filesystem?: FileSystemPort; clock?: ClockPort; interaction?: InteractionPort; execution?: ExecutionPort; lifecycle?: LifecyclePort; contributions?: ContributionPort };
 export type MechanicalRequest =
   | { operation: 'spec.complete'; arguments: { id: string; root?: string; dryRun?: boolean } }
@@ -48,10 +48,17 @@ export type WorkflowScope = { input?: string; kind: string; specIds: string[]; a
 export type WorkflowName = 'plan-step' | 'spec-assist' | 'spec-draft-architecture' | 'plan-create' | 'validate' | 'decision-new';
 export type WorkflowInitiation = { protocol: 1; workflow: WorkflowName; extensionId: string; checkout: string; mode: 'attended' | 'unattended' } & ({ workflow: 'plan-step'; selection: { planId: string; step?: number; force?: boolean; reason?: string } } | { workflow: Exclude<WorkflowName, 'plan-step'>; selection: { specIds: string[]; input: string } });
 export type WorkflowRequest = { protocol: 1; requestId: string; workflow: string; extensionId: string; checkout: string; mode: 'attended' | 'unattended'; base: WorkflowBase; scope: WorkflowScope; context: WorkflowContextEntry[]; criteria: Criterion[]; procedureDigests: Record<string, Digest | 'missing'> };
-export type WorkflowResult = { protocol: 1; requestId: string; baseDigest: Digest; outcome: 'done' | 'blocked' | 'cancelled'; summary: string; changes: { path: string; beforeDigest: Digest | 'missing'; afterDigest: Digest | 'missing'; purpose: string }[]; criterionEvidence: { criterionId: string; assessment: 'met' | 'unmet' | 'uncertain'; rationale: string; artifacts: Artifact[] }[]; gaps: string[]; contextExpansion: { path: string; anchor?: string; reason: string }[]; contributionEvents: ContributionEvent[]; openIssues: string; nextKnows: string };
+export type FinalizedSpecEdit = {spec:string;body:string};
+export type WorkflowCreation =
+ | {operation:'spec.new';arguments:Extract<MechanicalRequest,{operation:'spec.new'}>['arguments'];body:string}
+ | {operation:'plan.new';arguments:Extract<MechanicalRequest,{operation:'plan.new'}>['arguments'];body:string;steps:{title:string;body:string;context:import('../types.js').StepContextItem[]}[]}
+ | {operation:'decision.new';arguments:{title:string};body:string};
+export type ContributionProposal = {kind:'finalized';edit:FinalizedSpecEdit}|{kind:'creation';creation:WorkflowCreation};
+export type WorkflowResult = { creation?:WorkflowCreation;finalizedEdits?: FinalizedSpecEdit[]; protocol: 1; requestId: string; baseDigest: Digest; outcome: 'done' | 'blocked' | 'cancelled'; summary: string; changes: { path: string; beforeDigest: Digest | 'missing'; afterDigest: Digest | 'missing'; purpose: string }[]; criterionEvidence: { criterionId: string; assessment: 'met' | 'unmet' | 'uncertain'; rationale: string; artifacts: Artifact[] }[]; gaps: string[]; contextExpansion: { path: string; anchor?: string; reason: string }[]; contributionEvents: ContributionEvent[]; openIssues: string; nextKnows: string };
 export type RecordingProposal = { protocol: 1; requestId: string; resultDigest: Digest; currentStateDigest: Digest; paths: string[]; evidenceDigest: Digest; requiresConfirmation: boolean } & MechanicalRequest;
 
 type AdditionalOperations = {
+  'workflow.record': { requestId: string };
   init: { harness?: string }; validate: Record<string, never>; search: { query: string; kind?: 'spec' | 'plan'; status?: string; root?: string };
   'spec.new': { type: 'feature' | 'architecture'; slug: string; root?: string; title?: string; implements?: string[]; extends?: string[] };
   'spec.list': { status?: string; type?: 'feature' | 'architecture'; root?: string }; 'spec.show': { id: string; root?: string }; 'spec.validate': { ids?: string[] };
@@ -66,7 +73,7 @@ type AdditionalOperations = {
 };
 type AdditionalMechanicalRequest = { [K in keyof AdditionalOperations]: { operation: K; arguments: AdditionalOperations[K] } }[keyof AdditionalOperations];
 
-export type ContributionEvent = { eventId: string; requestId: string; spec: string; role: 'create' | 'revise' | 'review'; source: 'runtime' | 'declared'; actor: { kind: 'human' | 'model'; provider?: string; model_id?: string; session_id?: string; harness?: string; display_name?: string; parentSessionId?: string }; action: { kind: 'create' | 'edit' | 'review'; evidencePath: string; evidenceDigest: Digest }; revision: { beforeDigest: Digest; afterDigest: Digest } | { reviewedDigest: Digest } };
+export type ContributionEvent = { eventId: string; requestId: string; spec: string; role: 'create' | 'revise' | 'review'; source: 'runtime' | 'declared'; actor: { kind: 'human' | 'model'; provider?: string; model_id?: string; session_id?: string; harness?: string; display_name?: string; parentSessionId?: string }; action: { kind: 'create' | 'edit' | 'review'; evidencePath: string; evidenceDigest: Digest }; revision: { beforeDigest: Digest | 'missing'; afterDigest: Digest } | { reviewedDigest: Digest } };
 export type ConfirmationChallenge = { challengeId: string; operation: string; targets: string[]; stateDigest: Digest; payloadDigest: Digest; evidenceDigest: Digest; expiresAt: string; summary: string };
 export type ConfirmationResponse = { challengeId: string; decision: 'confirm' | 'decline'; interactionId: string };
 export type TestAssertion = { suiteId: string; parentExecutionId: string | null; executed: number; failed: number; skipped: number; evidence: { path: string; digest: Digest; format: TestRequirement['format'] } };

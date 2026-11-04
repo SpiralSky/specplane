@@ -5,19 +5,37 @@ import * as path from 'node:path';
 import {tmpdir} from 'node:os';
 import {execFileSync} from 'node:child_process';
 import { fixture,repo,stepFile,id } from './workflow-test-fixture.js';
-import { prepareWorkflow,executeWorkflowTest,validateWorkflowResult,recordWorkflow,cancelWorkflow,inspectWorkflow,captureContribution } from './index.js';
+import { prepareWorkflow,executeWorkflowTest,validateWorkflowResult,recordWorkflow,cancelWorkflow,inspectWorkflow,captureContribution,readContributions } from './index.js';
 import { releaseStoppedPreparation,sha256 } from './workflow-preparation.js';
 import {validateExecutionArtifact} from './workflow-execution.js';
 import type {CoreContext,WorkflowResult} from './contracts.js';
+// Bun writes its native JUnit report to a file. Forward those exact reporter bytes
+// to stdout while keeping the report outside the checkout being fingerprinted.
+const junitRunner = `
+const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
+const {spawnSync} = require('node:child_process');
+const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'workflow-junit-'));
+try {
+ const report = path.join(directory, 'report.xml');
+ const args = process.versions.bun
+  ? ['test', '--reporter=junit', '--reporter-outfile', report, './check.cjs']
+  : ['--test', '--test-reporter=junit', '--test-reporter-destination=' + report, 'check.cjs'];
+ const child = spawnSync(process.execPath, args, {env:process.env});
+ process.stderr.write(child.stdout ?? Buffer.alloc(0)); process.stderr.write(child.stderr ?? Buffer.alloc(0));
+ if(child.error) throw child.error;
+ if(fs.existsSync(report)) process.stdout.write(fs.readFileSync(report));
+ process.exitCode = child.status ?? 1;
+} finally { fs.rmSync(directory, {recursive:true, force:true}); }
+`;
 async function setup(remote=false, lifecycle?:CoreContext['lifecycle'], contributions?:CoreContext['contributions'], review=false){
  const r=repo();let bare='';if(remote){bare=fs.mkdtempSync(path.join(tmpdir(),'record-remote-'));execFileSync('git',['init','--bare',bare],{stdio:'ignore'});r.git('remote','add','origin',bare);r.git('push','-u','origin',`plan/${id}`);r.git('push','origin','main');}
- const mapping={schemaVersion:1,workflow:'plan-step',criteria:[{sourcePath:stepFile,sourceDigest:sha256(fs.readFileSync(path.join(r.cwd,stepFile))),criterionIndex:1,evidence:'test',testRequirements:[{suiteId:'check',format:'node-tap-v13'}]}]};
+ const mapping={schemaVersion:1,workflow:'plan-step',criteria:[{sourcePath:stepFile,sourceDigest:sha256(fs.readFileSync(path.join(r.cwd,stepFile))),criterionIndex:1,evidence:'test',testRequirements:[{suiteId:'check',format:'junit-xml'}]}]};
  const p=await fixture('plan-step','# Contract\n\n## Procedure\n\n```specplane-test-requirements\n'+JSON.stringify(mapping)+'\n```\n');
  const context:CoreContext={lifecycle,contributions,checkout:r.cwd,extensionId:p.host.extensionId,compatibility:{manifest:p.manifest,host:p.host},execution:{execute:async args=>{const stdout=execFileSync(process.execPath,args.args,{cwd:args.checkout,env:args.env});return {executable:process.execPath,exitCode:0,signal:null,stdout,stderr:Buffer.alloc(0)};}}};
  const a=await prepareWorkflow({protocol:1,workflow:'plan-step',checkout:r.cwd,extensionId:context.extensionId,mode:'attended',selection:{planId:id}},context);assert.equal(a.ok,true,JSON.stringify(a));if(!a.ok)throw Error('prepare');
- r.put('check.cjs',"require('node:test').test('check',()=>{});");
+ r.put('check.cjs',"const {describe,it}=require('node:test');describe('check',()=>it('runs',()=>require('node:assert/strict').equal(1+1,2)));");
  if(review)r.put('review.md','Performed review');
- const execution=await executeWorkflowTest({requestId:a.value.requestId,criterionIds:[a.value.criteria[0].id],executable:'node',args:['--test','--test-reporter=tap','check.cjs'],reportFormat:'node-tap-v13'},context);assert.equal(execution.ok,true,JSON.stringify(execution));if(!execution.ok)throw Error('execute');
+ const execution=await executeWorkflowTest({requestId:a.value.requestId,criterionIds:[a.value.criteria[0].id],executable:process.execPath,args:['-e',junitRunner],reportFormat:'junit-xml'},context);assert.equal(execution.ok,true,JSON.stringify(execution));if(!execution.ok)throw Error('execute');
  const result:WorkflowResult={protocol:1,requestId:a.value.requestId,baseDigest:a.value.base.digest,outcome:'done',summary:'verify implementation',changes:[{path:'check.cjs',beforeDigest:'missing',afterDigest:sha256(fs.readFileSync(path.join(r.cwd,'check.cjs'))),purpose:'prove behavior'}],criterionEvidence:[{criterionId:a.value.criteria[0].id,assessment:'met',rationale:'Actual child test executed successfully',artifacts:[execution.value.artifact]}],gaps:[],contextExpansion:[],contributionEvents:[],openIssues:'',nextKnows:'Continue the next step.'};
  if(review)result.changes.push({path:'review.md',beforeDigest:'missing',afterDigest:sha256('Performed review'),purpose:'review evidence'});
  return {...r,p,bare,context,prepared:a.value,result,execution:execution.value,close:()=>releaseStoppedPreparation(a.value.requestId)};
@@ -25,7 +43,7 @@ async function setup(remote=false, lifecycle?:CoreContext['lifecycle'], contribu
 test('real prepare-edit-execute-validate-record preserves durable summary and matching retry',async()=>{
  const f=await setup();try{
  const p=await validateWorkflowResult(f.prepared,f.result,f.context);assert.equal(p.ok,true,JSON.stringify(p));if(!p.ok)return;
- const recorded=await recordWorkflow(p.value,f.context);assert.equal(recorded.ok,true,JSON.stringify(recorded));if(!recorded.ok)return;
+ const recorded=await recordWorkflow(p.value,f.context);assert.equal(recorded.ok,true,JSON.stringify(recorded));if(!recorded.ok||!('planId' in recorded.value))return;
  assert.equal(recorded.value.commit,f.git('rev-parse','HEAD'));assert.equal(recorded.value.publication,'not-required');assert.equal(f.git('status','--porcelain'),'');
  const handoff=fs.readFileSync(path.join(f.cwd,recorded.value.handoff),'utf8');for(const text of ['executed 1, failed 0, skipped 0',f.execution.executionId,'receipt SHA-256','tested state','another clone cannot independently verify'])assert.ok(handoff.includes(text),text);
  const retry=await recordWorkflow(p.value,f.context);assert.equal(retry.ok,true,JSON.stringify(retry));if(retry.ok)assert.equal(retry.value.commit,recorded.value.commit);
@@ -58,13 +76,13 @@ test('failed publication retries the existing commit without repeating implement
 test('lost prepared lease refuses recording',async()=>{
  const f=await setup();const p=await validateWorkflowResult(f.prepared,f.result,f.context);assert.equal(p.ok,true);f.close();if(p.ok){const r=await recordWorkflow(p.value,f.context);assert.equal(r.ok,false);assert.equal(f.git('rev-parse','HEAD'),f.prepared.base.head);}
 });
-test('plan scope cannot create spec/plan/decision records; non-plan mutation remains unsupported',async()=>{
+test('plan scope refuses creation and non-plan findings record without mutation',async()=>{
  const f=await setup();try{
  f.put('specs/features/new.md','new feature');const result={...f.result,changes:[...f.result.changes,{path:'specs/features/new.md',beforeDigest:'missing',afterDigest:sha256('new feature'),purpose:'new feature'}]};const denied=await validateWorkflowResult(f.prepared,result,f.context);assert.equal(denied.ok,false);if(!denied.ok)assert.equal(denied.error.code,'POLICY_DENIED');
  }finally{f.close();}
  const r=repo(),p=await fixture('validate'),context={checkout:r.cwd,extensionId:p.host.extensionId,compatibility:{manifest:p.manifest,host:p.host}};
  const prepared=await prepareWorkflow({protocol:1,workflow:'validate',checkout:r.cwd,extensionId:context.extensionId,mode:'attended',selection:{specIds:[],input:'Review'}},context);assert.equal(prepared.ok,true);if(!prepared.ok)return;
- try{const result:WorkflowResult={...f.result,requestId:prepared.value.requestId,baseDigest:prepared.value.base.digest,outcome:'blocked',changes:[],criterionEvidence:prepared.value.criteria.map(c=>({criterionId:c.id,assessment:'uncertain',rationale:'Uncertain',artifacts:[]})),openIssues:'BLOCKED: no mutation operation'};const denied=await validateWorkflowResult(prepared.value,result,context);assert.equal(denied.ok,false);if(!denied.ok)assert.equal(denied.error.code,'UNSUPPORTED_CAPABILITY');}finally{releaseStoppedPreparation(prepared.value.requestId);}
+ try{const result:WorkflowResult={...f.result,requestId:prepared.value.requestId,baseDigest:prepared.value.base.digest,outcome:'blocked',changes:[],criterionEvidence:prepared.value.criteria.map(c=>({criterionId:c.id,assessment:'uncertain',rationale:'Uncertain',artifacts:[]})),openIssues:'BLOCKED: no mutation operation'};const accepted=await validateWorkflowResult(prepared.value,result,context);assert.ok(accepted.ok,JSON.stringify(accepted));if(accepted.ok){const recorded=await recordWorkflow(accepted.value,context);assert.ok(recorded.ok,JSON.stringify(recorded));if(recorded.ok)assert.equal(recorded.value.commit,null);}}finally{releaseStoppedPreparation(prepared.value.requestId);}
 });
 
 test('publication destination changes after validation refuse before commit',async()=>{
@@ -148,7 +166,7 @@ test('public validation refuses pending captured contributions even when result 
   const report='review.md';f.put(report,'Performed review');
   observed={eventId:crypto.randomUUID(),requestId:f.prepared.requestId,spec:'base:feature/test',role:'review',source:'runtime',actor:{kind:'model',model_id:'observed'},action:{kind:'review',evidencePath:report,evidenceDigest:sha256('Performed review')},revision:{reviewedDigest:sha256(fs.readFileSync(path.join(f.cwd,'specs/features/test.md')))}};
   const captured=await captureContribution(observed,f.context);assert.ok(captured.ok,JSON.stringify(captured));
-  const validation=await validateWorkflowResult(f.prepared,f.result,f.context);assert.equal(validation.ok,false);if(!validation.ok)assert.equal(validation.error.code,'UNSUPPORTED_CAPABILITY');assert.equal(f.git('rev-parse','HEAD'),f.prepared.base.head);
+  const validation=await validateWorkflowResult(f.prepared,f.result,f.context);assert.equal(validation.ok,false);if(!validation.ok)assert.equal(validation.error.code,'INVALID_EVIDENCE');assert.equal(f.git('rev-parse','HEAD'),f.prepared.base.head);
  }finally{f.close();}
 });
 
@@ -160,8 +178,35 @@ test('recording rechecks trusted captures added after proposal validation',async
   const validation=await validateWorkflowResult(f.prepared,f.result,f.context);assert.ok(validation.ok,JSON.stringify(validation));if(!validation.ok)return;
   observed={eventId:crypto.randomUUID(),requestId:f.prepared.requestId,spec:'base:feature/test',role:'review',source:'runtime',actor:{kind:'model',model_id:'observed'},action:{kind:'review',evidencePath:report,evidenceDigest:sha256('Performed review')},revision:{reviewedDigest:sha256(fs.readFileSync(path.join(f.cwd,'specs/features/test.md')))}};
   assert.ok((await captureContribution(observed,f.context)).ok);
-  const recorded=await recordWorkflow(validation.value,f.context);assert.equal(recorded.ok,false);if(!recorded.ok)assert.equal(recorded.error.code,'UNSUPPORTED_CAPABILITY');
+  const recorded=await recordWorkflow(validation.value,f.context);assert.equal(recorded.ok,false);if(!recorded.ok)assert.equal(recorded.error.code,'INVALID_EVIDENCE');
   assert.equal(f.git('rev-parse','HEAD'),f.prepared.base.head);
   assert.equal(fs.readFileSync(path.join(f.cwd,report),'utf8'),'Performed review');
+ }finally{f.close();}
+});
+
+
+test('trusted review events and generated summaries commit atomically and retry without duplication',async()=>{
+ const observations=new Map<string,import('./contracts.js').ContributionEvent>();
+ const f=await setup(false,undefined,{observe:async({eventId})=>observations.get(eventId)??null},true);
+ try{
+  const spec='specs/features/test.md',before=fs.readFileSync(path.join(f.cwd,spec),'utf8');
+  for(const model of ['A','B','A']){
+   const event:import('./contracts.js').ContributionEvent={eventId:crypto.randomUUID(),requestId:f.prepared.requestId,spec:'base:feature/test',role:'review',source:'runtime',actor:{kind:'model',provider:'observed',model_id:model},action:{kind:'review',evidencePath:'review.md',evidenceDigest:sha256('Performed review')},revision:{reviewedDigest:sha256(before)}};
+   observations.set(event.eventId,event);assert.ok((await captureContribution(event,f.context)).ok);f.result.contributionEvents.push(event);
+  }
+  const proposal=await validateWorkflowResult(f.prepared,f.result,f.context);assert.ok(proposal.ok,JSON.stringify(proposal));if(!proposal.ok)return;
+  assert.equal(fs.readFileSync(path.join(f.cwd,spec),'utf8'),before);
+  const recorded=await recordWorkflow(proposal.value,f.context);assert.ok(recorded.ok,JSON.stringify(recorded));if(!recorded.ok)return;
+  const {parseFrontmatter}=await import('../frontmatter.js');
+  const after=parseFrontmatter(fs.readFileSync(path.join(f.cwd,spec),'utf8'));
+  assert.equal(after.body,parseFrontmatter(before).body);assert.equal(after.data.author,'user');
+  assert.equal((after.data.contributors as unknown[]).length,2);
+  const {readTrailerEntries}=await import('../git/commit.js');
+  const events=readTrailerEntries(recorded.value.commit!,f.cwd).filter(([key])=>key==='Specplane-Contribution').map(([,value])=>JSON.parse(value));
+  assert.deepEqual(events.map(e=>e.event_id),f.result.contributionEvents.map(e=>e.eventId).sort());
+  const pending=await readContributions({requestId:f.prepared.requestId},f.context);assert.ok(pending.ok);if(pending.ok)assert.equal(pending.value.status,'recorded');
+  const history=await readContributions({spec:'base:feature/test'},f.context);assert.ok(history.ok,JSON.stringify(history));if(history.ok)assert.equal(history.value.history?.length,3);
+  assert.equal(f.git('status','--porcelain'),'');
+  const retry=await recordWorkflow(proposal.value,f.context);assert.ok(retry.ok);if(retry.ok)assert.equal(retry.value.commit,recorded.value.commit);
  }finally{f.close();}
 });

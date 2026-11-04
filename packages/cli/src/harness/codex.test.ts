@@ -13,6 +13,7 @@ import { DEFAULT_CONFIG } from '../config.js';
 import { checkSkillDrift } from '../spec/skill-drift.js';
 import { runPlan } from '../plan/run.js';
 const cli=path.join(path.dirname(fileURLToPath(import.meta.url)),'..','cli.js');
+const bunRuntime = Boolean(process.versions.bun);
 const env={...process.env,GIT_AUTHOR_NAME:'test',GIT_AUTHOR_EMAIL:'test@example.invalid',GIT_COMMITTER_NAME:'test',GIT_COMMITTER_EMAIL:'test@example.invalid'};
 const git=(cwd:string,...args:string[])=>execFileSync('git',args,{cwd,env,encoding:'utf8'}).trim();
 const sp=(cwd:string,...args:string[])=>execFileSync(process.execPath,[cli,...args],{cwd,env,encoding:'utf8'});
@@ -74,14 +75,24 @@ function experimentalWorkflow(implementation = 'export const sum = (a,b) => a+b;
   // A child test runner must not inherit the outer runner's recursive-test marker.
   const testEnv: NodeJS.ProcessEnv = {...env};
   delete testEnv.NODE_TEST_CONTEXT;
-  const child = spawnSync(process.execPath,['--test','--test-reporter=tap','sum.test.mjs'],{cwd:work,env:testEnv,encoding:'utf8'});
+  const childArgs = bunRuntime ? ['test','--timeout=30000','./sum.test.mjs'] : ['--test','--test-reporter=tap','sum.test.mjs'];
+  const child = spawnSync(process.execPath,childArgs,{cwd:work,env:testEnv,encoding:'utf8'});
   assert.ifError(child.error);
   assert.equal(child.status,0,`Child implementation tests failed:\n${child.stdout}\n${child.stderr}`);
-  // Exit zero alone can mean Node skipped the nested suite: require real execution.
-  assert.match(child.stdout,/^ok 1 - sum positive, zero and negative$/m);
-  assert.match(child.stdout,/^# tests 1$/m);
-  assert.match(child.stdout,/^# pass 1$/m);
-  assert.match(child.stdout,/^# fail 0$/m);
+  // Exit zero alone can mean a nested suite was skipped: require the named
+  // assertion case and the active runtime's real test counts.
+  if (bunRuntime) {
+   const output = `${child.stdout}\n${child.stderr}`;
+   assert.match(output,/^\(pass\) sum positive, zero and negative(?: \[[^\n]*\])?$/m);
+   assert.match(output,/^\s*1 pass$/m);
+   assert.match(output,/^\s*0 fail$/m);
+   assert.match(output,/^Ran 1 test across 1 file\./m);
+  } else {
+   assert.match(child.stdout,/^ok 1 - sum positive, zero and negative$/m);
+   assert.match(child.stdout,/^# tests 1$/m);
+   assert.match(child.stdout,/^# pass 1$/m);
+   assert.match(child.stdout,/^# fail 0$/m);
+  }
   assert.doesNotMatch(child.stderr,/skipping running files/);
   const validation=JSON.parse(sp(work,'validate','--json'));assert.equal(validation.errors.length,0);
   git(work,'add','DECISIONS.md','sum.mjs','sum.test.mjs');git(work,'commit','-qm','feat: demonstrate isolated experimental work');
@@ -101,9 +112,16 @@ test('experimental workflow rejects a broken implementation through its child te
   assert.equal(error.actual,1);
   assert.equal(error.expected,0);
   assert.match(error.message,/Child implementation tests failed:/);
-  assert.match(error.message,/^not ok 1 - sum positive, zero and negative$/m);
-  assert.match(error.message,/^# tests 1$/m);
-  assert.match(error.message,/^# fail 1$/m);
+  if (bunRuntime) {
+   assert.match(error.message,/^\(fail\) sum positive, zero and negative(?: \[[^\n]*\])?$/m);
+   assert.match(error.message,/^\s*0 pass$/m);
+   assert.match(error.message,/^\s*1 fail$/m);
+   assert.match(error.message,/^Ran 1 test across 1 file\./m);
+  } else {
+   assert.match(error.message,/^not ok 1 - sum positive, zero and negative$/m);
+   assert.match(error.message,/^# tests 1$/m);
+   assert.match(error.message,/^# fail 1$/m);
+  }
   return true;
  });
 });

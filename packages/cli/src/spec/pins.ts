@@ -162,7 +162,11 @@ const quoteKey = (k: string) => (/^[A-Za-z0-9_/.-]+$/.test(k) ? k : JSON.stringi
  * frontmatter) when absent; an empty `pins` removes it.
  */
 export function writePins(file: string, pins: Record<string, string>): void {
-  const text = fs.readFileSync(file, "utf8");
+  fs.writeFileSync(file, renderPins(fs.readFileSync(file, "utf8"), pins, file));
+}
+
+/** Render pin changes for review without writing the source file. */
+export function renderPins(text: string, pins: Record<string, string>, file = "<snapshot>"): string {
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   const lines = text.split(/\r?\n/);
   const end = lines.findIndex((l, i) => i > 0 && /^---[ \t]*$/.test(l));
@@ -184,5 +188,5 @@ export function writePins(file: string, pins: Record<string, string>): void {
     const after = Math.max(...["extends", "implements"].map(keyAt).map((i) => (i === -1 ? -1 : blockEnd(i))));
     lines.splice(after === -1 ? end : after, 0, newLine);
   }
-  fs.writeFileSync(file, lines.join(eol));
+  return lines.join(eol);
 }

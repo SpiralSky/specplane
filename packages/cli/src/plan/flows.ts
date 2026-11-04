@@ -1,5 +1,6 @@
+import { renderStatus, parseFrontmatter } from "../frontmatter.js";
 import { createHash, randomUUID } from "node:crypto";
-import { acquireWriterLease } from "../core/writer-leases.js";
+import { acquireWriterLease, checkoutIdentity, type WriterLease } from "../core/writer-leases.js";
 import { lifecycleContext, checkStackTarget, recheckLifecycleRefs, requireStackIntegration } from "./lifecycle-context.js";
 import { resolveCommit } from "./context.js";
 import { isDeepStrictEqual } from "node:util";
@@ -20,6 +21,8 @@ import { fetchPlanBranches, getPlanActivity, hasRemote, lenientFrontmatter, show
 import { formatOpenGaps, parseGaps } from "./gaps.js";
 import { listStepFiles, parseStep } from "./parse.js";
 import { listPlans, planDir } from "./resolve.js";
+import { capturePlanSnapshot, prospectivePlanSnapshot, recheckPlanSnapshot } from "../generate/snapshot.js";
+import { generatePlansMd } from "../generate/plans-md.js";
 
 export interface StartResult {
   planId: string;
@@ -134,7 +137,31 @@ function claimPlan(id: string, planPath: string, def: string, remote: boolean, m
   if (remote) run("git", ["push", "origin", def], { cwd: main });
 }
 
+function requireFinishedSteps(dir: string): void {
+  for (const f of listStepFiles(dir)) {
+    const s = parseStep(f).frontmatter;
+    if (s.status !== "done" && s.status !== "skipped") {
+      throw new PlanStateError(`Cannot finish: step ${String(s.step).padStart(2, "0")} is \`${s.status}\`.`);
+    }
+  }
+}
+
+export interface FinishGate {
+  kind: 'rebase' | 'finish-acceptance' | 'publication' | 'merge';
+  planId: string;
+  branch: string;
+  head: string;
+  target: string;
+  targetHead: string;
+  summary: string;
+}
+
 export interface FinishOptions {
+  /** Internal adapter: retain the complete writer lease across all distinct gates. */
+  lease?: WriterLease;
+  /** Structured trusted embedding seam; manual CLI confirmation remains independent. */
+  confirmGate?: (gate: Readonly<FinishGate>) => Promise<boolean>;
+  signal?: AbortSignal;
   /** Accepted for CLI compatibility; local merge requires a state-specific confirmation callback. */
   yes?: boolean;
   /** Asks the human to confirm the merge; absent means no human is available (unattended). */
@@ -212,8 +239,17 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   const main = mainRoot(root);
   const trees = listWorktrees(main);
   const planIds = git(["for-each-ref", "--format=%(refname)", "refs/heads/plan/", "refs/remotes/origin/plan/"], main).split("\n").map(x => x.replace(/^refs\/(?:heads|remotes\/origin)\/plan\//, "")).filter(Boolean);
-  const lease = acquireWriterLease({ repository: true, plans: [id, ...planIds], checkouts: trees.filter(w => !w.bare).map(w => w.path), requestId: `finish-${randomUUID()}` });
+  const lease = opts.lease ?? acquireWriterLease({ repository: true, plans: [id, ...planIds], checkouts: trees.filter(w => !w.bare).map(w => w.path), requestId: `finish-${randomUUID()}` });
   try {
+  lease.assertOwned();
+  const identities = trees.filter(tree => !tree.bare).map(tree => checkoutIdentity(tree.path));
+  if (!lease.keys.some(key => key.kind === 'repository' && key.identity === identities[0]?.commonDir) ||
+      [id, ...planIds].some(plan => !lease.keys.some(key => key.kind === 'plan' && key.identity === plan)) ||
+      identities.some(identity => !lease.keys.some(key => key.kind === 'checkout' && key.identity === identity.gitDir)))
+    throw new PlanStateError('Finish requires repository, every relevant plan and checkout lease.');
+  const checkCancelled = () => { if (opts.signal?.aborted) throw new PlanStateError('Finish cancelled; inspect any retained lifecycle changes before retrying.'); };
+  checkCancelled();
+  assertNoPendingFinish(main, id);
   const remote = hasRemote(main);
   if (remote && opts.fetch !== false) run("git", ["fetch", "origin", "+refs/heads/*:refs/remotes/origin/*"], { cwd: main });
   let p = lifecycleContext(id, config, root);
@@ -228,6 +264,13 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   const targetTree = trees.find(w => w.branch === def)?.path;
   const canSwitch = config.execution.backend === "branch" && !targetTree && tryRun(["rev-parse", "--verify", `refs/heads/${def}^{commit}`], main)?.trim() === p.context.targetCommit;
   const branch = `plan/${id}`;
+  const ask = async (kind: FinishGate['kind'], summary: string, head: string, targetHead: string): Promise<boolean> => {
+    lease.assertOwned(); checkCancelled();
+    const gate = Object.freeze({ kind, planId: id, branch, head, target: def, targetHead, summary });
+    const approved = opts.confirmGate ? await opts.confirmGate(gate) : opts.confirm ? await opts.confirm(summary) : false;
+    lease.assertOwned(); checkCancelled();
+    return approved;
+  };
   const backend = config.execution.backend;
   const merge = config.plans.merge;
   const notices: string[] = [];
@@ -243,11 +286,11 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     const finishTrailers = readTrailers(reviewed, main);
     if (merge !== "local_merge" || p.plan.status !== "done" || finishTrailers.get("Specplane-Workflow")?.at(-1) !== "finish" || finishTrailers.get("Specplane-Plan")?.at(-1) !== id || !targetTree || git(["rev-parse", "HEAD"], targetTree) !== p.context.targetCommit || !clean(targetTree) || tryRun(["merge-base", "--is-ancestor", reviewed, p.context.targetCommit], main) === null)
       throw new PlanStateError("Target is done without evidence of this plan head being integrated; reconcile before retrying.");
-    lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+    lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, p.refs);
     if (remote && p.refs[`refs/remotes/origin/${def}`] !== p.context.targetCommit) {
       const challenge = `Publish recovered \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${p.context.targetCommit}\` now?`;
-      if (!opts.confirm || !await opts.confirm(challenge)) return { planId: id, outcome: "ready", prUrl: null, finalized: true, notices: [`Integrated target \`${def}\` at \`${p.context.targetCommit}\` awaits publication confirmation.`] };
-      lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+      if (!await ask('publication', challenge, reviewed, p.context.targetCommit)) return { planId: id, outcome: "ready", prUrl: null, finalized: true, notices: [`Integrated target \`${def}\` at \`${p.context.targetCommit}\` awaits publication confirmation.`] };
+      lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, p.refs);
       if (JSON.stringify(trees) !== JSON.stringify(listWorktrees(main)) || git(["rev-parse", "--abbrev-ref", "HEAD"], targetTree) !== def || git(["rev-parse", "HEAD"], targetTree) !== p.context.targetCommit || !clean(targetTree) || revParse(branch, main) !== reviewed) throw new PlanStateError("Integrated target or checkout changed during publication confirmation; retry.");
       try { run("git", ["push", "origin", def], { cwd: targetTree }); }
       catch (e) { throw new PlanStateError(`Plan ${branch} is integrated at ${p.context.targetCommit}, but target publication failed; retry after resolving the push: ${String(e)}`); }
@@ -266,12 +309,7 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   const cur = git(["rev-parse", "--abbrev-ref", "HEAD"], root);
   if (cur !== branch) throw new PlanStateError(`Cannot finish: the checkout is on \`${cur}\`, not \`${branch}\`.`);
   if (!clean(root)) throw new PlanStateError("Cannot finish: the working tree has uncommitted changes. Commit or stash them first.");
-  for (const f of listStepFiles(dir)) {
-    const s = parseStep(f).frontmatter;
-    if (s.status !== "done" && s.status !== "skipped") {
-      throw new PlanStateError(`Cannot finish: step ${String(s.step).padStart(2, "0")} is \`${s.status}\`.`);
-    }
-  }
+  requireFinishedSteps(dir);
   if (merge === "local_merge" && backend === "external") {
     throw new PlanStateError("Cannot finish: the `external` backend does not support `local_merge`.");
   }
@@ -322,13 +360,13 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     }
     requireStackIntegration(baseId, def, tip, stackBase!, config, main, p.refs);
   }
-  lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+  lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, p.refs);
   const existingPR = merge === "pull_request" ? matchingOpenPR(branch, def, { cwd: root, forge: config.plans.forge }) : null;
   // Publish an already-created review claim before treating it as complete.
   if (frontmatterMode && remote && p.target.status === "review" && p.refs[`refs/remotes/origin/${def}`] !== tip) {
     const trailers = readTrailers(tip, main);
     if (trailers.get("Specplane-Workflow")?.at(-1) !== "claim" || trailers.get("Specplane-Plan")?.at(-1) !== id || !targetTree || !clean(targetTree) || git(["rev-parse", "HEAD"], targetTree) !== tip) throw new PlanStateError("Unpublished target review state requires reconciliation before finish.");
-    lease.assertOwned(); recheckLifecycleRefs(main, p.refs);
+    lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, p.refs);
     try { run("git", ["push", "origin", def], { cwd: targetTree }); }
     catch (e) { throw new PlanStateError(`Review claim ${tip} remains unpublished; retry after resolving the push: ${String(e)}`); }
     p.refs[`refs/remotes/origin/${def}`] = tip;
@@ -337,17 +375,10 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   const testCmd = config.plans.test_command.trim();
   if (!alreadyDone) {
     if (testCmd !== "") runTests(testCmd, root);
-    const crit = acceptanceCriteria(fs.readFileSync(path.join(dir, "PLAN.md"), "utf8"));
-    if (crit.length > 0) notices.push(`Acceptance criteria (confirm before merging):\n${crit.map((c) => `  ${c}`).join("\n")}`);
-    const gapsFile = path.join(dir, "spec-gaps.md");
-    if (fs.existsSync(gapsFile)) {
-      const open = formatOpenGaps(parseGaps(gapsFile).entries);
-      if (open.length > 0) notices.push(`Open spec gaps:\n${open.map((g) => `  ${g}`).join("\n")}`);
-    }
   }
 
   // 3. Claim review (frontmatter mode).
-  lease.assertOwned(); recheckLifecycleRefs(main, p.refs); checkAdmin(tip);
+  lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, p.refs); checkAdmin(tip);
   if (!clean(root)) throw new PlanStateError("Plan checkout changed during verification; retry.");
   if (claimReview) {
     try { claimPlan(id, planPath, def, remote, targetTree!, "review"); }
@@ -363,11 +394,34 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   const rebaseTip = claimReview ? git(["rev-parse", "HEAD"], targetTree!) : tip;
   const before = git(["rev-parse", "HEAD"], root);
   protectIgnoredCollisions(root, before, rebaseTip, stackBase ?? rebaseTip);
+  // The structured embedding must authorize preparation separately from acceptance
+  // of the resulting revision. Keep the manual CLI's documented rebase behavior.
+  if (opts.confirmGate) {
+    const rebaseTrees = listWorktrees(main);
+    const question = `Rebase \`${branch}\` at \`${before}\` onto \`${def}\` at \`${rebaseTip}\`? Resulting revision requires fresh finish acceptance.`;
+    if (!await ask('rebase', question, before, rebaseTip)) return { planId: id, outcome: 'ready', prUrl: null, finalized: alreadyDone, notices: [...notices, 'Rebase declined; finish acceptance remains unavailable.'] };
+    lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, p.refs); checkAdmin(rebaseTip);
+    if (git(['rev-parse', 'HEAD'], root) !== before || !clean(root) || JSON.stringify(rebaseTrees) !== JSON.stringify(listWorktrees(main)))
+      throw new PlanStateError('Plan, target or checkout set changed during rebase confirmation; retry.');
+  }
+  checkCancelled();
   rebaseOnto(rebaseTip, stackBase ?? rebaseTip, branch, root);
   const rebased = git(["rev-parse", "HEAD"], root) !== before;
   if (rebased && testCmd !== "") runTests(testCmd, root);
   const afterRebase = validatedPlanAt(root, "HEAD", config, id);
   if (!afterRebase || !isDeepStrictEqual(afterRebase.execution, p.context.binding) || (afterRebase.comparison_base ?? null) !== p.context.comparisonBase) throw new PlanStateError("Rebase changed execution provenance; recovery is required.");
+
+  requireFinishedSteps(planDir(id, config, root));
+  if (alreadyDone) {
+    const output = path.join(root, config.plans.dir, 'PLANS.md');
+    const stat = fs.lstatSync(output, { throwIfNoEntry: false });
+    if (!stat?.isFile() || stat.nlink !== 1) throw new PlanStateError('Finalized plan index is unavailable or unsafe; reconcile before retrying finish.');
+    const finalizedSnapshot = capturePlanSnapshot(root, 'head');
+    const expectedIndex = generatePlansMd(finalizedSnapshot);
+    if (finalizedSnapshot.outputBytes?.toString('utf8') !== expectedIndex || fs.readFileSync(output, 'utf8') !== expectedIndex ||
+        run('git', ['show', `:${finalizedSnapshot.outputPath}`], { cwd: root }) !== expectedIndex)
+      throw new PlanStateError('Finalized plan index differs from the resulting revision; reconcile before retrying finish.');
+  }
 
   lease.assertOwned();
   const targetRefs = Object.fromEntries(Object.entries(p.refs).filter(([name]) => name !== `refs/heads/${branch}` && name !== `refs/remotes/origin/${branch}`));
@@ -377,27 +431,32 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   const gapsFile = path.join(dir, "spec-gaps.md");
   const openGaps = fs.existsSync(gapsFile) ? formatOpenGaps(parseGaps(gapsFile).entries) : [];
   const gapsNotice = openGaps.length ? `Open spec gaps:\n${openGaps.map(g => `  ${g}`).join("\n")}` : null;
+  // Acceptance evidence belongs to the resulting revision, never the pre-rebase tree.
+  if (criteria.length) notices.push(`Acceptance criteria (confirm before merging):\n${criteria.map(c => `  ${c}`).join("\n")}`);
+  if (gapsNotice) notices.push(gapsNotice);
   if (alreadyDone) {
     const reviewed = git(["rev-parse", "HEAD"], root);
     const challenge = [...(criteria.length ? [`Acceptance criteria:\n${criteria.join("\n")}`] : []), ...(gapsNotice ? [gapsNotice] : []), `Accept finish \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
-    if (!opts.confirm || !await opts.confirm(challenge)) {
+    if (!await ask('finish-acceptance', challenge, reviewed, rebaseTip)) {
       notices.push(`Plan \`${id}\` is ready for fresh finish acceptance: head \`${reviewed}\`, target \`${def}\` at \`${rebaseTip}\`.`);
       return { planId: id, outcome: "ready", prUrl: null, finalized: alreadyDone, notices };
     }
-    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs); checkAdmin(rebaseTip);
+    lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, targetRefs); checkAdmin(rebaseTip);
     if (git(["rev-parse", "HEAD"], root) !== reviewed || !clean(root)) throw new PlanStateError("Plan changed during finish acceptance; retry.");
   } else {
     const reviewed = git(["rev-parse", "HEAD"], root);
-    const challenge = [...notices, `Finalize \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
-    const approved = opts.confirm ? await opts.confirm(challenge) : false;
+    const preview = finishPreview(id, config, root);
+    const challenge = [...notices, preview.summary, `Finalize \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
+    const approved = await ask('finish-acceptance', challenge, reviewed, rebaseTip);
     if (!approved) {
       notices.push(`Plan \`${id}\` is ready to merge after interactive finalization: head \`${reviewed}\`, target \`${def}\` at \`${rebaseTip}\`.`);
       return { planId: id, outcome: "ready", prUrl: null, finalized: false, notices };
     }
-    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
+    lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, targetRefs);
     if (git(["rev-parse", "HEAD"], root) !== reviewed || !clean(root)) throw new PlanStateError("Plan changed during finalization confirmation; retry.");
     checkAdmin(rebaseTip);
-    try { finalCommit(id, config, root); }
+    if (!isDeepStrictEqual(finishPreview(id, config, root), preview)) throw new PlanStateError("Finalization preview changed; retry.");
+    try { finalCommit(id, config, root, preview); }
     catch (e) { const head = git(["rev-parse", "HEAD"], root); throw new PlanStateError(`Finalization failed; plan HEAD is ${head}. Inspect the plan checkout and index before retrying: ${String(e)}`); }
     const finalHead = git(["rev-parse", "HEAD"], root);
     const finalParents = git(["rev-list", "--parents", "-n", "1", finalHead], root).split(" ");
@@ -415,15 +474,15 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     {
       const reviewed = publicationReviewed;
       const challenge = [...(criteria.length ? [`Acceptance criteria (confirm before publishing):\n${criteria.map(c => `  ${c}`).join("\n")}`] : []), ...(gapsNotice ? [gapsNotice] : []), `Publish \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
-      if (!opts.confirm || !await opts.confirm(challenge)) {
+      if (!await ask('publication', challenge, reviewed, rebaseTip)) {
         notices.push(`Plan \`${id}\` is ready for publication after interactive confirmation: head \`${reviewed}\`, target \`${def}\` at \`${rebaseTip}\`.`);
         return { planId: id, outcome: "ready", prUrl: null, finalized: true, notices };
       }
-      lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
+      lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, targetRefs);
       if (git(["rev-parse", "HEAD"], root) !== reviewed || !clean(root)) throw new PlanStateError("Plan changed during publication confirmation; retry.");
       checkAdmin(rebaseTip);
     }
-    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs);
+    lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, targetRefs);
     if (matchingOpenPR(branch, def, { cwd: root, forge: config.plans.forge }) !== existingPR) throw new PlanStateError("Pull request state changed during finish; retry.");
     const publicationHead = publicationReviewed;
     if (git(["rev-parse", "HEAD"], root) !== publicationHead || git(["rev-parse", `refs/heads/${branch}`], root) !== publicationHead || !clean(root)) throw new PlanStateError("Publication head or checkout changed; retry.");
@@ -439,18 +498,13 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     outcome = "pushed";
   } else {
     const reviewed = git(["rev-parse", "HEAD"], root);
-    if (alreadyDone && criteria.length) notices.push(`Acceptance criteria (confirm before merging):\n${criteria.map(c => `  ${c}`).join("\n")}`);
-    if (alreadyDone) {
-      const file = path.join(dir, "spec-gaps.md");
-      if (fs.existsSync(file)) { const open = formatOpenGaps(parseGaps(file).entries); if (open.length) notices.push(`Open spec gaps:\n${open.map(g => `  ${g}`).join("\n")}`); }
-    }
     const challenge = [...notices, `Merge \`${branch}\` at \`${reviewed}\` into \`${def}\` at \`${rebaseTip}\` now?`].join("\n");
-    const ok = opts.confirm ? await opts.confirm(challenge) : false;
+    const ok = await ask('merge', challenge, reviewed, rebaseTip);
     if (!ok) {
       notices.push(`Plan \`${id}\` is ready to merge: head \`${reviewed}\` into target \`${def}\` at \`${rebaseTip}\`. Run \`specplane plan finish ${id}\` interactively to confirm this head and target.`);
       return { planId: id, outcome: "ready", prUrl, finalized: true, notices };
     }
-    lease.assertOwned(); recheckLifecycleRefs(main, targetRefs); checkAdmin(rebaseTip);
+    lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, targetRefs); checkAdmin(rebaseTip);
     if (!clean(root) || git(["rev-parse", "HEAD"], root) !== reviewed || git(["rev-parse", `refs/heads/${def}`], main) !== rebaseTip) throw new PlanStateError("Target or reviewed head changed after confirmation; retry finish.");
     localMerge(id, branch, def, remote, canSwitch ? "branch" : "worktree", targetTree ?? root);
     // Delete only the exact reviewed head after independently verifying integration.
@@ -467,11 +521,113 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
     outcome = "merged";
   }
   return { planId: id, outcome, prUrl, notices };
-  } finally { lease.release(); }
+  } finally { if (!opts.lease) lease.release(); }
 }
 
-/** Step 5: `status: done`, archive when configured, one `finish` commit. */
-function finalCommit(id: string, config: Config, root: string): void {
+/** Verify physical archive inputs independently of Git's cached stat/skip flags. */
+function verifyArchiveInputs(root: string, dir: string, entries: string[]): void {
+  const expected = new Map(entries.map(entry => {
+    const tab = entry.indexOf("\t");
+    return [entry.slice(tab + 1), entry.slice(0, tab).split(" ")] as const;
+  }));
+  const visit = (relative: string): void => {
+    const absolute = path.join(root, relative);
+    const stat = fs.lstatSync(absolute);
+    if (stat.isDirectory()) {
+      // A submodule is not a recursively verified archive input.
+      if (expected.has(relative)) throw new PlanStateError(`Cannot verify archive input: ${relative}.`);
+      for (const name of fs.readdirSync(absolute)) visit(`${relative}/${name}`);
+      return;
+    }
+    const record = expected.get(relative);
+    if (!record) throw new PlanStateError(`Unreviewed archive input: ${relative}.`);
+    const [mode, type, object] = record;
+    const validType = type === "blob" && (mode === "120000" ? stat.isSymbolicLink() :
+      (mode === "100644" || mode === "100755") && stat.isFile());
+    if (!validType) throw new PlanStateError(`Archive input type differs from the reviewed revision: ${relative}.`);
+    const bytes = stat.isSymbolicLink() ? fs.readlinkSync(absolute, { encoding: "buffer" }) : fs.readFileSync(absolute);
+    const committed = run("git", ["cat-file", "blob", object], { cwd: root, binary: true });
+    const executableChanged = stat.isFile() && process.platform !== "win32" &&
+      Boolean(stat.mode & 0o111) !== (mode === "100755");
+    if (!bytes.equals(committed) || executableChanged) throw new PlanStateError(`Archive input differs from the reviewed revision: ${relative}.`);
+    expected.delete(relative);
+  };
+  visit(dir);
+  if (expected.size) throw new PlanStateError(`Missing archive input: ${expected.keys().next().value}.`);
+}
+
+/** Preview status bytes and every archive move from the reviewed revision. */
+interface FinishPreview { after: string; index: { path: string; before: string | null; after: string; mode: string }; summary: string }
+function finishPreview(id: string, config: Config, root: string): FinishPreview {
+  const dir = `${config.plans.dir}/${id}`;
+  const file = `${dir}/PLAN.md`;
+  const before = fs.readFileSync(path.join(root, file), "utf8");
+  const committed = run("git", ["show", `HEAD:${file}`], { cwd: root });
+  if (before !== committed) throw new PlanStateError("Finalization input differs from the reviewed revision.");
+  const after = renderStatus(before, "done", file);
+  if (parseFrontmatter(after, file).data.status !== "done") throw new PlanStateError("Cannot render final plan status.");
+  const dest = `${config.plans.dir}/archive/${id}`;
+  const indexRel = `${config.plans.dir}/PLANS.md`;
+  const indexFile = path.join(root, indexRel);
+  const indexStat = fs.lstatSync(indexFile, { throwIfNoEntry: false });
+  if (indexStat && (!indexStat.isFile() || indexStat.nlink !== 1)) throw new PlanStateError('Finalization plan index must be a regular file with one link.');
+  const snapshot = capturePlanSnapshot(root, 'head');
+  const indexBefore = snapshot.outputBytes?.toString('utf8') ?? null;
+  if (snapshot.outputPath !== indexRel || (indexBefore === null ? indexStat !== undefined : !indexStat || fs.readFileSync(indexFile, 'utf8') !== indexBefore)) throw new PlanStateError('Finalization plan index differs from the reviewed revision.');
+  const edits = new Map<string, Buffer | null>([[file, config.plans.archive_done ? null : Buffer.from(after)]]);
+  if (config.plans.archive_done) edits.set(`${dest}/PLAN.md`, Buffer.from(after));
+  const generated = generatePlansMd(prospectivePlanSnapshot(root, snapshot, edits));
+  const moves: string[] = [];
+  if (config.plans.archive_done) {
+    if (fs.lstatSync(path.join(root, dest), { throwIfNoEntry: false })) throw new PlanStateError(`Cannot archive plan: destination \`${dest}\` already exists. Preserve or move it before retrying finish.`);
+    const ignored = ignoredFiles(root).find(file => file.startsWith(`${dir}/`));
+    if (ignored) throw new PlanStateError(`Cannot archive plan: ignored file \`${ignored}\` would move. Preserve or move it before retrying finish.`);
+    const entries = run("git", ["ls-tree", "-r", "-z", "HEAD", "--", dir], { cwd: root }).split("\0").filter(Boolean);
+    verifyArchiveInputs(root, dir, entries);
+    for (const entry of entries) {
+      const tab = entry.indexOf("\t"), source = entry.slice(tab + 1);
+      moves.push(`${source} → ${dest}${source.slice(dir.length)} (${entry.slice(0, tab)})`);
+    }
+  }
+  return { after, index: { path: indexRel, before: indexBefore, after: generated, mode: snapshot.outputMode ?? '100644' }, summary: `Exact finalization change: ${file}\nBefore:\n${before}\nAfter:\n${after}${moves.length ? `\nArchive moves (source Git mode, type and object):\n${moves.join("\n")}` : ""}\nExact plan index change: ${indexRel}\nBefore:\n${indexBefore ?? '(missing)'}\nAfter:\n${generated}` };
+}
+
+/** A retained intent only refuses retry; its JSON never grants recovery authority. */
+function finishIntentPath(root: string, id: string): string {
+  const common = fs.realpathSync(git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root));
+  const directory = path.join(common, "specplane-finish");
+  const stat = fs.lstatSync(directory, { throwIfNoEntry: false });
+  if (stat && (!stat.isDirectory() || stat.isSymbolicLink())) throw new PlanStateError("Invalid pending finalization directory; preserve it for inspection.");
+  return path.join(directory, createHash("sha256").update(id).digest("hex") + ".json");
+}
+
+function assertNoPendingFinish(root: string, id: string): void {
+  const file = finishIntentPath(root, id);
+  if (fs.lstatSync(file, { throwIfNoEntry: false })) throw new PlanStateError(`Pending finalization evidence at ${file}; inspect the retained commit, checkout and index before explicitly reconciling this record. Finish will not retry automatically.`);
+}
+
+function retainFinishIntent(root: string, id: string, parent: string, branch: string, tree: string, message: string): () => void {
+  assertNoPendingFinish(root, id);
+  const file = finishIntentPath(root, id);
+  fs.mkdirSync(path.dirname(file), { mode: 0o700, recursive: true });
+  // Recheck the directory after creation; never follow an existing journal link.
+  finishIntentPath(root, id);
+  const bytes = JSON.stringify({ version: 1, id, checkout: fs.realpathSync(root), parent, branch, tree, message });
+  const fd = fs.openSync(file, fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_WRONLY | fs.constants.O_NOFOLLOW, 0o600);
+  let identity: fs.Stats;
+  try { fs.writeFileSync(fd, bytes); fs.fsyncSync(fd); identity = fs.fstatSync(fd); }
+  finally { fs.closeSync(fd); }
+  return () => {
+    finishIntentPath(root, id);
+    const current = fs.lstatSync(file, { throwIfNoEntry: false });
+    if (!current || !current.isFile() || current.isSymbolicLink() || current.dev !== identity.dev || current.ino !== identity.ino || current.nlink !== 1 || fs.readFileSync(file, "utf8") !== bytes)
+      throw new PlanStateError("Pending finalization evidence changed; preserve it for inspection.");
+    fs.unlinkSync(file);
+  };
+}
+
+function finalCommit(id: string, config: Config, root: string, preview: FinishPreview): void {
+  const { after, index } = preview;
   const dir = `${config.plans.dir}/${id}`;
   const protectArchive = () => {
     const dest = `${config.plans.dir}/archive/${id}`;
@@ -483,10 +639,9 @@ function finalCommit(id: string, config: Config, root: string): void {
   if (config.plans.archive_done) protectArchive();
   const file = path.join(root, dir, "PLAN.md");
   const text = fs.readFileSync(file, "utf8");
-  const end = text.indexOf("\n---", 3);
   let phase = "writing done status";
   try {
-    fs.writeFileSync(file, text.slice(0, end).replace(/^status:.*$/m, "status: done") + text.slice(end));
+    fs.writeFileSync(file, after);
     phase = "staging done status";
     git(["add", "--", `${dir}/PLAN.md`], root);
     if (config.plans.archive_done) {
@@ -496,6 +651,9 @@ function finalCommit(id: string, config: Config, root: string): void {
       fs.mkdirSync(path.join(root, config.plans.dir, "archive"), { recursive: true });
       git(["mv", dir, dest], root);
     }
+    phase = "writing and staging the prospective plan index";
+    fs.writeFileSync(path.join(root, index.path), index.after);
+    git(["add", "--", index.path], root);
   } catch (e) { throw new PlanStateError(`Finish preparation failed while ${phase}; inspect the checkout and index for partial edits: ${String(e)}`); }
   const msg = formatMessage({ type: "chore", scope: "specplane", summary: `finish ${id}`, trailers: cliTrailers("finish", id) });
   const head = git(["rev-parse", "HEAD"], root);
@@ -503,20 +661,54 @@ function finalCommit(id: string, config: Config, root: string): void {
   const status = raw(["status", "--porcelain", "-z"]);
   const cached = raw(["diff", "--cached", "--binary"]);
   const unstaged = raw(["diff", "--binary"]);
+  const expectedTree = git(["write-tree"], root);
+  const sourceEntries = raw(["ls-tree", "-r", "-z", head, "--", dir]).split('\0').filter(Boolean);
+  const sourcePaths = sourceEntries.map(entry => entry.slice(entry.indexOf('\t') + 1));
+  const dest = `${config.plans.dir}/archive/${id}`;
+  const planFile = `${config.plans.archive_done ? dest : dir}/PLAN.md`;
+  const expectedPaths = [...(config.plans.archive_done ? sourcePaths.flatMap(source => [source, `${dest}${source.slice(dir.length)}`]) : [`${dir}/PLAN.md`]), ...(index.before === index.after ? [] : [index.path])].sort();
+  const actualPaths = raw(["diff", "--cached", "--name-only", "--no-renames", "-z", head]).split('\0').filter(Boolean).sort();
+  const normalizedEntries = (ref: string, location: string) => raw(["ls-tree", "-r", "-z", ref, "--", location]).split('\0').filter(Boolean).map(entry => {
+    const tab = entry.indexOf('\t');
+    return `${entry.slice(0, tab)}\t${entry.slice(tab + 1).slice(location.length + 1)}`;
+  }).filter(entry => !entry.endsWith('\tPLAN.md')).sort();
+  if (!isDeepStrictEqual(actualPaths, expectedPaths) || raw(["show", `:${planFile}`]) !== after || raw(["show", `:${index.path}`]) !== index.after ||
+      git(["ls-tree", expectedTree, "--", index.path], root).split(' ')[0] !== index.mode ||
+      !isDeepStrictEqual(normalizedEntries(head, dir), normalizedEntries(expectedTree, config.plans.archive_done ? dest : dir)) ||
+      git(["ls-tree", head, "--", `${dir}/PLAN.md`], root).split(' ')[0] !== git(["ls-tree", expectedTree, "--", planFile], root).split(' ')[0])
+    throw new PlanStateError('Finalization index differs from the exact prospective changes; retain checkout and staging for inspection.');
+  const expectedBranch = git(["symbolic-ref", "HEAD"], root);
+  const clearIntent = retainFinishIntent(root, id, head, expectedBranch, expectedTree, msg);
   try { run("git", ["commit", "-F", "-"], { cwd: root, input: msg }); }
   catch (e) {
     const dest = `${config.plans.dir}/archive/${id}`;
-    const safe = git(["rev-parse", "HEAD"], root) === head && raw(["status", "--porcelain", "-z"]) === status &&
+    const safe = git(["rev-parse", "HEAD"], root) === head && git(["symbolic-ref", "HEAD"], root) === expectedBranch && raw(["status", "--porcelain", "-z"]) === status &&
       raw(["diff", "--cached", "--binary"]) === cached && raw(["diff", "--binary"]) === unstaged &&
+      fs.existsSync(path.join(root, index.path)) && fs.readFileSync(path.join(root, index.path), 'utf8') === index.after &&
       (!config.plans.archive_done || (!fs.existsSync(path.join(root, dir)) && fs.existsSync(path.join(root, dest))));
     if (!safe) throw new PlanStateError(`Finish edits were retained because the checkout or index changed unexpectedly: ${String(e)}`);
     try {
-      git(["reset", "-q", "HEAD", "--", dir, ...(config.plans.archive_done ? [dest] : [])], root);
+      git(["reset", "-q", "HEAD", "--", dir, ...(config.plans.archive_done ? [dest] : []), index.path], root);
       if (config.plans.archive_done) fs.renameSync(path.join(root, dest), path.join(root, dir));
       fs.writeFileSync(file, text);
+      if (index.before === null) fs.unlinkSync(path.join(root, index.path));
+      else fs.writeFileSync(path.join(root, index.path), index.before);
+      clearIntent();
     } catch (restore) { throw new PlanStateError(`Finish edit restoration was incomplete; inspect the checkout and index: ${String(restore)}; original failure: ${String(e)}`); }
     throw new PlanStateError(`Operation-owned finish edits were restored after commit failure: ${String(e)}`);
   }
+  // Hooks can commit different bytes while preserving the finish trailers and a
+  // clean checkout. Retain that commit, but never proceed to merge consent.
+  const committed = git(["rev-parse", "HEAD"], root);
+  const object = raw(["cat-file", "commit", committed]);
+  const message = object.slice(object.indexOf("\n\n") + 2);
+  if (git(["symbolic-ref", "HEAD"], root) !== expectedBranch ||
+      git(["rev-list", "--parents", "-n", "1", committed], root) !== `${committed} ${head}` ||
+      git(["rev-parse", `${committed}^{tree}`], root) !== expectedTree || message !== msg || !clean(root) ||
+      !fs.existsSync(path.join(root, index.path)) || fs.readFileSync(path.join(root, index.path), 'utf8') !== index.after) {
+    throw new PlanStateError(`Finalization commit ${committed} differs from the prepared tree, message or branch; retain it for inspection before retrying.`);
+  }
+  clearIntent();
 }
 
 /** Local merge in the main checkout (feature/plan-execution § Local merge). */
@@ -637,7 +829,22 @@ export function cleanupPlan(id: string, config: Config, root: string, opts: { fo
   } finally { lease.release(); }
 }
 
+export interface AbandonPreview {
+  checkout: string;
+  target: string;
+  parent: string;
+  changes: { path: string; before: string | null; after: string | null }[];
+  archive: { from: string; to: string } | null;
+  removeWorktree: string | null;
+  deleteBranch: string | null;
+  publish: boolean;
+}
+
 export interface AbandonOptions {
+  /** Internal adapter: retain the already-held complete lease through human review. */
+  lease?: WriterLease;
+  /** Internal adapter: report exact prospective output and return before writes. */
+  preview?: (value: AbandonPreview) => void;
   deleteBranch?: boolean;
   force?: boolean;
 }
@@ -695,8 +902,14 @@ function validatePendingCommit(main: string, record: AbandonPending, commit: str
 /** `specplane plan abandon <id>` (feature/plan-execution § Abandoning a plan). Re-running finishes any leftover steps. */
 export function abandonPlan(id: string, config: Config, root: string, opts: AbandonOptions = {}): AbandonResult {
   const trees = listWorktrees(root);
-  const lease = acquireWriterLease({ repository: true, plans: [id], checkouts: trees.filter(t => !t.bare).map(t => t.path), requestId: `abandon-${randomUUID()}` });
+  const lease = opts.lease ?? acquireWriterLease({ repository: true, plans: [id], checkouts: trees.filter(t => !t.bare).map(t => t.path), requestId: `abandon-${randomUUID()}` });
   try {
+  lease.assertOwned();
+  const identities = trees.filter(t => !t.bare).map(t => checkoutIdentity(t.path));
+  if (!lease.keys.some(k => k.kind === 'plan' && k.identity === id) ||
+      !lease.keys.some(k => k.kind === 'repository' && k.identity === identities[0]?.commonDir) ||
+      identities.some(identity => !lease.keys.some(k => k.kind === 'checkout' && k.identity === identity.gitDir)))
+    throw new PlanStateError('Abandonment requires repository, plan and every relevant checkout lease.');
   const report = planReport(id, config, root, null);
   if (!report.target_branch || report.target_status === null) throw new PlanStateError('Cannot abandon: authoritative target is unavailable.');
   const def = report.target_branch;
@@ -709,6 +922,14 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   const rec = listPlans(config, main).find((p) => p.id === id);
   if (!rec) throw new PlanNotFoundError(id);
   const status = String(lenientFrontmatter(fs.readFileSync(rec.planFile, "utf8"))?.status ?? "unknown");
+  const verifyPlanIndex = (commit: string) => {
+    const current = capturePlanSnapshot(main, 'head');
+    const expected = generatePlansMd(current);
+    if (current.identity !== commit || current.outputBytes?.toString('utf8') !== expected ||
+        !fs.existsSync(path.join(main, current.outputPath)) || fs.readFileSync(path.join(main, current.outputPath), 'utf8') !== expected ||
+        run('git', ['show', `:${current.outputPath}`], { cwd: main }) !== expected)
+      throw new PlanStateError(`Abandonment commit ${commit} retained; plan index changed before publication or cleanup.`);
+  };
   const finishAbandonCleanup = (commit: string, archived: boolean, committed: boolean, verifyJournal: () => void): AbandonResult => {
     const baseline = planReport(id, config, main, null).ref_freshness;
     if (baseline.target_local !== commit || baseline.plan_local !== report.ref_freshness.plan_local || baseline.plan_remote !== report.ref_freshness.plan_remote)
@@ -717,6 +938,7 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
     const verify = () => {
       lease.assertOwned();
       verifyJournal();
+      verifyPlanIndex(commit);
       if (!isDeepStrictEqual(expectedTrees, listWorktrees(main)) || !isDeepStrictEqual(baseline, planReport(id, config, main, null).ref_freshness) ||
           git(['rev-parse', 'HEAD'], main) !== commit || git(['rev-parse', '--abbrev-ref', 'HEAD'], main) !== def)
         throw new PlanStateError(`Abandonment commit ${commit} retained; refs or checkouts changed before cleanup.`);
@@ -735,6 +957,7 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   const journalDir = path.dirname(journal);
   if (fs.existsSync(journalDir) && !fs.lstatSync(journalDir).isDirectory()) throw new PlanStateError('Invalid pending abandonment directory; reconcile it before continuing.');
   if (fs.lstatSync(journal, { throwIfNoEntry: false })?.isSymbolicLink()) throw new PlanStateError('Invalid pending abandonment record; reconcile it before continuing.');
+  if (opts.preview && status === 'abandoned') throw new PlanStateError('Retained abandonment requires explicit reconciliation before preparing new consent.');
   if (status === "abandoned" && fs.existsSync(journal)) {
     const bytes = fs.readFileSync(journal, 'utf8');
     let pending: AbandonPending;
@@ -761,8 +984,14 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
       }).filter(entry => !entry.endsWith('\tPLAN.md')).sort();
       const destinationDir = rec.archived ? archivedDir : activeDir;
       if (!isDeepStrictEqual(treeEntries(parent, sourceDir), treeEntries(local, destinationDir))) throw new PlanStateError(`Cannot abandon: retained commit ${local} changed unrelated plan files.`);
-      if (!previous || previous.id !== id || ['done', 'abandoned'].includes(String(previous.status)) || expected !== targetRecord.text || changedPaths.some(f => !f.startsWith(`${config.plans.dir}/${id}/`) && !f.startsWith(`${config.plans.dir}/archive/${id}/`)))
+      const retrySnapshot = capturePlanSnapshot(main, 'head');
+      const indexRel = retrySnapshot.outputPath;
+      const expectedIndex = generatePlansMd(retrySnapshot);
+      if (retrySnapshot.identity !== local || showFile(local, indexRel, main) !== expectedIndex || !fs.existsSync(path.join(main, indexRel)) || fs.readFileSync(path.join(main, indexRel), 'utf8') !== expectedIndex)
+        throw new PlanStateError(`Cannot abandon: retained commit ${local} has an invalid prospective plan index.`);
+      if (!previous || previous.id !== id || ['done', 'abandoned'].includes(String(previous.status)) || expected !== targetRecord.text || changedPaths.some(f => f !== indexRel && !f.startsWith(`${config.plans.dir}/${id}/`) && !f.startsWith(`${config.plans.dir}/archive/${id}/`)))
         throw new PlanStateError(`Cannot abandon: retained commit ${local} is not an authenticated transition.`);
+      verifyPlanIndex(local);
       if (hasRemote(main)) {
         const published = git(['ls-remote', '--heads', 'origin', `refs/heads/${def}`], main).split(/\s+/)[0];
         if (published === parent) {
@@ -820,7 +1049,33 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   const result: AbandonResult = { planId: id, committed: false, archived: false, worktreeRemoved: false, branchDeleted: false };
   const original = fs.readFileSync(rec.planFile, 'utf8');
   const changed = abandonedText(original);
-  const paths = [relDir, ...(moves ? [archiveRel] : [])];
+  const outputStat = fs.lstatSync(path.join(main, config.plans.dir, 'PLANS.md'), { throwIfNoEntry: false });
+  if (outputStat && (!outputStat.isFile() || outputStat.nlink !== 1)) throw new PlanStateError('Cannot abandon: plan index must be a regular file with one link.');
+  const snapshot = capturePlanSnapshot(main, 'head');
+  const indexRel = snapshot.outputPath;
+  const indexFile = path.join(main, indexRel);
+  const indexOriginal = snapshot.outputBytes ?? null;
+  const outputPresent = fs.existsSync(indexFile);
+  if (snapshot.identity !== targetRecord.ref || !snapshot.plans.some(p => p.path === `${relDir}/PLAN.md` && p.bytes.toString('utf8') === original) ||
+      (indexOriginal === null ? outputPresent : !outputPresent || !fs.readFileSync(indexFile).equals(indexOriginal)))
+    throw new PlanStateError('Cannot abandon: target snapshot or plan index differs from HEAD.');
+  const edits = new Map<string, Buffer | null>([[`${relDir}/PLAN.md`, moves ? null : Buffer.from(changed)]]);
+  if (moves) edits.set(`${archiveRel}/PLAN.md`, Buffer.from(changed));
+  const generated = generatePlansMd(prospectivePlanSnapshot(main, snapshot, edits));
+  if (opts.preview) {
+    recheckPlanSnapshot(main, snapshot);
+    lease.assertOwned();
+    opts.preview({ checkout: main, target: def, parent: snapshot.identity,
+      changes: [
+        { path: `${relDir}/PLAN.md`, before: original, after: moves ? null : changed },
+        ...(moves ? [{ path: `${archiveRel}/PLAN.md`, before: null, after: changed }] : []),
+        { path: indexRel, before: indexOriginal?.toString('utf8') ?? null, after: generated },
+      ], archive: moves ? { from: relDir, to: archiveRel } : null,
+      removeWorktree: wt, deleteBranch: opts.deleteBranch ? branch : null, publish: hasRemote(main),
+    });
+    return result;
+  }
+  const paths = [relDir, ...(moves ? [archiveRel] : []), indexRel];
   const before = git(['rev-parse', 'HEAD'], main);
   let staged: string | null = null;
   let expectedTree: string | null = null;
@@ -828,7 +1083,9 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   let journalBytes: string | null = null;
   let journalCreated = false;
   let journalFd: number | null = null;
+  let outputWritten = false;
   try {
+    recheckPlanSnapshot(main, snapshot);
     fs.mkdirSync(journalDir, { recursive: true });
     if (!fs.lstatSync(journalDir).isDirectory()) throw new PlanStateError('Invalid pending abandonment directory.');
     journalFd = fs.openSync(journal, 'wx', 0o600);
@@ -841,24 +1098,28 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
       git(['mv', relDir, archiveRel], main);
       result.archived = true;
     }
+    fs.writeFileSync(indexFile, generated);
+    outputWritten = true;
     staged = run('git', ['diff', '--cached', '--binary'], { cwd: main });
     const writtenFile = path.join(main, moves ? `${archiveRel}/PLAN.md` : `${relDir}/PLAN.md`);
-    const otherAdmin = git(['status', '--porcelain', '--untracked-files=all', '--ignored', '--', config.plans.dir, '.specplane/config.yaml', `:(exclude)${relDir}`, `:(exclude)${archiveRel}`], main);
-    if (otherAdmin || !isDeepStrictEqual(trees, listWorktrees(root)) || !isDeepStrictEqual(report.ref_freshness, planReport(id, config, root, null).ref_freshness) || git(['rev-parse', 'HEAD'], main) !== before || fs.readFileSync(writtenFile, 'utf8') !== changed)
+    const otherAdmin = git(['status', '--porcelain', '--untracked-files=all', '--ignored', '--', config.plans.dir, '.specplane/config.yaml', `:(exclude)${relDir}`, `:(exclude)${archiveRel}`, `:(exclude)${indexRel}`], main);
+    if (otherAdmin || !isDeepStrictEqual(trees, listWorktrees(root)) || !isDeepStrictEqual(report.ref_freshness, planReport(id, config, root, null).ref_freshness) || git(['rev-parse', 'HEAD'], main) !== before || fs.readFileSync(writtenFile, 'utf8') !== changed || fs.readFileSync(indexFile, 'utf8') !== generated)
       throw new PlanStateError('Administrative inputs or refs changed during abandonment; retry.');
     lease.assertOwned();
-    git(['add', '--', `${moves ? archiveRel : relDir}/PLAN.md`], main);
+    git(['add', '--', `${moves ? archiveRel : relDir}/PLAN.md`, indexRel], main);
     staged = run('git', ['diff', '--cached', '--binary'], { cwd: main });
     const stagedFiles = git(['diff', '--cached', '--name-only', '--no-renames', '-z'], main).split('\0').filter(Boolean);
     const sourceFiles = git(['ls-tree', '-r', '--name-only', '-z', before, '--', relDir], main).split('\0').filter(Boolean);
-    const expectedFiles = moves ? sourceFiles.flatMap(f => [f, `${archiveRel}/${f.slice(relDir.length + 1)}`]).sort() : [`${relDir}/PLAN.md`];
+    const expectedFiles = [...(moves ? sourceFiles.flatMap(f => [f, `${archiveRel}/${f.slice(relDir.length + 1)}`]) : [`${relDir}/PLAN.md`]),
+      ...(indexOriginal?.toString('utf8') === generated ? [] : [indexRel])].sort();
     const treeEntries = (ref: string, dir: string) => git(['ls-tree', '-r', '-z', ref, '--', dir], main).split('\0').filter(Boolean).map(entry => { const tab = entry.indexOf('\t'); return `${entry.slice(0, tab)}\t${entry.slice(tab + 1).slice(dir.length + 1)}`; }).filter(entry => !entry.endsWith('\tPLAN.md')).sort();
     const indexTree = git(['write-tree'], main);
     expectedTree = indexTree;
     if (!isDeepStrictEqual(stagedFiles.sort(), expectedFiles) || !isDeepStrictEqual(treeEntries(before, relDir), treeEntries(indexTree, moves ? archiveRel : relDir)) ||
         git(['ls-tree', before, '--', `${relDir}/PLAN.md`], main).split(' ')[0] !== git(['ls-tree', indexTree, '--', `${moves ? archiveRel : relDir}/PLAN.md`], main).split(' ')[0] ||
         git(['status', '--porcelain', '--untracked-files=all', '--ignored', '--', moves ? archiveRel : relDir], main).split('\n').some(line => line && (line[1] !== ' ' || line.startsWith('??') || line.startsWith('!!'))) ||
-        run('git', ['show', `:${moves ? archiveRel : relDir}/PLAN.md`], { cwd: main }) !== changed || fs.readFileSync(writtenFile, 'utf8') !== changed) throw new PlanStateError('Abandonment index or plan files changed; inspect before retrying.');
+        run('git', ['show', `:${moves ? archiveRel : relDir}/PLAN.md`], { cwd: main }) !== changed || fs.readFileSync(writtenFile, 'utf8') !== changed ||
+        run('git', ['show', `:${indexRel}`], { cwd: main }) !== generated || fs.readFileSync(indexFile, 'utf8') !== generated) throw new PlanStateError('Abandonment index or plan files changed; inspect before retrying.');
     const msg = formatMessage({ type: 'chore', scope: 'specplane', summary: `abandon ${id}`, trailers: cliTrailers('abandon', id) });
     const log = fs.readFileSync(headLog(main));
     pending = { version: 1, id, target: def, parent: before, tree: indexTree, planLocal: report.ref_freshness.plan_local, planRemote: report.ref_freshness.plan_remote, deleteBranch: opts.deleteBranch === true, force: opts.force === true, logLength: log.length, logHash: hashBytes(log) };
@@ -882,10 +1143,13 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
     if (!journalCreated) throw e;
     const writtenFile = path.join(main, moves ? `${archiveRel}/PLAN.md` : `${relDir}/PLAN.md`);
     const current = run('git', ['diff', '--cached', '--binary'], { cwd: main });
-    if (!fs.existsSync(writtenFile) || fs.readFileSync(writtenFile, 'utf8') !== changed || (staged === null ? current !== '' : staged !== current) || git(['status', '--porcelain', '--untracked-files=all', '--ignored', '--', ...paths], main).split('\n').some(line => line && (line[1] !== ' ' || line.startsWith('??') || line.startsWith('!!'))) || (moves && fs.existsSync(path.join(main, relDir)))) throw new PlanStateError(`Abandonment edits retained for inspection: ${String(e)}`);
+    const outputSafe = outputWritten ? fs.existsSync(indexFile) && fs.readFileSync(indexFile, 'utf8') === generated :
+      indexOriginal === null ? !fs.existsSync(indexFile) : fs.existsSync(indexFile) && fs.readFileSync(indexFile).equals(indexOriginal);
+    if (!outputSafe || !fs.existsSync(writtenFile) || fs.readFileSync(writtenFile, 'utf8') !== changed || (staged === null ? current !== '' : staged !== current) || git(['status', '--porcelain', '--untracked-files=all', '--ignored', '--', ...paths], main).split('\n').some(line => line && (line[1] !== ' ' || line.startsWith('??') || line.startsWith('!!'))) || (moves && fs.existsSync(path.join(main, relDir)))) throw new PlanStateError(`Abandonment edits retained for inspection: ${String(e)}`);
     git(['reset', '-q', 'HEAD', '--', ...paths], main);
     if (moves) fs.renameSync(path.join(main, archiveRel), path.join(main, relDir));
     fs.writeFileSync(rec.planFile, original);
+    if (outputWritten) { if (indexOriginal === null) fs.unlinkSync(indexFile); else fs.writeFileSync(indexFile, indexOriginal); }
     if (journalCreated && journalBytes !== null && fs.existsSync(journal) && fs.readFileSync(journal, 'utf8') === journalBytes) fs.unlinkSync(journal);
     throw e;
   }
@@ -897,6 +1161,7 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   if (!expectedTree || git(['rev-parse', `${commit}^{tree}`], main) !== expectedTree) throw new PlanStateError(`Abandonment commit ${commit} retained; committed tree changed during recording.`);
   const verifyJournal = () => { if (!fs.existsSync(journal) || fs.readFileSync(journal, 'utf8') !== journalBytes) throw new PlanStateError(`Abandonment commit ${commit} retained; pending record changed before continuing.`); };
   verifyJournal();
+  verifyPlanIndex(commit);
   const beforePublication = planReport(id, config, main, null).ref_freshness;
   if (beforePublication.target_local !== commit || beforePublication.target_remote !== report.ref_freshness.target_remote || beforePublication.plan_local !== report.ref_freshness.plan_local || beforePublication.plan_remote !== report.ref_freshness.plan_remote) throw new PlanStateError(`Abandonment commit ${commit} retained; refs changed before publication.`);
   lease.assertOwned();
@@ -909,7 +1174,7 @@ export function abandonPlan(id: string, config: Config, root: string, opts: Aban
   if (fs.readFileSync(journal, 'utf8') !== journalBytes) throw new PlanStateError(`Abandonment commit ${commit} retained; pending record changed before completion.`);
   fs.unlinkSync(journal);
   return finished;
-  } finally { lease.release(); }
+  } finally { if (!opts.lease) lease.release(); }
 }
 
 export interface ArchiveResult {

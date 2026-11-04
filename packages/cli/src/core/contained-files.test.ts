@@ -4,7 +4,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { mock, test } from 'node:test';
+import { test } from 'node:test';
+import { filesystemMocks } from '../fixtures.js';
+const mock = await filesystemMocks();
 import { readContainedFile, withContainedDirectory } from './contained-files.js';
 
 function fixture(action: (root: string, outside: string) => void): void {
@@ -21,8 +23,7 @@ function directoryLink(target: string, destination: string): void {
 // Production imports the builtin ESM namespace. Keep the namespace synchronized
 // with each temporary replacement and restore it before fixture cleanup.
 function withMocks(install: () => void, action: () => void): void {
-  install(); syncBuiltinESMExports();
-  try { action(); }
+  try { install(); syncBuiltinESMExports(); action(); }
   finally { mock.restoreAll(); syncBuiltinESMExports(); }
 }
 
@@ -212,4 +213,67 @@ test('directory access expires when its synchronous callback returns', () => fix
   assert.throws(() => directory.writeExclusive('event.json', 'capture'), { code: 'RECOVERY_REQUIRED' });
   assert.throws(() => directory.list(), { code: 'RECOVERY_REQUIRED' });
   assert.deepEqual(fs.readdirSync(root), []);
+}));
+
+test('in-place evidence mutation during read refuses the returned bytes and closes the handle', () => fixture(root => {
+  const evidence = path.join(root, 'evidence'); fs.writeFileSync(evidence, 'original');
+  const read = fs.readFileSync, close = fs.closeSync; let descriptor: number | undefined, closed = false;
+  withMocks(() => {
+    mock.method(fs, 'readFileSync', ((file: fs.PathOrFileDescriptor) => {
+      assert.equal(typeof file, 'number'); descriptor = file as number;
+      const bytes = read(file);
+      fs.appendFileSync(evidence, '-changed');
+      return bytes;
+    }) as typeof fs.readFileSync);
+    mock.method(fs, 'closeSync', (fd: number) => { if (fd === descriptor) closed = true; close(fd); });
+  }, () => assert.throws(() => readContainedFile(root, 'evidence'), { code: 'RECOVERY_REQUIRED' }));
+  assert.equal(closed, true);
+  assert.equal(fs.readFileSync(evidence, 'utf8'), 'original-changed');
+}));
+
+test('a final-file replacement during read refuses even when replacement bytes match', () => fixture(root => {
+  const evidence = path.join(root, 'evidence'); fs.writeFileSync(evidence, 'original');
+  const read = fs.readFileSync; let replaced = false;
+  withMocks(() => {
+    mock.method(fs, 'readFileSync', ((file: fs.PathOrFileDescriptor) => {
+      const bytes = read(file);
+      fs.renameSync(evidence, path.join(root, 'retained'));
+      fs.writeFileSync(evidence, 'original'); replaced = true;
+      return bytes;
+    }) as typeof fs.readFileSync);
+  }, () => assert.throws(() => readContainedFile(root, 'evidence'), { code: 'RECOVERY_REQUIRED' }));
+  assert.equal(replaced, true);
+  assert.equal(fs.readFileSync(evidence, 'utf8'), 'original');
+}));
+
+test('journal replacement during sync refuses without cleaning up either directory', () => fixture((root, outside) => {
+  const journal = path.join(root, 'journal'), retained = path.join(root, 'retained');
+  fs.mkdirSync(journal);
+  const sync = fs.fsyncSync; let replaced = false;
+  withMocks(() => {
+    mock.method(fs, 'fsyncSync', (fd: number) => {
+      sync(fd); fs.renameSync(journal, retained); directoryLink(outside, journal); replaced = true;
+    });
+  }, () => assert.throws(() => withContainedDirectory(root, 'journal', false, directory => {
+    directory.writeExclusive('event.json', 'private capture');
+  }), { code: 'RECOVERY_REQUIRED' }));
+  assert.equal(replaced, true);
+  assert.equal(fs.readFileSync(path.join(retained, 'event.json'), 'utf8'), 'private capture');
+  assert.deepEqual(fs.readdirSync(outside), []);
+  assert.equal(fs.lstatSync(journal).isSymbolicLink(), true);
+}));
+
+test('directory replacement during listing refuses the observed entries', () => fixture((root, outside) => {
+  const journal = path.join(root, 'journal'); fs.mkdirSync(journal);
+  fs.writeFileSync(path.join(journal, 'event.json'), 'capture');
+  const readdir = fs.readdirSync; let replaced = false;
+  withMocks(() => {
+    mock.method(fs, 'readdirSync', ((...args: Parameters<typeof fs.readdirSync>) => {
+      const entries = readdir(...args);
+      fs.renameSync(journal, path.join(root, 'retained')); directoryLink(outside, journal); replaced = true;
+      return entries;
+    }) as typeof fs.readdirSync);
+  }, () => assert.throws(() => withContainedDirectory(root, 'journal', false, directory => directory.list()), { code: 'RECOVERY_REQUIRED' }));
+  assert.equal(replaced, true);
+  assert.deepEqual(fs.readdirSync(outside), []);
 }));

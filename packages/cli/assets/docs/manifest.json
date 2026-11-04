@@ -1,0 +1,133 @@
+{
+  "format_version": 1,
+  "core_version": "0.1.0",
+  "docs_version": "0.1.0",
+  "contract_version": 1,
+  "orientation": {
+    "path": "orientation.md",
+    "sha256": "eb74960686daefd236dde0d48f5b265516e1137761adcb20412fb229d3c0b087"
+  },
+  "topics": [
+    {
+      "id": "getting-started",
+      "title": "Getting started",
+      "path": "topics/getting-started.md",
+      "sha256": "01274e335a699967a992ff1d66b812b433ed1ede51794b0e357ef3711aec53f7",
+      "related": [
+        "concepts",
+        "workflows/plans"
+      ],
+      "sources": [
+        {
+          "id": "base:architecture/reference-cli",
+          "path": "sources/reference-cli.md",
+          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+        },
+        {
+          "id": "base:architecture/file-formats",
+          "path": "sources/file-formats.md",
+          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Specifications, decisions and optional plans",
+      "path": "topics/concepts.md",
+      "sha256": "db1095aafa3009c199b8653cfbb5895ef165ad7ac76137067b2302f798592983",
+      "related": [
+        "getting-started",
+        "completion",
+        "workflows/plans"
+      ],
+      "sources": [
+        {
+          "id": "base:architecture/reference-cli",
+          "path": "sources/reference-cli.md",
+          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+        },
+        {
+          "id": "base:architecture/file-formats",
+          "path": "sources/file-formats.md",
+          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+        },
+        {
+          "id": "base:architecture/agent-skills",
+          "path": "sources/agent-skills.md",
+          "sha256": "dbe456171c02558a2aad91d06684cf018b5729e382e5982b136e31d702daa752"
+        }
+      ]
+    },
+    {
+      "id": "completion",
+      "title": "Implementation declarations and freshness",
+      "path": "topics/completion.md",
+      "sha256": "972ed9899a3f9687b90494fa5b615cc563b543963a5cb22fc27b1c23dbd05e3f",
+      "related": [
+        "concepts",
+        "commands/spec-complete"
+      ],
+      "sources": [
+        {
+          "id": "base:architecture/reference-cli",
+          "path": "sources/reference-cli.md",
+          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+        },
+        {
+          "id": "base:architecture/file-formats",
+          "path": "sources/file-formats.md",
+          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+        }
+      ]
+    },
+    {
+      "id": "workflows/plans",
+      "title": "Working with managed plans",
+      "path": "topics/workflows/plans.md",
+      "sha256": "ba43d774d2362e0ebd6b9a3c1726d4b83bcf92ceefb90f303bf4d6617e2cb10e",
+      "related": [
+        "concepts",
+        "completion"
+      ],
+      "sources": [
+        {
+          "id": "base:architecture/reference-cli",
+          "path": "sources/reference-cli.md",
+          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+        },
+        {
+          "id": "base:architecture/file-formats",
+          "path": "sources/file-formats.md",
+          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+        },
+        {
+          "id": "base:architecture/agent-skills",
+          "path": "sources/agent-skills.md",
+          "sha256": "dbe456171c02558a2aad91d06684cf018b5729e382e5982b136e31d702daa752"
+        }
+      ]
+    },
+    {
+      "id": "commands/spec-complete",
+      "title": "Declare a specification complete",
+      "path": "topics/commands/spec-complete.md",
+      "sha256": "5310479edb62281b8a2dbd18da0e06ba93c677e09ad5ecf4b0c8d8ed55e8836f",
+      "related": [
+        "completion",
+        "concepts"
+      ],
+      "sources": [
+        {
+          "id": "base:architecture/reference-cli",
+          "path": "sources/reference-cli.md",
+          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+        },
+        {
+          "id": "base:architecture/file-formats",
+          "path": "sources/file-formats.md",
+          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+        }
+      ]
+    }
+  ]
+}

@@ -13,9 +13,23 @@ const id = '2026-01-01-alpha';
 const plan = (title: string, extra = '') => `---\nid: ${id}\ntitle: "${title}"\nstatus: ready\nspecs: [feature/alpha]\n${extra}---\n`;
 function repo() {
  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'index-test-'));
- const git = (...args: string[]) => execFileSync('git', args, {cwd: root, encoding:'utf8', stdio:['ignore','pipe','pipe']}).trim();
+ const git = (...args: string[]) => execFileSync('git', args, {cwd: root, env:{...process.env}, encoding:'utf8', stdio:['ignore','pipe','pipe']}).trim();
  const put = (file: string, text: string) => { const f=path.join(root,file); fs.mkdirSync(path.dirname(f),{recursive:true}); fs.writeFileSync(f,text); };
- const sp = (...args: string[]) => spawnSync(process.execPath,[cli,...args],{cwd:root,encoding:'utf8',timeout:20000});
+ const sp = (...args: string[]) => {
+  const options = {cwd:root,env:{...process.env},encoding:'utf8' as const,timeout:20000};
+  if (fs.existsSync(path.join(root,'bin','gh'))) {
+   // Verify the child's environment reaches the fixture before any live PR
+   // lookup. A broken launcher can only invoke an ambient gh --version here.
+   const log = path.join(root,'gh.log');
+   const before = fs.existsSync(log) ? fs.readFileSync(log,'utf8') : '';
+   const probe = spawnSync(process.execPath,['-e',"const {execFileSync}=require('node:child_process');process.stdout.write(execFileSync('gh',['--version'],{env:{...process.env},encoding:'utf8'}));"],options);
+   assert.ifError(probe.error);
+   assert.equal(probe.status,0,probe.stderr);
+   const after = fs.existsSync(log) ? fs.readFileSync(log,'utf8') : '';
+   assert.equal(after.slice(before.length),'--version\n','CLI child PATH isolation failed; refusing PR queries');
+  }
+  return spawnSync(process.execPath,[cli,...args],options);
+ };
  git('init','-q','-b','master'); git('config','core.autocrlf','false'); git('config','user.name','Test'); git('config','user.email','test@example.com');
  put(`plans/${id}/PLAN.md`,plan('head')); git('add','-A'); git('commit','-qm','base');
  return {root,git,put,sp};

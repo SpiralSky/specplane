@@ -57,7 +57,11 @@ export function parseFrontmatter(content: string, filePath = "<snapshot>"): { da
 
 /** Rewrite only the frontmatter `status:` line, preserving line endings and every other byte. */
 export function writeStatus(file: string, status: string): void {
-  const text = fs.readFileSync(file, "utf8");
+  fs.writeFileSync(file, renderStatus(fs.readFileSync(file, "utf8"), status, file));
+}
+
+/** Render the same status edit without changing the source file. */
+export function renderStatus(text: string, status: string, file = "<snapshot>"): string {
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   const lines = text.split(/\r?\n/);
   const end = lines.findIndex((l, i) => i > 0 && /^---[ \t]*$/.test(l));
@@ -66,5 +70,5 @@ export function writeStatus(file: string, status: string): void {
     throw new Error(`\`${file}\`: no frontmatter status found`);
   }
   lines[at] = `status: ${status}`;
-  fs.writeFileSync(file, lines.join(eol));
+  return lines.join(eol);
 }

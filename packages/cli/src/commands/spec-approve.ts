@@ -7,19 +7,19 @@ import {
   UncommittedChangesError,
   reportError,
 } from "../errors.js";
-import { writeStatus } from "../frontmatter.js";
+import { writeStatus, renderStatus } from "../frontmatter.js";
 import { abbrev, hasUncommittedChanges } from "../git/blobs.js";
 import { cliTrailers, formatMessage } from "../git/commit.js";
 import { run } from "../git/exec.js";
 import { checkoutRoot } from "../git/repo.js";
 import { formatHuman } from "../output/human.js";
-import { parseSpec } from "../spec/parse.js";
+import { parseSpec, parseSpecContent } from "../spec/parse.js";
 import { comparePin, displayId, matchKey, refTargets, type RefTarget } from "../spec/pins.js";
 import { resolveSpecId } from "../spec/resolve.js";
 import { loadSpecs, validateSpec, type LoadedSpec } from "../spec/validate.js";
 import type { Config } from "../types.js";
 import { load } from "./spec.js";
-import { pinSpec } from "./spec-pin.js";
+import { previewPinSpec } from "./spec-pin.js";
 
 const toPosix = (p: string) => p.split(path.sep).join("/");
 
@@ -88,7 +88,7 @@ function commitChange(root: string, file: string, summary: string): string {
   return abbrev(run("git", ["rev-parse", "HEAD"], { cwd: root }).trim(), root);
 }
 
-export function approveSpec(rawId: string, config: Config, root: string, dryRun: boolean, quiet = false): boolean {
+export function approveSpec(rawId: string, config: Config, root: string, dryRun: boolean, quiet = false, preview?: (changes: { path: string; before: string; after: string }[]) => void): boolean {
   const { spec, specs } = loadOne(rawId, config, root);
   const id = displayId(spec);
   const status = spec.frontmatter.status;
@@ -103,6 +103,18 @@ export function approveSpec(rawId: string, config: Config, root: string, dryRun:
   const isOverlay = spec.frontmatter.extends !== undefined;
   const targets = isOverlay ? checkOverlayBases(spec, specs, config, root, id) : [];
 
+  const original = fs.readFileSync(spec.file, "utf8");
+  const pinned = isOverlay ? previewPinSpec(config, root, id, targets.map(t => t.ref)).after : original;
+  const changed = renderStatus(pinned, "approved", spec.file);
+  const updated = { ...spec, ...parseSpecContent(changed, spec.file), content: changed };
+  const report = validateSpec(updated, config, root);
+  if (!report.valid) {
+    if (quiet) throw new ApprovalRefusedError(formatHuman(report));
+    process.stderr.write(formatHuman(report));
+    process.exitCode = 1;
+    return false;
+  }
+  preview?.([{ path: spec.rel, before: original, after: changed }]);
   const subject = `approve ${id}`;
   if (dryRun) {
     if (!quiet) process.stdout.write(`would approve ${id}\n`);
@@ -111,21 +123,7 @@ export function approveSpec(rawId: string, config: Config, root: string, dryRun:
     return true;
   }
 
-  const original = fs.readFileSync(spec.file, "utf8");
-  if (isOverlay) pinSpec(config, root, id, targets.map((t) => t.ref));
-  writeStatus(spec.file, "approved");
-
-  const updated = loadSpecs(config, root).specs.find((s) => s.file === spec.file);
-  if (updated) {
-    const report = validateSpec(updated, config, root);
-    if (!report.valid) {
-      fs.writeFileSync(spec.file, original);
-      if (quiet) throw new ApprovalRefusedError(formatHuman(report));
-      process.stderr.write(formatHuman(report));
-      process.exitCode = 1;
-      return false;
-    }
-  }
+  fs.writeFileSync(spec.file, changed);
 
   const sha = commitChange(root, spec.rel, subject);
   if (!quiet) process.stdout.write(`approved ${id} ${sha}\n`);

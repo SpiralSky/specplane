@@ -17,6 +17,8 @@ import { checkoutRoot } from "../git/repo.js";
 import { formatHuman } from "../output/human.js";
 import { makeReport } from "../report.js";
 import { slugify } from "../spec/slug.js";
+import { applyCreationScaffold, type CreationScaffold } from './spec.js';
+import { withContainedDirectory } from '../core/contained-files.js';
 import type { Config } from "../types.js";
 
 const toPosix = (p: string) => p.split(path.sep).join("/");
@@ -26,26 +28,27 @@ const adrBody = (title: string): string =>
 
 /** The next free four-digit number in `<decisions.dir>`, starting at 0001 (`feature/tooling`). */
 function nextNumber(config: Config, root: string): string {
-  const dir = path.join(root, config.decisions.dir);
   let entries: string[] = [];
   try {
-    entries = fs.readdirSync(dir);
-  } catch {
-    return "0001";
+    entries = withContainedDirectory(root, config.decisions.dir, false, directory => directory.list());
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
   }
   const numbers = entries.map((f) => /^(\d{4})-/.exec(f)?.[1]).filter((n): n is string => n !== undefined).map(Number);
-  return String(Math.max(0, ...numbers) + 1).padStart(4, "0");
+  const next = Math.max(0, ...numbers) + 1;
+  if (next > 9999) throw new DecisionStateError('Decision numbering has exhausted the four-digit range.');
+  return String(next).padStart(4, "0");
 }
 
 /** Create `<decisions.dir>/<NNNN>-<slug>.md` with `status: proposed`; returns its path. */
-export function decisionNew(title: string, config: Config, root: string): string {
-  const dir = path.join(root, config.decisions.dir);
+export function renderDecisionNew(title: string, config: Config, root: string, date: string): CreationScaffold {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new DecisionStateError('Decision creation needs an exact UTC date.');
+  const dir = config.decisions.dir;
   const number = nextNumber(config, root);
   const file = path.join(dir, `${number}-${slugify(title)}.md`);
-  const rel = toPosix(path.relative(root, file));
-  if (fs.existsSync(file)) throw new AlreadyExistsError("Decision", rel);
+  const rel = toPosix(file);
+  if (fs.existsSync(path.join(root, file))) throw new AlreadyExistsError("Decision", rel);
 
-  const date = new Date().toISOString().slice(0, 10);
   const text = [
     "---",
     `id: decision/${number}`,
@@ -58,9 +61,18 @@ export function decisionNew(title: string, config: Config, root: string): string
     "",
     adrBody(title),
   ].join("\n");
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(file, text);
-  return rel;
+  return { operation: 'decision.new', identity: `decision/${number}`, path: rel, directories: [toPosix(dir)], files: [{ path: rel, content: text }] };
+}
+
+export function applyDecisionNew(plan: CreationScaffold, root: string): void {
+  if (plan.operation !== 'decision.new') throw new DecisionStateError('Expected a decision creation scaffold.');
+  applyCreationScaffold(plan, root);
+}
+
+export function decisionNew(title: string, config: Config, root: string): string {
+  const plan = renderDecisionNew(title, config, root, new Date().toISOString().slice(0, 10));
+  applyDecisionNew(plan, root);
+  return plan.path;
 }
 
 export function decisionNewCommand(title: string): void {

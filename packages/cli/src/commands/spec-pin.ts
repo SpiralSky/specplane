@@ -1,9 +1,10 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig } from "../config.js";
 import { SpecNotFoundError, SpecplaneError } from "../errors.js";
 import { abbrev, committedBlob, hasUncommittedChanges } from "../git/blobs.js";
 import { checkoutRoot } from "../git/repo.js";
-import { checkPins, refTargets, writePins } from "../spec/pins.js";
+import { checkPins, refTargets, renderPins } from "../spec/pins.js";
 import { resolveSpecId } from "../spec/resolve.js";
 import { loadSpecs } from "../spec/validate.js";
 import type { Config, Finding } from "../types.js";
@@ -22,6 +23,12 @@ export function checkAllPins(config: Config, root: string): { findings: Finding[
 
 /** Write pins for `id` (all references, or only `only`); returns the `pinned <ref> <hash>` lines. */
 export function pinSpec(config: Config, root: string, id: string, only: string[]): string[] {
+  const preview = previewPinSpec(config, root, id, only);
+  fs.writeFileSync(preview.file, preview.after);
+  return preview.lines;
+}
+
+export function previewPinSpec(config: Config, root: string, id: string, only: string[]): { file: string; after: string; lines: string[] } {
   const { specs } = loadSpecs(config, root);
   let target;
   try {
@@ -55,8 +62,7 @@ export function pinSpec(config: Config, root: string, id: string, only: string[]
     pins[key] = hash;
     lines.push(`pinned ${t.ref} ${hash}`);
   }
-  writePins(spec.file, pins);
-  return lines;
+  return { file: spec.file, after: renderPins(fs.readFileSync(spec.file, "utf8"), pins, spec.file), lines };
 }
 
 function safeResolve(ref: string, config: Config, specRoot: { name: string; extends?: string }, root: string): string | undefined {

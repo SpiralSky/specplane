@@ -16,10 +16,11 @@ const expansion = object({ path: relativePath, anchor: text, reason: text }, ['p
 export const workflowTestRequestSchema = object({ requestId: text, criterionIds: { ...strings, minItems: 1, uniqueItems: true }, executable: text, args: array({ type: 'string' }), reportFormat: { enum: ['node-tap-v13', 'junit-xml'] } });
 const actor = object({ kind: { enum: ['human', 'model'] }, provider: text, model_id: text, session_id: text, harness: text, display_name: text, parentSessionId: text }, ['kind']);
 const action = object({ kind: { enum: ['create', 'edit', 'review'] }, evidencePath: text, evidenceDigest: digest });
-const revision = { oneOf: [object({ beforeDigest: digest, afterDigest: digest }), object({ reviewedDigest: digest })] };
+const revision = { oneOf: [object({ beforeDigest: { anyOf: [digest, { const: 'missing' }] }, afterDigest: digest }), object({ reviewedDigest: digest })] };
 export const contributionEventSchema = object({ eventId: text, requestId: text, spec: text, role: { enum: ['create', 'revise', 'review'] }, source: { enum: ['runtime', 'declared'] }, actor, action, revision });
-export const workflowResultSchema = object({ protocol: { const: 1 }, requestId: text, baseDigest: digest, outcome: { enum: ['done', 'blocked', 'cancelled'] }, summary: { type: 'string' }, changes: array(change), criterionEvidence: array(criterionEvidence), gaps: strings, contextExpansion: array(expansion), contributionEvents: array(contributionEventSchema), openIssues: { type: 'string' }, nextKnows: { type: 'string' } });
+
 const operationArguments = {
+  'workflow.record': object({ requestId: text }),
   'init': object({ harness: text }, []),
   'validate': object({}),
   'search': object({ query: text, kind: { enum: ['spec', 'plan'] }, status: text, root: text }, ['query']),
@@ -55,6 +56,14 @@ const operationArguments = {
   'docs.topic': object({ topicId: text }),
   'docs.search': object({ query: text }),
 } as const;
+export const workflowCreationSchema = {oneOf:[
+ object({operation:{const:'spec.new'},arguments:{...operationArguments['spec.new'],required:['type','slug','title']},body:text}),
+ object({operation:{const:'plan.new'},arguments:{...operationArguments['plan.new'],required:['id','title','specs']},body:text,steps:array(object({title:text,body:text,context:array({oneOf:[object({spec:text}),object({file:relativePath}),object({decision:text})]})}))}),
+ object({operation:{const:'decision.new'},arguments:operationArguments['decision.new'],body:text}),
+]};
+export const contributionProposalSchema = {oneOf:[object({kind:{const:'finalized'},edit:object({spec:text,body:text})}),object({kind:{const:'creation'},creation:workflowCreationSchema})]};
+export const workflowResultSchema = object({ creation:workflowCreationSchema, finalizedEdits:array(object({spec:text,body:{type:'string'}})), protocol: { const: 1 }, requestId: text, baseDigest: digest, outcome: { enum: ['done', 'blocked', 'cancelled'] }, summary: { type: 'string' }, changes: array(change), criterionEvidence: array(criterionEvidence), gaps: strings, contextExpansion: array(expansion), contributionEvents: array(contributionEventSchema), openIssues: { type: 'string' }, nextKnows: { type: 'string' } }, ['protocol','requestId','baseDigest','outcome','summary','changes','criterionEvidence','gaps','contextExpansion','contributionEvents','openIssues','nextKnows']);
+
 export const mechanicalRequestSchema = { oneOf: Object.entries(operationArguments).map(([operation, args]) => object({ operation: { const: operation }, arguments: args })) };
 const proposalFields = { protocol: { const: 1 }, requestId: text, resultDigest: digest, currentStateDigest: digest, paths: strings, evidenceDigest: digest, requiresConfirmation: { type: 'boolean' } };
 export const recordingProposalSchema = { oneOf: Object.entries(operationArguments).map(([operation, args]) => object({ ...proposalFields, operation: { const: operation }, arguments: args })) };

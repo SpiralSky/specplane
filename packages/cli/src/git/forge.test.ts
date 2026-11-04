@@ -6,6 +6,7 @@ import * as path from "node:path";
 import { test } from "node:test";
 import { ForgeError } from "../errors.js";
 import { createPR, getOpenPR, hasOpenPR, mergedPRCommit } from "./forge.js";
+import { run } from "./exec.js";
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "specplane-forge-"));
 
@@ -32,6 +33,22 @@ function withPath<T>(front: string | null, fn: () => T): T {
   fs.symlinkSync(spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim(), path.join(only, "git"));
   process.env.PATH = front ? `${front}${path.delimiter}${only}` : only;
   try {
+    // Prove executable isolation before any PR operation. A regression may run
+    // an ambient gh --version here, but must never reach a remote operation.
+    if (front) {
+      const log = path.join(front, "calls.log");
+      const existed = fs.existsSync(log);
+      const before = existed ? fs.readFileSync(log, "utf8") : "";
+      run("gh", ["--version"], { cwd: only });
+      const after = fs.existsSync(log) ? fs.readFileSync(log, "utf8") : "";
+      assert.equal(after.slice(before.length), "--version\n--\n", "gh PATH isolation failed; refusing PR calls");
+      // Keep the probe separate from the operation's observable call history,
+      // including the forge:none guarantee that no calls log is created.
+      if (existed) fs.writeFileSync(log, before);
+      else fs.unlinkSync(log);
+    } else {
+      assert.throws(() => run("gh", ["--version"], { cwd: only }), "gh must be absent from the isolated PATH");
+    }
     return fn();
   } finally {
     process.env.PATH = saved;

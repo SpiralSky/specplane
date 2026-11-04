@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { loadConfig } from "../config.js";
 import { AlreadyExistsError, PlanStateError, SpecplaneError, reportError } from "../errors.js";
 import { generateWorkingPlansMd } from "../generate/plans-md.js";
-import { ask, csv, interactive } from "./spec.js";
+import { ask, csv, interactive, applyCreationScaffold, type CreationScaffold } from "./spec.js";
 import { resolveSpecId } from "../spec/resolve.js";
 import { buildGraph, detectCycle } from "../plan/graph.js";
 import { PlanNotFoundError } from "../errors.js";
@@ -19,6 +19,7 @@ import { formatNext, planNext } from "../plan/next.js";
 import { attentionFor, type Attention } from "../plan/alerts.js";
 import { runPlans, type RunOptions } from "../plan/run.js";
 import { stepDone, type StepDoneOptions } from "../plan/step-done.js";
+import { assertRecordingPaths } from '../plan/recording-set.js';
 import { parsePlan } from "../plan/parse.js";
 import { listPlans } from "../plan/resolve.js";
 import { resolveCommit, validateTargetBranch } from "../plan/context.js";
@@ -196,6 +197,23 @@ export async function planNew(opts: PlanNewOptions, root: string, config: Config
   let deps = csv(opts.dependsOn);
   if (opts.dependsOn === undefined && interactive()) deps = csv(await ask("Depends on plan IDs (comma-separated, optional): "));
 
+  const plan = renderPlanNew({ ...opts, id, title, specs: specs.join(','), dependsOn: deps.join(',') }, root, config);
+  if (!opts.dryRun) applyPlanNew(plan, root);
+  return plan.path;
+}
+
+/** Deterministic, noninteractive preview of the dedicated plan creation operation. */
+export function renderPlanNew(opts: PlanNewOptions, root: string, config: Config): CreationScaffold {
+  const id = opts.id?.trim();
+  if (!id) throw new PlanUsageError('Plan ID needed: pass `--id`.');
+  if (!ID_RE_PLAN.test(id)) throw new PlanUsageError(`Invalid plan ID \`${id}\`: expected YYYY-MM-DD-<slug> with lowercase letters, digits, and hyphens.`);
+  assertRecordingPaths(root, [`${config.plans.dir}/${id}/PLAN.md`, `${config.plans.dir}/${id}/steps/.gitkeep`]);
+  const existing = listPlans(config, root);
+  if (existing.some(plan => plan.id === id)) throw new AlreadyExistsError('Plan', id);
+  const slug = id.slice(11).replace(/-/g, ' '), title = opts.title?.trim() || slug.charAt(0).toUpperCase() + slug.slice(1);
+  const specs = csv(opts.specs), deps = csv(opts.dependsOn);
+  if (!specs.length) throw new PlanUsageError('`plan new` needs `--specs` with at least one spec ID.');
+
   for (const s of specs) resolveSpecId(s, config, undefined, root);
   const known = new Set(existing.map((p) => p.id));
   for (const d of deps) if (!known.has(d)) throw new PlanNotFoundError(d);
@@ -212,9 +230,7 @@ export async function planNew(opts: PlanNewOptions, root: string, config: Config
   const cycle = detectCycle(graph);
   if (cycle) throw new PlanUsageError(`Dependency cycle: ${cycle.join(" -> ")}.`);
 
-  const dir = path.join(root, config.plans.dir, id);
-  if (opts.dryRun) return path.relative(root, path.join(dir, "PLAN.md")).split(path.sep).join("/");
-  fs.mkdirSync(path.join(dir, "steps"), { recursive: true });
+  const dir = path.join(config.plans.dir, id).split(path.sep).join('/');
   const fm = [
     `id: ${id}`,
     `title: ${JSON.stringify(title)}`,
@@ -224,10 +240,15 @@ export async function planNew(opts: PlanNewOptions, root: string, config: Config
     ...(opts.target !== undefined ? [`target_branch: ${JSON.stringify(opts.target)}`] : []),
     ...(comparisonBase !== undefined ? [`comparison_base: ${JSON.stringify(comparisonBase)}`] : []),
   ];
-  fs.writeFileSync(path.join(dir, "PLAN.md"), `---\n${fm.join("\n")}\n---\n${planBody(title)}`);
-  fs.writeFileSync(path.join(dir, "HANDOFF.md"), `# HANDOFF \u2014 ${id}\n`);
-  fs.writeFileSync(path.join(dir, "steps", ".gitkeep"), "");
-  return path.relative(root, path.join(dir, "PLAN.md")).split(path.sep).join("/");
+  return { operation: 'plan.new', identity: id, path: `${dir}/PLAN.md`, directories: [dir, `${dir}/steps`], files: [
+    { path: `${dir}/PLAN.md`, content: `---\n${fm.join('\n')}\n---\n${planBody(title)}` },
+    { path: `${dir}/steps/.gitkeep`, content: '' },
+  ] };
+}
+
+export function applyPlanNew(plan: CreationScaffold, root: string): void {
+  if (plan.operation !== 'plan.new') throw new PlanUsageError('Expected a plan creation scaffold.');
+  applyCreationScaffold(plan, root);
 }
 
 export async function planNewCommand(opts: PlanNewOptions): Promise<void> {

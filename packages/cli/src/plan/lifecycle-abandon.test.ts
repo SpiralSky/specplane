@@ -6,6 +6,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
 import { createLifecycleFixture } from "./lifecycle-fixture.js";
+import { capturePlanSnapshot } from "../generate/snapshot.js";
+import { generatePlansMd } from "../generate/plans-md.js";
 
 const { git, sp, A, B, plan, ownedDirs, repo, wtOf, start, hasBranch } = createLifecycleFixture();
 
@@ -234,4 +236,76 @@ test("abandon refuses disabled reflog recording before writes", () => {
   assert.equal(result.code, 1); assert.match(result.err, /reflog recording is disabled/);
   assert.equal(git(r.root, "rev-parse", "HEAD"), before); assert.equal(git(r.root, "status", "--porcelain"), "");
   assert.ok(!fs.existsSync(path.join(r.root, ".git", "specplane-abandon")));
+});
+
+for (const archive of [true, false]) {
+  test(`abandon commits the prospective plan index with archive_done=${archive}`, () => {
+    const r = repo(`  archive_done: ${archive}\n`);
+    start(r, A);
+    const index = path.join(r.root, 'plans/PLANS.md');
+    const result = sp(r.root, 'plan', 'abandon', A);
+    assert.equal(result.code, 0, result.err);
+    const expected = generatePlansMd(capturePlanSnapshot(r.root, 'head'));
+    assert.equal(fs.readFileSync(index, 'utf8'), expected);
+    assert.equal(git(r.root, 'show', 'HEAD:plans/PLANS.md'), expected.trim());
+    assert.ok(expected.includes(archive ? `archive/${A}/PLAN.md` : `${A}/PLAN.md`));
+    assert.match(expected, /abandoned/);
+    assert.equal(git(r.root, 'status', '--porcelain'), '');
+  });
+}
+
+test('abandon restores the prior plan index when its commit hook fails', () => {
+  const r = repo();
+  const index = path.join(r.root, 'plans/PLANS.md');
+  const original = generatePlansMd(capturePlanSnapshot(r.root, 'head'));
+  fs.writeFileSync(index, original);
+  git(r.root, 'add', 'plans/PLANS.md');
+  git(r.root, 'commit', '-qm', 'capture existing plan index');
+  const before = git(r.root, 'rev-parse', 'HEAD');
+  fs.writeFileSync(path.join(r.root, '.git/hooks/pre-commit'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  const result = sp(r.root, 'plan', 'abandon', A);
+  assert.equal(result.code, 2, result.err);
+  assert.match(result.err, /Git command failed: `git commit /);
+  assert.equal(git(r.root, 'rev-parse', 'HEAD'), before);
+  assert.equal(fs.readFileSync(index, 'utf8'), original);
+  assert.match(fs.readFileSync(path.join(r.root, 'plans', A, 'PLAN.md'), 'utf8'), /status: ready/);
+  assert.equal(git(r.root, 'status', '--porcelain'), '');
+});
+
+test('abandon preserves a hidden edit to its existing plan index', () => {
+  const r = repo();
+  const index = path.join(r.root, 'plans/PLANS.md');
+  fs.writeFileSync(index, generatePlansMd(capturePlanSnapshot(r.root, 'head')));
+  git(r.root, 'add', 'plans/PLANS.md');
+  git(r.root, 'commit', '-qm', 'capture existing plan index');
+  git(r.root, 'update-index', '--assume-unchanged', 'plans/PLANS.md');
+  fs.writeFileSync(index, 'private index edits\n');
+  const before = git(r.root, 'rev-parse', 'HEAD');
+  const result = sp(r.root, 'plan', 'abandon', A);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /plan index differs from HEAD/);
+  assert.equal(git(r.root, 'rev-parse', 'HEAD'), before);
+  assert.equal(fs.readFileSync(index, 'utf8'), 'private index edits\n');
+  assert.match(fs.readFileSync(path.join(r.root, 'plans', A, 'PLAN.md'), 'utf8'), /status: ready/);
+});
+
+test('abandon preserves a hard-linked plan index and its other pathname', () => {
+  const r = repo();
+  const index = path.join(r.root, 'plans/PLANS.md');
+  const original = generatePlansMd(capturePlanSnapshot(r.root, 'head'));
+  fs.writeFileSync(index, original);
+  git(r.root, 'add', 'plans/PLANS.md');
+  git(r.root, 'commit', '-qm', 'capture existing plan index');
+  const other = path.join(r.root, '.git', 'private-plan-index');
+  fs.linkSync(index, other);
+  const before = git(r.root, 'rev-parse', 'HEAD');
+  const result = sp(r.root, 'plan', 'abandon', A);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /plan index must be a regular file with one link/);
+  assert.equal(git(r.root, 'rev-parse', 'HEAD'), before);
+  assert.equal(fs.readFileSync(index, 'utf8'), original);
+  assert.equal(fs.readFileSync(other, 'utf8'), original);
+  assert.equal(fs.statSync(index).nlink, 2);
+  assert.match(fs.readFileSync(path.join(r.root, 'plans', A, 'PLAN.md'), 'utf8'), /status: ready/);
+  assert.equal(git(r.root, 'status', '--porcelain'), '');
 });

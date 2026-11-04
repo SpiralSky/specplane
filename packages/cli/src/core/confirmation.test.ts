@@ -169,3 +169,45 @@ test('expired or changed review during direct interaction cannot establish a rea
     } finally { f.cleanup(); }
   }
 });
+
+test('async confirmation retains consuming evidence and lease until mutation settles', async () => {
+  const f = fixture(); try {
+    let settle!: (value: string) => void;
+    let response!: ConfirmationResponse;
+    const service = createConfirmation({ ...f.context, operation: 'plan.finish', lease: f.lease,
+      snapshot: () => ({ targets: ['plan/test'], summary: 'Finish reviewed revision', state: 'fixed', payload: 'finish', evidence: 'review' }),
+      mutate: () => new Promise<string>(resolve => { settle = resolve; }),
+    }, { interaction: { async confirm(challenge) { response = { challengeId: challenge.challengeId, decision: 'confirm', interactionId: 'human' }; return response; } } });
+    const challenge = await service.prepare();
+    const pending = service.confirmAsync(challenge, response, f.context);
+    assert.equal(service.phase(), 'consuming');
+    assert.equal(JSON.parse(fs.readFileSync(f.journal(), 'utf8')).phase, 'consuming');
+    assert.throws(() => acquireWriterLease({ checkouts: [f.cwd], requestId: 'competing' }));
+    await assert.rejects(service.confirmAsync(challenge, response, f.context), /No unconsumed/);
+    settle('finished');
+    assert.equal(await pending, 'finished');
+    assert.equal(service.phase(), 'completed');
+  } finally { f.cleanup(); }
+});
+
+test('async failures and changed completion evidence retain consuming journal without replay', async () => {
+  for (const failure of ['reject', 'journal', 'lease'] as const) {
+    const f = fixture(); try {
+      let settle!: () => void, reject!: (error: Error) => void;
+      let response!: ConfirmationResponse;
+      const service = createConfirmation({ ...f.context, operation: 'plan.finish', lease: f.lease,
+        snapshot: () => ({ targets: ['plan/test'], summary: 'Finish reviewed revision', state: 'fixed', payload: 'finish', evidence: 'review' }),
+        mutate: () => new Promise<void>((resolve, fail) => { settle = resolve; reject = fail; }),
+      }, { interaction: { async confirm(challenge) { response = { challengeId: challenge.challengeId, decision: 'confirm', interactionId: 'human' }; return response; } } });
+      const challenge = await service.prepare();
+      const pending = service.confirmAsync(challenge, response, f.context);
+      if (failure === 'reject') reject(new Error('uncertain async mutation'));
+      else { if (failure === 'journal') fs.writeFileSync(f.journal(), 'foreign evidence'); else f.lease.release(); settle(); }
+      await assert.rejects(pending);
+      assert.equal(service.phase(), 'consuming');
+      if (failure === 'journal') assert.equal(fs.readFileSync(f.journal(), 'utf8'), 'foreign evidence');
+      else assert.equal(JSON.parse(fs.readFileSync(f.journal(), 'utf8')).phase, 'consuming');
+      await assert.rejects(service.confirmAsync(challenge, response, f.context), /No unconsumed/);
+    } finally { f.cleanup(); }
+  }
+});

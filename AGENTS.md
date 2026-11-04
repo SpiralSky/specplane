@@ -21,3 +21,17 @@ The plan skills are user-invoked only, so route natural-language requests to the
 | finish a plan | `specplane plan finish <id>` |
 | see plan status | `specplane plan list --live` |
 | rebase a stacked plan after its base merged | `specplane plan restack <id>` |
+
+## Test runtime
+
+- Use Bun for all future test runs, including focused tests and full suites. Do not
+  run tests under Node or use mixed-runtime test runners.
+- Build with `npm run build` in `packages/cli`, then run focused compiled tests with
+  `bun test --parallel=20 --timeout=30000 ./dist/<selected-files>`.
+- For the full suite, run `bun test --parallel=20 --timeout=30000 ./dist` from
+  `packages/cli` after building. Keep process isolation between files; do not use
+  `--concurrent` within files.
+- Follow focused-first testing. Report Bun failures, stalls, and runtime-sensitive
+  incompatibilities explicitly; do not silently skip tests or substitute Node.
+- This test-runner preference does not change the supported production runtime,
+  package engines, dependencies, lockfiles, or committed package test command.

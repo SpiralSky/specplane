@@ -119,7 +119,7 @@ function newRepo(): string {
   return root;
 }
 
-test("plan new: creates draft plan, steps/, HANDOFF.md; validate passes", () => {
+test("plan new: creates draft plan and steps/; HANDOFF waits for recording; validate passes", () => {
   const root = newRepo();
   const git = (...args: string[]) => spawnSync("git", args, { cwd: root, encoding: "utf8" });
   assert.equal(git("add", ".specplane/config.yaml", "plans", "specs").status, 0);
@@ -132,7 +132,7 @@ test("plan new: creates draft plan, steps/, HANDOFF.md; validate passes", () => 
   assert.match(text, /depends_on: \["2026-01-01-alpha"\]/);
   assert.match(text, /## Acceptance criteria/);
   assert.ok(fs.statSync(path.join(dir, "steps")).isDirectory());
-  assert.equal(fs.readFileSync(path.join(dir, "HANDOFF.md"), "utf8"), "# HANDOFF — 2026-02-01-beta\n");
+  assert.equal(fs.existsSync(path.join(dir, "HANDOFF.md")), false);
   assert.match(git("status", "--porcelain", "--untracked-files=all").stdout, /\?\? plans\/2026-02-01-beta\/PLAN\.md/);
   assert.notEqual(git("cat-file", "-e", "HEAD:plans/2026-02-01-beta/PLAN.md").status, 0);
   const validation = run(root, "validate");

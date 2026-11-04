@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import { lazyValidator } from '../lazy-validator.js';
+import { hasRecoveryOperation } from '../generate/snapshot.js';
 import { run } from '../git/exec.js';
 import { PlanStateError } from '../errors.js';
 
@@ -48,9 +49,10 @@ export function readRecordingSet(file: string | undefined, root: string): Record
   if(!valid(data)) fail('expected closed {protocol:1,head,branch,changes} manifest.');
   return data as RecordingSet;
 }
-export function validateRecordingSet(set: RecordingSet, root: string, planId: string, generated: string[], changed: string[], outcome: string): string[] {
+export function validateRecordingSet(set: RecordingSet, root: string, planId: string | null, generated: string[], changed: string[], outcome: string, reviewedIndexDigests?: ReadonlyMap<string, string>): string[] {
   if(!valid(set)) fail('invalid manifest.');
-  if(set.head!==git(root,'rev-parse','HEAD') || set.branch!==git(root,'branch','--show-current') || set.branch!==`plan/${planId}`) fail('HEAD/branch changed or checkout is not the designated plan branch; regenerate the reviewed manifest there.');
+  if(hasRecoveryOperation(root)) fail('unfinished Git operation requires explicit reconciliation before recording.');
+  if(set.head!==git(root,'rev-parse','HEAD') || set.branch!==git(root,'branch','--show-current') || (planId !== null && set.branch!==`plan/${planId}`)) fail('HEAD/branch changed or checkout is not the designated plan branch; regenerate the reviewed manifest there.');
   const head=tree(root,['ls-tree','-rz','HEAD']), index=tree(root,['ls-files','--stage','-z']);
   for (const entry of run('git', ['ls-files', '-v', '-z'], {cwd:root}).split('\0').filter(Boolean)) {
     if (entry[0] === 'S' || entry[0] !== entry[0].toUpperCase()) fail(`assume-unchanged/skip-worktree entries are unsupported: ${entry.slice(2)}; clear the flag before recording.`);
@@ -86,7 +88,11 @@ export function validateRecordingSet(set: RecordingSet, root: string, planId: st
     if(e.beforeDigest!==before||e.afterDigest!==w.digest) fail(`stale before/after digest: ${p}`);
     const indexMatchesHead=indexDigest===before && i?.mode===h?.mode;
     const indexMatchesAfter=indexDigest===w.digest && i?.mode===(w.mode??undefined);
-    if(!indexMatchesHead&&!indexMatchesAfter) fail(`partial staging: ${p}; index must match HEAD or the complete reviewed after-state.`);
+    // An internal transaction may add core metadata over an already-reviewed,
+    // fully staged body. Its caller first validates that body and retains the
+    // exact original index bytes while generating the final metadata overlay.
+    const indexMatchesReviewed=reviewedIndexDigests?.get(p)===indexDigest && i?.mode===(w.mode??undefined);
+    if(!indexMatchesHead&&!indexMatchesAfter&&!indexMatchesReviewed) fail(`partial staging: ${p}; index must match HEAD or the complete reviewed after-state.`);
     observed.add(p);
   }
   for(const p of edits.keys()) if(!observed.has(p)) fail(`manifest path has no actual change: ${p}`);

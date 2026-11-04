@@ -4,6 +4,7 @@ import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { lazyValidator } from '../lazy-validator.js';
 import { hasAnchor } from '../spec/slug.js';
+import { loadDocumentationBundle } from '../docs/bundle.js';
 import { manifestSchema } from './schemas.js';
 import type { Result } from './contracts.js';
 
@@ -116,16 +117,10 @@ export async function validateCompatibility(manifest: unknown, host: HostSelecti
     // Documentation metadata has its own closed format and paths relative to its bundle.
     const docsAsset = docs[0];
     const bundlePath = path.posix.dirname(docsAsset.path);
-    const document = json(await verified(host.packageRoot, docsAsset.path, docsAsset.sha256));
-    exact(document, ['format_version', 'core_version', 'docs_version', 'contract_version', 'orientation', 'topics']);
-    if (document.format_version !== 1 || document.core_version !== info.version || document.docs_version !== info.docsVersion || document.contract_version !== info.contractVersion) fail('Documentation version mismatch');
-    const verifyDocFile = async (entry: unknown) => {
-      exact(entry, ['path', 'sha256']);
-      if (typeof entry.path !== 'string' || !isHash(entry.sha256)) fail('Invalid documentation asset');
-      await verified(host.packageRoot, `${bundlePath}/${entry.path}`, entry.sha256);
-    };
-    await verifyDocFile(document.orientation);
-    const orientation = document.orientation as Record<string, unknown>;
+    const { manifest: document } = loadDocumentationBundle(path.join(host.packageRoot, bundlePath), {
+      core_version: info.version, docs_version: info.docsVersion, contract_version: info.contractVersion,
+    });
+    const orientation = document.orientation;
     for (const instruction of m.assets.filter(a => a.kind === 'instructions')) {
       const content = Buffer.from(await verified(host.packageRoot, instruction.path, instruction.sha256)).toString('utf8');
       const metadata = content.match(/<!-- specplane-orientation: (\{[^\n]*\}) -->/);
@@ -135,21 +130,6 @@ export async function validateCompatibility(manifest: unknown, host: HostSelecti
       if (fields.docs_version !== info.docsVersion || fields.contract_version !== info.contractVersion || fields.sha256 !== orientation.sha256) fail('Managed instruction orientation metadata mismatch');
     }
 
-    if (!Array.isArray(document.topics) || !document.topics.length) fail('Empty documentation index');
-    const ids = new Set<string>(), paths = new Set<string>();
-    for (const topic of document.topics) {
-      exact(topic, ['id', 'title', 'path', 'sha256', 'related', 'sources']);
-      if (typeof topic.id !== 'string' || !topic.id || ids.has(topic.id) || typeof topic.title !== 'string' || !topic.title || typeof topic.path !== 'string' || paths.has(topic.path) || !isHash(topic.sha256) || !Array.isArray(topic.related) || !Array.isArray(topic.sources)) fail('Invalid documentation topic');
-      ids.add(topic.id); paths.add(topic.path);
-      await verified(host.packageRoot, `${bundlePath}/${topic.path}`, topic.sha256);
-      for (const source of topic.sources) {
-        if (!record(source) || !Object.keys(source).every(k => ['id', 'anchor', 'path', 'sha256'].includes(k)) || typeof source.id !== 'string' || typeof source.path !== 'string' || !isHash(source.sha256) || (source.anchor !== undefined && typeof source.anchor !== 'string')) fail('Invalid documentation source');
-        await verified(host.packageRoot, `${bundlePath}/${source.path}`, source.sha256);
-      }
-    }
-    for (const topic of document.topics) {
-      if (!record(topic) || !Array.isArray(topic.related) || topic.related.some(id => typeof id !== 'string' || !ids.has(id))) fail('Invalid related topic');
-    }
     const reports = new Map<string, { version: string; apis: string[] }>();
     for (const entry of m.hostCompatibility) {
       if (compare(entry.minVersion, entry.maxVersionExclusive) >= 0) fail('Invalid host version interval');
