@@ -197,7 +197,7 @@ out=$(PATH="$ORIG_PATH" CLAUDE_PROJECT_DIR="$tmp/pg-none" sh "$hooks/specplane-p
 $(pgj Edit specs/f1.md '')
 EOJ
 )
-case "$out" in *"Policy (specs.feature.llm_role: none) forbids editing feature specs. Tell the user instead."*) report "guard: deny reason text" 1 ;; *) report "guard: deny reason text" 0 ;; esac
+case "$out" in *"Policy (specs.feature.llm_role: none) forbids editing feature spec bodies. Tell the user instead."*) report "guard: deny reason text" 1 ;; *) report "guard: deny reason text" 0 ;; esac
 
 # approval check: specs, PLAN.md/steps, and ADRs cannot be approved by an edit
 pge() { # file new_string (Edit)
@@ -231,6 +231,37 @@ $(pge specs/f1.md 'body changed')
 EOJ
 )
 case "$out" in *"Policy (specs.feature.llm_role: review): the user must approve this exact edit."*) report "guard: review ask reason text" 1 ;; *) report "guard: review ask reason text" 0 ;; esac
+
+# exact edits: the postimage is reconstructed, so a metadata-only implementation declaration is not a
+# body edit and a nested implementation status is not review status
+pgx() { # tool file old new (Edit with old_string)
+  "$JQ" -n --arg f "$2" --arg o "$3" --arg n "$4" '{tool_name:"Edit",tool_input:{file_path:$f,old_string:$o,new_string:$n}}'
+}
+pgmx() { # file old1 new1 old2 new2 (MultiEdit)
+  "$JQ" -n --arg f "$1" --arg o "$2" --arg n "$3" --arg o2 "$4" --arg n2 "$5" '{tool_name:"MultiEdit",tool_input:{file_path:$f,edits:[{old_string:$o,new_string:$n},{old_string:$o2,new_string:$n2}]}}'
+}
+for role in review none; do
+  d="$tmp/pg-x-$role"; pg_proj "$d" "$role" "$role"; mkdir -p "$d/specs"
+  printf -- '---\nid: feature/x\nstatus: review\n---\nbody\n' > "$d/specs/f1.md"
+  printf -- '---\nid: feature/y\nstatus: review\nimplementation:\n  status: partial\n  note: a\nauthor: user\n---\nbody\n' > "$d/specs/f2.md"
+  printf -- '---\nid: architecture/z\nstatus: approved\n---\nbody\n' > "$d/specs/a1.md"
+  pg "guard: $role: adding an implementation block is metadata-only and not a body edit" "$d" "$(pgx Edit specs/f1.md 'status: review
+' 'status: review
+implementation:
+  status: complete
+')" none
+  pg "guard: $role: changing nested implementation status is metadata-only" "$d" "$(pgx Edit specs/f2.md '  status: partial' '  status: complete')" none
+  pg "guard: $role: nested implementation status approved is not a lifecycle approval" "$d" "$(pgx Edit specs/f2.md '  status: partial' '  status: approved')" none
+  pg "guard: $role: an exact body edit is still a body edit" "$d" "$(pgx Edit specs/f2.md 'body' 'new body')" "$([ "$role" = none ] && echo deny || echo ask)"
+  pg "guard: $role: metadata plus body in one MultiEdit is a body edit" "$d" "$(pgmx specs/f2.md '  status: partial' '  status: complete' 'body' 'other')" "$([ "$role" = none ] && echo deny || echo ask)"
+  pg "guard: $role: top-level status approved is denied even beside an implementation block" "$d" "$(pgx Edit specs/f2.md 'status: review
+implementation' 'status: approved
+implementation')" deny
+  pg "guard: $role: an author field edit is not implementation metadata" "$d" "$(pgx Edit specs/f2.md 'author: user' 'author: model')" "$([ "$role" = none ] && echo deny || echo ask)"
+  pg "guard: $role: a Write that keeps the status and only changes implementation is metadata-only" "$d" "$(pgj Write specs/f1.md "$(printf -- '---\nid: feature/x\nstatus: review\nimplementation:\n  status: complete\n---\nbody\n')")" none
+  pg "guard: $role: a Write that changes the body asks or denies" "$d" "$(pgj Write specs/f1.md "$(printf -- '---\nid: feature/x\nstatus: review\n---\nrewritten\n')")" "$([ "$role" = none ] && echo deny || echo ask)"
+  pg "guard: $role: a Write preserving status approved is not an approval" "$d" "$(pgj Write specs/a1.md "$(printf -- '---\nid: architecture/z\nstatus: approved\n---\nbody\n')")" none
+done
 
 # ---- session context and status line ----
 sc_repo="$tmp/screpo"; mkdir -p "$sc_repo/.specplane" "$sc_repo/plans/x/steps"
