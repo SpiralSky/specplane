@@ -191,7 +191,7 @@ export const register: Register = on => {
     // The host allows one unmatched session.start hook per package, so the native
     // command handlers (./handlers) register from here; their failure is isolated.
     try {
-      await startNative($)
+      await startNative($, e.cwd)
     } catch (err) {
       failureLog.write(`specplane: native handlers failed to start: ${err instanceof Error ? err.message : String(err)}`)
     }

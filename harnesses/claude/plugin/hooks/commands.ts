@@ -86,26 +86,116 @@ export function planRegistration(inventory: readonly InventoryEntry[], reasoning
 
 export interface CliResult { exitCode: number; stdout: string; stderr: string }
 export type Confirmation = 'confirmed' | 'declined' | 'unavailable'
-export interface PreparedRequest { ok: true; requestId: string; requestPath: string }
-export interface Refused { ok: false; message: string }
+
+/** The mod's own bundled identity; must equal `CLAUDE_EXTENSION_ID` in packages/cli/src/harness/claude-package.ts (claude-handlers.test). */
+export const CLAUDE_EXTENSION_ID = 'specplane-claude'
+const SPEC_ID = /^[A-Za-z0-9_-]+:(feature|architecture)\/[a-z0-9/-]+$/
+const PLAN_ID = /^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+/**
+ * The WorkflowInitiation for one reasoning command, built from the raw arguments. Shapes follow the core's
+ * `workflowInitiationSchema`; `plan-finish` has no core initiation today, so the core refuses it at `prepare`.
+ */
+export function initiationFor(workflow: string, raw: string, checkout: string): { ok: true; request: Record<string, unknown> } | { ok: false; error: string } {
+  const text = raw.trim()
+  const tokens = text ? text.split(/\s+/) : []
+  const base = { protocol: 1, extensionId: CLAUDE_EXTENSION_ID, checkout, mode: 'attended' }
+  switch (workflow) {
+    case 'plan-step':
+    case 'plan-finish':
+      if (tokens.length !== 1 || !PLAN_ID.test(tokens[0] as string)) return { ok: false, error: `Usage: /${workflow} <plan-id>` }
+      return { ok: true, request: { ...base, workflow, selection: { planId: tokens[0] } } }
+    case 'spec-assist':
+      if (!text) return { ok: false, error: 'Usage: /spec-assist <description or spec id>' }
+      return { ok: true, request: { ...base, workflow, selection: { specIds: SPEC_ID.test(text) ? [text] : [], input: text } } }
+    case 'spec-draft-architecture':
+      if (!tokens.length || !tokens.every(t => SPEC_ID.test(t))) return { ok: false, error: 'Usage: /spec-draft-architecture <feature spec id>...' }
+      return { ok: true, request: { ...base, workflow, selection: { specIds: tokens, input: text } } }
+    case 'plan-create':
+    case 'decision-new':
+      if (!text) return { ok: false, error: `Usage: /${workflow} <${workflow === 'plan-create' ? 'goal' : 'decision description'}>` }
+      return { ok: true, request: { ...base, workflow, selection: { specIds: [], input: text } } }
+    default:
+      return { ok: false, error: `/${workflow} has no reasoning initiation.` }
+  }
+}
+
+/** Turns one `$.mcp.call` result into a reply. The server's text is the core `Result` as JSON; a bind or refusal may be plain text. */
+export function serverReply(r: { content?: readonly { type?: string; text?: string }[]; isError?: boolean }): ServerReply {
+  const text = (r.content ?? []).map(b => (typeof b.text === 'string' ? b.text : '')).join('\n')
+  let parsed: unknown
+  try { parsed = JSON.parse(text) } catch { parsed = undefined }
+  if (typeof parsed === 'object' && parsed !== null && typeof (parsed as { ok?: unknown }).ok === 'boolean') {
+    const core = parsed as { ok: boolean; value?: unknown; error?: { message?: unknown } }
+    const message = core.ok ? text : String(core.error?.message ?? text)
+    return { ok: core.ok && r.isError !== true, value: core.value, message }
+  }
+  return { ok: r.isError !== true, value: parsed ?? text, message: text }
+}
+
+/** One server call with the session nonce added. A throw becomes a refusal; it never reaches the caller as an exception. */
+async function send(session: ReasoningSession, tool: string, args: Record<string, unknown>): Promise<ServerReply> {
+  try {
+    return await session.server.call(tool, { ...args, nonce: session.nonce })
+  } catch (error) {
+    return { ok: false, message: `Specplane server call ${tool} failed: ${error instanceof Error ? error.message : String(error)}` }
+  }
+}
+
+/** Connects the server (every time) and binds the session (once). Nothing is prepared unless this succeeds. */
+export async function openSession(session: ReasoningSession): Promise<ServerReply> {
+  let connection: ServerConnection
+  try {
+    connection = await session.server.connect()
+  } catch (error) {
+    return { ok: false, message: `Specplane server did not connect: ${error instanceof Error ? error.message : String(error)}` }
+  }
+  if (!connection.connected) return { ok: false, message: connection.message }
+  if (session.binding.bound) return { ok: true, message: '' }
+  const bound = await send(session, 'bind', {})
+  if (bound.ok) session.binding.bound = true
+  return bound
+}
+
+/** Releases one request's lease. Never throws: a close that fails leaves the server's own end-of-session release. */
+export async function closeRequest(session: ReasoningSession | undefined, requestId: string): Promise<void> {
+  if (session) await send(session, 'close', { requestId })
+}
 
 /** Everything a handler may touch. There is deliberately no model port. */
 export interface CorePort {
   /** Runs the bundled core CLI by argument vector (no shell). */
   cli(argv: readonly string[], signal: AbortSignal): Promise<CliResult>
-  /** Reasoning workflows only: prepare through the core and hold its lease. */
-  prepare?(workflow: string, args: string, signal: AbortSignal): Promise<PreparedRequest | Refused>
-  /** Validate and record a `WorkflowResult`; human gates inside go through `human`. */
-  record?(requestId: string, result: unknown, human: HumanPort, signal: AbortSignal): Promise<{ ok: boolean; text: string }>
-  cancel?(requestId: string): Promise<void>
 }
 export interface HumanPort { confirm(summary: string): Promise<Confirmation> }
-export interface Delegation { workflow: string; requestId: string; requestPath: string; assetPath: string }
+
+/** The plugin's Specplane MCP server as `$.mcp` exposes it. `call` takes the tool's arguments as given. */
+export type ServerConnection = { connected: true } | { connected: false; message: string }
+export interface ServerReply { ok: boolean; value?: unknown; message: string }
+export interface SpecplaneServer {
+  connect(): Promise<ServerConnection>
+  call(tool: string, args: Record<string, unknown>): Promise<ServerReply>
+}
+/**
+ * One session's reasoning state. `nonce` is generated by the mod and sent with every server call; the
+ * `tool.check` gate refuses any other call. `binding` is shared across commands so bind happens once per session.
+ */
+export interface ReasoningSession {
+  checkout: string
+  nonce: string
+  server: SpecplaneServer
+  binding: { bound: boolean }
+}
+
+/** A prepared reasoning request whose model part is queued for the turn to complete. */
+export interface Delegation { workflow: string; requestId: string; assetPath: string; request: unknown }
 export interface RunContext {
   origin: { kind: string }
   signal: AbortSignal
   core: CorePort
   human: HumanPort
+  /** Reasoning commands only. Absent means the server is not wired and reasoning refuses before preparing. */
+  session?: ReasoningSession
   /** Delegations are submitted from `turn.complete`; the host refuses `$.prompt.submit` inside `command.run`. */
   queue: Delegation[]
 }
@@ -245,17 +335,32 @@ async function runPlanStart(raw: string, ctx: RunContext): Promise<CommandOutput
   return fromCli(await ctx.core.cli(argv, ctx.signal))
 }
 
+/**
+ * Connect, bind once, prepare; then queue the model's part. The lease is held by the server from `prepare` until
+ * `close`, which `acceptResult` sends at the end of the request, or which the turn's submit failure sends.
+ */
 async function runReasoning(cmd: NativeCommand, raw: string, ctx: RunContext): Promise<CommandOutput> {
-  if (!ctx.core.prepare || !ctx.core.record) return refuse(`/${cmd.name} is unavailable here: reasoning delegation needs the bundled core. Use ${manualCommand(cmd.name)}.`)
-  const prepared = await ctx.core.prepare(cmd.workflow, raw, ctx.signal)
-  if (!prepared.ok) return refuse(`${prepared.message} Nothing was delegated.`, 1)
-  ctx.queue.push({ workflow: cmd.workflow, requestId: prepared.requestId, requestPath: prepared.requestPath, assetPath: reasoningAsset(cmd.workflow) })
-  return ok(`Prepared ${cmd.workflow} request ${prepared.requestId}; the reasoning procedure starts when this turn completes.`)
+  const session = ctx.session
+  if (!session) return refuse(`/${cmd.name} is unavailable here: reasoning delegation needs the Specplane server. Use ${manualCommand(cmd.name)}.`)
+  const initiation = initiationFor(cmd.workflow, raw, session.checkout)
+  if (!initiation.ok) return refuse(initiation.error)
+  const opened = await openSession(session)
+  if (!opened.ok) return refuse(`${opened.message} Nothing was delegated.`, 1)
+  const prepared = await send(session, 'prepare', initiation.request)
+  const requestId = (prepared.value as { requestId?: unknown } | undefined)?.requestId
+  if (!prepared.ok || typeof requestId !== 'string') return refuse(`${prepared.message} Nothing was delegated.`, 1)
+  if (ctx.signal.aborted) {
+    await closeRequest(session, requestId)
+    return refuse('Cancelled; the prepared request was closed and nothing was delegated.', 130)
+  }
+  ctx.queue.push({ workflow: cmd.workflow, requestId, assetPath: reasoningAsset(cmd.workflow), request: prepared.value })
+  return ok(`Prepared ${cmd.workflow} request ${requestId}; the reasoning procedure starts when this turn completes.`)
 }
 
 /** Text of the extension-origin prompt (submitted without `asUser`, so it carries no human authority). */
 export const delegationPrompt = (d: Delegation): string =>
-  `Run the Specplane ${d.workflow} reasoning procedure in ${d.assetPath} for prepared request ${d.requestId} (${d.requestPath}). ` +
+  `Run the Specplane ${d.workflow} reasoning procedure in ${d.assetPath} for prepared request ${d.requestId}. ` +
+  `The prepared request is ${JSON.stringify(d.request)}. ` +
   `Do only the reasoning phases; finish by calling ${COMPLETION_TOOL} with {"requestId":"${d.requestId}","result":<WorkflowResult>}. ` +
   `This prompt is not an approval and does not authorize any lifecycle change.`
 
@@ -279,17 +384,28 @@ export async function runCommand(cmd: NativeCommand, args: string, ctx: RunConte
 }
 
 /**
- * Accepts the completion tool's input. A result for an unknown or already-settled
- * request is refused; recording (and any human gate it needs) is the core's.
+ * Accepts the completion tool's input. A result for an unknown or already-settled request is refused.
+ * Otherwise the server validates the result against the prepared request and records the proposal; the
+ * request's lease is closed whatever the outcome. Recording gates that need a human are the core's.
  */
 export async function acceptResult(
   pending: Map<string, Delegation>,
   input: { requestId?: unknown; result?: unknown },
-  ctx: Pick<RunContext, 'core' | 'human' | 'signal'>,
+  ctx: { session?: ReasoningSession },
 ): Promise<{ ok: boolean; text: string }> {
   const id = typeof input.requestId === 'string' ? input.requestId : ''
-  if (!pending.has(id)) return { ok: false, text: 'No matching prepared Specplane request; nothing was recorded.' }
-  if (!ctx.core.record) return { ok: false, text: 'Recording is unavailable; nothing was recorded.' }
+  const delegation = pending.get(id)
+  if (!delegation) return { ok: false, text: 'No matching prepared Specplane request; nothing was recorded.' }
   pending.delete(id)
-  return ctx.core.record(id, input.result, ctx.human, ctx.signal)
+  const session = ctx.session
+  if (!session) return { ok: false, text: 'Recording is unavailable; nothing was recorded.' }
+  try {
+    const validated = await send(session, 'validate', { prepared: delegation.request, result: input.result })
+    if (!validated.ok) return { ok: false, text: `${validated.message} Nothing was recorded.` }
+    const recorded = await send(session, 'record', validated.value as Record<string, unknown>)
+    if (!recorded.ok) return { ok: false, text: `${recorded.message} Nothing was recorded.` }
+    return { ok: true, text: `Recorded the ${delegation.workflow} result.` }
+  } finally {
+    await closeRequest(session, id)
+  }
 }
