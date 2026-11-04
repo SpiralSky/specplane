@@ -1,3 +1,4 @@
+import { releaseIdentity, standingBlockReasons } from "../docs/freshness.js";
 import { capturePlanSnapshot, hasRecoveryOperation, type PlanSnapshot } from "../generate/snapshot.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -39,7 +40,15 @@ export function checkFreshness(root: string, registry: Harness[] = HARNESSES): V
   const installed = registry.filter((h) => h.detect(root));
   const lines = [undefined, COEXISTING_WORKFLOWS_LINE, ...registry.map((h) => h.workflowsLine)];
   const states = lines.map((l) => checkStanding(content, l));
-  const state = states.includes("ok") ? "ok" : states[0];
+  let state = states.includes("ok") ? "ok" : states[0];
+  // Version/hash metadata embedded by an explicit refresh: stale release identity or an edited block is reported, never repaired.
+  if (state === "ok") {
+    try {
+      if (standingBlockReasons(content, releaseIdentity(), registry).state === "stale") state = "outdated";
+    } catch {
+      // A damaged documentation bundle is reported by `specplane docs`; it does not make the standing block stale.
+    }
+  }
   const findings = [];
   const files = [file];
   for (const h of installed) {

@@ -69,3 +69,6 @@ export { reconcileWorkflowRecording } from './pending-recovery.js';
 
 export { docsIndex, docsTopic, docsSearch, DocsUsageError } from '../docs/operations.js';
 export type { DocsIndex, DocsTopic, DocsSearch } from '../docs/operations.js';
+
+export { checkGuidance, refreshGuidance } from '../docs/freshness.js';
+export type { GuidanceAsset, GuidanceState, RefreshEntry, RefreshAction } from '../docs/freshness.js';
