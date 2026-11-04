@@ -14,7 +14,7 @@
 | [2026-11-01-manual-lifecycle](2026-11-01-manual-lifecycle/PLAN.md) | Human gates and neutral CLI lifecycle | draft | repository default | [2026-11-01-workflow-recording](2026-11-01-workflow-recording/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/spec-policies, feature/plan-execution, feature/configuration, feature/decisions, feature/agent-integration |
 | [2026-11-01-workflow-recording](2026-11-01-workflow-recording/PLAN.md) | Prepared workflows and exact recording | draft | repository default | [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md), [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | architecture/reference-cli, architecture/agent-skills, architecture/file-formats, feature/plan-steps, feature/spec-policies |
 | [2026-11-02-completion-assessment](2026-11-02-completion-assessment/PLAN.md) | Implementation declarations and content assessment | draft | repository default | [2026-11-01-core-foundation](archive/2026-11-01-core-foundation/PLAN.md) | architecture/reference-cli, architecture/file-formats, feature/spec-system, feature/tooling, feature/spec-policies |
-| [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md) | Explicit plan-index snapshots and lifecycle generation | draft | repository default | [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | architecture/reference-cli, architecture/file-formats, architecture/ci, feature/plan-index, feature/tooling |
+| [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md) | Explicit plan-index snapshots and lifecycle generation | blocked | repository default | [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | architecture/reference-cli, architecture/file-formats, architecture/ci, feature/plan-index, feature/tooling |
 | [2026-11-02-product-docs](2026-11-02-product-docs/PLAN.md) | Offline product documentation and release orientation | draft | repository default | [2026-11-01-manual-lifecycle](2026-11-01-manual-lifecycle/PLAN.md), [2026-11-02-completion-assessment](2026-11-02-completion-assessment/PLAN.md), [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md) | architecture/reference-cli, architecture/file-formats, architecture/agent-skills, feature/agent-integration, feature/tooling |
 | [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | Target binding and lifecycle reconciliation | ready | repository default | [2026-11-01-core-foundation](archive/2026-11-01-core-foundation/PLAN.md) | architecture/reference-cli, architecture/file-formats, feature/plan-execution, feature/configuration, feature/tooling, feature/plan-system |
 
@@ -61,7 +61,7 @@ graph TD
     p_2026_11_01_manual_lifecycle[manual-lifecycle]:::draft
     p_2026_11_01_workflow_recording[workflow-recording]:::draft
     p_2026_11_02_completion_assessment[completion-assessment]:::draft
-    p_2026_11_02_plan_index[plan-index]:::draft
+    p_2026_11_02_plan_index[plan-index]:::blocked
     p_2026_11_02_product_docs[product-docs]:::draft
     p_2026_11_02_target_lifecycle[target-lifecycle]:::ready
     p_2026_10_29_feature_spec_alignment --> p_2026_10_29_assist_and_approve
