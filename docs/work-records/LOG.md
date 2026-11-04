@@ -311,3 +311,9 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commits `8603136` (shared runtime inputs), `7ff6063` (Claude package, installer staging, MCP reads installed manifest and host selection), `f2b3289` (conformance trace); HANDOFF rewritten in compact format.
 - `harness/claude-package.test` (5) and the Codex package and MCP suites pass. Full Bun run 1000 pass, 0 fail, 102 files. `specplane validate`: 0 errors, 98 warnings.
 - Reasoning commands and live check not done. New open decision D14 (installed package location `.claude/specplane/core`). Next: run 2, nonce gate and six native reasoning commands, offline.
+
+## 2026-11-04 claude-delivery 03 run 2: nonce gate and reasoning handlers, offline (14:19 UTC)
+- Commits `c21141c` (gate, six reasoning handlers, close on every outcome) and `2bffb7d` (Bun coverage, conformance comments). Gate fix: the completion tool is exempt, so results can return.
+- Full Bun 1012 pass, 0 fail; `claude plugin test` 27 pass; validate passes with warnings; hooks 94 pass; check-sync OK; `specplane validate` 0 errors.
+- Reasoning commands stay unregistered until the live check. New open decisions D15 (plan-finish has no core initiation), D16 (executeTest wiring), D17 (human confirmation for record).
+- Next: run 3, one prepare-only live check, then legacy skill removal. Plan in HANDOFF Next session.

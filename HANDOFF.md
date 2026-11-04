@@ -1,30 +1,34 @@
 # Session handoff
-Updated 2026-11-04T14:10Z. Branch `overnight/specplane-20261102T144630Z`, HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-04T14:19Z. Branch `overnight/specplane-20261102T144630Z`, HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; preserve it and never stage it. Managed recording is deferred by the user, so "complete" means implementation-complete on this branch.
-- claude-delivery 03, D12 option A built offline (commits `8603136`, `7ff6063`, `f2b3289`): `packages/cli/src/harness/claude-package.ts` assembles the package (`specplane-extension.json`, `core/inventory.json`, `dist/harness/claude-mcp-main.js`, `host-evidence/claude-code.json`, docs, runtime deps). `harness/claude.ts` stages it at `.claude/specplane/core` inside the install transaction.
-- `harness/claude-mcp-main.ts` now takes compatibility from the installed manifest and host selection, not from `SPECPLANE_HOST_EVIDENCE`. An installed `prepare` for `plan-step` passes `validateCompatibility`, holds the lease, and `close` releases it (`harness/claude-package.test`, test "the installed MCP server binds, prepares a reasoning workflow ...").
-- Claude rows in `harness/conformance-matrix.ts` stay pending. The guard now asserts the package exists and is traced to the unmet `exports-and-workflows` criterion.
-- No reasoning command is delivered yet: the six reasoning commands are not in the mod, and the six legacy skills stay in `harnesses/claude/templates/skills` and `.claude/skills/`. No live Claude check has been run.
-- Last full Bun run (2026-11-04, after `8603136`..`f2b3289`): 1000 pass, 0 fail, 102 files. `specplane validate`: 0 errors, 98 warnings, 80 files. Templates unchanged, so `check-sync.sh` not run.
-- Not run: native macOS/Windows, live Claude/Codex hosts, Node tests (policy: Bun only).
+- claude-delivery 03 run 2 (offline) built the nonce gate and the six reasoning commands in `harnesses/claude/plugin/hooks/commands.ts` and `handlers.ts` (commits `c21141c`, `2bffb7d`).
+- The gate admits a Specplane server call only with the nonce the mod bound at session start. Any other server call is denied, and a throwing gate denies. The completion tool `mcp__specplane__specplane_result` is exempt. Run 1's gate denied every `specplane` tool, including the completion tool, so results could never be returned. That is fixed.
+- Each reasoning command runs connect, bind (once per session), prepare, then queues the model part. `acceptResult` runs validate, record and close. `close` also runs on refusal, throw, cancel and failed submit (`submitDelegation`).
+- The reasoning commands are not registered. `startNative` keeps `reasoning = false` until the live check (D13). The legacy reasoning skills stay in `harnesses/claude/templates/skills` (D10).
+- Installer: `harness/claude-package.ts` stages `core/` at `.claude/specplane/core` (D14). It does not stage `.claude-plugin/plugin.json`, so the plugin root that `${CLAUDE_PLUGIN_ROOT}` expects is not installed (checked by grep of `harness/claude*.ts`).
+- Claude conformance rows stay `not-delivered` and `pending`. The column means delivered to the host, and offline tests cannot show that.
+- Verified offline (run 2, after `2bffb7d`): full Bun `./dist` 1012 pass, 0 fail, 102 files. `claude plugin validate harnesses/claude/plugin` passed with warnings. `claude plugin test` 27 pass. `hooks.test.sh` 94 pass. `check-sync.sh` OK. `specplane validate` 0 errors, 98 warnings, 80 files. Strict tsc clean on the two mod files, checked against the bundled 2.1.317 declarations.
+- Not run: live Claude invocation; native macOS and Windows; Node tests (policy: Bun only).
 
 ## Open decisions
-- D11 (decided by coordinator, 2026-11-04): option E. The plugin ships an MCP server the host runs as a persistent stdio process; the mod drives it with `$.mcp.call`; the server owns the writer lease. Residual risk: under `allowManagedHooksOnly` a user-tier plugin loads no hooks, so the gate is absent while the server still connects (d.ts remark at `$.mcp.connect`). Options: ship as managed, or accept the risk. Open for the user.
-- D13 (offline findings, 2026-11-04): the 2.1.317 declarations do not say whether `tool.check` runs for the mod's own `$.mcp.call`, do not mention `CLAUDE_PLUGIN_ROOT`, and name the connected server `plugin:<plugin>:<server>`. Design: the gate allows a call only with the bound session nonce and denies everything else. Unverified until the live run: server name, wire tool name, `${CLAUDE_PLUGIN_ROOT}` expansion, `tool.check` on `$.mcp.call`. Blocks the reasoning port's live check.
-- D14 (run 1, 2026-11-04): installed package location. Recorded as `.claude/specplane/core`, chosen so the plugin root `.claude/specplane` matches `plugin.json` (`${CLAUDE_PLUGIN_ROOT}/core/dist/harness/claude-mcp-main.js`). Options: (A) keep this layout and confirm at the live check that the plugin loads from `.claude/specplane`; (B) install the package outside the repository, in the plugin's own user-level location (needs installer scope change). Recommendation: A. Blocks the live check only.
-- D6: superseded (only the bundled snapshot was stale; the approved Codex spec was already correct).
+- D11: plugin ships an MCP server (option E, coordinator-decided). Open for the user: under `allowManagedHooksOnly` a user-tier plugin loads no hooks, so the gate is absent while the server still connects. Options: ship as managed, or accept the risk. Blocks: nothing offline.
+- D13: unverified until the live check: the connected server name (expected `plugin:specplane:specplane`), the wire tool name `tool.check` sees, `${CLAUDE_PLUGIN_ROOT}` expansion in `mcpServers` args, and whether `tool.check` fires for the mod's own `$.mcp.call`. Blocks the live check and the flip of `reasoning`.
+- D14 (decided by coordinator, 2026-11-04): keep `.claude/specplane/core`. Run 3 confirms it. Also decide how the plugin root gets `.claude-plugin/plugin.json` and `hooks/`, since the installer does not stage them. Blocks the live check.
+- D15 (new): `plan-finish` has no core initiation. `WorkflowName` and `workflowInitiationSchema` (`core/contracts.ts`, `core/schemas.ts`) omit it, though `nonPlanScopes` lists it. Options: (A) add it to the initiation contract (spec and core change); (B) keep it manual through the CLI, and its native command refuses with the core message. Recommendation: B for now. Blocks: `plan-finish` only.
+- D16 (new): `executeTest` is not wired. A criterion with `testRequirements` needs test evidence, but nothing says which executable and args run a suite. Options: (A) the mod runs the reviewed suite with a host-fixed command; (B) the model supplies executable and args (untrusted); (C) refuse such criteria until decided. Recommendation: C now, A later. Blocks: plan-step criteria that have tests.
+- D17 (new): recording a result with `requiresConfirmation` (finalized spec edits, creation) needs a direct-human interaction port. The MCP server's runner has none, so `record` returns `CONFIRMATION_REQUIRED` (`core/workflow-recording.ts`). Options: (A) confirm through the mod dialog and add a protocol field (protocol extension); (B) keep finalized edits and creation manual through the CLI. Recommendation: B for run 3. Blocks: reasoning commands that create or finalize specs, plans or decisions.
+- D6: superseded.
 
-## Decided (by the user or coordinator)
-- D12 (coordinator, delegated): option A. Build the Claude package compatibility inputs first, mirroring Codex, staged through the Claude installer's transaction. `enabled: "unobserved"`; no host beyond recorded evidence is certified. Done offline in run 1.
-- D10: remove the legacy public Claude skills. Five mechanical skills removed in `f57d03e`. Six reasoning skills removed only after the live check passes.
+## Decided
+- D12 (coordinator, delegated): option A. Claude package built and staged through the installer transaction, `enabled: "unobserved"`.
+- D10: legacy public Claude skills. Five mechanical ones removed in `f57d03e`. Six reasoning skills removed only after the live check passes.
 - D9 (a): superseded by D11 option E. `live-probe-gate.txt` remains as evidence.
-- D1: ADR creation stays noncommit, matching `agent-skills` decision-new. Recording ADR creation returns `UNSUPPORTED_CAPABILITY` by design.
-- D2: Adopt the protocol extensions (`WorkflowResult.creation`, `finalizedEdits`, `ContributionProposal`, `captureProposedContribution`, `beforeDigest: "missing"`). A later session drafts the architecture spec edit; the user approves via /approve.
-- D3: resolved locally. Old local rewrite kept at `backup/codex-integration-path-scrub-20261102`.
-- D4, D5, D7, D8: resolved or decided earlier (D5 plan abandon waits for final reconciliation; D7 title-only search returns `excerpts: []`; D8 Codex/Claude workflow lines are neutral in `AGENTS.md`).
-- Managed recording deferral: do not run plan start/step-done/retarget/abandon; do not edit plan `status:`, step checkboxes or managed progress files.
+- D1: ADR creation stays noncommit. Recording ADR creation returns `UNSUPPORTED_CAPABILITY` by design.
+- D2: protocol extensions adopted (`WorkflowResult.creation`, `finalizedEdits`, `ContributionProposal`, `captureProposedContribution`, `beforeDigest: "missing"`). Architecture spec edit pending user approval.
+- D3, D4, D5, D7, D8: resolved or decided earlier (D5: plan abandon waits for final reconciliation; D7: title-only search returns `excerpts: []`; D8: Codex and Claude workflow lines are neutral in `AGENTS.md`).
+- Managed recording deferral: do not run plan start, step-done, retarget or abandon; do not edit plan `status:`, step checkboxes or managed progress files.
 
 ## Steps
 | Plan | Step | State | Note |
@@ -40,7 +44,7 @@ Updated 2026-11-04T14:10Z. Branch `overnight/specplane-20261102T144630Z`, HEAD i
 | extension-packaging | 03 | impl-complete; managed recording pending | all 4 criteria met; `harness/coexistence.test` (7) |
 | claude-delivery | 01 | impl-complete offline; managed recording pending | declaration fixture for 2.1.317; no live evidence |
 | claude-delivery | 02 | partial; managed recording pending | criteria 1, 3, 4 met offline; criterion 2 met for gates and coverage; D10 mechanical skills removed |
-| claude-delivery | 03 | partial; blocked (reasoning port, then live check) | MCP server (`claude-mcp.test`, 6), gate (`claude-handlers.test`, 8), package and installed-prepare (`claude-package.test`, 5) built; reasoning commands and live check not done |
+| claude-delivery | 03 | partial; blocked (live check, D13/D14) | server, package and installed prepare built (runs 1-2); nonce gate and six reasoning handlers built and tested offline (`claude-handlers`, 20), not registered |
 | codex-delivery | 01 | impl-complete; managed recording pending | all 3 criteria met by `core/workflow-runner.test`; no live Codex claim |
 | codex-delivery | 02 | impl-complete; managed recording pending | all 4 criteria met; `harness/codex-package.test` (6) |
 | codex-delivery | 03 | impl-complete; managed recording pending | all 3 criteria met; `harness/codex-consumer.test` (7) |
@@ -48,12 +52,22 @@ Updated 2026-11-04T14:10Z. Branch `overnight/specplane-20261102T144630Z`, HEAD i
 | extension-conformance | 02 | partial; managed recording pending | guards built (`harness/release-evidence.test` (4)); pin refresh awaits user implementation review |
 
 ## Next session
-Run 2 of claude-delivery 03, offline only (no live Claude invocation).
-1. Nonce gate: in `hooks/handlers.ts` and the mod, require the bound session nonce on every `$.mcp.call` argument set; deny everything else (fail closed) per D13.
-2. Port the six reasoning commands (`spec-assist`, `plan-step`, `plan-create`, `plan-finish`, `decision-new`, `spec-draft-architecture`) to native mod commands over `$.mcp.connect` and `$.mcp.call` against the installed MCP server, with the `prepare`, `executeTest`, `validate`, `record` flow. Keep `planRegistration(..., false)` until the live check passes.
-3. Add offline tests (plugin test kit, Bun suites). Update the Claude rows in `harness/conformance-matrix.ts` only where those tests prove them.
-4. Do not spend the live check in run 2. Record its prerequisites in the D13 entry.
-Spec text likely stale after D11 (not verified line by line; spec edits need the user): `claude:architecture/claude-integration` (`harnesses/claude/specifications/architecture/claude-integration.md`) describes the reasoning and lease path, which is now the plugin MCP server, and the plugin layout at its line 68 and the hooks section at line 445. `harnesses/claude/specifications/features/claude-integration.md` lines 54-58 list the six reasoning skills, which D10 will remove.
+Run 3 of claude-delivery 03: one live check, then removal of the legacy reasoning skills. Nothing is registered yet, so the live check needs a deliberate flip.
+
+1. Precondition (human or coordinator decision): settle how the plugin root gets `.claude-plugin/plugin.json` and `hooks/` (see D14). Then, in one commit, set `reasoning = true` in `startNative` (`harnesses/claude/plugin/hooks/handlers.ts`), rebuild, and run `claude plugin validate` and `claude plugin test` again.
+2. Build a fixture checkout, never the repo itself: copy the repo to a scratch directory, run `specplane init --harness claude` there, and confirm `.claude/specplane/core/specplane-extension.json`, `core/dist/harness/claude-mcp-main.js` and `host-evidence/claude-code.json` exist.
+3. Confirm the flag with `claude --help | grep -i plugin`. Then run one prepare-only session: `claude -p '/spec-assist search filter draft' --plugin-dir <fixture>/.claude/specplane --output-format stream-json --verbose`, from the fixture. Prepare-only avoids D15, D16 and D17, because `record` is not reached.
+4. Evidence that proves the run passed:
+   - connect: `$.mcp.connect` returns `isConnected: true` with `server` `plugin:specplane:specplane`, and the transcript shows the prepare reply.
+   - bind: the first server call returns `{"bound":true}`. A second reasoning command in the same session sends only `prepare`.
+   - prepare: the reply holds a `requestId` and a criteria list.
+   - lease held: the server's `inspect` tool for that `requestId` shows the writer lease held. A second `prepare` from another process returns `LOCKED`.
+   - close: `close` for that `requestId`, then `inspect` shows the lease released.
+   - D13 facts: the gate lets the mod's `$.mcp.call` through (bind succeeds with the gate in place). Record the wire tool name `tool.check` sees. Confirm `${CLAUDE_PLUGIN_ROOT}` expanded (the server process path is under the fixture's `.claude/specplane/core`).
+   - D14: the server path is `.claude/specplane/core`, so D14 is confirmed.
+5. Failure rule: if any item fails, record the exact output in `harnesses/claude/host-evidence/2.1.317/` and stop. Do not retry. Only a passing run allows the skill removal.
+6. After a pass: record the live facts in the D13 entry, then in one commit remove the six reasoning skills (D10) and `harness/conformance-matrix.ts` reasoning rows if the live evidence supports them. Update `harnesses/claude/specifications/features/claude-integration.md` lines 54-58 only with the user's spec approval.
+- Spec text is likely stale after D11 (not verified line by line). `claude:architecture/claude-integration` (`harnesses/claude/specifications/architecture/claude-integration.md`) describes the reasoning and lease path, which is now the plugin MCP server. Its plugin layout (line 68) and hooks section (line 445) may be stale. Spec edits need the user.
 
 ## How to continue (orchestration)
 The user runs steps through a coordinator session that chains **Sonnet 5.5 subagents sequentially, one step per subagent**. Each subagent acts as a complete session.
