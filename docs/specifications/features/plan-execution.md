@@ -1,7 +1,7 @@
 ---
 id: feature/plan-execution
 title: "Plan execution: backends, start/finish flows, merging, and stacking"
-status: review
+status: approved
 author: mixed
 ---
 
