@@ -317,3 +317,9 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Full Bun 1012 pass, 0 fail; `claude plugin test` 27 pass; validate passes with warnings; hooks 94 pass; check-sync OK; `specplane validate` 0 errors.
 - Reasoning commands stay unregistered until the live check. New open decisions D15 (plan-finish has no core initiation), D16 (executeTest wiring), D17 (human confirmation for record).
 - Next: run 3, one prepare-only live check, then legacy skill removal. Plan in HANDOFF Next session.
+
+## 2026-11-04 claude-delivery 03 run 3: D14 staging and one live prepare attempt (UTC 15:15)
+- Commits `9553c2d` and `6782cd7` (plugin root `.claude-plugin`, `hooks/`, `types/` staged beside core), `f128b35` (live evidence), `ba8cdca` (matrix reason). Reasoning flag tested in the fixture only, then reverted.
+- Live check (one `claude -p` run in a fixture): host loaded the plugin and started the server from `.claude/specplane/core`. Refused at the origin gate (`sdk`) before prepare; no lease taken. Not passed; D18 recorded.
+- Also found D19 (public skills collide with reasoning names). Focused suites 58 pass; full suite stalled, not rerun per coordinator.
+- Next: user decision on D18, then the Claude architecture-spec edit draft for approval.
