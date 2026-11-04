@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { blockHash, checkStanding, findBlock, upsertBlock, COEXISTING_WORKFLOWS_LINE, type ReleaseIdentity } from '../agents/standing.js';
+import type { InstallTransaction } from '../harness/containment.transaction.js';
+import { blockHash, checkStanding, findBlock, upsertBlock, type ReleaseIdentity } from '../agents/standing.js';
 import { assertInstallDestination, writeInstallFile } from '../harness/containment.js';
 import { HARNESSES, templatesDir, type Harness } from '../harness/index.js';
 import { loadReleasedDocs } from './operations.js';
@@ -23,19 +24,9 @@ export function releaseIdentity(bundleDirectory?: string): ReleaseIdentity {
   return { docs: manifest.docs_version, contract: manifest.contract_version };
 }
 
-function knownLines(registry: Harness[]): (string | undefined)[] {
-  return [undefined, COEXISTING_WORKFLOWS_LINE, ...registry.map(h => h.workflowsLine)];
-}
-
-/** The line a refresh writes: one installed host names its own line, several get the neutral dispatcher. */
-function refreshLine(root: string, registry: Harness[]): string | undefined {
-  const installed = registry.filter(h => h.detect(root));
-  return installed.length > 1 ? COEXISTING_WORKFLOWS_LINE : installed[0]?.workflowsLine;
-}
-
 /** Why the managed block in `content` is stale for this release; empty when current. */
 export function standingBlockReasons(content: string | null, release: ReleaseIdentity, registry: Harness[] = HARNESSES): { state: GuidanceState; reasons: string[] } {
-  const states = knownLines(registry).map(line => checkStanding(content, line));
+  const states = [checkStanding(content)];
   if (states[0] === 'missing') return { state: 'missing', reasons: ['managed block absent'] };
   if (states[0] === 'malformed') return { state: 'malformed', reasons: ['unbalanced or repeated begin/end markers'] };
   const reasons: string[] = [];
@@ -78,6 +69,8 @@ export interface RefreshOptions extends GuidanceOptions {
    * its digest is listed here; anything else is customised or unrecognised and is preserved.
    */
   recognized?: Record<string, string[]>;
+  /** Stage the writes in this open installation transaction (the caller commits) instead of writing directly. */
+  transaction?: InstallTransaction;
 }
 
 /**
@@ -94,7 +87,7 @@ export function refreshGuidance(root: string, options: RefreshOptions = {}): Ref
 
   const entries: RefreshEntry[] = [];
   const writes: [string, string | Buffer][] = [];
-  const block = upsertBlock(read(agents), refreshLine(root, registry), release);
+  const block = upsertBlock(read(agents), release);
   if (block.action === 'malformed') entries.push({ path: 'AGENTS.md', action: 'preserved', detail: 'malformed Specplane markers; fix the begin/end markers by hand' });
   else if (block.action === 'unchanged') entries.push({ path: 'AGENTS.md', action: 'unchanged', detail: 'managed block is current' });
   else {
@@ -116,6 +109,11 @@ export function refreshGuidance(root: string, options: RefreshOptions = {}): Ref
       entries.push({ path: h.rulesFile, action: 'updated', detail: 'recognised earlier release replaced' });
     } else entries.push({ path: h.rulesFile, action: 'preserved', detail: 'customised or unrecognised file kept; compare with the bundled template' });
   }
-  if (!options.dryRun) for (const [file, content] of writes) writeInstallFile(root, file, content);
+  if (!options.dryRun) {
+    for (const [file, content] of writes) {
+      if (options.transaction) options.transaction.stage(file, content, { owned: file !== agents });
+      else writeInstallFile(root, file, content);
+    }
+  }
   return entries;
 }

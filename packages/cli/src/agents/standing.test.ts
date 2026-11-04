@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkStanding, standingText, upsertBlock } from "./standing.js";
+import { checkStanding, NEUTRAL_WORKFLOWS_LINE, standingText, upsertBlock } from "./standing.js";
 
 test("creates, then leaves unchanged", () => {
   const a = upsertBlock(null);
@@ -12,7 +12,7 @@ test("creates, then leaves unchanged", () => {
 test("appends after existing text and preserves it", () => {
   const r = upsertBlock("# Mine\n");
   assert.equal(r.action, "appended");
-  assert.ok(r.content.startsWith("# Mine\n\n<!-- specplane:begin v1"));
+  assert.ok(r.content.startsWith("# Mine\n\n<!-- specplane:begin v2"));
 });
 
 test("updates a changed block, preserving CRLF and surrounding text", () => {
@@ -31,8 +31,8 @@ test("malformed markers are not touched", () => {
   assert.equal(checkStanding(bad), "malformed");
 });
 
-test("missing and workflow-line variants", () => {
+test("missing and canonical-text variants", () => {
   assert.equal(checkStanding(null), "missing");
   assert.equal(checkStanding("# nothing"), "missing");
-  assert.ok(standingText("use /x.").endsWith("use /x."));
+  assert.ok(standingText().endsWith(NEUTRAL_WORKFLOWS_LINE));
 });

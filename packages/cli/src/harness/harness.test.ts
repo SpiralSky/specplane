@@ -118,7 +118,8 @@ test("claude install: files created, hooks executable, idempotent, CLAUDE.md unt
   assert.equal(fs.statSync(hook).mode & 0o777, 0o755);
   assert.equal(fs.readFileSync(path.join(root, "CLAUDE.md"), "utf8"), "mine\n");
   assert.equal(fs.readFileSync(path.join(root, ".claude/settings.local.json"), "utf8"), "{}");
-  assert.match(fs.readFileSync(path.join(root, "AGENTS.md"), "utf8"), /`\/spec-assist`/);
+  assert.match(fs.readFileSync(path.join(root, ".claude/rules/specplane.md"), "utf8"), /`\/spec-assist`/);
+  assert.doesNotMatch(fs.readFileSync(path.join(root, "AGENTS.md"), "utf8"), /`\/spec-assist`/, "the shared block names no host");
 
   fs.writeFileSync(path.join(root, ".claude/rules/specplane.md"), "changed");
   fs.chmodSync(hook, 0o644);

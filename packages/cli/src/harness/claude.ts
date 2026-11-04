@@ -3,10 +3,7 @@ import * as path from "node:path";
 import { type Harness, Report, skillDirsIn, templatesDir, withInstallTransaction } from "./index.js";
 import { assertInstallDestination, InstallationPathError } from "./containment.js";
 import type { InstallTransaction } from "./containment.transaction.js";
-
-/** Workflows line for the standing instructions when the Claude harness is installed. */
-export const CLAUDE_WORKFLOWS_LINE =
-  "`/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`, `/approve`, `/plan-start`, `/decision-new`, `/plan-status`, `/plan-abandon`; without them, follow the contracts in `architecture/agent-skills`.";
+import { buildInstalledManifest, collisionFor, collisionLine, type ObservedFile, sha256, stageInstalledManifest } from "./rollout.js";
 
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -128,7 +125,6 @@ function installSettings(root: string, tx: InstallTransaction, report: Report, t
 export const claude: Harness = {
   name: "claude",
   detect: (root) => fs.existsSync(path.join(root, ".claude")),
-  workflowsLine: CLAUDE_WORKFLOWS_LINE,
   install(root, report) {
     const tplDir = templatesDir("claude");
     const files = listFiles(tplDir);
@@ -140,12 +136,23 @@ export const claude: Harness = {
       return;
     }
     withInstallTransaction(root, report, (tx) => {
+      const observed: ObservedFile[] = [];
       for (const rel of files) {
         if (rel === "settings.json") continue;
         const dest = path.join(root, ".claude", rel);
         const src = fs.readFileSync(path.join(tplDir, rel));
         const exec = rel.startsWith("hooks/") && rel.endsWith(".sh");
-        switch (tx.classify(dest, src)) {
+        const skill = /^skills\/([^/]+)\/SKILL\.md$/.exec(rel);
+        const kind = tx.classify(dest, src);
+        const file: ObservedFile = {
+          path: `.claude/${rel}`,
+          outcome: kind === "customized" ? "customized" : "installed",
+          sha256: sha256(kind === "customized" ? tx.read(dest) ?? src : src),
+          ...(skill ? { command: `/${skill[1]}` } : {}),
+        };
+        observed.push(file);
+        if (kind === "customized") report.add(collisionLine(collisionFor(file, "claude")));
+        switch (kind) {
           case "absent":
             tx.stage(dest, src, { owned: true, ...(exec ? { mode: 0o755 } : {}) });
             report.created(dest);
@@ -163,6 +170,8 @@ export const claude: Harness = {
         }
       }
       installSettings(root, tx, report, tplDir);
+      // Written last: its presence means every earlier file of this harness was applied.
+      stageInstalledManifest(root, tx, buildInstalledManifest("claude", observed));
       report.add("Claude Code integration files written to `.claude/`.");
     });
   },

@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { COEXISTING_WORKFLOWS_LINE, upsertBlock } from "../agents/standing.js";
+import { upsertBlock } from "../agents/standing.js";
+import { refreshGuidance } from "../docs/freshness.js";
 import { CONFIG_PATH, loadConfig } from "../config.js";
 import { SpecplaneError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
@@ -68,7 +69,7 @@ Architecture specs describe how the system is built and which feature specs they
 /** Scaffold a repository; returns one report line per file. */
 export function runInit(
   root: string,
-  opts: { harness?: string; registry?: Harness[] } = {},
+  opts: { harness?: string; registry?: Harness[]; refreshGuidance?: boolean } = {},
 ): string[] {
   const tx = InstallTransaction.open(root);
   try {
@@ -78,7 +79,7 @@ export function runInit(
   } finally { tx.release(); }
 }
 
-function scaffold(root: string, opts: { harness?: string; registry?: Harness[] }, tx: InstallTransaction): string[] {
+function scaffold(root: string, opts: { harness?: string; registry?: Harness[]; refreshGuidance?: boolean }, tx: InstallTransaction): string[] {
   assertInstallDestination(root, path.join(root, CONFIG_PATH));
   const { config } = loadConfig(root, { checkSpecRoots: false });
   const base = config.spec_roots.find((r) => r.name === "base") ?? config.spec_roots[0];
@@ -105,20 +106,27 @@ function scaffold(root: string, opts: { harness?: string; registry?: Harness[] }
 
   const agents = path.join(root, "AGENTS.md");
   const existing = fs.existsSync(agents) ? fs.readFileSync(agents, "utf8") : null;
-  // The shared block never depends on registry order: one installed host names its line, several get the neutral dispatcher.
-  const installed = opts.harness === "none" ? [] : (opts.registry ?? HARNESSES).filter((h) => selected.includes(h) || h.detect(root));
-  const res = upsertBlock(existing, installed.length > 1 ? COEXISTING_WORKFLOWS_LINE : installed[0]?.workflowsLine);
-  if (res.action === "malformed") {
-    out.push("Skipped AGENTS.md (malformed specplane block; fix the begin/end markers by hand)");
-  } else if (res.action === "unchanged") {
-    out.push("Skipped AGENTS.md (Specplane block is up to date)");
+  // The shared block is always the neutral canonical text, so it cannot depend on registry or install order.
+  if (opts.refreshGuidance) {
+    // Explicit refresh stamps the release identity into the marker; only the managed block is rewritten. Harness
+    // guidance files are refreshed by each harness's own install below, which preserves customized files.
+    for (const e of refreshGuidance(root, { registry: [], transaction: tx })) {
+      out.push(e.action === "unchanged" ? "Skipped AGENTS.md (Specplane block is up to date)" : e.action === "preserved" ? `Skipped AGENTS.md (${e.detail})` : `Updated AGENTS.md (${e.detail})`);
+    }
   } else {
-    tx.stage(agents, res.content);
-    out.push(
-      res.action === "created"
-        ? "Created AGENTS.md"
-        : `Updated AGENTS.md (${res.action === "appended" ? "appended" : "updated"} Specplane block)`,
-    );
+    const res = upsertBlock(existing);
+    if (res.action === "malformed") {
+      out.push("Skipped AGENTS.md (malformed specplane block; fix the begin/end markers by hand)");
+    } else if (res.action === "unchanged") {
+      out.push("Skipped AGENTS.md (Specplane block is up to date)");
+    } else {
+      tx.stage(agents, res.content);
+      out.push(
+        res.action === "created"
+          ? "Created AGENTS.md"
+          : `Updated AGENTS.md (${res.action === "appended" ? "appended" : "updated"} Specplane block)`,
+      );
+    }
   }
 
   const plansDir = path.join(root, config.plans.dir);

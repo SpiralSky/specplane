@@ -42,7 +42,7 @@ test('neutral init suppresses Claude auto-detection and all harness writes',()=>
  assert.equal(fs.readFileSync(path.join(root,'.claude/settings.json'),'utf8'),'{"keep":true}\n');
  assert.equal(fs.existsSync(path.join(root,'.claude/skills')),false);
  assert.equal(fs.existsSync(path.join(root,CODEX_SKILL)),false);
- assert.match(fs.readFileSync(path.join(root,'AGENTS.md'),'utf8'),/no slash commands/);
+ assert.match(fs.readFileSync(path.join(root,'AGENTS.md'),'utf8'),/explicitly installed Specplane extension/);
 });
 
 test('codex init does not overwrite an existing customized skill',()=>{

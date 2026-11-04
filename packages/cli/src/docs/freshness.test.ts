@@ -38,7 +38,7 @@ test('check reports missing owned guidance without writing', () => repo(root => 
 test('check reports stale release identity, edited block and stale harness file by version and hash', () => repo(root => {
   fs.mkdirSync(path.join(root, '.claude/rules'), { recursive: true });
   const release = releaseIdentity();
-  fs.writeFileSync(path.join(root, 'AGENTS.md'), upsertBlock('# Mine\n', claude.workflowsLine, release).content);
+  fs.writeFileSync(path.join(root, 'AGENTS.md'), upsertBlock('# Mine\n', release).content);
   fs.copyFileSync(path.join(templatesDir('claude'), 'rules/specplane.md'), path.join(root, rules));
   assert.deepEqual(checkGuidance(root, { registry }).map(a => a.state), ['current', 'current']);
 
@@ -64,7 +64,7 @@ test('check reports stale release identity, edited block and stale harness file 
 
 test('validate flags a stale embedded release identity as a freshness warning, never repairing it', () => repo(root => {
   fs.mkdirSync(path.join(root, '.claude'));
-  const stale = upsertBlock(null, claude.workflowsLine, releaseIdentity()).content.replace(/docs=\S+/, 'docs=0.0.1');
+  const stale = upsertBlock(null, releaseIdentity()).content.replace(/docs=\S+/, 'docs=0.0.1');
   fs.writeFileSync(path.join(root, 'AGENTS.md'), stale);
   const before = snapshot(root);
   const report = checkFreshness(root, registry);
@@ -75,7 +75,7 @@ test('validate flags a stale embedded release identity as a freshness warning, n
 test('refresh rewrites only the managed block and preserves surrounding and customised content', () => repo(root => {
   fs.mkdirSync(path.join(root, '.claude/rules'), { recursive: true });
   const agents = path.join(root, 'AGENTS.md');
-  const old = upsertBlock('# Mine\n\nrouting table\n', claude.workflowsLine).content.replace('one step at a time', 'many steps');
+  const old = upsertBlock('# Mine\n\nrouting table\n').content.replace('one step at a time', 'many steps');
   fs.writeFileSync(agents, old + '\nafter block\n');
   fs.writeFileSync(path.join(root, rules), 'my custom rules\n');
 
@@ -124,8 +124,8 @@ test('refresh refuses a damaged bundle and an escaping destination before writin
 }));
 
 test('plain init rewrites keep a matching embedded identity', () => {
-  const refreshed = upsertBlock(null, claude.workflowsLine, releaseIdentity()).content;
-  assert.equal(upsertBlock(refreshed, claude.workflowsLine).action, 'unchanged');
+  const refreshed = upsertBlock(null, releaseIdentity()).content;
+  assert.equal(upsertBlock(refreshed).action, 'unchanged');
 });
 
 test('generated authorship guidance follows the corrected contract', () => {

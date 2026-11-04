@@ -1,29 +1,28 @@
 import { createHash } from "node:crypto";
 /** Standing instructions (`architecture/agent-skills` § Standing instructions). */
 
-export const STANDING_VERSION = "v1";
-
-/** Harness-neutral Workflows line used by the base `AGENTS.md` block. */
-export const NEUTRAL_WORKFLOWS_LINE =
-  "no slash commands are installed; follow the contracts in `architecture/agent-skills`.";
+export const STANDING_VERSION = "v2";
 
 /**
- * Neutral dispatcher used when several harnesses are installed together: the shared file names no host, and each
- * installed harness carries its own invocation details in its own files.
+ * Workflows line of the shared block. The shared `AGENTS.md` block always uses this neutral line; harness-owned
+ * instruction files add their own invocation details (`architecture/agent-skills` § Standing instructions).
  */
-export const COEXISTING_WORKFLOWS_LINE =
-  "follow the contracts in `architecture/agent-skills`; invoke them through the skill or commands your host installed (see its own instruction files).";
+export const NEUTRAL_WORKFLOWS_LINE =
+  "use an explicitly installed Specplane extension for agent workflows, or the standalone `specplane` CLI for manual operations. Extensions deliver the shared workflow procedures and their host-specific invocation details.";
 
-export function standingText(workflowsLine: string = NEUTRAL_WORKFLOWS_LINE): string {
+/** Canonical standing text (`architecture/agent-skills` § Standing instructions → Content). */
+export function standingText(): string {
   return `## Specplane
+
+Specplane tracks intended behaviour, review, implementation completion and evidence separately. Plans are optional; branches have no prescribed role. Specs and implementation may change together or separately. Completion is a declaration; matching its content fingerprint does not prove code correctness. Changed definitions can require reassessment. Use \`specplane docs\` for concepts and the requested workflow.
 
 This repository uses Specplane. Before acting on specs, plans, or ADRs, read \`.specplane/config.yaml\`; resolve every path from it (\`spec_roots\`, \`plans.dir\`, \`decisions.dir\`), never assume one. \`execution\` says how plans run.
 
 - **Authorship**: \`specs.<type>.llm_role\` limits spec writing and review independently of \`authorship\`: \`none\` = read and implement only, with no spec-body edits, review, or suggestions; \`review\` = ask, suggest, and review without independently drafting the spec body; apply a suggested edit only after the user approves that exact change; \`assist\` = write the body only after the user finalises the content and approves the text (refine-then-write); \`draft\` = you may write a draft for review. Setting a spec to \`approved\`, a plan to \`ready\`, or a decision record to \`accepted\` is the human's decision: never do it by editing a file.
-- **Precedence**: when implementing, the architecture spec wins and the feature spec fills gaps; record each gap, assumption, or proposed spec edit as a \`spec-gaps.md\` entry in the plan folder. If specs contradict each other, stop and report it; do not implement either side.
-- **Plans**: work on a plan only in its checkout (branch \`plan/<id>\`), one step at a time, following the plan-step workflow. HANDOFF.md and \`spec-gaps.md\` in the plan folder are the source of truth for progress and gaps.
-- **Commits**: follow \`architecture/file-formats\` §8 (Conventional Commits subject plus \`Specplane-*\` trailers).
-- **Workflows**: ${workflowsLine}`;
+- **Precedence**: when implementing, the architecture spec wins and the feature spec fills gaps; when using a managed plan, record gaps and assumptions in its \`spec-gaps.md\`; otherwise use the user's chosen record or conversation. If specs contradict each other, stop and report it; do not implement either side.
+- **Plans**: when invoking managed plan execution, work only in its checkout (branch \`plan/<id>\`), one step at a time, following the plan-step workflow. HANDOFF.md and \`spec-gaps.md\` in the plan folder are the source of truth for progress and gaps.
+- **Commits**: managed commands that create commits follow their documented format. Ordinary work needs no Specplane trailers. Manual implementation-completion edits are valid and do not approve a spec.
+- **Workflows**: ${NEUTRAL_WORKFLOWS_LINE}`;
 }
 
 /** Release identity embedded in the begin marker so freshness can be checked without regenerating text. */
@@ -81,12 +80,11 @@ export function findBlock(content: string): BlockInfo | null | "malformed" {
 
 export function upsertBlock(
   content: string | null,
-  workflowsLine: string = NEUTRAL_WORKFLOWS_LINE,
   /** When given (explicit refresh), the marker records this release identity and the text hash. */
   release?: ReleaseIdentity,
 ): { content: string; action: UpsertAction } {
   const eol = content !== null && content.includes("\r\n") ? "\r\n" : "\n";
-  const body = standingText(workflowsLine);
+  const body = standingText();
   const hash = blockHash(body);
   const info = content === null ? null : findBlock(content);
   // Without a release identity, keep an existing marker only while its recorded hash still describes this text.
@@ -110,11 +108,11 @@ export function upsertBlock(
 export type StandingState = "ok" | "missing" | "outdated" | "malformed";
 
 /** Compare a file's content with the current standing instructions. */
-export function checkStanding(content: string | null, workflowsLine: string = NEUTRAL_WORKFLOWS_LINE): StandingState {
+export function checkStanding(content: string | null): StandingState {
   if (content === null) return "missing";
   const info = findBlock(content);
   if (info === null) return "missing";
   if (info === "malformed") return "malformed";
   if (info.version < Number(STANDING_VERSION.slice(1))) return "outdated";
-  return info.text.trimEnd() === standingText(workflowsLine).trimEnd() ? "ok" : "outdated";
+  return info.text.trimEnd() === standingText().trimEnd() ? "ok" : "outdated";
 }

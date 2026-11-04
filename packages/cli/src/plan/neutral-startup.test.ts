@@ -6,9 +6,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { runInit } from "../commands/init.js";
-import { COEXISTING_WORKFLOWS_LINE, NEUTRAL_WORKFLOWS_LINE } from "../agents/standing.js";
-import { CLAUDE_WORKFLOWS_LINE } from "../harness/claude.js";
-import { CODEX_WORKFLOWS_LINE } from "../harness/codex.js";
+import { NEUTRAL_WORKFLOWS_LINE } from "../agents/standing.js";
 import { runConductor } from "../core/index.js";
 import type { SessionAdapter } from "../core/contracts.js";
 import { makeRepo } from "../test-repo.js";
@@ -17,28 +15,18 @@ const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "cli.j
 const agents = (root: string) => fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
 const run = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd, encoding: "utf8" });
 
-test("shared standing instructions never depend on registry order or on which harness was initialised last", () => {
+test("shared standing instructions are the neutral text for every init order and never name a host", () => {
   const root = makeRepo({});
   runInit(root, { harness: "none" });
-  assert.ok(agents(root).includes(NEUTRAL_WORKFLOWS_LINE), "no host: neutral and usable");
-  runInit(root, { harness: "claude" });
-  assert.ok(agents(root).includes(CLAUDE_WORKFLOWS_LINE));
-  assert.ok(!agents(root).includes("Codex"));
-  runInit(root, { harness: "codex" });
-  assert.ok(agents(root).includes(COEXISTING_WORKFLOWS_LINE), "both installed: neutral dispatcher, not the last-initialised host");
-  runInit(root, {});
-  assert.ok(agents(root).includes(COEXISTING_WORKFLOWS_LINE), "plain re-init does not flip back to the first registry entry");
-  assert.ok(!agents(root).includes(CLAUDE_WORKFLOWS_LINE) && !agents(root).includes(CODEX_WORKFLOWS_LINE));
-});
-
-test("a codex-only repository keeps its own line and a neutral repository stays neutral without any host", () => {
+  const neutral = agents(root);
+  assert.ok(neutral.includes(NEUTRAL_WORKFLOWS_LINE));
+  for (const harness of ["claude", "codex", undefined]) {
+    runInit(root, harness ? { harness } : {});
+    assert.equal(agents(root), neutral, `init ${harness ?? "(plain)"} leaves the shared block unchanged`);
+  }
   const codexOnly = makeRepo({});
   runInit(codexOnly, { harness: "codex" });
-  runInit(codexOnly, {});
-  assert.ok(agents(codexOnly).includes(CODEX_WORKFLOWS_LINE));
-  const none = makeRepo({});
-  runInit(none, {});
-  assert.ok(agents(none).includes(NEUTRAL_WORKFLOWS_LINE));
+  assert.equal(agents(codexOnly), neutral);
 });
 
 test("the removed standalone run surfaces refuse with a migration diagnostic and are absent from help", () => {

@@ -68,7 +68,7 @@ test("packed tarball installs Claude and Codex integrations end to end", () => {
 
     const agents = fs.readFileSync(path.join(repo, "AGENTS.md"), "utf8");
     assert.match(agents, /## Specplane/);
-    assert.match(agents, /\/spec-assist/);
+    assert.match(fs.readFileSync(path.join(repo, ".claude/rules/specplane.md"), "utf8"), /\/spec-assist/);
     assert.ok(!fs.existsSync(path.join(repo, "CLAUDE.md")));
 
     const out2 = run(bin, ["init", "--harness", "claude"], repo);

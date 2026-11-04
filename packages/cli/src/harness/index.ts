@@ -50,8 +50,6 @@ export interface Harness {
   rulesTemplate?: string;
   /** Upstream contract snapshots for this harness’s installed skills only; template-relative paths. */
   bundledContracts?: Record<string, string>;
-  /** Harness-specific Workflows line for the standing instructions (default: neutral). */
-  workflowsLine?: string;
 }
 
 /** Skill directories (`<base>/<name>`, repo-relative POSIX) under `base` that contain a `SKILL.md`. */
