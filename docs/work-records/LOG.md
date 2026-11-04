@@ -260,3 +260,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commit: `b11eef6`. `core/workflow-runner.ts` (`createWorkflowRunner`, `parseServeArgs`, `spawnExecutionPort`, exported from core), template `harnesses/codex/templates/skills/specplane/scripts/workflow.mjs`, `harness/codex-channel.ts`.
 - Closed NDJSON framing, serialized mutations, LOCKED on overlapping executeTest, cancel bypasses the queue, EOF/close cancel through `cancelWorkflow`; an unproven stop exits 1 with the lease kept.
 - Checks: `core/workflow-runner.test` (7); full suite 965 pass, 0 fail, 95 files. Not run: Node, live Codex, packaging (step 02 delivers the script).
+
+## 2026-11-04T15:00Z — codex-delivery 02 installed procedure
+- Commit: `4de9d55`. Codex installer delivers a self-contained package (runtime, production deps, docs, reference, runner script, manifest, inventory) through one install transaction; manifest last.
+- `assembleExtensionPackage` (sync) split from `buildExtensionPackage`; template script now imports `../dist/core/index.js`; SKILL.md documents runner, fallback and false capability flags.
+- Checks: `harness/codex-package.test` (6); full suite 971 pass, 0 fail, 96 files. Not run: Node, live Codex.
