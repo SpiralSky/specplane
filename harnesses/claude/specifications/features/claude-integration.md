@@ -213,9 +213,9 @@ None. IDs refer to `docs/OPEN-QUESTIONS.md`.
 
 Resolved: OQ-2 (skills vs. bash aliases — § Slash commands), OQ-3 (subagents per step — § Subagents per step), OQ-4 (default hooks — § Hooks), OQ-5 (memory names — § Memory integration).
 
-## Experimental background conductor
+## Automated plan execution
 
-The conductor uses an observable session in the Specplane-owned checkout, not a second harness worktree. A harness alert is surfaced only through the adapter; external delivery remains governed by existing user settings. Specplane does not enable or bypass notifications. The local Claude executable must support the required capabilities; unavailable or incompatible versions are refused rather than guessed compatible. No live Claude session has been verified in the Dot cloud environment used for this branch.
+This integration's automated execution follows `feature/agent-integration` § Automated plan execution. The local Claude executable must support the required capabilities; unavailable or incompatible versions are refused rather than guessed compatible. No live Claude session has been verified in the Dot cloud environment used for this branch.
 
 ## Shared documentation and optional workflow guidance
 
