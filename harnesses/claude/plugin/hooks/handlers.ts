@@ -43,7 +43,27 @@ const queue: Delegation[] = []
 const pending = new Map<string, Delegation>()
 
 /** Registers the native command hooks (everything except the single session.start, see startNative). */
+/** The plugin's MCP server key in its manifest; the host names it `plugin:<plugin>:<server>`. */
+export const SERVER_KEY = 'specplane'
+export const SERVER_REFUSAL = 'Specplane workflow tools are reserved for Specplane commands; the model cannot call them.'
+
+/**
+ * True for a model call to this plugin's workflow server. `tool.check` input carries the tool name only, not the
+ * server's provenance, so the name is the trust key here: any `mcp__*` tool naming Specplane is refused (fail closed).
+ */
+export function isSpecplaneServerTool(e: unknown): boolean {
+  const tool = (e as { tool?: unknown } | undefined)?.tool
+  return typeof tool === 'string' && tool.startsWith('mcp__') && new RegExp(SERVER_KEY, 'i').test(tool)
+}
+
 export function registerNative(on: Parameters<Register>[0]): void {
+
+  // The workflow server's tools are the mod's own: the model may not call them (D11 option E).
+  // Fail closed: a throwing check refuses a Specplane server call rather than letting it through.
+  on('tool.check', ($, e, next) => {
+    if (isSpecplaneServerTool(e)) return { decision: 'deny', reason: SERVER_REFUSAL }
+    return next(e)
+  }).catch(($, e, next) => (isSpecplaneServerTool(e) ? { decision: 'deny', reason: SERVER_REFUSAL } : next(e)))
 
   // Queue, then submit once the turn that ran the command has ended.
   on('turn.complete', async ($, e, next) => {

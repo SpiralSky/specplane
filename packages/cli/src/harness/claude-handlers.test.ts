@@ -154,3 +154,12 @@ test('reasoning delegation prepares through the core, queues an extension-origin
   assert.equal((await m.runCommand(step, '', plugin.ctx)).exitCode, 2);
   assert.equal(plugin.queue.length, 0);
 });
+
+test('the model cannot call the Specplane workflow server; other tools pass the tool.check gate', async () => {
+  const handlers = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
+  assert.equal(handlers.isSpecplaneServerTool({ tool: 'mcp__plugin_specplane_specplane__prepare' }), true);
+  assert.equal(handlers.isSpecplaneServerTool({ tool: 'mcp__specplane__record' }), true);
+  assert.equal(handlers.isSpecplaneServerTool({ tool: 'mcp__github__issue' }), false);
+  assert.equal(handlers.isSpecplaneServerTool({ tool: 'Bash' }), false);
+  assert.equal(handlers.isSpecplaneServerTool({}), false);
+});

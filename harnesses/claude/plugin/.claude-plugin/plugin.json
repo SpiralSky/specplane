@@ -3,5 +3,13 @@
   "version": "0.1.0",
   "description": "Specplane plans pane and step/spec mode for Claude Code",
   "license": "Apache-2.0",
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "mcpServers": {
+    "specplane": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/core/dist/harness/claude-mcp-main.js"
+      ]
+    }
+  }
 }
