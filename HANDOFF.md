@@ -82,7 +82,7 @@ The user runs steps through a coordinator session that chains **Sonnet 5.5 subag
 - Optional: ask GitHub Support to purge unreferenced old commits that contain local paths (for example `3a5b997`). Delete `../specplane-backup-prerewrite-20261104.git` once the user is satisfied.
 
 ## Rules that matter
-- Bun only: `npm run build` in `packages/cli`, then `bun test --parallel=20 --timeout=30000 ./dist/<files>`; full suite `timeout 120 bun test --parallel=20 --timeout=30000 ./dist` (prefix `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`). Never `--concurrent`; no Node runs.
+- Bun only: `npm run build` in `packages/cli`, then `bun test --parallel=20 --timeout=30000 ./dist/<files>`; full suite `sh scripts/test.sh` from `packages/cli` after `npm run build` (it runs Bun with the `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` prefix and a per-run `TMPDIR` removed on exit). Never `--concurrent`; no Node runs.
 - Never approve, push, rewrite history, or edit plan `status:`, step checkboxes or managed progress. Do not invent ADR kinds or contract text.
 - Stage specific paths only; never `problems.md` or `AGENTS.override.md`. Preserve private backups and receipts.
 - Cooperative lease-coordinated writers only; native and live-host evidence stays unrun until produced.
