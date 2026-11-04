@@ -1,0 +1,108 @@
+{
+  "host": "claude-code",
+  "version": "2.1.317",
+  "inspected": "2026-11-04",
+  "declarations": {
+    "file": "claude-code.d.ts",
+    "firstLine": "// Written by Claude Code 2.1.317.",
+    "sha256": "cdd812321cfda4b71e185959b6676b2e08bf08fc7750bbddaa6d7a7821ede4a6",
+    "obtainedFrom": "Written by the engine when the plugin-authoring skill loads (<bundled-skills>/<version>/<hash>/plugin-authoring/types/claude-code.d.ts), and beside a loaded mod as .claude-plugin/types/claude-code/index.d.ts",
+    "stability": "EARLY ACCESS: this surface may change between releases without notice."
+  },
+  "evidenceKinds": {
+    "declared": "The signature appears verbatim in the named declarations and the probe compiles against them with tsc (strict).",
+    "validated": "`claude plugin validate` reports the probe's hooks and calls with no refusal.",
+    "test-kit": "`claude plugin test` (the engine's offline kit, claude-code/testing) passes the named probe test.",
+    "live": "Observed in a running host session. None recorded: the user deferred live probes on 2026-11-04."
+  },
+  "capabilities": [
+    {
+      "id": "native-command",
+      "spec": "claude:architecture/claude-integration#deterministic-command-dispatch",
+      "status": "available",
+      "evidence": ["declared", "validated", "test-kit"],
+      "declarations": ["register: (command: CommandSpec)", "'command.run': CommandRunInput;", "export type CommandRunResult = {"],
+      "tests": ["a mechanical command answers with text and makes no model call"],
+      "notes": "Handlers receive raw `args`; the token grammar is Specplane's to implement. The validator classifies a command.run hook as gating: it needs an explicit .catch, because a failing hook is skipped and the chain continues."
+    },
+    {
+      "id": "command-inventory-collision",
+      "spec": "claude:architecture/claude-integration#deterministic-command-dispatch",
+      "status": "available",
+      "evidence": ["declared", "test-kit"],
+      "declarations": ["list: () => Promise<CommandInfo[]>", "export type CommandSource = 'builtin' | 'plugin' | 'user' | 'mcp';"],
+      "tests": ["registers only names the inventory does not own, and the completion tool", "one failed registration does not skip the others"],
+      "notes": "Which names 2.1.317 actually owns as built-ins (e.g. /approve) is a live fact and is not recorded."
+    },
+    {
+      "id": "direct-human-port",
+      "spec": "claude:architecture/claude-integration#deterministic-command-dispatch",
+      "status": "available",
+      "evidence": ["declared", "test-kit"],
+      "declarations": ["kind: 'composer';", "export type CommandRunArgs = Omit<CommandRunInput, 'origin' | 'args' | 'presentation'>"],
+      "tests": ["a command not from a direct user gesture is refused"],
+      "notes": "`origin.kind === 'composer'` is engine-stamped (the user's own gesture; an unattested channel arrives unclassified). A plugin's $.command.run cannot supply an origin. Plugins at a higher tier can still skip or change this mod's hooks."
+    },
+    {
+      "id": "confirmation-dialog",
+      "spec": "claude:architecture/claude-integration#deterministic-command-dispatch",
+      "status": "partial",
+      "evidence": ["declared", "test-kit"],
+      "declarations": ["ask: (question: string, options?: readonly string[] | AskOptions) => Promise<string>;", "Rejects when dismissed, and in a"],
+      "tests": ["confirmation uses the host dialog; a refusal to ask means unavailable"],
+      "notes": "$.ui.ask is raised as a tool.call of AskUserQuestion through every hook but the calling one, so another installed plugin's hook can answer it. Treat its answer as weaker than a composer-origin command; rejects under -p (headless means unavailable)."
+    },
+    {
+      "id": "reasoning-delegation",
+      "spec": "claude:architecture/claude-integration#deterministic-command-dispatch",
+      "status": "available",
+      "evidence": ["declared", "test-kit"],
+      "declarations": ["export type PromptSubmitArgs = Omit<PromptSubmitInput, 'origin' | 'turnId' | 'wait' | 'context' | 'command' | 'isMeta'> & {", "'turn.complete': TurnCompleteInput;", "register: (tool: ToolSpec) => Promise<OpValueOf['tool.register']>;"],
+      "tests": ["delegation submits an extension-origin prompt without asUser"],
+      "notes": "Test-kit host check: $.prompt.submit from a command.run hook is refused ('it would wait on the turn this hook is holding; submit from a later event (turn.complete)'). Delegation must queue and submit later. Without asUser the origin stays { kind: 'plugin' }. A registered tool is listed as mcp__<plugin>__<name> and served by a tool.call hook. Whether turn.complete fires after an idle-session command is a live fact and is not recorded."
+    },
+    {
+      "id": "cancellation",
+      "spec": "claude:architecture/claude-integration#deterministic-command-dispatch",
+      "status": "available",
+      "evidence": ["declared"],
+      "declarations": ["readonly signal: AbortSignal;"],
+      "tests": [],
+      "notes": "next.signal compiles in a command.run hook; abort behaviour is not exercised offline."
+    },
+    {
+      "id": "action-time-identity",
+      "spec": "claude:architecture/claude-integration#session-context-enabled-by-default",
+      "status": "partial",
+      "evidence": ["declared", "validated"],
+      "declarations": ["export type ToolCallInput = ToolCallEnvelope & AgentLoop & ToolRequestMeta;", "id: () => Promise<string>;", "model: () => Promise<string>;", "version: () => Promise<SessionVersion>;"],
+      "tests": [],
+      "notes": "tool.call carries agentId (absent on the main loop) but no model field. A subagent's model comes from agent.spawn's result; the main loop's from $.session.model() at hook time. A model switch on the main loop between calls is therefore attributed by hook-time reads only; this is not yet proven to be action-time."
+    },
+    {
+      "id": "session-adapter-in-host",
+      "spec": "claude:architecture/claude-integration#claude-session-adapter-extension-owned",
+      "status": "partial",
+      "evidence": ["declared", "validated"],
+      "declarations": ["spawn: EventCalls['agent']['spawn'];", "list: () => Promise<AgentInfo[]>;", "export type AgentStatus = 'pending' | 'running' | 'waiting' | 'idle' | 'completed' | 'failed' | 'killed';"],
+      "tests": [],
+      "notes": "Route A ($.agent.spawn): cwd, resume { agentId }, maxTurns and a stable agent id are declared. Budget is turns or effort, not money. Do not use isolation: 'worktree' (the spec forbids extra worktrees)."
+    },
+    {
+      "id": "session-adapter-headless",
+      "spec": "claude:architecture/claude-integration#claude-session-adapter-extension-owned",
+      "status": "partial",
+      "evidence": ["declared", "validated"],
+      "declarations": ["spawn: (request: ProcessSpawnRequest) => HookStream<ProcessSpawnChunk, ProcessSpawnResult>;", "run: (argv: readonly string[], init?: ProcessRunInit) => Promise<ProcessRunResult>;"],
+      "tests": [],
+      "notes": "Route B: $.process.spawn by argv array running `claude -p --session-id|--resume <id> --max-budget-usd <n> --output-format stream-json` (flags present in `claude --help` 2.1.317 and the headless docs). The headless docs call the reported cost figures client-side estimates that can differ from the bill; --bare skips installed plugins unless --plugin-dir is passed. Launch, observe and resume are not executed: live evidence deferred."
+    }
+  ],
+  "sources": [
+    "https://code.claude.com/docs/en/plugins/mods/api",
+    "https://code.claude.com/docs/en/plugins/mods/reference",
+    "https://code.claude.com/docs/en/plugins/mods/test",
+    "https://code.claude.com/docs/en/headless",
+    "https://code.claude.com/docs/en/cli-reference"
+  ]
+}

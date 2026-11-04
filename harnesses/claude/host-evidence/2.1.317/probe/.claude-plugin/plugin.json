@@ -1,0 +1,6 @@
+{
+  "name": "specplane-host-probe",
+  "version": "0.1.0",
+  "description": "Offline host-surface probe for Claude Code 2.1.317 declarations (evidence only, not shipped)",
+  "license": "Apache-2.0"
+}
