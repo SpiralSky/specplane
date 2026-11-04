@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-04T10:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD see `git log`. Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-04T11:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD see `git log`. Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Review-branch implementation work is committed; only local `problems.md` is untracked (preserve it, never stage it).
@@ -11,7 +11,8 @@ Updated 2026-11-04T10:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD s
 - product-docs 03 is implementation-complete: `docs/freshness.ts` (`checkGuidance` read-only, `refreshGuidance` explicit with `dryRun`, both exported from core); the AGENTS.md block marker can carry `docs=`/`contract=`/`sha256=` (written only by refresh; plain init keeps a matching marker); `validate` warns on stale identity or an edited block. Orientation text updated (manifest hash too). Generated authorship text now matches `agent-skills` (problems.md finding closed; templates, `.claude/` and root AGENTS.md updated). No new CLI command; installer wiring and prior-release digests belong to extension-packaging.
 - product-docs 01 is implementation-complete: bundle tests (9) pass and examples are executed against the real CLI; docs state that `plan run` and `plan start --run` do not exist. Packaging, host delivery and conformance are not started.
 - manual-lifecycle 03 is implementation-complete: `runPlan`/public `runConductor` take only an extension-supplied Protocol 1 `SessionAdapter` (probe before every launch, session record written before launch, resume, `unknown` is a refusal); `plan run`/`plan start --run` are hidden and print a migration diagnostic; init composes `COEXISTING_WORKFLOWS_LINE` when several harnesses are installed. The legacy sync Claude adapter in `harness/session.ts` is now unused by the conductor (claude-delivery 03 owns the real adapter). Delegation of the lease to a worker (token) is not implemented.
-- Last full Bun run: 933 pass, 0 fail, 91 files (39.45 s); an earlier session once hit a 30 s stall (`unprepared edits...` in `core/non-plan-recording.test`) that passed on rerun. Under an agent environment (`CLAUDECODE` set) Bun hides `(pass)` lines and `harness/codex.test` fails spuriously; run with `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`.
+- extension-packaging 01 is implementation-complete: `harness/package-builder.ts` (`buildExtensionPackage`) copies runtime/dependency trees, docs bundle, reasoning/hook assets and a stamped instruction file into an empty directory, derives `core/inventory.json` and `specplane-extension.json` from written bytes, resolves procedure contracts from the docs bundle sources, and self-validates with `validateCompatibility`; it certifies no host (`hostCompatibility: []`), writes no pin and activates no installer. Tests: `harness/package-builder.test` (3) plus the existing `harness/package-inventory-preparation.test` (4) and `core/compatibility.test`.
+- Last full Bun run: 936 pass, 0 fail, 92 files (37.69 s); one earlier full run in the same session was terminated by `timeout 120` with no output (cause not diagnosed; the rerun passed). An earlier session once hit a 30 s stall (`unprepared edits...` in `core/non-plan-recording.test`) that passed on rerun. Under an agent environment (`CLAUDECODE` set) Bun hides `(pass)` lines and `harness/codex.test` fails spuriously; run with `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT`.
 - Not run: native macOS/Windows, live Claude/Codex hosts, Node tests (policy: Bun only).
 
 ## Open decisions
@@ -36,7 +37,7 @@ Updated 2026-11-04T10:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD s
 | product-docs | 01 | impl-complete; managed recording pending | both criteria met; `docs/bundle.test` |
 | product-docs | 02 | impl-complete; managed recording pending | both criteria met; `docs/operations.test`; D7 |
 | product-docs | 03 | impl-complete; managed recording pending | both criteria met; `docs/freshness.test` (7); D8 |
-| extension-packaging | 01 | partial | inventory/tamper prep tests delivered |
+| extension-packaging | 01 | impl-complete; managed recording pending | all 3 criteria met; builder + prep tests; no release pins frozen |
 | extension-packaging | 02 | partial | containment work only |
 | extension-packaging | 03 | not started | |
 | claude-delivery | 01 | blocked | native host API evidence missing |
@@ -49,7 +50,7 @@ Updated 2026-11-04T10:00Z. Branch `overnight/specplane-20261102T144630Z`, HEAD s
 | extension-conformance | 02 | not started | |
 
 ## Next session
-Step: **extension-packaging 01** (partial; the inventory/tamper prep tests in `harness/package-inventory-preparation.test.ts` already exist), then 02 and 03 (03 consumes `refreshGuidance` and D8). After packaging: codex-delivery 01→03 (claude-delivery 01 stays blocked on native host API evidence), then conformance.
+Step: **extension-packaging 02** (partial; containment work only). First task: check each criterion against `harness/containment.ts` and its tests, then add the journal, ownership digests and recovery that are missing. Then 03 (consumes `refreshGuidance`, `buildExtensionPackage` and D8). Real host assets (Claude/Codex runtime, hooks) are still changing, so use the builder only on fixtures until claude/codex-delivery land; do not freeze their hashes as release evidence. After packaging: codex-delivery 01→03 (claude-delivery 01 stays blocked on native host API evidence), then conformance.
 
 ## How to continue (orchestration)
 The user runs steps through a coordinator session that chains **Sonnet 5.5 subagents sequentially, one step per subagent**. Each subagent acts as a complete session.

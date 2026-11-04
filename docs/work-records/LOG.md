@@ -241,3 +241,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-04T10:00Z — product-docs step 03 implementation
 - Added `docs/freshness.ts` (read-only `checkGuidance`, explicit `refreshGuidance`), marker metadata in `agents/standing.ts`, a version/hash warning in `validate`, and corrected the generated authorship text plus the orientation sentence (manifest hash updated).
 - Tests: `docs/freshness.test` (7); `validate`, `docs/*`, `agents/*` pass; `check-sync` OK; full Bun 933 pass, 0 fail, 91 files. Opened D8 (rest of standing text differs from the spec).
+
+## 2026-11-04T11:00Z — extension-packaging step 01 implementation
+- Existing `validateCompatibility` and the prep tests already covered tamper/incompatible refusal and docs versions; the missing piece was a reusable builder. Added `harness/package-builder.ts` (empty-dir output, derived inventory/manifest, self-validation, cleanup on refusal, no pins or host certification).
+- Tests: `harness/package-builder.test` (3), prep tests (4), `core/compatibility.test` pass; full Bun 936 pass, 0 fail, 92 files. One earlier full run hit the 120 s timeout with no output; rerun passed in 37.69 s.
