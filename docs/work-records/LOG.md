@@ -301,3 +301,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Checks: Bun suite 995 pass, 0 fail, 101 files; `claude-mcp.test` 6 pass; `claude plugin test` 27 pass; `claude plugin validate` passed with warnings.
 - Live check not spent: `prepare` needs Claude compatibility inputs that do not exist yet (D12). Evidence: `harnesses/claude/host-evidence/2.1.317/mcp-lease-live-gate.txt`.
 - Reasoning port and skill removal not done. Open: D12, D13. Next: decide D12.
+
+## 2026-11-04 claude-delivery 03 under D12 A and D13 offline review (Haiku 5.5 session)
+- D12 recorded as decided (option A). D13 offline: `claude-code.d.ts` does not say whether `tool.check` fires for `$.mcp.call`, and does not mention `CLAUDE_PLUGIN_ROOT`. Design: the gate allows a call only with the bound session nonce; everything else is denied.
+- No code changed: the Claude package inputs, reasoning commands and live check were not started. Next: `harness/claude-package.ts` (see HANDOFF Next session).
+- Checks not rerun (docs only). Open: D11 (managed/user-tier risk), D13 (live). Next session starts with the Claude package inputs.
