@@ -220,3 +220,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Branch at `4050dd6`+; no source changes. Mapped criteria 1-4 to `workflow-recording`, `recording-recovery`, `non-plan-recording`, `non-plan-workflow`, `creation-workflow` and `plan/step-done-generated` tests; focused 59/59 plus 12/12.
 - Full Bun `./dist`: 897/898 under the agent environment (`harness/codex.test` expects `(pass)` lines Bun hides when `CLAUDECODE` is set); with that variable unset, 898/898, 38.15 s.
 - Recorded D1 (ADR commit kind), D2 (protocol extensions), D3 (branch divergence) in HANDOFF; none resolved. Next: manual-lifecycle 02.
+
+## 2026-11-04T06:00Z — manual-lifecycle step 02 implementation
+- Added `preparation` FinishGate before the frontmatter review claim and pending-claim publication; trusted `plan.finish` adapter (initial preparation challenge, fresh per-gate challenges), `confirmOperationAsync`, lease retained on uncertain failure.
+- Manual `spec new/approve/reopen/pin` and `decision new/accept` now take a checkout lease (`core/checkout-coordination.ts`).
+- Tests: `plan/finish-trusted.test`, `commands/coordination.test`; full Bun 904 pass, 0 fail, 88 files. Forced dirty abandon left UNSUPPORTED. D1-D3 decided, D4 opened.
