@@ -1,7 +1,7 @@
 ---
 id: architecture/file-formats
 title: "File formats: frontmatter schemas, naming, markdown conventions, and templates"
-status: review
+status: approved
 author: mixed
 implements: [feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions, feature/configuration, feature/plan-index, feature/tooling]
 ---
