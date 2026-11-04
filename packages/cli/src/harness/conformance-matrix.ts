@@ -13,7 +13,7 @@ export const CRITERIA: Criterion[] = [
     { file: 'plan/retarget', title: 'preview and core update preserve provenance' },
     { file: 'core/contribution-metadata', title: 'finalized assist authorship changes only author' }] },
   { id: 'exports-and-workflows', text: 'Each public export and delivered workflow maps to passing applicable tests', state: 'unmet',
-    reason: 'Every runtime export of the core entry point and every Codex workflow is mapped, but the Claude workflows have no delivered package and no native host API evidence (claude-delivery 01 is blocked), so their rows stay pending.',
+    reason: 'Every runtime export of the core entry point and every Codex workflow is mapped, but the Claude workflows have no assembled package and no live-host evidence: native handlers and policy hooks are covered offline (harness/claude-handlers and `claude plugin test`), which does not deliver them, so their rows stay pending.',
     suites: [{ file: 'harness/codex-package', title: 'codex init delivers a self-contained package' }, { file: 'harness/codex-consumer', title: 'offline docs' }] },
   { id: 'index-targets-dependencies-docs', text: 'Acceptance covers all three index sources, target/retarget refusal paths, completion dependency changes and offline CLI/core/harness docs parity', state: 'met', suites: [
     { file: 'generate/index-command', title: 'source selection, notices, print-only, idempotence and migration' },

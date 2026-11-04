@@ -148,7 +148,8 @@ export const claude: Harness = {
           path: `.claude/${rel}`,
           outcome: kind === "customized" ? "customized" : "installed",
           sha256: sha256(kind === "customized" ? tx.read(dest) ?? src : src),
-          ...(skill ? { command: `/${skill[1]}` } : {}),
+          // Internal reasoning procedures are never public commands.
+          ...(skill && !skill[1]!.startsWith("specplane-reason-") ? { command: `/${skill[1]}` } : {}),
         };
         observed.push(file);
         if (kind === "customized") report.add(collisionLine(collisionFor(file, "claude")));

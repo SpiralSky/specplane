@@ -45,8 +45,9 @@ test('the Codex row list equals the workflows the package delivers, and each is 
 });
 
 test('Claude workflows report as pending, never passing, and the Claude row list tracks the shipped templates', () => {
-  const templates = fs.readdirSync(path.join(dist, 'templates/claude/skills')).sort();
-  assert.deepEqual([...CLAUDE_WORKFLOWS].sort(), templates);
+  const all = fs.readdirSync(path.join(dist, 'templates/claude/skills')).sort();
+  // Internal reasoning procedures are not public workflows; claude-handlers.test maps each to a reasoning command.
+  assert.deepEqual([...CLAUDE_WORKFLOWS].sort(), all.filter(name => !name.startsWith('specplane-reason-')));
   for (const row of hostRows('claude')) assert.deepEqual([row.deterministic, row.liveHost], ['not-delivered', 'pending'], row.workflow);
   for (const row of hostRows('codex')) assert.deepEqual([row.deterministic, row.liveHost], ['tested', 'unverified'], row.workflow);
   assert.equal(fs.existsSync(path.join(dist, 'harness/claude-package.js')), false, 'a Claude package now exists: add its rows and suites and revisit the unmet criterion');
