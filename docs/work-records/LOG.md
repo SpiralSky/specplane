@@ -229,3 +229,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-04T07:00Z — manual-lifecycle step 03 implementation
 - Added the unpublished-claim preparation test; conductor now needs an explicit Protocol 1 adapter (`plan/run.ts`, `core/conductor.ts`), standalone `plan run`/`--run` removed with a diagnostic, init no longer depends on registry order.
 - Tests: `plan/run.test` (18), `plan/neutral-startup.test` (5), `plan/finish-trusted.test` (6); full Bun 917 pass, 0 fail, 89 files. Opened D5 (old conductor plan) and D6 (Codex spec text).
+
+## 2026-11-04T08:00Z — product-docs step 01 verification
+- No source changes: the existing bundle already met both criteria. `npm run build` (includes `validate-docs`) passed; `docs/bundle.test` 9 pass. Examples run against the real CLI; `plan run`/`--run` appear only as removed-surface text.
+- Full Bun `./dist`: 917 pass, 0 fail, 89 files (41.19 s). HANDOFF: D4 and D5 decided, managed-recording deferral recorded.
