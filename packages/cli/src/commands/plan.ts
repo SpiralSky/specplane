@@ -3,7 +3,7 @@ import { withBranchNameCache } from "../git/branch-name.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig } from "../config.js";
-import { AlreadyExistsError, PlanStateError, SpecplaneError, reportError } from "../errors.js";
+import { AlreadyExistsError, SpecplaneError, reportError } from "../errors.js";
 import { generateWorkingPlansMd } from "../generate/plans-md.js";
 import { ask, csv, interactive, applyCreationScaffold, type CreationScaffold } from "./spec.js";
 import { resolveSpecId } from "../spec/resolve.js";
@@ -313,9 +313,8 @@ export function planGraphCommand(): void {
   }
 }
 
-export async function planStartCommand(id: string, opts: { fetch?: boolean; json?: boolean; run?: boolean; target?: string; dryRun?: boolean } = {}): Promise<void> {
+export async function planStartCommand(id: string, opts: { fetch?: boolean; json?: boolean; target?: string; dryRun?: boolean } = {}): Promise<void> {
   try {
-    if (opts.run) throw new PlanStateError(RUN_REMOVED_MESSAGE);
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
@@ -426,10 +425,3 @@ export function planStepDoneCommand(id: string, opts: StepDoneOptions): void {
   });
 }
 
-export const RUN_REMOVED_MESSAGE = "`specplane plan run` and `plan start --run` were removed: the standalone CLI never launches agent sessions. Prepare the plan with `specplane plan start <id>`, then run `plan-step` in your host's session; an installed execution extension may drive the shared conductor with an explicitly selected host.";
-
-/** Migration diagnostic for the removed standalone conductor entry point. */
-export function planRunRemovedCommand(): void {
-  process.exitCode = 5;
-  process.stderr.write(`${RUN_REMOVED_MESSAGE}\n`);
-}

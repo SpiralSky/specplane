@@ -29,17 +29,17 @@ test("shared standing instructions are the neutral text for every init order and
   assert.equal(agents(codexOnly), neutral);
 });
 
-test("the removed standalone run surfaces refuse with a migration diagnostic and are absent from help", () => {
+test("the standalone CLI has no run surface: plan run and plan start --run are unknown", () => {
   const root = makeRepo({});
-  const help = run(root, "plan", "--help");
-  assert.doesNotMatch(help.stdout, /^\s+run\b/m);
+  assert.doesNotMatch(run(root, "plan", "--help").stdout, /^\s+run\b/m);
   assert.doesNotMatch(run(root, "plan", "start", "--help").stdout, /--run/);
-  for (const args of [["plan", "run", "2026-11-01-x", "--harness", "claude"], ["plan", "start", "2026-11-01-x", "--run"]]) {
-    const r = run(root, ...args);
-    assert.notEqual(r.status, 0);
-    assert.match(r.stderr, /never launches agent sessions/);
-    assert.match(r.stderr, /plan start <id>/);
-  }
+  const cmd = run(root, "plan", "run", "2026-11-01-x", "--harness", "claude");
+  assert.notEqual(cmd.status, 0);
+  assert.match(cmd.stderr, /unknown command 'run'/);
+  const opt = run(root, "plan", "start", "2026-11-01-x", "--run");
+  assert.notEqual(opt.status, 0);
+  assert.match(opt.stderr, /unknown option '--run'/);
+  assert.equal(fs.existsSync(path.join(root, ".git", "specplane-runtime")), false);
 });
 
 test("core runConductor requires an explicit adapter and has no default, discovery or host fallback", async () => {

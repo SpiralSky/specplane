@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { test, type TestContext } from "node:test";
 import { DEFAULT_CONFIG } from "../config.js";
 import type { SessionAdapter, SessionCapabilities, SessionRequest, SessionState } from "../core/contracts.js";
-import { sessionIdFor } from "../harness/session.js";
+import { sessionIdFor } from "./session-identity.js";
 import type { PlanNext } from "./next.js";
 import { runPlan, runPlans, type ConductorDependencies, type RunDependencies } from "./run.js";
 

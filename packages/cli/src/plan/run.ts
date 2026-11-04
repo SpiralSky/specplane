@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { run as git } from '../git/exec.js';
 import { defaultBranch } from '../git/repo.js';
 import type { Config } from '../types.js';
-import { sessionIdFor } from '../harness/session.js';
+import { sessionIdFor } from './session-identity.js';
 import type { SessionAdapter, SessionCapabilities, SessionRef, SessionRequest, SessionState } from '../core/contracts.js';
 import { randomUUID } from 'node:crypto';
 import { listStepFiles, parseStep } from './parse.js';
