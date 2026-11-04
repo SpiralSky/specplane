@@ -19,7 +19,8 @@ test('codex init delivers a self-contained package that validates without this r
   runInit(root, { harness: 'codex' });
   const dir = path.join(root, SKILL_DIR);
   for (const rel of ['SKILL.md', 'scripts/workflow.mjs', 'references/shared-procedure.md', 'dist/core/index.js', 'dist/core/workflow-runner.js', 'docs/manifest.json', 'docs/orientation.md', 'core/inventory.json', 'specplane-extension.json', 'package.json', 'node_modules/ajv/package.json']) assert.ok(fs.existsSync(path.join(dir, rel)), rel);
-  assert.equal(fs.existsSync(path.join(dir, 'dist/templates')), false);
+  assert.equal(fs.existsSync(path.join(dir, 'dist/templates/claude')), false);
+  assert.ok(fs.existsSync(path.join(dir, 'dist/templates/codex/contracts/codex-integration.md')), 'the installed CLI resolves its bundled contract and rules template without this repository');
   assert.deepEqual(fs.readdirSync(path.join(dir, 'dist')).filter(n => n.endsWith('.test.js')), []);
   const manifest = manifestOf(root);
   assert.deepEqual(manifest.capabilities, { reasoning: true, nativeCommands: false, backgroundSessions: false });

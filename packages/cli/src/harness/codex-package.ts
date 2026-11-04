@@ -7,7 +7,7 @@ import { templatesDir } from "./index.js";
 /** Workflows the packaged Codex skill can prepare; each cites its shared `agent-skills` section. */
 export const CODEX_WORKFLOWS = ["plan-step", "plan-create", "spec-assist", "spec-draft-architecture", "decision-new", "validate"] as const;
 
-const SKIP = [/\.test\.js$/, /\.d\.ts$/, /\.map$/, /(^|\/)fixtures\.js$/, /(^|\/)test-repo\.js$/, /-fixture\.js$/, /^templates\//];
+const SKIP = [/\.test\.js$/, /\.d\.ts$/, /\.map$/, /(^|\/)fixtures\.js$/, /(^|\/)test-repo\.js$/, /-fixture\.js$/, /^templates\/(?!codex\/)/];
 
 export function packageFiles(dir: string): string[] { return files(dir); }
 function files(dir: string, prefix = ""): string[] {
