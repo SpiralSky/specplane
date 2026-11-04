@@ -1,12 +1,52 @@
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { type Harness, Report, skillDirsIn, templatesDir, withInstallTransaction } from "./index.js";
 import { assertInstallDestination, InstallationPathError } from "./containment.js";
 import type { InstallTransaction } from "./containment.transaction.js";
 import { buildInstalledManifest, collisionFor, collisionLine, type ObservedFile, sha256, stageInstalledManifest } from "./rollout.js";
+import { packageFiles } from "./codex-package.js";
+import { assembleClaudePackage, CLAUDE_MANIFEST_FILES, CLAUDE_PACKAGE_DIR } from "./claude-package.js";
 
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** Assembles the Claude extension package in a scratch directory and returns its bytes; the repository is not touched here. */
+function readClaudePackage(): Map<string, Buffer> {
+  const staging = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-claude-package-"));
+  try {
+    const pkg = path.join(staging, "package");
+    assembleClaudePackage(pkg);
+    return new Map(packageFiles(pkg).map((rel) => [rel, fs.readFileSync(path.join(pkg, ...rel.split("/")))]));
+  } finally {
+    fs.rmSync(staging, { recursive: true, force: true });
+  }
+}
+
+/** Stages the package inside the install transaction; its entry points join the installed manifest, customized files are preserved. */
+function installClaudePackage(root: string, tx: InstallTransaction, report: Report, files: Map<string, Buffer>, observed: ObservedFile[]): void {
+  const counts = { created: 0, updated: 0, current: 0, preserved: 0 };
+  for (const [rel, bytes] of files) {
+    const dest = path.join(root, CLAUDE_PACKAGE_DIR, ...rel.split("/"));
+    const kind = tx.classify(dest, bytes);
+    const customized = kind === "customized";
+    if (customized) counts.preserved++;
+    else if (kind === "current") counts.current++;
+    else {
+      tx.stage(dest, bytes, { owned: true });
+      if (kind === "absent") counts.created++;
+      else counts.updated++;
+    }
+    if (customized || CLAUDE_MANIFEST_FILES.includes(rel)) {
+      const entry: ObservedFile = { path: `${CLAUDE_PACKAGE_DIR}/${rel}`, outcome: customized ? "customized" : "installed", sha256: sha256(customized ? tx.read(dest) ?? bytes : bytes) };
+      observed.push(entry);
+      if (customized) report.add(collisionLine(collisionFor(entry, "claude")));
+    }
+  }
+  const total = counts.created + counts.updated + counts.current + counts.preserved;
+  report.add(`Claude workflow package: ${total} files (${counts.created} added, ${counts.updated} updated, ${counts.current} current, ${counts.preserved} preserved).`);
+  if (counts.preserved) report.add("Preserved Claude package files no longer match the package inventory, so the MCP server will refuse preparation until they are reconciled; the manual CLI fallback remains available.");
+}
 
 function listFiles(dir: string, prefix = ""): string[] {
   const out: string[] = [];
@@ -129,12 +169,17 @@ export const claude: Harness = {
     const tplDir = templatesDir("claude");
     const files = listFiles(tplDir);
     // Refuse the complete harness before any writes if any destination is unsafe.
-    try { for (const rel of files) assertInstallDestination(root, path.join(root, ".claude", rel)); }
+    try {
+      for (const rel of files) assertInstallDestination(root, path.join(root, ".claude", rel));
+      assertInstallDestination(root, path.join(root, CLAUDE_PACKAGE_DIR, "specplane-extension.json"));
+    }
     catch (error) {
       if (!(error instanceof InstallationPathError)) throw error;
       report.add(`Skipped Claude integration (${error.message}; no harness files written)`);
       return;
     }
+    // Assembled before the transaction opens, so a build failure writes nothing.
+    const pkgFiles = readClaudePackage();
     withInstallTransaction(root, report, (tx) => {
       const observed: ObservedFile[] = [];
       for (const rel of files) {
@@ -170,6 +215,7 @@ export const claude: Harness = {
             if (exec) tx.stage(dest, src, { owned: true, mode: 0o755 });
         }
       }
+      installClaudePackage(root, tx, report, pkgFiles, observed);
       installSettings(root, tx, report, tplDir);
       // Written last: its presence means every earlier file of this harness was applied.
       stageInstalledManifest(root, tx, buildInstalledManifest("claude", observed));
