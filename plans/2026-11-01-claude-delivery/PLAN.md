@@ -1,7 +1,7 @@
 ---
 id: 2026-11-01-claude-delivery
 title: "Claude extension-owned workflow delivery"
-status: draft
+status: ready
 specs: ["architecture/reference-cli","architecture/agent-skills","claude:architecture/claude-integration","claude:feature/claude-integration"]
 depends_on: ["2026-11-01-extension-packaging"]
 ---
