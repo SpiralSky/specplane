@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { executeOperation } from "./core/index.js";
 import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
-import { planRunCommand, planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand, planNextCommand, planStepDoneCommand } from "./commands/plan.js";
+import { planRunRemovedCommand, planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand, planNextCommand, planStepDoneCommand } from "./commands/plan.js";
 import { planApproveCommand } from "./commands/plan-approve.js";
 import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
@@ -56,7 +56,7 @@ plan
   .option("--dry-run", "validate without creating the plan")
   .action((opts) => planNewCommand(opts));
 plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
-plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--target <branch>", "select an integration target").option("--dry-run", "prepare without mutation").option("--json", "print the result as JSON").option("--run", "unavailable in standalone CLI; use an installed execution extension").action((id, opts) => planStartCommand(id, opts));
+plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--target <branch>", "select an integration target").option("--dry-run", "prepare without mutation").option("--json", "print the result as JSON").addOption(new Option("--run").hideHelp()).action((id, opts) => planStartCommand(id, opts));
 plan.command("retarget <id>").description("Reconcile the recorded destination without committing").requiredOption("--target <branch>").option("--dry-run").option("--json").action((id: string, opts: { target: string; dryRun?: boolean; json?: boolean }) => {
   const result = executeOperation({ operation: 'plan.retarget', arguments: { id, target: opts.target, dryRun: !!opts.dryRun } }, { extensionId: 'cli' });
   if (!result.ok) { process.stderr.write(`${result.error.message}\n`); process.exitCode = 1; return; }
@@ -107,20 +107,10 @@ plan
   .option("--json", "print the result as JSON")
   .option("--no-fetch", "accepted for symmetry with `plan list --live`; `plan next` never fetches")
   .action((id, opts) => planNextCommand(id, opts));
-plan.command("run <ids...>")
-  .description("Run isolated plan steps through a capability-checked harness; never approve, finish or merge")
-  .option("--harness <name>", "session adapter: claude; codex CLI-only integration fails closed")
-  .option("--until <target>", "step or finish", "step")
-  .option("--max-steps <n>", "maximum sessions per plan", "1")
-  .option("--max-parallel <n>", "maximum distinct plans in flight")
-  .option("--max-budget-usd <n>", "total reserved budget per plan, divided among maximum steps")
-  .option("--timeout-seconds <n>", "stop observing after this duration; leave session running", "900")
-  .option("--force", "request completed-step rerun; never bypass safety gates")
-  .option("--reason <text>", "required explanation for a forced rerun")
-  .option("--step <n>", "explicit completed step to rerun with --force --reason")
-  .option("--dry-run", "read-only gate/capability check, no session launched")
-  .option("--json", "output structured result")
-  .action((ids, opts) => planRunCommand(ids, opts));
+plan.command("run [args...]", { hidden: true })
+  .description("Removed: the standalone CLI does not run sessions")
+  .allowUnknownOption()
+  .action(() => planRunRemovedCommand());
 const collect = (v: string, prev: string[] = []): string[] => [...prev, v];
 plan
   .command("step-done <id>")

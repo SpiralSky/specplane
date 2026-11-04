@@ -6,6 +6,13 @@ export const STANDING_VERSION = "v1";
 export const NEUTRAL_WORKFLOWS_LINE =
   "no slash commands are installed; follow the contracts in `architecture/agent-skills`.";
 
+/**
+ * Neutral dispatcher used when several harnesses are installed together: the shared file names no host, and each
+ * installed harness carries its own invocation details in its own files.
+ */
+export const COEXISTING_WORKFLOWS_LINE =
+  "follow the contracts in `architecture/agent-skills`; invoke them through the skill or commands your host installed (see its own instruction files).";
+
 export function standingText(workflowsLine: string = NEUTRAL_WORKFLOWS_LINE): string {
   return `## Specplane
 

@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { upsertBlock } from "../agents/standing.js";
+import { COEXISTING_WORKFLOWS_LINE, upsertBlock } from "../agents/standing.js";
 import { CONFIG_PATH, loadConfig } from "../config.js";
 import { SpecplaneError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
-import { type Harness, NO_HARNESS_HINT, Report, selectHarnesses } from "../harness/index.js";
+import { type Harness, HARNESSES, NO_HARNESS_HINT, Report, selectHarnesses } from "../harness/index.js";
 import { assertInstallDestination, writeInstallFile } from "../harness/containment.js";
 
 /** Full default configuration (`feature/configuration` § Full schema with defaults). */
@@ -95,7 +95,9 @@ export function runInit(
 
   const agents = path.join(root, "AGENTS.md");
   const existing = fs.existsSync(agents) ? fs.readFileSync(agents, "utf8") : null;
-  const res = upsertBlock(existing, selected.find((h) => h.workflowsLine)?.workflowsLine);
+  // The shared block never depends on registry order: one installed host names its line, several get the neutral dispatcher.
+  const installed = opts.harness === "none" ? [] : (opts.registry ?? HARNESSES).filter((h) => selected.includes(h) || h.detect(root));
+  const res = upsertBlock(existing, installed.length > 1 ? COEXISTING_WORKFLOWS_LINE : installed[0]?.workflowsLine);
   if (res.action === "malformed") {
     out.push("Skipped AGENTS.md (malformed specplane block; fix the begin/end markers by hand)");
   } else if (res.action === "unchanged") {

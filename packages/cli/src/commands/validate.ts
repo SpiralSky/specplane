@@ -1,7 +1,7 @@
 import { capturePlanSnapshot, hasRecoveryOperation, type PlanSnapshot } from "../generate/snapshot.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { checkStanding } from "../agents/standing.js";
+import { checkStanding, COEXISTING_WORKFLOWS_LINE } from "../agents/standing.js";
 import { type Harness, HARNESSES, templatesDir } from "../harness/index.js";
 import { CONFIG_PATH, loadConfig } from "../config.js";
 import { loadAdrs, validateAdrs } from "../decisions/validate.js";
@@ -37,7 +37,7 @@ export function checkFreshness(root: string, registry: Harness[] = HARNESSES): V
   const abs = path.join(root, file);
   const content = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null;
   const installed = registry.filter((h) => h.detect(root));
-  const lines = [undefined, ...registry.map((h) => h.workflowsLine)];
+  const lines = [undefined, COEXISTING_WORKFLOWS_LINE, ...registry.map((h) => h.workflowsLine)];
   const states = lines.map((l) => checkStanding(content, l));
   const state = states.includes("ok") ? "ok" : states[0];
   const findings = [];

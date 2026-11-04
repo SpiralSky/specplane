@@ -17,7 +17,6 @@ import { checkoutRoot } from "../git/repo.js";
 import { fetchPlanBranches, getPlanActivity, hasRemote, remotePlanIds, localPlanIds, planReport, selectedPlanBranch, targetPlanRecord, committedPlanRecord, lenientFrontmatter, type PlanActivity, type PlanReport } from "../plan/activity.js";
 import { formatNext, planNext } from "../plan/next.js";
 import { attentionFor, type Attention } from "../plan/alerts.js";
-import { runPlans, type RunOptions } from "../plan/run.js";
 import { stepDone, type StepDoneOptions } from "../plan/step-done.js";
 import { assertRecordingPaths } from '../plan/recording-set.js';
 import { parsePlan } from "../plan/parse.js";
@@ -316,10 +315,10 @@ export function planGraphCommand(): void {
 
 export async function planStartCommand(id: string, opts: { fetch?: boolean; json?: boolean; run?: boolean; target?: string; dryRun?: boolean } = {}): Promise<void> {
   try {
+    if (opts.run) throw new PlanStateError(RUN_REMOVED_MESSAGE);
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    if (opts.run) throw new PlanStateError("Standalone --run is unavailable; use an explicitly installed execution extension.");
     const r = firstStart(id, config, root, opts);
     for (const n of r.notices) process.stderr.write(`${n}\n`);
     if (opts.json) {
@@ -427,18 +426,10 @@ export function planStepDoneCommand(id: string, opts: StepDoneOptions): void {
   });
 }
 
-/** CLI orchestration; interrupt observation without terminating the harness session. */
-export async function planRunCommand(ids: string[], opts: RunOptions & { json?: boolean }): Promise<void> {
- const controller = new AbortController();
- const interrupt = () => controller.abort();
- process.once("SIGINT", interrupt);
- try {
-  const root = checkoutRoot(); const { config } = loadConfig(root);
-  const results = await runPlans(ids, config, root, { ...opts, signal: controller.signal }, () => ({ log: s => process.stderr.write(`${s}\n`) }));
-  process.exitCode = Math.max(...results.map(r => r.code));
-  process.stdout.write(opts.json ? `${JSON.stringify(results.length === 1 ? results[0] : results, null, 2)}\n` : results.map(r => `${r.plan}: ${r.reason}${r.sessionId ? `\nSession: ${r.sessionId}\nAttach: ${r.commands!.attach}\nLogs: ${r.commands!.logs}` : ""}\n`).join(""));
- } catch(e) {
+export const RUN_REMOVED_MESSAGE = "`specplane plan run` and `plan start --run` were removed: the standalone CLI never launches agent sessions. Prepare the plan with `specplane plan start <id>`, then run `plan-step` in your host's session; an installed execution extension may drive the shared conductor with an explicitly selected host.";
+
+/** Migration diagnostic for the removed standalone conductor entry point. */
+export function planRunRemovedCommand(): void {
   process.exitCode = 5;
-  process.stdout.write(opts.json ? `${JSON.stringify({ok:false,code:5,action:"ask_human",reason:(e as Error).message})}\n` : `${(e as Error).message}\n`);
- } finally { process.removeListener("SIGINT", interrupt); }
+  process.stderr.write(`${RUN_REMOVED_MESSAGE}\n`);
 }

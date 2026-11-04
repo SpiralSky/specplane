@@ -83,7 +83,7 @@ test("CLI previews the selected target and rejects standalone run without writes
   const json = JSON.parse(preview.stdout); assert.equal(json.target_branch, "candidate");
   assert.equal(json.start_base, f.git("rev-parse", "candidate")); assert.equal(json.comparison_base, null); assert.equal(json.ref_freshness, "local"); assert.equal(json.nextCommand, null);
   const run = spawnSync(process.execPath, [cli, "plan", "start", id, "--run"], { cwd: f.cwd, encoding: "utf8", timeout: 5000 });
-  assert.equal(run.status, 1); assert.match(run.stderr, /Standalone --run/);
+  assert.equal(run.status, 1); assert.match(run.stderr, /never launches agent sessions/);
   assert.equal(f.git("branch", "--list", `plan/${id}`), ""); assert.equal(fs.existsSync(path.join(f.cwd, ".git/specplane-runtime")), false);
 });
 test("claim hook failure restores only the claim file and its staged entry", t => {
