@@ -1,7 +1,7 @@
 ---
 id: architecture/reference-cli
 title: "Reference CLI: module structure, parsing, git integration, validation engine, and plan flows"
-status: review
+status: approved
 author: mixed
 implements: [feature/tooling, feature/plan-execution, feature/plan-index, feature/configuration, feature/spec-system, feature/spec-overlays, feature/spec-policies, feature/plan-system, feature/plan-status, feature/plan-steps, feature/decisions, feature/agent-integration]
 ---
