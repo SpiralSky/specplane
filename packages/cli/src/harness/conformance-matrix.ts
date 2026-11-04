@@ -13,7 +13,7 @@ export const CRITERIA: Criterion[] = [
     { file: 'plan/retarget', title: 'preview and core update preserve provenance' },
     { file: 'core/contribution-metadata', title: 'finalized assist authorship changes only author' }] },
   { id: 'exports-and-workflows', text: 'Each public export and delivered workflow maps to passing applicable tests', state: 'unmet',
-    reason: 'Every runtime export of the core entry point and every Codex workflow is mapped. The Claude package is assembled and tested offline: the installed MCP server prepares plan-step past compatibility and releases its lease (harness/claude-package). The Claude workflows stay pending anyway, because the six reasoning commands are not yet native mod commands and no live-host evidence exists; native handlers and policy hooks are covered offline (harness/claude-handlers and `claude plugin test`), which does not deliver them.',
+    reason: 'Every runtime export of the core entry point and every Codex workflow is mapped. The Claude package is assembled and tested offline: the installed MCP server prepares plan-step past compatibility and releases its lease (harness/claude-package). The Claude workflows stay pending anyway: no live-host evidence exists, and the six reasoning commands are built and covered offline (harness/claude-handlers: connect, bind, prepare, validate, record and close, plus the nonce gate) but are not registered with the host until the live check (D13, run 3). Offline tests do not deliver them, so their rows stay not-delivered.',
     suites: [{ file: 'harness/codex-package', title: 'codex init delivers a self-contained package' }, { file: 'harness/codex-consumer', title: 'offline docs' }, { file: 'harness/claude-package', title: 'the installed MCP server binds, prepares a reasoning workflow' }] },
   { id: 'index-targets-dependencies-docs', text: 'Acceptance covers all three index sources, target/retarget refusal paths, completion dependency changes and offline CLI/core/harness docs parity', state: 'met', suites: [
     { file: 'generate/index-command', title: 'source selection, notices, print-only, idempotence and migration' },
@@ -47,7 +47,7 @@ export const EXPORT_SUITES: Record<string, string> = {
   workflowCreationSchema: 'harness/conformance', workflowInitiationSchema: 'harness/conformance', workflowRequestSchema: 'core/workflow-preparation', workflowResultSchema: 'harness/conformance',
 };
 
-/** Workflows shipped as host surfaces. Codex ships the first six; Claude exposes all eleven as native commands (mechanical ones have no skill file, D10), but the Claude package delivers no workflow command yet (its MCP prepare path is tested; the reasoning commands are not built). */
+/** Workflows shipped as host surfaces. Codex ships the first six; Claude exposes all eleven as native commands (mechanical ones have no skill file, D10), but the Claude package delivers no workflow command yet: the six reasoning commands are built and tested offline (harness/claude-handlers) and stay unregistered until the live check (D13). Rows are `not-delivered` because the column means delivered to the host, which offline tests cannot show. */
 export const CODEX_WORKFLOWS_DELIVERED = ['plan-step', 'plan-create', 'spec-assist', 'spec-draft-architecture', 'decision-new', 'validate'];
 export const CLAUDE_WORKFLOWS = ['approve', 'decision-new', 'plan-abandon', 'plan-create', 'plan-finish', 'plan-start', 'plan-status', 'plan-step', 'spec-assist', 'spec-draft-architecture', 'validate'];
 
