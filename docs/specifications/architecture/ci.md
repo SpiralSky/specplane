@@ -1,7 +1,7 @@
 ---
 id: architecture/ci
 title: "CI: PLANS.md regeneration and validation"
-status: review
+status: approved
 author: llm
 implements: [feature/plan-index, feature/tooling]
 ---
