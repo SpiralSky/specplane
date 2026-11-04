@@ -120,7 +120,7 @@ test('invalid batches, dry runs, other lifecycle decisions and extra authorizati
     const cases = [
       { operation: 'spec.approve', arguments: { ids: ['feature/draft', 'feature/approved'] } },
       { operation: 'spec.approve', arguments: { ids: ['feature/draft'], dryRun: true } },
-      { operation: 'plan.finish', arguments: { id: planId } },
+      { operation: 'plan.cleanup', arguments: { id: planId } },
       { ...approve, confirmed: true },
     ];
     for (const request of cases) assert.equal((await prepareConfirmedOperation(request as MechanicalRequest, f.context)).ok, false);

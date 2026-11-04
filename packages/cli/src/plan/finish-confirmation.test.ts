@@ -468,6 +468,11 @@ test('structured finish rebase binds the current checkout inventory after a fron
   const kinds: string[] = [];
   const result = await finishPlan(A, loadConfig(r.co).config, r.co, { confirmGate: async gate => {
     kinds.push(gate.kind);
+    if (gate.kind === 'preparation') {
+      assert.equal(gate.targetHead, targetBefore, 'preparation is requested before the review claim');
+      assert.equal(sha(r.root, 'HEAD'), targetBefore);
+      return true;
+    }
     assert.equal(gate.targetHead, sha(r.root, 'HEAD'));
     if (gate.kind === 'rebase') {
       assert.notEqual(gate.targetHead, targetBefore);
@@ -477,6 +482,6 @@ test('structured finish rebase binds the current checkout inventory after a fron
     assert.equal(gate.kind, 'finish-acceptance');
     return false;
   } });
-  assert.deepEqual(kinds, ['rebase', 'finish-acceptance']);
+  assert.deepEqual(kinds, ['preparation', 'rebase', 'finish-acceptance']);
   assert.equal(result.outcome, 'ready'); assert.equal(result.finalized, false);
 });

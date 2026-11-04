@@ -43,7 +43,7 @@ export { prepareWorkflow } from './workflow-preparation.js';
 export { executeWorkflowTest } from './workflow-execution.js';
 export { validateWorkflowResult, recordWorkflow } from './workflow-recording.js';
 export type { WorkflowRecordingReceipt } from './workflow-recording.js';
-export { prepareConfirmedOperation as prepareConfirmation, confirmConfirmedOperation as confirmOperation } from './confirmed-operations.js';
+export { prepareConfirmedOperation as prepareConfirmation, confirmConfirmedOperation as confirmOperation, confirmConfirmedOperationAsync as confirmOperationAsync } from './confirmed-operations.js';
 export type { ConfirmedOperationReceipt } from './confirmed-operations.js';
 export { cancelWorkflow, inspectWorkflow } from './workflow-lifecycle.js';
 export type { WorkflowInspection } from './workflow-lifecycle.js';

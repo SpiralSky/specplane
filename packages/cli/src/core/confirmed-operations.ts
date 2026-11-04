@@ -13,7 +13,8 @@ import { acceptDecision } from '../commands/decision.js';
 import { resolveSpecId } from '../spec/resolve.js';
 import { planDir } from '../plan/resolve.js';
 import { listWorktrees } from '../git/worktree.js';
-import { abandonPlan, type AbandonPreview } from '../plan/flows.js';
+import { abandonPlan, finishPlan, type AbandonPreview, type FinishGate } from '../plan/flows.js';
+import { lifecycleContext } from '../plan/lifecycle-context.js';
 import { loadAdrs } from '../decisions/validate.js';
 import { withApprovalProjection } from '../commands/approval-read-tree.js';
 import { readFrontmatter, renderStatus } from '../frontmatter.js';
@@ -28,7 +29,7 @@ import type { Config } from '../types.js';
 export interface ConfirmedOperationReceipt { operation: string; targets: string[]; head: string; notices: Notice[] }
 type ApprovalRequest = Extract<MechanicalRequest, { operation: 'spec.approve' | 'spec.reopen' | 'plan.approve' | 'decision.accept' }>;
 const validOperation = lazyValidator(mechanicalRequestSchema), validChallenge = lazyValidator(confirmationChallengeSchema), validResponse = lazyValidator(confirmationResponseSchema);
-const pending = new Map<string, { service: ReturnType<typeof createConfirmation<ConfirmedOperationReceipt>>; lease: WriterLease; timer: ReturnType<typeof setTimeout> }>();
+const pending = new Map<string, { service: ReturnType<typeof createConfirmation<ConfirmedOperationReceipt | Promise<ConfirmedOperationReceipt>>>; lease: WriterLease; timer: ReturnType<typeof setTimeout>; async?: boolean }>();
 function refusal(code: ConfirmationRefused['code'], message: string): never { throw new ConfirmationRefused(code, message); }
 function error<T>(e: unknown): Result<T> {
   return { protocol: 1, ok: false, error: { code: e instanceof ConfirmationRefused || e instanceof LeaseRefused ? e.code : 'OPERATION_FAILED', message: e instanceof Error ? e.message : String(e), retryable: e instanceof LeaseRefused && e.code === 'LOCKED', details: null }, notices: [] };
@@ -166,6 +167,88 @@ async function prepareAbandon(request: Extract<MechanicalRequest, { operation: '
   }
 }
 
+/** Trusted finish: the initial challenge authorizes preparation only. Each later gate (rebase, finish
+ * acceptance, publication, merge) is a fresh direct-human decision bound to its own revision and target. */
+async function prepareFinish(request: Extract<MechanicalRequest, { operation: 'plan.finish' }>, trusted: CoreContext): Promise<Result<ConfirmationChallenge>> {
+  let lease: WriterLease | undefined;
+  try {
+    const interaction = trusted.interaction;
+    if (!interaction || typeof interaction.confirm !== 'function') refusal('CONFIRMATION_REQUIRED', 'A trusted direct-human interaction port is required.');
+    if (!trusted.checkout || !trusted.extensionId) refusal('INVALID_EVIDENCE', 'Confirmation requires explicit checkout and extension identity.');
+    if (trusted.signal?.aborted) refusal('CANCELLED', 'Confirmation cancelled.');
+    const extensionId = trusted.extensionId, id = request.arguments.id, noFetch = request.arguments.noFetch === true;
+    const root = fs.realpathSync(checkoutRoot(trusted.checkout));
+    const trees = listWorktrees(root).filter(tree => !tree.bare);
+    const planIds = run('git', ['for-each-ref', '--format=%(refname)', 'refs/heads/plan/', 'refs/remotes/origin/plan/'], { cwd: root }).split('\n').map(x => x.replace(/^refs\/(?:heads|remotes\/origin)\/plan\//, '')).filter(Boolean);
+    lease = acquireWriterLease({ repository: true, plans: [...new Set([id, ...planIds])], checkouts: trees.map(tree => tree.path), requestId: `confirmation-${randomUUID()}` });
+    const held = lease;
+    let reviewed: { head: string; target: string; targetHead: string } | undefined;
+    function snapshot() {
+      held.assertOwned();
+      if (canonical(listWorktrees(root).filter(tree => !tree.bare)) !== canonical(trees)) refusal('STALE_STATE', 'Finish checkout set changed; obtain fresh confirmation.');
+      for (const tree of trees) if (hasRecoveryOperation(tree.path)) refusal('RECOVERY_REQUIRED', 'Finish refuses an unfinished Git operation.');
+      const branch = run('git', ['symbolic-ref', '--short', 'HEAD'], { cwd: root }).trim();
+      if (branch !== `plan/${id}`) refusal('INVALID_EVIDENCE', `Finish must be confirmed from the checkout of plan/${id}, not ${branch}.`);
+      const config = loadConfig(root).config;
+      const p = lifecycleContext(id, config, root);
+      const head = run('git', ['rev-parse', 'HEAD'], { cwd: root }).trim();
+      reviewed = { head, target: p.context.targetBranch, targetHead: p.context.targetCommit };
+      return {
+        targets: [id], payload: { operation: request.operation, arguments: request.arguments },
+        state: { checkouts: trees.map(tree => ({ ...tree, state: workflowStateDigest(tree.path) })), refs: run('git', ['for-each-ref', '--format=%(refname) %(objectname)'], { cwd: root }) },
+        evidence: reviewed,
+        summary: `plan.finish ${id} (preparation only)\nPlan revision: ${head} on plan/${id}\nTarget: ${p.context.targetBranch} at ${p.context.targetCommit}\nStatus source: ${config.plans.status_source}\nMerge mode: ${config.plans.merge}\nThis confirms preparation: running verification, then (frontmatter mode) claiming review on the target and publishing it. Rebase, finish acceptance, publication and merge each require their own confirmation of the resulting revision.`,
+      };
+    }
+    const gateConsent = async (gate: Readonly<FinishGate>): Promise<boolean> => {
+      held.assertOwned();
+      let response: ConfirmationResponse | null = null;
+      const service = createConfirmation({ checkout: root, extensionId, operation: `plan.finish:${gate.kind}`, lease: held,
+        snapshot: () => {
+          held.assertOwned();
+          return { targets: [id], summary: gate.summary, state: { gate: { ...gate, summary: undefined }, tree: workflowStateDigest(root), target: run('git', ['rev-parse', `refs/heads/${gate.target}`], { cwd: root }).trim() }, payload: { operation: request.operation, id, gate: gate.kind }, evidence: { head: gate.head, target: gate.target, targetHead: gate.targetHead } };
+        },
+        mutate: () => true,
+      }, { interaction: { async confirm(challenge) { response = await interaction.confirm(challenge); return response; } }, clock: trusted.clock, signal: trusted.signal });
+      let challenge: ConfirmationChallenge;
+      try { challenge = await service.prepare(); }
+      catch (e) { if (e instanceof ConfirmationRefused && (e.code === 'CONFIRMATION_REQUIRED' || e.code === 'CANCELLED')) return false; throw e; }
+      return service.confirm(challenge, response!, { checkout: root, extensionId });
+    };
+    let preparationUsed = false;
+    const service = createConfirmation<Promise<ConfirmedOperationReceipt>>({ checkout: root, extensionId, operation: request.operation, lease: held, snapshot,
+      mutate: async () => {
+        if (trusted.signal?.aborted) refusal('CANCELLED', 'Finish cancelled before mutation.');
+        held.assertOwned();
+        const basis = reviewed!;
+        const result = await finishPlan(id, loadConfig(root).config, root, { lease: held, signal: trusted.signal, fetch: !noFetch,
+          confirmGate: async gate => {
+            if (gate.kind === 'preparation') {
+              // The initial challenge already carried this consent; it is valid only once, for the reviewed revision.
+              if (preparationUsed || gate.head !== basis.head || gate.target !== basis.target || gate.targetHead !== basis.targetHead) refusal('STALE_STATE', 'Preparation differs from the confirmed revision or target; obtain fresh confirmation.');
+              preparationUsed = true;
+              return true;
+            }
+            return gateConsent(gate);
+          } });
+        held.assertOwned();
+        const notices: Notice[] = [{ code: `PLAN_FINISH_${result.outcome.toUpperCase()}`, message: `Plan ${result.planId} finish outcome: ${result.outcome}${result.finalized === false ? ' (not finalized)' : ''}${result.prUrl ? `; ${result.prUrl}` : ''}` }, ...result.notices.map(message => ({ code: 'PLAN_FINISH_NOTICE', message }))];
+        return { operation: request.operation, targets: [id], head: run('git', ['rev-parse', 'HEAD'], { cwd: root }).trim(), notices };
+      },
+    }, { interaction, clock: trusted.clock, signal: trusted.signal });
+    const challenge = await service.prepare();
+    const timer = setTimeout(() => {
+      const entry = pending.get(challenge.challengeId);
+      if (entry?.service.phase() === 'ready') { try { entry.lease.release(); pending.delete(challenge.challengeId); } catch { /* Retain uncertain ownership. */ } }
+    }, 15 * 60 * 1000);
+    timer.unref(); pending.set(challenge.challengeId, { service, lease: held, timer, async: true });
+    return { protocol: 1, ok: true, value: challenge, notices: [] };
+  } catch (e) {
+    if (lease) { try { lease.release(); } catch (recovery) { return error(recovery); } }
+    return error(e);
+  }
+}
+
 /** The response is collected here through the embedding host, never accepted from initiation JSON. */
 export async function prepareConfirmedOperation(input: MechanicalRequest, context: CoreContext): Promise<Result<ConfirmationChallenge>> {
   const trusted = { ...context };
@@ -173,6 +256,7 @@ export async function prepareConfirmedOperation(input: MechanicalRequest, contex
   try {
     if (!validOperation(input)) refusal('INVALID_EVIDENCE', 'Invalid confirmation operation.');
     if (input.operation === 'plan.abandon') return prepareAbandon(structuredClone(input), trusted);
+    if (input.operation === 'plan.finish') return prepareFinish(structuredClone(input), trusted);
     if (!['spec.approve', 'spec.reopen', 'plan.approve', 'decision.accept'].includes(input.operation)) refusal('UNSUPPORTED_CAPABILITY', 'This operation has no confirmation adapter yet.');
     const request = structuredClone(input) as ApprovalRequest;
     const ids = request.operation === 'spec.reopen' ? [request.arguments.id] : request.arguments.ids;
@@ -257,14 +341,40 @@ export function confirmConfirmedOperation(challenge: ConfirmationChallenge, resp
   if (!validChallenge(challenge) || !validResponse(response) || !context.checkout || !context.extensionId) return error(new ConfirmationRefused('INVALID_EVIDENCE', 'Invalid confirmation request.'));
   const entry = pending.get(challenge.challengeId);
   if (!entry) return error(new ConfirmationRefused('INVALID_EVIDENCE', 'No unconsumed response from a trusted interaction exists.'));
+  if (entry.async) return error(new ConfirmationRefused('UNSUPPORTED_CAPABILITY', 'This operation settles asynchronously; use confirmOperationAsync.'));
   try {
     if (context.signal?.aborted) refusal('CANCELLED', 'Confirmation cancelled.');
-    const value = entry.service.confirm(challenge, response, { checkout: context.checkout, extensionId: context.extensionId });
+    const value = entry.service.confirm(challenge, response, { checkout: context.checkout, extensionId: context.extensionId }) as ConfirmedOperationReceipt;
     entry.lease.release(); clearTimeout(entry.timer); pending.delete(challenge.challengeId);
     return { protocol: 1, ok: true, value, notices: value.notices };
   } catch (e) {
     if (entry.service.phase() === 'refused') {
       try { entry.lease.release(); clearTimeout(entry.timer); pending.delete(challenge.challengeId); } catch (recovery) { return error(recovery); }
+    }
+    return error(e);
+  }
+}
+
+/** Asynchronous result handling. The lease is released only after the operation settles successfully or the
+ * confirmation was refused before consumption; an uncertain failure retains the lease and consuming journal. */
+export async function confirmConfirmedOperationAsync(challenge: ConfirmationChallenge, response: ConfirmationResponse, context: CoreContext): Promise<Result<ConfirmedOperationReceipt>> {
+  if (!validChallenge(challenge) || !validResponse(response) || !context.checkout || !context.extensionId) return error(new ConfirmationRefused('INVALID_EVIDENCE', 'Invalid confirmation request.'));
+  const entry = pending.get(challenge.challengeId);
+  if (!entry) return error(new ConfirmationRefused('INVALID_EVIDENCE', 'No unconsumed response from a trusted interaction exists.'));
+  if (!entry.async) return error(new ConfirmationRefused('UNSUPPORTED_CAPABILITY', 'This operation settles synchronously; use confirmOperation.'));
+  try {
+    if (context.signal?.aborted) refusal('CANCELLED', 'Confirmation cancelled.');
+    const value = await entry.service.confirmAsync(challenge, response, { checkout: context.checkout, extensionId: context.extensionId });
+    clearTimeout(entry.timer); pending.delete(challenge.challengeId);
+    entry.lease.release();
+    return { protocol: 1, ok: true, value, notices: value.notices };
+  } catch (e) {
+    const phase = entry.service.phase();
+    if (phase === 'refused') {
+      try { clearTimeout(entry.timer); pending.delete(challenge.challengeId); entry.lease.release(); } catch (recovery) { return error(recovery); }
+    } else if (phase === 'consuming' || phase === 'completed') {
+      // Uncertain outcome: keep the lease and the consumed entry so nothing replays or competes.
+      clearTimeout(entry.timer);
     }
     return error(e);
   }

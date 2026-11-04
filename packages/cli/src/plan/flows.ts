@@ -147,7 +147,7 @@ function requireFinishedSteps(dir: string): void {
 }
 
 export interface FinishGate {
-  kind: 'rebase' | 'finish-acceptance' | 'publication' | 'merge';
+  kind: 'preparation' | 'rebase' | 'finish-acceptance' | 'publication' | 'merge';
   planId: string;
   branch: string;
   head: string;
@@ -362,8 +362,20 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
   }
   lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, p.refs);
   const existingPR = merge === "pull_request" ? matchingOpenPR(branch, def, { cwd: root, forge: config.plans.forge }) : null;
+  // Structured finish authorizes preparation writes (target review claim, pending-claim publication) before the first one.
+  const unpublishedClaim = frontmatterMode && remote && p.target.status === "review" && p.refs[`refs/remotes/origin/${def}`] !== tip;
+  if (opts.confirmGate && !alreadyDone && (claimReview || unpublishedClaim)) {
+    const headBefore = git(["rev-parse", "HEAD"], root);
+    const prepTrees = listWorktrees(main);
+    const effects = [claimReview ? `commit a review claim for \`${id}\` on \`${def}\`${remote ? " and publish it" : ""}` : `publish the pending review claim on \`${def}\``];
+    const question = `Prepare finishing \`${branch}\` at \`${headBefore}\` against \`${def}\` at \`${tip}\`: ${effects.join("; ")}? Rebase, finish acceptance and merge remain separate decisions.`;
+    if (!await ask('preparation', question, headBefore, tip)) return { planId: id, outcome: 'ready', prUrl: null, finalized: false, notices: ['Finish preparation declined; no lifecycle change was made.'] };
+    lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, p.refs); checkAdmin(tip);
+    if (git(['rev-parse', 'HEAD'], root) !== headBefore || !clean(root) || JSON.stringify(prepTrees) !== JSON.stringify(listWorktrees(main)))
+      throw new PlanStateError('Plan, target or checkout set changed during preparation confirmation; retry.');
+  }
   // Publish an already-created review claim before treating it as complete.
-  if (frontmatterMode && remote && p.target.status === "review" && p.refs[`refs/remotes/origin/${def}`] !== tip) {
+  if (unpublishedClaim) {
     const trailers = readTrailers(tip, main);
     if (trailers.get("Specplane-Workflow")?.at(-1) !== "claim" || trailers.get("Specplane-Plan")?.at(-1) !== id || !targetTree || !clean(targetTree) || git(["rev-parse", "HEAD"], targetTree) !== tip) throw new PlanStateError("Unpublished target review state requires reconciliation before finish.");
     lease.assertOwned(); checkCancelled(); recheckLifecycleRefs(main, p.refs);
