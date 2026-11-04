@@ -306,3 +306,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - D12 recorded as decided (option A). D13 offline: `claude-code.d.ts` does not say whether `tool.check` fires for `$.mcp.call`, and does not mention `CLAUDE_PLUGIN_ROOT`. Design: the gate allows a call only with the bound session nonce; everything else is denied.
 - No code changed: the Claude package inputs, reasoning commands and live check were not started. Next: `harness/claude-package.ts` (see HANDOFF Next session).
 - Checks not rerun (docs only). Open: D11 (managed/user-tier risk), D13 (live). Next session starts with the Claude package inputs.
+
+## 2026-11-04 claude-delivery 03 run 1: Claude package and installed prepare (UTC 14:10)
+- Commits `8603136` (shared runtime inputs), `7ff6063` (Claude package, installer staging, MCP reads installed manifest and host selection), `f2b3289` (conformance trace); HANDOFF rewritten in compact format.
+- `harness/claude-package.test` (5) and the Codex package and MCP suites pass. Full Bun run 1000 pass, 0 fail, 102 files. `specplane validate`: 0 errors, 98 warnings.
+- Reasoning commands and live check not done. New open decision D14 (installed package location `.claude/specplane/core`). Next: run 2, nonce gate and six native reasoning commands, offline.
