@@ -1,0 +1,49 @@
+                                                                                                                            │                                                     ✕
+ ▐▛███▛█   Claude Code v2.1.317                                                                                             │No active plans.
+▝▜██████▀  Haiku 5.5 · Claude Pro                                                                                           │
+ ▝▝   ▝▝   <local-path>              │
+                                                                                                                            │
+                                                                                                                            │
+❯ /spec-assist                                                                                                              │
+  ⎿  specplane: Preparation requires a clean tracked and nonignored untracked baseline; preserve and reconcile local changes│
+     first. Nothing was delegated.                                                                                          │
+                                                                                                                            │
+❯ /spec-assist                                                                                                              │
+  ⎿  specplane: Error: result (112,044 characters across 1 line) exceeds maximum allowed tokens. Output has been saved to   │
+     <local-path>│
+     30b7c48d-scratchpad-fixture/2cb64573-2961-46b4-a542-7bebdccd4875/tool-results/mcp-plugin_specplane_specplane-prepare-17│
+     93805853491.txt.                                                                                                       │
+     Format: Plain text                                                                                                     │
+     Search within the file for specific content, and use jq if the content is JSON.                                        │
+     REQUIREMENTS FOR SUMMARIZATION/ANALYSIS/REVIEW:                                                                        │
+     - You MUST read the content from the file at <local-path>│
+       <local-path>│
+       sults/mcp-plugin_specplane_specplane-prepare-1793805853491.txt in sequential chunks until 100% of the content has    │
+       been read.                                                                                                           │
+     - Note: this file's lines are too long for Read's offset/limit chunking. If a shell tool is available, slice by        │
+       character range (e.g. python read()[A:B], dd, or cut -c) instead.                                                    │
+     - If you receive truncation warnings when reading the file, reduce the chunk size until you have read 100% of the      │
+       content without truncation.                                                                                          │
+     - Before producing ANY summary or analysis, you MUST explicitly describe what portion of the content you have read. If │
+       you did not read the entire content, you MUST explicitly state this.                                                 │
+     - If after a few attempts you cannot read the file (file not found, lines too long for Read's offset/limit, no shell   │
+       access), STOP retrying. Summarize what you were able to read, explicitly state which portion you could not read and  │
+       why, and proceed.                                                                                                    │
+        Nothing was delegated.                                                                                              │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏸ manual mode on · ← 1 agent

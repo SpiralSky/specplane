@@ -1,0 +1,50 @@
+                                                                                                                            │                                                     ✕
+ ▐▛███▛█   Claude Code v2.1.317                                                                                             │No active plans.
+▝▜██████▀  Haiku 5.5 · Claude Pro                                                                                           │
+ ▝▝   ▝▝   <local-path>              │
+                                                                                                                            │
+                                                                                                                            │
+❯ /spec-assist search filter draft                                                                                          │
+                                                                                                                            │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│
+ Tool use · from the specplane plugin                                                                                       │
+ plugin:specplane:specplane — Bind Tool: (MCP)                                                                              │
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│
+ nonce: "<nonce-redacted>"                                                                  │
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│
+ About the plugin:specplane:specplane — Bind Tool:                                                                          │
+ │ Bind this session once with a nonce the mod generated. Required before any other tool; a second bind is refused.         │
+                                                                                                                            │
+ Do you want to proceed?                                                                                                    │
+ ❯ 1. Yes                                                                                                                   │
+   2. No                                                                                                                    │
+                                                                                                                            │
+ Esc to cancel · Tab to amend                                                                                               │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │

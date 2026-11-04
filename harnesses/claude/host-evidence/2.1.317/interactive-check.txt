@@ -1,0 +1,34 @@
+Interactive live check, claude-delivery 03 (D18 option A, agent-driven). Claude Code 2.1.317, Haiku 5.5. 2026-11-04, 15:20-15:25 UTC.
+
+Provenance: agent-driven terminal, NOT human-typed. The coordinator session ran an interactive `claude` in tmux and typed
+`/spec-assist search filter draft` with tmux send-keys. The host reports such input as composer origin, so this proves the
+mechanism, not that a human started the command. The user approved this check in conversation.
+
+Fixture: the disposable run 3 fixture (git repo, `specplane init --harness claude`, reasoning flag true in the installed copy only,
+the six public reasoning skills deleted from the fixture only). Its installed files were committed before the run.
+Launch: `claude --plugin-dir <fixture>/.claude/specplane --model haiku` (first in auto mode, then with `--permission-mode default`).
+The workspace trust dialog was accepted for the fixture folder only.
+
+Files: interactive-auto-mode-screen.txt, interactive-bind-prompt-screen.txt, interactive-prepare-screen.txt (screen captures,
+nonce and local paths redacted), interactive-lease-trace.txt (lease directory polled every 0.5 s).
+
+Results:
+1. Origin gate: PASSED. Typed input runs the native /spec-assist (the run 3 `claude -p` attempt was refused as origin "sdk").
+2. Auto mode: the mod's own `$.mcp.call` is REFUSED, twice, identically: "The server-side auto mode classifier gave no verdict for
+   mcp__plugin_specplane_specplane__bind: the request that produced this action did not ask for one." The declarations say
+   `$.mcp.call` needs no permission prompt; under auto mode it cannot run at all. Host issue candidate.
+3. Default mode: the host shows a permission prompt for EVERY mod `$.mcp.call` (bind, prepare), rendering all arguments,
+   including the session nonce, on screen. The full prepare result was also written to the session's tool-results directory.
+   So the nonce is not secret from the screen or from a model that can read files. Answers D13: the permission pipeline does
+   run for the mod's own calls. Wire tool names: mcp__plugin_specplane_specplane__bind, mcp__plugin_specplane_specplane__prepare.
+4. Host writes `.claude/specplane/tsconfig.json` when it loads the plugin. The untracked file made prepare refuse:
+   "Preparation requires a clean tracked and nonignored untracked baseline; preserve and reconcile local changes first."
+   It was committed in the fixture and the command re-typed in the same session.
+5. Lease held across calls: CONFIRMED. At 15:24:13 prepare created checkout-<id>.json and repository-<id>.json plus a host marker,
+   both records owned by the server process (pid 1757382, node <fixture>/.claude/specplane/core/dist/harness/claude-mcp-main.js),
+   still present while the server stayed alive after the call returned.
+6. Prepare result too large: the result (112044 bytes) exceeded the host's MCP result limit, so the host replaced it with a
+   "read the file in chunks" note. The mod could not parse a request id, reported "Nothing was delegated." and never called close.
+7. Release: NOT ACHIEVED. After /exit the server process exited, but the lease files and host marker stayed. A new writer
+   (`acquireWriterLease` from the installed core) was refused: "RECOVERY_REQUIRED repository lease has host worker evidence;
+   explicit recovery is required." The CLI has no recovery command, so the fixture stays locked until manual recovery.

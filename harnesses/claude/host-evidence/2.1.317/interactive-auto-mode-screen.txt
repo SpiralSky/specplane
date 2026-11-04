@@ -1,0 +1,49 @@
+                                                                                                                            │                                                     ✕
+ ▐▛███▛█   Claude Code v2.1.317                                                                                             │No active plans.
+▝▜██████▀  Haiku 5.5 · Claude Pro                                                                                           │
+ ▝▝   ▝▝   <local-path>              │
+                                                                                                                            │
+                                                                                                                            │
+❯ /spec-assist                                                                                                              │
+  ⎿  specplane: Specplane server call bind failed: specplane: $.mcp.call(plugin:specplane:specplane, bind) refused: The     │
+     server-side auto mode classifier gave no verdict for mcp__plugin_specplane_specplane__bind: the request that produced  │
+     this action did not ask for one. Issue the action again once, as-is; if it is denied again, continue with other tasks  │
+     that don't require it and tell the user that auto mode could not evaluate it. Note: reading files, searching code, and │
+     other read-only operations do not require the classifier and can still be used. Nothing was delegated.                 │
+                                                                                                                            │
+❯ /spec-assist                                                                                                              │
+  ⎿  specplane: Specplane server call bind failed: specplane: $.mcp.call(plugin:specplane:specplane, bind) refused: The     │
+     server-side auto mode classifier gave no verdict for mcp__plugin_specplane_specplane__bind: the request that produced  │
+     this action did not ask for one. Issue the action again once, as-is; if it is denied again, continue with other tasks  │
+     that don't require it and tell the user that auto mode could not evaluate it. Note: reading files, searching code, and │
+     other read-only operations do not require the classifier and can still be used. Nothing was delegated.                 │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+                                                                                                                            │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · ← 1 agent
