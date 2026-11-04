@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import * as path from "node:path";
 import { test } from "node:test";
 import { runInit } from "../commands/init.js";
@@ -105,6 +106,22 @@ test("claude merge: existing statusLine is kept", () => {
   assert.deepEqual(JSON.parse(r.content!).statusLine, sl);
   assert.ok(r.notes[0].startsWith("Kept existing statusLine"));
   assert.equal(r.added, 4);
+});
+
+test("claude install: the host-written tsconfig is git-ignored once, existing .gitignore lines are kept", () => {
+  const root = makeRepo({ ".gitignore": "node_modules/" });
+  const git = (...args: string[]) => execFileSync("git", ["-C", root, ...args], { encoding: "utf8" });
+  git("init", "-q");
+  const first = runInit(root, { harness: "claude" });
+  assert.ok(first.includes("Updated .gitignore (ignores .claude/specplane/tsconfig.json)"));
+  assert.equal(fs.readFileSync(path.join(root, ".gitignore"), "utf8"), "node_modules/\n.claude/specplane/tsconfig.json\n");
+  const second = runInit(root, { harness: "claude" });
+  assert.ok(second.includes("Skipped .gitignore (already ignores the host-written tsconfig)"));
+  assert.equal(fs.readFileSync(path.join(root, ".gitignore"), "utf8"), "node_modules/\n.claude/specplane/tsconfig.json\n");
+  // The host writes the file at plugin load; the clean-baseline check (git status, ignored files excluded) must not see it.
+  fs.mkdirSync(path.join(root, ".claude/specplane"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".claude/specplane/tsconfig.json"), "{}\n");
+  assert.doesNotMatch(git("status", "--porcelain=v1", "--untracked-files=all"), /tsconfig\.json/);
 });
 
 test("claude install: files created, hooks executable, idempotent, CLAUDE.md untouched", () => {

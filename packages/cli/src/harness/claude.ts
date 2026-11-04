@@ -160,6 +160,28 @@ function scriptCommands(group: unknown): string[] {
   return hooks.flatMap((h) => (isObj(h) && typeof h.command === "string" ? [h.command] : []));
 }
 
+/**
+ * Claude Code writes `.claude/specplane/tsconfig.json` each time it loads the plugin. Shipping it would make a tracked copy
+ * the host rewrites on every load, so the clean-baseline check (`git status`, ignored files excluded) would refuse again.
+ * An ignore entry leaves the host's file to the host and keeps it out of that check.
+ */
+const HOST_WRITTEN_IGNORE = ".claude/specplane/tsconfig.json";
+
+/** Adds the host-written file to the repository's `.gitignore`, once; existing lines are kept. */
+function installHostIgnore(root: string, tx: InstallTransaction, report: Report): void {
+  const abs = path.join(root, ".gitignore");
+  const current = tx.read(abs);
+  const text = current === null ? "" : current.toString("utf8");
+  if (text.split(/\r?\n/).some((line) => line.trim() === HOST_WRITTEN_IGNORE)) {
+    report.skipped(abs, "already ignores the host-written tsconfig");
+    return;
+  }
+  const separator = text === "" || text.endsWith("\n") ? "" : "\n";
+  tx.stage(abs, `${text}${separator}${HOST_WRITTEN_IGNORE}\n`);
+  if (current === null) report.created(abs);
+  else report.add(`Updated .gitignore (ignores ${HOST_WRITTEN_IGNORE})`);
+}
+
 function installSettings(root: string, tx: InstallTransaction, report: Report, tplDir: string): void {
   const abs = path.join(root, ".claude", "settings.json");
   const template = JSON.parse(fs.readFileSync(path.join(tplDir, "settings.json"), "utf8")) as Json;
@@ -239,6 +261,7 @@ export const claude: Harness = {
       installClaudePackage(root, tx, report, pkgFiles, observed);
       installClaudePlugin(root, tx, report, pluginFiles, observed);
       installSettings(root, tx, report, tplDir);
+      installHostIgnore(root, tx, report);
       // Written last: its presence means every earlier file of this harness was applied.
       stageInstalledManifest(root, tx, buildInstalledManifest("claude", observed));
       report.add("Claude Code integration files written to `.claude/`.");
