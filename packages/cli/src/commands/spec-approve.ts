@@ -1,3 +1,4 @@
+import { withCheckoutLease } from "../core/checkout-coordination.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
@@ -134,9 +135,11 @@ export function specApproveCommand(ids: string[], opts: { dryRun?: boolean }): v
   try {
     const root = checkoutRoot();
     const config = load(root);
-    for (const id of ids) {
-      if (!approveSpec(id, config, root, opts.dryRun === true)) return;
-    }
+    withCheckoutLease(root, "spec-approve", opts.dryRun === true, () => {
+      for (const id of ids) {
+        if (!approveSpec(id, config, root, opts.dryRun === true)) return;
+      }
+    });
   } catch (e) {
     if (!reportError(e)) throw e;
   }
@@ -205,7 +208,7 @@ export function reopenSpec(rawId: string, config: Config, root: string, dryRun: 
 export function specReopenCommand(id: string, opts: { dryRun?: boolean }): void {
   try {
     const root = checkoutRoot();
-    reopenSpec(id, load(root), root, opts.dryRun === true);
+    withCheckoutLease(root, "spec-reopen", opts.dryRun === true, () => reopenSpec(id, load(root), root, opts.dryRun === true));
   } catch (e) {
     if (!reportError(e)) throw e;
   }

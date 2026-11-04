@@ -1,3 +1,4 @@
+import { withCheckoutLease } from "../core/checkout-coordination.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig } from "../config.js";
@@ -97,7 +98,7 @@ export function specPinCommand(id: string | undefined, refs: string[], opts: { c
       process.exitCode = 1;
       return;
     }
-    for (const line of pinSpec(config, root, id, refs)) process.stdout.write(`${line}\n`);
+    for (const line of withCheckoutLease(root, "spec-pin", false, () => pinSpec(config, root, id, refs))) process.stdout.write(`${line}\n`);
   } catch (e) {
     if (e instanceof SpecplaneError) {
       process.stderr.write(`${e.message}\n`);

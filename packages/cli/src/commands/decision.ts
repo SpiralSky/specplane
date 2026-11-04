@@ -1,6 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig } from "../config.js";
+import { withCheckoutLease } from "../core/checkout-coordination.js";
+
 import { loadAdrs, validateAdrs } from "../decisions/validate.js";
 import {
   AlreadyExistsError,
@@ -80,7 +82,7 @@ export function decisionNewCommand(title: string): void {
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    process.stdout.write(`${decisionNew(title, config, root)}\n`);
+    process.stdout.write(`${withCheckoutLease(root, "decision-new", false, () => decisionNew(title, config, root))}\n`);
   } catch (e) {
     if (!reportError(e)) throw e;
   }
@@ -133,9 +135,11 @@ export function decisionAcceptCommand(ids: string[], opts: { dryRun?: boolean })
     const root = checkoutRoot();
     const { config, warnings } = loadConfig(root);
     for (const w of warnings) process.stderr.write(`${w.message}\n`);
-    for (const id of ids) {
-      if (!acceptDecision(id, config, root, opts.dryRun === true)) return;
-    }
+    withCheckoutLease(root, "decision-accept", opts.dryRun === true, () => {
+      for (const id of ids) {
+        if (!acceptDecision(id, config, root, opts.dryRun === true)) return;
+      }
+    });
   } catch (e) {
     if (!reportError(e)) throw e;
   }

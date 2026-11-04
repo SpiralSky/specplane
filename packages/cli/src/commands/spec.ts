@@ -4,6 +4,7 @@ import { createInterface } from "node:readline/promises";
 import { loadConfig } from "../config.js";
 import { AlreadyExistsError, SpecNotFoundError, SpecplaneError, UnknownRootError, reportError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
+import { withCheckoutLeaseAsync } from "../core/checkout-coordination.js";
 import { formatHuman } from "../output/human.js";
 import { formatJson } from "../output/json.js";
 import { makeReport } from "../report.js";
@@ -147,7 +148,7 @@ export async function specNew(type: string, rawSlug: string, opts: SpecNewOption
 export async function specNewCommand(type: string, slug: string, opts: SpecNewOptions): Promise<void> {
   try {
     const root = checkoutRoot();
-    const rel = await specNew(type, slug, opts, root, load(root));
+    const rel = await withCheckoutLeaseAsync(root, "spec-new", false, () => specNew(type, slug, opts, root, load(root)));
     process.stdout.write(`Created ${rel}\n`);
   } catch (e) {
     if (!reportError(e)) throw e;
