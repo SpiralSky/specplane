@@ -1,7 +1,7 @@
 ---
 id: 2026-11-01-extension-conformance
 title: "Cross-package conformance and rollout evidence"
-status: draft
+status: ready
 specs: ["architecture/reference-cli","architecture/agent-skills","architecture/file-formats","codex:architecture/codex-integration","claude:architecture/claude-integration"]
 depends_on: ["2026-11-01-codex-delivery","2026-11-01-claude-delivery"]
 ---
