@@ -290,3 +290,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - User decided D9 (a, in-process bundled core; one allowed live check in claude-delivery 03) and D10 (remove legacy Claude skills); recorded in HANDOFF "Decided (by the user)".
 - Commit `f57d03e`: removed `validate`, `approve`, `plan-status`, `plan-start`, `plan-abandon` skills from templates and `.claude/skills/`; conformance, pack and coexistence tests updated.
 - Checks: Bun suite 988 pass, 0 fail, 100 files; `claude plugin test` 27 pass; `hooks.test.sh` 94 pass; check-sync OK; `validate` 0 errors, 98 warnings. Not run: live hosts, Node tests.
+
+## 2026-11-04 claude-delivery 03 live gate (Haiku 5.5 session)
+- Built a one-shot probe mod outside the repo (node:fs, node:path, real writer-lease module, bundled for Node). `claude plugin validate` refused it: `cannot import "node:fs"` in a hooks module ("relative path and claude-code, nothing else").
+- The one live invocation was not spent. Evidence: `harnesses/claude/host-evidence/2.1.317/live-probe-gate.txt` (commit `e1d2ff8`). New open decision D11 (options A/B/C) in HANDOFF.
+- D9(a) and D10's reasoning-skill removal stay blocked. Checks: check-sync OK, `validate` 0 errors, 98 warnings. No code changed, so no Bun suite run this session.
