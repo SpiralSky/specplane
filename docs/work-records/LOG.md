@@ -265,3 +265,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commit: `4de9d55`. Codex installer delivers a self-contained package (runtime, production deps, docs, reference, runner script, manifest, inventory) through one install transaction; manifest last.
 - `assembleExtensionPackage` (sync) split from `buildExtensionPackage`; template script now imports `../dist/core/index.js`; SKILL.md documents runner, fallback and false capability flags.
 - Checks: `harness/codex-package.test` (6); full suite 971 pass, 0 fail, 96 files. Not run: Node, live Codex.
+
+## 2026-11-04T16:00Z — codex-delivery 03 consumer integration
+- Commits: `272bb62` (ship `templates/codex` in the package), `14b797d` (consumer tests), plus this entry's commit.
+- `harness/codex-consumer.test` (7) drives the installed script as a scripted client: sync, implement, real assertion, record, publish; failed push, diverged remote, no-plan work, offline docs, stale completion, unverified capabilities.
+- Checks: full suite 978 pass, 0 fail, 97 files, run from `packages/cli`. Not run: Node, live Codex.
