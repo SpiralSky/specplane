@@ -12,6 +12,7 @@ import { specListCommand, specNewCommand, specShowCommand, specValidateCommand }
 import { specPinCommand } from "./commands/spec-pin.js";
 import { specApproveCommand, specReopenCommand } from "./commands/spec-approve.js";
 import { searchCommand } from "./commands/search.js";
+import { docsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
 
 const pkg = JSON.parse(
@@ -207,6 +208,18 @@ program
   .option("--root <name>", "restrict to a spec root")
   .option("--json", "output JSON")
   .action((text: string, opts) => searchCommand(text, opts));
+
+const docs = program
+  .command("docs [topic]")
+  .description("Read the bundled product documentation (offline)")
+  .option("--json", "output JSON")
+  .action((topic: string | undefined, opts) => docsCommand(topic, opts));
+docs
+  .command("search <text...>")
+  .description("Search the bundled documentation")
+  .option("--json", "output JSON")
+  // The parent also declares --json and consumes it wherever it appears.
+  .action((words: string[], opts, command: Command) => docsSearchCommand(words, { json: Boolean(opts.json || command.parent?.opts().json) }));
 
 program
   .command("validate")

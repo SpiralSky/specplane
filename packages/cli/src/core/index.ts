@@ -66,3 +66,6 @@ export { inspectCommittedContributions } from './contribution-history.js';
 export type { CommittedContributionInspection, CommittedContribution } from './contribution-history.js';
 
 export { reconcileWorkflowRecording } from './pending-recovery.js';
+
+export { docsIndex, docsTopic, docsSearch, DocsUsageError } from '../docs/operations.js';
+export type { DocsIndex, DocsTopic, DocsSearch } from '../docs/operations.js';
