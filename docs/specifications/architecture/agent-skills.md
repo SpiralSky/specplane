@@ -1,7 +1,7 @@
 ---
 id: architecture/agent-skills
 title: "Agent skills: config resolution and harness-neutral prompt contracts"
-status: review
+status: approved
 author: mixed
 implements: [feature/agent-integration, feature/spec-precedence, feature/spec-policies, feature/spec-system, feature/plan-steps, feature/plan-execution, feature/tooling]
 based_on: { feature/agent-integration: "7720f2a", feature/spec-precedence: "233c5a1", feature/spec-policies: "9e333d1", feature/spec-system: "919d9e8", feature/plan-steps: "00332af", feature/plan-execution: "59b4b17", feature/tooling: "9abfce2" }
