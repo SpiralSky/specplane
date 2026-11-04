@@ -51,10 +51,9 @@ test('codex init does not overwrite an existing customized skill',()=>{
  assert.equal(fs.readFileSync(path.join(root,CODEX_SKILL),'utf8'),'my custom skill\n');
 });
 
-test('Codex background execution explicitly refuses instead of using Claude flags',async()=>{
+test('the conductor needs an extension-supplied adapter and never selects Claude or Codex from installed files',async()=>{
  const root=makeRepo({});runInit(root,{harness:'codex'});
- const result=await runPlan('2026-11-01-example',structuredClone(DEFAULT_CONFIG),root,{harness:'codex',dryRun:true},{next:()=>({plan:'2026-11-01-example',title:'test',effectiveStatus:'in_progress',step:{number:1,title:'one',status:'pending',file:'step.md'},context:[],checkout:root,blocked:[],openGaps:[],warnings:[],attention:[],action:'spawn_step',reason:'ready'}),halfFinished:()=>false});
- assert.equal(result.code,5);assert.match(result.reason,/not a background session adapter/);
+ await assert.rejects(runPlan('2026-11-01-example',structuredClone(DEFAULT_CONFIG),root,{dryRun:true},{} as never),/extension-supplied session adapter/);
 });
 
 function experimentalWorkflow(implementation = 'export const sum = (a,b) => a+b;\n'): void {

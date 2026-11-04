@@ -4,19 +4,21 @@ import { createHash } from 'node:crypto';
 import { run as git } from '../git/exec.js';
 import { defaultBranch } from '../git/repo.js';
 import type { Config } from '../types.js';
-import { createClaudeSessionAdapter, sessionIdFor, stepPrompt, type SessionAdapter } from '../harness/session.js';
+import { sessionIdFor } from '../harness/session.js';
+import type { SessionAdapter, SessionCapabilities, SessionRef, SessionRequest, SessionState } from '../core/contracts.js';
+import { randomUUID } from 'node:crypto';
 import { listStepFiles, parseStep } from './parse.js';
 import { planDir } from './resolve.js';
 import { planNext, type PlanNext } from './next.js';
 import { acquireRunLock, LockRefused, positiveLimit, runGate, type GateResult } from './gate.js';
 import { attentionFor, dispatchAlerts, type Attention } from './alerts.js';
 export interface RunOptions {
- harness?:string; until?:string; maxSteps?:number|string; maxParallel?:number|string; maxBudgetUsd?:number|string;
+ until?:string; maxSteps?:number|string; maxParallel?:number|string; maxBudgetUsd?:number|string;
  force?:boolean; reason?:string; step?:number|string; dryRun?:boolean; pollMs?:number; timeoutSeconds?:number|string; signal?:AbortSignal;
 }
-export interface RunResult { plan:string;ok:boolean;code:number;action:string;reason:string;steps:number;sessionId?:string;checkout?:string;commands?:{attach:string;logs:string;stop:string}; reservedBudgetUsd:number }
+export interface RunResult { plan:string;ok:boolean;code:number;action:string;reason:string;steps:number;sessionId?:string;checkout?:string;commands?:string[][]; reservedBudgetUsd:number }
 export interface RunDependencies {
- next?:()=>PlanNext; adapter?:SessionAdapter; halfFinished?:(n:PlanNext)=>boolean;
+ next?:()=>PlanNext; halfFinished?:(n:PlanNext)=>boolean;
  stateDir?:string; log?:(s:string)=>void; sleep?:(ms:number)=>Promise<void>; now?:()=>number;
 }
 /** Detect partial commits from matching plan AND step trailers, never from prose or a different plan. */
@@ -29,8 +31,20 @@ export function hasStepCommit(n:PlanNext):boolean {
 export function runtimeDirectory(root:string):string {
  return path.join(git('git',['rev-parse','--path-format=absolute','--git-common-dir'],{cwd:root}).trim(),'specplane-runtime');
 }
+interface SessionRecord { orchestrationId:string; step:number; requestId:string; nativeSessionId?:string; pid?:number }
+const readRecord=(file:string):SessionRecord|null=>{
+ if(!fs.existsSync(file))return null;
+ const v=JSON.parse(fs.readFileSync(file,'utf8')) as SessionRecord;
+ if(typeof v.orchestrationId!=='string'||!Number.isSafeInteger(v.step)||typeof v.requestId!=='string')throw new Error('Malformed session record; inspect the plan runtime directory instead of launching a duplicate.');
+ return v;
+};
+const refOf=(r:SessionRecord):SessionRef=>({orchestrationId:r.orchestrationId,...(r.nativeSessionId?{nativeSessionId:r.nativeSessionId}:{}),...(r.pid?{pid:r.pid}:{})});
+/** The adapter must be supplied explicitly by the calling extension; there is no default, discovery or fallback. */
+export type ConductorDependencies=RunDependencies&{adapter:SessionAdapter};
 /** Run one plan serially. No code path invokes approve, step-done, finish, merge, push, or cleanup. */
-export async function runPlan(id:string,config:Config,root:string,opts:RunOptions={},deps:RunDependencies={}):Promise<RunResult>{
+export async function runPlan(id:string,config:Config,root:string,opts:RunOptions={},deps:ConductorDependencies):Promise<RunResult>{
+ const adapter=deps.adapter;
+ if(!adapter||typeof adapter.name!=='string')throw new Error('An extension-supplied session adapter is required; the conductor never selects a host.');
  const maxSteps=positiveLimit(opts.maxSteps??1,'--max-steps');
  const timeout=positiveLimit(opts.timeoutSeconds??900,'--timeout-seconds',false)*1000;
  const pollMs=positiveLimit(opts.pollMs??500,'poll interval');
@@ -52,15 +66,13 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
   if(!['done','skipped'].includes(target.fm.status))throw new Error('--step rerun only selects a completed step; pending work uses normal ordering.');
   return {...n,step:{number:targetStep,title:target.fm.title,status:target.fm.status,file:path.relative(n.checkout,target.file)},action:'spawn_step' as const};
  };
- const selected=opts.harness??(fs.existsSync(path.join(root,'.agents/skills/specplane/SKILL.md'))?'codex':'claude');
- if(!['claude','codex'].includes(selected))throw new Error('Unknown session harness; expected claude or codex.');
- const unsupported=()=>{throw new Error('Codex/Dot integration supports CLI workflows, not a background session adapter. Run the plan step in your existing isolated session; no agent was launched.');};
- const adapter:SessionAdapter=deps.adapter??(selected==='claude'?createClaudeSessionAdapter({root,backend:config.execution.backend}):{name:'codex',supportsBudget:false,checkCapabilities:unsupported,spawn:unsupported,observe:unsupported,commands:()=>({attach:'Use your existing Codex/Dot session',logs:'Use your existing session history',stop:'Stop in your existing session'})});
  const log=deps.log??(()=>{}); const sleep=deps.sleep??(ms=>new Promise(r=>setTimeout(r,ms))); const now=deps.now??Date.now;
  const initial=next();
- let steps=0, reservedBudgetUsd=0, sessionId:string|undefined;
+ let steps=0, reservedBudgetUsd=0, sessionId:string|undefined, recovery:string[][]|undefined;
  let last=initial;
- const result=(g:GateResult):RunResult=>({plan:id,ok:g.code===0,code:g.code,action:g.action,reason:g.reason,steps,reservedBudgetUsd,...(sessionId?{sessionId,commands:adapter.commands(sessionId)}:{}),...(last.checkout?{checkout:last.checkout}:{})});
+ const result=(g:GateResult):RunResult=>({plan:id,ok:g.code===0,code:g.code,action:g.action,reason:g.reason,steps,reservedBudgetUsd,...(sessionId?{sessionId}:{}),...(recovery?{commands:recovery}:{}),...(last.checkout?{checkout:last.checkout}:{})});
+ const deny=(code:number,reason:string,action='ask_human'):GateResult=>({allowed:false,code,action,reason});
+ const limit=(reason:string)=>deny(4,reason,'limit');
  const initialGate=runGate({next:initial,backend:config.execution.backend,force:opts.force,reason:opts.reason});
  if(!initial.checkout || config.execution.backend !== "worktree") return result(initialGate);
  if(opts.dryRun && !initialGate.allowed) return result(initialGate);
@@ -68,40 +80,63 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
   const branch=git('git',['branch','--show-current'],{cwd:initial.checkout!}).trim();
   if(branch!==`plan/${id}`||branch===defaultBranch(initial.checkout!)) return result({allowed:false,code:5,action:'ask_human',reason:'Refusing to launch outside the exact isolated plan branch.'});
  }
- if(opts.dryRun) {
-  try {
-   adapter.checkCapabilities(stepBudget);
-   if(stepBudget!==null&&!adapter.supportsBudget)throw new Error('Selected adapter cannot enforce the requested session budget.');
-   const live=adapter.observe(sessionIdFor(id,initial.step!.number))==='running';
-   const g=runGate({next:initial,backend:config.execution.backend,live,halfFinished:(deps.halfFinished??hasStepCommit)(initial),force:opts.force,reason:opts.reason});
-   return result(g.allowed?{...g,action:'dry_run',reason:`${g.reason} Dry run: no spawn, lock, or alert.`}:g);
-  } catch(e) { return result({allowed:false,code:5,action:'ask_human',reason:`Dry-run capability check failed: ${(e as Error).message}`}); }
- }
+ /** Probe again before every launch; a failed or insufficient probe never substitutes a host or skips a check. */
+ const probe=async(checkout:string,budgeted:boolean,resuming:boolean):Promise<SessionCapabilities>=>{
+  const requirements=['launch','observe',`backend:${config.execution.backend}`,...(budgeted?['budget']:[]),...(resuming?['resume']:[])];
+  const caps=await adapter.probe({checkout,requirements,signal:opts.signal});
+  if(!caps.launch||!caps.observe)throw new Error(`Adapter ${adapter.name} cannot launch and observe sessions.`);
+  if(!caps.backends.includes(config.execution.backend))throw new Error(`Adapter ${adapter.name} does not support the ${config.execution.backend} backend.`);
+  if(budgeted&&!caps.budgetEnforcement)throw new Error('Selected adapter cannot enforce the requested session budget.');
+  if(resuming&&!caps.resume)throw new Error('Selected adapter cannot resume the interrupted session; inspect it with its recovery instructions.');
+  return caps;
+ };
  const key=createHash('sha256').update(id).digest('hex');
  const state=deps.stateDir??runtimeDirectory(root);
+ const recordFile=path.join(state,`${key}.session.json`);
+ if(opts.dryRun) {
+  try {
+   await probe(initial.checkout!,stepBudget!==null,false);
+   const prior=readRecord(recordFile);
+   const unfinished=prior?.step===initial.step!.number;
+   const obs=unfinished?await adapter.observe(refOf(prior!)):null;
+   if(obs?.state==='unknown')return result(deny(5,'A prior session for this step cannot be observed; refusing to infer absence.'));
+   const g=runGate({next:initial,backend:config.execution.backend,live:obs?.state==='running',halfFinished:(deps.halfFinished??hasStepCommit)(initial)||obs?.state==='completed',force:opts.force,reason:opts.reason});
+   return result(g.allowed?{...g,action:'dry_run',reason:`${g.reason} Dry run: no spawn, lock, or alert.`}:g);
+  } catch(e) { return result(deny(5,`Dry-run capability check failed: ${(e as Error).message}`)); }
+ }
  let lock:ReturnType<typeof acquireRunLock>;
  try{lock=acquireRunLock(path.join(state,`${key}.lock`),sessionIdFor(id,initial.step?.number??1));}
  catch(e){if(e instanceof LockRefused)return result({allowed:false,code:3,action:'ask_human',reason:e.message});throw e;}
  const alert=(g:GateResult,n:PlanNext)=>{
   const alerts:Attention[]=attentionFor(n);
   if(!alerts.length&&g.code!==0) alerts.push({kind:g.code===4?'limit':g.code===2?'blocked':'failed',detail:g.reason,command:`specplane plan show ${id}`});
-  dispatchAlerts({plan:id,checkout:n.checkout!,sessionId:sessionId??'',alerts,cache:path.join(state,`${key}.alerts.json`),config,log,harness:adapter.notify});
+  dispatchAlerts({plan:id,checkout:n.checkout!,sessionId:sessionId??'',alerts,cache:path.join(state,`${key}.alerts.json`),config,log,harness:adapter.notify?.bind(adapter)});
  };
+ const writePrivate=(file:string,value:unknown)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value),{mode:0o600});};
  try{
   if(lock.reclaimed)log('Reclaimed lock whose owning PID was proven dead.');
   if(!initialGate.allowed){alert(initialGate,initial);return result(initialGate);}
   const started=now();
+  const interrupted=()=>opts.signal?.aborted||now()-started>=timeout;
+  const interruptedGate=()=>limit('Observation interrupted or timed out; session is left running. Inspect it before restarting.');
   for(;;){
    last=next();
-   if(opts.signal?.aborted||now()-started>=timeout){const g={allowed:false,code:4,action:'limit',reason:'Observation interrupted or timed out; session is left running. Inspect it before restarting.'};alert(g,last);return result(g);}
-   let observed:'running'|'done'|'failed'|'missing'='missing';
-   if(last.step){ sessionId=sessionIdFor(id,last.step.number); observed=adapter.observe(sessionId); }
-   const g=runGate({next:last,backend:config.execution.backend,live:observed==='running',halfFinished:(deps.halfFinished??hasStepCommit)(last),force:opts.force,reason:opts.reason,steps,maxSteps:opts.until==='step'?Math.min(maxSteps,1):maxSteps});
-   if(!g.allowed){alert(g,last);return result(g);}
+   if(interrupted()){const g=interruptedGate();alert(g,last);return result(g);}
+   // A durable record exists from just before every launch; it is how an uncertain launch stays visible.
+   let prior=last.step?readRecord(recordFile):null;
+   if(prior&&prior.step!==last.step!.number)prior=null;
+   let priorState:SessionState|null=null;
+   if(prior){
+    sessionId=prior.orchestrationId;
+    priorState=await adapter.observe(refOf(prior));
+    if(priorState.state==='unknown'){const g=deny(5,'A prior session for this step cannot be observed; unknown is a recovery state, not proof of absence. Inspect it before retrying.');recovery=await recoveryOf(prior);alert(g,last);return result(g);}
+   }
+   const g=runGate({next:last,backend:config.execution.backend,live:priorState?.state==='running',halfFinished:(deps.halfFinished??hasStepCommit)(last)||priorState?.state==='completed',force:opts.force,reason:opts.reason,steps,maxSteps:opts.until==='step'?Math.min(maxSteps,1):maxSteps});
+   if(!g.allowed){if(prior)recovery=await recoveryOf(prior);alert(g,last);return result(g);}
    // Clear resolved considerations while holding the lock, before the next session starts.
-   dispatchAlerts({plan:id,checkout:last.checkout!,sessionId:sessionId!,alerts:[],cache:path.join(state,`${key}.alerts.json`),config,log,harness:adapter.notify});
-   adapter.checkCapabilities?.(stepBudget);
-   if(stepBudget!==null&&!adapter.supportsBudget) throw new Error('Selected adapter cannot enforce the requested session budget.');
+   dispatchAlerts({plan:id,checkout:last.checkout!,sessionId:sessionId??'',alerts:[],cache:path.join(state,`${key}.alerts.json`),config,log,harness:adapter.notify?.bind(adapter)});
+   const resuming=priorState?.state==='failed';
+   await probe(last.checkout!,stepBudget!==null,resuming);
    if(!deps.next){
     const branch=git('git',['branch','--show-current'],{cwd:last.checkout!}).trim();
     if(branch!==`plan/${id}`||branch===defaultBranch(last.checkout!))throw new Error('Plan checkout changed branches; refusing to launch.');
@@ -109,37 +144,57 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
    }
    const before=last.step!.number;
    const beforeCommit=targetStep!==undefined&&!deps.next?git('git',['rev-parse','HEAD'],{cwd:last.checkout!}).trim():null;
+   const orchestrationId=sessionIdFor(id,before); sessionId=orchestrationId;
+   const requestId=randomUUID();
+   const requestPath=path.join(state,`${key}.workflow-request.json`);
+   writePrivate(requestPath,{protocol:1,requestId,workflow:'plan-step',plan:id,step:before,mode:'unattended',...(targetStep!==undefined?{rerun:{step:targetStep,reason:opts.reason}}:{})});
+   const request:SessionRequest={requestId,orchestrationId,plan:id,step:before,checkout:last.checkout!,workflowRequestPath:requestPath,mode:'unattended',...(stepBudget!==null?{budgetUsd:stepBudget}:{}),...(opts.signal?{signal:opts.signal}:{})};
    steps++; reservedBudgetUsd+=stepBudget??0;
-   const handle=adapter.spawn({checkout:last.checkout!,name:`specplane/${id}/${before}`,sessionId:sessionId!,prompt:targetStep===undefined?stepPrompt(id):`${stepPrompt(id)} --step ${targetStep} --force --reason ${JSON.stringify(opts.reason!.trim())}`,budgetUsd:stepBudget,resume:observed!=='missing',env:{SPECPLANE_SESSION_MODE:'unattended',...(opts.force?{SPECPLANE_FORCE_REASON:opts.reason!.trim()}:{})}});
-   if(handle.sessionId!==sessionId)throw new Error('Adapter returned an unexpected session identity. Inspect launch outcome before retrying.');
-   log(`step ${String(before).padStart(2,'0')} started (${sessionId})`);
-   for(;;){
-    if(opts.signal?.aborted||now()-started>=timeout){const g={allowed:false,code:4,action:'limit',reason:'Observation interrupted or timed out; session is left running. Inspect before restarting.'};alert(g,last);return result(g);}
-    const status=adapter.observe(sessionId!);
-    if(status==='running'){await sleep(pollMs);continue;}
-    if(status!=='done')throw new Error(`Session ${status}; no completion inferred. Inspect logs before retrying.`);
-    break;
+   // Persist before launching: an exception or crash after this point leaves the attempt visible and unrepeatable.
+   const record:SessionRecord={orchestrationId,step:before,requestId};
+   writePrivate(recordFile,record);
+   const started0=resuming?await adapter.resume(refOf(prior!),request):await adapter.launch(request);
+   if(started0.orchestrationId!==orchestrationId)throw new Error('Adapter returned an unexpected session identity. Inspect launch outcome before retrying.');
+   if(started0.state==='failed'||started0.state==='unknown')throw new Error(`Launch outcome is ${started0.state}; no session success is inferred. Inspect it before retrying.`);
+   Object.assign(record,{...(started0.nativeSessionId?{nativeSessionId:started0.nativeSessionId}:{}),...(started0.pid?{pid:started0.pid}:{})});
+   writePrivate(recordFile,record);
+   recovery=await recoveryOf(record);
+   log(`step ${String(before).padStart(2,'0')} ${resuming?'resumed':'started'} (${orchestrationId})`);
+   for(let current=started0;;){
+    if(current.state==='completed')break;
+    if(current.state!=='running')throw new Error(`Session ${current.state}; no completion inferred. Inspect it with the recovery instructions before retrying.`);
+    if(interrupted()){const gate=interruptedGate();alert(gate,last);return result(gate);}
+    await sleep(pollMs);
+    if(interrupted()){const gate=interruptedGate();alert(gate,last);return result(gate);}
+    current=await adapter.observe(refOf(record));
+    if(current.orchestrationId!==orchestrationId)throw new Error('Adapter observed an unexpected session identity. Inspect before retrying.');
    }
+   // Completion is accepted only after core verification of the plan state, never on the adapter's word alone.
    const after=next();
    if(targetStep!==undefined){
     if(!deps.next){
      const current=git('git',['rev-parse','HEAD'],{cwd:last.checkout!}).trim();
-     const record=git('git',['log','-1','--format=%(trailers:key=Specplane-Plan,valueonly)%x00%(trailers:key=Specplane-Step,valueonly)%x00%(trailers:key=Specplane-Force-Reason,valueonly)'],{cwd:last.checkout!}).trim().split('\0');
-     if(current===beforeCommit||record[0]?.trim()!==id||Number(record[1]?.trim())!==targetStep||record[2]?.trim()!==opts.reason!.trim())throw new Error('Forced session exited without a new matching audited step commit.');
+     const rec=git('git',['log','-1','--format=%(trailers:key=Specplane-Plan,valueonly)%x00%(trailers:key=Specplane-Step,valueonly)%x00%(trailers:key=Specplane-Force-Reason,valueonly)'],{cwd:last.checkout!}).trim().split('\0');
+     if(current===beforeCommit||rec[0]?.trim()!==id||Number(rec[1]?.trim())!==targetStep||rec[2]?.trim()!==opts.reason!.trim())throw new Error('Forced session exited without a new matching audited step commit.');
     }
+    fs.rmSync(recordFile,{force:true});
     return result({allowed:false,code:4,action:'step_complete',reason:'Requested forced rerun completed; stopped after one session for review.'});
    }
-   if((after.step?.number===before&&after.action==='spawn_step')||after.effectiveStatus==='draft'||after.effectiveStatus==='abandoned')throw new Error('Session exited without advancing the step; inspect the work rather than repeating it automatically.');
+   if((after.step?.number===before&&after.action==='spawn_step')||after.effectiveStatus==='draft'||after.effectiveStatus==='abandoned')throw new Error('Session exited without advancing the step; inspect the work rather than retrying automatically.');
+   fs.rmSync(recordFile,{force:true});
    log(`step ${String(before).padStart(2,'0')} done (step status advanced)`);
   }
  }catch(e){const g={allowed:false,code:5,action:'ask_human',reason:(e as Error).message};alert(g,last);return result(g);}
  finally{try{lock.release();}catch(e){log(`Lock release requires inspection: ${(e as Error).message}`);}}
+ async function recoveryOf(r:SessionRecord):Promise<string[][]|undefined>{
+  try{const rec=await adapter.recovery(refOf(r));return rec.instructions;}catch{return undefined;}
+ }
 }
 /** Run distinct plans with bounded concurrency; duplicate IDs are rejected before any launch. */
-export async function runPlans(ids:string[],config:Config,root:string,opts:RunOptions={},dependencies:(id:string)=>RunDependencies=()=>({})):Promise<RunResult[]>{
+export async function runPlans(ids:string[],config:Config,root:string,opts:RunOptions,adapter:SessionAdapter,dependencies:(id:string)=>RunDependencies=()=>({})):Promise<RunResult[]>{
  if(ids.length===0||new Set(ids).size!==ids.length)throw new Error('Pass distinct plan IDs; duplicate plan execution is refused.');
  const concurrency=positiveLimit(opts.maxParallel??config.execution.max_parallel,'--max-parallel');
  const results:RunResult[]=new Array(ids.length); let cursor=0;
- await Promise.all(Array.from({length:Math.min(concurrency,ids.length)},async()=>{for(;;){const i=cursor++;if(i>=ids.length)return;results[i]=await runPlan(ids[i],config,root,opts,dependencies(ids[i]));}}));
+ await Promise.all(Array.from({length:Math.min(concurrency,ids.length)},async()=>{for(;;){const i=cursor++;if(i>=ids.length)return;results[i]=await runPlan(ids[i],config,root,opts,{...dependencies(ids[i]),adapter});}}));
  return results;
 }

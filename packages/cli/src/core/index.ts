@@ -6,6 +6,8 @@ import { retargetPlan, type RetargetReceipt } from '../plan/retarget.js';
 import { LeaseRefused } from './writer-leases.js';
 import { mechanicalRequestSchema, workflowRequestSchema, workflowResultSchema, workflowTestRequestSchema, recordingProposalSchema, contributionEventSchema, confirmationChallengeSchema, confirmationResponseSchema, conductorRequestSchema, contributionQuerySchema } from './schemas.js';
 import { coreInfo } from './build-info.js';
+import { runConductorImpl } from './conductor.js';
+import type { RunResult } from '../plan/run.js';
 import { validateCompatibility, type HostSelection } from './compatibility.js';
 import type { CoreContext, MechanicalRequest, Result, WorkflowTestRequest, WorkflowRequest, WorkflowResult, RecordingProposal, ContributionEvent, ContributionQuery, ConfirmationChallenge, ConfirmationResponse, ConductorRequest, SessionAdapter } from './contracts.js';
 export { coreInfo };
@@ -47,7 +49,11 @@ export { prepareConfirmedOperation as prepareConfirmation, confirmConfirmedOpera
 export type { ConfirmedOperationReceipt } from './confirmed-operations.js';
 export { cancelWorkflow, inspectWorkflow } from './workflow-lifecycle.js';
 export type { WorkflowInspection } from './workflow-lifecycle.js';
-export const runConductor = (_request: ConductorRequest, _context: CoreContext & { adapter: SessionAdapter }): Result<never> => checked('runConductor', validate.conductor(_request) && !!_context?.adapter && ['probe', 'launch', 'observe', 'resume', 'recovery', 'cancel'].every(key => typeof (_context.adapter as unknown as Record<string, unknown>)[key] === 'function') && typeof _context.adapter.name === 'string');
+export function runConductor(request: ConductorRequest, context: CoreContext & { adapter: SessionAdapter }): Promise<Result<RunResult[]>> {
+  if (!validate.conductor(request)) return Promise.resolve(checked('runConductor', false));
+  return runConductorImpl(request, context);
+}
+export type { RunResult } from '../plan/run.js';
 export { captureContribution, captureProposedContribution, readContributions } from './contribution-capture.js';
 
 export * from "./completion.js";
