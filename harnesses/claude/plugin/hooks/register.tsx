@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
+import { registerNative, startNative } from './handlers'
 import type { PlanRow, SpecplaneMode } from '../types'
 
 const PANE = 'specplane'
@@ -176,6 +177,7 @@ export async function handoffAction(
 }
 
 export const register: Register = on => {
+  registerNative(on)
   let pollRun = 0
   let interactiveSession = true
   let sessionCwd = ''
@@ -185,6 +187,14 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     sessionCwd = e.cwd
     interactiveSession = (e as any).isInteractive !== false
+
+    // The host allows one unmatched session.start hook per package, so the native
+    // command handlers (./handlers) register from here; their failure is isolated.
+    try {
+      await startNative($)
+    } catch (err) {
+      failureLog.write(`specplane: native handlers failed to start: ${err instanceof Error ? err.message : String(err)}`)
+    }
 
     await $.command.register({
       name: 'specplane',
