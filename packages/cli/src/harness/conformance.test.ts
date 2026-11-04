@@ -44,10 +44,13 @@ test('the Codex row list equals the workflows the package delivers, and each is 
   for (const w of CODEX_WORKFLOWS) assert.ok(text.includes(`'${w}'`), w);
 });
 
-test('Claude workflows report as pending, never passing, and the Claude row list tracks the shipped templates', () => {
+test('Claude workflows report as pending, never passing, and the shipped skill templates are exactly the six reasoning fallbacks', () => {
   const all = fs.readdirSync(path.join(dist, 'templates/claude/skills')).sort();
   // Internal reasoning procedures are not public workflows; claude-handlers.test maps each to a reasoning command.
-  assert.deepEqual([...CLAUDE_WORKFLOWS].sort(), all.filter(name => !name.startsWith('specplane-reason-')));
+  // The five mechanical workflows are native commands only (D10), so they have no skill template.
+  const fallbacks = ['decision-new', 'plan-create', 'plan-finish', 'plan-step', 'spec-assist', 'spec-draft-architecture'];
+  assert.deepEqual(all.filter(name => !name.startsWith('specplane-reason-')), fallbacks);
+  assert.deepEqual([...CLAUDE_WORKFLOWS].sort(), [...fallbacks, 'approve', 'plan-abandon', 'plan-start', 'plan-status', 'validate'].sort());
   for (const row of hostRows('claude')) assert.deepEqual([row.deterministic, row.liveHost], ['not-delivered', 'pending'], row.workflow);
   for (const row of hostRows('codex')) assert.deepEqual([row.deterministic, row.liveHost], ['tested', 'unverified'], row.workflow);
   assert.equal(fs.existsSync(path.join(dist, 'harness/claude-package.js')), false, 'a Claude package now exists: add its rows and suites and revisit the unmet criterion');

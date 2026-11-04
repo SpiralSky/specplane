@@ -47,7 +47,7 @@ export const EXPORT_SUITES: Record<string, string> = {
   workflowCreationSchema: 'harness/conformance', workflowInitiationSchema: 'harness/conformance', workflowRequestSchema: 'core/workflow-preparation', workflowResultSchema: 'harness/conformance',
 };
 
-/** Workflows shipped as host surfaces. Codex ships the first six; Claude templates ship all eleven but no Claude package or host evidence exists yet. */
+/** Workflows shipped as host surfaces. Codex ships the first six; Claude exposes all eleven as native commands (mechanical ones have no skill file, D10), but no Claude package or host evidence exists yet. */
 export const CODEX_WORKFLOWS_DELIVERED = ['plan-step', 'plan-create', 'spec-assist', 'spec-draft-architecture', 'decision-new', 'validate'];
 export const CLAUDE_WORKFLOWS = ['approve', 'decision-new', 'plan-abandon', 'plan-create', 'plan-finish', 'plan-start', 'plan-status', 'plan-step', 'spec-assist', 'spec-draft-architecture', 'validate'];
 

@@ -46,12 +46,7 @@ test("packed tarball installs Claude and Codex integrations end to end", () => {
         "plan-create",
         "plan-step",
         "plan-finish",
-        "validate",
-        "approve",
-        "plan-start",
         "decision-new",
-        "plan-status",
-        "plan-abandon",
       ].map((s) => `skills/${s}/SKILL.md`),
       ...["pre-commit", "policy-guard", "session-context", "statusline", "handoff-check", "generate"].map((h) => `hooks/specplane-${h}.sh`),
     ]) {

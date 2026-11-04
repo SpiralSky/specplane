@@ -75,7 +75,7 @@ test('a customized public skill is preserved, reported as a collision, and kept 
   assert.equal(legacy.find(l => l.command === '/plan-step')?.action, 'preserve');
   assert.ok(legacy.filter(l => l.command !== '/plan-step').every(l => l.action === 'keep'), 'no replacement is observed, so every other public skill stays');
   assert.equal(manifest.state.enabled, 'unobserved');
-  assert.ok(fs.existsSync(path.join(root, '.claude/skills/validate/SKILL.md')), 'other commands remain available');
+  assert.ok(fs.existsSync(path.join(root, '.claude/skills/decision-new/SKILL.md')), 'other commands remain available');
 });
 
 test('legacy retirement needs an unmodified owned file and observed replacement evidence', () => {
