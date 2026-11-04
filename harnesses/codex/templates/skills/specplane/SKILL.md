@@ -3,7 +3,7 @@ name: specplane
 description: Use Specplane specifications and isolated plan worktrees through its CLI in Codex or Dot cloud sessions. Preserve human approval and final-merge gates.
 ---
 <!-- specplane-codex: managed v1 -->
-<!-- specplane-contract: architecture/codex-integration#workflow-contract@78dccf7 -->
+<!-- specplane-contract: architecture/codex-integration#workflow-contract@e1311e7 -->
 
 # Specplane in Codex and Dot cloud
 
@@ -42,4 +42,4 @@ This skill directory is self-contained: `dist/` holds the runtime and its depend
 
 `init --harness codex` installs this skill and a managed AGENTS.md block only; it does not install Codex, attach MCP tools, grant persistent permissions, or launch an agent. `init --harness none` writes only neutral scaffolding and suppresses all harness auto-detection, even if `.claude/` exists.
 
-The standalone CLI has no `plan run` or `plan start --run`, and no Codex background adapter is installed. Use Codex/Dot's existing execution session and the CLI workflows above; do not pass Claude flags to Codex or claim a background session was started.
+Specplane is agent-agnostic and its CLI never runs plans or launches sessions; running plan steps belongs to this Codex integration, which has no background adapter yet. Use Codex/Dot's existing execution session and the CLI workflows above; do not pass Claude flags to Codex or claim a background session was started.
