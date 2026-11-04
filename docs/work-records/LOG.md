@@ -245,3 +245,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-04T11:00Z — extension-packaging step 01 implementation
 - Existing `validateCompatibility` and the prep tests already covered tamper/incompatible refusal and docs versions; the missing piece was a reusable builder. Added `harness/package-builder.ts` (empty-dir output, derived inventory/manifest, self-validation, cleanup on refusal, no pins or host certification).
 - Tests: `harness/package-builder.test` (3), prep tests (4), `core/compatibility.test` pass; full Bun 936 pass, 0 fail, 92 files. One earlier full run hit the 120 s timeout with no output; rerun passed in 37.69 s.
+
+## 2026-11-04T12:00Z — extension-packaging step 02 implementation
+- Dangling-link and common-initializer preflight already existed (`containment.test`, 9). Added `harness/containment.transaction.ts`: lock, preimage rechecks, backups, journal, rollback/finish recovery, ownership ledger; wired into `runInit`, `claude`, `codex`.
+- Tests: `containment.transaction.test` (16: five interruption points, committed-marker finish, mid-apply failure, edit-after-apply, link/parent swap, preimage conflict, lock, stale lock, ownership, non-git). Full Bun 952 pass, 0 fail, 93 files, 37.57 s; no timeout this run.
