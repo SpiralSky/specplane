@@ -75,7 +75,7 @@ export const ALLOWED_TOOLS: readonly string[] = Object.freeze(['Skill'])
 /** Hard limits the classifier cannot override: deny rules win, and apply to every subcommand of a compound command. */
 export const DISALLOWED_TOOLS: readonly string[] = Object.freeze(
   ['git push', 'git reset --hard', 'git clean', 'sudo', 'npm publish',
-    'specplane spec approve', 'specplane spec reopen', 'specplane plan approve', 'specplane plan finish', 'specplane plan abandon', 'specplane decision accept',
+    'specplane spec approve', 'specplane spec reopen', 'specplane plan approve', 'specplane plan finish', 'specplane plan step-done', 'specplane plan abandon', 'specplane decision accept',
   ].map(c => `Bash(${c} *)`),
 )
 

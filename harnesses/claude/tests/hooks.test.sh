@@ -55,6 +55,18 @@ run_case "block: git --no-pager commit" 2 "$(cj 'git --no-pager commit')" 1
 run_case "block: two-line, second git commit" 2 "$(cj 'echo hi
 git commit -m x')" 1
 run_case "block: (git commit)" 2 "$(cj '(git commit)')" 1
+# plan step-done is denied to agents, with or without specplane on PATH
+run_case "block: specplane plan step-done x" 2 "$(cj 'specplane plan step-done 2026-11-01-p --outcome done')" 0
+run_case "block: node dist/cli.js plan step-done" 2 "$(cj 'node packages/cli/dist/cli.js plan step-done p --outcome done')" 0
+run_case "block: step-done after &&, with env prefix and path" 2 "$(cj 'cd x && FOO=1 /usr/local/bin/specplane plan step-done p')" 0
+run_case "block: npx specplane plan step-done" 2 "$(cj 'npx specplane plan step-done p')" 0
+run_case "allow: specplane plan next" 0 "$(cj 'specplane plan next p')" 0
+run_case "allow: echo mentioning step-done" 0 "$(cj 'echo plan step-done')" 0
+run_case "allow: grep for step-done" 0 "$(cj 'grep -rn step-done docs')" 0
+PATH="$tmp/nospec" CLAUDE_PROJECT_DIR="$tmp/proj" "$tmp/nospec/sh" "$hooks/specplane-pre-commit.sh" >/dev/null 2>&1 <<EOJ
+$(cj 'specplane plan step-done p')
+EOJ
+[ $? = 2 ] && report "block: step-done when specplane is absent from PATH" 1 || report "block: step-done when specplane is absent from PATH" 0
 # allowed, stub fails
 run_case "allow: git commit-tree abc" 0 "$(cj 'git commit-tree abc')" 1
 run_case "allow: echo commit" 0 "$(cj 'echo commit')" 1

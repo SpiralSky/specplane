@@ -128,7 +128,7 @@ test('route B permissions: auto mode on launch and resume; the variadic lists ne
     assert.equal(argv.at(-2), '--verbose');
   }
   assert.deepEqual([...m.ALLOWED_TOOLS], ['Skill']);
-  for (const c of ['git push', 'git reset --hard', 'git clean', 'sudo', 'npm publish', 'specplane spec approve', 'specplane spec reopen', 'specplane plan approve', 'specplane plan finish', 'specplane plan abandon', 'specplane decision accept']) assert.ok(m.DISALLOWED_TOOLS.includes(`Bash(${c} *)`), c);
+  for (const c of ['git push', 'git reset --hard', 'git clean', 'sudo', 'npm publish', 'specplane spec approve', 'specplane spec reopen', 'specplane plan approve', 'specplane plan finish', 'specplane plan step-done', 'specplane plan abandon', 'specplane decision accept']) assert.ok(m.DISALLOWED_TOOLS.includes(`Bash(${c} *)`), c);
   for (const rule of m.DISALLOWED_TOOLS) assert.ok(!rule.includes(','), rule);
 });
 
@@ -304,9 +304,9 @@ test('route B probe is gated: every capability false without a passed probe reco
   assert.deepEqual(pick(await probe({ evidence: pass })), { launch: true, observe: true, resume: true, cancel: true, budgetEnforcement: true });
 });
 
-test('route B stays gated in the plugin: startNative keeps reasoning behind the marker and handlers do not import the adapter', opts, async () => {
+test('route B stays gated in the plugin: handlers do not import the adapter and no marker gates reasoning', opts, async () => {
   const fs = await import('node:fs');
   const handlers = fs.readFileSync(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts'), 'utf8');
-  assert.match(handlers, /const reasoning = await nativeReasoningEnabled\(\$\)/);
+  assert.ok(!/nativeReasoning|native-reasoning/.test(handlers));
   assert.ok(!/session-adapter/.test(handlers));
 });
