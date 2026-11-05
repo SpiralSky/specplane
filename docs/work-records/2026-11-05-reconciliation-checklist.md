@@ -16,7 +16,7 @@ named checkout (the CLI is not on PATH in this environment; after `npm run build
 ## 1. Decide first (user)
 
 1. Where the implementation lives for recording. `plan step-done` records exactly the uncommitted working-tree changes in the plan checkout (branch `plan/<id>`) against a reviewed manifest. The implementation is committed on the overnight branch, not in the plan checkouts. How to move it into a plan checkout as an uncommitted, manifest-matching change set (for example merge the overnight branch into the integration branch first, or replay per-step diffs) is **UNVERIFIED**; the spec defines only the manifest, not a bring-over method. This is the user's decision.
-2. Whether the pending S6/S7 bug checks finish before recording.
+2. The S6 and S7 bug checks are done (fixes `17f4551`, `6c9894f`); decide whether the open items in HANDOFF "Needs the user" (5, 13) must be settled before recording.
 
 ## 2. Repair "Legacy target history is ambiguous" (target-lifecycle, core-foundation)
 

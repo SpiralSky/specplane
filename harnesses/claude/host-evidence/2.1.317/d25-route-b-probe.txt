@@ -42,3 +42,10 @@ launch PASS, observe PASS, resume PASS, cancel PASS, budget stop NOT SEEN. The r
 `probe` stays all-false. Independently, the `$.process.spawn` binding does not exist, so the gap noted above also blocks enablement.
 Open: D24 unprompted-report, claude-delivery 03 criterion 3, conformance row 4, and a `done` result: BLOCKED (not run), reasons above.
 D19: no live `done` passed, so the six legacy skills are NOT removed.
+
+== CORRECTION NOTE (2026-11-05, S7; original result above left unchanged) ==
+Launch 3 line "observe after cancel = failed (signal exit)" misdescribes the run. The adapter maps an exit code of null (killed by a
+signal, no code) to `unknown`, never `failed` (session-adapter.ts stateOf; the null-exit case near the end of the observe test in claude-session-adapter.test). The probe driver
+passed the `code` of node's child_process 'exit' event, and `failed` is only returned for a non-null, non-zero code, so the real
+process exited with a numeric non-zero code after SIGTERM (the `claude` CLI handles the signal and exits itself), not by signal. The
+exact code was not logged and the driver's stdout was not kept, so it is unknown. The code agrees with A13; no live run was done to check.

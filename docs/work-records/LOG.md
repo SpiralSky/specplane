@@ -404,3 +404,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commits: `17f4551` (recovery fix), on top of `9f20e6f`.
 - Reviewed in full: `session-adapter.ts`, `claude-mcp.ts` (`executeTest` criterionIds), `claude-suites.ts` (ran the three suite commands under `node --test --test-reporter=tap` and `parseTestReport`: ids resolve, all pass), A13 and the D25 probe text. Skimmed (comment-only or test-only changes): `commands.ts`, `handlers.ts`, `claude-mcp-main.ts`, `cli.ts`, `workflow.ts`, `writer-leases.ts`, `conformance-matrix.ts`. Not reviewed: new test bodies other than the adapter test, and the host `$.process.spawn` binding (does not exist).
 - Bug: `recovery` trusted a ref's `nativeSessionId` without a persisted mapping (A13: unavailable when the mapping is missing). Full suite 1090 pass on Bun, hooks 94, check-sync OK, validate 0 errors.
+
+## 2026-11-05 — S7 second bug check
+- Commits: `6c9894f` (`workflow list` on a symlinked runtime dir), then docs. Probe line 31 ("failed (signal exit)") was a misdescription: the code maps a null exit to `unknown`; the real `claude` exited with a non-zero code after SIGTERM (exact code unlogged); correction appended to `d25-route-b-probe.txt`.
+- Reviewed: new test bodies in `claude-mcp-suites`, `conformance`, `workflow` tests (assert real behaviour), comment-only edits in `commands.ts`, `handlers.ts`, `claude-mcp-main.ts`, `cli.ts`, `writer-leases.ts`, `17f4551`, D17 A bridge and `workflow list|recover` (no stale-lease or request-id bug found). HANDOFF test counts corrected (adapter 13, codex-package 7, freshness 8).
+- Open: launch over a live orchestration id orphans the old handle (HANDOFF item 13). Full suite via `scripts/test.sh` on Bun 1.3.14: 1091 pass, 0 fail, 107 files.

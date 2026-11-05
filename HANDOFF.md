@@ -1,13 +1,13 @@
 # Session handoff
-Updated 2026-11-05 (S6). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05 (S7). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
 - Last full verification (S3, after `8e7c106`): `cd packages/cli && npm test` ran on Bun with no Node fallback: 1089 pass, 0 fail, 107 files. `hooks.test.sh` 94 pass. `check-sync` OK. `specplane validate` 0 errors, 100 warnings, 80 files. `claude plugin validate` and `claude plugin test` were not rerun (nothing here records them as free of model calls; last result: validate passed with warnings, test 27 pass).
-- Live host evidence (Claude 2.1.317, `harnesses/claude/host-evidence/2.1.317/`): the plugin loads and starts its server from `.claude/specplane/core` (D14, `${CLAUDE_PLUGIN_ROOT}`); the origin gate works (`origin-gate-check.txt`); a blocked result was recorded and the lease released (D22). Never shown live: a `done` result, a commit, a written spec, and the D24 prompt changes. S4 `d25-route-b-probe.txt`: route B launch, observe, resume and cancel pass over `claude -p` (4 of 5 G2 launches used); budget stop NOT seen (cheap run stayed under 0.01), so no `ProbeEvidence` is supplied and `probe` stays all false.
+- Live host evidence (Claude 2.1.317, `harnesses/claude/host-evidence/2.1.317/`): the plugin loads and starts its server from `.claude/specplane/core` (D14, `${CLAUDE_PLUGIN_ROOT}`); the origin gate works (`origin-gate-check.txt`); a blocked result was recorded and the lease released (D22). Never shown live: a `done` result, a commit, a written spec, and the D24 prompt changes. S4 `d25-route-b-probe.txt` (S7 appended a correction: the cancelled process exited with a non-zero code, not by signal): route B launch, observe, resume and cancel pass over `claude -p` (4 of 5 G2 launches used); budget stop NOT seen (cheap run stayed under 0.01), so no `ProbeEvidence` is supplied and `probe` stays all false.
 - `reasoning` stays `false` in `startNative`; reasoning commands and the completion tool are not registered. The six legacy reasoning skills stay (D10), so they own the names `/spec-assist`, `/plan-create`, `/plan-step`, `/plan-finish`, `/decision-new`, `/spec-draft-architecture` (D19).
 - Built and committed offline: D14 installer staging; origin gate (D20 1 and 2, D21); compact MCP replies and close by binding (D20 3 to 5); D23 retry rule; D24 prompt/schema changes; D16 C (a plan-step with `testRequirements` is cancelled); D15 (`plan-finish` stays manual).
-- Built offline, GATED (S3, `8e7c106`): D25 route B session adapter `harnesses/claude/plugin/hooks/session-adapter.ts` (A13: launch, observe, resume, recovery, cancel, budget argv) with 12 tests in `harness/claude-session-adapter.test` over a fake process port. Not imported by `handlers.ts` or `runConductor`; `probe` reports every capability false unless given a passed `ProbeEvidence` for the installed version. No host binding of `$.process.spawn` exists yet (see S4 probe below).
+- Built offline, GATED (S3, `8e7c106`): D25 route B session adapter `harnesses/claude/plugin/hooks/session-adapter.ts` (A13: launch, observe, resume, recovery, cancel, budget argv) with 13 tests in `harness/claude-session-adapter.test` over a fake process port. Not imported by `handlers.ts` or `runConductor`; `probe` reports every capability false unless given a passed `ProbeEvidence` for the installed version. No host binding of `$.process.spawn` exists yet (see S4 probe below).
 - Built against the applied spec, gated on a live check (S4): D17 A confirmation bridge (`MANUAL_WRITE_RULE` and D17 B stay active), D16 A reviewed suites (server not given the table, so D16 C stays active). D20 item 6 `specplane workflow list|recover` is PROVISIONAL on one point only (A3 vs R1, item 5).
 - Spec edits A1 to A13 (architecture), R1 (reference-cli) and F1 to F4 (feature) are APPLIED by S1 under G1 as separate docs commits; all three specs are still `status: approved` (unchanged, not re-approved). Proposal: `docs/work-records/2026-11-05-claude-spec-edit-proposal.md`. `specplane validate` after: 0 errors, 100 warnings (+2 "may contradict" on feature line 48, from F3).
 - Consumer suites: `harness/claude-consumer.test` (7) and `harness/codex-consumer.test` (7). A `done` plan-step is unreachable natively on Claude (unmapped criterion is `INVALID_EVIDENCE`, a mapped one is cancelled by D16 C). A consumer install shows `skill-drift` warnings because the skills cite `architecture/agent-skills`.
@@ -31,6 +31,7 @@ Every TEMPORARY (coordinator choice while you were offline) and PROVISIONAL (bui
 10. Live runs for claude-delivery 03 criteria 1 and 3 and conformance row 4: each needs your approval; none retried (D18).
 11. Upgrading to Bun 1.4.4: your call; run the full suite on it first.
 12. Final reconciliation below, including the push.
+13. D25 adapter, found by S7, not fixed: `launch` with an `orchestrationId` that already has a live process overwrites the tracked handle (`tracked.set`) and the stored mapping, so the old `claude -p` keeps running and can no longer be observed or cancelled by this adapter. A13 does not say what a second launch for the same id should do. Recommendation: refuse (throw) when the id is tracked and its process has not exited; one line in `begin`, plus a test. The adapter is unwired and gated, so nothing is hit today.
 
 ## Authorized run (2026-11-05, user away about 1 h)
 The user answered these directly on 2026-11-05. They cover this run only. Keep this section verbatim in every HANDOFF rewrite, ticking the session table, until the coordinator removes it.
@@ -54,7 +55,7 @@ Not granted, so do not do:
 | S4 | G2 live runs; D19 removal if and only if `done` passed live | done (4 of 5 launches; D25 probe launch/observe/resume/cancel pass, budget stop not seen; D24, crit 3, row 4, `done` blocked; D19 not removed) |
 | S5 | Update conformance 01 and matrix from the evidence; full suite on Bun 1.4.4; write the reconciliation checklist | done (matrix reason; Bun 1.4.4 and 1.3.14 both 1089 pass; `docs/work-records/2026-11-05-reconciliation-checklist.md`) |
 | S6 | Bug check: review all commits since `8aa96aa`, fix confirmed bugs with tests | done (`17f4551`; one bug fixed; reviewed and unreviewed files in LOG) |
-| S7 | Second bug check on areas S6 did not cover plus S6's fixes; final full verification | pending |
+| S7 | Second bug check on areas S6 did not cover plus S6's fixes; final full verification | done (`6c9894f` `workflow list` symlink fix; evidence correction note; HANDOFF counts corrected; one design issue open, item 13) |
 
 ## Open decisions
 - D11, D19, D24, D25, D20 item 6, D17, D16: see "Needs the user".
@@ -75,7 +76,7 @@ Not granted, so do not do:
 | manual-lifecycle | 03 | impl-complete; managed recording pending | criteria 1-3 met; D5/D6 resolved; worker lease delegation not built |
 | product-docs | 01 | impl-complete; managed recording pending | both criteria met; `docs/bundle.test` |
 | product-docs | 02 | impl-complete; managed recording pending | both criteria met; `docs/operations.test`; D7 |
-| product-docs | 03 | impl-complete; managed recording pending | both criteria met; `docs/freshness.test` (7); D8 |
+| product-docs | 03 | impl-complete; managed recording pending | both criteria met; `docs/freshness.test` (8); D8 |
 | extension-packaging | 01 | impl-complete; managed recording pending | all 3 criteria met; builder + prep tests |
 | extension-packaging | 02 | impl-complete; managed recording pending | both criteria met; `harness/containment.transaction.test` (16) |
 | extension-packaging | 03 | impl-complete; managed recording pending | all 4 criteria met; `harness/coexistence.test` (7) |
@@ -83,13 +84,13 @@ Not granted, so do not do:
 | claude-delivery | 02 | impl-complete offline; managed recording pending | all 4 criteria met offline (criterion 3 now covered by the completion/validate/plan-status/plan-start handler test); no live-host evidence for the mechanical commands; D10 mechanical skills removed |
 | claude-delivery | 03 | partial; blocked (D19) | Criterion 2 met (`claude-package` capability tests: flags false, no capability from fixtures). Criterion 1 not met: lease/cancel/close covered offline and one blocked result live, but no launch/resume/budget adapter exists and a done result was never shown live. Criterion 3 offline part met: `harness/claude-consumer.test` (7); target-aware flow is the plan-step branch sync and diverged-remote cases; live evidence for it is absent. Criterion 1 adapter blocked on D25. Also blocked on D19 and live runs (need approval) |
 | codex-delivery | 01 | impl-complete; managed recording pending | all 3 criteria met by `core/workflow-runner.test`; no live Codex claim |
-| codex-delivery | 02 | impl-complete; managed recording pending | all 4 criteria met; `harness/codex-package.test` (6) |
+| codex-delivery | 02 | impl-complete; managed recording pending | all 4 criteria met; `harness/codex-package.test` (7) |
 | codex-delivery | 03 | impl-complete; managed recording pending | all 3 criteria met; `harness/codex-consumer.test` (7) |
 | extension-conformance | 01 | partial; managed recording pending | 3 of 4 criteria met; the 4th (Claude workflows) is blocked on live-host delivery evidence. Rows stay not-delivered/pending; matrix reason (S5) states the D25 probe: launch, observe, resume, cancel passed through a direct child process, not `$.process.spawn`; budget stop not seen; no `done` result (`harness/conformance.test`) |
 | extension-conformance | 02 | partial; managed recording pending | guards built (`harness/release-evidence.test` (4)); blocker text refreshed; the pin refresh was not done and awaits the user's implementation review |
 
 ## Next session
-Follow "Authorized run": S7 (second bug check: S6 did not review the new test bodies other than the adapter's, and fixed one `recovery` bug in `session-adapter.ts`; see LOG). The reconciliation commands are prepared in `docs/work-records/2026-11-05-reconciliation-checklist.md`; its open points are no CLI repair for "Legacy target history is ambiguous" (library-only `legacyEvidence`) and no defined way to bring the overnight implementation into plan checkouts for recording.
+S7 is done (see LOG); the coordinator removes the "Authorized run" section. The reconciliation commands are prepared in `docs/work-records/2026-11-05-reconciliation-checklist.md`; its open points are no CLI repair for "Legacy target history is ambiguous" (library-only `legacyEvidence`) and no defined way to bring the overnight implementation into plan checkouts for recording.
 Live follow-ups, each needing user approval: (1) D25 budget-stop case, with a task that costs more than the cap (the cheap model stayed under 0.01; try a larger task or `--model` default), then write the `$.process.spawn` binding and check its chunk shapes before any `ProbeEvidence`. (2) D24, claude-delivery 03 criteria 1 and 3 and conformance row 4 (and D19 removal) need a `done` plan-step natively. That needs a user decision on D16 C, `reasoning` and the unreviewed `BUNDLED_SUITES`; S4 flipped none of them. S4 used 4 of 5 G2 launches, so one remains in this grant.
 
 ## How to continue (orchestration)
