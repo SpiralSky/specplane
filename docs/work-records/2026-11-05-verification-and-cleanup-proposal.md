@@ -14,7 +14,8 @@ One approval from the user covers everything below. Section 8 lists what happens
 | D16 | Replace options A and C. Suite commands move from `BUNDLED_SUITES` to `verification.suites` in each repository's configuration. |
 | D19 | Settled: the six legacy skills are removed (`d773a26`). The stale spec text is corrected in section 4. |
 | `reasoning` gate | The native reasoning commands are registered by default, because nothing else now provides those command names. The `native-reasoning` marker is deleted. This lifts the earlier rule that the commands wait for a live check (D13, D24), so the first live run happens with them already on. |
-| D17 A | Keep the `confirmation` field on `record`. The applied spec already says this, so no text changes. The interim `MANUAL_WRITE_RULE` stays until a live check passes. |
+| D17 A | Keep the `confirmation` field on `record`. Turn the bridge on and delete `MANUAL_WRITE_RULE`, otherwise `/spec-assist`, `/spec-draft-architecture`, `/plan-create` and `/decision-new` can never write a file. The first live run is their check. |
+| D15 | Reverse option B: add a core initiation for `plan-finish`, so `/plan-finish` works natively instead of being refused at `prepare`. |
 | A13 readings | Accept readings (a) to (d), (h) and (i) as written into the spec in A7. Reading (e) stays as built and is relaxed when the host binding supplies `isAlive`. |
 | Recording backlog | Replace the managed replay with a one-time labelled declaration (section 6). This removes the need for a legacy-target repair command and for moving work into plan checkouts. |
 | Heuristic warnings | Leave the 54 "may contradict" warnings. `extension-conformance` 02 does not require clearing unrelated heuristic warnings. |
@@ -289,6 +290,14 @@ Add to § Policy guard: "The guard denies an agent's `specplane plan step-done`.
 - Line 343: replace "through the extension or reasoning fallback supported on that surface" with "through the extension supported on that surface".
 - Line 424 stays: it describes retiring old skills from earlier installs.
 
+### A11. § interim rule (line 472)
+
+Delete the paragraph that begins "**Interim rule for workflows that would write text.**".
+
+### R5. `architecture/reference-cli` § Workflow initiation and preparation inputs
+
+Add `plan-finish` to the workflows that accept an initiation. Its selection is `{planId}`, and its preparation runs the existing finish readiness checks. The finish itself stays behind the human confirmation the spec already requires.
+
 ## 5. Smaller cleanup
 
 ### C1. `.specplane/config.yaml`
@@ -334,13 +343,13 @@ ADR 0005 already describes this design, so its text does not change. Accepting i
 
 The tradeoff is that these plans lose managed receipts they never really had. Anyone reading them sees a declaration, not evidence.
 
-**Push.** A plain push fails because the remote branch has `63cd572` and `cff7c78`. Comparison: every code line `63cd572` added to `contracts.ts`, `index.ts`, `workflow-preparation.ts` and `workflow-recording.ts` is here or has been replaced by a newer form (`assertContributionRecordingAvailable` became `validatedContributions` in recording), and `contribution-capture.ts` here has all three of their exports and more, so their code is superseded. Two record files exist only on the remote: `docs/work-records/2026-11-03-workflow-contribution-capture-result.json` and `docs/work-records/implementation-forecast.json`. This branch replaced per-batch records with `LOG.md` in `7bde247`, so losing them matches that decision. A `--force-with-lease` push drops them from the branch. The push stays the user's action.
+**Push.** Handled in `5284f44`: the remote commits are merged with no file change, so a plain push works and no force is needed. Before that merge, a plain push failed because the remote branch had `63cd572` and `cff7c78`. Comparison: every code line `63cd572` added to `contracts.ts`, `index.ts`, `workflow-preparation.ts` and `workflow-recording.ts` is here or has been replaced by a newer form (`assertContributionRecordingAvailable` became `validatedContributions` in recording), and `contribution-capture.ts` here has all three of their exports and more, so their code is superseded. Two record files exist only on the remote: `docs/work-records/2026-11-03-workflow-contribution-capture-result.json` and `docs/work-records/implementation-forecast.json`. This branch replaced per-batch records with `LOG.md` in `7bde247`, so losing them matches that decision. The push stays the user's action.
 
 ## 7. Build order
 
 1. Apply the text (section 8).
 2. Core: `verification` config and schema, optional mappings, step-level receipts, the tier check, `requestedTier` and the verification line.
-3. Claude: suites from configuration, delete `BUNDLED_SUITES`, the D16 C refusal and the `native-reasoning` marker, register native commands by default, and add the `plan step-done` denial.
+3. Claude: suites from configuration, delete `BUNDLED_SUITES`, the D16 C refusal and the `native-reasoning` marker, register native commands by default, turn on the D17 A bridge and delete `MANUAL_WRITE_RULE`, add the `plan-finish` initiation, and add the `plan step-done` denial.
 4. `verify-review`, the `human` check and lowering a minimum. Until this lands, a `risk` step ends `blocked` in `auto` mode.
 5. Refresh the 7 remaining skill pins after reviewing each skill against its contract (`extension-conformance` 02). This comes last because step 3 changes those skills.
 6. One live run on a real task proves the native path, then the budget-stop case on a low-stakes task. Each needs the user's go-ahead.
