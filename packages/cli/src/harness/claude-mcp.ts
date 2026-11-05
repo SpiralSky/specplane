@@ -68,7 +68,7 @@ export function createConfirmationBridge(): ConfirmationBridge {
 /** The part of the runner this server uses; tests pass a fake. */
 export interface RunnerPort { handleLine(line: string): Promise<RunnerResponse | null> }
 
-type Forward = 'inspect' | 'prepare' | 'executeTest' | 'validate' | 'record' | 'capture' | 'cancel';
+type Forward = 'inspect' | 'prepare' | 'executeTest' | 'validate' | 'record' | 'capture' | 'cancel' | 'prepareReview' | 'recordReview';
 interface ToolSpec { name: string; description: string; forward?: Forward; release?: boolean; bind?: boolean; detail?: boolean }
 
 /** One MCP tool per runner operation. `close` releases requests; the runner's own `close` is never exposed. */
@@ -78,6 +78,8 @@ export const TOOLS: readonly ToolSpec[] = [
   { name: 'prepare', description: 'Prepare a workflow request and take the writer lease for it. The reply is compact; read the request with detail.', forward: 'prepare' },
   { name: 'detail', description: 'Read one bounded page of a prepared request by requestId and offset.', detail: true },
   { name: 'executeTest', description: 'Run the configured suites a prepared request requires. Takes requestId and optionally criterionIds (a subset of the criteria of the request); the server resolves every command from the verification suites bound to the request.', forward: 'executeTest' },
+  { name: 'requestReview', description: 'Prepare a read-only verify-review request for an open plan-step request (requestId) and the worker session identity the host reports (workerSession). The reply is the review request for a separate reviewer.', forward: 'prepareReview' },
+  { name: 'recordReview', description: 'Record a separate reviewer\'s answer: reviewId, the reviewerSession the host reports, and result {verdict, findings}. Only the mod calls this.', forward: 'recordReview' },
   { name: 'validate', description: 'Validate the WorkflowResult for an open prepared request (requestId) against the request the server holds.', forward: 'validate' },
   { name: 'record', description: 'Record a validated WorkflowResult. Finalized content first returns a CONFIRMATION_REQUIRED challenge; repeat the call with the same proposal and the mod\'s `confirmation` response.', forward: 'record' },
   { name: 'capture', description: 'Capture a proposed contribution.', forward: 'capture' },
@@ -293,6 +295,26 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     return byteLength(reply.content[0].text) > MAX_RESULT_BYTES ? text(`The executeTest result exceeds ${MAX_RESULT_BYTES} bytes and was not delivered.`, true) : reply;
   }
 
+  /**
+   * The separate check (spec: Reviewed test suites, last paragraph). Each call carries a closed set of keys; a review request
+   * is prepared only for a plan-step request this session holds open. The review request is sent to the mod, never to the
+   * working model's result path, and it carries no lease: it is read-only.
+   */
+  async function reviewCall(method: 'prepareReview' | 'recordReview', params: Json): Promise<unknown> {
+    const keys = method === 'prepareReview' ? ['requestId', 'workerSession'] : ['reviewId', 'reviewerSession', 'result'];
+    const extra = Object.keys(params).filter(k => !keys.includes(k));
+    if (extra.length > 0) return text(`${method === 'prepareReview' ? 'requestReview' : 'recordReview'} takes ${keys.join(', ')} only. Refused keys: ${extra.join(', ')}.`, true);
+    if (method === 'prepareReview') {
+      const held = typeof params.requestId === 'string' ? open.get(params.requestId) : undefined;
+      if (!held) return text(`Request ${String(params.requestId)} is not open; no review was prepared.`, true);
+      if (held.request.workflow !== 'plan-step') return text('Only a plan-step request can be reviewed.', true);
+    }
+    const outcome = await forwardOne(method, params);
+    if (!outcome) return text('Empty runner response.', true);
+    const reply = text(outcome, !outcome.ok);
+    return byteLength(reply.content[0].text) > MAX_RESULT_BYTES ? text(`The ${method} result exceeds ${MAX_RESULT_BYTES} bytes and was not delivered.`, true) : reply;
+  }
+
   async function callTool(name: string, args: Json): Promise<unknown> {
     const spec = TOOLS.find(t => t.name === name);
     if (!spec) return text(`Unknown tool: ${name}.`, true);
@@ -312,6 +334,7 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     const method = spec.forward!;
     if (method === 'record' && bridge) return recordWithConfirmation(params);
     if (method === 'executeTest') return runReviewedSuites(args);
+    if (method === 'prepareReview' || method === 'recordReview') return reviewCall(method, params);
     let forwarded: Json = spec.release ? { requestId: params.requestId } : params;
     if (method === 'validate') {
       const held = typeof params.requestId === 'string' ? open.get(params.requestId) : undefined;

@@ -255,3 +255,42 @@ test('disconnect (runner EOF, as the entry runs on stdin end or a killed host) r
   // After EOF the runner refuses new requests ("Runner is closing."), so the proof is the runner's tracked set: the request was cancelled and dropped.
   assert.deepEqual(runner.tracked(), []);
 });
+
+test('requestReview forwards only requestId and workerSession for an open plan-step request and holds no lease', async () => {
+  const runner = fakeRunner((method, params) => method === 'prepare'
+    ? { protocol: 1, ok: true, value: { requestId: 'parent-1', workflow: 'plan-step', criteria: [] }, notices: [] }
+    : method === 'prepareReview' ? { protocol: 1, ok: true, value: { requestId: 'review-1', workflow: 'verify-review', parentRequestId: params.requestId }, notices: [] }
+    : { protocol: 1, ok: true, value: { echoed: method }, notices: [] });
+  const server = createClaudeMcpServer(runner);
+  const replies = await seq(server, [
+    callTool('bind', { nonce: NONCE }, 1),
+    callTool('requestReview', { nonce: NONCE, requestId: 'parent-1', workerSession: 'session:w' }, 2),
+    callTool('prepare', { nonce: NONCE, workflow: 'plan-step' }, 3),
+    callTool('requestReview', { nonce: NONCE, requestId: 'parent-1', workerSession: 'session:w', extra: 'x' }, 4),
+    callTool('requestReview', { nonce: NONCE, requestId: 'parent-1', workerSession: 'session:w' }, 5),
+  ]);
+  assert.equal(replies[1].result.isError, true, 'the parent request is not open yet');
+  assert.match(replies[1].result.content[0].text, /not open/);
+  assert.equal(replies[3].result.isError, true);
+  assert.match(replies[3].result.content[0].text, /Refused keys: extra/);
+  assert.equal(replies[4].result.isError, false);
+  assert.equal(JSON.parse(replies[4].result.content[0].text).value.workflow, 'verify-review');
+  const forwarded = runner.calls.filter(c => c.method === 'prepareReview');
+  assert.equal(forwarded.length, 1);
+  assert.deepEqual(forwarded[0].params, { requestId: 'parent-1', workerSession: 'session:w' });
+  assert.equal(runner.calls.some(c => c.method === 'cancel'), false);
+});
+
+test('recordReview forwards a closed set of keys and refuses anything else', async () => {
+  const runner = fakeRunner();
+  const server = createClaudeMcpServer(runner);
+  const replies = await seq(server, [
+    callTool('bind', { nonce: NONCE }, 1),
+    callTool('recordReview', { nonce: NONCE, reviewId: 'r1', reviewerSession: 'agent:a', result: { verdict: 'pass', findings: [] } }, 2),
+    callTool('recordReview', { nonce: NONCE, reviewId: 'r1', reviewerSession: 'agent:a', result: { verdict: 'pass', findings: [] }, stateDigest: 'x' }, 3),
+  ]);
+  assert.equal(replies[1].result.isError, false);
+  assert.deepEqual(runner.calls.find(c => c.method === 'recordReview')?.params, { reviewId: 'r1', reviewerSession: 'agent:a', result: { verdict: 'pass', findings: [] } });
+  assert.equal(replies[2].result.isError, true);
+  assert.match(replies[2].result.content[0].text, /Refused keys: stateDigest/);
+});
