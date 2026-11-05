@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-05T04:05Z. Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05T04:20Z. Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -57,7 +57,13 @@ Updated 2026-11-05T04:05Z. Branch `overnight/specplane-20261102T144630Z`; HEAD i
 | extension-conformance | 02 | partial; managed recording pending | guards built (`harness/release-evidence.test` (4)); pin refresh awaits user implementation review |
 
 ## Next session
-Spec-draft edit must also list the new surface: the `detail` tool, `validate` by requestId, `close` without requestId, the installer's `.gitignore` entry, and the origin gate (`allow` for the mod's own call). Run the D22 live check first (rebuild a fixture as described in `origin-gate-check.txt`); its result decides how the draft describes completion and lease release.
+Start here: run the D22 live check. The user approved this one invocation on 2026-11-05; it is not retried, and any further live run needs fresh approval.
+1. Build a fresh fixture in the scratchpad from HEAD: `npm run build` in `packages/cli`; `git init` plus an empty commit; `node <repo>/packages/cli/dist/cli.js init --harness claude`; in the installed copy only, set `const reasoning = true` in `.claude/specplane/hooks/handlers.ts` and delete the six public reasoning skills; commit. Optionally add the `tool.check` diagnostic described in `origin-gate-check.txt`, never logging the nonce value.
+2. In tmux, unset `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` and run `claude --plugin-dir <fixture>/.claude/specplane --model haiku` (auto mode). Accept the trust dialog for the fixture only. Type `/spec-assist search filter draft`, answer the procedure, approve the text, and accept the host's prompt for the model's file write.
+3. It passes only if the result is recorded and the lease files in `.git/specplane-runtime` are gone after `close`, before `/exit`. Also confirm `validate`, `record` and `close` reached the server.
+4. Append the results to `harnesses/claude/host-evidence/2.1.317/origin-gate-check.txt`, update D22 and D20 item 6 here, and report to the user. Do not commit in the same command as a test run.
+Then:
+Spec-draft edit must also list the new surface: the `detail` tool, `validate` by requestId, `close` without requestId, the installer's `.gitignore` entry, and the origin gate (`allow` for the mod's own call). The D22 result decides how the draft describes completion and lease release.
 Draft the combined Claude architecture-spec edit for the user's approval. It covers D17 option A (confirmation dialog plus protocol field), D16 option A (host-fixed test command), and the stale text listed below. Do not edit the spec body without that approval. Then continue `extension-conformance` 01 Claude rows.
 Stale spec text to list (not verified line by line): `harnesses/claude/specifications/architecture/claude-integration.md` describes the reasoning and lease path as in-process; it is now the plugin MCP server (D11). Its plugin layout (about line 68) and hooks section (about line 445) may be stale, and it does not mention the `.claude/specplane` root, `types/` or D18. `harnesses/claude/specifications/features/claude-integration.md` lines 54-58 are the reasoning rows.
 
