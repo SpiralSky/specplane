@@ -370,3 +370,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 (session 8: D25 route B, problems.md recheck)
 - Drafted route B session adapter as A13 in the spec-edit proposal (TEMPORARY choice, proposal only, not built).
 - Rechecked the five `problems.md` findings against source: all fixed, no code change needed (see HANDOFF Current state).
+
+## 2026-11-05 (session 9: Codex procedure test, Bun 1.4 cause, full verification)
+- Added a `codex-package.test` case that the delivered `docs/sources/agent-skills.md` plan-step section carries fetch and fast-forward, `spec-gaps.md` fields, acceptance check and publishing. Fixed the Bun 1.4.4 failures in `non-plan-workflow.test`: the child ran `node -e "require('node:test')..."`, and under Bun `node` is Bun, which refuses `test()` outside `bun test` in 1.4; the child now prints the TAP itself.
+- Full suite on Bun 1.3.14: 1076 pass, 0 fail, 106 files. Session 1 to 8 detail is in the entries above and in git history.
