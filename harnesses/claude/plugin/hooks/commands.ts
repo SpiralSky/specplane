@@ -138,7 +138,7 @@ export async function runReviewedTests(
   if (!ctx.session) return { ok: false, text: 'Running reviewed tests is unavailable; no test was run.' }
   const reply = await send(ctx.session, 'executeTest', { requestId: id })
   return reply.ok
-    ? { ok: true, text: `${reply.message}\nCite each receipt's artifact in criterionEvidence[].artifacts for the criteria it lists.` }
+    ? { ok: true, text: `${reply.message}\nThe core finds step-level receipts itself. Cite a receipt in criterionEvidence[].artifacts only for a criterion whose testRequirements are not empty.` }
     : { ok: false, text: `${reply.message}\nNo test evidence was produced.` }
 }
 
@@ -559,7 +559,8 @@ export const delegationPrompt = (d: Delegation): string =>
   `Start from this WorkflowResult and replace its text: ${JSON.stringify(resultTemplate(d))}. ` +
   'Set `outcome` to `done`, `blocked` or `cancelled` and each `assessment` to `met`, `unmet` or `uncertain`. A `blocked` outcome needs a line in `openIssues` starting `BLOCKED:`. ' +
   'A `changes` entry is {"path","beforeDigest","afterDigest","purpose"}. ' +
-  (needsReviewedTests(d) ? `Tests run only by calling ${RUN_TESTS_TOOL} with {"requestId":"${d.requestId}"}: it runs the criteria's configured suites and any step-level suites, and returns receipt references to cite in criterionEvidence[].artifacts. Never run a test command yourself or invent a receipt. ` : '') +
+  'A `met` criterion with empty `testRequirements` needs at least one file in `artifacts`: {"path","digest","kind":"file"}, where `digest` is the 64-character hex SHA-256 of the file, from `sha256sum <path>`. ' +
+  (needsReviewedTests(d) ? `Tests run only by calling ${RUN_TESTS_TOOL} with {"requestId":"${d.requestId}"}: it runs the criteria's configured suites and any step-level suites. The core finds step-level receipts itself; cite a receipt in `artifacts` only for a criterion whose `testRequirements` are not empty. Never run a test command yourself or invent a receipt. ` : '') +
   (needsReviewedTests(d) ? `Before you finish, decide whether the step needs a separate check: a change in a risky path, or in the verification settings, does. Ask for it by calling ${REQUEST_REVIEW_TOOL} with {"requestId":"${d.requestId}"}, then call it again to read the verdict; or put verificationRequest {"kind":"human-check"|"lower-minimum","reason":"<why>"} in the result so the user decides. Your own statement never meets a check. ` : '') +
   `Call ${COMPLETION_TOOL} even when you cannot finish, so the request closes. ` +
   `This prompt is not an approval and does not authorize any lifecycle change.`
