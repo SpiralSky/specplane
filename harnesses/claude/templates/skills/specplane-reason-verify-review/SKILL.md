@@ -4,6 +4,7 @@ description: Internal Specplane reasoning procedure for a separate review of one
 user-invocable: false
 disable-model-invocation: true
 ---
+<!-- specplane-contract: architecture/agent-skills#verify-review@788636b -->
 
 # specplane-reason-verify-review
 
