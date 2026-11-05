@@ -7,7 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createWorkflowRunner } from '../core/workflow-runner.js';
-import { createClaudeMcpServer } from './claude-mcp.js';
+import { createClaudeMcpServer, createConfirmationBridge } from './claude-mcp.js';
 
 const packageRoot = fs.realpathSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'));
 const checkout = process.env.SPECPLANE_CHECKOUT ?? process.cwd();
@@ -22,8 +22,11 @@ const readJson = (rel: string): Record<string, any> | undefined => {
 // Same paths as CLAUDE_PACKAGE_DIR's contents in claude-package.ts (CLAUDE_HOST_EVIDENCE_PATH).
 const manifest = readJson('specplane-extension.json');
 const hostSelection = readJson('host-evidence/claude-code.json');
+// PROVISIONAL (D17 A): the bridge parks the core's confirmation challenge until the mod answers through `record`.
+const confirmations = createConfirmationBridge();
 const runner = createWorkflowRunner({
   checkout,
+  context: { interaction: confirmations.port },
   extensionId: manifest?.extension?.id ?? '',
   compatibilityFor: workflow => manifest && hostSelection ? {
     manifest,
@@ -37,7 +40,7 @@ const runner = createWorkflowRunner({
     },
   } : undefined,
 });
-const server = createClaudeMcpServer(runner);
+const server = createClaudeMcpServer(runner, { confirmations });
 await server.serve({ input: process.stdin, write: line => process.stdout.write(line) });
 // Disconnect (session exit or a killed host) is a runner EOF: pending work is cancelled and every lease this process holds is released.
 const ended = (async function* () { /* no input: the runner only closes */ })();

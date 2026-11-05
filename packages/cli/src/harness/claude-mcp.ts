@@ -5,7 +5,9 @@
 // nonce it generated; every other call must repeat it. A second bind is refused.
 // Replies stay under MAX_RESULT_BYTES, the host's MCP result limit. A prepared request is kept here, keyed by
 // requestId, and the mod reads it in bounded `detail` pages. `validate` takes the requestId and uses the kept request.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { RunnerResponse } from '../core/workflow-runner.js';
+import type { ConfirmationChallenge, ConfirmationResponse, InteractionPort } from '../core/contracts.js';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
 export const MIN_NONCE_LENGTH = 16;
@@ -13,6 +15,54 @@ export const MIN_NONCE_LENGTH = 16;
 export const MAX_RESULT_BYTES = 16 * 1024;
 /** Characters of the serialized prepared request per `detail` page. JSON escapes one character in at most 6 bytes, so a page stays under the bound. */
 export const DETAIL_CHUNK_CHARS = 2048;
+
+/**
+ * PROVISIONAL (D17 option A, awaiting approval of the proposal's A6): the server-side interaction port. The core confirms
+ * finalized content inside this process, which has no screen. The port parks the core's challenge under the `record` call
+ * that raised it (found through async context, so concurrent records cannot mix) until the mod answers through a second
+ * `record` call carrying `confirmation`. Give the runner `interaction: bridge.port` and pass the same bridge to
+ * createClaudeMcpServer.
+ */
+export interface ConfirmationBridge {
+  port: InteractionPort;
+  /** Runs fn (a record call); resolves when it finishes or when the core parks a challenge, whichever is first. */
+  run<T>(requestId: string, fn: () => Promise<T>): Promise<{ kind: 'done'; value: T | undefined } | { kind: 'parked'; challenge: ConfirmationChallenge }>;
+  parked(requestId: string): ConfirmationChallenge | undefined;
+  /** Ends the parked call with a response, or with null (no response); resolves with the parked call's outcome. */
+  answer(requestId: string, response: ConfirmationResponse | null): Promise<unknown>;
+}
+
+export function createConfirmationBridge(): ConfirmationBridge {
+  const context = new AsyncLocalStorage<{ requestId: string; onParked(challenge: ConfirmationChallenge): void }>();
+  const held = new Map<string, { challenge: ConfirmationChallenge; resolve(r: ConfirmationResponse | null): void; pending: Promise<unknown> }>();
+  const pendings = new Map<string, Promise<unknown>>();
+  return {
+    port: {
+      confirm: challenge => new Promise<ConfirmationResponse | null>(resolve => {
+        const store = context.getStore();
+        if (!store || held.has(store.requestId)) return resolve(null); // no calling record to answer through: unavailable
+        held.set(store.requestId, { challenge, resolve, pending: pendings.get(store.requestId) ?? Promise.resolve() });
+        store.onParked(challenge);
+      }),
+    },
+    run(requestId, fn) {
+      return new Promise(resolve => {
+        const pending = context.run({ requestId, onParked: challenge => resolve({ kind: 'parked', challenge }) }, fn);
+        pendings.set(requestId, pending);
+        const clear = () => { held.delete(requestId); pendings.delete(requestId); };
+        pending.then(value => { clear(); resolve({ kind: 'done', value }); }, () => { clear(); resolve({ kind: 'done', value: undefined }); });
+      });
+    },
+    parked: requestId => held.get(requestId)?.challenge,
+    async answer(requestId, response) {
+      const entry = held.get(requestId);
+      if (!entry) return undefined;
+      held.delete(requestId);
+      entry.resolve(response);
+      return entry.pending;
+    },
+  };
+}
 
 /** The part of the runner this server uses; tests pass a fake. */
 export interface RunnerPort { handleLine(line: string): Promise<RunnerResponse | null> }
@@ -28,7 +78,7 @@ export const TOOLS: readonly ToolSpec[] = [
   { name: 'detail', description: 'Read one bounded page of a prepared request by requestId and offset.', detail: true },
   { name: 'executeTest', description: 'Run the test requirements of a prepared request.', forward: 'executeTest' },
   { name: 'validate', description: 'Validate the WorkflowResult for an open prepared request (requestId) against the request the server holds.', forward: 'validate' },
-  { name: 'record', description: 'Record a validated WorkflowResult.', forward: 'record' },
+  { name: 'record', description: 'Record a validated WorkflowResult. Finalized content first returns a CONFIRMATION_REQUIRED challenge; repeat the call with the same proposal and the mod\'s `confirmation` response.', forward: 'record' },
   { name: 'capture', description: 'Capture a proposed contribution.', forward: 'capture' },
   { name: 'cancel', description: 'Cancel a request and release its lease when the workers are proven stopped.', forward: 'cancel' },
   { name: 'close', description: 'Release the lease of one open request (requestId). Without requestId, closes every open request of this session.', forward: 'cancel', release: true },
@@ -42,11 +92,15 @@ const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null 
 const text = (value: unknown, isError: boolean) => ({ content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }], isError });
 const byteLength = (s: string) => new TextEncoder().encode(s).length;
 
-export interface McpServerOptions { name?: string; version?: string }
+export interface McpServerOptions { name?: string; version?: string; confirmations?: ConfirmationBridge; now?: () => number }
 
 export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOptions = {}) {
   let bound: string | null = null;
   let counter = 0;
+  const bridge = options.confirmations;
+  const now = options.now ?? Date.now;
+  /** The proposal (canonical JSON) each parked challenge belongs to; the second record call must repeat it. */
+  const proposals = new Map<string, string>();
   /** Prepared requests this session holds open: the full request (server side only) and its serialized form for detail pages. */
   const open = new Map<string, { request: Json; json: string }>();
 
@@ -63,6 +117,7 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
   async function release(requestId: string): Promise<{ released: boolean; outcome: Outcome | undefined }> {
     const held = open.get(requestId);
     open.delete(requestId);
+    await bridge?.answer(requestId, null); // a parked confirmation ends as a refusal before the request is cancelled
     const outcome = await forwardOne('cancel', { requestId });
     const released = outcome?.ok === true || outcome?.error?.code === 'STALE_STATE';
     if (!released && held !== undefined) open.set(requestId, held);
@@ -118,6 +173,56 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     return byteLength(reply.content[0].text) > MAX_RESULT_BYTES ? undeliverable(requestId) : reply;
   }
 
+  const refusal = (code: string, message: string, details: unknown = null): Outcome =>
+    ({ ok: false, error: { code, message, retryable: false, details } as Outcome['error'] });
+  const protocol = (o: Outcome | Record<string, unknown>) => ({ protocol: 1, notices: [], ...o });
+  const same = (a: unknown, b: unknown) => JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b));
+  function sortKeys(v: unknown): unknown {
+    if (Array.isArray(v)) return v.map(sortKeys);
+    if (isObject(v)) return Object.fromEntries(Object.keys(v).sort().map(k => [k, sortKeys(v[k])]));
+    return v;
+  }
+
+  /** Ends a parked confirmation as a refusal, closes the request, and replies with the refusal. Nothing is written. */
+  async function endParked(requestId: string, why: string): Promise<unknown> {
+    proposals.delete(requestId);
+    await release(requestId);
+    return text(protocol(refusal('CONFIRMATION_REQUIRED', `${why} Nothing was recorded and the request was closed.`)), true);
+  }
+
+  /** PROVISIONAL D17 A: record with the parked-challenge flow (see ConfirmationBridge). */
+  async function recordWithConfirmation(params: Json): Promise<unknown> {
+    const requestId = typeof params.requestId === 'string' ? params.requestId : '';
+    const { confirmation, ...proposal } = params;
+    const reply = (outcome: Outcome | undefined) => {
+      if (!outcome) return text('Empty runner response.', true);
+      const r = text(outcome, !outcome.ok);
+      return byteLength(r.content[0].text) > MAX_RESULT_BYTES ? text(`The record result exceeds ${MAX_RESULT_BYTES} bytes and was not delivered.`, true) : r;
+    };
+    const pendingChallenge = bridge!.parked(requestId);
+    if (confirmation !== undefined) {
+      if (!pendingChallenge) return text(protocol(refusal('CONFIRMATION_REQUIRED', 'No confirmation is pending for this request (it was answered, expired or ended); nothing was recorded.')), true);
+      const c = confirmation;
+      const valid = isObject(c) && typeof c.challengeId === 'string' && (c.decision === 'confirm' || c.decision === 'decline') && typeof c.interactionId === 'string' && c.interactionId.length > 0;
+      if (!valid) return endParked(requestId, 'The confirmation response is malformed.');
+      const response = c as unknown as ConfirmationResponse;
+      if (response.challengeId !== pendingChallenge.challengeId) return endParked(requestId, 'The confirmation answers a different challenge.');
+      if (!same(proposal, JSON.parse(proposals.get(requestId) ?? 'null'))) return endParked(requestId, 'The proposal differs from the one the challenge was raised for.');
+      if (now() >= Date.parse(pendingChallenge.expiresAt)) return endParked(requestId, 'The confirmation challenge expired.');
+      proposals.delete(requestId);
+      const outcome = await bridge!.answer(requestId, response) as Outcome | undefined;
+      if (outcome?.ok !== true) await release(requestId); // a declined or refused confirmation closes the request
+      return reply(outcome);
+    }
+    if (pendingChallenge) return endParked(requestId, 'A confirmation is already pending for this request; it was ended.');
+    proposals.set(requestId, JSON.stringify(proposal));
+    const first = await bridge!.run(requestId, () => forwardOne('record', proposal));
+    if (first.kind === 'done') { proposals.delete(requestId); return reply(first.value); }
+    const challengeReply = text(protocol(refusal('CONFIRMATION_REQUIRED', 'Finalized content needs the user\'s confirmation: show challenge.summary unmodified and repeat this call with the same proposal and a confirmation.', { challenge: first.challenge })), true);
+    if (byteLength(challengeReply.content[0].text) > MAX_RESULT_BYTES) return endParked(requestId, `The confirmation summary exceeds ${MAX_RESULT_BYTES} bytes and cannot be shown natively; use the manual command.`);
+    return challengeReply;
+  }
+
   async function callTool(name: string, args: Json): Promise<unknown> {
     const spec = TOOLS.find(t => t.name === name);
     if (!spec) return text(`Unknown tool: ${name}.`, true);
@@ -135,6 +240,7 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     const params: Json = { ...args };
     delete params[NONCE];
     const method = spec.forward!;
+    if (method === 'record' && bridge) return recordWithConfirmation(params);
     let forwarded: Json = spec.release ? { requestId: params.requestId } : params;
     if (method === 'validate') {
       const held = typeof params.requestId === 'string' ? open.get(params.requestId) : undefined;
