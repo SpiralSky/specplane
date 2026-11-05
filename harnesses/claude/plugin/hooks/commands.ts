@@ -71,16 +71,15 @@ export const manualCommand = (name: string): string => MANUAL[name] ?? `the ${na
 
 /**
  * Decides which commands to register. Built-ins and other sources keep their
- * names (no alias, no shadowing); reasoning commands stay unavailable unless the
- * bundled core can prepare and record them with a retained lease.
+ * names (no alias, no shadowing); every other native command, reasoning
+ * commands included, registers whenever the inventory is available.
  */
-export function planRegistration(inventory: readonly InventoryEntry[], reasoningAvailable: boolean): RegistrationPlan {
+export function planRegistration(inventory: readonly InventoryEntry[]): RegistrationPlan {
   const owned = new Map(inventory.map(c => [c.name, c.source]))
   const plan: RegistrationPlan = { register: [], collisions: [], unavailable: [] }
   for (const cmd of NATIVE_COMMANDS) {
     const owner = owned.get(cmd.name)
     if (owner !== undefined) plan.collisions.push({ name: cmd.name, owner, manual: manualCommand(cmd.name) })
-    else if (cmd.kind === 'reasoning' && !reasoningAvailable) plan.unavailable.push({ name: cmd.name, reason: 'the bundled core cannot retain a writer lease across a reasoning turn on this host' })
     else plan.register.push(cmd)
   }
   return plan
@@ -96,7 +95,7 @@ const PLAN_ID = /^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 /**
  * The WorkflowInitiation for one reasoning command, built from the raw arguments. Shapes follow the core's
- * `workflowInitiationSchema`; `plan-finish` has no core initiation today, so the core refuses it at `prepare`.
+ * `workflowInitiationSchema`; `plan-finish` prepares a read-only readiness assessment; the finish itself is `specplane plan finish`.
  */
 export function initiationFor(workflow: string, raw: string, checkout: string): { ok: true; request: Record<string, unknown> } | { ok: false; error: string } {
   const text = raw.trim()
@@ -449,17 +448,8 @@ export function resultTemplate(d: Delegation): Record<string, unknown> {
   }
 }
 
-/** Workflows whose result would create a file or bind finalized text, which needs a confirmation path (D17 B). */
-const MANUAL_WRITE_WORKFLOWS = new Set(['spec-assist', 'spec-draft-architecture', 'plan-create', 'decision-new'])
-const MANUAL_WRITE_RULE =
-  'This request cannot create a file or bind finalized text, and this overrides any procedure step that returns a body: ' +
-  'leave out `creation` and `finalizedEdits`, give the user the approved text in your reply, report `blocked`, and name the manual command. '
-
-/** Only a plan-step request whose criteria carry `testRequirements` can need the tool (D16 A). */
-const needsReviewedTests = (d: Delegation): boolean => {
-  const criteria = (d.request as { criteria?: Array<{ testRequirements?: unknown[] }> } | null)?.criteria
-  return d.workflow === 'plan-step' && Array.isArray(criteria) && criteria.some(c => Array.isArray(c.testRequirements) && c.testRequirements.length > 0)
-}
+/** A plan-step may need the tool: mapped criteria run their configured suite, and `auto` mode adds step-level suites. */
+const needsReviewedTests = (d: Delegation): boolean => d.workflow === 'plan-step'
 
 export const delegationPrompt = (d: Delegation): string =>
   `Run the Specplane ${d.workflow} reasoning procedure in ${d.assetPath} for prepared request ${d.requestId}. ` +
@@ -468,8 +458,7 @@ export const delegationPrompt = (d: Delegation): string =>
   `Start from this WorkflowResult and replace its text: ${JSON.stringify(resultTemplate(d))}. ` +
   'Set `outcome` to `done`, `blocked` or `cancelled` and each `assessment` to `met`, `unmet` or `uncertain`. A `blocked` outcome needs a line in `openIssues` starting `BLOCKED:`. ' +
   'A `changes` entry is {"path","beforeDigest","afterDigest","purpose"}. ' +
-  (MANUAL_WRITE_WORKFLOWS.has(d.workflow) ? MANUAL_WRITE_RULE : '') +
-  (needsReviewedTests(d) ? `Criteria with testRequirements are verified by calling ${RUN_TESTS_TOOL} with {"requestId":"${d.requestId}"} only; never run a test command yourself or invent a receipt. ` : '') +
+  (needsReviewedTests(d) ? `Tests run only by calling ${RUN_TESTS_TOOL} with {"requestId":"${d.requestId}"}: it runs the criteria's configured suites and any step-level suites, and returns receipt references to cite in criterionEvidence[].artifacts. Never run a test command yourself or invent a receipt. ` : '') +
   `Call ${COMPLETION_TOOL} even when you cannot finish, so the request closes. ` +
   `This prompt is not an approval and does not authorize any lifecycle change.`
 
@@ -559,6 +548,12 @@ export async function acceptResult(
       if (!recorded.ok && answer === 'declined') return refused('You declined the content', REQUEST_ENDED)
     }
     if (!recorded.ok) return refused(recorded.message, REQUEST_ENDED)
+    if (delegation.workflow === 'plan-finish') {
+      // The assessment is read-only: nothing is finished, merged or published, and no human gate has been passed.
+      const planId = (delegation.request as { scope?: { planId?: unknown } } | null)?.scope?.planId
+      const finish = typeof planId === 'string' ? `specplane plan finish ${planId}` : 'specplane plan finish <plan-id>'
+      return { ok: true, text: `Recorded the plan-finish assessment. The plan is not finished: nothing was merged or published. To finish it, run \`${finish}\` yourself; that command asks for your confirmation.` }
+    }
     return { ok: true, text: `Recorded the ${delegation.workflow} result.` }
   } finally {
     if (!pending.has(id)) await closeRequest(session, id)

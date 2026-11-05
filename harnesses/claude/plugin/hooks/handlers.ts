@@ -189,20 +189,6 @@ export function registerNative(on: Parameters<Register>[0]): void {
 }
 
 
-/** Opt-in marker in the plugin root. Absent, unreadable or a failed check all leave the native reasoning path off. */
-export const NATIVE_REASONING_MARKER = 'native-reasoning'
-
-/** The mod has no filesystem access, so a node child checks the marker. */
-async function nativeReasoningEnabled($: EngineInterface): Promise<boolean> {
-  try {
-    const marker = `${$.plugin.root}/${NATIVE_REASONING_MARKER}`
-    const r = await $.process.run(['node', '-e', 'process.exit(require("fs").existsSync(process.argv[1])?0:1)', marker], { timeoutMs: 5_000 })
-    return r.exitCode === 0
-  } catch {
-    return false
-  }
-}
-
 /** Registers what the inventory leaves free, reporting collisions; each registration fails alone. */
 export async function startNative($: EngineInterface, cwd: string): Promise<void> {
   // Set first, so the gate and the reasoning path see the session even if the inventory is unavailable.
@@ -216,10 +202,9 @@ export async function startNative($: EngineInterface, cwd: string): Promise<void
     $.ui.log('specplane: command inventory unavailable; native handlers stay off (use the specplane CLI)', { to: 'debug' })
     return
   }
-  // Reasoning commands and the completion tool stay unregistered until the live check (run 3, D13). Their handlers
-  // are bound above and covered offline; the marker file is the only switch that makes them visible to the host.
-  const reasoning = await nativeReasoningEnabled($)
-  const plan = planRegistration(inventory.map(c => ({ name: c.name, source: c.source })), reasoning)
+  // Reasoning commands and the completion and run-tests tools register whenever the inventory is available
+  // (architecture/claude-integration § Deterministic command dispatch); the collision rule leaves a pre-existing name alone.
+  const plan = planRegistration(inventory.map(c => ({ name: c.name, source: c.source })))
   for (const c of plan.collisions) {
     $.ui.log(`specplane: /${c.name} is owned by ${c.owner}; handler unavailable. Manual: ${c.manual}`, { to: 'debug' })
   }
@@ -232,7 +217,7 @@ export async function startNative($: EngineInterface, cwd: string): Promise<void
       $.ui.log(`specplane: registering /${cmd.name} failed; the others are unaffected`, { to: 'debug' })
     }
   }
-  if (reasoning) {
+  {
     try {
       await $.tool.register({
         name: COMPLETION_TOOL,
@@ -246,7 +231,7 @@ export async function startNative($: EngineInterface, cwd: string): Promise<void
     try {
       await $.tool.register({
         name: RUN_TESTS_TOOL,
-        description: 'Run the reviewed test suites a prepared Specplane request requires. Takes only the requestId; the command is fixed by Specplane.',
+        description: 'Run the configured test suites a prepared Specplane request requires. Takes only the requestId; the commands come from the verification settings of the repository.',
         inputSchema: { type: 'object', properties: { requestId: { type: 'string' } }, required: ['requestId'], additionalProperties: false },
         isDeferred: false,
       })

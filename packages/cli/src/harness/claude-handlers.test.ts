@@ -114,14 +114,14 @@ test('docs handler returns the real core topic bytes unchanged with core and doc
   assert.equal((await m.runCommand(docs, '--json', ctx)).exitCode, 2);
 });
 
-test('the registration plan keeps built-in and foreign names, reports them, and leaves reasoning off without a bound core', opts, async () => {
+test('the registration plan keeps built-in and foreign names, reports them, and registers reasoning commands', opts, async () => {
   const m = await load();
-  const plan = m.planRegistration([{ name: 'approve', source: 'builtin' }, { name: 'validate', source: 'user' }], false);
+  const plan = m.planRegistration([{ name: 'approve', source: 'builtin' }, { name: 'validate', source: 'user' }]);
   assert.deepEqual(plan.collisions.map((c: { name: string }) => c.name), ['validate', 'approve']);
   assert.ok(plan.collisions.every((c: { manual: string }) => c.manual.includes('specplane')));
   assert.ok(!plan.register.some((c: { name: string }) => ['approve', 'validate'].includes(c.name)));
-  assert.equal(plan.unavailable.length, 6);
-  assert.equal(m.planRegistration([], true).unavailable.length, 0);
+  assert.equal(plan.unavailable.length, 0);
+  assert.ok(plan.register.some((c: { kind: string }) => c.kind === 'reasoning'));
 });
 
 test('the model cannot call the Specplane workflow server; other tools pass the tool.check gate', opts, async () => {
@@ -253,6 +253,18 @@ test('cancellation after prepare closes the request and delegates nothing', opts
   assert.equal((await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx)).exitCode, 130);
   assert.equal(queue.length, 0);
   assert.deepEqual(fake.calls.at(-1), { tool: 'close', args: { requestId: 'r1', nonce: NONCE } });
+});
+
+test('a recorded plan-finish assessment tells the user the plan is not finished and names the command that finishes it', opts, async () => {
+  const m = await load();
+  const fake = fakeServer({ ...PREPARE_OK, validate: () => ({ ok: true, value: PROPOSAL, message: '' }), record: () => ({ ok: true, value: {}, message: '' }) });
+  const { ctx } = context({ session: session(fake.server) });
+  const delegation = { workflow: 'plan-finish', requestId: 'r1', assetPath: 'SKILL.md', request: { scope: { planId: '2026-11-01-plan' } } };
+  const out = await m.acceptResult(new Map([['r1', delegation]]), { requestId: 'r1', result: RESULT }, { session: ctx.session });
+  assert.equal(out.ok, true);
+  assert.match(out.text, /not finished/);
+  assert.match(out.text, /`specplane plan finish 2026-11-01-plan`/);
+  assert.deepEqual(fake.calls.slice(-3).map(c => c.tool), ['validate', 'record', 'close']);
 });
 
 test('a matching result is validated, recorded, and its lease closed last', opts, async () => {
@@ -428,13 +440,6 @@ test('the prompt carries a schema-valid result for the request, so the model nee
   const prompt = m.delegationPrompt(delegation);
   assert.ok(prompt.includes(JSON.stringify(template)));
   assert.match(prompt, /even when you cannot finish/);
-});
-
-test('only workflows that would write a body are told to report blocked instead (D24, D17 B)', opts, async () => {
-  const m = await load();
-  const prompt = (workflow: string) => m.delegationPrompt({ workflow, requestId: 'r1', assetPath: 'SKILL.md', request: {} });
-  for (const workflow of ['spec-assist', 'spec-draft-architecture', 'plan-create', 'decision-new']) assert.match(prompt(workflow), /leave out `creation` and `finalizedEdits`/);
-  for (const workflow of ['plan-step', 'plan-finish']) assert.doesNotMatch(prompt(workflow), /finalizedEdits/);
 });
 
 test('every reasoning procedure reads the request from the prompt and always reports (D24)', opts, async () => {
@@ -635,13 +640,21 @@ test('specplane_run_tests sends only requestId to the server and drops anything 
   assert.equal(fake.calls.filter(c => c.tool === 'executeTest').length, 1, 'an unknown request id is refused without a server call');
 });
 
-test('the prompt names specplane_run_tests only for a plan-step whose criteria carry testRequirements (D16 A)', opts, async () => {
+test('the prompt names specplane_run_tests for a plan-step only, with the requestId as its only input', opts, async () => {
   const m = await load();
   const prompt = (workflow: string, criteria: unknown[]) => m.delegationPrompt({ workflow, requestId: 'r1', assetPath: 'SKILL.md', request: { criteria } });
   const withTests = [{ id: 'c1', testRequirements: [{ suiteId: 's', format: 'tap' }] }];
-  assert.match(prompt('plan-step', withTests), /calling specplane_run_tests with \{"requestId":"r1"\} only/);
-  assert.doesNotMatch(prompt('plan-step', [{ id: 'c1' }]), /specplane_run_tests/);
+  assert.match(prompt('plan-step', withTests), /calling specplane_run_tests with \{"requestId":"r1"\}/);
+  assert.match(prompt('plan-step', [{ id: 'c1' }]), /specplane_run_tests/, 'step-level suites apply even when no criterion is mapped');
   assert.doesNotMatch(prompt('spec-assist', withTests), /specplane_run_tests/);
+});
+
+test('the writing workflows are no longer told they cannot create files or bind finalized text', opts, async () => {
+  const m = await load();
+  for (const workflow of ['spec-assist', 'spec-draft-architecture', 'plan-create', 'decision-new']) {
+    const text = m.delegationPrompt({ workflow, requestId: 'r1', assetPath: 'SKILL.md', request: { criteria: [] } });
+    assert.doesNotMatch(text, /cannot create a file|leave out `creation`/, workflow);
+  }
 });
 
 test('completion, validate, plan-status and plan-start delegate to exactly the core CLI operations and refuse bad arguments before the core is touched', opts, async () => {
@@ -661,30 +674,25 @@ test('completion, validate, plan-status and plan-start delegate to exactly the c
   assert.equal(model.calls.length, 0, 'a state-changing command from a model origin never reaches the core');
 });
 
-test('the native reasoning path stays off unless the marker check passes, and a legacy skill keeps its name when it is on', opts, async () => {
+test('reasoning commands and both tools register whenever the inventory is available, and a pre-existing public skill keeps its name', opts, async () => {
   const h = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
-  const start = async (run: (argv: string[]) => Promise<{ exitCode: number }>, inventory: Array<{ name: string; source: string }> = []) => {
-    const commands: string[] = [], tools: string[] = [], checked: string[][] = [];
+  const start = async (inventory: () => Promise<Array<{ name: string; source: string }>>) => {
+    const commands: string[] = [], tools: string[] = [];
     await h.startNative({
       plugin: { root: '/plugin' },
-      process: { run: (argv: string[]) => { checked.push(argv); return run(argv); } },
-      command: { list: async () => inventory, register: async (c: { name: string }) => { commands.push(c.name); } },
+      command: { list: inventory, register: async (c: { name: string }) => { commands.push(c.name); } },
       tool: { register: async (t: { name: string }) => { tools.push(t.name); } },
       ui: { log: () => undefined },
     }, '/repo');
-    return { commands, tools, checked };
+    return { commands, tools };
   };
-  const present = async () => ({ exitCode: 0 });
-  for (const off of [async () => ({ exitCode: 1 }), async () => { throw new Error('no process'); }]) {
-    const r = await start(off);
-    assert.ok(!r.commands.includes('plan-step'));
-    assert.deepEqual(r.tools, []);
-  }
-  const on = await start(present);
-  assert.equal(on.checked[0].at(-1), `/plugin/${h.NATIVE_REASONING_MARKER}`);
+  const on = await start(async () => []);
   assert.ok(on.commands.includes('plan-step'));
   assert.equal(on.tools.length, 2);
-  const skill = await start(present, [{ name: 'plan-step', source: 'projectSettings' }]);
-  assert.ok(!skill.commands.includes('plan-step'), 'a legacy skill keeps /plan-step; native commands never shadow it');
+  assert.ok(on.tools.includes('specplane_run_tests') && on.tools.includes('specplane_result'));
+  const skill = await start(async () => [{ name: 'plan-step', source: 'projectSettings' }]);
+  assert.ok(!skill.commands.includes('plan-step'), 'a pre-existing public skill keeps /plan-step; native commands never shadow it');
   assert.ok(skill.commands.includes('plan-create'));
+  const none = await start(async () => { throw new Error('no inventory'); });
+  assert.deepEqual(none, { commands: [], tools: [] }, 'without the inventory nothing registers');
 });

@@ -38,7 +38,7 @@ export const EXPORT_SUITES: Record<string, string> = {
   carryContributions: 'core/contributions', deduplicateContributions: 'core/contributions', validateContribution: 'harness/conformance',
   captureContribution: 'core/contribution-capture', captureProposedContribution: 'core/proposed-contributions', readContributions: 'core/contribution-capture',
   coreInfo: 'core/index', executeOperation: 'core/completion-writer', inspectRepository: 'harness/conformance', executeWorkflowTest: 'core/workflow-execution',
-  prepareWorkflow: 'core/workflow-preparation', recordWorkflow: 'core/workflow-recording', validateWorkflowResult: 'core/workflow-recording',
+  prepareWorkflow: 'core/workflow-preparation', preparedVerification: 'core/workflow-verification', recordWorkflow: 'core/workflow-recording', validateWorkflowResult: 'core/workflow-recording',
   prepareConfirmation: 'core/confirmed-operations', confirmOperation: 'core/confirmed-operations', confirmOperationAsync: 'plan/finish-trusted',
   cancelWorkflow: 'core/workflow-lifecycle', inspectWorkflow: 'core/workflow-lifecycle', runConductor: 'plan/neutral-startup',
   inspectCommittedContributions: 'core/contribution-history', recoverWorkflowRecording: 'core/recording-recovery', reconcileWorkflowRecording: 'core/pending-recovery',

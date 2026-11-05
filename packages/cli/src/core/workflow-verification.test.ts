@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fixture, repo, stepFile, id } from './workflow-test-fixture.js';
 import { prepareWorkflow, executeWorkflowTest, validateWorkflowResult, recordWorkflow } from './index.js';
-import { releaseStoppedPreparation, sha256 } from './workflow-preparation.js';
+import { releaseStoppedPreparation, sha256, preparedVerification } from './workflow-preparation.js';
 import { computeTier, globMatch, recordVerificationCheck } from './verification.js';
 import { workflowStateDigest } from './workflow-execution.js';
 import { DEFAULT_CONFIG } from '../config.js';
@@ -93,6 +93,15 @@ test('tier: risk beats text, spec roots are risky, text needs every path, standa
   assert.equal(computeTier(['specs/features/a.md'], { ...settings, risk_paths: [] }, []), 'text');
   assert.equal(computeTier(['./AGENTS.md'], settings, roots), 'risk');
   assert.equal(computeTier([], settings, roots), 'text');
+});
+
+test('preparedVerification returns the suites bound to the prepared request and nothing for an unknown request', async () => {
+  const f = await setup({ config: SUITES });
+  try {
+    const bound = preparedVerification(f.prepared.requestId);
+    assert.deepEqual(bound?.suites.unit, { command: ['node', '--test'], format: 'node-tap-v13' });
+    assert.equal(preparedVerification('no-such-request'), undefined);
+  } finally { f.close(); }
 });
 
 test('an unmapped criterion can be met with file evidence and is labelled self-assessed', async () => {
