@@ -217,7 +217,7 @@ export interface ReasoningSession {
   binding: { bound: boolean }
 }
 
-/** A prepared reasoning request whose model part is queued for the turn to complete. */
+/** A prepared reasoning request whose model part is queued until the command's hook has returned. */
 export interface Delegation { workflow: string; requestId: string; assetPath: string; request: unknown }
 export interface RunContext {
   origin: { kind: string }
@@ -226,7 +226,7 @@ export interface RunContext {
   human: HumanPort
   /** Reasoning commands only. Absent means the server is not wired and reasoning refuses before preparing. */
   session?: ReasoningSession
-  /** Delegations are submitted from `turn.complete`; the host refuses `$.prompt.submit` inside `command.run`. */
+  /** Delegations are submitted after the hook returns; the host refuses `$.prompt.submit` inside `command.run`. */
   queue: Delegation[]
 }
 export interface CommandOutput { text: string; exitCode?: number }
@@ -391,7 +391,7 @@ async function runReasoning(cmd: NativeCommand, raw: string, ctx: RunContext): P
       : refuse('The prepared request could not be read; it was closed and nothing was delegated.', 1)
   }
   ctx.queue.push({ workflow: cmd.workflow, requestId, assetPath: reasoningAsset(cmd.workflow), request })
-  return ok(`Prepared ${cmd.workflow} request ${requestId}; the reasoning procedure starts when this turn completes.`)
+  return ok(`Prepared ${cmd.workflow} request ${requestId}; the reasoning procedure starts next.`)
 }
 
 /** Text of the extension-origin prompt (submitted without `asUser`, so it carries no human authority). */

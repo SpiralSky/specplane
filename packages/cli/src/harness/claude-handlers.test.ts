@@ -374,6 +374,34 @@ test('the tool.check nonce gate admits a server call only with the bound nonce; 
   assert.equal(h.refusesServerCall({ tool: 'Bash', input: { command: 'ls' } }, NONCE), false);
 });
 
+test('a queued delegation is submitted from a timer after the hook, once, and a failed timer leaves it queued', opts, async () => {
+  const h = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
+  const submitted: string[] = [];
+  const timers: (() => void)[] = [];
+  const $ = {
+    clock: { after: (_ms: number, fn: () => void) => { timers.push(fn); } },
+    prompt: { submit: async ({ text }: { text: string }) => { submitted.push(text); return { text }; } },
+    ui: { log: () => undefined },
+  };
+  const d = { workflow: 'spec-assist', requestId: 'r1', assetPath: 'a', request: { requestId: 'r1' } };
+  const from = [d], into = new Map();
+  h.scheduleDelegations($, from, into);
+  assert.equal(submitted.length, 0); // nothing inside the hook: the host refuses a submit there
+  assert.equal(timers.length, 1);
+  timers[0]!();
+  assert.equal(submitted.length, 1);
+  assert.equal(from.length, 0);
+  assert.equal(into.get('r1'), d);
+  h.drainDelegations($, from, into); // the turn.complete backstop finds nothing left
+  assert.equal(submitted.length, 1);
+  h.scheduleDelegations($, from, into);
+  assert.equal(timers.length, 1); // an empty queue sets no timer
+
+  const kept = [d];
+  h.scheduleDelegations({ ...$, clock: { after: () => { throw new Error('refused'); } } }, kept, new Map());
+  assert.equal(kept.length, 1); // still queued for turn.complete
+});
+
 test('the registered gate allows only the mod\'s own server call, denies the rest, and a throwing gate denies too', opts, async () => {
   const h = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
   const hooks: Record<string, { handler: any; catcher?: any }> = {};

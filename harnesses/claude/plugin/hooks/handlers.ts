@@ -113,6 +113,9 @@ function sessionFor($: EngineInterface): ReasoningSession | undefined {
   return { checkout: session.checkout, nonce: session.nonce, server: pluginServer($), binding: session.binding }
 }
 
+/** How long after a command's hook returns its delegation is submitted; the hook must have let go of its turn. */
+export const DELEGATION_DELAY_MS = 100
+
 /**
  * Extension origin: no asUser, so the prompt never carries human authority. If the submit fails, nothing will
  * complete the request, so its lease is closed here. A submitted request that never gets a result is closed by the
@@ -138,15 +141,10 @@ export function registerNative(on: Parameters<Register>[0]): void {
     return isOwnCall(next.origin) ? { decision: 'allow' } : { decision: 'deny', reason: SERVER_REFUSAL }
   }).catch((_$, e, next) => (isSpecplaneServerTool(e) ? { decision: 'deny', reason: SERVER_REFUSAL } : next(e)))
 
-  // Queue, then submit once the turn that ran the command has ended.
+  // Backstop for scheduleDelegations: a command that did run inside a model turn is drained when that turn ends.
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    if (!e.agentId) {
-      for (const d of queue.splice(0)) {
-        pending.set(d.requestId, d)
-        void submitDelegation($, d)
-      }
-    }
+    if (!e.agentId) drainDelegations($, queue, pending)
     return result
   }).catch((_$, e, next) => next(e))
 
@@ -208,14 +206,38 @@ export async function startNative($: EngineInterface, cwd: string): Promise<void
   }
 }
 
+/** Moves queued delegations to pending and submits them. Draining empties the queue, so each is submitted once. */
+export function drainDelegations($: EngineInterface, from: Delegation[], into: Map<string, Delegation>): void {
+  for (const d of from.splice(0)) {
+    into.set(d.requestId, d)
+    void submitDelegation($, d)
+  }
+}
+
+/**
+ * Submits queued delegations from a timer. A `command.run` hook cannot submit, since that would wait on the turn the
+ * hook holds, and a command answered without a model turn raises no `turn.complete` (D21). The timer is a later event;
+ * the host then runs the prompt once the session is idle. If the timer cannot be set, `turn.complete` drains the queue.
+ */
+export function scheduleDelegations($: EngineInterface, from: Delegation[], into: Map<string, Delegation>): void {
+  if (from.length === 0) return
+  try {
+    $.clock.after(DELEGATION_DELAY_MS, () => drainDelegations($, from, into))
+  } catch {
+    $.ui.log('specplane: could not schedule the reasoning procedure; it starts after your next prompt', { to: 'transcript' })
+  }
+}
+
 function bindCommand(
   on: Parameters<Register>[0],
   cmd: NativeCommand,
 ): void {
   on('command.run', { command: cmd.name }, async ($, e, next) => {
     if (!registered.has(cmd.name)) return next(e) // not ours: the host or another plugin owns the name
-    return runCommand(cmd, e.args, {
+    const out = await runCommand(cmd, e.args, {
       origin: e.origin, signal: next.signal, core: bundledCore($), human: hostHuman($), queue, session: sessionFor($),
     })
+    scheduleDelegations($, queue, pending)
+    return out
   }).catch(() => ({ text: `/${cmd.name} failed; nothing changed`, exitCode: 1 }))
 }
