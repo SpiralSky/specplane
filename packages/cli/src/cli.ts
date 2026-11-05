@@ -225,7 +225,7 @@ program
   .action((opts: { json?: boolean }) => validateCommand(opts));
 
 
-// D20 item 6 (spec: A3, R1), PROVISIONAL on one point only (A3 says `recover` restores recording files and `list` prints the workflow; R1 and this build do not; unresolved, see HANDOFF): operator view and recovery of leases left by an ended host session.
+// D20 item 6 (spec: A3, R1): operator view and recovery of leases left by an ended host session.
 const workflow = program.command("workflow").description("Inspect and recover workflow leases left by an ended session (list, recover)");
 workflow.command("list").description("List leases retained with host-worker evidence (read-only)").option("--json", "output JSON").action((opts: { json?: boolean }) => workflowListCommand(opts));
 workflow

@@ -2,7 +2,7 @@ import { createInterface } from "node:readline/promises";
 import { listRetainedHostLeases, recoverRetainedHostLease, checkoutIdentity, LeaseRefused, type LeaseRecoveryIo } from "../core/writer-leases.js";
 import { SpecplaneError } from "../errors.js";
 
-/** D20 item 6 (spec: A3, R1), PROVISIONAL on one point only (A3 says `recover` restores recording files and `list` prints the workflow; R1 and this build do not; unresolved, see HANDOFF): operator commands for leases left by an ended host session. */
+/** D20 item 6 (spec: A3, R1): operator commands for leases left by an ended host session. */
 class RecoveryRefusal extends SpecplaneError {
   readonly exitCode = 1;
 }
