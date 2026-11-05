@@ -741,6 +741,32 @@ test('the writing workflows are no longer told they cannot create files or bind 
   }
 });
 
+test('each writing workflow is told the exact creation or finalizedEdits shape, and that the user confirms it', opts, async () => {
+  const m = await load();
+  const validate = lazyValidator(workflowResultSchema);
+  const base = { protocol: 1, requestId: 'r1', baseDigest: 'a'.repeat(64), outcome: 'done', summary: 's', changes: [], criterionEvidence: [], gaps: [], contextExpansion: [], contributionEvents: [], openIssues: '', nextKnows: '' };
+  const shapes: Record<string, { fragments: string[]; samples: Record<string, unknown>[] }> = {
+    'spec-assist': { fragments: ['"operation":"spec.new"', '"type":"feature"', '"finalizedEdits":[{"spec"'], samples: [
+      { creation: { operation: 'spec.new', arguments: { type: 'feature', slug: 'a', title: 'A' }, body: '# A\n' } },
+      { finalizedEdits: [{ spec: 'base:feature/a', body: '# A\n' }] }] },
+    'spec-draft-architecture': { fragments: ['"operation":"spec.new"', '"type":"architecture"', '"implements"'], samples: [
+      { creation: { operation: 'spec.new', arguments: { type: 'architecture', slug: 'a', title: 'A', implements: ['base:feature/a'] }, body: '# A\n' } }] },
+    'plan-create': { fragments: ['"operation":"plan.new"', '"steps":[{"title"', '{"decision":"decision/NNNN"}'], samples: [
+      { creation: { operation: 'plan.new', arguments: { id: '2026-11-04-a', title: 'A', specs: ['base:feature/a'] }, body: '# A\n', steps: [{ title: 'S', context: [{ spec: 'base:feature/a' }], body: '## Goal\n' }] } }] },
+    'decision-new': { fragments: ['"operation":"decision.new"', 'status proposed'], samples: [
+      { creation: { operation: 'decision.new', arguments: { title: 'T' }, body: '# T\n' } }] },
+  };
+  for (const [workflow, { fragments, samples }] of Object.entries(shapes)) {
+    const text = m.delegationPrompt({ workflow, requestId: 'r1', assetPath: 'SKILL.md', request: { criteria: [] } });
+    for (const fragment of fragments) assert.ok(text.includes(fragment), `${workflow}: ${fragment}`);
+    assert.match(text, /dialog and confirms or declines/, workflow);
+    assert.match(text, /does not approve anything/, workflow);
+    for (const sample of samples) assert.equal(validate({ ...base, ...sample }), true, workflow);
+  }
+  assert.match(m.delegationPrompt({ workflow: 'plan-step', requestId: 'r1', assetPath: 'S', request: { criteria: [] } }), /beforeDigest is the string "missing"/);
+  assert.doesNotMatch(m.delegationPrompt({ workflow: 'plan-step', requestId: 'r1', assetPath: 'S', request: { criteria: [] } }), /dialog and confirms/);
+});
+
 test('completion, validate, plan-status and plan-start delegate to exactly the core CLI operations and refuse bad arguments before the core is touched', opts, async () => {
   const m = await load();
   const cmd = (name: string) => m.NATIVE_COMMANDS.find((c: { name: string }) => c.name === name);

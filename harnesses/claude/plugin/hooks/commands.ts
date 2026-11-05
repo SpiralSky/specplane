@@ -552,6 +552,41 @@ export function resultTemplate(d: Delegation): Record<string, unknown> {
 /** A plan-step may need the tool: mapped criteria run their configured suite, and `auto` mode adds step-level suites. */
 const needsReviewedTests = (d: Delegation): boolean => d.workflow === 'plan-step'
 
+/**
+ * How a writing workflow hands its finalised text to the core. The shapes are `workflowCreationSchema` and `finalizedEdits`
+ * in packages/cli/src/core/schemas.ts. Plain quotes only: this file is not compiled by the CLI build, and a backtick inside
+ * a template literal would end it.
+ */
+export function writingInstructions(workflow: string): string {
+  const common =
+    'This workflow saves text through the core: put it in the result, never write the file yourself. ' +
+    'The user sees the exact content in a dialog and confirms or declines it; nothing is written before that, and saving does not approve anything. ' +
+    'Include only text the user has finalised or whose content they asked for; if they have not, set outcome blocked with a BLOCKED: open issue and ask them. ' +
+    'A new file has no earlier content, so a changes entry for it is not used: the creation or finalizedEdits field carries the text, and changes stays []. ' +
+    'To end the request done, set every assessment to met and cite as artifacts the file being created or finalised: {"path":"<the file the core will write>","digest":"<64-hex SHA-256>","kind":"file"}, where digest is the SHA-256 of the exact body string you put in the result (UTF-8, no frontmatter). The core refuses any other digest and any other file that does not exist. When in doubt use blocked. '
+  switch (workflow) {
+    case 'spec-assist':
+      return common +
+        'For a new feature spec add to the result: "creation":{"operation":"spec.new","arguments":{"type":"feature","slug":"<kebab-slug>","title":"<title>"},"body":"<markdown body>"}. ' +
+        'For an existing spec named in selection.specIds add: "finalizedEdits":[{"spec":"<root>:feature/<name>","body":"<the complete new markdown body, without frontmatter>"}]. ' +
+        'Use one or the other, never both. Under llm_role assist write only what the user finalised; under review you may not write a body at all.'
+    case 'spec-draft-architecture':
+      return common +
+        'For a new architecture spec add to the result: "creation":{"operation":"spec.new","arguments":{"type":"architecture","slug":"<kebab-slug>","title":"<title>","implements":["<root>:feature/<name>"]},"body":"<markdown body>"}, where implements lists the feature specs from selection.specIds as exact root-qualified ids. ' +
+        'For an existing architecture spec add "finalizedEdits":[{"spec":"<root>:architecture/<name>","body":"<complete new markdown body>"}] instead.'
+    case 'plan-create':
+      return common +
+        'Add to the result: "creation":{"operation":"plan.new","arguments":{"id":"YYYY-MM-DD-<slug>","title":"<title>","specs":["<root>:feature/<name>"]},"body":"<plan markdown body>","steps":[{"title":"<step title>","context":[{"spec":"<root>:feature/<name>"}],"body":"<step markdown body with acceptance criteria>"}]}. ' +
+        'Each context entry is exactly one of {"spec":"<id>"}, {"file":"<repo path>"} or {"decision":"decision/NNNN"}; specs and spec context entries must be root-qualified ids from the request scope. The plan is created as a draft; you never make it ready.'
+    case 'decision-new':
+      return common +
+        'Add to the result: "creation":{"operation":"decision.new","arguments":{"title":"<title>"},"body":"<markdown body>"}. ' +
+        'The body is only the decision the user described, in their terms. The record is created with status proposed; you never accept it.'
+    default:
+      return ''
+  }
+}
+
 export const delegationPrompt = (d: Delegation): string =>
   `Run the Specplane ${d.workflow} reasoning procedure in ${d.assetPath} for prepared request ${d.requestId}. ` +
   `The prepared request is ${JSON.stringify(d.request)}. ` +
@@ -559,10 +594,11 @@ export const delegationPrompt = (d: Delegation): string =>
   `Start from this WorkflowResult and replace its text: ${JSON.stringify(resultTemplate(d))}. ` +
   'Keep `summary` under 40 characters: it becomes the commit subject. '+
   'Set `outcome` to `done`, `blocked` or `cancelled` and each `assessment` to `met`, `unmet` or `uncertain`. A `blocked` outcome needs a line in `openIssues` starting `BLOCKED:`. ' +
-  'A `changes` entry is {"path","beforeDigest","afterDigest","purpose"}. ' +
+  'A `changes` entry is {"path","beforeDigest","afterDigest","purpose"}; in a plan-step, for a file that does not exist yet, beforeDigest is the string "missing" (not a hash, not empty). ' +
   'A `met` criterion with empty `testRequirements` needs at least one file in `artifacts`: {"path","digest","kind":"file"}, where `digest` is the 64-character hex SHA-256 of the file, from `sha256sum <path>`. ' +
   (needsReviewedTests(d) ? `Tests run only by calling ${RUN_TESTS_TOOL} with {"requestId":"${d.requestId}"}: it runs the criteria's configured suites and any step-level suites. The core finds step-level receipts itself; cite a receipt in artifacts only for a criterion whose testRequirements are not empty. Never run a test command yourself or invent a receipt. ` : '') +
   (needsReviewedTests(d) ? `Before you finish, decide whether the step needs a separate check: a change in a risky path, or in the verification settings, does. Ask for it by calling ${REQUEST_REVIEW_TOOL} with {"requestId":"${d.requestId}"}, then call it again to read the verdict; or put verificationRequest {"kind":"human-check"|"lower-minimum","reason":"<why>"} in the result so the user decides. Your own statement never meets a check. ` : '') +
+  (writingInstructions(d.workflow) ? writingInstructions(d.workflow) + ' ' : '') +
   `Call ${COMPLETION_TOOL} even when you cannot finish, so the request closes. ` +
   `This prompt is not an approval and does not authorize any lifecycle change.`
 
