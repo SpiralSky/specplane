@@ -32,13 +32,12 @@ protocol fields, approvals, branch reconciliation), do not invent an answer. Rec
 HANDOFF under "Open decisions" with an ID (D1, D2, …; keep existing IDs), 2–3 options, and your recommendation.
 Then continue with the remaining criteria. If what's left is blocked only by decisions, stop.
 
-## Testing (Bun only)
+## Testing (through `scripts/test.sh`)
 
 Build with `npm run build` in `packages/cli`. Run the focused tests with
-`bun test --parallel=20 --timeout=30000 ./dist/<files>`, and the full suite once at the end with
-`timeout 120 bun test --parallel=20 --timeout=30000 ./dist`. Prefix every bun test command with
-`env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` (with those set, Bun's output breaks `harness/codex.test`). Never use Node test runs or `--concurrent`.
-Report stalls/timeouts exactly; don't skip them. Filter output (`| tail -n 30`) to save context.
+`sh scripts/test.sh ./dist/<files>`, and the full suite once at the end with `npm test`, which runs Bun and reruns under Node only if Bun stalls.
+Never call `bun test` directly: the script clears `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` (with those set, Bun's output breaks `harness/codex.test`) and removes the per-run `TMPDIR`, while direct runs leak fixtures into `/tmp`. Never use `--concurrent`.
+Report stalls/timeouts and which runner produced the result exactly; don't skip them. Filter output (`| tail -n 30`) to save context.
 
 ## Token economy
 
@@ -66,5 +65,5 @@ Updated <UTC>. Branch/HEAD. Read AGENTS.md and .specplane/config.yaml first.
 ## Steps                    (table of 17: plan / step / impl-complete | partial | blocked | not started / note)
 ## Next session             (exact next step and the first concrete task)
 ## How to continue (orchestration) and ## Final reconciliation  (keep these verbatim unless facts changed)
-## Rules that matter        (Bun-only testing commands; authority limits; no Node; preserve problems.md)
+## Rules that matter        (testing through scripts/test.sh; authority limits; preserve problems.md)
 ```

@@ -26,14 +26,16 @@ The plan skills are user-invoked only, so route natural-language requests to the
 
 ## Test runtime
 
-- Use Bun for all future test runs, including focused tests and full suites. Do not
-  run tests under Node or use mixed-runtime test runners.
+- Run every test through `scripts/test.sh` from `packages/cli`, never `bun test`
+  directly: it confines temp repositories to a per-run `TMPDIR` removed on exit, and
+  direct runs leak them into `/tmp`, which can be RAM-backed.
 - Build with `npm run build` in `packages/cli`, then run focused compiled tests with
-  `bun test --parallel=20 --timeout=30000 ./dist/<selected-files>`.
-- For the full suite, run `bun test --parallel=20 --timeout=30000 ./dist` from
-  `packages/cli` after building. Keep process isolation between files; do not use
+  `sh scripts/test.sh ./dist/<selected-files>`.
+- For the full suite, run `npm test` from `packages/cli`. It runs Bun and reruns under
+  Node only when Bun stalls. Keep process isolation between files; do not use
   `--concurrent` within files.
 - Follow focused-first testing. Report Bun failures, stalls, and runtime-sensitive
-  incompatibilities explicitly; do not silently skip tests or substitute Node.
+  incompatibilities explicitly, and say which runner produced a result; do not silently
+  skip tests.
 - This test-runner preference does not change the supported production runtime,
   package engines, dependencies, lockfiles, or committed package test command.

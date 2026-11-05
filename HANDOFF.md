@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-04T15:50Z. Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05T02:50Z. Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -11,7 +11,8 @@ Updated 2026-11-04T15:50Z. Branch `overnight/specplane-20261102T144630Z`; HEAD i
 - D20 items 3, 4, 5 fixed offline: `44072f9` (compact MCP replies, `detail` pages, validate by requestId, close by binding, oversize guard), `ea58453` (`.gitignore` entry for the host-written tsconfig). Max MCP reply measured in the realistic fixture test: under 16 KB (asserted per reply).
 - Offline checks after these commits: focused suites 84 pass, 0 fail, 7 files (`claude-mcp` 11, `claude-handlers` 24, `harness` 12, `claude-package`, `conformance`, `containment.transaction`, `coexistence`). `claude plugin validate` passed with warnings; `claude plugin test` 27 pass. `hooks.test.sh` 94 pass. `check-sync` OK. `specplane validate` 0 errors, 98 warnings, 80 files. Full suite (`timeout 240 sh scripts/test.sh`): stalled, killed by the timeout with no summary; not rerun.
 - Known test issues: Bun 1.3.14 intermittently stalls at the end of a full parallel run (about half of runs on 2026-11-05). Diagnosis (2026-11-05): a worker's main thread spins inside the Bun binary (`pthread_rwlock` hot, unreaped `git` zombie child); no Specplane busy-wait found; root cause not named (needs a symbolized Bun). Mitigation: `scripts/test.sh` runs Bun under a 180 s watchdog and, on a stall, reruns the whole suite under `node --test` (`SPECPLANE_TEST_RUNNER=auto|bun|node`). Verified: 3 auto runs = 2 Bun passes (1023/0) + 1 stall that fell back to Node (999 pass, 0 fail, 24 skipped); a forced fallback also passed. Bun 1.4.4 did not stall in 4 runs but fails 3 tests in `non-plan-workflow.test` because the child `bun --test-reporter=tap` command fails there; upgrading needs that fixed first.
-- Not run: native macOS and Windows; Node tests (policy: Bun only).
+- Not run: native macOS and Windows.
+- `/tmp` is a RAM-backed tmpfs here. Test leftovers reached 4.4 GB before `ba7087e`; they were removed on 2026-11-05. Keep `specplane-private-rewrite-20261103` there. Not yet removed: `specplane-adapter-*` (4.6 MB) and `specplane-install-*` (44 MB; mostly from tests such as `codex.test`, but the same path holds real installer state for non-git roots).
 
 ## Open decisions
 - D11: plugin ships an MCP server (option E). Open for the user: under `allowManagedHooksOnly` a user-tier plugin loads no hooks. Options: ship as managed, or accept the risk. Blocks nothing offline.
@@ -54,7 +55,6 @@ Updated 2026-11-04T15:50Z. Branch `overnight/specplane-20261102T144630Z`; HEAD i
 Spec-draft edit must also list the new surface: the `detail` tool, `validate` by requestId, `close` without requestId, and the installer's `.gitignore` entry.
 Draft the combined Claude architecture-spec edit for the user's approval. It covers D17 option A (confirmation dialog plus protocol field), D16 option A (host-fixed test command), and the stale text listed below. Do not edit the spec body without that approval. Then continue `extension-conformance` 01 Claude rows.
 Stale spec text to list (not verified line by line): `harnesses/claude/specifications/architecture/claude-integration.md` describes the reasoning and lease path as in-process; it is now the plugin MCP server (D11). Its plugin layout (about line 68) and hooks section (about line 445) may be stale, and it does not mention the `.claude/specplane` root, `types/` or D18. `harnesses/claude/specifications/features/claude-integration.md` lines 54-58 are the reasoning rows.
-Before any further live invocation, get the user's decision on D18 (option A is recommended). Do not spend another live invocation without it.
 
 ## How to continue (orchestration)
 The user runs steps through a coordinator session that chains **Sonnet 5.5 subagents sequentially, one step per subagent**. Each subagent acts as a complete session.
@@ -69,7 +69,7 @@ The user runs steps through a coordinator session that chains **Sonnet 5.5 subag
 - Optional: ask GitHub Support to purge unreferenced old commits that contain local paths (for example `3a5b997`). Delete `../specplane-backup-prerewrite-20261104.git` once the user is satisfied.
 
 ## Rules that matter
-- Bun only: `npm run build` in `packages/cli`, then `bun test --parallel=20 --timeout=30000 ./dist/<files>`. Full suite `sh scripts/test.sh` from `packages/cli` after `npm run build`: it runs Bun with the `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` prefix and a per-run `TMPDIR` removed on exit. Never `--concurrent`; no Node runs.
+- Focused tests: `npm run build` in `packages/cli`, then `sh scripts/test.sh ./dist/<files>`. Never call `bun test` directly: the script supplies the `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` prefix and a per-run `TMPDIR` removed on exit, and direct runs leak fixtures into RAM-backed `/tmp`. Never `--concurrent`.
 - Full suite: run `cd packages/cli && npm test` (Bun with automatic Node fallback); report which runner produced the result. A run that fell back to Node is a valid full-suite result.
 - Never approve, push, rewrite history, or edit plan `status:`, step checkboxes or managed progress. Do not invent ADR kinds or contract text.
 - Stage specific paths only; never `problems.md` or `AGENTS.override.md`. Preserve private backups and receipts.
