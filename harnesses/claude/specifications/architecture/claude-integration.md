@@ -516,7 +516,7 @@ The checkout is `SPECPLANE_CHECKOUT` when set, else the working directory, and m
 
 **Session end.** On disconnect the server cancels pending work and releases every lease it can prove released. A worker that is not proven stopped keeps its lease and the server exits non-zero. That state needs `### Recovering a lease left by an ended session`.
 
-**Plugin hooks and managed settings (D11).** Under `allowManagedHooksOnly` a user-tier plugin loads no hooks, so the mod would not run. The accepted position is that the plugin ships at user tier and that this limitation is documented rather than worked around. TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review). Alternative: ship as a managed plugin.
+**Plugin hooks and managed settings (D11).** Under `allowManagedHooksOnly` a user-tier plugin loads no hooks, so the mod would not run. The accepted position is that the plugin ships at user tier and that this limitation is documented rather than worked around. The alternative, shipping as a managed plugin, was not chosen.
 
 ### Reviewed test suites
 
@@ -526,7 +526,7 @@ The model starts a run through the mod-registered tool `specplane_run_tests`, wh
 
 Until this path is delivered and live-checked, the server cancels a prepared `plan-step` whose criteria carry `testRequirements`, releases its lease, and says to run the step through the managed plan-step flow.
 
-TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): the bundled suite table and the `specplane_run_tests` tool. Alternatives: a new config key naming each suite's command (needs a base configuration spec change), or reuse `plans.test_command` (a shell string, so it cannot name one suite).
+Alternatives considered to the bundled suite table and the `specplane_run_tests` tool: a new config key naming each suite's command (needs a base configuration spec change), or reuse `plans.test_command` (a shell string, so it cannot name one suite).
 
 ### Confirming finalised content
 
@@ -538,7 +538,7 @@ A result that carries `finalizedEdits` or `creation` needs the user's confirmati
 - **Trust.** The response is trusted as direct-human only because it arrives through the nonce-bound, origin-checked mod call (`## Deterministic command dispatch`, origin gate). Removing the nonce later needs a server protocol change, so the nonce stays.
 - **After confirmation** the interim rule in `## Deterministic command dispatch` is removed, and the four writing workflows may return `creation` and `finalizedEdits`. Lifecycle approval remains a separate operation: this confirmation never approves a spec.
 
-TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): the field name `confirmation` and the two-call flow. Alternative: keep one parked `record` call and add a `confirm` tool that carries the response.
+Alternative considered to the field `confirmation` and the two-call flow: keep one parked `record` call and add a `confirm` tool that carries the response.
 
 ### Recovering a lease left by an ended session
 
@@ -551,12 +551,12 @@ specplane workflow list [--json]
 specplane workflow recover <request-id> [--dry-run] [--json]
 ```
 
-- `workflow list` is read-only. For each lease retained with host-worker evidence in this repository it prints the request id, workflow, checkout, owner process id and whether that process is alive, the lease age, and the recovery state. It never mutates.
-- `workflow recover` refuses unless the owner process is dead and the retained records match the lease set recorded for that request. It then prints what it will do and asks the user, on the terminal, to type the request id to confirm that the Claude session that held the request has ended. With no terminal it refuses with `CONFIRMATION_REQUIRED`; there is no `--yes`. On confirmation it adopts the lease through the core's host-recovery path, restores any recognised core-generated recording files from the durable record if recording had begun, and releases the lease. It never deletes lease records by hand, and it leaves the model's working-tree edits untouched and says to inspect `git status`.
+- `workflow list` is read-only. For each lease retained with host-worker evidence in this repository it prints the request id, owner process id and whether that process is alive, the lease age, the checkouts, and the recovery state. It never mutates.
+- `workflow recover` refuses unless the owner process is dead, the retained records match the lease set recorded for that request, and no recording evidence is bound to it. It then prints what it will do and asks the user, on the terminal, to type the request id to confirm that the Claude session that held the request has ended. With no terminal it refuses with `CONFIRMATION_REQUIRED`; there is no `--yes`. On confirmation it adopts the lease through the core's host-recovery path and releases it. A request whose recording had begun is refused and stays with the recording-recovery path. It never deletes lease records by hand, and it leaves the model's working-tree edits untouched and says to inspect `git status`.
 - A later `prepare` that meets such a lease reports the request id and this command in its refusal.
 - `--dry-run` runs every check and prints the plan without confirming or changing anything.
 
-TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): the command names and the typed-id attestation as stopped-worker proof. Alternatives: (B) reclaim automatically at the next `prepare` when the owner process is dead (rejected: no proof the worker stopped), (C) document manual deletion of the lease files (rejected: bypasses the core's checks). The CLI half belongs in `architecture/reference-cli`, which needs a matching approved edit.
+Alternatives considered to the command names and the typed-id attestation as stopped-worker proof: reclaim automatically at the next `prepare` when the owner process is dead (rejected: no proof the worker stopped), or document manual deletion of the lease files (rejected: bypasses the core's checks). The CLI contract is in `architecture/reference-cli`.
 
 ## Claude session adapter (extension-owned)
 
