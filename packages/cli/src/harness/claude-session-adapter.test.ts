@@ -45,6 +45,7 @@ const mk = async (f: ReturnType<typeof fake>, extra: Record<string, unknown> = {
   return m.createClaudeSessionAdapter({ process: f.port, store: f.store, newId: () => '11111111-1111-4111-8111-111111111111', version: '2.1.317', ...extra });
 };
 const tick = () => new Promise(r => setTimeout(r, 0));
+const INIT = JSON.stringify({ type: 'system', subtype: 'init', plugins: [{ name: 'cc-plugin-telemetry' }, { name: 'specplane' }] });
 
 test('route B launch: argv, checkout, mapping persisted before spawn, no --bare or permission bypass', opts, async () => {
   const f = fake();
@@ -56,10 +57,9 @@ test('route B launch: argv, checkout, mapping persisted before spawn, no --bare 
   assert.deepEqual(f.saved[0], { orchestrationId: 'o1', nativeSessionId: '11111111-1111-4111-8111-111111111111' });
   const { argv, cwd } = f.spawned[0];
   assert.equal(cwd, '/work/plan-p');
-  assert.deepEqual(argv.slice(0, 9), ['claude', '-p', '--session-id', '11111111-1111-4111-8111-111111111111', '--max-budget-usd', '2.5', '--output-format', 'stream-json', '--verbose']);
-  assert.equal(argv.length, 10);
-  assert.match(argv[9], /plan-step procedure.*\/work\/plan-p\/\.specplane\/req\.json$/);
-  for (const bad of ['--bare', '--dangerously-skip-permissions', '--permission-mode', '--allow-dangerously-skip-permissions']) assert.ok(!argv.includes(bad));
+  assert.deepEqual(argv.slice(0, 6), ['claude', '-p', '--session-id', '11111111-1111-4111-8111-111111111111', '--max-budget-usd', '2.5']);
+  assert.match(argv.at(-1)!, /plan-step procedure.*\/work\/plan-p\/\.specplane\/req\.json$/);
+  for (const bad of ['--bare', '--dangerously-skip-permissions', '--allow-dangerously-skip-permissions']) assert.ok(!argv.includes(bad));
   assert.equal(s.pid, 4001);
 });
 
@@ -116,12 +116,60 @@ test('route B launch: after a restart a stored mapping refuses unless its pid is
   }
 });
 
+test('route B permissions: dontAsk with the allowlist on launch and resume; the variadic lists never swallow the prompt; the policy leaves out push and interpreters', opts, async () => {
+  const m = await load();
+  for (const mode of ['launch', 'resume'] as const) {
+    const argv: string[] = m.buildArgv(mode, 'sid', req());
+    assert.equal(argv[argv.indexOf('--permission-mode') + 1], 'dontAsk');
+    assert.equal(argv[argv.indexOf('--permission-prompts') + 1], 'none');
+    assert.equal(argv[argv.indexOf('--allowedTools') + 1], m.ALLOWED_TOOLS.join(','));
+    assert.equal(argv[argv.indexOf('--disallowedTools') + 1], m.DISALLOWED_TOOLS.join(','));
+    assert.match(argv[argv.indexOf('--disallowedTools') + 2], /^--/);
+    assert.equal(argv.at(-2), '--verbose');
+  }
+  const allowed: string[] = m.ALLOWED_TOOLS;
+  for (const need of ['Skill', 'Edit(./**)', 'Bash(git commit *)', 'Bash(specplane plan step-done *)', 'Bash(SPECPLANE_AGENT=* specplane plan step-done *)']) assert.ok(allowed.includes(need), need);
+  for (const rule of allowed) {
+    assert.ok(!rule.includes(','), rule);
+    assert.doesNotMatch(rule, /^(Bash|Edit|Write|Read)$|Bash\((\*|git push|rm|curl|wget|sudo|node|python \*|python3 \*|sh|bash|npx|specplane plan approve)/, rule);
+  }
+  for (const rule of ['Bash(git push *)', 'Bash(git reset --hard *)', 'Bash(git clean *)', 'Bash(rm *)', 'Bash(curl *)', 'WebFetch']) assert.ok(m.DISALLOWED_TOOLS.includes(rule), rule);
+});
+
+test('route B plugin guard: init without the plugin stops the process and is failed; a malformed list counts as missing', opts, async () => {
+  for (const init of [{ plugins: [{ name: 'cc-plugin-telemetry' }] }, { plugins: [] }, {}, { plugins: 'specplane' }, { plugins: [null] }]) {
+    const f = fake();
+    const a = await mk(f);
+    const s = await a.launch(req());
+    f.spawned[0].emit(JSON.stringify({ type: 'system', subtype: 'init', ...init }));
+    assert.deepEqual(f.spawned[0].kills, ['SIGTERM'], JSON.stringify(init));
+    assert.equal((await a.observe(s)).state, 'failed', JSON.stringify(init));
+    f.spawned[0].emit(JSON.stringify({ type: 'result', subtype: 'success', is_error: false }));
+    f.spawned[0].exit(0); await tick();
+    assert.equal((await a.observe(s)).state, 'failed', `${JSON.stringify(init)} never becomes completed`);
+  }
+});
+
+test('route B plugin guard: a success with no init event is unknown, never completed; a listed plugin is not stopped', opts, async () => {
+  const f = fake();
+  const a = await mk(f);
+  const s = await a.launch(req());
+  f.spawned[0].emit(JSON.stringify({ type: 'result', subtype: 'success', is_error: false }));
+  f.spawned[0].exit(0); await tick();
+  assert.equal((await a.observe(s)).state, 'unknown');
+  const g = fake();
+  const b = await mk(g);
+  await b.launch(req());
+  g.spawned[0].emit(INIT);
+  assert.deepEqual(g.spawned[0].kills, []);
+});
+
 test('route B observe: result success with exit 0 is completed; the state is running until the process exits', opts, async () => {
   const f = fake();
   const a = await mk(f);
   const s = await a.launch(req());
   assert.equal((await a.observe(s)).state, 'running');
-  f.spawned[0].emit(JSON.stringify({ type: 'system', subtype: 'init' }));
+  f.spawned[0].emit(INIT);
   f.spawned[0].emit(JSON.stringify({ type: 'result', subtype: 'success', is_error: false }));
   assert.equal((await a.observe(s)).state, 'running');
   f.spawned[0].exit(0); await tick();
