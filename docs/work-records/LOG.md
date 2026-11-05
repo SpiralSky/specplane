@@ -391,3 +391,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 
 - `8e7c106`: `harnesses/claude/plugin/hooks/session-adapter.ts` per applied A13, with `harness/claude-session-adapter.test` (12, fake process port, no real `claude`); not wired into `handlers.ts`; `probe` all false without `ProbeEvidence`.
 - Checks: `npm test` 1089 pass, 0 fail, 107 files (Bun, no fallback); `hooks.test.sh` 94; `check-sync` OK; `specplane validate` 0 errors, 100 warnings.
+
+## 2026-11-05 S4 live D25 probe
+- 4 of 5 G2 launches in throwaway fixtures (haiku, `--tools Read`, no bypass): launch, observe, resume, cancel passed; budget stop not seen (run stayed under 0.01). Evidence `harnesses/claude/host-evidence/2.1.317/d25-route-b-probe.txt`.
+- D24, claude-delivery 03 criteria 1 and 3, conformance row 4 and `done` not run: need reasoning commands registered. D19 skills kept. No ProbeEvidence supplied.
