@@ -22,6 +22,10 @@ The extension prepared the request in code (resolution, policy, context, locks) 
 1. Work only on the step named in the request, in the checkout it names, loading the named context items.
 2. Implement the step. Identify spec gaps, contradictions and any scope expansion; report them, do not resolve contradictions by guessing (unattended runs stop and report).
 3. Assess each acceptance criterion with evidence (tests, checks) and return structured acceptance, gap, expansion and contribution evidence in the `WorkflowResult`.
+   - A criterion with no test mapping is assessed by citing files in its evidence, and is recorded as self-assessed.
+   - Run tests only by calling `specplane_run_tests` with `{"requestId": "<id>"}` after the edits are final. It runs the suites the repository configures for this step and returns receipt references; cite them in `criterionEvidence[].artifacts`. Never run a test command yourself or write a receipt: a receipt the core did not produce is not evidence.
+   - Run every configured suite the step's tier requires. If the tier needs a separate check, request it after the edits are final.
+   - Never lower a minimum yourself. Ask the user, or end the step `blocked` when unattended.
 4. Do not change step status, append to HANDOFF.md, commit or push: the core records the outcome, HANDOFF and the single step commit, and publishes when required.
 
 ## Never

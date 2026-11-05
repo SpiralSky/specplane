@@ -21,7 +21,7 @@ The extension prepared the request in code (resolution, policy, context, locks) 
 
 1. Use the request's check results (step status, required test runs, exposed gaps) as given; do not re-derive them.
 2. Assess every acceptance criterion against the actual repository and the recorded evidence, and explain it; say plainly what is unmet.
-3. Return the assessment in the `WorkflowResult`. The core collects each separate human gate (typed, fresh challenges), revalidates after any rebase and performs the authorized finish; none of that is yours.
+3. Return the assessment in the `WorkflowResult` and report it. Your result only records the assessment; it finishes nothing. Tell the user the plan is not finished yet and that they finish it themselves with `specplane plan finish <plan-id>`, where the core collects each separate human gate (typed, fresh challenges), revalidates after any rebase and performs the authorized finish; none of that is yours.
 
 ## Never
 
