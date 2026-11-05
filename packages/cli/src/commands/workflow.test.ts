@@ -118,3 +118,11 @@ test("confirmed recovery releases only the lease and keeps receipts, evidence an
     const next = acquireWriterLease({ checkouts: [f.root], requestId: "after" }); next.release();
   } finally { f.cleanup(); }
 });
+
+test("a later acquire meeting the retained lease names the request id and the recover command", () => {
+  const f = fixture(); try {
+    f.setPid(DEAD);
+    assert.throws(() => acquireWriterLease({ checkouts: [f.root], requestId: "req-2" }),
+      /explicit recovery is required\. Request req-1: run `specplane workflow list`, then `specplane workflow recover req-1`\./);
+  } finally { f.cleanup(); }
+});

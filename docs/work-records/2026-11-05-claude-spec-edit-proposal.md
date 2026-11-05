@@ -422,6 +422,33 @@ Current: no text. Suggested new paragraph at the end of `## Sessions in worktree
 If a session ends while a workflow request is still open, the repository stays protected against other writers until the user releases it with an explicit command; nothing releases it silently, and the command first checks that the previous session's work has stopped.
 ````
 
+## Reference-cli spec edit (not applied; needs the user's approval)
+
+The CLI half of the recovery command (A3 covers the Claude half). Target file: `docs/specifications/architecture/reference-cli.md`. The spec is `approved`, so this is a proposal only. It matches the provisional build, including its divergences from A3 (no recording-file restore, no workflow name in `list`).
+
+### R1. Writer coordination: recovering a lease retained by an ended host session
+
+Section: `### Writer coordination` (L762-768), after the last paragraph (L768).
+
+Current L768 (unchanged, shown for position):
+
+````markdown
+Store all leases under the existing private runtime directory with owner generation, request identity, and delegated-worker evidence. Apply the same fail-closed recovery and cancellation rules to checkout and repository leases as to plan leases; a dead parent alone does not release a live worker's checkout. Delegation transfers use of the entire required lease set to one worker, not independent concurrent write permission. Recheck ownership, HEAD/index, input and output digests, policies, and any confirmation while holding the complete set immediately before mutation. Locks coordinate cooperating operations; direct editor/Git changes still invalidate snapshots and require reconciliation. Two non-plan writers, a non-plan writer racing a plan recorder, worktree aliases, installation racing a writer, and cross-checkout finish are required contention/recovery cases.
+````
+
+Proposed new text after L768:
+
+````markdown
+**Recovering a retained host lease.** A lease retained with host-worker evidence is never reclaimed by a later writer, even when its owner process is dead; the refusal names the request id and the commands below when the retained marker identifies it. Two operator commands handle it; neither is a workflow and neither uses a model:
+
+- `workflow list [--json]` is read-only. For each retained marker in this repository it reports the request id, owner process id and whether that process is alive, the age, the checkouts, and a state: `recoverable`, `owner-alive`, `recording-begun` or `unidentifiable`. A marker it cannot read or match to its lease records is reported, never skipped.
+- `workflow recover <request-id> [--dry-run] [--json]` refuses unless the marker and every lease record it names agree on the request, generation and owner, no worker is delegated, the owner process is dead, and no recording evidence is bound to the request. It then asks on the terminal for the request id to be typed, as the user's attestation that the host session has ended; with no terminal it refuses with `CONFIRMATION_REQUIRED`, and no flag bypasses the prompt. On confirmation it adopts the lease through the core's host-recovery path and releases it. It deletes no receipts or evidence and leaves working-tree edits untouched. `--dry-run` runs the checks and prints the plan without asking or changing anything. A request whose recording had begun is refused and stays with the recording-recovery path.
+
+Refusals exit with code 1. Tests cover a live owner, a missing terminal, a wrong or unknown id, an unidentifiable lease, begun recording, dry-run, confirmed release that keeps receipts and edits, and a later writer's refusal naming the request id.
+````
+
+Build note (PROVISIONAL, built offline on 2026-11-05): `commands/workflow.ts`, `listRetainedHostLeases` and `recoverRetainedHostLease` in `core/writer-leases.ts`, tests in `commands/workflow.test` (9). The later-writer refusal text (A3 bullet 3) is now built: the core's two `RECOVERY_REQUIRED` refusals for host-worker evidence append the request id and both commands when the marker is readable.
+
 ## What a build session does after approval
 
 1. Apply A1 to A12 to the architecture spec in one commit (`docs(claude-integration): ...`), then F1 to F4 only as the user approved them. Re-pin per `specplane spec pin`; do not set any status.
@@ -445,5 +472,5 @@ Build note, recovery command (PROVISIONAL, built offline on 2026-11-05 before ap
 - The core already has a lease-only path: the host marker carries the binding (`retainHostWorker`), so `recoverHostLease(binding, () => {})` followed by `releaseStoppedHost()` needs no durable recording record. New code: `listRetainedHostLeases` and `recoverRetainedHostLease` in `core/writer-leases.ts`, `commands/workflow.ts`, wiring in `cli.ts`. Tests: `commands/workflow.test` (8; live owner, no terminal and no `--yes` through the real binary, wrong and unknown id, unidentifiable lease, recording begun, dry-run, confirmed release keeps receipts and edits), all in temp repositories.
 - Divergence from A3: when the marker has a bound evidence digest (recording had begun), the command refuses and does not restore recording files; A3 says it restores recognised core-generated recording files. That half is not built because `recording-recovery.ts` needs the durable record and a stop port. Decide whether A3 keeps the claim or narrows it to lease-only recovery.
 - `workflow list` cannot show the workflow name (the marker holds no workflow); it shows request id, owner pid and liveness, age, checkouts and state. A3 says it prints the workflow; narrow A3 or add the field to the marker.
-- Not built: the `prepare` refusal naming the request id and command (A3 bullet 3).
-- Reference-cli spec edit still needed (not drafted here): add `workflow list` and `workflow recover <request-id> [--dry-run] [--json]` to the command table, `CONFIRMATION_REQUIRED` as a refusal, and exit code 1 for refusals. `specplane docs` and the docs tests needed no change.
+- The `prepare` refusal naming the request id and command (A3 bullet 3) was built afterwards, in the core's lease refusal (see the reference-cli section below).
+- Reference-cli spec edit: drafted above as R1 (the earlier note listed what it needed): add `workflow list` and `workflow recover <request-id> [--dry-run] [--json]` to the command table, `CONFIRMATION_REQUIRED` as a refusal, and exit code 1 for refusals. `specplane docs` and the docs tests needed no change.

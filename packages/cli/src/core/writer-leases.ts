@@ -94,7 +94,7 @@ export function inspectWriterLease(request: LeaseRequest): void {
     const prior = readRecord(file, key);
     if (prior.worker !== null || exists(delegationMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has delegated worker evidence; explicit recovery is required.`, 'RECOVERY_REQUIRED');
     if (!dead(prior.pid)) throw new LeaseRefused(`${key.kind} lease is held by a live or inaccessible owner.`, 'LOCKED');
-    if (exists(hostMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has host worker evidence; explicit recovery is required.`, 'RECOVERY_REQUIRED');
+    if (exists(hostMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has host worker evidence; explicit recovery is required.${recoveryHint(dir, prior.generation)}`, 'RECOVERY_REQUIRED');
   }
   if (exists(path.join(dir, 'writer.guard'))) throw new LeaseRefused('Writer guard exists; contention or recovery requires inspection.', 'LOCKED');
 }
@@ -125,7 +125,7 @@ export function acquireWriterLease(request: LeaseRequest): WriterLease {
           const prior = readRecord(file, key);
           if (prior.worker !== null || exists(delegationMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has delegated worker evidence; explicit recovery is required.`, 'RECOVERY_REQUIRED');
           if (!dead(prior.pid)) throw new LeaseRefused(`${key.kind} lease is held by a live or inaccessible owner.`, 'LOCKED');
-          if (exists(hostMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has host worker evidence; explicit recovery is required.`, 'RECOVERY_REQUIRED');
+          if (exists(hostMarker(dir, prior.generation))) throw new LeaseRefused(`${key.kind} lease has host worker evidence; explicit recovery is required.${recoveryHint(dir, prior.generation)}`, 'RECOVERY_REQUIRED');
           fs.unlinkSync(file); reclaimed = true;
         }
         const record: RecordData = { version: 1, kind: key.kind, identity: key.identity, pid: process.pid, generation, requestId, token, worker: null };
@@ -244,6 +244,13 @@ function leaseHandle(commonDir: string, keys: Key[], requestId: string, generati
   }), release: () => release(), releaseStoppedHost: () => release(true) };
 }
 
+/** Names the request and the operator command when the retained marker identifies it (never throws). */
+function recoveryHint(dir: string, generation: string): string {
+  try {
+    const { requestId } = readHostBinding(dir, generation);
+    return requestId ? ` Request ${requestId}: run \`specplane workflow list\`, then \`specplane workflow recover ${requestId}\`.` : '';
+  } catch { return ''; }
+}
 /** Empty legacy host markers still block reclamation, but cannot establish recovery identity. */
 function readHostBinding(dir: string, generation: string): HostLeaseBinding { return readLeaseBinding(hostMarker(dir, generation)); }
 function readLeaseBinding(file: string): HostLeaseBinding {

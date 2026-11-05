@@ -635,3 +635,12 @@ test('specplane_run_tests sends only requestId to the server and drops anything 
   assert.equal(unknown.ok, false);
   assert.equal(fake.calls.filter(c => c.tool === 'executeTest').length, 1, 'an unknown request id is refused without a server call');
 });
+
+test('the prompt names specplane_run_tests only for a plan-step whose criteria carry testRequirements (D16 A)', opts, async () => {
+  const m = await load();
+  const prompt = (workflow: string, criteria: unknown[]) => m.delegationPrompt({ workflow, requestId: 'r1', assetPath: 'SKILL.md', request: { criteria } });
+  const withTests = [{ id: 'c1', testRequirements: [{ suiteId: 's', format: 'tap' }] }];
+  assert.match(prompt('plan-step', withTests), /calling specplane_run_tests with \{"requestId":"r1"\} only/);
+  assert.doesNotMatch(prompt('plan-step', [{ id: 'c1' }]), /specplane_run_tests/);
+  assert.doesNotMatch(prompt('spec-assist', withTests), /specplane_run_tests/);
+});

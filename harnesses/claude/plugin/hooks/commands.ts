@@ -455,6 +455,12 @@ const MANUAL_WRITE_RULE =
   'This request cannot create a file or bind finalized text, and this overrides any procedure step that returns a body: ' +
   'leave out `creation` and `finalizedEdits`, give the user the approved text in your reply, report `blocked`, and name the manual command. '
 
+/** Only a plan-step request whose criteria carry `testRequirements` can need the tool (D16 A). */
+const needsReviewedTests = (d: Delegation): boolean => {
+  const criteria = (d.request as { criteria?: Array<{ testRequirements?: unknown[] }> } | null)?.criteria
+  return d.workflow === 'plan-step' && Array.isArray(criteria) && criteria.some(c => Array.isArray(c.testRequirements) && c.testRequirements.length > 0)
+}
+
 export const delegationPrompt = (d: Delegation): string =>
   `Run the Specplane ${d.workflow} reasoning procedure in ${d.assetPath} for prepared request ${d.requestId}. ` +
   `The prepared request is ${JSON.stringify(d.request)}. ` +
@@ -463,6 +469,7 @@ export const delegationPrompt = (d: Delegation): string =>
   'Set `outcome` to `done`, `blocked` or `cancelled` and each `assessment` to `met`, `unmet` or `uncertain`. A `blocked` outcome needs a line in `openIssues` starting `BLOCKED:`. ' +
   'A `changes` entry is {"path","beforeDigest","afterDigest","purpose"}. ' +
   (MANUAL_WRITE_WORKFLOWS.has(d.workflow) ? MANUAL_WRITE_RULE : '') +
+  (needsReviewedTests(d) ? `Criteria with testRequirements are verified by calling ${RUN_TESTS_TOOL} with {"requestId":"${d.requestId}"} only; never run a test command yourself or invent a receipt. ` : '') +
   `Call ${COMPLETION_TOOL} even when you cannot finish, so the request closes. ` +
   `This prompt is not an approval and does not authorize any lifecycle change.`
 
