@@ -120,3 +120,33 @@ test('the packaged reference documents manual fallback, recording manifest, unkn
   assert.match(text, /nativeCommands: false/);
   assert.doesNotMatch(text, /packages\/cli|harnesses\//);
 });
+
+test('the delivered procedure contract carries the plan-step requirements: fetch and fast-forward, spec-gaps fields, acceptance assessment, publishing', () => {
+  const root = makeRepo({});
+  runInit(root, { harness: 'codex' });
+  const dir = path.join(root, SKILL_DIR);
+  const manifest = manifestOf(root) as ExtensionManifest & { procedures?: { workflow: string; contracts: { id: string; anchor: string; path: string }[] }[] };
+  const contract = manifest.procedures?.find(p => p.workflow === 'plan-step')?.contracts[0];
+  assert.deepEqual([contract?.id, contract?.anchor, contract?.path], ['base:architecture/agent-skills', 'plan-step', 'docs/sources/agent-skills.md']);
+  assert.match(fs.readFileSync(path.join(dir, 'references/shared-procedure.md'), 'utf8'), /Procedure contracts for `plan-step`/);
+  const source = fs.readFileSync(path.join(dir, contract?.path ?? ''), 'utf8');
+  const start = source.indexOf('\n## `plan-step`\n');
+  assert.ok(start >= 0, 'plan-step section is delivered');
+  const end = source.indexOf('\n## `plan-finish`', start);
+  const section = source.slice(start, end > start ? end : undefined);
+  const stepText = (n: number) => section.split('\n').find(l => l.startsWith(`${n}. `)) ?? '';
+  const first = stepText(1);
+  assert.match(first, /origin\/plan\/<id>/);
+  assert.match(first, /fetch it first/);
+  assert.match(first, /fast-forward when it is ahead/);
+  const gaps = stepText(5);
+  assert.match(gaps, /<plans\.dir>\/<plan-id>\/spec-gaps\.md/);
+  assert.match(gaps, /## G<n>: <case>/);
+  assert.match(gaps, /the six fields and statuses of `architecture\/file-formats` §4\.2/);
+  assert.match(gaps, /\*\*Status\*\*: open/);
+  assert.match(gaps, /never reuse a number/);
+  assert.match(stepText(6), /^6\. Check the acceptance criteria\./);
+  assert.match(stepText(7), /`done`, or `blocked`/);
+  assert.match(stepText(10), /push `plan\/<id>`/);
+  assert.match(stepText(10), /`execution\.backend` is `external`/);
+});
