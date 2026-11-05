@@ -42,6 +42,18 @@ test('creation observes absent preimage then confirms, validates and commits exa
  }finally{f.close();}
 });
 
+test('a result the schema refuses names the failing field and not its value (D24)',async()=>{
+ const f=await setup('spec-assist',false);try{
+  const wrongType=await validateWorkflowResult(f.request,{...f.result,openIssues:1} as never,f.context);
+  assert.equal(wrongType.ok,false);if(!wrongType.ok){assert.equal(wrongType.error.code,'INVALID_EVIDENCE');assert.match(wrongType.error.message,/^Invalid workflow result: \/openIssues must be string/);}
+  const extra=await validateWorkflowResult(f.request,{...f.result,notes:'private text'} as never,f.context);
+  assert.equal(extra.ok,false);if(!extra.ok){assert.match(extra.error.message,/additional properties \("notes"\)/);assert.doesNotMatch(extra.error.message,/private text/);}
+  const {nextKnows:_,...missing}=f.result;
+  const absent=await validateWorkflowResult(f.request,missing as never,f.context);
+  assert.equal(absent.ok,false);if(!absent.ok)assert.match(absent.error.message,/nextKnows/);
+ }finally{f.close();}
+});
+
 test('declined creation leaves no files, commit or scaffolds',async()=>{
  const f=await setup('spec-assist',false);try{const proposal=await validateWorkflowResult(f.request,f.result,f.context);assert.ok(proposal.ok,JSON.stringify(proposal));if(!proposal.ok)return;const recorded=await recordWorkflow(proposal.value,f.context);assert.equal(recorded.ok,false);assert.equal(f.git('rev-parse','HEAD'),f.request.base.head);for(const file of f.preview.files)assert.equal(fs.existsSync(path.join(f.cwd,file.path)),false);}finally{f.close();}
 });

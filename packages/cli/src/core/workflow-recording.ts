@@ -74,6 +74,12 @@ function exact(state:Prepared,result:WorkflowResult):RecordingSet{
  validateRecordingSet(manifest,cwd,r.scope.planId!,generated,result.changes.map(c=>`${c.path}:${c.purpose}`),result.outcome);
  return manifest;
 }
+/** The first schema error as a field and a rule, so a caller can correct it. Values are left out. */
+function schemaProblem(errors:typeof resultSchema.errors):string{
+ const first=errors?.[0];if(!first)return 'the result does not match the schema';
+ const extra=typeof first.params.additionalProperty==='string'?` ("${first.params.additionalProperty}")`:'';
+ return `${first.instancePath||'result'} ${first.message??'is invalid'}${extra}`;
+}
 async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):Promise<{manifest:RecordingSet;summary:string;evidenceDigest:string;generated:WorkflowGenerated;creation?:PreparedCreation;requiresConfirmation:boolean}>{
  const r=state.request;
  if(result.requestId!==r.requestId||result.baseDigest!==r.base.digest)fail('STALE_STATE','Result does not match prepared identity/base');
@@ -131,7 +137,8 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):
  return {manifest,summary:summary.join('\n'),evidenceDigest:sha256(canonical({digests,events})),generated,creation:nonPlan?.creation,requiresConfirmation:nonPlan?.requiresConfirmation??false};
 }
 export async function validateWorkflowResult(prepared:WorkflowRequest,result:WorkflowResult,context:CoreContext):Promise<Result<RecordingProposal>>{
- if(!requestSchema(prepared)||!resultSchema(result))return error(new Refusal('INVALID_EVIDENCE','Invalid workflow request/result'));
+ if(!requestSchema(prepared))return error(new Refusal('INVALID_EVIDENCE','Invalid workflow request'));
+ if(!resultSchema(result))return error(new Refusal('INVALID_EVIDENCE',`Invalid workflow result: ${schemaProblem(resultSchema.errors)}`));
  prepared=structuredClone(prepared);result=structuredClone(result);context={...context};
  try{return await withPreparedActivity(prepared.requestId,'validation',async()=>{
   const existing=validated.get(prepared.requestId);
