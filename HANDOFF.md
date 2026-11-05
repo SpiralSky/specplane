@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-05 (S7). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05 (coordinator, after the authorized run S1 to S7; G1 to G3 are its grants, see LOG). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -18,8 +18,8 @@ Updated 2026-11-05 (S7). Branch `overnight/specplane-20261102T144630Z`; HEAD is 
 
 ## Needs the user
 Every TEMPORARY (coordinator choice while you were offline) and PROVISIONAL (built, unapproved) item. Each is its own commit and easy to revert.
-1. D11 TEMPORARY: accepted the risk that under `allowManagedHooksOnly` a user-tier plugin loads no hooks. Alternative: ship as managed.
-2. D19 TEMPORARY: option B, keep the six legacy skills until the live path passes, then remove. Alternative: A, remove now. Blocks use of the reasoning commands in a normal install.
+1. D11 confirmed by the user (2026-11-05): accepted the risk that under `allowManagedHooksOnly` a user-tier plugin loads no hooks. Alternative: ship as managed.
+2. D19 confirmed by the user (2026-11-05), still open in effect: no live `done` passed, so the skills stay. Option B, keep the six legacy skills until the live path passes, then remove. Alternative: A, remove now. Blocks use of the reasoning commands in a normal install.
 3. D24 TEMPORARY: the unprompted-report run was not done in S4: reasoning commands are not registered (`reasoning` false), so no native run can reach it without flipping a gate. Needs your approval plus that gate decision.
 4. D25 TEMPORARY: option 1, route B (`claude -p` through `$.process.spawn`), A13 applied and the adapter built offline and gated (S3). Alternatives: option 2 (`$.agent.spawn`, budget refused) or 3 (undelivered). S4 probe: 4 of 5 cases pass, budget stop not seen, `$.process.spawn` binding unwritten; enablement needs a budget-stop run (one more G2-style approval) and the binding. Revert by deleting A13 and `session-adapter.ts`.
    Where A13 was silent, the adapter takes the narrowest fail-closed reading (each is one line to change): (a) a result `success` with `is_error: true` is `failed`; (b) a live process stays `running` even after a `result` event, until it exits; (c) exit 0 with no `result` event, a signal exit, or any unparseable or typeless line is `unknown` (sticky), even with a non-zero exit after an unparseable line; (d) a `spawn` that throws after the mapping is saved returns `unknown` and is not retried; (e) a resume of a session this adapter instance did not spawn (after a restart) refuses unless the port's optional `isAlive(pid)` reports the recorded pid dead, so with no `isAlive` it always refuses; (f) the mapping store is saved twice (before spawn, then with the pid); (g) `cancel` waits 10 s (configurable) for exit; (h) `backends` is `['worktree']`; (i) the prompt is `Run the installed plan-step procedure for the workflow request at <path>`, and a path with a newline is refused; (j) the spawn request shape `{argv, cwd}` and the chunk and result shapes of `$.process.spawn` are NOT in the recorded declarations beyond `spawn(request): HookStream<Chunk, Result>`, so the adapter uses its own `ProcessPort` and the host binding is unwritten. Please confirm or amend (a) to (e) and (h)/(i) in A13.
@@ -29,33 +29,9 @@ Every TEMPORARY (coordinator choice while you were offline) and PROVISIONAL (bui
 8. Spec edits are applied (S1, G1); the specs are still `approved` at their pre-edit review: review the diffs `cd7b7f0`, `84f5b61`, `1ef0468` and re-approve with `/approve` if you accept them. S1 also ran `specplane spec pin` (`181574d`, `based_on` only). Wording notes: (a) proposal decision 4 says the reference-CLI edit was not drafted, but R1 is drafted and was applied; (b) R1 and the A3 recovery subsection disagree: A3 says `recover` restores recording files and `list` prints the workflow, R1 and the build do not; (c) A13 text replaced the 'No such adapter is delivered yet' sentence and the second paragraph of the adapter section, my reading of the ambiguous 'current text to replace'; (d) A3 and A6 carry TEMPORARY notes verbatim.
 9. extension-conformance 02: review the implementation, then the pin refresh can be done.
 10. Live runs for claude-delivery 03 criteria 1 and 3 and conformance row 4: each needs your approval; none retried (D18).
-11. Upgrading to Bun 1.4.4: your call; run the full suite on it first.
+11. Upgrading to Bun 1.4.4: your call. The full suite passed on it in S5 (1089 pass, 0 fail, 107 files, no stall, before the S6 and S7 fixes); no installed Bun was changed.
 12. Final reconciliation below, including the push.
 13. D25 adapter, found by S7, not fixed: `launch` with an `orchestrationId` that already has a live process overwrites the tracked handle (`tracked.set`) and the stored mapping, so the old `claude -p` keeps running and can no longer be observed or cancelled by this adapter. A13 does not say what a second launch for the same id should do. Recommendation: refuse (throw) when the id is tracked and its process has not exited; one line in `begin`, plus a test. The adapter is unwired and gated, so nothing is hit today.
-
-## Authorized run (2026-11-05, user away about 1 h)
-The user answered these directly on 2026-11-05. They cover this run only. Keep this section verbatim in every HANDOFF rewrite, ticking the session table, until the coordinator removes it.
-
-Granted:
-- G1 Spec edits: apply A1 to A13, R1 and F1 to F4 exactly as written in the proposal, as separate revertable docs commits. This is the user's approval of the F1 to F4 wording. It does not approve any spec: never change a `status:` field, and `/approve` stays with the user.
-- G2 Live runs: one attempt per decision, never retried, at most 5 invocations in total: D25 probe, D24 unprompted-report check, claude-delivery 03 criteria 1 and 3, conformance row 4. Use the lowest practical budget and a throwaway fixture repo, not this checkout. Record each result, pass or fail, under `harnesses/claude/host-evidence/`.
-- G3 Decisions confirmed as chosen: D11, D19 (remove the six skills only if a live `done` result passes), D25 option 1 (build route B), D20 item 6, the D17 A field, the D16 A command source. For the D16 A table use conservative entries from the repo's existing test commands, and flag them for the user's review.
-
-Not granted, so do not do:
-- Reconciliation is prepare-only: no managed recording, no `plan abandon`, no target-history repair, no push. Write the exact commands to `docs/work-records/2026-11-05-reconciliation-checklist.md`.
-- extension-conformance 02 pin refresh: it still needs the user's implementation review (item 9).
-- Bun upgrade: run the full suite on 1.4.4 and report it, but change no installed Bun.
-- No approvals, no history rewrites, no `--no-verify`. If a hook or guard refuses an edit to an approved spec, or the edit needs a status change, stop that edit, record it in "Needs the user", and continue with what is not blocked. Never work around a refusal.
-
-| Session | Work | State |
-| --- | --- | --- |
-| S1 | Apply G1 spec edits; `specplane validate` | done (`cd7b7f0`, `84f5b61`, `1ef0468`, `181574d`) |
-| S2 | Review D17 A, D16 A and recovery builds against the applied specs; fill the D16 A table and wire the install entry; drop PROVISIONAL where the spec now covers it, keeping anything that needs a live check gated | done (`c2ca9e7`; recovery A3/R1 contradiction open) |
-| S3 | Build the D25 route B session adapter offline (claude-delivery 03 criterion 1) | done (`8e7c106`; gated, no live evidence) |
-| S4 | G2 live runs; D19 removal if and only if `done` passed live | done (4 of 5 launches; D25 probe launch/observe/resume/cancel pass, budget stop not seen; D24, crit 3, row 4, `done` blocked; D19 not removed) |
-| S5 | Update conformance 01 and matrix from the evidence; full suite on Bun 1.4.4; write the reconciliation checklist | done (matrix reason; Bun 1.4.4 and 1.3.14 both 1089 pass; `docs/work-records/2026-11-05-reconciliation-checklist.md`) |
-| S6 | Bug check: review all commits since `8aa96aa`, fix confirmed bugs with tests | done (`17f4551`; one bug fixed; reviewed and unreviewed files in LOG) |
-| S7 | Second bug check on areas S6 did not cover plus S6's fixes; final full verification | done (`6c9894f` `workflow list` symlink fix; evidence correction note; HANDOFF counts corrected; one design issue open, item 13) |
 
 ## Open decisions
 - D11, D19, D24, D25, D20 item 6, D17, D16: see "Needs the user".
@@ -90,7 +66,7 @@ Not granted, so do not do:
 | extension-conformance | 02 | partial; managed recording pending | guards built (`harness/release-evidence.test` (4)); blocker text refreshed; the pin refresh was not done and awaits the user's implementation review |
 
 ## Next session
-S7 is done (see LOG); the coordinator removes the "Authorized run" section. The reconciliation commands are prepared in `docs/work-records/2026-11-05-reconciliation-checklist.md`; its open points are no CLI repair for "Legacy target history is ambiguous" (library-only `legacyEvidence`) and no defined way to bring the overnight implementation into plan checkouts for recording.
+The authorized run (S1 to S7) is finished and its grants have expired: any further spec edit or live run needs fresh approval. The reconciliation commands are prepared in `docs/work-records/2026-11-05-reconciliation-checklist.md`; its open points are no CLI repair for "Legacy target history is ambiguous" (library-only `legacyEvidence`) and no defined way to bring the overnight implementation into plan checkouts for recording.
 Live follow-ups, each needing user approval: (1) D25 budget-stop case, with a task that costs more than the cap (the cheap model stayed under 0.01; try a larger task or `--model` default), then write the `$.process.spawn` binding and check its chunk shapes before any `ProbeEvidence`. (2) D24, claude-delivery 03 criteria 1 and 3 and conformance row 4 (and D19 removal) need a `done` plan-step natively. That needs a user decision on D16 C, `reasoning` and the unreviewed `BUNDLED_SUITES`; S4 flipped none of them. S4 used 4 of 5 G2 launches, so one remains in this grant.
 
 ## How to continue (orchestration)
@@ -111,4 +87,4 @@ The user runs steps through a coordinator session that chains **Sonnet 5.5 subag
 - Never approve, push, rewrite history, or edit plan `status:`, step checkboxes or managed progress. Do not invent ADR kinds or contract text.
 - Stage specific paths only; never `problems.md` or `AGENTS.override.md`. Preserve private backups and receipts.
 - Cooperative lease-coordinated writers only; native and live-host evidence stays unrun until produced.
-- Live invocations: one per decision, never retried. Each needs the user's approval (D18); the only current approval is G2 under "Authorized run".
+- Live invocations: one per decision, never retried. Each needs the user's approval (D18); no approval is currently open.

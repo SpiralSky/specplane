@@ -409,3 +409,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commits: `6c9894f` (`workflow list` on a symlinked runtime dir), then docs. Probe line 31 ("failed (signal exit)") was a misdescription: the code maps a null exit to `unknown`; the real `claude` exited with a non-zero code after SIGTERM (exact code unlogged); correction appended to `d25-route-b-probe.txt`.
 - Reviewed: new test bodies in `claude-mcp-suites`, `conformance`, `workflow` tests (assert real behaviour), comment-only edits in `commands.ts`, `handlers.ts`, `claude-mcp-main.ts`, `cli.ts`, `writer-leases.ts`, `17f4551`, D17 A bridge and `workflow list|recover` (no stale-lease or request-id bug found). HANDOFF test counts corrected (adapter 13, codex-package 7, freshness 8).
 - Open: launch over a live orchestration id orphans the old handle (HANDOFF item 13). Full suite via `scripts/test.sh` on Bun 1.3.14: 1091 pass, 0 fail, 107 files.
+
+## 2026-11-05 — Authorized run closed (coordinator)
+- The user granted, for S1 to S7 only: G1 apply A1 to A13, R1, F1 to F4 as written; G2 at most 5 live launches, one attempt each; G3 confirm D11, D19, D25 option 1, D20 item 6, the D17 A field and the D16 A command source. Reconciliation stayed prepare-only.
+- All sessions finished; 4 of 5 launches used. Grants expired; the section was removed from HANDOFF. Coordinator's final run: Bun 1.3.14, 1091 pass, 0 fail, 107 files; check-sync OK; validate 0 errors, 100 warnings.
