@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { acquireWriterLease, checkoutIdentity, type LeaseRecoveryIo } from "../core/writer-leases.js";
 import { workflowListCommand, workflowRecoverCommand } from "./workflow.js";
 
-// PROVISIONAL (D20 item 6). Every fixture is a temp repository; no real lease or .specplane state is touched.
+// D20 item 6, PROVISIONAL on one point only (A3 says `recover` restores recording files and `list` prints the workflow; R1 and this build do not; unresolved, see HANDOFF). Every fixture is a temp repository; no real lease or .specplane state is touched.
 const DEAD = 2147483647;
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "workflow-recover-"));

@@ -558,7 +558,7 @@ test('the registered gate allows only the mod\'s own server call, denies the res
   assert.equal(gate.catcher({}, { tool: 'Bash', input: {} }, next).decision, 'ask');
 });
 
-// PROVISIONAL (D17 A, awaiting approval of the proposal's A6): the mod's two-call confirmation flow, fixtures only.
+// D17 A, live check pending (spec: Confirming finalised content): the mod's two-call confirmation flow, fixtures only.
 const CHALLENGE = { challengeId: 'c1', summary: 'Confirm these exact finalized spec edits.\nFile: a', targets: ['a'], expiresAt: '2099-01-01T00:00:00.000Z' };
 const parkedRecord = (args: Record<string, unknown>) =>
   args.confirmation === undefined
@@ -620,7 +620,7 @@ test('D17 A: serverReply carries error.details so the challenge reaches the mod'
   assert.deepEqual(reply.details, { challenge: CHALLENGE });
 });
 
-// PROVISIONAL (D16 A): the mod's run-tests tool forwards only the request id.
+// D16 A, live check pending (spec: Reviewed test suites): the mod's tool forwards only the request id.
 test('specplane_run_tests sends only requestId to the server and drops anything else the model supplied', opts, async () => {
   const m = await load();
   const fake = fakeServer({ ...PREPARE_OK, executeTest: () => ({ ok: true, value: {}, message: '{"receipts":[]}' }) });

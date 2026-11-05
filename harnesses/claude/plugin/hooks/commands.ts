@@ -44,7 +44,7 @@ export const NATIVE_COMMANDS: readonly NativeCommand[] = [
 export const reasoningAsset = (workflow: string): string => `.claude/skills/specplane-reason-${workflow}/SKILL.md`
 /** The registered tool a delegated turn answers with; the host lists it as `mcp__<plugin>__specplane_result`. */
 export const COMPLETION_TOOL = 'specplane_result'
-/** PROVISIONAL (D16 A): the tool a delegated turn calls to run the reviewed suites. Its only input is `requestId`; no command, argument, directory or environment is accepted. */
+/** D16 A (live check pending): the tool a delegated turn calls to run the reviewed suites. Its only input is `requestId`; no command, argument, directory or environment is accepted. */
 export const RUN_TESTS_TOOL = 'specplane_run_tests'
 /** Where the Claude package places the bundled core CLI, relative to the plugin root. */
 export const BUNDLED_CLI = 'core/dist/cli.js'
@@ -123,7 +123,7 @@ export function initiationFor(workflow: string, raw: string, checkout: string): 
 }
 
 /**
- * PROVISIONAL (D16 A): runs the reviewed suites of an open delegation. Only the request id leaves this function toward
+ * D16 A (live check pending): runs the reviewed suites of an open delegation. Only the request id leaves this function toward
  * the server; whatever else the model sent (a command, arguments, a directory, an environment) is dropped here and never
  * forwarded, and the server refuses a call that carries more. The text returned names the receipts to cite as evidence.
  */
@@ -547,7 +547,7 @@ export async function acceptResult(
     }
     const proposal = validated.value as Record<string, unknown>
     let recorded = await send(session, 'record', proposal)
-    // PROVISIONAL (D17 A, awaiting approval of the proposal's A6): finalized content parks a challenge on the server;
+    // D17 A (live check pending; spec: Confirming finalised content): finalized content parks a challenge on the server;
     // the user answers it in the mod's own dialog and a second `record` call carries the response.
     const challenge = recorded.code === 'CONFIRMATION_REQUIRED' ? parkedChallenge(recorded.details) : undefined
     if (!recorded.ok && challenge) {

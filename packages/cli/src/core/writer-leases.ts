@@ -382,7 +382,7 @@ export function recoverDelegatedLease(delegation: WorkerDelegation, inspect: () 
   });
 }
 
-/** PROVISIONAL (D20 item 6, awaiting approval of the proposal's A3 and a reference-cli edit).
+/** D20 item 6 (spec: A3, R1), PROVISIONAL on one point only (A3 says `recover` restores recording files and `list` prints the workflow; R1 and this build do not; unresolved, see HANDOFF).
  * Operator view of leases retained with host-worker evidence. */
 export interface RetainedHostLease {
   requestId: string | null; markerFile: string; ageSeconds: number; checkouts: string[]; ownerPid: number | null;

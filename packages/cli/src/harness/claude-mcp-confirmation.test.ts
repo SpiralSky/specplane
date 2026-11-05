@@ -1,4 +1,4 @@
-// PROVISIONAL (D17 option A, awaiting approval of the proposal's A6): the server parks the core's confirmation
+// D17 option A, gated on a live check (spec: `architecture/claude-integration` § Confirming finalised content): the server parks the core's confirmation
 // challenge and a second `record` call answers it. Fixtures only; the real runner and core, no host.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

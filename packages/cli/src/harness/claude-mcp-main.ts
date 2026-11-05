@@ -22,7 +22,7 @@ const readJson = (rel: string): Record<string, any> | undefined => {
 // Same paths as CLAUDE_PACKAGE_DIR's contents in claude-package.ts (CLAUDE_HOST_EVIDENCE_PATH).
 const manifest = readJson('specplane-extension.json');
 const hostSelection = readJson('host-evidence/claude-code.json');
-// PROVISIONAL (D17 A): the bridge parks the core's confirmation challenge until the mod answers through `record`.
+// D17 A (spec: Confirming finalised content): the bridge parks the core's confirmation challenge until the mod answers through `record`.
 const confirmations = createConfirmationBridge();
 const runner = createWorkflowRunner({
   checkout,
@@ -40,6 +40,8 @@ const runner = createWorkflowRunner({
     },
   } : undefined,
 });
+// D16 A is NOT wired here yet: the applied spec keeps the D16 C refusal until the reviewed suite path is live-checked (S4).
+// To enable it after the user reviews BUNDLED_SUITES and a live check passes, pass `suites: BUNDLED_SUITES` (import from ./claude-suites.js).
 const server = createClaudeMcpServer(runner, { confirmations });
 await server.serve({ input: process.stdin, write: line => process.stdout.write(line) });
 // Disconnect (session exit or a killed host) is a runner EOF: pending work is cancelled and every lease this process holds is released.

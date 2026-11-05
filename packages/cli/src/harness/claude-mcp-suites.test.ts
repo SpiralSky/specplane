@@ -1,6 +1,8 @@
-// PROVISIONAL (D16 option A). The reviewed-suite path of the Claude workflow server, fixtures only: the runner is a
+// D16 option A, gated on a live check (spec: `architecture/claude-integration` § Reviewed test suites). The reviewed-suite path of the Claude workflow server, fixtures only: the runner is a
 // stand-in and the execution port is a fake, so no command, model-supplied or table-supplied, is ever executed here.
 import { test } from 'node:test';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import assert from 'node:assert/strict';
 import { createClaudeMcpServer, type RunnerPort } from './claude-mcp.js';
 import { resolveSuite, BUNDLED_SUITES, type SuiteTable } from './claude-suites.js';
@@ -39,7 +41,18 @@ const executeCalls = (r: { calls: Call[] }) => r.calls.filter(c => c.method === 
 const cancels = (r: { calls: Call[] }) => r.calls.filter(c => c.method === 'cancel');
 
 test('the bundled table ships no invented suite, and own-key lookup only', () => {
-  assert.deepEqual(BUNDLED_SUITES, {});
+  // G3 entries, flagged for the user's review: fixed argument arrays, Node binary, TAP on stdout, no shell, no metacharacters.
+  assert.ok(Object.keys(BUNDLED_SUITES).length > 0);
+  for (const [id, entry] of Object.entries(BUNDLED_SUITES)) {
+    assert.equal(entry.executable, 'node', id);
+    assert.equal(entry.format, 'node-tap-v13', id);
+    assert.deepEqual(entry.args.slice(0, 2), ['--test', '--test-reporter=tap'], id);
+    assert.equal(entry.args.length, 3, id);
+    assert.match(entry.args[2], /^packages\/cli\/dist\/[a-z0-9\-\/]+\.test\.js$/, id);
+    // the suite id is the exact name of a top-level test in the file, because the core matches the id to the report's suite names
+    const src = fs.readFileSync(path.join(import.meta.dirname, '..', '..', entry.args[2].replace('packages/cli/', '')), 'utf8');
+    assert.ok(src.includes(JSON.stringify(id)) || src.includes(`'${id}'`), `${id} is not a test name in ${entry.args[2]}`);
+  }
   assert.equal(resolveSuite(TABLE, '__proto__'), undefined);
   assert.equal(resolveSuite(TABLE, 'constructor'), undefined);
   assert.equal(resolveSuite(TABLE, 'toString'), undefined);
@@ -57,13 +70,13 @@ test('with a table, a known suite runs the table command and the reply carries o
   assert.deepEqual(receipts[0].suites, [{ suiteId: 'unit-suite', executed: 3, failed: 0, skipped: 0 }]);
 });
 
-test('a model-supplied command is refused before anything runs (executable, args, cwd, env, shell, criterionIds)', async () => {
+test('a model-supplied command is refused before anything runs (executable, args, cwd, env, shell, reportFormat)', async () => {
   const { runner, server } = await prepared(PREPARED('unit-suite'), TABLE);
   let id = 10;
-  for (const extra of [{ executable: '/bin/sh' }, { args: ['-c', 'id'] }, { cwd: '/' }, { env: { A: 'b' } }, { command: 'rm -rf /' }, { shell: true }, { criterionIds: ['c:1'] }, { reportFormat: 'junit-xml' }]) {
+  for (const extra of [{ executable: '/bin/sh' }, { args: ['-c', 'id'] }, { cwd: '/' }, { env: { A: 'b' } }, { command: 'rm -rf /' }, { shell: true }, { reportFormat: 'junit-xml' }]) {
     const out = await call(server, 'executeTest', { nonce: NONCE, requestId: 'req-1', ...extra }, id++);
     assert.equal(out.result.isError, true);
-    assert.match(out.result.content[0].text, /takes only requestId/);
+    assert.match(out.result.content[0].text, /takes requestId and criterionIds only/);
   }
   assert.deepEqual(executeCalls(runner), [], 'no executeTest reached the runner');
   assert.deepEqual(cancels(runner), [], 'a refused call does not cancel the request');
@@ -104,4 +117,20 @@ test('executeTest for a request that is not open is refused', async () => {
   const out = await call(server, 'executeTest', { nonce: NONCE, requestId: 'req-other' }, 3);
   assert.equal(out.result.isError, true);
   assert.deepEqual(executeCalls(runner), []);
+});
+
+test('criterionIds narrows the run to named criteria; unknown, empty, duplicate or non-test ids are refused without cancelling', async () => {
+  const prep = { requestId: 'req-1', workflow: 'plan-step', criteria: [criterion('unit-suite'), { id: 'c:2', testRequirements: [] }] };
+  const { runner, server } = await prepared(prep, TABLE);
+  let id = 20;
+  for (const bad of [[], ['c:9'], ['c:2'], ['c:1', 'c:1'], 'c:1', [1]]) {
+    const out = await call(server, 'executeTest', { nonce: NONCE, requestId: 'req-1', criterionIds: bad }, id++);
+    assert.equal(out.result.isError, true);
+    assert.match(out.result.content[0].text, /criterionIds must be a nonempty list/);
+  }
+  assert.deepEqual(executeCalls(runner), []);
+  assert.deepEqual(cancels(runner), []);
+  const ok = await call(server, 'executeTest', { nonce: NONCE, requestId: 'req-1', criterionIds: ['c:1'] }, id++);
+  assert.equal(ok.result.isError, false, ok.result.content[0].text);
+  assert.deepEqual(executeCalls(runner).map(c => c.params.criterionIds), [['c:1']]);
 });

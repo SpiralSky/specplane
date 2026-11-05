@@ -46,7 +46,7 @@ export const PLUGIN_NAME = 'specplane'
 export const SERVER_REFUSAL = 'Specplane workflow tools are reserved for Specplane commands; the model cannot call them.'
 /** The completion tool as the host names a tool this plugin registers (`mcp__<plugin>__<name>`). It is not a server tool. */
 export const COMPLETION_TOOL_NAME = `mcp__${SERVER_KEY}__${COMPLETION_TOOL}`
-/** PROVISIONAL (D16 A): the run-tests tool, named the same way. */
+/** D16 A (live check pending): the run-tests tool, named the same way. */
 export const RUN_TESTS_TOOL_NAME = `mcp__${SERVER_KEY}__${RUN_TESTS_TOOL}`
 
 /**
@@ -171,7 +171,7 @@ export function registerNative(on: Parameters<Register>[0]): void {
   // One filtered hook per command; a gating hook needs .catch because a throwing hook is skipped.
   for (const cmd of NATIVE_COMMANDS) bindCommand(on, cmd)
 
-  // PROVISIONAL (D16 A). Only requestId is read from the call; the registered schema offers nothing else.
+  // D16 A (live check pending). Only requestId is read from the call; the registered schema offers nothing else.
   on('tool.call', { tool: RUN_TESTS_TOOL_NAME }, async ($, e) => {
     const { requestId } = e as { requestId?: unknown }
     const outcome = await runReviewedTests(pending, { requestId }, { session: sessionFor($) })

@@ -18,7 +18,7 @@ export const MAX_RESULT_BYTES = 16 * 1024;
 export const DETAIL_CHUNK_CHARS = 2048;
 
 /**
- * PROVISIONAL (D17 option A, awaiting approval of the proposal's A6): the server-side interaction port. The core confirms
+ * D17 option A (spec: `### Confirming finalised content`; live check pending): the server-side interaction port. The core confirms
  * finalized content inside this process, which has no screen. The port parks the core's challenge under the `record` call
  * that raised it (found through async context, so concurrent records cannot mix) until the mod answers through a second
  * `record` call carrying `confirmation`. Give the runner `interaction: bridge.port` and pass the same bridge to
@@ -77,7 +77,7 @@ export const TOOLS: readonly ToolSpec[] = [
   { name: 'inspect', description: 'Inspect a prepared or recorded workflow request.', forward: 'inspect' },
   { name: 'prepare', description: 'Prepare a workflow request and take the writer lease for it. The reply is compact; read the request with detail.', forward: 'prepare' },
   { name: 'detail', description: 'Read one bounded page of a prepared request by requestId and offset.', detail: true },
-  { name: 'executeTest', description: 'PROVISIONAL (D16 A): run the reviewed suites a prepared request requires. Takes only requestId; the server fixes every command. Unavailable unless the server was given a suite table.', forward: 'executeTest' },
+  { name: 'executeTest', description: 'Run the reviewed suites a prepared request requires. Takes requestId and optionally criterionIds (a subset of the criteria of the request); the server fixes every command. Unavailable unless the server was given a suite table.', forward: 'executeTest' },
   { name: 'validate', description: 'Validate the WorkflowResult for an open prepared request (requestId) against the request the server holds.', forward: 'validate' },
   { name: 'record', description: 'Record a validated WorkflowResult. Finalized content first returns a CONFIRMATION_REQUIRED challenge; repeat the call with the same proposal and the mod\'s `confirmation` response.', forward: 'record' },
   { name: 'capture', description: 'Capture a proposed contribution.', forward: 'capture' },
@@ -95,12 +95,12 @@ const byteLength = (s: string) => new TextEncoder().encode(s).length;
 
 export interface McpServerOptions {
   name?: string; version?: string; confirmations?: ConfirmationBridge; now?: () => number;
-  /** PROVISIONAL (D16 A): the reviewed suite table. Absent, the D16 C refusal stays active and `executeTest` is unavailable. */
+  /** D16 A (spec: `### Reviewed test suites`; live check pending): the reviewed suite table. Absent, the D16 C refusal stays active and `executeTest` is unavailable. */
   suites?: SuiteTable;
 }
 
-/** The only keys `executeTest` accepts from the caller; a command, arguments, cwd or environment are never among them. */
-const EXECUTE_TEST_KEYS = new Set(['requestId', NONCE]);
+/** The only keys `executeTest` accepts from the caller (`architecture/claude-integration` § Reviewed test suites: `requestId` and `criterionIds`); a command, arguments, cwd or environment are never among them. */
+const EXECUTE_TEST_KEYS = new Set(['requestId', 'criterionIds', NONCE]);
 
 export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOptions = {}) {
   let bound: string | null = null;
@@ -173,7 +173,7 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     const criteria = Array.isArray(request.criteria) ? (request.criteria as Array<{ testRequirements?: unknown[] }>) : [];
     const required = criteria.flatMap(c => (Array.isArray(c.testRequirements) ? c.testRequirements : []) as Array<{ suiteId?: unknown }>);
     if (request.workflow === 'plan-step' && required.length > 0 && suites) {
-      // PROVISIONAL D16 A: every required suite must be in the table, or the request is cancelled and its lease released.
+      // D16 A: every required suite must be in the table, or the request is cancelled and its lease released.
       const unknown = required.map(r => r.suiteId).filter(id => typeof id !== 'string' || !resolveSuite(suites, id));
       if (unknown.length > 0) {
         await release(requestId);
@@ -207,7 +207,7 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     return text(protocol(refusal('CONFIRMATION_REQUIRED', `${why} Nothing was recorded and the request was closed.`)), true);
   }
 
-  /** PROVISIONAL D17 A: record with the parked-challenge flow (see ConfirmationBridge). */
+  /** D17 A: record with the parked-challenge flow (see ConfirmationBridge). */
   async function recordWithConfirmation(params: Json): Promise<unknown> {
     const requestId = typeof params.requestId === 'string' ? params.requestId : '';
     const { confirmation, ...proposal } = params;
@@ -241,18 +241,27 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
   }
 
   /**
-   * PROVISIONAL D16 A. Runs the suites the held request requires, with commands from the suite table only. The caller may
-   * send requestId and the nonce; any other key (executable, args, cwd, env, criterionIds, a command in any form) is refused
-   * before anything runs, and so is an unknown suiteId, which also cancels the request.
+   * D16 A (spec: Reviewed test suites; gated on a live check). Runs the suites the held request requires, with commands from
+   * the suite table only. The caller may send requestId, criterionIds and the nonce; any other key (executable, args, cwd,
+   * env, a command in any form) is refused before anything runs, and so is an unknown suiteId, which also cancels the request.
    */
   async function runReviewedSuites(args: Json): Promise<unknown> {
     if (!suites) return text('Reviewed test suites are not available in this install; run the step through the managed plan-step flow.', true);
     const extra = Object.keys(args).filter(k => !EXECUTE_TEST_KEYS.has(k));
-    if (extra.length > 0) return text(`executeTest takes only requestId; the server fixes the command. Refused keys: ${extra.join(', ')}.`, true);
+    if (extra.length > 0) return text(`executeTest takes requestId and criterionIds only; the server fixes the command. Refused keys: ${extra.join(', ')}.`, true);
     const requestId = args.requestId;
     const held = typeof requestId === 'string' ? open.get(requestId) : undefined;
     if (typeof requestId !== 'string' || !held) return text(`Request ${String(requestId)} is not open.`, true);
-    const criteria = (Array.isArray(held.request.criteria) ? held.request.criteria : []) as Array<{ id: string; testRequirements?: Array<{ suiteId: string; format: string }> }>;
+    const allCriteria = (Array.isArray(held.request.criteria) ? held.request.criteria : []) as Array<{ id: string; testRequirements?: Array<{ suiteId: string; format: string }> }>;
+    let criteria = allCriteria;
+    if (args.criterionIds !== undefined) {
+      const ids = args.criterionIds;
+      const known = new Set(allCriteria.filter(c => (c.testRequirements ?? []).length > 0).map(c => c.id));
+      if (!Array.isArray(ids) || ids.length === 0 || !ids.every(i => typeof i === 'string' && known.has(i)) || new Set(ids).size !== ids.length) {
+        return text('criterionIds must be a nonempty list of distinct ids of this request\'s criteria that carry test requirements; nothing ran.', true);
+      }
+      criteria = allCriteria.filter(c => (ids as string[]).includes(c.id));
+    }
     const bySuite = new Map<string, { command: NonNullable<ReturnType<typeof resolveSuite>>; criterionIds: string[] }>();
     for (const c of criteria) for (const r of c.testRequirements ?? []) {
       const command = resolveSuite(suites, r.suiteId);
