@@ -18,7 +18,7 @@ export function releaseEvidence(): ReleaseEvidence {
   const claude = split('claude');
   return {
     hosts: [
-      { host: 'claude', ...claude, blocker: claude.pending.length ? 'claude-delivery 01 is blocked on native host API evidence' : undefined },
+      { host: 'claude', ...claude, blocker: claude.pending.length ? 'claude-delivery is blocked on live-host evidence that a reasoning workflow completes, and on D19 (reasoning commands unregistered); fixture-tested work is not delivery' : undefined },
       { host: 'codex', ...split('codex') },
     ],
     pinReview: { state: 'awaiting-user-review', refreshedBy: 'none', note: 'Skill pins and contract comments are refreshed only after the user reviews the implementation.' },

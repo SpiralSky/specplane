@@ -51,7 +51,7 @@ test('a matching content pin is not conformance evidence: the host rows stay pen
 
 test('blocked Claude delivery and unreviewed pins are named blockers, independent of any unavailable flag', () => {
   const blockers = releaseBlockers();
-  assert.ok(blockers.some(b => /^claude: 11 workflow\(s\) not delivered \(claude-delivery 01 is blocked on native host API evidence\)/.test(b)), blockers.join('\n'));
+  assert.ok(blockers.some(b => /^claude: 11 workflow\(s\) not delivered \(claude-delivery is blocked on live-host evidence that a reasoning workflow completes, and on D19 \(reasoning commands unregistered\); fixture-tested work is not delivery\)/.test(b)), blockers.join('\n'));
   assert.ok(blockers.some(b => /awaiting user implementation review/.test(b)));
   const e = releaseEvidence();
   const spoofed = { ...e, unavailable: true, hosts: e.hosts.map(h => ({ ...h, blocker: undefined })) } as typeof e;

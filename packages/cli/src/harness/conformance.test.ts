@@ -54,6 +54,11 @@ test('Claude workflows report as pending, never passing, and the shipped skill t
   for (const row of hostRows('claude')) assert.deepEqual([row.deterministic, row.liveHost], ['not-delivered', 'pending'], row.workflow);
   for (const row of hostRows('codex')) assert.deepEqual([row.deterministic, row.liveHost], ['tested', 'unverified'], row.workflow);
   // The Claude package now exists and its suite is mapped to the unmet criterion; the rows above stay pending until the reasoning commands are delivered.
+  // Provisional fixture-tested work is named as such and never lifts a row.
+  const reason = CRITERIA.find(c => c.id === 'exports-and-workflows')?.reason ?? '';
+  assert.match(reason, /PROVISIONAL/);
+  assert.match(reason, /fixtures do not deliver a workflow to a host/);
+  assert.match(reason, /Rows stay not-delivered and pending/);
   assert.equal(fs.existsSync(path.join(dist, 'harness/claude-package.js')), true);
   const exportsCriterion = CRITERIA.find(c => c.id === 'exports-and-workflows');
   assert.ok(exportsCriterion?.suites.some(s => s.file === 'harness/claude-package'), 'the Claude package suite is traced to the unmet criterion');
