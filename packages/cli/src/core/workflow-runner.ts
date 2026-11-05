@@ -76,8 +76,11 @@ export function createWorkflowRunner(options: RunnerOptions) {
     return run;
   } };
   const lifecycle: LifecyclePort = options.lifecycle ?? { stopWorkflow: async () => {
-    const timeout = new Promise<'timeout'>(r => setTimeout(() => r('timeout'), options.stopTimeoutMs ?? 5000).unref?.());
-    const outcome = await Promise.race([settled.then(() => 'settled' as const), timeout]);
+    // A referenced timer: the stop deadline must keep the process alive until it decides, even when a
+    // hung worker holds no handle of its own (Node would otherwise exit before reporting recovery).
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<'timeout'>(r => { timer = setTimeout(() => r('timeout'), options.stopTimeoutMs ?? 5000); });
+    const outcome = await Promise.race([settled.then(() => 'settled' as const), timeout]).finally(() => clearTimeout(timer));
     return outcome === 'settled' && executions === 0 ? { stopped: true, recoveryRequired: false } : { stopped: false, recoveryRequired: true };
   } };
   const cleanContext = (): CoreContext => { const c = base(); delete c.signal; return c; };

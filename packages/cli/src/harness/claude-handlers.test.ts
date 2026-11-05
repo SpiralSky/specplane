@@ -123,7 +123,7 @@ test('the registration plan keeps built-in and foreign names, reports them, and 
   assert.equal(m.planRegistration([], true).unavailable.length, 0);
 });
 
-test('the model cannot call the Specplane workflow server; other tools pass the tool.check gate', async () => {
+test('the model cannot call the Specplane workflow server; other tools pass the tool.check gate', opts, async () => {
   const handlers = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
   assert.equal(handlers.isSpecplaneServerTool({ tool: 'mcp__plugin_specplane_specplane__prepare' }), true);
   assert.equal(handlers.isSpecplaneServerTool({ tool: 'mcp__specplane__record' }), true);

@@ -61,7 +61,7 @@ test('failure, skipped-only and absent expected suites cannot establish passing 
  ["require('node:test').describe('workflow-suite',()=>{});",'empty'],
  ["const {describe,it}=require('node:test');describe('workflow-suite',()=>it('fails',()=>{throw Error('failure')}));",'failed'],
  ["const {describe,it}=require('node:test');describe('workflow-suite',()=>it.skip('skipped',()=>{}));",'skipped'],
- ["require('node:test').test('other-suite',()=>require('node:assert/strict').equal(2,2));",'missing'],
+ ["const {describe,it}=require('node:test');describe('other-suite',()=>it('runs',()=>require('node:assert/strict').equal(2,2)));",'missing'],
  ["console.log('TAP version 13\\n1..0');",'diagnostic'],
  ["console.log('TAP version 13\\nok 1 - workflow-suite\\n1..1');process.exitCode=2;",'nonzero'],
  ]){
