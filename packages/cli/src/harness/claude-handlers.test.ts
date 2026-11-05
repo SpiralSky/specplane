@@ -644,3 +644,20 @@ test('the prompt names specplane_run_tests only for a plan-step whose criteria c
   assert.doesNotMatch(prompt('plan-step', [{ id: 'c1' }]), /specplane_run_tests/);
   assert.doesNotMatch(prompt('spec-assist', withTests), /specplane_run_tests/);
 });
+
+test('completion, validate, plan-status and plan-start delegate to exactly the core CLI operations and refuse bad arguments before the core is touched', opts, async () => {
+  const m = await load();
+  const cmd = (name: string) => m.NATIVE_COMMANDS.find((c: { name: string }) => c.name === name);
+  const run = async (name: string, args: string) => { const c = context(); const out = await m.runCommand(cmd(name), args, c.ctx); return { calls: c.calls, out }; };
+  assert.deepEqual((await run('specplane-complete', 'feature/a')).calls, [['spec', 'complete', 'feature/a']]);
+  assert.deepEqual((await run('specplane-complete', 'feature/a --status partial --dry-run')).calls, [['spec', 'implementation', 'feature/a', '--status', 'partial', '--dry-run']]);
+  assert.deepEqual((await run('validate', '')).calls, [['validate']]);
+  assert.deepEqual((await run('plan-status', '')).calls, [['plan', 'list', '--live']]);
+  assert.deepEqual((await run('plan-start', '2026-11-01-p --no-fetch')).calls, [['plan', 'start', '2026-11-01-p', '--no-fetch']]);
+  for (const [name, args] of [['specplane-complete', 'feature/a --status bogus'], ['specplane-complete', ''], ['plan-start', '']] as const) {
+    const r = await run(name, args); assert.equal(r.calls.length, 0, `${name} ${args}`); assert.equal(r.out.exitCode, 2);
+  }
+  const model = context({ origin: { kind: 'tool' } });
+  assert.notEqual((await m.runCommand(cmd('specplane-complete'), 'feature/a', model.ctx)).exitCode, 0);
+  assert.equal(model.calls.length, 0, 'a state-changing command from a model origin never reaches the core');
+});
