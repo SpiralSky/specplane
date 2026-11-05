@@ -6,7 +6,7 @@ status: done
 context:
   - spec: "architecture/reference-cli#Shared conductor and extension boundary"
   - file: "packages/cli/src/plan/run.ts"
-  - file: "packages/cli/src/harness/session.ts"
+  - file: "harnesses/claude/plugin/hooks/session-adapter.ts"
   - file: "packages/cli/src/agents/standing.ts"
   - file: "packages/cli/src/cli.ts"
 ---

@@ -6,7 +6,7 @@ status: pending
 context:
   - spec: "claude:architecture/claude-integration"
   - spec: "architecture/reference-cli#Shared conductor and extension boundary"
-  - file: "packages/cli/src/harness/session.ts"
+  - file: "harnesses/claude/plugin/hooks/session-adapter.ts"
 ---
 
 ## Goal

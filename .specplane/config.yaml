@@ -38,6 +38,20 @@ specs:
       - docs/specifications/architecture/search.md
       - docs/specifications/features/export.md
       - docs/specifications/features/search.md
+      # Public plan and completion fields, reviewed 2026-11-05
+      - target_branch
+      - comparison_base
+      - start_base
+      - shelved_from
+      - reassessment_needed
+      - implementation_status
+      - assessment_status
+      - assessment_reasons
+      - verification
+      - text_paths
+      - risk_paths
+      - node-tap-v13
+      - junit-xml
       - docs/specifications/features/
       - specifications/features/search.md
       - features/overlays/extension.md
