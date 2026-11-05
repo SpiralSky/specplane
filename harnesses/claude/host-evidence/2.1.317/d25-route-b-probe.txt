@@ -20,3 +20,25 @@ Narrowest allowlist that works: wrapper adds `--tools Read --strict-mcp-config -
 Host binding gap: this probe spawns through node:child_process, not `$.process.spawn`; that binding is unwritten and untested.
 
 == LAUNCH TALLY ==
+1. Launch (fixture a). PASS. argv: <wrapper> -p --session-id <uuid> --max-budget-usd 0.1 --output-format stream-json --verbose
+   "Run the installed plan-step procedure for the workflow request at <fx>/req.txt"; cwd <fx>. Every line parsed. Event order:
+   system(hook_started, hook_response, init, thinking_tokens), assistant, rate_limit_event, user (Read tool result), assistant,
+   result subtype=success is_error=false total_cost_usd=0.0015. Exit 0. observe: running -> completed.
+2. Resume (same session). PASS. argv: same, with `--resume <same uuid>` instead of `--session-id`. result success,
+   is_error=false, cost 0.0020, exit 0, observe completed. Session id in the stream matched.
+3. Cancel (fixture b). PASS. Launched, cancelled after the first stream line (a hook_started system event; the process was
+   `running`). cancel returned {stopped:true, recoveryRequired:false} only after the exit was observed; pid gone afterwards;
+   observe after cancel = failed (signal exit). No result event.
+4. Budget stop (fixture c, --max-budget-usd 0.01). FAIL, case not exercised: the run completed normally (result success,
+   total_cost_usd 0.0067, below 0.01; the cheap model finished the task under the cap). No `error_max_budget_usd` result was seen,
+   so budget enforcement is NOT shown. Not retried (a retry would be a second attempt at the same decision).
+5. Reserve: not used.
+
+LAUNCH TALLY: 4 of 5 `claude` launches used: (1) launch, (2) resume, (3) cancel launch, (4) budget launch. Slot 5 unspent.
+Stderr: none on any run. Account identifiers, tokens and home paths are not recorded here.
+
+== VERDICT ==
+launch PASS, observe PASS, resume PASS, cancel PASS, budget stop NOT SEEN. The recipe requires all four, so NO ProbeEvidence is supplied;
+`probe` stays all-false. Independently, the `$.process.spawn` binding does not exist, so the gap noted above also blocks enablement.
+Open: D24 unprompted-report, claude-delivery 03 criterion 3, conformance row 4, and a `done` result: BLOCKED (not run), reasons above.
+D19: no live `done` passed, so the six legacy skills are NOT removed.
