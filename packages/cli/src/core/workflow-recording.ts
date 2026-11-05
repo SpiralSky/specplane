@@ -6,7 +6,7 @@ import { loadConfig } from '../config.js';
 import { run } from '../git/exec.js';
 import { stepDone, type StepDoneResult, type GeneratedRecording } from '../plan/step-done.js';
 import { validatePlans } from '../plan/validate.js';
-import { loadAdrs } from '../decisions/validate.js';
+import { loadAdrs, validateAdrs } from '../decisions/validate.js';
 import { listPlans } from '../plan/resolve.js';
 import type { PreparedCreation } from './creation-plans.js';
 import type { ContentRecording } from './content-recording.js';
@@ -37,7 +37,7 @@ class Refusal extends Error{constructor(readonly code:string,message:string){sup
 function fail(code:string,message:string):never{throw new Refusal(code,message);}
 function error(e:unknown):Result<never>{return {protocol:1,ok:false,error:{code:typeof (e as any)?.code==='string'?(e as any).code:'INVALID_EVIDENCE',message:e instanceof Error?e.message:String(e),retryable:(e as any)?.code==='LOCKED',details:(e as any)?.details??null},notices:[]};}
 export interface PlanWorkflowRecordingReceipt extends StepDoneResult {publication:'not-required'|'published'|'failed'|'cancelled';publicationError?:string;limitations?:string[]}
-export interface ContentWorkflowRecordingReceipt {creation?:{operation:'spec.new'|'plan.new';identity:string};validation?:ValidationReport;requestId:string;workflow:string;outcome:'done'|'blocked';commit:string|null;publication:'not-required'|'published'|'failed'|'cancelled';publicationError?:string;summary:string;paths:string[];limitations:string[]}
+export interface ContentWorkflowRecordingReceipt {creation?:{operation:'spec.new'|'plan.new'|'decision.new';identity:string};validation?:ValidationReport;requestId:string;workflow:string;outcome:'done'|'blocked';commit:string|null;publication:'not-required'|'published'|'failed'|'cancelled';publicationError?:string;summary:string;paths:string[];limitations:string[]}
 export type WorkflowRecordingReceipt = PlanWorkflowRecordingReceipt | ContentWorkflowRecordingReceipt;
 type Prepared=Awaited<ReturnType<typeof assertPrepared>>;
 type WorkflowGenerated = {changes:ContentRecording['generated'];trailers:[string,string][];gapLines?:string[]};
@@ -128,7 +128,6 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext,c
  if(result.outcome==='cancelled')fail('CANCELLED','Cancelled workflow preserves edits and does not record');
  if(r.workflow==='plan-step'&&(result.finalizedEdits?.length||result.creation))fail('POLICY_DENIED','Plan results cannot authorize finalized spec edits');
  const nonPlan=r.workflow==='plan-step'?undefined:prepareNonPlanRecording(state,result);
- if(nonPlan?.creation?.operation==='decision.new')fail('UNSUPPORTED_CAPABILITY','ADR creation recording needs a documented commit workflow; the dedicated decision.new operation remains available');
  const events=validatedContributions(state,result.contributionEvents,result.finalizedEdits,result.creation);
  const generated:WorkflowGenerated={changes:nonPlan?.generated??[],trailers:[['Specplane-Request',r.requestId],['Specplane-Agent',state.context.compatibility!.host.host]]};
  for(const spec of [...new Set(events.map(e=>e.spec))].sort()){
@@ -157,7 +156,16 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext,c
   const tests:TestReceipt[]=[];
   for(const artifact of evidence.artifacts){
    if(artifact.kind==='test')tests.push(await validateExecutionArtifact(r.requestId,criterion.id,artifact,context,evidence.assessment==='met'));
-   else if(sha256(bytes(r.checkout,artifact.path))!==artifact.digest)fail('INVALID_EVIDENCE','File evidence changed');
+   else{
+    // A file this result creates or finalises does not hold its proposed text yet: its evidence is the digest of that text (the whole file, or the body the caller supplied).
+    const proposed=nonPlan?generated.changes.find(c=>c.path===artifact.path):undefined;
+    if(proposed){if(artifact.digest!==sha256(proposed.after)&&artifact.digest!==sha256(proposed.after.slice(proposed.after.indexOf('\n---\n',4)+5)))fail('INVALID_EVIDENCE',`File evidence for ${artifact.path} must carry the SHA-256 of the proposed content that the user will confirm`);}
+    else{
+     let current:Buffer;
+     try{current=bytes(r.checkout,artifact.path);}catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')fail('INVALID_EVIDENCE',`File evidence ${artifact.path} does not exist; only a file this result creates or finalises may be cited before it is written`);throw e;}
+     if(sha256(current)!==artifact.digest)fail('INVALID_EVIDENCE','File evidence changed');
+    }
+   }
    digests.push(artifact.digest);
   }
   if(evidence.assessment==='met'&&criterion.testRequirements.length&&!tests.length)fail('INVALID_EVIDENCE','Met test criterion requires core execution evidence');
@@ -335,12 +343,17 @@ export async function recordWorkflow(proposal:RecordingProposal,context:CoreCont
   else {
    const paths=[...new Set([...checked.manifest.changes.map(c=>c.path),...generated.changes.map(c=>c.path)])].sort();
    let commit:string|null=null;
-   const contentReceipt:Omit<ContentWorkflowRecordingReceipt,'commit'|'publication'>={...(checked.creation&&checked.creation.operation!=='decision.new'?{creation:{operation:checked.creation.operation,identity:checked.creation.identity}}:{}),requestId:proposal.requestId,workflow:v.state.request.workflow,outcome:v.result.outcome as 'done'|'blocked',summary:checked.summary,paths,limitations:['Private receipts remain local to this clone.',...(checked.creation?.operation==='spec.new'&&!v.result.contributionEvents.some(event=>event.spec===checked.creation!.identity&&event.role==='create')?['Creation confirmation does not establish contribution identity; absent body observations remain unrecorded.']:[]),...(v.result.finalizedEdits?.some(edit=>!v.result.contributionEvents.some(event=>event.spec===edit.spec&&event.role==='revise'))?['Finalized text confirmation does not establish contribution identity; absent body observations remain unrecorded.']:[]),...(!paths.length?['Read-only findings; no creation, approval or lifecycle operation was performed.','Read-only recording receipts are process-local; cross-process recovery requires a durable recording intent and is unavailable for these findings.']:[])]};
+   const contentReceipt:Omit<ContentWorkflowRecordingReceipt,'commit'|'publication'>={...(checked.creation?{creation:{operation:checked.creation.operation,identity:checked.creation.identity}}:{}),requestId:proposal.requestId,workflow:v.state.request.workflow,outcome:v.result.outcome as 'done'|'blocked',summary:checked.summary,paths,limitations:['Private receipts remain local to this clone.',...(checked.creation?.operation==='spec.new'&&!v.result.contributionEvents.some(event=>event.spec===checked.creation!.identity&&event.role==='create')?['Creation confirmation does not establish contribution identity; absent body observations remain unrecorded.']:[]),...(v.result.finalizedEdits?.some(edit=>!v.result.contributionEvents.some(event=>event.spec===edit.spec&&event.role==='revise'))?['Finalized text confirmation does not establish contribution identity; absent body observations remain unrecorded.']:[]),...(!paths.length?['Read-only findings; no creation, approval or lifecycle operation was performed.','Read-only recording receipts are process-local; cross-process recovery requires a durable recording intent and is unavailable for these findings.']:[])]};
    if(paths.length){
     const creation=checked.creation,planCreation=creation?.operation==='plan.new';
-    const message=formatMessage({type:'docs',scope:planCreation?creation.identity.replace(/^\d{4}-\d{2}-\d{2}-/,''):'specs',summary:planCreation?'create plan':v.result.summary,body:checked.summary,trailers:{'Specplane-Workflow':planCreation?'plan-create':'spec',...(planCreation?{'Specplane-Plan':creation.identity}:{}),'Specplane-Request':proposal.requestId,'Specplane-Agent':v.state.context.compatibility!.host.host,'Specplane-Contribution':generated.trailers.filter(([key])=>key==='Specplane-Contribution').map(([,value])=>value)}});
+    const decisionCreation=creation?.operation==='decision.new';
+    const message=formatMessage({type:'docs',scope:planCreation?creation.identity.replace(/^\d{4}-\d{2}-\d{2}-/,''):decisionCreation?'decisions':'specs',summary:planCreation?'create plan':decisionCreation?`create ${creation.identity}`:v.result.summary,body:checked.summary,trailers:{'Specplane-Workflow':planCreation?'plan-create':decisionCreation?'decision-new':'spec',...(planCreation?{'Specplane-Plan':creation.identity}:{}),'Specplane-Request':proposal.requestId,'Specplane-Agent':v.state.context.compatibility!.host.host,'Specplane-Contribution':generated.trailers.filter(([key])=>key==='Specplane-Contribution').map(([,value])=>value)}});
     commit=recordContent({manifest:checked.manifest,generated:generated.changes,...(creation?{creation:{files:creation.files.map(({path,scaffold})=>({path,scaffold})),apply:creation.apply}}:{}),message,beforeWrite:intent=>persistIntent({...intent,receipt:contentReceipt}),beforeCommit:()=>{
      if(planCreation)contentReceipt.validation=validatePlans(listPlans(config,cwd),loadAdrs(config,cwd).adrs,config,cwd);
+     else if(creation?.operation==='decision.new'){
+      const loaded=loadAdrs(config,cwd);
+      contentReceipt.validation=validateAdrs(loaded.adrs,config,cwd,loaded.findings);
+     }
      else{
       const ids=v.state.request.scope.specIds.filter(id=>paths.includes(path.relative(cwd,resolveSpecId(id,config,undefined,cwd).path).split(path.sep).join('/')));
       if(creation?.operation==='spec.new')ids.push(creation.identity);

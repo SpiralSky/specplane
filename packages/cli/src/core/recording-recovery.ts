@@ -53,9 +53,9 @@ function validateReceipt(intent:Intent):void{
   if(intent.proposal.operation!=='workflow.record'||'planId' in receipt||receipt.requestId!==request.requestId||receipt.workflow!==request.workflow||!['done','blocked'].includes(receipt.outcome)||receipt.summary!==intent.summary||!Array.isArray(receipt.paths)||!receipt.paths.length||receipt.paths.some(p=>typeof p!=='string')||!Array.isArray(receipt.limitations)||receipt.limitations.some(l=>typeof l!=='string'))fail('Malformed content recording receipt.');
   const config=loadConfig(request.checkout).config;
   const selected=request.scope.specIds.map(id=>path.relative(request.checkout,resolveSpecId(id,config,undefined,request.checkout).path).split(path.sep).join('/'));
-  if(receipt.creation&&!(receipt.creation.operation==='plan.new'?request.workflow==='plan-create':request.workflow==='spec-assist'||request.workflow==='spec-draft-architecture'))fail('Creation operation differs from prepared workflow.');
+  if(receipt.creation&&!(receipt.creation.operation==='plan.new'?request.workflow==='plan-create':receipt.creation.operation==='decision.new'?request.workflow==='decision-new':request.workflow==='spec-assist'||request.workflow==='spec-draft-architecture'))fail('Creation operation differs from prepared workflow.');
   const created=receipt.creation?intent.commit.transaction?.creation?.files??[]:[];
-  if(receipt.creation&&(!['spec.new','plan.new'].includes(receipt.creation.operation)||typeof receipt.creation.identity!=='string'||!receipt.creation.identity.trim()||!created.length||created.some(file=>!receipt.paths.includes(file.path)||!intent.commit.transaction?.generated.some(change=>change.path===file.path&&change.before===null))))fail('Malformed creation recovery scope.');
+  if(receipt.creation&&(!['spec.new','plan.new','decision.new'].includes(receipt.creation.operation)||typeof receipt.creation.identity!=='string'||!receipt.creation.identity.trim()||!created.length||created.some(file=>!receipt.paths.includes(file.path)||!intent.commit.transaction?.generated.some(change=>change.path===file.path&&change.before===null))))fail('Malformed creation recovery scope.');
   if(canonical([...receipt.paths].sort())!==canonical([...intent.proposal.paths].sort())||new Set(receipt.paths).size!==receipt.paths.length||receipt.paths.some(file=>!request.scope.allowedEditPaths.includes(file)&&!selected.includes(file)&&!created.some(entry=>entry.path===file)))fail('Content recording paths exceed prepared scope.');
  }
 }
@@ -68,7 +68,7 @@ function verifyCommit(intent:Intent):string{
  const raw=run('git',['cat-file','commit',head],{cwd}),message=raw.slice(raw.indexOf('\n\n')+2);
  if(message!==intent.commit.message)fail('Recorded commit message differs from validated intent.');
  const trailers=readTrailerEntries(head,cwd);
- const expected=[['Specplane-Request',intent.request.requestId],['Specplane-Workflow',intent.request.workflow==='plan-step'?'step':intent.request.workflow==='plan-create'?'plan-create':'spec']];
+ const expected=[['Specplane-Request',intent.request.requestId],['Specplane-Workflow',intent.request.workflow==='plan-step'?'step':intent.request.workflow==='plan-create'?'plan-create':intent.request.workflow==='decision-new'?'decision-new':'spec']];
  if('creation' in intent.commit.receipt&&intent.commit.receipt.creation?.operation==='plan.new')expected.push(['Specplane-Plan',intent.commit.receipt.creation.identity]);
  if('planId' in intent.commit.receipt)expected.push(['Specplane-Plan',intent.commit.receipt.planId],['Specplane-Step',String(intent.commit.receipt.step).padStart(2,'0')]);
  for(const [key,value] of expected){

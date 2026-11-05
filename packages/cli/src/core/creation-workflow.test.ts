@@ -62,8 +62,38 @@ test('plan creation records draft plan and pending steps with plan-create identi
  const f=await setup('plan-create');try{const proposal=await validateWorkflowResult(f.request,f.result,f.context);assert.ok(proposal.ok,JSON.stringify(proposal));if(!proposal.ok)return;const recorded=await recordWorkflow(proposal.value,f.context);assert.ok(recorded.ok,JSON.stringify(recorded));if(!recorded.ok)return;assert.ok(recorded.value.commit);assert.equal(f.git('show','-s','--format=%s',recorded.value.commit!),'docs(created): create plan');const trailers=readTrailerEntries(recorded.value.commit!,f.cwd);assert.ok(trailers.some(([key,value])=>key==='Specplane-Agent'&&value==='codex'));assert.ok(trailers.some(([key,value])=>key==='Specplane-Workflow'&&value==='plan-create'));assert.ok(trailers.some(([key,value])=>key==='Specplane-Plan'&&value===f.preview.identity));for(const file of f.preview.files.filter(file=>file.path.endsWith('.md'))){const parsed=parseFrontmatter(fs.readFileSync(path.join(f.cwd,file.path),'utf8'));assert.equal(parsed.data.status,file.path.endsWith('/PLAN.md')?'draft':'pending');}assert.equal(fs.existsSync(path.join(f.cwd,`plans/${f.preview.identity}/HANDOFF.md`)),false);}finally{f.close();}
 });
 
-test('ADR recording refuses the missing commit contract before prompting or creating',async()=>{
- const f=await setup('decision-new');try{const proposal=await validateWorkflowResult(f.request,f.result,f.context);assert.equal(proposal.ok,false);if(!proposal.ok)assert.equal(proposal.error.code,'UNSUPPORTED_CAPABILITY');assert.equal(f.prompts(),0);for(const file of f.preview.files)assert.equal(fs.existsSync(path.join(f.cwd,file.path)),false);}finally{f.close();}
+test('decision creation records a proposed ADR with the decisions commit convention',async()=>{
+ const f=await setup('decision-new');try{
+  const proposal=await validateWorkflowResult(f.request,f.result,f.context);assert.ok(proposal.ok,JSON.stringify(proposal));if(!proposal.ok)return;
+  const file=f.preview.files[0];assert.equal(fs.existsSync(path.join(f.cwd,file.path)),false);
+  const recorded=await recordWorkflow(proposal.value,f.context);assert.ok(recorded.ok,JSON.stringify(recorded));if(!recorded.ok)return;
+  assert.equal(f.prompts(),1);assert.ok(recorded.value.commit);
+  const adr=parseFrontmatter(fs.readFileSync(path.join(f.cwd,file.path),'utf8'));
+  assert.equal(adr.data.status,'proposed');assert.equal(adr.body,f.creation.body);
+  assert.equal(f.git('log','-1','--format=%s'),`docs(decisions): create ${f.preview.identity}`);
+  const trailers=readTrailerEntries('HEAD',f.cwd);
+  assert.deepEqual(trailers.filter(([k])=>k==='Specplane-Workflow'),[['Specplane-Workflow','decision-new']]);
+  assert.ok(trailers.some(([k])=>k==='Specplane-Request'));assert.equal(f.git('status','--porcelain'),'');
+ }finally{f.close();}
+});
+
+test('a done creation may cite the file being created, but only with the digest of its proposed content',async()=>{
+ const f=await setup('spec-assist');try{
+  const file=f.preview.files[0];
+  const done=(digest:string,artifactPath=file.path):WorkflowResult=>({...f.result,outcome:'done',openIssues:'',criterionEvidence:f.request.criteria.map(c=>({criterionId:c.id,assessment:'met' as const,rationale:'The confirmed text is the requested content',artifacts:[{path:artifactPath,digest,kind:'file' as const}]}))});
+  for(const bad of [done(sha256('something else')),done(sha256(file.after),'specs/features/not-created.md')]){
+   const refused=await validateWorkflowResult(f.request,bad,f.context);assert.equal(refused.ok,false);if(!refused.ok)assert.equal(refused.error.code,'INVALID_EVIDENCE');
+  }
+  assert.equal(f.prompts(),0);
+  for(const digest of [sha256(file.after),sha256(f.creation.body)]){
+   const proposal=await validateWorkflowResult(f.request,done(digest),f.context);assert.ok(proposal.ok,JSON.stringify(proposal));
+  }
+  const proposal=await validateWorkflowResult(f.request,done(sha256(f.creation.body)),f.context);assert.ok(proposal.ok);if(!proposal.ok)return;
+  assert.equal(fs.existsSync(path.join(f.cwd,file.path)),false);
+  const recorded=await recordWorkflow(proposal.value,f.context);assert.ok(recorded.ok,JSON.stringify(recorded));if(!recorded.ok)return;
+  assert.equal(f.prompts(),1);assert.equal((recorded.value as {outcome:string}).outcome,'done');
+  assert.equal(parseFrontmatter(fs.readFileSync(path.join(f.cwd,file.path),'utf8')).data.status,'draft');
+ }finally{f.close();}
 });
 
 test('creation capture rejects empty-file digests, wrong identities and changed proposed text',async()=>{
