@@ -165,7 +165,7 @@ export function registerNative(on: Parameters<Register>[0]): void {
   for (const cmd of NATIVE_COMMANDS) bindCommand(on, cmd)
 
   on('tool.call', { tool: COMPLETION_TOOL_NAME }, async ($, e) => {
-    const outcome = await acceptResult(pending, resultArguments(e), { session: sessionFor($) })
+    const outcome = await acceptResult(pending, resultArguments(e), { session: sessionFor($), human: hostHuman($) })
     return { result: outcome.text }
   }).catch(async ($) => {
     // The result could not be read or handled: release what this module holds, so no lease outlives the failure.

@@ -135,7 +135,7 @@ test('the model cannot call the Specplane workflow server; other tools pass the 
 });
 
 // Reasoning path (claude-delivery 03). A fake Specplane server stands for `$.mcp`; each call is recorded with its arguments.
-type Reply = { ok: boolean; value?: unknown; message: string };
+type Reply = { ok: boolean; value?: unknown; message: string; code?: string; details?: unknown };
 type Script = Record<string, (args: Record<string, unknown>) => Reply>;
 function fakeServer(script: Script = {}, connection: Record<string, unknown> = { connected: true }) {
   const calls: { tool: string; args: Record<string, unknown> }[] = [];
@@ -556,4 +556,66 @@ test('the registered gate allows only the mod\'s own server call, denies the res
   assert.equal(gate.handler({}, { tool: h.COMPLETION_TOOL_NAME, input: {} }, model).decision, 'ask');
   assert.equal(gate.catcher({}, server, next).decision, 'deny');
   assert.equal(gate.catcher({}, { tool: 'Bash', input: {} }, next).decision, 'ask');
+});
+
+// PROVISIONAL (D17 A, awaiting approval of the proposal's A6): the mod's two-call confirmation flow, fixtures only.
+const CHALLENGE = { challengeId: 'c1', summary: 'Confirm these exact finalized spec edits.\nFile: a', targets: ['a'], expiresAt: '2099-01-01T00:00:00.000Z' };
+const parkedRecord = (args: Record<string, unknown>) =>
+  args.confirmation === undefined
+    ? ({ ok: false, code: 'CONFIRMATION_REQUIRED', details: { challenge: CHALLENGE }, message: 'Finalized content needs confirmation.', value: undefined })
+    : ({ ok: true, value: {}, message: '' });
+
+async function confirmationCase(human: Port['human'], record: Script['record'] = parkedRecord) {
+  const m = await load();
+  const fake = fakeServer({ ...PREPARE_OK, validate: () => ({ ok: true, value: PROPOSAL, message: '' }), record });
+  const { ctx, queue } = context({ session: session(fake.server) });
+  await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  const out = await m.acceptResult(new Map([['r1', queue[0]]]), { requestId: 'r1', result: RESULT }, { session: ctx.session, human, newInteractionId: () => 'dialog-1' });
+  return { out, fake };
+}
+
+test('D17 A: a parked challenge is shown unmodified in the dialog and the second record carries the confirmation', opts, async () => {
+  const shown: string[] = [];
+  const { out, fake } = await confirmationCase({ confirm: async (summary: string) => { shown.push(summary); return 'confirmed'; } });
+  assert.equal(out.ok, true, out.text);
+  assert.deepEqual(shown, [CHALLENGE.summary]);
+  const records = fake.calls.filter(c => c.tool === 'record');
+  assert.equal(records.length, 2);
+  assert.deepEqual(records[0]!.args, { ...PROPOSAL, nonce: NONCE });
+  assert.deepEqual(records[1]!.args, { ...PROPOSAL, nonce: NONCE, confirmation: { challengeId: 'c1', decision: 'confirm', interactionId: 'dialog-1' } });
+  assert.equal(fake.calls.at(-1)!.tool, 'close');
+});
+
+test('D17 A: a declined dialog sends a decline and reports nothing recorded', opts, async () => {
+  const { out, fake } = await confirmationCase({ confirm: async () => 'declined' }, args => args.confirmation === undefined ? parkedRecord(args) : ({ ok: false, code: 'CONFIRMATION_REQUIRED', message: 'declined', value: undefined }));
+  assert.equal(out.ok, false);
+  assert.match(out.text, /declined/);
+  assert.match(out.text, /Nothing was recorded/);
+  assert.equal((fake.calls.filter(c => c.tool === 'record')[1]!.args as { confirmation: { decision: string } }).confirmation.decision, 'decline');
+  assert.equal(fake.calls.at(-1)!.tool, 'close');
+});
+
+test('D17 A: an unavailable dialog (dismissed, or claude -p) sends no confirmation, names the manual command and closes', opts, async () => {
+  const { out, fake } = await confirmationCase({ confirm: async () => 'unavailable' });
+  assert.equal(out.ok, false);
+  assert.match(out.text, /manual command/);
+  assert.equal(fake.calls.filter(c => c.tool === 'record').length, 1);
+  assert.equal(fake.calls.at(-1)!.tool, 'close');
+});
+
+test('D17 A: the mod never answers its own challenge when no human port is wired', opts, async () => {
+  const m = await load();
+  const fake = fakeServer({ ...PREPARE_OK, validate: () => ({ ok: true, value: PROPOSAL, message: '' }), record: parkedRecord });
+  const { ctx, queue } = context({ session: session(fake.server) });
+  await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  const out = await m.acceptResult(new Map([['r1', queue[0]]]), { requestId: 'r1', result: RESULT }, { session: ctx.session });
+  assert.equal(out.ok, false);
+  assert.equal(fake.calls.filter(c => c.tool === 'record').length, 1);
+});
+
+test('D17 A: serverReply carries error.details so the challenge reaches the mod', opts, async () => {
+  const m = await load();
+  const reply = m.serverReply({ isError: true, content: [{ type: 'text', text: JSON.stringify({ protocol: 1, ok: false, error: { code: 'CONFIRMATION_REQUIRED', message: 'm', details: { challenge: CHALLENGE } } }) }] });
+  assert.equal(reply.code, 'CONFIRMATION_REQUIRED');
+  assert.deepEqual(reply.details, { challenge: CHALLENGE });
 });

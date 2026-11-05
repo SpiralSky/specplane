@@ -126,10 +126,11 @@ export function serverReply(r: { content?: readonly { type?: string; text?: stri
   let parsed: unknown
   try { parsed = JSON.parse(text) } catch { parsed = undefined }
   if (typeof parsed === 'object' && parsed !== null && typeof (parsed as { ok?: unknown }).ok === 'boolean') {
-    const core = parsed as { ok: boolean; value?: unknown; error?: { message?: unknown; code?: unknown } }
+    const core = parsed as { ok: boolean; value?: unknown; error?: { message?: unknown; code?: unknown; details?: unknown } }
     const message = core.ok ? text : String(core.error?.message ?? text)
     const code = typeof core.error?.code === 'string' ? core.error.code : undefined
-    return { ok: core.ok && r.isError !== true, value: core.value, message, ...(code ? { code } : {}) }
+    const details = core.error?.details
+    return { ok: core.ok && r.isError !== true, value: core.value, message, ...(code ? { code } : {}), ...(details !== undefined && details !== null ? { details } : {}) }
   }
   return { ok: r.isError !== true, value: parsed ?? text, message: text }
 }
@@ -203,7 +204,7 @@ export interface HumanPort { confirm(summary: string): Promise<Confirmation> }
 /** The plugin's Specplane MCP server as `$.mcp` exposes it. `call` takes the tool's arguments as given. */
 export type ServerConnection = { connected: true } | { connected: false; message: string }
 /** `lost` marks a call that threw: the server may have taken a lease it could not report. */
-export interface ServerReply { ok: boolean; value?: unknown; message: string; lost?: boolean; code?: string }
+export interface ServerReply { ok: boolean; value?: unknown; message: string; lost?: boolean; code?: string; details?: unknown }
 export interface SpecplaneServer {
   connect(): Promise<ServerConnection>
   call(tool: string, args: Record<string, unknown>): Promise<ServerReply>
@@ -463,6 +464,12 @@ export async function runCommand(cmd: NativeCommand, args: string, ctx: RunConte
   }
 }
 
+/** The challenge a `CONFIRMATION_REQUIRED` refusal carries in `error.details.challenge`, or undefined when it is not well formed. */
+function parkedChallenge(details: unknown): { challengeId: string; summary: string } | undefined {
+  const c = (details as { challenge?: { challengeId?: unknown; summary?: unknown } } | undefined)?.challenge
+  return typeof c?.challengeId === 'string' && typeof c.summary === 'string' ? { challengeId: c.challengeId, summary: c.summary } : undefined
+}
+
 /** Results one request may submit. A correctable refusal leaves the request open until this many have been refused. */
 export const MAX_RESULT_ATTEMPTS = 3
 
@@ -482,7 +489,7 @@ const REQUEST_ENDED = 'This request has ended; rerun the command to try again.'
 export async function acceptResult(
   pending: Map<string, Delegation>,
   input: { requestId?: unknown; result?: unknown },
-  ctx: { session?: ReasoningSession },
+  ctx: { session?: ReasoningSession; human?: HumanPort; newInteractionId?: () => string },
 ): Promise<{ ok: boolean; text: string }> {
   const id = typeof input.requestId === 'string' ? input.requestId : ''
   const delegation = pending.get(id)
@@ -510,7 +517,19 @@ export async function acceptResult(
       pending.set(id, delegation)
       return refused(validated.message, `The request is still open: correct the result and call this tool again with the same requestId (${left} ${left === 1 ? 'attempt' : 'attempts'} left).`)
     }
-    const recorded = await send(session, 'record', validated.value as Record<string, unknown>)
+    const proposal = validated.value as Record<string, unknown>
+    let recorded = await send(session, 'record', proposal)
+    // PROVISIONAL (D17 A, awaiting approval of the proposal's A6): finalized content parks a challenge on the server;
+    // the user answers it in the mod's own dialog and a second `record` call carries the response.
+    const challenge = recorded.code === 'CONFIRMATION_REQUIRED' ? parkedChallenge(recorded.details) : undefined
+    if (!recorded.ok && challenge) {
+      if (!ctx.human) return refused('Confirmation is unavailable here', `Run the manual command instead. ${REQUEST_ENDED}`)
+      const answer = await ctx.human.confirm(challenge.summary)
+      if (answer === 'unavailable') return refused('Nobody could be asked to confirm this content', `Run the manual command instead. ${REQUEST_ENDED}`)
+      const interactionId = (ctx.newInteractionId ?? (() => globalThis.crypto.randomUUID()))()
+      recorded = await send(session, 'record', { ...proposal, confirmation: { challengeId: challenge.challengeId, decision: answer === 'confirmed' ? 'confirm' : 'decline', interactionId } })
+      if (!recorded.ok && answer === 'declined') return refused('You declined the content', REQUEST_ENDED)
+    }
     if (!recorded.ok) return refused(recorded.message, REQUEST_ENDED)
     return { ok: true, text: `Recorded the ${delegation.workflow} result.` }
   } finally {
