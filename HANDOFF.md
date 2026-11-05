@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-05 (S4). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05 (S5). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -13,7 +13,7 @@ Updated 2026-11-05 (S4). Branch `overnight/specplane-20261102T144630Z`; HEAD is 
 - Consumer suites: `harness/claude-consumer.test` (7) and `harness/codex-consumer.test` (7). A `done` plan-step is unreachable natively on Claude (unmapped criterion is `INVALID_EVIDENCE`, a mapped one is cancelled by D16 C). A consumer install shows `skill-drift` warnings because the skills cite `architecture/agent-skills`.
 - The `problems.md` findings were rechecked in session 8 and are all fixed in source.
 - Test runner notes: Bun 1.3.14 intermittently stalls at the end of a full parallel run (about half of runs on 2026-11-05; a worker spins inside Bun, root cause not named). `scripts/test.sh` runs Bun under a 180 s watchdog and on a stall reruns under `node --test` (`SPECPLANE_TEST_RUNNER=auto|bun|node`); the Node fallback skips 26 tests that load TypeScript source, including every `claude-handlers` test, so after a fallback also run `sh scripts/test.sh ./dist/harness/claude-handlers.test.js`. A second Bun failure was seen once: `EEXIST: file already exists, epoll_ctl` while loading `node:assert`, then `Cannot call test() after the test run has completed`, with 48 fail and only 510 of 1025 tests; it is not a stall and no fallback happens. Rerun once when that signature appears.
-- Bun 1.4.4 (`/usr/bin/bun`; the installed one in `~/.bun/bin` is 1.3.14 and was not changed): the 3 `non-plan-workflow.test` failures are fixed. Cause: the test child ran `node -e "require('node:test').test(...)"`, `node` resolves to Bun under `bun test`, and Bun 1.4 refuses `test()` outside `bun test`. The child now prints the TAP itself (`5533c78`); the file passes 15/15 on both 1.3.14 and 1.4.4. The full suite has not been run on 1.4.4 since the fix, so upgrading is still unverified. 1.4.4 did not stall in 4 earlier runs.
+- Bun 1.4.4 (`/usr/bin/bun`; the installed one in `~/.bun/bin` is 1.3.14 and was not changed): the 3 `non-plan-workflow.test` failures are fixed. Cause: the test child ran `node -e "require('node:test').test(...)"`, `node` resolves to Bun under `bun test`, and Bun 1.4 refuses `test()` outside `bun test`. The child now prints the TAP itself (`5533c78`); the file passes 15/15 on both 1.3.14 and 1.4.4. S5 ran the full suite through `scripts/test.sh` on each (1.4.4 selected by PATH): 1.4.4 1089 pass, 0 fail, 107 files, 38.88 s; 1.3.14 1089 pass, 0 fail, 107 files, 46.59 s; no stall, no Node fallback on either. Two clean runs do not rule out the 1.3.14 stall; the upgrade stays the user's call (item 11).
 - Not run: native macOS and Windows. `/tmp` is a RAM-backed tmpfs; keep `specplane-private-rewrite-20261103` there and remove other test leftovers.
 
 ## Needs the user
@@ -52,7 +52,7 @@ Not granted, so do not do:
 | S2 | Review D17 A, D16 A and recovery builds against the applied specs; fill the D16 A table and wire the install entry; drop PROVISIONAL where the spec now covers it, keeping anything that needs a live check gated | done (`c2ca9e7`; recovery A3/R1 contradiction open) |
 | S3 | Build the D25 route B session adapter offline (claude-delivery 03 criterion 1) | done (`8e7c106`; gated, no live evidence) |
 | S4 | G2 live runs; D19 removal if and only if `done` passed live | done (4 of 5 launches; D25 probe launch/observe/resume/cancel pass, budget stop not seen; D24, crit 3, row 4, `done` blocked; D19 not removed) |
-| S5 | Update conformance 01 and matrix from the evidence; full suite on Bun 1.4.4; write the reconciliation checklist | pending |
+| S5 | Update conformance 01 and matrix from the evidence; full suite on Bun 1.4.4; write the reconciliation checklist | done (matrix reason; Bun 1.4.4 and 1.3.14 both 1089 pass; `docs/work-records/2026-11-05-reconciliation-checklist.md`) |
 | S6 | Bug check: review all commits since `8aa96aa`, fix confirmed bugs with tests | pending |
 | S7 | Second bug check on areas S6 did not cover plus S6's fixes; final full verification | pending |
 
@@ -85,11 +85,11 @@ Not granted, so do not do:
 | codex-delivery | 01 | impl-complete; managed recording pending | all 3 criteria met by `core/workflow-runner.test`; no live Codex claim |
 | codex-delivery | 02 | impl-complete; managed recording pending | all 4 criteria met; `harness/codex-package.test` (6) |
 | codex-delivery | 03 | impl-complete; managed recording pending | all 3 criteria met; `harness/codex-consumer.test` (7) |
-| extension-conformance | 01 | partial; managed recording pending | 3 of 4 criteria met; the 4th (Claude workflows) is blocked on live-host delivery evidence. Rows stay not-delivered/pending; matrix reason names the live evidence that exists and the PROVISIONAL builds (`harness/conformance.test`) |
+| extension-conformance | 01 | partial; managed recording pending | 3 of 4 criteria met; the 4th (Claude workflows) is blocked on live-host delivery evidence. Rows stay not-delivered/pending; matrix reason (S5) states the D25 probe: launch, observe, resume, cancel passed through a direct child process, not `$.process.spawn`; budget stop not seen; no `done` result (`harness/conformance.test`) |
 | extension-conformance | 02 | partial; managed recording pending | guards built (`harness/release-evidence.test` (4)); blocker text refreshed; the pin refresh was not done and awaits the user's implementation review |
 
 ## Next session
-Follow "Authorized run": S5 (conformance 01 and matrix from the evidence, full suite on Bun 1.4.4, reconciliation checklist).
+Follow "Authorized run": S6 (bug check of commits since `8aa96aa`). The reconciliation commands are prepared in `docs/work-records/2026-11-05-reconciliation-checklist.md`; its open points are no CLI repair for "Legacy target history is ambiguous" (library-only `legacyEvidence`) and no defined way to bring the overnight implementation into plan checkouts for recording.
 Live follow-ups, each needing user approval: (1) D25 budget-stop case, with a task that costs more than the cap (the cheap model stayed under 0.01; try a larger task or `--model` default), then write the `$.process.spawn` binding and check its chunk shapes before any `ProbeEvidence`. (2) D24, claude-delivery 03 criteria 1 and 3 and conformance row 4 (and D19 removal) need a `done` plan-step natively. That needs a user decision on D16 C, `reasoning` and the unreviewed `BUNDLED_SUITES`; S4 flipped none of them. S4 used 4 of 5 G2 launches, so one remains in this grant.
 
 ## How to continue (orchestration)

@@ -395,3 +395,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 S4 live D25 probe
 - 4 of 5 G2 launches in throwaway fixtures (haiku, `--tools Read`, no bypass): launch, observe, resume, cancel passed; budget stop not seen (run stayed under 0.01). Evidence `harnesses/claude/host-evidence/2.1.317/d25-route-b-probe.txt`.
 - D24, claude-delivery 03 criteria 1 and 3, conformance row 4 and `done` not run: need reasoning commands registered. D19 skills kept. No ProbeEvidence supplied.
+
+## 2026-11-05 S5 conformance matrix, Bun 1.4.4, reconciliation checklist
+- Matrix reason in `conformance-matrix.ts` now records the D25 probe (direct child process, not `$.process.spawn`; budget stop not seen; no `done`); rows unchanged; `conformance.test` asserts it. 02 pin refresh not done.
+- `scripts/test.sh` full suite: Bun 1.4.4 and 1.3.14 each 1089 pass, 0 fail, 107 files (38.88 s, 46.59 s), no stall or fallback. Checklist: `docs/work-records/2026-11-05-reconciliation-checklist.md`; no CLI repair for the legacy-history error found.
