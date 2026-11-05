@@ -26,7 +26,7 @@ This spec defines the concrete files and structure that implement the Claude Cod
 
 ## Files produced
 
-The extension package is a Claude plugin containing a mod, the compatible shared core, shared workflow procedures/contract snapshots, reasoning skills, and policy hooks. `harnesses/claude/plugin/` is the primary package, not merely an optional pane. Repository files below are supporting assets and reasoning fallbacks; a mechanical workflow must not also install a prompt skill under its native command's name. Detect and report legacy name collisions during explicit upgrade rather than silently shadowing one implementation.
+The extension package is a Claude plugin containing a mod, a bundled copy of the compatible shared core, a plugin MCP server that owns the writer lease (`## Workflow server and writer lease`), shared workflow procedures/contract snapshots, reasoning skills, and policy hooks. `harnesses/claude/plugin/` is the source of the plugin root, not merely an optional pane; `specplane init --harness claude` installs it as `.claude/specplane/`. Repository files below are supporting assets and reasoning fallbacks; a mechanical workflow must not also install a prompt skill under its native command's name. Detect and report legacy name collisions during explicit upgrade rather than silently shadowing one implementation.
 
 Files installed into a target repository:
 
@@ -43,13 +43,21 @@ Files installed into a target repository:
     specplane-statusline.sh       # registered only if no status line is configured
     specplane-handoff-check.sh    # optional; installed, not registered
     specplane-generate.sh         # optional; installed, not registered
+  specplane/                      # the plugin root; the host loads it as plugin `specplane`
+    .claude-plugin/plugin.json    # host manifest; declares the `specplane` MCP server
+    hooks/                        # the mod: hooks.json, register.tsx, commands.ts, handlers.ts
+    types/index.d.ts              # the host mod declarations the mod is written against
+    core/                         # bundled compatible core: specplane-extension.json, inventory,
+                                  #   host-evidence/claude-code.json, dist/ (incl. harness/claude-mcp-main.js)
+    tsconfig.json                 # written by the host when it loads the plugin; never shipped (see below)
   settings.json                   # hook and status line registration (merged into any existing settings)
+.gitignore                        # gains one line, `.claude/specplane/tsconfig.json` (added once; existing lines kept)
 AGENTS.md                         # managed block written by base `specplane init`
 ```
 
 Skills in `.claude/skills/<name>/SKILL.md` provide the reasoning procedures used by the extension. Native handlers own mechanical public commands. The installed set excludes conflicting prompt commands; keep reasoning assets under distinct internal names where necessary. `.claude/settings.local.json` is never read or written.
 
-**User-owned files are not edited.** Specplane never writes `CLAUDE.md`. The paths above except `AGENTS.md` and `.claude/settings.json` are managed assets; refresh replaces unmodified owned bytes. Customized or unrecognized assets are preserved under `architecture/reference-cli#explicit-upgrade-transaction`. `AGENTS.md` changes only inside its managed block (`architecture/agent-skills#delivery`) and `settings.json` only by § Settings merge and the upgrade transaction's removal of recognized obsolete registrations.
+**User-owned files are not edited.** Specplane never writes `CLAUDE.md`. The paths above except `AGENTS.md` and `.claude/settings.json` are managed assets; refresh replaces unmodified owned bytes. Customized or unrecognized assets are preserved under `architecture/reference-cli#explicit-upgrade-transaction`. `AGENTS.md` changes only inside its managed block (`architecture/agent-skills#delivery`) and `settings.json` only by § Settings merge and the upgrade transaction's removal of recognized obsolete registrations. The host rewrites `.claude/specplane/tsconfig.json` each time it loads the plugin. The installer therefore does not ship that file and adds it to the repository's `.gitignore`, so the host's rewrite cannot dirty the checkout baseline that workflow requests are bound to. `.gitignore` is otherwise user-owned: the installer appends its one line when missing and reports `Updated .gitignore (ignores .claude/specplane/tsconfig.json)`.
 
 Repository content can deliver fallback skills and settings hooks. A cloud/headless session must separately verify that the extension package, mod, core, and required APIs are available. Do not infer extension availability from `.claude/`. A missing mod disables native command dispatch, not manual CLI operations; UI features are optional and surface-dependent.
 
@@ -65,7 +73,12 @@ harnesses/claude/
     rules/specplane.md
     skills/<name>/SKILL.md        # one per skill
     hooks/<script>.sh
-  plugin/                         # primary extension: mod, bundled core, reasoning assets; optional UI
+  plugin/                         # source of the installed plugin root (`.claude/specplane/`)
+    .claude-plugin/plugin.json    #   host manifest and MCP server declaration
+    hooks/                        #   the mod (hooks.json, register.tsx, commands.ts, handlers.ts)
+    types/index.d.ts              #   host mod declarations
+                                  #   The bundled core is not stored here: the CLI build copies it from
+                                  #   `packages/cli` into the package it stages as `.claude/specplane/core/`.
   tests/
     hooks.test.sh                 # hook script tests (see § Testing)
     check-sync.sh                 # template ↔ dogfood copy check
@@ -409,6 +422,8 @@ A memory entry that disagrees with the plan files is stale; the plan files win.
 The Claude harness is set up only when `specplane init --harness claude` is explicitly requested. Detection of `.claude/` is inventory/validation evidence, not installation or execution selection. That explicit operation prepares the versioned extension package and reports the separate host installation/enablement steps; it never enables a global host package as a side effect. It writes supporting repository assets:
 
 - Internal reasoning skills, `.claude/rules/specplane.md`, and `.claude/hooks/*.sh` (mode `0755`). Refresh uses `architecture/reference-cli#explicit-upgrade-transaction`: replace unmodified owned assets, preserve customized files, and retire recognized legacy public prompt skills only when the replacement is ready. Conflicts are reported with exact paths and disable the affected native name until resolved.
+- The plugin root `.claude/specplane/` (manifest, `hooks/`, `types/`) and the bundled core at `.claude/specplane/core/`, staged through the same transaction. Preserved core files that no longer match the package inventory make the MCP server refuse preparation until they are reconciled; the manual CLI remains available.
+- The `.claude/specplane/tsconfig.json` line in `.gitignore` (`### Files produced`).
 - The registrations via § Settings merge.
 
 It never creates or edits `CLAUDE.md`. It prints one `Created`/`Updated`/`Skipped` line per file (as base `init` does), followed by "Claude Code integration files written to `.claude/`."
@@ -437,32 +452,127 @@ Implemented by a plan that depends on the reference CLI core plan (not by the pl
   - Optional hooks: the generate hook passes `plan index --source working` to the stub only for a `PLAN.md` path; the handoff check warns for a commit with `Specplane-Workflow: step` trailers that lacks HANDOFF.md (in a temp git repo), and is silent for other commits. Both always exit 0.
 - Settings merge is tested with the CLI (`src/harness/claude.ts`): absent file, invalid JSON, already registered, partial registration, existing `statusLine`.
 - The plugin has its own tests (`harnesses/claude/plugin/`, run with `claude plugin test`): mode switching, the `step`-mode edit denials, and pane rows built from a fixture `plan list --json` output.
+- The workflow server is tested without a host: `claude-mcp.test` (bind and nonce rules; compact `prepare`; `detail` paging; `validate` by `requestId`; `close` with and without `requestId`; the 16 KB bound asserted per reply on a realistic fixture; cancellation of an undeliverable `prepare`; the test-requirement refusal), `claude-handlers.test` (origin gate allow and deny; completion tool attempt limit; result template validates against `workflowResultSchema`; the interim rule appears only for the four writing workflows; close on lost prepare, unreadable detail or unreadable result; the `close` wording), `claude-package.test` and `harness.test` (plugin root staging; the `.gitignore` entry). Added with D17 A: parked-challenge confirmation cases (confirm, decline, dismissed, expired, mismatched id, replay). Added with D16 A: unknown `suiteId` refusal, and a check that no model-supplied executable reaches the runner. Added with the recovery command: dead and live owner, mismatched records, no terminal, `--dry-run`.
+- Live checks are separate from these tests and each needs the user's fresh approval (`### Host evidence`).
 - `harnesses/claude/tests/check-sync.sh` diffs each file under `templates/` against its installed path in the Specplane repository (per § Template source) and exits 1 listing any difference or missing file. The `settings.json` comparison is a subset comparison, not byte-identical: every registration in the template must be present in the installed `.claude/settings.json`, which may contain further user entries.
 - Skill content is checked for drift by `specplane validate` through the contract comment (`architecture/agent-skills#keeping-skills-in-sync-with-specs`); the content itself is still reviewed by hand when a pin goes stale.
 
 ## Deterministic command dispatch
 
-The target package includes `.claude-plugin/plugin.json`, `hooks/hooks.json` with `modules: ["./register.js"]`, and `hooks/register.js` exporting `register(on, options)`. It also ships `specplane-extension.json`, the bundled core build inventory and snapshots. The host manifest identifies the plugin; the separate Specplane manifest validates core/procedure compatibility before registration. Host installation/enablement is an explicit plugin operation; repository initialization reports prepared assets and remaining host steps instead of claiming the mod is loaded.
+The installed plugin root (`.claude/specplane/`) contains `.claude-plugin/plugin.json`, `hooks/hooks.json` with `modules: ["./register.tsx"]`, and `hooks/register.tsx` exporting `register(on, options)`, plus `types/` with the host mod declarations. The manifest also declares the `specplane` MCP server (`## Workflow server and writer lease`). The bundled core at `.claude/specplane/core/` carries `specplane-extension.json`, its build inventory and the procedure and contract snapshots. The host manifest identifies the plugin; the separate Specplane manifest validates core/procedure compatibility before registration. Host installation/enablement is an explicit plugin operation; repository initialization reports prepared assets and remaining host steps instead of claiming the mod is loaded.
 
 Use the supported Claude mod API, rather than prompt interception, for public command dispatch. In `session.start`, call `$.command.register`; handle each name with a filtered `command.run` handler. Mechanical handlers parse arguments, call the bundled core, and return `{ text }` without a model call or delegation to the default prompt path. Register only non-built-in names, report collisions, and keep handlers unavailable if required APIs are missing. Stateful operations use the shared locks and revalidate plan state; optional immediate execution must not race a plan writer.
 
-Reasoning commands prepare the exact step/context through the core and explicitly invoke the installed reasoning procedure through the verified host turn/tool mechanism. After agent work, core validators check the structured outcome and actual repository state before step recording. Human approvals use the host's explicit user interaction and the core's approval transition; model-generated text is never approval evidence. Agent-invoked tools call the same validated operations but cannot manufacture a user command or an approval.
+Reasoning commands call the server's `prepare` through the mod, read the request in `detail` pages, and explicitly invoke the installed reasoning procedure through the verified host turn/tool mechanism. The commands are registered only when the native reasoning path is enabled; while it is disabled, the reasoning commands and the completion tool are not registered and the legacy reasoning skills keep their names. After agent work, core validators check the structured outcome and actual repository state before step recording. Human approvals use the host's explicit user interaction and the core's approval transition; model-generated text is never approval evidence. Agent-invoked tools call the same validated operations but cannot manufacture a user command or an approval.
 
-The target delegation path is `$.prompt.submit({text})` with the prepared request and the internal reasoning asset's path, followed by a registered completion tool accepting `WorkflowResult`. Never use `asUser: true`: extension-origin input must retain its origin and cannot confer human authorization. Do not await submission while a host turn is active; retain request/lease state and validate the matching result when the turn completes. A refused submission, abandoned event, or missing completion capability cancels/refuses the workflow rather than falling through to the default prompt handler. Wire `next.signal` and host interruption to shared cancellation; stop unacknowledged workers before releasing locks. Exact tool registration and prompt/result signatures are compiled against the installed declarations and tested per surface before enabling this path.
+The delegation path is `$.prompt.submit({text})` with the prepared request and the internal reasoning asset's path, followed by the mod-registered completion tool `specplane_result`, which accepts `{requestId, result}` with `WorkflowResult`. Never use `asUser: true`: extension-origin input must retain its origin and cannot confer human authorization. The command hook schedules the submit with `$.clock.after`, with `turn.complete` as a backstop, because a hook cannot submit and a command that raises no model turn raises no `turn.complete`; the procedure therefore starts from the command alone. Do not await submission while a host turn is active; retain request state and validate the matching result when the turn completes. A refused submission, abandoned event, or missing completion capability closes the request and its lease rather than falling through to the default prompt handler. Wire `next.signal` and host interruption to shared cancellation; stop unacknowledged workers before releasing locks. Exact tool registration and prompt/result signatures are compiled against the installed declarations and tested per surface before enabling this path.
 
-The interaction port uses a verified direct human UI operation (target `$.ui.ask`) with the core challenge's exact payload. If that operation is unavailable, mechanical read-only commands still work and confirmation-requiring transitions refuse with manual CLI instructions. Agent tool calls cannot submit confirmation responses. Query the command inventory before registering; if a built-in or customized prompt owns a name (including `/approve` on any surface where it is host-owned), leave that Specplane handler unavailable and report the manual command. Catch each registration failure separately so one collision does not skip unrelated registrations. Do not silently introduce aliases or shadow built-ins.
+**The prompt.** The prompt is extension-origin text, not an approval. It carries the prepared request and the completion tool's name. It also carries a schema-valid `WorkflowResult` built from the request: its `requestId`, `baseDigest` and one `criterionEvidence` entry per criterion filled in, `outcome: "blocked"` and every assessment `unmet`, so a template sent back unchanged claims nothing. It tells the model to replace the template's text, to give a `BLOCKED:` line in `openIssues` for a blocked outcome, and to call the completion tool even when it cannot finish, so the request always closes. The core's schema refusal names the first failing field and never echoes its value.
+
+**Interim rule for workflows that would write text.** While finalised content cannot be confirmed through the mod (`### Confirming finalised content` is not delivered and live-checked), the prompts for `spec-assist`, `spec-draft-architecture`, `plan-create` and `decision-new` carry this rule, and this overrides any procedure step that returns a body: *"This request cannot create a file or bind finalized text, and this overrides any procedure step that returns a body: leave out `creation` and `finalizedEdits`, give the user the approved text in your reply, report `blocked`, and name the manual command."* The implementation constant is `MANUAL_WRITE_RULE`. The rule is removed when the confirmation path lands.
+
+**Attempt limit.** A request accepts at most 3 result submissions. A refusal with code `INVALID_EVIDENCE` is correctable and changes nothing in the core, so the request stays open and the reply says how many attempts are left. Any other refusal, a lost call, a `record` refusal, or the third `INVALID_EVIDENCE` ends the request, releases its lease, and tells the model to rerun the command. The completion tool's reply says the requests were closed only when `close` succeeded.
+
+**Recording.** `record` is live-checked for a blocked result only: validate, record, receipt and lease release ran. A `done` result, a commit and a written spec have not been run live.
+
+The interaction port is the mod's direct human UI operation, `$.ui.ask` with the core challenge's exact summary and the choices `Confirm` and `Cancel`. If that operation is unavailable, or the ask is dismissed or rejected (for example under `claude -p`, where no one can answer), mechanical read-only commands still work, confirmation-requiring transitions refuse with manual CLI instructions, and a request that needs confirmation ends as `blocked`. Agent tool calls cannot submit confirmation responses: the server accepts a confirmation only through the mod's authenticated, origin-checked call. Query the command inventory before registering; if a built-in or customized prompt owns a name (including `/approve` on any surface where it is host-owned), leave that Specplane handler unavailable and report the manual command. Catch each registration failure separately so one collision does not skip unrelated registrations. Do not silently introduce aliases or shadow built-ins. The full confirmation protocol is in `### Confirming finalised content`.
 
 `PreToolUse`/mod tool hooks enforce policy around agent tools; they are not command dispatchers. Direct user slash commands and agent Skill invocations have different paths and are tested independently. Capture model identity at each contributing action, preserving all models across switches instead of attributing all edits to the final model.
+
+**Origin gate.** The mod's `tool.check` handler is the gate for the workflow server's tools. It answers `allow` for a call the host reports as originating from this plugin (`next.origin.plugin` is `specplane`) and `deny` for every other caller, even one that holds the nonce, with the reason that Specplane workflow tools are reserved for Specplane commands. A model's call reads `engine`/`core` origin. The completion tool `specplane_result` is the model's and passes through to the host's normal permission handling. The gate fails closed: a throwing check refuses. Answering `allow` itself also avoids two host behaviors seen live: under auto mode the classifier refused the mod's own call with no verdict, and in default mode every mod call showed a permission prompt carrying all arguments, including the nonce.
 
 Compatibility is checked against the installed host's mod declarations and named tested versions. Documentation establishes the design, not live implementation compatibility. Tests must assert zero model calls for mechanical handlers, direct text results, explicit reasoning delegation, collision handling, missing-API refusal, approval interaction, and headless behavior.
 
 Design sources inspected 2026-11-01: [Mods overview](https://code.claude.com/docs/en/plugins/mods/overview), [Add a command](https://code.claude.com/docs/en/plugins/mods/api#add-a-command), and [Mods reference](https://code.claude.com/docs/en/plugins/mods/reference). These sources informed the target mod design; current host support still requires the installed-declaration and live-version checks above. No source citation certifies an active dispatcher.
 
+**Host evidence.** Recorded runs against Claude Code 2.1.317 are under `harnesses/claude/host-evidence/2.1.317/`: the plugin loaded and its server started from `.claude/specplane/core` with `${CLAUDE_PLUGIN_ROOT}` expanded; an interactive check showed the lease held across calls by the server and released by `close`; the origin gate ran `bind`, `prepare` and `detail` in auto and default mode with no classifier refusal and no prompt; a blocked result was validated, recorded and closed. Not shown live: a `done` result, a commit, a written spec (D17), the D24 prompt, and native macOS or Windows. Each live run is a separate, user-approved operation and is never retried.
+
+## Workflow server and writer lease
+
+The plugin manifest declares one MCP server, `specplane`. The host starts it from the bundled core with `node ${CLAUDE_PLUGIN_ROOT}/core/dist/harness/claude-mcp-main.js`, and lists it as `plugin:specplane:specplane`. Its tools appear to the model as `mcp__plugin_specplane_specplane__<tool>`. The server hosts one persistent protocol-1 workflow runner (`architecture/reference-cli`). **The runner, not the mod and not the model, owns the writer lease** from `prepare` until the request is recorded, cancelled or closed. The lease is held across tool calls for the life of the server process; the mod never takes, adopts or releases a lease itself.
+
+The checkout is `SPECPLANE_CHECKOUT` when set, else the working directory, and must be an absolute path. Compatibility comes only from the installed package: its `specplane-extension.json` and `host-evidence/claude-code.json`. If either is missing or unreadable, every `prepare` is refused as incompatible and the manual CLI remains available.
+
+**Binding.** The mod generates a nonce of at least 16 characters and calls `bind` once per session. Every other tool call repeats it; a second `bind`, a missing nonce or a mismatching nonce is refused. The nonce is a second check behind the origin gate (`## Deterministic command dispatch`, origin gate), never the only one.
+
+**Tools.** Every tool except `bind` needs the nonce.
+
+| Tool | Effect |
+| --- | --- |
+| `bind` | Binds the session once. |
+| `inspect` | Reports a prepared or recorded request. |
+| `prepare` | Prepares a request and takes the writer lease. The reply is compact: `requestId`, `workflow`, `status`, `detailChars`. The full request stays in the server. |
+| `detail` | Returns one page of the prepared request, selected by `requestId` and `offset`. A page is at most 2048 characters of the serialized request; the reply gives `total`, `next` and `done`. |
+| `executeTest` | Runs the reviewed suite for a prepared request with a host-fixed command (`### Reviewed test suites`). |
+| `validate` | Takes `requestId` and the `WorkflowResult`. The server validates against the request it holds for that id; the request is never sent back. A request that is not open is refused. |
+| `record` | Records a validated result. When the core needs the user's confirmation, see `### Confirming finalised content`. |
+| `capture` | Captures a proposed contribution. |
+| `cancel` | Cancels one request by `requestId` and releases its lease when the workers are proven stopped. |
+| `close` | With `requestId`, releases that request's lease. Without it, closes every open request of the session and reports `closed` and `failed` ids; none is dropped silently. |
+
+**Reply bound.** No reply exceeds 16 KB, the host's MCP result limit. A reply that would is not delivered; for `prepare` the server also cancels the request and releases its lease, because nobody could close a request they never received.
+
+**Closing.** `close` releases the lease. The mod closes a request when the result is recorded, when the result or a later refusal ends the request, when the prepare reply or its `detail` pages cannot be read, and when the completion result cannot be read. A request ended by an `INVALID_EVIDENCE` refusal that is still correctable stays open (`## Deterministic command dispatch`, attempt limit). A released request leaves no lease behind, which a live run confirmed for a blocked result (host evidence, `origin-gate-check.txt`, "Recording check").
+
+**Session end.** On disconnect the server cancels pending work and releases every lease it can prove released. A worker that is not proven stopped keeps its lease and the server exits non-zero. That state needs `### Recovering a lease left by an ended session`.
+
+**Plugin hooks and managed settings (D11).** Under `allowManagedHooksOnly` a user-tier plugin loads no hooks, so the mod would not run. The accepted position is that the plugin ships at user tier and that this limitation is documented rather than worked around. TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review). Alternative: ship as a managed plugin.
+
+### Reviewed test suites
+
+A plan step whose criteria carry `testRequirements` needs the reviewed suite to run. The server never runs an executable or arguments that the model, or any text from a prepared request, supplies. `executeTest` takes only `requestId` and `criterionIds`. The server resolves each required `suiteId` to a command in a suite table bundled in the extension package and installed with the core (`.claude/specplane/core/`), runs it with the checkout as working directory and without a shell, and passes the report back to the core for assertion matching exactly as `architecture/reference-cli` defines. An unknown `suiteId` is refused, and the request is cancelled and its lease released.
+
+The model starts a run through the mod-registered tool `specplane_run_tests`, whose only input is `requestId`. The mod calls `executeTest` and returns the receipt reference for the model to cite in `criterionEvidence[].artifacts`. A receipt the core did not produce is not evidence.
+
+Until this path is delivered and live-checked, the server cancels a prepared `plan-step` whose criteria carry `testRequirements`, releases its lease, and says to run the step through the managed plan-step flow.
+
+TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): the bundled suite table and the `specplane_run_tests` tool. Alternatives: a new config key naming each suite's command (needs a base configuration spec change), or reuse `plans.test_command` (a shell string, so it cannot name one suite).
+
+### Confirming finalised content
+
+A result that carries `finalizedEdits` or `creation` needs the user's confirmation before the core writes anything. The core confirms inside the server process, which has no screen, so the response crosses the server boundary through one protocol field.
+
+- **Field.** `record` accepts an optional `confirmation`: the core's `ConfirmationResponse`, exactly `{challengeId, decision, interactionId}` with `decision` either `confirm` or `decline` and `interactionId` a fresh identifier the mod generates for each dialog. No other tool accepts it.
+- **Flow.** The mod calls `record` with the validated proposal. The core builds its challenge; the server parks the core call at its interaction port and replies to the mod with `ok: false`, code `CONFIRMATION_REQUIRED`, and the challenge (`challengeId`, `targets`, `summary`, digests, `expiresAt`) in `error.details.challenge`. The mod shows `challenge.summary` unmodified in `$.ui.ask(summary, ['Confirm', 'Cancel'])`. The mod then calls `record` again with the same proposal and `confirmation`. The server matches `challengeId` to the parked challenge, hands the response to the core, and the core finishes or refuses.
+- **Rules.** The server accepts `confirmation` only for a challenge it has parked for that `requestId`, once, and only until the challenge's `expiresAt`. A `decline`, a dismissed or rejected dialog, an expired challenge, a mismatched `challengeId`, a `cancel` or a `close` ends the parked call as a refusal; nothing is written and the request is closed. The mod never answers its own dialog; the model's text is never a response.
+- **Trust.** The response is trusted as direct-human only because it arrives through the nonce-bound, origin-checked mod call (`## Deterministic command dispatch`, origin gate). Removing the nonce later needs a server protocol change, so the nonce stays.
+- **After confirmation** the interim rule in `## Deterministic command dispatch` is removed, and the four writing workflows may return `creation` and `finalizedEdits`. Lifecycle approval remains a separate operation: this confirmation never approves a spec.
+
+TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): the field name `confirmation` and the two-call flow. Alternative: keep one parked `record` call and add a `confirm` tool that carries the response.
+
+### Recovering a lease left by an ended session
+
+If a Claude session ends while a request is open (the terminal is closed, the host is killed, the model never calls the completion tool and `close` does not run), the writer lease stays held with host-worker evidence. Nothing releases it silently: the core reclaims such a lease only after trusted proof that the prior worker stopped, and a dead owner process is a necessary condition, not that proof.
+
+Recovery is an explicit user operation on the CLI, which has no model turn:
+
+```
+specplane workflow list [--json]
+specplane workflow recover <request-id> [--dry-run] [--json]
+```
+
+- `workflow list` is read-only. For each lease retained with host-worker evidence in this repository it prints the request id, workflow, checkout, owner process id and whether that process is alive, the lease age, and the recovery state. It never mutates.
+- `workflow recover` refuses unless the owner process is dead and the retained records match the lease set recorded for that request. It then prints what it will do and asks the user, on the terminal, to type the request id to confirm that the Claude session that held the request has ended. With no terminal it refuses with `CONFIRMATION_REQUIRED`; there is no `--yes`. On confirmation it adopts the lease through the core's host-recovery path, restores any recognised core-generated recording files from the durable record if recording had begun, and releases the lease. It never deletes lease records by hand, and it leaves the model's working-tree edits untouched and says to inspect `git status`.
+- A later `prepare` that meets such a lease reports the request id and this command in its refusal.
+- `--dry-run` runs every check and prints the plan without confirming or changing anything.
+
+TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): the command names and the typed-id attestation as stopped-worker proof. Alternatives: (B) reclaim automatically at the next `prepare` when the owner process is dead (rejected: no proof the worker stopped), (C) document manual deletion of the lease files (rejected: bypasses the core's checks). The CLI half belongs in `architecture/reference-cli`, which needs a matching approved edit.
+
 ## Claude session adapter (extension-owned)
 
-Specplane's core and standalone CLI contain no Claude session code and never launch Claude. Automated plan execution for Claude belongs to this extension: it ships its own Protocol 1 `SessionAdapter` in the extension package and passes it explicitly to `runConductor` (see `architecture/reference-cli`). No such adapter is delivered yet; the experimental command-line adapter tested only with fake runners was removed from the core package.
+Specplane's core and standalone CLI contain no Claude session code and never launch Claude. Automated plan execution for Claude belongs to this extension: it ships its own Protocol 1 `SessionAdapter` in the extension package and passes it explicitly to `runConductor` (see `architecture/reference-cli`).
 
-Before the extension enables automated execution, it verifies against the installed, named Claude version that the host can launch a session in a given checkout, observe it, resume it, keep a stable session identity, and enforce a requested budget. Executable presence or help text alone is insufficient. Arguments use an array, never shell interpolation; no extra worktree, terminal multiplexer, dangerous permission bypass, or session deletion is used. Unknown observation output is a capability error, not evidence that a session is missing. Missing capabilities fail closed, and launch uncertainty is never retried automatically.
+The extension's adapter launches headless Claude Code processes through the mod's process port (`$.process.spawn`, argument array, no shell), one process per session request, in the request's `checkout` and never in another worktree.
+
+**Launch.** `launch(request)` mints a session id (a UUID) and persists `{orchestrationId, nativeSessionId}` before the process starts. It then runs `claude -p --session-id <id> --max-budget-usd <budgetUsd> --output-format stream-json --verbose <prompt>`; `--max-budget-usd` is omitted only when the request has no `budgetUsd`. The prompt is built by the extension from the request: it names the installed `plan-step` procedure and the `workflowRequestPath`, and contains no free text from the plan. The process does not use `--bare`, so the installed plugin loads, and uses no permission-bypass flag.
+
+**Observe.** `observe(ref)` reads the process's stream-json output and exit status. The adapter maps a final `result` event with `subtype: success` and exit 0 to `completed`; any other terminal `result` or a non-zero exit to `failed`; a live process with no terminal event to `running`; and a missing process, unparseable output, or an unrecognised event shape to `unknown`. `unknown` is never read as "no session". `completed` is advisory: the conductor still verifies the step commit, status and HANDOFF through the core.
+
+**Resume.** `resume(ref, request)` runs the same command with `--resume <nativeSessionId>` in place of `--session-id`, only when the persisted mapping matches `ref` and no live process holds the session. A mismatch, or a live process, refuses.
+
+**Recovery and cancel.** `recovery(ref)` returns argument-array instructions for `claude --resume <nativeSessionId>` (attach) and the log path, or an unavailable reason when the mapping is missing. `cancel(ref, signal)` sends the process a termination signal, waits for exit, and returns `{stopped: true, recoveryRequired: false}` only after the exit is observed; otherwise `{stopped: false, recoveryRequired: true}`.
+
+**Probe.** `probe` reports `launch`, `observe`, `resume` and `cancel` true, and `budgetEnforcement` true, only after a probe against the installed, named version has launched, observed, resumed and cancelled a throwaway session and seen a budget stop. Help text alone is insufficient. Otherwise the capability is false and the conductor refuses before preparing a checkout. A launch whose outcome is uncertain is never retried automatically.
 
 ## Shared documentation delivery and completion interface
 
