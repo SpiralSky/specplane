@@ -304,9 +304,9 @@ test('route B probe is gated: every capability false without a passed probe reco
   assert.deepEqual(pick(await probe({ evidence: pass })), { launch: true, observe: true, resume: true, cancel: true, budgetEnforcement: true });
 });
 
-test('route B stays gated in the plugin: startNative keeps reasoning false and handlers do not import the adapter', opts, async () => {
+test('route B stays gated in the plugin: startNative keeps reasoning behind the marker and handlers do not import the adapter', opts, async () => {
   const fs = await import('node:fs');
   const handlers = fs.readFileSync(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts'), 'utf8');
-  assert.match(handlers, /const reasoning = false/);
+  assert.match(handlers, /const reasoning = await nativeReasoningEnabled\(\$\)/);
   assert.ok(!/session-adapter/.test(handlers));
 });

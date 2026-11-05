@@ -661,3 +661,31 @@ test('completion, validate, plan-status and plan-start delegate to exactly the c
   assert.notEqual((await m.runCommand(cmd('specplane-complete'), 'feature/a', model.ctx)).exitCode, 0);
   assert.equal(model.calls.length, 0, 'a state-changing command from a model origin never reaches the core');
 });
+
+test('the native reasoning path stays off unless the marker check passes, and a legacy skill keeps its name when it is on', opts, async () => {
+  const h = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
+  const start = async (run: (argv: string[]) => Promise<{ exitCode: number }>, inventory: Array<{ name: string; source: string }> = []) => {
+    const commands: string[] = [], tools: string[] = [], checked: string[][] = [];
+    await h.startNative({
+      plugin: { root: '/plugin' },
+      process: { run: (argv: string[]) => { checked.push(argv); return run(argv); } },
+      command: { list: async () => inventory, register: async (c: { name: string }) => { commands.push(c.name); } },
+      tool: { register: async (t: { name: string }) => { tools.push(t.name); } },
+      ui: { log: () => undefined },
+    }, '/repo');
+    return { commands, tools, checked };
+  };
+  const present = async () => ({ exitCode: 0 });
+  for (const off of [async () => ({ exitCode: 1 }), async () => { throw new Error('no process'); }]) {
+    const r = await start(off);
+    assert.ok(!r.commands.includes('plan-step'));
+    assert.deepEqual(r.tools, []);
+  }
+  const on = await start(present);
+  assert.equal(on.checked[0].at(-1), `/plugin/${h.NATIVE_REASONING_MARKER}`);
+  assert.ok(on.commands.includes('plan-step'));
+  assert.equal(on.tools.length, 2);
+  const skill = await start(present, [{ name: 'plan-step', source: 'projectSettings' }]);
+  assert.ok(!skill.commands.includes('plan-step'), 'a legacy skill keeps /plan-step; native commands never shadow it');
+  assert.ok(skill.commands.includes('plan-create'));
+});
