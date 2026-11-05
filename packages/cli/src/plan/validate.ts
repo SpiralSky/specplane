@@ -113,7 +113,7 @@ export function validatePlans(
             const r = resolveSpecId(id, config, undefined, root);
             const { data, body } = readFrontmatter(r.path);
             if (data.status === "draft") at("warning", "reference", file, `Context spec \`${id}\` is a draft.`);
-            if (hash !== -1 && !findHeading(body, item.spec.slice(hash + 1))) {
+            if (!p.archived && hash !== -1 && !findHeading(body, item.spec.slice(hash + 1))) {
               at("warning", "anchor", file, `\`${item.spec}\` does not match a heading in \`${id}\`.`);
             }
           } catch (e) {
@@ -125,7 +125,7 @@ export function validatePlans(
           if (!m || !adrs.some((a) => a.number === m[1])) {
             at("error", "reference", file, `Context decision \`${item.decision}\` does not resolve to an ADR.`);
           }
-        } else if (!fs.existsSync(path.join(root, item.file))) {
+        } else if (!p.archived && !fs.existsSync(path.join(root, item.file))) {
           at("warning", "reference", file, `Context file \`${item.file}\` does not exist (it may not exist yet).`);
         }
       }

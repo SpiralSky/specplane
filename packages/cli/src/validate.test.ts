@@ -190,6 +190,24 @@ test("step context: anchors, decisions, files, drafts", () => {
   assert.ok(r.warnings.some((w) => w.message.includes("nowhere.ts")));
 });
 
+test("archived plans do not warn about missing context files or unmatched anchors", () => {
+  const files = (dir: string) => ({
+    ...base,
+    [`plans/${dir}2026-01-01-p1/PLAN.md`]: PLAN("2026-01-01-p1", { status: "done" }),
+    [`plans/${dir}2026-01-01-p1/steps/01-a.md`]: STEP("2026-01-01-p1", 1, {
+      status: "done",
+      context: [{ spec: "feature/alpha#Nope" }, { file: "nowhere.ts" }],
+    }),
+    [`plans/${dir}2026-01-01-p1/HANDOFF.md`]: "# Handoff\n\n## Step 01: a\n\n**Outcome**: done\n",
+  });
+  const live = run(files(""));
+  assert.equal(live.warnings.filter((w) => w.type === "anchor").length, 1);
+  assert.ok(live.warnings.some((w) => w.message.includes("nowhere.ts")));
+  const archived = run(files("archive/"));
+  assert.equal(archived.warnings.filter((w) => w.type === "anchor").length, 0);
+  assert.ok(!archived.warnings.some((w) => w.message.includes("nowhere.ts")));
+});
+
 test("skipped and blocked steps need a matching HANDOFF section", () => {
   const files = {
     ...base,
