@@ -74,3 +74,23 @@ Result: NOT PASSED. Close and lease release are confirmed live; recording was no
    this run has no per-call origin counts. Server contact is inferred from results 3 and 4.
 10. Observation, not explained: the transcript names the completion tool `mcp__specplane__specplane_result`, unlike the server's
    `mcp__plugin_specplane_specplane__<tool>`. It may account for the second `specplane` entry in D13; not checked.
+
+Recording check, D22 and D23. Same day, about 03:55-03:59 UTC, auto mode, Haiku 5.5, one fresh fixture built the same way from
+ce5ecbd, with no gate diagnostic. The user approved this one further run in conversation; the coordinator typed the fixture's answers
+through tmux.
+Result: PASSED for a blocked result. Validate, record and close all ran, and close released the lease before /exit.
+
+1. The procedure started from the command alone, asked for content, showed the text and took the approval.
+2. After approval the model ran `spec new` from the shell and got LeaseRefused (LOCKED): the request's own lease held the repository.
+   It blamed another session and stopped WITHOUT calling specplane_result, leaving the request open (D24).
+3. The coordinator typed one extra instruction: the lock is this request's own, report the result as blocked. So reporting did not
+   happen unprompted in this run.
+4. D23 confirmed live. Result 1: "Invalid workflow request/result. Nothing was recorded. The request is still open: correct the
+   result and call this tool again with the same requestId (2 attempts left)." Result 2: "Criterion evidence must cover the exact
+   prepared criteria once. Nothing was recorded. The request is still open: ... (1 attempt left)." Result 3: "Recorded the spec-assist
+   result." All three attempts were needed.
+5. Record CONFIRMED: .git/specplane-runtime/workflows/<id>/recorded.json holds a receipt with outcome blocked, commit null, paths
+   empty, publication not-required, and the limitation that read-only receipts are process-local.
+6. Release CONFIRMED: with the session still running, the checkout record, repository record and host marker were gone; `install`
+   and `workflows` remained. Same after /exit, and the server process exited.
+7. Not shown live: a `done` result, a recorded commit, or a written spec. Creation stays manual (D17 B).

@@ -332,3 +332,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 claude-delivery D22 live check (one approved run)
 - Not passed. Confirmed live: arguments reach the hook, `validate` reaches the server, `close` releases the lease before exit. `record` not reached.
 - New D23: a refused result ends the request, so the model's corrected retry found no request. Evidence in `origin-gate-check.txt`. No code changed; no tests run.
+
+## 2026-11-05 claude-delivery D23 built, recording live-checked (second approved run)
+- `ce5ecbd`: a correctable refusal keeps the request open, up to 3 attempts. Full suite Bun 1028 pass, 0 fail.
+- Live: blocked result recorded after two refusals, lease released before exit. One typed instruction was needed to make the model report. New D24.
