@@ -15,6 +15,7 @@ Approval itself is yours: nothing here is applied until you approve the wording,
 5. **Feature-spec suggestions F1 to F4** need your approved wording because the feature spec's `llm_role` is `assist`. I wrote candidate text; I will not apply it unless you approve each exact change.
 6. **D11 carried over.** Under `allowManagedHooksOnly` a user-tier plugin loads no hooks. A3 states the risk as accepted (TEMPORARY, from the coordinator). Alternative: require managed shipping.
 7. **A correction to HANDOFF.** The architecture spec never says "in-process" (grep finds no match). It is silent on where the runner and lease live, and the plugin manifest, MCP server, `.claude/specplane` root, `types/` and the origin gate are all absent. So the fix is additions plus the corrections in the table below, not a rewording of an in-process claim.
+8. **D25 session adapter (TEMPORARY choice).** A13 specifies route B (headless `claude -p` through the mod's process port) because it is the only route that can enforce a money budget. Alternatives: route A (`$.agent.spawn`, budget refused) or leave it undelivered. It needs your wording and a live probe before anything is built.
 
 ## Verification of the stale text (line by line)
 
@@ -363,6 +364,30 @@ Proposed addition after L459:
 ````markdown
 **Host evidence.** Recorded runs against Claude Code 2.1.317 are under `harnesses/claude/host-evidence/2.1.317/`: the plugin loaded and its server started from `.claude/specplane/core` with `${CLAUDE_PLUGIN_ROOT}` expanded; an interactive check showed the lease held across calls by the server and released by `close`; the origin gate ran `bind`, `prepare` and `detail` in auto and default mode with no classifier refusal and no prompt; a blocked result was validated, recorded and closed. Not shown live: a `done` result, a commit, a written spec (D17), the D24 prompt, and native macOS or Windows. Each live run is a separate, user-approved operation and is never retried.
 ````
+
+### A13. Claude session adapter: route B (D25, TEMPORARY choice; proposal only, not built)
+
+TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): route B, the headless process route. Alternatives: route A (`$.agent.spawn`, cannot enforce a money budget, so any `budgetUsd` run would refuse), or leave the adapter undelivered. Nothing is built: the adapter needs your approved wording and a live probe first. Revert is deleting this section.
+
+Section: `## Claude session adapter (extension-owned)` (L461-465). Current text to replace: the sentence "No such adapter is delivered yet; the experimental command-line adapter tested only with fake runners was removed from the core package." and the second paragraph's unspecified verification. Proposed text:
+
+> The extension's adapter launches headless Claude Code processes through the mod's process port (`$.process.spawn`, argument array, no shell), one process per session request, in the request's `checkout` and never in another worktree.
+>
+> **Launch.** `launch(request)` mints a session id (a UUID) and persists `{orchestrationId, nativeSessionId}` before the process starts. It then runs `claude -p --session-id <id> --max-budget-usd <budgetUsd> --output-format stream-json --verbose <prompt>`; `--max-budget-usd` is omitted only when the request has no `budgetUsd`. The prompt is built by the extension from the request: it names the installed `plan-step` procedure and the `workflowRequestPath`, and contains no free text from the plan. The process does not use `--bare`, so the installed plugin loads, and uses no permission-bypass flag.
+>
+> **Observe.** `observe(ref)` reads the process's stream-json output and exit status. The adapter maps a final `result` event with `subtype: success` and exit 0 to `completed`; any other terminal `result` or a non-zero exit to `failed`; a live process with no terminal event to `running`; and a missing process, unparseable output, or an unrecognised event shape to `unknown`. `unknown` is never read as "no session". `completed` is advisory: the conductor still verifies the step commit, status and HANDOFF through the core.
+>
+> **Resume.** `resume(ref, request)` runs the same command with `--resume <nativeSessionId>` in place of `--session-id`, only when the persisted mapping matches `ref` and no live process holds the session. A mismatch, or a live process, refuses.
+>
+> **Recovery and cancel.** `recovery(ref)` returns argument-array instructions for `claude --resume <nativeSessionId>` (attach) and the log path, or an unavailable reason when the mapping is missing. `cancel(ref, signal)` sends the process a termination signal, waits for exit, and returns `{stopped: true, recoveryRequired: false}` only after the exit is observed; otherwise `{stopped: false, recoveryRequired: true}`.
+>
+> **Probe.** `probe` reports `launch`, `observe`, `resume` and `cancel` true, and `budgetEnforcement` true, only after a probe against the installed, named version has launched, observed, resumed and cancelled a throwaway session and seen a budget stop. Help text alone is insufficient. Otherwise the capability is false and the conductor refuses before preparing a checkout. A launch whose outcome is uncertain is never retried automatically.
+
+Verification notes, not spec text:
+- The flags are listed in `host-evidence/2.1.317/capabilities.json` (`session-adapter-headless`, evidence `declared` and `validated`, no live run). The headless docs call the reported cost an estimate that can differ from the bill, so `budgetEnforcement` means the host's own stop, not a billing guarantee.
+- The event names (`result`, `subtype`) are taken from the headless docs and must be re-checked in the live probe before the mapping is written into code.
+- Offline build after approval: an adapter with an injected process port, tested with a fake port for launch, resume, uncertain launch, each `unknown` case, cancel, probe refusal, and `budgetUsd` omission. Wiring into `runConductor` stays disabled until the live probe passes and the user approves one run.
+- Interaction with other edits: A3 (the server owns the lease) is unaffected; an unattended session reaches the server through the installed plugin like any other session. Whether D17 A confirmation can work in an unattended session is open: `$.ui.ask` needs a person, so unattended `plan-step` results that need confirmation block.
 
 ## Feature-spec suggestions (not applied; they need the user's approved wording)
 
