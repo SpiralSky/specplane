@@ -350,3 +350,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 
 ## 2026-11-05 (session: D17 A offline, PROVISIONAL)
 - Built D17 A from the proposal's A6: `confirmation` field on `record`, server-side parked challenge (`createConfirmationBridge`), the mod's dialog and second `record`. Own commits so they can be reverted. Tests: `claude-mcp-confirmation.test` (10), `claude-handlers.test` (5 added). `MANUAL_WRITE_RULE` kept; `reasoning` still false.
+
+## 2026-11-05 (session: D16 A offline, PROVISIONAL)
+- Built D16 A from the proposal's A8 in one commit (revertable): bundled suite table (empty), host-fixed `executeTest` (requestId only), mod tool `specplane_run_tests`. D16 C stays active for the install (entry passes no table).
+- Found the old `executeTest` tool forwarded model-supplied commands; recorded in the proposal's build note. Focused 86 pass; `hooks.test.sh` 94; `check-sync` OK.

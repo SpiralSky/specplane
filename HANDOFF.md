@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-05T04:45Z. Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05T05:20Z. Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -22,6 +22,8 @@ Updated 2026-11-05T04:45Z. Branch `overnight/specplane-20261102T144630Z`; HEAD i
 
 - PROVISIONAL, D17 A built offline (not approved, not live-checked; revert with the two `feat(claude-delivery): PROVISIONAL D17 A` commits): `createConfirmationBridge` in `packages/cli/src/harness/claude-mcp.ts` parks the core's challenge under the calling `record`; the second `record` carries `confirmation`; the mod asks in `$.ui.ask` (`acceptResult` in `commands.ts`). Tests: `claude-mcp-confirmation.test` (10: confirm, decline, mismatch, replay, expiry, wrong proposal, close while parked, no bridge) and 5 in `claude-handlers.test`. `MANUAL_WRITE_RULE` and D17 B are kept: the rule stays active because the path is fixture-only and the reasoning-off install cannot reach it; remove it only after approval and a live check. Finding: the summary carries full before/after text, so edits over the 16 KB reply bound fall back to the manual command (recorded in the proposal's build note).
 - Offline checks after D17 A: focused 86 pass, 0 fail (6 files); `hooks.test.sh` 94 pass; `check-sync` OK. Full suite not run.
+- PROVISIONAL, D16 A built offline (not approved, not live-checked; revert with the single `feat(claude-delivery): PROVISIONAL D16 A` commit): `claude-suites.ts` holds the bundled suite table (`BUNDLED_SUITES`, empty: no reviewed suite invented); the server `executeTest` tool now takes only `requestId` (the old tool forwarded model-supplied `executable` and `args`) and runs the table command through the runner's execution port; the mod registers `specplane_run_tests` (requestId only) when `reasoning` is true. Tests: `claude-mcp-suites.test` (6: known suite runs the table command, model-supplied command keys refused, unknown suiteId cancels, format mismatch, no-table keeps C, closed request) and 1 in `claude-handlers.test`; all with a fake runner/port, no command executed. D16 C is NOT lifted for the install: `claude-mcp-main.ts` passes no table, so the installed server still cancels a plan-step with `testRequirements`. The refusal lifts only for a server built with `suites`. The proposal does not say where to wire the entry; left for approval. Findings are in the proposal's D16 A build note. Not done: the delegation prompt does not mention `specplane_run_tests`.
+- Offline checks after D16 A: focused 86 pass, 0 fail (6 files: `claude-mcp-suites`, `claude-mcp`, `claude-mcp-confirmation`, `claude-handlers`, `claude-package`, `harness`); `hooks.test.sh` 94 pass; `check-sync` OK. Full suite not run.
 
 ## Open decisions
 - D11: plugin ships an MCP server (option E). Open for the user: under `allowManagedHooksOnly` a user-tier plugin loads no hooks. Options: ship as managed, or accept the risk. Blocks nothing offline.
@@ -43,7 +45,7 @@ Updated 2026-11-05T04:45Z. Branch `overnight/specplane-20261102T144630Z`; HEAD i
 - D14 (coordinator, 2026-11-04): keep `.claude/specplane/core`; the installer also stages the plugin root's `.claude-plugin/plugin.json`, `hooks/` and `types/`. Built and confirmed by the live run.
 - D23 (user, 2026-11-05): option A. An `INVALID_EVIDENCE` refusal keeps the request open, up to 3 attempts; any other refusal, a lost call or a `record` refusal ends it. Built in `ce5ecbd`, confirmed live.
 - D15: option B. `plan-finish` stays manual through the CLI; its native command refuses with the core message.
-- D16: option C now (built, `f5bc57c`); later option A (the mod runs the reviewed suite with a host-fixed command; never model-supplied executables).
+- D16: option C now (built, `f5bc57c`, active); option A PROVISIONAL build exists (see Current state): the table is empty until the user adds reviewed suites, and the install entry is not wired to it.
 - D17: target option A (confirmation through the mod's dialog plus a protocol field). PROVISIONAL build exists (see Current state); the architecture-spec edit still needs the user's approval. Until then B stays active: finalized edits and creation stay manual (`MANUAL_WRITE_RULE`).
 - D10 adjustment: the six legacy reasoning skills stay until D16 A and D17 A are in place; removal waits for the live path (D18).
 - D12, D1, D2, D3, D4, D5, D7, D8, D9 (superseded by D11), D6 (superseded): unchanged from earlier sessions.
@@ -71,7 +73,7 @@ Updated 2026-11-05T04:45Z. Branch `overnight/specplane-20261102T144630Z`; HEAD i
 
 ## Next session
 Any live run needs fresh approval; the D24 live run stays skipped (TEMPORARY, user offline). To log gate calls, do not use `require` in the hook; it wrote nothing.
-The user reviews `docs/work-records/2026-11-05-claude-spec-edit-proposal.md` (decisions list at its top). After approval a session applies A1 to A12 (and F1 to F4 as approved) in one docs commit, then reviews the provisional D17 A build, and builds D16 A and the recovery command offline as listed at the end of the proposal. Do not edit either approved `claude-integration.md` before then. Until then continue `extension-conformance` 01 Claude rows.
+The user reviews `docs/work-records/2026-11-05-claude-spec-edit-proposal.md` (decisions list at its top). After approval a session applies A1 to A12 (and F1 to F4 as approved) in one docs commit, then reviews the provisional D17 A and D16 A builds (D16 A also needs reviewed suite entries and the entry wiring), and builds the recovery command offline as listed at the end of the proposal. Do not edit either approved `claude-integration.md` before then. Until then continue `extension-conformance` 01 Claude rows.
 
 ## How to continue (orchestration)
 The user runs steps through a coordinator session that chains **Sonnet 5.5 subagents sequentially, one step per subagent**. Each subagent acts as a complete session.
