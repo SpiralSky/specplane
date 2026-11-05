@@ -249,6 +249,39 @@ Specplane-Session: 6531c4f4
 
 ---
 
+## Verification
+
+Finishing a step compares what was built with what was intended. The spec states the intent and the code is the result. Tests and the step's acceptance criteria are bridges between the two, and a review can compare the code with the spec directly. Which bridges a step needs depends on the change: a wording fix may need only its criteria, while a change to access control may need tests and a second reader.
+
+The record of a step states two facts:
+
+- **How it was checked.** `test` means Specplane ran a configured suite and it passed. `inspection` means someone read named files against the criterion.
+- **Who checked it.** `self` is the session that did the work. `separate` is a different session that saw the spec and the result but not the working conversation. `human` is the user.
+
+A `done` step never claims more than was checked. A step checked only by the session that did the work is reported as self-assessed. Passing tests show that the tests ran and passed, not that they are good tests. A separate review is a second reading, not proof of correctness.
+
+### Automatic verification
+
+With `verification.mode: auto`, the default, Specplane sets a minimum for each step from the files the step actually changed:
+
+| Change | Minimum |
+|--------|---------|
+| Every changed file matches `verification.text_paths`, and none is risky | Every criterion met, checked by `self` or stronger |
+| Any other change that is not risky | The same, and every configured suite passes |
+| Any changed file matches `verification.risk_paths` or is inside a configured spec root | The same, and a `separate` or `human` check against the spec |
+
+When no suite is configured, the second row needs no tests and the record says that none were configured. A suite is only as strong as the files it runs, which a step may have changed.
+
+The session doing the work can raise a step's minimum but cannot lower it. Only the user can lower it, for one step, by confirming a request that shows the session's stated reason, and the record keeps that reason. With `verification.mode: manual`, no minimum applies and only criteria mapped to a suite need tests.
+
+A step that does not reach its minimum cannot be recorded as `done`. An attended session asks the user to supply the missing check or lower the minimum. An unattended session ends the step `blocked`.
+
+A mismatch between the code and the spec is recorded as a gap and follows `feature/spec-precedence`. The session does not silently change either side to make them agree, because the spec may be the side that is wrong.
+
+Manual completion by a person through the CLI stays valid and has no minimum. It is recorded as manual and self-assessed. A host that can tell an agent from a person refuses this route to an agent.
+
+---
+
 ## Acceptance scenarios
 
 ### Scenario 1: Agent loads only listed context
@@ -287,6 +320,30 @@ Given a single plan's step 01 implements the parser and step 02 implements a sep
 And both steps require independent code review,
 When the plan is authored,
 Then this is a signal to split into two plans with a dependency: plan A (parser) and plan B (subsystem, depends_on: A).
+
+### Scenario 7: Step in a repository with no verification setup
+
+Given a repository with no `verification` configuration and no suites,
+When an agent finishes a step that changes code and cites files for every criterion,
+Then the step is recorded `done`, reported as self-assessed, with the note that no tests were configured.
+
+### Scenario 8: Failing suite
+
+Given a repository with a configured suite,
+When a step changes code and the suite fails,
+Then the step cannot be recorded `done`.
+
+### Scenario 9: Change in a risky path
+
+Given `verification.risk_paths` includes `src/auth/**`,
+When an unattended step changes a file under `src/auth/` and no separate check has run,
+Then the step ends `blocked` and names the missing check.
+
+### Scenario 10: Lowering the minimum
+
+Given a step needs a separate check,
+When the session asks to skip it and the user confirms in the host's dialog, which shows the session's reason,
+Then the step can be recorded `done`, and the record shows the lowered minimum and that reason. Text from the agent alone never lowers it.
 
 ---
 
