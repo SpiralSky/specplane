@@ -151,3 +151,25 @@ test('file context cannot make policies mutable; permitted draft body edits pres
  const g=await setup('spec-assist');g.put('.specplane/config.yaml',fs.readFileSync(path.join(g.cwd,'.specplane/config.yaml'),'utf8')+'specs:\n  feature:\n    llm_role: draft\n');g.git('commit','-am','draft policy');
  const b=await prepareWorkflow(g.request,g.context);assert.equal(b.ok,true,JSON.stringify(b));if(b.ok){try{assert.deepEqual(b.value.scope.allowedEditPaths,['specs/features/test.md']);g.put('specs/features/test.md',fs.readFileSync(path.join(g.cwd,'specs/features/test.md'),'utf8')+'Draft body change\n');await assertPrepared(b.value.requestId,g.context);g.put('specs/features/test.md',fs.readFileSync(path.join(g.cwd,'specs/features/test.md'),'utf8').replace('status: approved','status: draft'));await assert.rejects(assertPrepared(b.value.requestId,g.context),/spec policy changed/);}finally{releaseStoppedPreparation(b.value.requestId);}}
 });
+
+test('plan-finish preparation runs finish readiness, is read-only and never carries a finish path',async()=>{
+ const f=await setup('plan-finish');
+ const request={...f.request,selection:{planId:id}} as WorkflowInitiation;
+ // A pending step is refused by the same readiness check the finish flow runs.
+ code(await prepareWorkflow(request,f.context),'POLICY_DENIED');
+ f.put(stepFile,fs.readFileSync(path.join(f.cwd,stepFile),'utf8').replace('status: pending','status: done'));f.git('commit','-am','finish steps');
+ const remote=fs.mkdtempSync(path.join(tmpdir(),'prepare-finish-remote-'));execFileSync('git',['init','--bare','-b','main',remote]);
+ f.git('remote','add','origin',remote);f.git('push','-q','origin','main',`plan/${id}`);
+ const head=f.git('rev-parse','HEAD');
+ const a=await prepareWorkflow(request,f.context);assert.equal(a.ok,true,JSON.stringify(a));if(!a.ok)return;
+ try{
+  assert.equal(new Ajv().compile(workflowRequestSchema)(a.value),true);
+  assert.equal(a.value.workflow,'plan-finish');assert.equal(a.value.scope.kind,'plan-finish');assert.equal(a.value.scope.planId,id);
+  assert.deepEqual(a.value.scope.allowedEditPaths,[]);assert.ok(a.value.criteria.length>=1);
+  assert.equal(f.git('rev-parse','HEAD'),head);assert.equal(f.git('branch','--show-current'),`plan/${id}`);
+  await assertPrepared(a.value.requestId,f.context);
+ }finally{releaseStoppedPreparation(a.value.requestId);}
+ // The closed initiation takes only a plan ID.
+ code(await prepareWorkflow({...request,selection:{planId:id,specIds:[]}} as any,f.context),'INVALID_EVIDENCE');
+ code(await prepareWorkflow({...request,selection:{specIds:['base:feature/test'],input:'x'}} as any,f.context),'INVALID_EVIDENCE');
+});

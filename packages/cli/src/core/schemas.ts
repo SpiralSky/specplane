@@ -85,8 +85,9 @@ const digestMap = { type: 'object', propertyNames: text, additionalProperties: c
 const base = object({ head: objectId, branch: text, configDigest: digest, inputDigests: digestMap, indexDigest: digest, digest });
 const scopeProperties = { kind: text, specIds: strings, allowedEditPaths: strings };
 const planScope = object({ ...scopeProperties, kind: { const: 'plan-step' }, planId: text, step: { type: 'integer', minimum: 1 }, expectedStatus: text, checkout: text, leaseId: text });
-const nonPlanScopes = ['spec-assist', 'spec-draft-architecture', 'plan-create', 'plan-finish', 'validate', 'decision-new'].map(kind => object({ ...scopeProperties, input: { type: 'string' }, kind: { const: kind } }));
-export const workflowRequestSchema = object({ protocol: { const: 1 }, requestId: text, workflow: text, extensionId: text, checkout: text, mode: { enum: ['attended', 'unattended'] }, base, scope: { oneOf: [planScope, ...nonPlanScopes] }, context: array(context), criteria: array(criterion), procedureDigests: digestMap });
+const planFinishScope = object({ ...scopeProperties, kind: { const: 'plan-finish' }, planId: text });
+const nonPlanScopes = ['spec-assist', 'spec-draft-architecture', 'plan-create', 'validate', 'decision-new'].map(kind => object({ ...scopeProperties, input: { type: 'string' }, kind: { const: kind } }));
+export const workflowRequestSchema = object({ protocol: { const: 1 }, requestId: text, workflow: text, extensionId: text, checkout: text, mode: { enum: ['attended', 'unattended'] }, base, scope: { oneOf: [planScope, planFinishScope, ...nonPlanScopes] }, context: array(context), criteria: array(criterion), procedureDigests: digestMap });
 
 export const confirmationChallengeSchema = object({ challengeId: text, operation: text, targets: strings, stateDigest: digest, payloadDigest: digest, evidenceDigest: digest, expiresAt: text, summary: text });
 export const confirmationResponseSchema = object({ challengeId: text, decision: { enum: ['confirm', 'decline'] }, interactionId: text });
@@ -104,6 +105,7 @@ export const contributionQuerySchema = object({ spec: text, requestId: text }, [
 const initiationFields = { protocol: { const: 1 }, extensionId: text, checkout: text, mode: { enum: ['attended', 'unattended'] } };
 export const workflowInitiationSchema = { oneOf: [
   object({ ...initiationFields, workflow: { const: 'plan-step' }, selection: object({ planId: { type: 'string', pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*$' }, step: { type: 'integer', minimum: 1 }, force: { type: 'boolean' }, reason: text }, ['planId']) }),
+  object({ ...initiationFields, workflow: { const: 'plan-finish' }, selection: object({ planId: { type: 'string', pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*$' } }) }),
   object({ ...initiationFields, workflow: { enum: ['spec-assist', 'spec-draft-architecture', 'plan-create', 'validate', 'decision-new'] }, selection: object({ specIds: { type: 'array', uniqueItems: true, items: { type: 'string', pattern: '^[a-zA-Z0-9_-]+:(feature|architecture)/[a-z0-9/-]+$' } }, input: { type: 'string' } }) })
 ] };
 export const reviewedTestMappingSchema = object({ schemaVersion: { const: 1 }, workflow: text, criteria: array({ oneOf: [

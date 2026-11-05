@@ -13,7 +13,7 @@ import { assertPreparedIdentity, releaseStoppedPreparation } from './workflow-pr
 import { prepareCreation, type CreationRequest } from './creation-plans.js';
 import type { CoreContext, WorkflowName } from './contracts.js';
 
-async function setup(workflow: Exclude<WorkflowName, 'plan-step' | 'validate'>, role = 'draft') {
+async function setup(workflow: Exclude<WorkflowName, 'plan-step' | 'plan-finish' | 'validate'>, role = 'draft') {
   const r = repo();
   r.put('.specplane/config.yaml', fs.readFileSync(path.join(r.cwd, '.specplane/config.yaml'), 'utf8') + `specs:\n  feature:\n    llm_role: ${role}\n  architecture:\n    llm_role: ${role}\n`);
   r.put('specs/features/other.md', '---\nid: feature/other\ntitle: Other\nstatus: approved\nauthor: user\n---\n# Other\n');

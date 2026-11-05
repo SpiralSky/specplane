@@ -232,6 +232,24 @@ function acceptanceCriteria(text: string): string[] {
 }
 
 /**
+ * The write-free readiness checks of the finish flow: the plan's checkout, a clean tree, finished steps and a
+ * backend/merge combination that can run. Structured finish preparation runs the same checks before any confirmation.
+ */
+export function assertFinishReadiness(id: string, config: Config, root: string, remote: boolean): void {
+  const branch = `plan/${id}`;
+  const cur = git(["rev-parse", "--abbrev-ref", "HEAD"], root);
+  if (cur !== branch) throw new PlanStateError(`Cannot finish: the checkout is on \`${cur}\`, not \`${branch}\`.`);
+  if (!clean(root)) throw new PlanStateError("Cannot finish: the working tree has uncommitted changes. Commit or stash them first.");
+  requireFinishedSteps(planDir(id, config, root));
+  if (config.plans.merge === "local_merge" && config.execution.backend === "external") {
+    throw new PlanStateError("Cannot finish: the `external` backend does not support `local_merge`.");
+  }
+  if (config.plans.merge === "pull_request" && !remote) {
+    throw new PlanStateError("Cannot finish: `merge: pull_request` needs a remote `origin` to push to.");
+  }
+}
+
+/**
  * `specplane plan finish <id>` (feature/plan-execution § Finish flow), run in the plan's checkout `root`.
  * Every readiness check runs before the first write. Re-running after the final commit resumes at the merge.
  */
@@ -306,16 +324,7 @@ export async function finishPlan(id: string, config: Config, root: string, opts:
 
   // 1. Readiness (no writes; fetch only updates remote-tracking refs).
   const dir = planDir(id, config, root);
-  const cur = git(["rev-parse", "--abbrev-ref", "HEAD"], root);
-  if (cur !== branch) throw new PlanStateError(`Cannot finish: the checkout is on \`${cur}\`, not \`${branch}\`.`);
-  if (!clean(root)) throw new PlanStateError("Cannot finish: the working tree has uncommitted changes. Commit or stash them first.");
-  requireFinishedSteps(dir);
-  if (merge === "local_merge" && backend === "external") {
-    throw new PlanStateError("Cannot finish: the `external` backend does not support `local_merge`.");
-  }
-  if (merge === "pull_request" && !remote) {
-    throw new PlanStateError("Cannot finish: `merge: pull_request` needs a remote `origin` to push to.");
-  }
+  assertFinishReadiness(id, config, root, remote);
   const tip = p.context.targetCommit;
   const planHere = planAt("HEAD", id, config, root);
   if (!planHere) throw new PlanNotFoundError(id);

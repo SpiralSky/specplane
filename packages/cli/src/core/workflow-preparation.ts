@@ -11,6 +11,8 @@ import { resolveSpecId } from '../spec/resolve.js';
 import { hasAnchor, findHeading } from '../spec/slug.js';
 import { sectionSteps } from '../plan/step-done.js';
 import { planNext } from '../plan/next.js';
+import { assertFinishReadiness } from '../plan/flows.js';
+import { PlanStateError } from '../errors.js';
 import { parsePlan, parseStep, listStepFiles } from '../plan/parse.js';
 import { lifecycleContext, recheckLifecycleRefs } from '../plan/lifecycle-context.js';
 import { configAt, snapshot } from '../plan/prepare-start.js';
@@ -135,7 +137,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
     const cwd = fs.realpathSync(checkoutRoot(request.checkout));
     if (fs.realpathSync(request.checkout) !== cwd || fs.realpathSync(context.checkout!) !== cwd) refuse('STALE_STATE', 'Request and context must identify the same checkout root.');
     let config = loadConfig(cwd).config;
-    const id = request.workflow === 'plan-step' ? request.selection.planId : undefined;
+    const id = request.workflow === 'plan-step' || request.workflow === 'plan-finish' ? request.selection.planId : undefined;
     if (id && git(cwd, 'branch', '--show-current') !== `plan/${id}`) refuse('STALE_STATE', 'Plan preparation requires its exact managed branch and checkout.');
     const discoveryTarget = id ? resolvePlanContext(cwd, { id, planBranches: { local: snapshot(cwd, ref(cwd, `refs/heads/plan/${id}`), id, config), remote: snapshot(cwd, ref(cwd, `refs/remotes/origin/plan/${id}`), id, config) } }).targetBranch : null;
     const plans = id ? [id, ...(discoveryTarget?.startsWith('plan/') ? [discoveryTarget.slice(5)] : [])] : [];
@@ -260,6 +262,22 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
       Object.assign(scope, { planId: id, step: selected!.frontmatter.step, expectedStatus: selected!.frontmatter.status, checkout: cwd, leaseId: requestId });
       // Plan implementation may touch repository files, but administrative inputs remain protected.
       scope.allowedEditPaths = ['.'];
+    } else if (request.workflow === 'plan-finish') {
+      // Readiness only: the finish itself runs through its human-confirmed operation, never from a result.
+      const state = lifecycleContext(id!, config, cwd);
+      if (state.context.targetBranch !== discoveryTarget) refuse('STALE_STATE', 'Target changed during synchronization; retry with the complete lease set.');
+      refs = state.refs;
+      try { assertFinishReadiness(id!, state.config, cwd, git(cwd, 'remote').split('\n').includes('origin')); }
+      catch (e) { if (e instanceof PlanStateError) refuse('POLICY_DENIED', e.message); throw e; }
+      const planDir = `${config.plans.dir}/${id}`;
+      bind(`${planDir}/PLAN.md`); bind(`${planDir}/HANDOFF.md`); bind(`${planDir}/spec-gaps.md`);
+      for (const file of ['PLAN.md', 'HANDOFF.md', 'spec-gaps.md']) protectedPaths.add(`${planDir}/${file}`);
+      addCriteria(`${planDir}/PLAN.md`);
+      for (const spec of parsePlan(path.join(cwd, planDir)).frontmatter.specs) bindSpec(spec);
+      inputs['target://context'] = sha256(canonical(state.context));
+      inputs['target://plan'] = sha256(canonical(state.target));
+      Object.assign(scope, { planId: id });
+      if (!criteria.length) criteria.push({ id: `${CONFIG_PATH}:workflow-policy`, text: 'Report finish readiness for the plan. The finish itself needs its human confirmation and is never performed from a result.', sourcePath: CONFIG_PATH, sourceDigest: configDigest as string, testRequirements: [] });
     } else {
       const { specIds, input } = request.selection;
       scope.input = input;
@@ -311,7 +329,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
     const cancellation = new AbortController();
     const boundContext = { ...context, signal: context.signal ? AbortSignal.any([context.signal, cancellation.signal]) : cancellation.signal };
     lease.retainHostWorker();
-    prepared.set(requestId, { creationDate, confirmContent, cancellation, captureObservation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' ? null : request.selection.input });
+    prepared.set(requestId, { creationDate, confirmContent, cancellation, captureObservation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' || request.workflow === 'plan-finish' ? null : request.selection.input });
     lease = undefined;
     return { protocol: 1, ok: true, value: envelope, notices };
   } catch (error) {

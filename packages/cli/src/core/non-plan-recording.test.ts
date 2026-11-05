@@ -8,7 +8,7 @@ import { prepareNonPlanRecording } from './non-plan-recording.js';
 import type { CoreContext, WorkflowCreation, WorkflowInitiation, WorkflowResult } from './contracts.js';
 
 const spec = 'specs/architecture/test.md';
-async function setup(workflow: Exclude<WorkflowInitiation['workflow'], 'plan-step'> = 'spec-draft-architecture', role: 'draft' | 'assist' | 'review' = 'draft', dependency = false) {
+async function setup(workflow: Exclude<WorkflowInitiation['workflow'], 'plan-step' | 'plan-finish'> = 'spec-draft-architecture', role: 'draft' | 'assist' | 'review' = 'draft', dependency = false) {
   const r = repo(), p = await fixture(workflow);
   const selectedSpec = workflow === 'spec-assist' ? 'specs/features/test.md' : spec;
   const type = workflow === 'spec-assist' ? 'feature' : 'architecture';
@@ -172,7 +172,7 @@ test('dependency-expanded context does not authorize finalized writes to an unse
     const child = 'specs/architecture/child.md';
     const before = fs.readFileSync(path.join(f.cwd, child), 'utf8');
     assert.ok(f.state.request.scope.specIds.includes('base:architecture/child'));
-    if (f.state.initiation.workflow === 'plan-step') throw new Error('Expected non-plan preparation');
+    if (f.state.initiation.workflow === 'plan-step' || f.state.initiation.workflow === 'plan-finish') throw new Error('Expected non-plan preparation');
     assert.equal(f.state.initiation.selection.specIds.includes('base:architecture/child'), false);
     f.result.finalizedEdits = [{ spec: 'base:architecture/child', body: '# Unauthorized dependency edit\n' }];
     assert.throws(() => prepareNonPlanRecording(f.state, f.result), { code: 'POLICY_DENIED' });
@@ -182,7 +182,7 @@ test('dependency-expanded context does not authorize finalized writes to an unse
 });
 
 test('dedicated creation results return exact absent-preimage previews without writing or approving', async () => {
-  const cases: [Exclude<WorkflowInitiation['workflow'], 'plan-step'>, WorkflowCreation][] = [
+  const cases: [Exclude<WorkflowInitiation['workflow'], 'plan-step' | 'plan-finish'>, WorkflowCreation][] = [
     ['spec-assist', { operation: 'spec.new', arguments: { type: 'feature', slug: 'new-feature', title: 'New feature' }, body: '# New feature\n\nFinalized behavior.\n' }],
     ['spec-draft-architecture', { operation: 'spec.new', arguments: { type: 'architecture', slug: 'new-design', title: 'New design', implements: ['base:feature/test'] }, body: '# New design\n\nFinalized design.\n' }],
     ['plan-create', { operation: 'plan.new', arguments: { id: '2026-11-04-new-plan', title: 'New plan', specs: ['base:architecture/test'] }, body: '# New plan\n', steps: [{ title: 'Implement design', context: [{ spec: 'base:architecture/test' }], body: '## Acceptance criteria\n\n- [ ] Observable behavior\n' }] }],
