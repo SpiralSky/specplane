@@ -619,3 +619,19 @@ test('D17 A: serverReply carries error.details so the challenge reaches the mod'
   assert.equal(reply.code, 'CONFIRMATION_REQUIRED');
   assert.deepEqual(reply.details, { challenge: CHALLENGE });
 });
+
+// PROVISIONAL (D16 A): the mod's run-tests tool forwards only the request id.
+test('specplane_run_tests sends only requestId to the server and drops anything else the model supplied', opts, async () => {
+  const m = await load();
+  const fake = fakeServer({ ...PREPARE_OK, executeTest: () => ({ ok: true, value: {}, message: '{"receipts":[]}' }) });
+  const { ctx, queue } = context({ session: session(fake.server) });
+  await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  const pending = new Map([[queue[0].requestId, queue[0]]]);
+  const out = await m.runReviewedTests(pending, { requestId: 'r1', executable: '/bin/sh', args: ['-c', 'id'], cwd: '/', env: { A: 'b' } }, { session: ctx.session });
+  assert.equal(out.ok, true);
+  const sent = fake.calls.filter(c => c.tool === 'executeTest');
+  assert.deepEqual(sent.map(c => c.args), [{ requestId: 'r1', nonce: NONCE }]);
+  const unknown = await m.runReviewedTests(pending, { requestId: 'nope' }, { session: ctx.session });
+  assert.equal(unknown.ok, false);
+  assert.equal(fake.calls.filter(c => c.tool === 'executeTest').length, 1, 'an unknown request id is refused without a server call');
+});

@@ -44,6 +44,8 @@ export const NATIVE_COMMANDS: readonly NativeCommand[] = [
 export const reasoningAsset = (workflow: string): string => `.claude/skills/specplane-reason-${workflow}/SKILL.md`
 /** The registered tool a delegated turn answers with; the host lists it as `mcp__<plugin>__specplane_result`. */
 export const COMPLETION_TOOL = 'specplane_result'
+/** PROVISIONAL (D16 A): the tool a delegated turn calls to run the reviewed suites. Its only input is `requestId`; no command, argument, directory or environment is accepted. */
+export const RUN_TESTS_TOOL = 'specplane_run_tests'
 /** Where the Claude package places the bundled core CLI, relative to the plugin root. */
 export const BUNDLED_CLI = 'core/dist/cli.js'
 
@@ -118,6 +120,25 @@ export function initiationFor(workflow: string, raw: string, checkout: string): 
     default:
       return { ok: false, error: `/${workflow} has no reasoning initiation.` }
   }
+}
+
+/**
+ * PROVISIONAL (D16 A): runs the reviewed suites of an open delegation. Only the request id leaves this function toward
+ * the server; whatever else the model sent (a command, arguments, a directory, an environment) is dropped here and never
+ * forwarded, and the server refuses a call that carries more. The text returned names the receipts to cite as evidence.
+ */
+export async function runReviewedTests(
+  pending: Map<string, Delegation>,
+  input: { requestId?: unknown },
+  ctx: { session?: ReasoningSession },
+): Promise<{ ok: boolean; text: string }> {
+  const id = typeof input.requestId === 'string' ? input.requestId : ''
+  if (!id || !pending.has(id)) return { ok: false, text: 'No matching open Specplane request; no test was run.' }
+  if (!ctx.session) return { ok: false, text: 'Running reviewed tests is unavailable; no test was run.' }
+  const reply = await send(ctx.session, 'executeTest', { requestId: id })
+  return reply.ok
+    ? { ok: true, text: `${reply.message}\nCite each receipt's artifact in criterionEvidence[].artifacts for the criteria it lists.` }
+    : { ok: false, text: `${reply.message}\nNo test evidence was produced.` }
 }
 
 /** Turns one `$.mcp.call` result into a reply. The server's text is the core `Result` as JSON; a bind or refusal may be plain text. */

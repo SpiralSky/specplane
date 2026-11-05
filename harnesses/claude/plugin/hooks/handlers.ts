@@ -5,7 +5,7 @@
 // ./commands (host-independent); this file only binds it to the engine.
 import type { EngineInterface, Register } from 'claude-code'
 import {
-  BUNDLED_CLI, COMPLETION_TOOL, NATIVE_COMMANDS, acceptResult, closeRequest, delegationPrompt, planRegistration, releaseHeld, runCommand, serverReply,
+  BUNDLED_CLI, COMPLETION_TOOL, NATIVE_COMMANDS, RUN_TESTS_TOOL, runReviewedTests, acceptResult, closeRequest, delegationPrompt, planRegistration, releaseHeld, runCommand, serverReply,
 } from './commands'
 import type { CorePort, Delegation, HumanPort, NativeCommand, ReasoningSession, SpecplaneServer } from './commands'
 
@@ -46,11 +46,18 @@ export const PLUGIN_NAME = 'specplane'
 export const SERVER_REFUSAL = 'Specplane workflow tools are reserved for Specplane commands; the model cannot call them.'
 /** The completion tool as the host names a tool this plugin registers (`mcp__<plugin>__<name>`). It is not a server tool. */
 export const COMPLETION_TOOL_NAME = `mcp__${SERVER_KEY}__${COMPLETION_TOOL}`
+/** PROVISIONAL (D16 A): the run-tests tool, named the same way. */
+export const RUN_TESTS_TOOL_NAME = `mcp__${SERVER_KEY}__${RUN_TESTS_TOOL}`
 
 /**
  * True for a model call to this plugin's workflow server. `tool.check` input carries the tool name only, not the
  * server's provenance, so the name is the trust key here: any `mcp__*` tool naming Specplane is a server call.
  */
+/** The mod's own registered tools, which are not server tools and carry no nonce. */
+function isOwnTool(tool: string): boolean {
+  return tool === COMPLETION_TOOL_NAME || tool === RUN_TESTS_TOOL_NAME
+}
+
 export function isSpecplaneServerTool(e: unknown): boolean {
   const tool = (e as { tool?: unknown } | undefined)?.tool
   return typeof tool === 'string' && tool.startsWith('mcp__') && new RegExp(SERVER_KEY, 'i').test(tool)
@@ -62,7 +69,7 @@ export function isSpecplaneServerTool(e: unknown): boolean {
  * because it is the mod's own tool, served by a `tool.call` hook, and it carries no nonce.
  */
 export function refusesServerCall(e: unknown, nonce: string | undefined): boolean {
-  if (!isSpecplaneServerTool(e) || (e as { tool: string }).tool === COMPLETION_TOOL_NAME) return false
+  if (!isSpecplaneServerTool(e) || isOwnTool((e as { tool: string }).tool)) return false
   const input = (e as { input?: unknown }).input
   const carried = typeof input === 'object' && input !== null && nonce !== undefined && (input as { nonce?: unknown }).nonce === nonce
   return !carried
@@ -150,7 +157,7 @@ export function registerNative(on: Parameters<Register>[0]): void {
   // request to judge (D20). Any other caller is refused, even with the nonce. Fail closed: a throwing check refuses.
   on('tool.check', (_$, e, next) => {
     if (refusesServerCall(e, session.nonce)) return { decision: 'deny', reason: SERVER_REFUSAL }
-    if (!isSpecplaneServerTool(e) || (e as { tool: string }).tool === COMPLETION_TOOL_NAME) return next(e)
+    if (!isSpecplaneServerTool(e) || isOwnTool((e as { tool: string }).tool)) return next(e)
     return isOwnCall(next.origin) ? { decision: 'allow' } : { decision: 'deny', reason: SERVER_REFUSAL }
   }).catch((_$, e, next) => (isSpecplaneServerTool(e) ? { decision: 'deny', reason: SERVER_REFUSAL } : next(e)))
 
@@ -163,6 +170,13 @@ export function registerNative(on: Parameters<Register>[0]): void {
 
   // One filtered hook per command; a gating hook needs .catch because a throwing hook is skipped.
   for (const cmd of NATIVE_COMMANDS) bindCommand(on, cmd)
+
+  // PROVISIONAL (D16 A). Only requestId is read from the call; the registered schema offers nothing else.
+  on('tool.call', { tool: RUN_TESTS_TOOL_NAME }, async ($, e) => {
+    const { requestId } = e as { requestId?: unknown }
+    const outcome = await runReviewedTests(pending, { requestId }, { session: sessionFor($) })
+    return { result: outcome.text }
+  }).catch(async () => ({ deny: 'Specplane could not run the reviewed tests; nothing was run.' }))
 
   on('tool.call', { tool: COMPLETION_TOOL_NAME }, async ($, e) => {
     const outcome = await acceptResult(pending, resultArguments(e), { session: sessionFor($), human: hostHuman($) })
@@ -214,6 +228,16 @@ export async function startNative($: EngineInterface, cwd: string): Promise<void
       })
     } catch {
       $.ui.log('specplane: completion tool registration failed; reasoning delegation stays off', { to: 'debug' })
+    }
+    try {
+      await $.tool.register({
+        name: RUN_TESTS_TOOL,
+        description: 'Run the reviewed test suites a prepared Specplane request requires. Takes only the requestId; the command is fixed by Specplane.',
+        inputSchema: { type: 'object', properties: { requestId: { type: 'string' } }, required: ['requestId'], additionalProperties: false },
+        isDeferred: false,
+      })
+    } catch {
+      $.ui.log('specplane: run-tests tool registration failed; plan-step test criteria stay on the managed flow', { to: 'debug' })
     }
   }
 }
