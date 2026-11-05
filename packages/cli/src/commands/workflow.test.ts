@@ -7,6 +7,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { acquireWriterLease, checkoutIdentity, type LeaseRecoveryIo } from "../core/writer-leases.js";
 import { workflowListCommand, workflowRecoverCommand } from "./workflow.js";
+import { SpecplaneError } from "../errors.js";
 
 // D20 item 6, PROVISIONAL on one point only (A3 says `recover` restores recording files and `list` prints the workflow; R1 and this build do not; unresolved, see HANDOFF). Every fixture is a temp repository; no real lease or .specplane state is touched.
 const DEAD = 2147483647;
@@ -124,5 +125,14 @@ test("a later acquire meeting the retained lease names the request id and the re
     f.setPid(DEAD);
     assert.throws(() => acquireWriterLease({ checkouts: [f.root], requestId: "req-2" }),
       /explicit recovery is required\. Request req-1: run `specplane workflow list`, then `specplane workflow recover req-1`\./);
+  } finally { f.cleanup(); }
+});
+
+test("list reports a runtime directory that is a symlink as a refusal, not an uncaught lease error", () => {
+  const f = fixture(); try {
+    const moved = `${f.runtime}-real`;
+    fs.renameSync(f.runtime, moved); fs.symlinkSync(moved, f.runtime);
+    assert.throws(() => workflowListCommand({}, f.root, () => {}), (e: unknown) => e instanceof SpecplaneError && /not a real directory/.test((e as Error).message));
+    fs.unlinkSync(f.runtime); fs.renameSync(moved, f.runtime);
   } finally { f.cleanup(); }
 });

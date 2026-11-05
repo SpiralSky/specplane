@@ -9,7 +9,9 @@ class RecoveryRefusal extends SpecplaneError {
 const commonDir = (cwd: string) => checkoutIdentity(cwd).commonDir;
 
 export function workflowListCommand(opts: { json?: boolean }, cwd = process.cwd(), out: (s: string) => void = (s) => process.stdout.write(s)): void {
-  const leases = listRetainedHostLeases(commonDir(cwd)).map(({ binding: _b, ...rest }) => rest);
+  let leases;
+  try { leases = listRetainedHostLeases(commonDir(cwd)).map(({ binding: _b, ...rest }) => rest); }
+  catch (e) { if (e instanceof LeaseRefused) throw new RecoveryRefusal(e.message); throw e; }
   if (opts.json) { out(`${JSON.stringify(leases)}\n`); return; }
   if (leases.length === 0) { out("No leases are retained with host-worker evidence.\n"); return; }
   for (const l of leases)
