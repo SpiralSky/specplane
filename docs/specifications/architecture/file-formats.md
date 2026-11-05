@@ -4,6 +4,7 @@ title: "File formats: frontmatter schemas, naming, markdown conventions, and tem
 status: review
 author: mixed
 implements: [feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions, feature/configuration, feature/plan-index, feature/tooling]
+based_on: { feature/spec-system: "919d9e8", feature/plan-system: "49347a9", feature/plan-steps: "2365e49", feature/decisions: "b8abaa0", feature/configuration: "3b96920", feature/plan-index: "ab8faed", feature/tooling: "9abfce2" }
 ---
 
 <!-- Plan index proposal 2026-11-02: user agreed naming/source semantics and approved the companion feature patch, now applied. Architecture revision awaits review; not implemented behavior. -->
