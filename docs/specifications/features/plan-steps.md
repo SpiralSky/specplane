@@ -1,7 +1,7 @@
 ---
 id: feature/plan-steps
 title: "Plan steps: context contract and HANDOFF.md"
-status: approved
+status: review
 author: mixed
 ---
 
