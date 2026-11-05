@@ -27,7 +27,8 @@ import { formatMessage } from '../git/commit.js';
 import { prepareContributionMetadata } from './contribution-metadata.js';
 import { checkoutIdentity } from './writer-leases.js';
 import { assertPrepared, canonical, sha256, withPreparedActivity } from './workflow-preparation.js';
-import { validateExecutionArtifact, workflowStateDigest } from './workflow-execution.js';
+import { validateExecutionArtifact, validateStepLevelReceipt, workflowStateDigest } from './workflow-execution.js';
+import { computeTier, requirementFor, reviewSatisfied, satisfiedChecks, TIER_RANK } from './verification.js';
 import { workflowRequestSchema,workflowResultSchema,recordingProposalSchema } from './schemas.js';
 import type { CoreContext,RecordingProposal,Result,WorkflowRequest,WorkflowResult,TestReceipt } from './contracts.js';
 const requestSchema=lazyValidator(workflowRequestSchema),resultSchema=lazyValidator(workflowResultSchema),proposalSchema=lazyValidator(recordingProposalSchema);
@@ -80,6 +81,25 @@ function schemaProblem(errors:typeof resultSchema.errors):string{
  const extra=typeof first.params.additionalProperty==='string'?` ("${first.params.additionalProperty}")`:'';
  return `${first.instancePath||'result'} ${first.message??'is invalid'}${extra}`;
 }
+const lowerRefusal=(requested:string,computed:string)=>`requestedTier ${requested} is below the computed tier ${computed}; a session can raise its minimum but only the user can lower it`;
+/**
+ * Computes the tier from the result's actual edit set, refuses a done result that lacks the minimum checks for it,
+ * and returns the single verification line recorded in HANDOFF. Never reads worker text for policy.
+ */
+async function verificationLine(state:Prepared,result:WorkflowResult,context:CoreContext,digests:string[]):Promise<string>{
+ const r=state.request,policy=state.verification,settings=policy.verification,config=loadConfig(r.checkout).config;
+ const computed=computeTier(result.changes.map(c=>c.path),settings,config.spec_roots);
+ if(result.requestedTier&&TIER_RANK[result.requestedTier]<TIER_RANK[computed])fail('INVALID_EVIDENCE',lowerRefusal(result.requestedTier,computed));
+ const tier=result.requestedTier&&TIER_RANK[result.requestedTier]>TIER_RANK[computed]?result.requestedTier:computed;
+ const need=requirementFor(policy,tier),runs:string[]=[];
+ for(const suiteId of need.suites){const run=await validateStepLevelReceipt(r.requestId,suiteId,context);digests.push(run.artifact.digest);runs.push(`${suiteId} (execution ${run.receipt.executionId}, state ${run.receipt.stateDigest})`);}
+ const satisfied=satisfiedChecks(r.requestId,workflowStateDigest(r.checkout));
+ if(!reviewSatisfied(need.review,satisfied))fail('INVALID_EVIDENCE',`Missing verification check: ${need.review}${policy.humanRequired?' (the verification settings changed after the plan started)':` (the tier is ${tier})`}`);
+ const checker=satisfied.has('human')?'human':satisfied.has('separate')?'separate':'self';
+ const methods=result.criterionEvidence.map(e=>`${e.criterionId} ${e.artifacts.some(a=>a.kind==='test')?'test':'inspection'} by ${checker}`);
+ const suites=settings.mode==='manual'?'none required (mode manual)':tier==='text'?'none required (text-only change)':runs.length?runs.join(', '):'none (no tests configured)';
+ return `Verification: ${settings.mode==='manual'?'manual mode, no minimum':`tier ${tier}`}; criteria: ${methods.join('; ')}; suites: ${suites}; ${checker==='self'?'self-assessed':`checked by ${checker}`}.`;
+}
 async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):Promise<{manifest:RecordingSet;summary:string;evidenceDigest:string;generated:WorkflowGenerated;creation?:PreparedCreation;requiresConfirmation:boolean}>{
  const r=state.request;
  if(result.requestId!==r.requestId||result.baseDigest!==r.base.digest)fail('STALE_STATE','Result does not match prepared identity/base');
@@ -107,7 +127,6 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):
   const criterion=r.criteria.find(c=>c.id===evidence.criterionId)!;
   if(!evidence.rationale.trim())fail('INVALID_EVIDENCE','Criterion rationale is required');
   if(result.outcome==='done'&&evidence.assessment!=='met')fail('INVALID_EVIDENCE','Done requires every criterion met');
-  if(evidence.assessment==='met'&&state.uncertainCriteria.includes(criterion.id))fail('INVALID_EVIDENCE','Missing reviewed mapping leaves criterion uncertain');
   const tests:TestReceipt[]=[];
   for(const artifact of evidence.artifacts){
    if(artifact.kind==='test')tests.push(await validateExecutionArtifact(r.requestId,criterion.id,artifact,context,evidence.assessment==='met'));
@@ -116,7 +135,7 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):
   }
   if(evidence.assessment==='met'&&criterion.testRequirements.length&&!tests.length)fail('INVALID_EVIDENCE','Met test criterion requires core execution evidence');
   if(evidence.assessment==='met'&&!criterion.testRequirements.length&&!evidence.artifacts.some(a=>a.kind==='file'))fail('INVALID_EVIDENCE','Met inspection criterion requires file evidence');
-  summary.push(`Criterion ${criterion.id}: ${evidence.assessment}. ${evidence.rationale}`);
+  summary.push(`Criterion ${criterion.id}: ${evidence.assessment}${state.uncertainCriteria.includes(criterion.id)&&evidence.assessment==='met'?' (self-assessed; no reviewed mapping)':''}. ${evidence.rationale}`);
   for(const receipt of tests){const artifact=evidence.artifacts.find(a=>a.kind==='test'&&a.path===`${receipt.executionId}.json`)!;summary.push(`Local execution evidence ${receipt.executionId}, receipt SHA-256 ${artifact.digest}; command ${JSON.stringify([receipt.executable,...receipt.args])}; tested state ${receipt.stateDigest}; exit ${receipt.exitCode}, signal ${receipt.signal}.`);for(const s of receipt.assertions)summary.push(`Suite ${JSON.stringify(s.suiteId)}: executed ${s.executed}, failed ${s.failed}, skipped ${s.skipped}.`);}
  }
  if(r.workflow==='plan-step'){
@@ -130,6 +149,12 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):
   if(canonical(added)!==canonical(claimed))fail('INVALID_EVIDENCE','Result gaps must exactly name new gap entries');
  }
 
+ }
+ if(r.workflow==='plan-step'&&result.outcome==='done'){
+  summary.unshift(await verificationLine(state,result,context,digests));
+ }else if(r.workflow==='plan-step'){
+  const config=loadConfig(r.checkout).config,computed=computeTier(result.changes.map(c=>c.path),state.verification.verification,config.spec_roots);
+  if(result.requestedTier&&TIER_RANK[result.requestedTier]<TIER_RANK[computed])fail('INVALID_EVIDENCE',lowerRefusal(result.requestedTier,computed));
  }
  summary.push('Receipt files are local evidence; another clone cannot independently verify absent private receipts.');
  if(result.openIssues.trim())summary.push(`Limitations/open issues: ${result.openIssues}`);

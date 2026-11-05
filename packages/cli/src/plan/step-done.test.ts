@@ -79,7 +79,7 @@ test("appends a §4.1 section, sets status, commits with ordered trailers", () =
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /Committed [0-9a-f]+/);
   const text = fs.readFileSync(path.join(root, PLAN, "HANDOFF.md"), "utf8");
-  assert.match(text, /\n## Step 01: Step 1\n\n\*\*Date\*\*: \d{4}-\d{2}-\d{2}\n\*\*Outcome\*\*: done\n\n### What changed\n\n- `src\/a.ts`: new module\n- `src\/b.ts`: wire it\n\n### Deviations from the plan\n\nNone\.\n\n### Gaps found in specs\n\n- G1 \(assumption\): first case\. See `spec-gaps.md`\.\n\n### Open issues\n\nNone\.\n\n### What the next step must know\n\nUse A\.\n$/);
+  assert.match(text, /\n## Step 01: Step 1\n\n\*\*Date\*\*: \d{4}-\d{2}-\d{2}\n\*\*Outcome\*\*: done\n\n### What changed\n\n- `src\/a.ts`: new module\n- `src\/b.ts`: wire it\n\n### Deviations from the plan\n\nNone\.\n\n### Gaps found in specs\n\n- G1 \(assumption\): first case\. See `spec-gaps.md`\.\n\n### Open issues\n\nNone\.\n\n### What the next step must know\n\nVerification: manual, self-assessed\.\n\nUse A\.\n$/);
   assert.match(fs.readFileSync(path.join(root, PLAN, "steps/01-a.md"), "utf8"), /status: done/);
   assert.match(fs.readFileSync(path.join(root, PLAN, "steps/02-b.md"), "utf8"), /status: pending/);
   assert.deepEqual(handoffOutcomes(path.join(root, PLAN, "HANDOFF.md")).get(1), ["done"]);

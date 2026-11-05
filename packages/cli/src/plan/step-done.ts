@@ -89,6 +89,9 @@ function refuse(message: string): never {
  * commit (`architecture/file-formats` §4.1, §8). Every refusal happens before the first write;
  * a failed commit restores both files. Never pushes.
  */
+/** A person's declaration through the CLI: no minimum applies and nothing stronger than the declarer checked it. */
+const MANUAL_VERIFICATION = "Verification: manual, self-assessed.";
+
 export function stepDone(planId: string, opts: StepDoneOptions, config: Config, root: string, heldLease?: WriterLease, internalManifest?: RecordingSet, generatedRecording?: GeneratedRecording): StepDoneResult {
   // This whole operation is synchronous. Suppress optional index refreshes in
   // read-only Git children so even an early refusal preserves the index bytes.
@@ -226,7 +229,7 @@ function recordStep(planId: string, opts: StepDoneOptions, config: Config, root:
     "",
     "### What the next step must know",
     "",
-    opts.nextKnows?.trim() || "None.",
+    [...(generatedRecording || outcome !== "done" ? [] : [MANUAL_VERIFICATION]), ...(opts.nextKnows?.trim() ? [opts.nextKnows.trim()] : [])].join("\n\n") || "None.",
     "",
   ].join("\n");
 

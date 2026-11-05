@@ -82,7 +82,7 @@ test('plan step without a reviewed mapping: synchronize the remote plan branch, 
   assert.equal(p.base.head, remoteHead, 'preparation synchronized the remote plan branch');
   const before = sha256(fs.readFileSync(path.join(f.root, 'src/calc.js')));
   fs.writeFileSync(path.join(f.root, 'src/calc.js'), 'exports.add = (a, b) => a + b;\n');
-  // Without a reviewed testRequirements mapping a criterion stays uncertain, so a `done` result is refused (INVALID_EVIDENCE); mapped steps are cancelled natively (D16 C). A blocked result is the reachable outcome.
+  // A criterion without a reviewed mapping can be met, but only with file evidence, so a `done` result that cites none is refused (INVALID_EVIDENCE); mapped steps are cancelled natively (D16 C). A blocked result is the reachable outcome here.
   const change = { path: 'src/calc.js', beforeDigest: before, afterDigest: sha256(fs.readFileSync(path.join(f.root, 'src/calc.js'))), purpose: 'implement add' };
   const refusedDone = await c.call('validate', { requestId: p.requestId, result: { ...blocked(p, [change]), outcome: 'done', criterionEvidence: [{ criterionId: p.criteria[0].id, assessment: 'met', rationale: 'Reviewed by the scripted client.', artifacts: [] }] } });
   assert.equal(refusedDone.error?.code, 'INVALID_EVIDENCE', refusedDone.text);

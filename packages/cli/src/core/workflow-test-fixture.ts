@@ -34,12 +34,12 @@ export async function fixture(workflow = 'plan-step', procedure = '# Contract\n\
 
 export const id = '2026-11-03-test';
 export const stepFile = `plans/${id}/steps/01-test.md`;
-export function repo() {
+export function repo(extraConfig = '') {
  const cwd = fs.mkdtempSync(path.join(tmpdir(), 'prepare-workflow-'));
  const git = (...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
  const put = (p: string, text: string) => { const f = path.join(cwd,p); fs.mkdirSync(path.dirname(f),{recursive:true}); fs.writeFileSync(f,text); };
  git('init','-b','main'); git('config','user.name','Test'); git('config','user.email','test@example.com'); git('config','core.autocrlf','false');
- put('.specplane/config.yaml', 'spec_roots:\n  - name: base\n    path: specs\nplans:\n  forge: none\n  require_approved_specs: none\nexecution:\n  backend: branch\n');
+ put('.specplane/config.yaml', 'spec_roots:\n  - name: base\n    path: specs\nplans:\n  forge: none\n  require_approved_specs: none\nexecution:\n  backend: branch\n' + extraConfig);
  put('specs/features/test.md','---\nid: feature/test\ntitle: Test\nstatus: approved\nauthor: user\n---\n# Test\n\n## Acceptance criteria\n\n- [ ] Observable feature behavior\n');
  put(`plans/${id}/PLAN.md`, `---\nid: ${id}\ntitle: Test\nstatus: ready\nspecs: [base:feature/test]\n---\n# Plan\n`);
  put(stepFile, `---\nplan: ${id}\nstep: 1\ntitle: Test\nstatus: pending\ncontext:\n  - file: source.ts\n---\n# Step\n\n## Acceptance criteria\n\n- [ ] Expected behavior\n`);

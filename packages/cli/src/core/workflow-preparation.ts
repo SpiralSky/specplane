@@ -11,6 +11,7 @@ import { resolveSpecId } from '../spec/resolve.js';
 import { hasAnchor, findHeading } from '../spec/slug.js';
 import { sectionSteps } from '../plan/step-done.js';
 import { planNext } from '../plan/next.js';
+import { loadVerificationPolicy, type VerificationPolicy } from './verification.js';
 import { assertFinishReadiness } from '../plan/flows.js';
 import { PlanStateError } from '../errors.js';
 import { parsePlan, parseStep, listStepFiles } from '../plan/parse.js';
@@ -79,6 +80,8 @@ export interface PreparedState {
   initiation: WorkflowInitiation; request: WorkflowRequest; context: CoreContext; lease: WriterLease;
   refs: Record<string, string | null>; compatibilityDigests: Record<string, string>;
   editableSpecPolicies: Record<string, string>; inputPaths: string[]; mutableInputs: string[]; capabilities: Capabilities; uncertainCriteria: string[]; input: string | null;
+  /** Verification settings from the committed configuration at the plan's start base, never from the worker. */
+  verification: VerificationPolicy;
 }
 const prepared = new Map<string, PreparedState>();
 function packageDigests(context: CoreContext): Record<string, string> {
@@ -198,11 +201,13 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
       return { ...resolved, relative: p };
     };
     let refs: Record<string, string | null> = {};
+    let startBase: string | null = null;
     if (request.workflow === 'plan-step') {
       const state = lifecycleContext(id!, config, cwd);
       if (state.target.status === 'done' || state.plan.status === 'done') refuse('POLICY_DENIED', 'Terminal plans cannot execute steps.');
       if (state.context.targetBranch !== discoveryTarget) refuse('STALE_STATE', 'Target changed during synchronization; retry with the complete lease set.');
       refs = state.refs;
+      startBase = state.context.binding?.start_base ?? null;
       const next = planNext(id!, config, cwd);
       if (next.checkout === null || fs.realpathSync(next.checkout) !== cwd) refuse('STALE_STATE', 'Wrong plan checkout.');
       const selection = request.selection;
@@ -267,6 +272,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
       const state = lifecycleContext(id!, config, cwd);
       if (state.context.targetBranch !== discoveryTarget) refuse('STALE_STATE', 'Target changed during synchronization; retry with the complete lease set.');
       refs = state.refs;
+      startBase = state.context.binding?.start_base ?? null;
       try { assertFinishReadiness(id!, state.config, cwd, git(cwd, 'remote').split('\n').includes('origin')); }
       catch (e) { if (e instanceof PlanStateError) refuse('POLICY_DENIED', e.message); throw e; }
       const planDir = `${config.plans.dir}/${id}`;
@@ -307,9 +313,11 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
     for (const criterion of criteria) protectedPaths.add(criterion.sourcePath);
     for (const p of Object.keys(inputs)) if (!p.startsWith('package://') && !p.startsWith('target://')) inputPaths.add(p);
     const uncertainCriteria = criteria.filter(c => !mapped.has(c.id)).map(c => c.id);
-    for (const id of uncertainCriteria) notices.push({ code: 'UNCERTAIN_TEST_MAPPING', message: `No reviewed test/inspection mapping for ${id}; empty requirements do not establish acceptance.` });
+    for (const id of uncertainCriteria) notices.push({ code: 'UNCERTAIN_TEST_MAPPING', message: `No reviewed test/inspection mapping for ${id}; it needs no suite of its own and can be met with file evidence, labelled self-assessed. Step-level suites still apply.` });
     const branch = git(cwd, 'branch', '--show-current');
     if (!branch) refuse('STALE_STATE', 'Detached HEAD is not an executable workflow checkout.');
+    const verification = loadVerificationPolicy(cwd, git(cwd, 'rev-parse', 'HEAD'), startBase);
+    inputs['policy://verification'] = sha256(canonical(verification));
     const baseFields = { head: git(cwd, 'rev-parse', 'HEAD'), branch, configDigest: configDigest as string, inputDigests: inputs, indexDigest: indexDigest(cwd) };
     const envelope: WorkflowRequest = { protocol: 1, requestId, workflow: request.workflow, extensionId: request.extensionId, checkout: cwd, mode: resolveSessionMode(config.execution.session_mode, request.mode), base: { ...baseFields, digest: sha256(canonical(baseFields)) }, scope, context: entries, criteria, procedureDigests };
     lease.assertOwned(); clean(cwd); recheckLifecycleRefs(cwd, refs);
@@ -329,7 +337,7 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
     const cancellation = new AbortController();
     const boundContext = { ...context, signal: context.signal ? AbortSignal.any([context.signal, cancellation.signal]) : cancellation.signal };
     lease.retainHostWorker();
-    prepared.set(requestId, { creationDate, confirmContent, cancellation, captureObservation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, input: request.workflow === 'plan-step' || request.workflow === 'plan-finish' ? null : request.selection.input });
+    prepared.set(requestId, { creationDate, confirmContent, cancellation, captureObservation, stopWorker, cancellationPending: false, leaseReleased: false, initiation: request, editableSpecPolicies, inputPaths: [...inputPaths], mutableInputs: mutableInputs.filter(p => !protectedPaths.has(p)), request: structuredClone(envelope), context: boundContext, lease, refs, compatibilityDigests, capabilities: compatibility.value, uncertainCriteria, verification, input: request.workflow === 'plan-step' || request.workflow === 'plan-finish' ? null : request.selection.input });
     lease = undefined;
     return { protocol: 1, ok: true, value: envelope, notices };
   } catch (error) {
