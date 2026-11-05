@@ -362,3 +362,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 (session 6: leftovers and conformance, offline)
 - Closed provisional leftovers: R1 reference-cli edit drafted in the proposal; later-writer refusal names the request id and recover command; delegation prompt names `specplane_run_tests` for plan-steps with `testRequirements`.
 - Conformance Claude rows stay not-delivered/pending; matrix reason and release blocker rewritten to state real evidence and PROVISIONAL status. Added a handler test for complete/validate/plan-status/plan-start. Pin refresh not done. Focused 119 pass.
+
+## 2026-11-05 (session 7: Claude consumer suite)
+- Added `harness/claude-consumer.test` (7 pass) over the installed MCP server and CLI in temp repositories; no `claude` process. A `done` plan step is unreachable natively; a consumer install shows unresolved `architecture/agent-skills` anchor drift.
+- Session adapter not built: the Claude route, argv, prompt and observation mapping are unspecified; recorded as D25. `hooks.test.sh` 94 pass, `check-sync` OK.
