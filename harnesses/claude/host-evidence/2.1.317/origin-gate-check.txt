@@ -34,3 +34,19 @@ Results:
 8. Not exercised: specplane_result, completion, or close. The run stopped while the procedure was waiting for answers.
 9. Release: NOT ACHIEVED, unchanged (D20 item 6). After /exit in both modes the server process exited, and the checkout record,
    repository record and host marker stayed in .git/specplane-runtime.
+
+Delegation check, D21. Same day, about 03:29-03:33 UTC, auto mode, one fresh fixture built the same way from c636c23.
+The user approved this check in conversation; the coordinator typed the fixture's answers and approval through tmux.
+
+1. D21 FIXED live: after typing only `/spec-assist search filter draft`, the procedure started by itself and finished its first
+   reply within about 35 s. No further prompt was typed. `$.clock.after` from the command hook counts as a later event.
+2. The procedure ran as designed: it asked for content, showed the exact text, and wrote the file only after approval. The host
+   asked before the model's own write of docs/specifications/features/search-filter.md; that prompt was accepted for the fixture.
+3. The completion tool ran under auto mode with no refusal, but the result was NOT recorded (D22). The model sent the correct
+   requestId; the reply was "The result names no prepared request; the open Specplane requests were closed. Nothing was recorded."
+4. D22 cause A: the hook read `e.input`, but a `tool.call` event carries arguments beside `tool`, so requestId looked empty.
+5. D22 cause B: no `close`, `validate` or `record` reached the server (gate log stayed at bind 1, prepare 1, detail 55). Each hook
+   builds its own server handle and only the command path connected, so these calls stopped at "not connected". The reply's
+   "were closed" was therefore false: the checkout record still named the request while the server ran.
+6. After /exit the server exited and the lease files stayed (D20 item 6, unchanged).
+Both causes were fixed offline afterwards. Not yet live-checked: validate, record, close, and whether close releases the lease.

@@ -374,6 +374,28 @@ test('the tool.check nonce gate admits a server call only with the bound nonce; 
   assert.equal(h.refusesServerCall({ tool: 'Bash', input: { command: 'ls' } }, NONCE), false);
 });
 
+test('the completion hook reads arguments from the tool.call event, and a fresh server handle dials before calling', opts, async () => {
+  const h = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
+  // As the host delivers it: arguments beside `tool`, no `input` key.
+  assert.deepEqual(h.resultArguments({ tool: h.COMPLETION_TOOL_NAME, tool_use_id: 't', requestId: 'r1', result: { a: 1 } }), { requestId: 'r1', result: { a: 1 } });
+
+  const dialed: string[] = [], called: unknown[][] = [];
+  const mcp = {
+    connect: async (key: string) => { dialed.push(key); return { isConnected: true, server: 'plugin:specplane:specplane' }; },
+    call: async (...args: unknown[]) => { called.push(args); return { content: [{ type: 'text', text: '{"ok":true,"value":{}}' }] }; },
+  };
+  const server = h.pluginServer({ mcp }); // the completion path: no connect() first
+  await server.call('close', { requestId: 'r1' });
+  await server.call('close', { requestId: 'r2' });
+  assert.deepEqual(dialed, ['specplane']); // dialed once, then reused
+  assert.deepEqual(called[0], ['plugin:specplane:specplane', 'close', { requestId: 'r1' }]);
+
+  const down = h.pluginServer({ mcp: { connect: async () => ({ isConnected: false, message: 'no server' }) } });
+  const reply = await down.call('close', {});
+  assert.equal(reply.ok, false);
+  assert.equal(reply.message, 'no server');
+});
+
 test('a queued delegation is submitted from a timer after the hook, once, and a failed timer leaves it queued', opts, async () => {
   const h = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
   const submitted: string[] = [];

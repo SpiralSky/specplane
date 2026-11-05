@@ -90,8 +90,11 @@ export function currentNonce(): string | undefined {
   return session.nonce
 }
 
-/** The plugin's Specplane server through the engine's `$.mcp`. Replies are MCP results, read by serverReply. */
-function pluginServer($: EngineInterface): SpecplaneServer {
+/**
+ * The plugin's Specplane server through the engine's `$.mcp`. Replies are MCP results, read by serverReply. Each hook
+ * builds its own, and only the command path connects first, so a call dials the server when it has no name yet.
+ */
+export function pluginServer($: EngineInterface): SpecplaneServer {
   let server: string | undefined
   return {
     async connect() {
@@ -101,7 +104,11 @@ function pluginServer($: EngineInterface): SpecplaneServer {
       return { connected: true }
     },
     async call(tool, args) {
-      if (server === undefined) return { ok: false, message: 'Specplane server is not connected.' }
+      if (server === undefined) {
+        const c = await $.mcp.connect(SERVER_KEY)
+        if (!c.isConnected) return { ok: false, message: c.message ?? 'Specplane server is not connected.' }
+        server = c.server
+      }
       return serverReply(await $.mcp.call(server, tool, args))
     },
   }
@@ -111,6 +118,12 @@ function pluginServer($: EngineInterface): SpecplaneServer {
 function sessionFor($: EngineInterface): ReasoningSession | undefined {
   if (!session.nonce || !session.checkout) return undefined
   return { checkout: session.checkout, nonce: session.nonce, server: pluginServer($), binding: session.binding }
+}
+
+/** The completion tool's arguments. A `tool.call` event carries them beside `tool`; only `tool.check` nests `input`. */
+export function resultArguments(e: unknown): { requestId?: unknown; result?: unknown } {
+  const { requestId, result } = e as { requestId?: unknown; result?: unknown }
+  return { requestId, result }
 }
 
 /** How long after a command's hook returns its delegation is submitted; the hook must have let go of its turn. */
@@ -152,8 +165,7 @@ export function registerNative(on: Parameters<Register>[0]): void {
   for (const cmd of NATIVE_COMMANDS) bindCommand(on, cmd)
 
   on('tool.call', { tool: COMPLETION_TOOL_NAME }, async ($, e) => {
-    const input = (e.input ?? {}) as { requestId?: unknown; result?: unknown }
-    const outcome = await acceptResult(pending, input, { session: sessionFor($) })
+    const outcome = await acceptResult(pending, resultArguments(e), { session: sessionFor($) })
     return { result: outcome.text }
   }).catch(async ($) => {
     // The result could not be read or handled: release what this module holds, so no lease outlives the failure.
