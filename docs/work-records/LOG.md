@@ -347,3 +347,6 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 (session: Claude spec-edit proposal)
 - Wrote `docs/work-records/2026-11-05-claude-spec-edit-proposal.md`: architecture edits A1 to A12 (D17 A, D16 A, server surface, D23, D24, origin gate, corrected stale text) and feature suggestions F1 to F4, plus the D20 item 6 recovery design. Docs only; no spec body edited; `specplane validate` 0 errors, 98 warnings.
 - TEMPORARY: D17 A field name, D16 A command source, recovery CLI shape.
+
+## 2026-11-05 (session: D17 A offline, PROVISIONAL)
+- Built D17 A from the proposal's A6: `confirmation` field on `record`, server-side parked challenge (`createConfirmationBridge`), the mod's dialog and second `record`. Own commits so they can be reverted. Tests: `claude-mcp-confirmation.test` (10), `claude-handlers.test` (5 added). `MANUAL_WRITE_RULE` kept; `reasoning` still false.
