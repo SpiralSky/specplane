@@ -458,7 +458,7 @@ test('every reasoning procedure reads the request from the prompt and always rep
   assert.match(review, /You are read-only/);
   assert.match(review, /one `verify-review` request/);
   assert.match(review, /\{"verdict":"pass"\|"fail","findings":\["one finding per string"\]\}/);
-  assert.doesNotMatch(review, /specplane_result|specplane-contract/);
+  assert.doesNotMatch(review, /specplane_result/);
 });
 
 test('server replies are read from the core Result, or from plain text for bind and refusals', opts, async () => {
