@@ -971,6 +971,27 @@ related_specs: []
         }
       }
     },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode":       { "type": "string", "enum": ["auto", "manual"] },
+        "suites": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["command", "format"],
+            "properties": {
+              "command": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+              "format":  { "type": "string", "enum": ["node-tap-v13", "junit-xml"] }
+            }
+          }
+        },
+        "text_paths": { "type": "array", "items": { "type": "string" } },
+        "risk_paths": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "decisions": {
       "type": "object",
       "additionalProperties": false,
