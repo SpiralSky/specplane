@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-05T08:00Z. Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05 (coordinator, before the authorized run). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -29,6 +29,30 @@ Every TEMPORARY (coordinator choice while you were offline) and PROVISIONAL (bui
 10. Live runs for claude-delivery 03 criteria 1 and 3 and conformance row 4: each needs your approval; none retried (D18).
 11. Upgrading to Bun 1.4.4: your call; run the full suite on it first.
 12. Final reconciliation below, including the push.
+
+## Authorized run (2026-11-05, user away about 1 h)
+The user answered these directly on 2026-11-05. They cover this run only. Keep this section verbatim in every HANDOFF rewrite, ticking the session table, until the coordinator removes it.
+
+Granted:
+- G1 Spec edits: apply A1 to A13, R1 and F1 to F4 exactly as written in the proposal, as separate revertable docs commits. This is the user's approval of the F1 to F4 wording. It does not approve any spec: never change a `status:` field, and `/approve` stays with the user.
+- G2 Live runs: one attempt per decision, never retried, at most 5 invocations in total: D25 probe, D24 unprompted-report check, claude-delivery 03 criteria 1 and 3, conformance row 4. Use the lowest practical budget and a throwaway fixture repo, not this checkout. Record each result, pass or fail, under `harnesses/claude/host-evidence/`.
+- G3 Decisions confirmed as chosen: D11, D19 (remove the six skills only if a live `done` result passes), D25 option 1 (build route B), D20 item 6, the D17 A field, the D16 A command source. For the D16 A table use conservative entries from the repo's existing test commands, and flag them for the user's review.
+
+Not granted, so do not do:
+- Reconciliation is prepare-only: no managed recording, no `plan abandon`, no target-history repair, no push. Write the exact commands to `docs/work-records/2026-11-05-reconciliation-checklist.md`.
+- extension-conformance 02 pin refresh: it still needs the user's implementation review (item 9).
+- Bun upgrade: run the full suite on 1.4.4 and report it, but change no installed Bun.
+- No approvals, no history rewrites, no `--no-verify`. If a hook or guard refuses an edit to an approved spec, or the edit needs a status change, stop that edit, record it in "Needs the user", and continue with what is not blocked. Never work around a refusal.
+
+| Session | Work | State |
+| --- | --- | --- |
+| S1 | Apply G1 spec edits; `specplane validate` | pending |
+| S2 | Review D17 A, D16 A and recovery builds against the applied specs; fill the D16 A table and wire the install entry; drop PROVISIONAL where the spec now covers it, keeping anything that needs a live check gated | pending |
+| S3 | Build the D25 route B session adapter offline (claude-delivery 03 criterion 1) | pending |
+| S4 | G2 live runs; D19 removal if and only if `done` passed live | pending |
+| S5 | Update conformance 01 and matrix from the evidence; full suite on Bun 1.4.4; write the reconciliation checklist | pending |
+| S6 | Bug check: review all commits since `8aa96aa`, fix confirmed bugs with tests | pending |
+| S7 | Second bug check on areas S6 did not cover plus S6's fixes; final full verification | pending |
 
 ## Open decisions
 - D11, D19, D24, D25, D20 item 6, D17, D16: see "Needs the user".
@@ -63,8 +87,7 @@ Every TEMPORARY (coordinator choice while you were offline) and PROVISIONAL (bui
 | extension-conformance | 02 | partial; managed recording pending | guards built (`harness/release-evidence.test` (4)); blocker text refreshed; the pin refresh was not done and awaits the user's implementation review |
 
 ## Next session
-Any live run needs fresh approval. The user reviews the proposal file (decisions list at its top). After approval a session applies A1 to A13, R1 and F1 to F4 as approved, in docs commits, then reviews the provisional D17 A, D16 A and recovery builds. Do not edit an approved spec before then. First task: `cd packages/cli && npm test` and confirm it still passes.
-Offline work left: none known. The session adapter waits on D25. Blocked: extension-conformance 02 pin refresh, claude-delivery 03 live parts.
+Follow "Authorized run": take the first pending session in its table. S1's first task: `cd packages/cli && npm test` and confirm it still passes, then apply the proposal.
 
 ## How to continue (orchestration)
 The user runs steps through a coordinator session that chains **Sonnet 5.5 subagents sequentially, one step per subagent**. Each subagent acts as a complete session.
@@ -84,4 +107,4 @@ The user runs steps through a coordinator session that chains **Sonnet 5.5 subag
 - Never approve, push, rewrite history, or edit plan `status:`, step checkboxes or managed progress. Do not invent ADR kinds or contract text.
 - Stage specific paths only; never `problems.md` or `AGENTS.override.md`. Preserve private backups and receipts.
 - Cooperative lease-coordinated writers only; native and live-host evidence stays unrun until produced.
-- Live invocations: one per decision, never retried. Each needs the user's approval now (D18).
+- Live invocations: one per decision, never retried. Each needs the user's approval (D18); the only current approval is G2 under "Authorized run".
