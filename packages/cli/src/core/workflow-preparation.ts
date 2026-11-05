@@ -371,6 +371,10 @@ export async function assertPrepared(requestId: string, context: CoreContext): P
   }
   return state;
 }
+/** The verification settings bound to a prepared request (committed bytes), for hosts that must resolve configured suite commands. */
+export function preparedVerification(requestId: string): VerificationPolicy['verification'] | undefined {
+  return prepared.get(requestId)?.verification.verification;
+}
 /** Identity/lease-only boundary: cancellation and inspection must work after stale inputs or abortion. */
 export function assertPreparedIdentity(requestId: string, context: CoreContext): PreparedState {
   const state = prepared.get(requestId);

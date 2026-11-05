@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createWorkflowRunner } from '../core/workflow-runner.js';
+import { preparedVerification } from '../core/workflow-preparation.js';
 import { createClaudeMcpServer, createConfirmationBridge } from './claude-mcp.js';
 
 const packageRoot = fs.realpathSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'));
@@ -40,9 +41,11 @@ const runner = createWorkflowRunner({
     },
   } : undefined,
 });
-// D16 A is NOT wired here yet: the applied spec keeps the D16 C refusal until the reviewed suite path is live-checked (S4).
-// To enable it after the user reviews BUNDLED_SUITES and a live check passes, pass `suites: BUNDLED_SUITES` (import from ./claude-suites.js).
-const server = createClaudeMcpServer(runner, { confirmations });
+const server = createClaudeMcpServer(runner, {
+  confirmations,
+  // Suite commands come from the configuration the core bound to the prepared request, never from model input.
+  verificationFor: requestId => preparedVerification(requestId),
+});
 await server.serve({ input: process.stdin, write: line => process.stdout.write(line) });
 // Disconnect (session exit or a killed host) is a runner EOF: pending work is cancelled and every lease this process holds is released.
 const ended = (async function* () { /* no input: the runner only closes */ })();

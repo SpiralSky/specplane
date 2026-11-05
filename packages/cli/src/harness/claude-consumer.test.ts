@@ -82,7 +82,7 @@ test('plan step without a reviewed mapping: synchronize the remote plan branch, 
   assert.equal(p.base.head, remoteHead, 'preparation synchronized the remote plan branch');
   const before = sha256(fs.readFileSync(path.join(f.root, 'src/calc.js')));
   fs.writeFileSync(path.join(f.root, 'src/calc.js'), 'exports.add = (a, b) => a + b;\n');
-  // A criterion without a reviewed mapping can be met, but only with file evidence, so a `done` result that cites none is refused (INVALID_EVIDENCE); mapped steps are cancelled natively (D16 C). A blocked result is the reachable outcome here.
+  // A criterion without a reviewed mapping can be met, but only with file evidence, so a `done` result that cites none is refused (INVALID_EVIDENCE); mapped steps are cancelled natively (unconfigured suite). A blocked result is the reachable outcome here.
   const change = { path: 'src/calc.js', beforeDigest: before, afterDigest: sha256(fs.readFileSync(path.join(f.root, 'src/calc.js'))), purpose: 'implement add' };
   const refusedDone = await c.call('validate', { requestId: p.requestId, result: { ...blocked(p, [change]), outcome: 'done', criterionEvidence: [{ criterionId: p.criteria[0].id, assessment: 'met', rationale: 'Reviewed by the scripted client.', artifacts: [] }] } });
   assert.equal(refusedDone.error?.code, 'INVALID_EVIDENCE', refusedDone.text);
@@ -98,16 +98,16 @@ test('plan step without a reviewed mapping: synchronize the remote plan branch, 
   assert.deepEqual(leases(f.root), idle, 'close leaves no lease file behind');
 });
 
-test('a plan step whose criteria carry testRequirements is cancelled by the native server (D16 C): nothing is edited or recorded and no lease is left', async () => {
+test('a plan step whose criteria carry testRequirements naming a suite that verification.suites does not configure is cancelled by the native server: nothing is edited or recorded and no lease is left', async () => {
   const f = consumer({ tests: true }); const head = git(f.root, 'rev-parse', 'HEAD');
   const c = client(f.root, f.root); await c.call('bind');
   const refused = await c.call('prepare', initiation(f.root, 'plan-step', { planId: ID }));
-  assert.equal(refused.isError, true, refused.text); assert.match(refused.text, /testRequirements/);
+  assert.equal(refused.isError, true, refused.text); assert.match(refused.text, /verification\.suites/);
   assert.equal(git(f.root, 'rev-parse', 'HEAD'), head); assert.equal(git(f.root, 'status', '--porcelain'), '');
   assert.equal(await c.finish(), 0, c.stderr());
   const again = client(f.root, f.root); await again.call('bind');
   const next = await again.call('prepare', initiation(f.root, 'plan-step', { planId: ID }));
-  assert.match(next.text, /testRequirements/, 'a later session is refused by D16 C, not by a stale lease');
+  assert.match(next.text, /verification\.suites/, 'a later session is refused for the unconfigured suite, not by a stale lease');
   await again.finish();
 });
 

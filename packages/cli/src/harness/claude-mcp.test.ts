@@ -165,7 +165,7 @@ test('a prepared request whose reply cannot be delivered is cancelled by the ser
   assert.equal(JSON.parse(replies[2].result.content[0].text).value.closed.length, 0, 'nothing is left open for the mod to close');
 });
 
-test('native plan-step with criteria that carry testRequirements is cancelled and refused (D16 C)', async () => {
+test('native plan-step with criteria that carry testRequirements whose suite is not configured is cancelled and refused', async () => {
   const withTests = { requestId: 'req-t', workflow: 'plan-step', criteria: [{ id: 'c:1', testRequirements: [{ suiteId: 's', format: 'node-tap-v13' }] }] };
   const noTests = { requestId: 'req-n', workflow: 'plan-step', criteria: [{ id: 'c:1', testRequirements: [] }] };
   const other = { requestId: 'req-o', workflow: 'spec-assist', criteria: [{ id: 'c:1', testRequirements: [{ suiteId: 's', format: 'node-tap-v13' }] }] };
@@ -175,7 +175,7 @@ test('native plan-step with criteria that carry testRequirements is cancelled an
     const cancels = runner.calls.filter(c => c.method === 'cancel').map(c => c.params);
     if (refused) {
       assert.equal(replies[1].result.isError, true);
-      assert.match(replies[1].result.content[0].text, /testRequirements/);
+      assert.match(replies[1].result.content[0].text, /not in verification\.suites/);
       assert.deepEqual(cancels, [{ requestId: value.requestId }]);
     } else {
       assert.notEqual(replies[1].result.isError, true);

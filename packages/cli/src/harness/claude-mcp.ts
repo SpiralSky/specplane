@@ -77,7 +77,7 @@ export const TOOLS: readonly ToolSpec[] = [
   { name: 'inspect', description: 'Inspect a prepared or recorded workflow request.', forward: 'inspect' },
   { name: 'prepare', description: 'Prepare a workflow request and take the writer lease for it. The reply is compact; read the request with detail.', forward: 'prepare' },
   { name: 'detail', description: 'Read one bounded page of a prepared request by requestId and offset.', detail: true },
-  { name: 'executeTest', description: 'Run the reviewed suites a prepared request requires. Takes requestId and optionally criterionIds (a subset of the criteria of the request); the server fixes every command. Unavailable unless the server was given a suite table.', forward: 'executeTest' },
+  { name: 'executeTest', description: 'Run the configured suites a prepared request requires. Takes requestId and optionally criterionIds (a subset of the criteria of the request); the server resolves every command from the verification suites bound to the request.', forward: 'executeTest' },
   { name: 'validate', description: 'Validate the WorkflowResult for an open prepared request (requestId) against the request the server holds.', forward: 'validate' },
   { name: 'record', description: 'Record a validated WorkflowResult. Finalized content first returns a CONFIRMATION_REQUIRED challenge; repeat the call with the same proposal and the mod\'s `confirmation` response.', forward: 'record' },
   { name: 'capture', description: 'Capture a proposed contribution.', forward: 'capture' },
@@ -95,8 +95,8 @@ const byteLength = (s: string) => new TextEncoder().encode(s).length;
 
 export interface McpServerOptions {
   name?: string; version?: string; confirmations?: ConfirmationBridge; now?: () => number;
-  /** D16 A (spec: `### Reviewed test suites`; live check pending): the reviewed suite table. Absent, the D16 C refusal stays active and `executeTest` is unavailable. */
-  suites?: SuiteTable;
+  /** The configured suites (`verification.suites`) and mode the core bound to a prepared request; absent or undefined, `executeTest` is unavailable. */
+  verificationFor?: (requestId: string) => { mode: 'auto' | 'manual'; suites: SuiteTable } | undefined;
 }
 
 /** The only keys `executeTest` accepts from the caller (`architecture/claude-integration` § Reviewed test suites: `requestId` and `criterionIds`); a command, arguments, cwd or environment are never among them. */
@@ -107,7 +107,6 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
   let counter = 0;
   const bridge = options.confirmations;
   const now = options.now ?? Date.now;
-  const suites = options.suites;
   /** The proposal (canonical JSON) each parked challenge belongs to; the second record call must repeat it. */
   const proposals = new Map<string, string>();
   /** Prepared requests this session holds open: the full request (server side only) and its serialized form for detail pages. */
@@ -169,19 +168,16 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     const request = outcome.value as Json;
     const requestId = request.requestId;
     if (typeof requestId !== 'string') return text('Prepared request has no requestId; nothing can be closed by id.', true);
-    // D16 option C: the native path never runs a reviewed suite, so a plan-step with test requirements is refused.
+    // Spec § Reviewed test suites: every suite a criterion requires must be configured, or the request is cancelled and its lease released.
     const criteria = Array.isArray(request.criteria) ? (request.criteria as Array<{ testRequirements?: unknown[] }>) : [];
     const required = criteria.flatMap(c => (Array.isArray(c.testRequirements) ? c.testRequirements : []) as Array<{ suiteId?: unknown }>);
-    if (request.workflow === 'plan-step' && required.length > 0 && suites) {
-      // D16 A: every required suite must be in the table, or the request is cancelled and its lease released.
-      const unknown = required.map(r => r.suiteId).filter(id => typeof id !== 'string' || !resolveSuite(suites, id));
+    if (request.workflow === 'plan-step' && required.length > 0) {
+      const configured = options.verificationFor?.(requestId)?.suites;
+      const unknown = required.map(r => r.suiteId).filter(id => !configured || typeof id !== 'string' || !resolveSuite(configured, id));
       if (unknown.length > 0) {
         await release(requestId);
-        return text(`Request ${requestId} requires suites that are not in the reviewed suite table (${[...new Set(unknown.map(String))].join(', ')}). The request was cancelled and its lease released; run this step through the managed plan-step flow.`, true);
+        return text(`Request ${requestId} requires suites that are not in verification.suites (${[...new Set(unknown.map(String))].join(', ')}). The request was cancelled and its lease released.`, true);
       }
-    } else if (request.workflow === 'plan-step' && required.length > 0) {
-      await release(requestId);
-      return text(`Native plan-step does not run reviewed test suites, and request ${requestId} has criteria with testRequirements. The request was cancelled and its lease released; run this step through the managed plan-step flow.`, true);
     }
     const json = JSON.stringify(request);
     open.set(requestId, { request, json });
@@ -241,17 +237,20 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
   }
 
   /**
-   * D16 A (spec: Reviewed test suites; gated on a live check). Runs the suites the held request requires, with commands from
-   * the suite table only. The caller may send requestId, criterionIds and the nonce; any other key (executable, args, cwd,
-   * env, a command in any form) is refused before anything runs, and so is an unknown suiteId, which also cancels the request.
+   * Runs the suites a held request needs, with commands from `verification.suites` only (spec: Reviewed test suites). The caller
+   * may send requestId, criterionIds and the nonce; any other key (executable, args, cwd, env, a command in any form) is refused
+   * before anything runs. A mapped criterion's `suiteId` runs for that criterion; for a plan-step in `auto` mode, with no
+   * criterionIds given, every configured suite also runs step-level. An unknown suiteId is refused and cancels the request.
    */
   async function runReviewedSuites(args: Json): Promise<unknown> {
-    if (!suites) return text('Reviewed test suites are not available in this install; run the step through the managed plan-step flow.', true);
     const extra = Object.keys(args).filter(k => !EXECUTE_TEST_KEYS.has(k));
     if (extra.length > 0) return text(`executeTest takes requestId and criterionIds only; the server fixes the command. Refused keys: ${extra.join(', ')}.`, true);
     const requestId = args.requestId;
     const held = typeof requestId === 'string' ? open.get(requestId) : undefined;
     if (typeof requestId !== 'string' || !held) return text(`Request ${String(requestId)} is not open.`, true);
+    const verification = options.verificationFor?.(requestId);
+    if (!verification) return text('Test suites are not available for this request: no verification configuration is bound to it.', true);
+    const suites = verification.suites;
     const allCriteria = (Array.isArray(held.request.criteria) ? held.request.criteria : []) as Array<{ id: string; testRequirements?: Array<{ suiteId: string; format: string }> }>;
     let criteria = allCriteria;
     if (args.criterionIds !== undefined) {
@@ -262,22 +261,33 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
       }
       criteria = allCriteria.filter(c => (ids as string[]).includes(c.id));
     }
-    const bySuite = new Map<string, { command: NonNullable<ReturnType<typeof resolveSuite>>; criterionIds: string[] }>();
+    type Command = NonNullable<ReturnType<typeof resolveSuite>>;
+    const runs: Array<{ suiteId: string; command: Command; criterionIds: string[]; stepLevel: boolean }> = [];
+    const mapped = new Map<string, { command: Command; criterionIds: string[] }>();
     for (const c of criteria) for (const r of c.testRequirements ?? []) {
       const command = resolveSuite(suites, r.suiteId);
       if (!command) { await release(requestId); return text(`Unknown suiteId ${JSON.stringify(r.suiteId)}. The request was cancelled and its lease released.`, true); }
       if (command.format !== r.format) { await release(requestId); return text(`Suite ${JSON.stringify(r.suiteId)} reports ${command.format}, but the request requires ${r.format}. The request was cancelled and its lease released.`, true); }
-      const entry = bySuite.get(r.suiteId) ?? { command, criterionIds: [] };
+      const entry = mapped.get(r.suiteId) ?? { command, criterionIds: [] };
       entry.criterionIds.push(c.id);
-      bySuite.set(r.suiteId, entry);
+      mapped.set(r.suiteId, entry);
     }
-    if (bySuite.size === 0) return text(`Request ${requestId} has no test requirements to run.`, true);
+    for (const [suiteId, { command, criterionIds }] of mapped) runs.push({ suiteId, command, criterionIds, stepLevel: false });
+    if (held.request.workflow === 'plan-step' && verification.mode === 'auto' && args.criterionIds === undefined) {
+      for (const suiteId of Object.keys(suites).sort()) {
+        const command = resolveSuite(suites, suiteId);
+        if (command) runs.push({ suiteId, command, criterionIds: [], stepLevel: true });
+      }
+    }
+    if (runs.length === 0) return text(`Request ${requestId} has no test requirements to run.`, true);
     const receipts: unknown[] = [];
-    for (const [suiteId, { command, criterionIds }] of bySuite) {
-      const outcome = await forwardOne('executeTest', { requestId, criterionIds, executable: command.executable, args: command.args, reportFormat: command.format });
+    for (const { suiteId, command, criterionIds, stepLevel } of runs) {
+      const params: Json = { requestId, criterionIds, executable: command.executable, args: command.args, reportFormat: command.format };
+      if (stepLevel) params.suiteId = suiteId;
+      const outcome = await forwardOne('executeTest', params);
       if (!outcome?.ok) return text(outcome ?? 'Empty runner response.', true);
       const v = outcome.value as { artifact: unknown; executionId: unknown; exitCode: unknown; signal: unknown; assertions?: Array<{ suiteId: string; executed: number; failed: number; skipped: number }> };
-      receipts.push({ suiteId, criterionIds, artifact: v.artifact, executionId: v.executionId, exitCode: v.exitCode, signal: v.signal, suites: (v.assertions ?? []).map(a => ({ suiteId: a.suiteId, executed: a.executed, failed: a.failed, skipped: a.skipped })), notices: outcome.notices ?? [] });
+      receipts.push({ suiteId, stepLevel, criterionIds, artifact: v.artifact, executionId: v.executionId, exitCode: v.exitCode, signal: v.signal, suites: (v.assertions ?? []).map(a => ({ suiteId: a.suiteId, executed: a.executed, failed: a.failed, skipped: a.skipped })), notices: outcome.notices ?? [] });
     }
     const reply = text({ protocol: 1, ok: true, value: { requestId, receipts }, notices: [] }, false);
     return byteLength(reply.content[0].text) > MAX_RESULT_BYTES ? text(`The executeTest result exceeds ${MAX_RESULT_BYTES} bytes and was not delivered.`, true) : reply;

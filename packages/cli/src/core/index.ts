@@ -41,7 +41,7 @@ export function executeOperation(request: MechanicalRequest, context: CoreContex
     return { protocol: 1, ok: false, error: { code: error instanceof LeaseRefused ? error.code : context.signal?.aborted ? 'CANCELLED' : 'OPERATION_FAILED', message: error instanceof Error ? error.message : String(error), retryable: error instanceof LeaseRefused && error.code === 'LOCKED', details: null }, notices: [] };
   }
 }
-export { prepareWorkflow } from './workflow-preparation.js';
+export { prepareWorkflow, preparedVerification } from './workflow-preparation.js';
 export { executeWorkflowTest } from './workflow-execution.js';
 export { validateWorkflowResult, recordWorkflow } from './workflow-recording.js';
 export type { WorkflowRecordingReceipt } from './workflow-recording.js';
