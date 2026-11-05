@@ -354,3 +354,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 (session: D16 A offline, PROVISIONAL)
 - Built D16 A from the proposal's A8 in one commit (revertable): bundled suite table (empty), host-fixed `executeTest` (requestId only), mod tool `specplane_run_tests`. D16 C stays active for the install (entry passes no table).
 - Found the old `executeTest` tool forwarded model-supplied commands; recorded in the proposal's build note. Focused 86 pass; `hooks.test.sh` 94; `check-sync` OK.
+
+## 2026-11-05 (session: D20 item 6 offline, PROVISIONAL)
+- Built `specplane workflow list` and `workflow recover <request-id>` in one revertable commit; reuses the core's `recoverHostLease` plus `releaseStoppedHost` (no new core rule). Refusals tested in temp repos: live owner, unidentifiable, recording begun, no terminal, wrong id, no `--yes`.
+- Divergences from A3 (no recording restore, no workflow name, no `prepare` text) recorded in the proposal. Focused 22 + 31 pass.
