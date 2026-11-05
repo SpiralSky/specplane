@@ -9,7 +9,7 @@ import type { Config } from '../types.js';
 
 export type Tier = 'text' | 'standard' | 'risk';
 export type VerificationSettings = Config['verification'];
-/** A check beyond the session's own work. Stage 3 adds the ways to satisfy these. */
+/** A check beyond the session's own work. `separate` comes from a validated `verify-review` artifact; `human` from a confirmed human-check. */
 export type CheckKind = 'separate' | 'human';
 export interface VerificationPolicy {
   /** Read from the configuration committed at the plan's start base (prepared HEAD when there is no plan). */
@@ -100,14 +100,29 @@ export function requirementFor(policy: VerificationPolicy, tier: Tier): Requirem
 }
 
 /**
- * Checks recorded by core for a request, bound to the checkout state they cover. Stage 3 fills this once it has
- * validated a `verify-review` artifact or a human confirmation; nothing from a result can reach it.
+ * Checks recorded by core for a request, bound to the checkout state they cover. Core fills this only after it has
+ * validated a `verify-review` artifact (core/verify-review.ts) or the user's confirmation (core/workflow-recording.ts);
+ * nothing from a result can reach it. The state is process-local, like the validated proposals it serves: it
+ * survives retries of validate and record within one server process, and a restarted server starts with no checks,
+ * which refuses (never accepts) a risky `done` until the check is made again.
  */
 const checks = new Map<string, Map<CheckKind, string>>();
 export function recordVerificationCheck(requestId: string, kind: CheckKind, stateDigest: string): void {
   const entries = checks.get(requestId) ?? new Map<CheckKind, string>();
   checks.set(requestId, entries);
   entries.set(kind, stateDigest);
+}
+export function clearVerificationCheck(requestId: string, kind: CheckKind): void {
+  checks.get(requestId)?.delete(kind);
+}
+/** A minimum the user lowered through a confirmed `lower-minimum` request, bound to the state it was confirmed for. */
+const lowerings = new Map<string, { stateDigest: string; tier: Tier }>();
+export function recordLowering(requestId: string, tier: Tier, stateDigest: string): void {
+  lowerings.set(requestId, { stateDigest, tier });
+}
+export function confirmedLowering(requestId: string, stateDigest: string): Tier | null {
+  const entry = lowerings.get(requestId);
+  return entry && entry.stateDigest === stateDigest ? entry.tier : null;
 }
 export function satisfiedChecks(requestId: string, stateDigest: string): Set<CheckKind> {
   return new Set([...(checks.get(requestId) ?? [])].filter(([, state]) => state === stateDigest).map(([kind]) => kind));

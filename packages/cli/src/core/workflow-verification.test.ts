@@ -7,6 +7,7 @@ import { prepareWorkflow, executeWorkflowTest, validateWorkflowResult, recordWor
 import { releaseStoppedPreparation, sha256, preparedVerification } from './workflow-preparation.js';
 import { computeTier, globMatch, recordVerificationCheck } from './verification.js';
 import { workflowStateDigest } from './workflow-execution.js';
+import { prepareVerifyReview, recordVerifyReview } from './verify-review.js';
 import { DEFAULT_CONFIG } from '../config.js';
 import type { CoreContext, ExecutionPort, WorkflowResult, WorkflowTestRequest } from './contracts.js';
 
@@ -195,8 +196,12 @@ test('a risky path needs a separate or human check and beats a matching text pat
     // `.claude/x.md` matches both text_paths and risk_paths.
     const res = f.result(['.claude/x.md']);
     refused(await f.validate(res), /Missing verification check: separate or human/);
-    // Core, not the result, supplies the check. Stage 3 records it after validating a review artifact.
-    recordVerificationCheck(f.prepared.requestId, 'separate', workflowStateDigest(f.cwd));
+    // Core, not the result, supplies the check: it records it from a validated review artifact.
+    const asked = await prepareVerifyReview({ requestId: f.prepared.requestId, workerSession: 'session:worker' }, f.context);
+    assert.equal(asked.ok, true);
+    if (!asked.ok) return;
+    const reviewed = await recordVerifyReview({ reviewId: asked.value.requestId, reviewerSession: 'agent:reviewer', result: { verdict: 'pass', findings: [] } }, f.context);
+    assert.equal(reviewed.ok, true, JSON.stringify(reviewed));
     const handoff = await recordedHandoff(f, res);
     assert.match(handoff, /Verification: tier risk; .* by separate; .*checked by separate\./);
     assert.doesNotMatch(handoff, /self-assessed\.$/m);

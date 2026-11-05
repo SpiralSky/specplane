@@ -28,7 +28,8 @@ import { prepareContributionMetadata } from './contribution-metadata.js';
 import { checkoutIdentity } from './writer-leases.js';
 import { assertPrepared, canonical, sha256, withPreparedActivity } from './workflow-preparation.js';
 import { validateExecutionArtifact, validateStepLevelReceipt, workflowStateDigest } from './workflow-execution.js';
-import { computeTier, requirementFor, reviewSatisfied, satisfiedChecks, TIER_RANK } from './verification.js';
+import { computeTier, confirmedLowering, recordLowering, recordVerificationCheck, requirementFor, reviewSatisfied, satisfiedChecks, TIER_RANK, type Tier } from './verification.js';
+import { gapEntriesFor, reviewFor } from './verify-review.js';
 import { workflowRequestSchema,workflowResultSchema,recordingProposalSchema } from './schemas.js';
 import type { CoreContext,RecordingProposal,Result,WorkflowRequest,WorkflowResult,TestReceipt } from './contracts.js';
 const requestSchema=lazyValidator(workflowRequestSchema),resultSchema=lazyValidator(workflowResultSchema),proposalSchema=lazyValidator(recordingProposalSchema);
@@ -39,7 +40,7 @@ export interface PlanWorkflowRecordingReceipt extends StepDoneResult {publicatio
 export interface ContentWorkflowRecordingReceipt {creation?:{operation:'spec.new'|'plan.new';identity:string};validation?:ValidationReport;requestId:string;workflow:string;outcome:'done'|'blocked';commit:string|null;publication:'not-required'|'published'|'failed'|'cancelled';publicationError?:string;summary:string;paths:string[];limitations:string[]}
 export type WorkflowRecordingReceipt = PlanWorkflowRecordingReceipt | ContentWorkflowRecordingReceipt;
 type Prepared=Awaited<ReturnType<typeof assertPrepared>>;
-type WorkflowGenerated = {changes:ContentRecording['generated'];trailers:[string,string][]};
+type WorkflowGenerated = {changes:ContentRecording['generated'];trailers:[string,string][];gapLines?:string[]};
 interface Validated {state:Prepared;result:WorkflowResult;proposal:RecordingProposal;manifest:RecordingSet;summary:string;generated:WorkflowGenerated;creation?:PreparedCreation;requiresConfirmation:boolean;receipt?:WorkflowRecordingReceipt;recordedState?:string;journalDigest?:string;upstream?:{remote:string;ref:string;url:string}}
 const validated=new Map<string,Validated>();
 function publicationTarget(cwd:string,branch:string):Validated['upstream']{
@@ -81,27 +82,48 @@ function schemaProblem(errors:typeof resultSchema.errors):string{
  const extra=typeof first.params.additionalProperty==='string'?` ("${first.params.additionalProperty}")`:'';
  return `${first.instancePath||'result'} ${first.message??'is invalid'}${extra}`;
 }
-const lowerRefusal=(requested:string,computed:string)=>`requestedTier ${requested} is below the computed tier ${computed}; a session can raise its minimum but only the user can lower it`;
+const lowerRefusal=(requested:string,computed:string)=>`requestedTier ${requested} is below the computed tier ${computed}; a session can raise its minimum but only the user can lower it, through a lower-minimum verificationRequest that the user confirms`;
 /**
  * Computes the tier from the result's actual edit set, refuses a done result that lacks the minimum checks for it,
  * and returns the single verification line recorded in HANDOFF. Never reads worker text for policy.
  */
-async function verificationLine(state:Prepared,result:WorkflowResult,context:CoreContext,digests:string[]):Promise<string>{
+async function verificationLine(state:Prepared,result:WorkflowResult,context:CoreContext,digests:string[],confirmed:boolean):Promise<string>{
  const r=state.request,policy=state.verification,settings=policy.verification,config=loadConfig(r.checkout).config;
  const computed=computeTier(result.changes.map(c=>c.path),settings,config.spec_roots);
- if(result.requestedTier&&TIER_RANK[result.requestedTier]<TIER_RANK[computed])fail('INVALID_EVIDENCE',lowerRefusal(result.requestedTier,computed));
- const tier=result.requestedTier&&TIER_RANK[result.requestedTier]>TIER_RANK[computed]?result.requestedTier:computed;
+ const ask=result.verificationRequest,stateNow=workflowStateDigest(r.checkout);
+ if(ask){
+  if(r.mode==='unattended')fail('INVALID_EVIDENCE',`A ${ask.kind} needs the user, and this request is unattended; end the step blocked and name the missing check in a BLOCKED: open issue`);
+  if(!state.confirmContent)fail('INVALID_EVIDENCE',`A ${ask.kind} needs the user's confirmation and no interaction port is available; end the step blocked and name the missing check in a BLOCKED: open issue`);
+  if(!ask.reason.trim()||/[\r\n]/.test(ask.reason))fail('INVALID_EVIDENCE','verificationRequest.reason must be a nonblank single line');
+ }
+ let lowered:Tier|null=null;
+ if(result.requestedTier&&TIER_RANK[result.requestedTier]<TIER_RANK[computed]){
+  if(ask?.kind!=='lower-minimum')fail('INVALID_EVIDENCE',lowerRefusal(result.requestedTier,computed));
+  lowered=result.requestedTier;
+ }
+ if(ask?.kind==='lower-minimum'&&!lowered)fail('INVALID_EVIDENCE',`A lower-minimum request needs requestedTier below the computed tier ${computed}`);
+ if(lowered&&confirmed&&confirmedLowering(r.requestId,stateNow)!==lowered)fail('INVALID_EVIDENCE','The lowered minimum was not confirmed by the user');
+ const tier=lowered??(result.requestedTier&&TIER_RANK[result.requestedTier]>TIER_RANK[computed]?result.requestedTier:computed);
  const need=requirementFor(policy,tier),runs:string[]=[];
  for(const suiteId of need.suites){const run=await validateStepLevelReceipt(r.requestId,suiteId,context);digests.push(run.artifact.digest);runs.push(`${suiteId} (execution ${run.receipt.executionId}, state ${run.receipt.stateDigest})`);}
- const satisfied=satisfiedChecks(r.requestId,workflowStateDigest(r.checkout));
- if(!reviewSatisfied(need.review,satisfied))fail('INVALID_EVIDENCE',`Missing verification check: ${need.review}${policy.humanRequired?' (the verification settings changed after the plan started)':` (the tier is ${tier})`}`);
+ const satisfied=new Set(satisfiedChecks(r.requestId,stateNow));
+ // The user's confirmation happens at recording; until then the request stands in for it, and recording re-checks without it.
+ if(ask?.kind==='human-check'&&!confirmed)satisfied.add('human');
+ if(!reviewSatisfied(need.review,satisfied))fail('INVALID_EVIDENCE',`Missing verification check: ${need.review}${policy.humanRequired?' (the verification settings changed after the plan started; only a human-check meets it)':` (the tier is ${tier})`}`);
  const checker=satisfied.has('human')?'human':satisfied.has('separate')?'separate':'self';
+ if(checker==='separate'){
+  const review=reviewFor(r.checkout,r.requestId,stateNow);
+  if(!review||review.verdict!=='pass')fail('INVALID_EVIDENCE','Missing verification check: the separate check has no passing review artifact for this state');
+  digests.push(review.artifactDigest);
+ }
  const methods=result.criterionEvidence.map(e=>`${e.criterionId} ${e.artifacts.some(a=>a.kind==='test')?'test':'inspection'} by ${checker}`);
  const suites=settings.mode==='manual'?'none required (mode manual)':tier==='text'?'none required (text-only change)':runs.length?runs.join(', '):'none (no tests configured)';
- return `Verification: ${settings.mode==='manual'?'manual mode, no minimum':`tier ${tier}`}; criteria: ${methods.join('; ')}; suites: ${suites}; ${checker==='self'?'self-assessed':`checked by ${checker}`}.`;
+ const lowering=lowered?` (minimum lowered from ${computed} by the user; reason: ${JSON.stringify(ask!.reason)})`:'';
+ return `Verification: ${settings.mode==='manual'?'manual mode, no minimum':`tier ${tier}${lowering}`}; criteria: ${methods.join('; ')}; suites: ${suites}; ${checker==='self'?'self-assessed':`checked by ${checker}`}.`;
 }
-async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):Promise<{manifest:RecordingSet;summary:string;evidenceDigest:string;generated:WorkflowGenerated;creation?:PreparedCreation;requiresConfirmation:boolean}>{
+async function verify(state:Prepared,result:WorkflowResult,context:CoreContext,confirmed=false):Promise<{manifest:RecordingSet;summary:string;evidenceDigest:string;generated:WorkflowGenerated;creation?:PreparedCreation;requiresConfirmation:boolean}>{
  const r=state.request;
+ if(result.verificationRequest&&!(r.workflow==='plan-step'&&result.outcome==='done'))fail('INVALID_EVIDENCE','A verificationRequest applies to a done plan-step result only');
  if(result.requestId!==r.requestId||result.baseDigest!==r.base.digest)fail('STALE_STATE','Result does not match prepared identity/base');
  if(result.outcome==='cancelled')fail('CANCELLED','Cancelled workflow preserves edits and does not record');
  if(r.workflow==='plan-step'&&(result.finalizedEdits?.length||result.creation))fail('POLICY_DENIED','Plan results cannot authorize finalized spec edits');
@@ -148,10 +170,22 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):
   const claimed=result.gaps.map(id=>/^G?[1-9][0-9]*$/i.test(id)?`G${Number(id.replace(/^G/i,''))}`:fail('INVALID_EVIDENCE','Invalid gap ID')).sort();
   if(canonical(added)!==canonical(claimed))fail('INVALID_EVIDENCE','Result gaps must exactly name new gap entries');
  }
+ // Findings of a separate review of this exact state become numbered gaps, written by core at recording, after the checks.
+ let review:ReturnType<typeof reviewFor>=null;
+ try{review=reviewFor(r.checkout,r.requestId,workflowStateDigest(r.checkout));}catch(e){if(result.outcome==='done')throw e;}
+ if(review?.findings.length){
+  const exists=fs.existsSync(gapFile),text=exists?fs.readFileSync(gapFile,'utf8'):null,parsed=exists?parseGaps(gapFile):{entries:[],problems:[]};
+  if(parsed.problems.length)fail('INVALID_EVIDENCE','Malformed six-field gap record');
+  const first=Math.max(0,...parsed.entries.map(e=>e.n))+1;
+  const entries=gapEntriesFor(review.findings,first,r.scope.step!,r.scope.specIds[0]??'',review.verdict);
+  generated.changes.push({path:gapRelative,before:text,after:`${text===null?`# Spec gaps — ${r.scope.planId}\n\n`:text.replace(/\s*$/,'\n\n')}${entries.text}`});
+  generated.gapLines=entries.lines;
+  summary.push(`Separate review (session ${review.reviewerSession}, claimed independent of the worker): ${review.verdict}; findings recorded as ${entries.numbers.map(n=>`G${n}`).join(', ')}.`);
+ }
 
  }
  if(r.workflow==='plan-step'&&result.outcome==='done'){
-  summary.unshift(await verificationLine(state,result,context,digests));
+  summary.unshift(await verificationLine(state,result,context,digests,confirmed));
  }else if(r.workflow==='plan-step'){
   const config=loadConfig(r.checkout).config,computed=computeTier(result.changes.map(c=>c.path),state.verification.verification,config.spec_roots);
   if(result.requestedTier&&TIER_RANK[result.requestedTier]<TIER_RANK[computed])fail('INVALID_EVIDENCE',lowerRefusal(result.requestedTier,computed));
@@ -159,7 +193,7 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext):
  summary.push('Receipt files are local evidence; another clone cannot independently verify absent private receipts.');
  if(result.openIssues.trim())summary.push(`Limitations/open issues: ${result.openIssues}`);
  if(result.nextKnows.trim())summary.push(`Worker notes: ${result.nextKnows}`);
- return {manifest,summary:summary.join('\n'),evidenceDigest:sha256(canonical({digests,events})),generated,creation:nonPlan?.creation,requiresConfirmation:nonPlan?.requiresConfirmation??false};
+ return {manifest,summary:summary.join('\n'),evidenceDigest:sha256(canonical({digests,events})),generated,creation:nonPlan?.creation,requiresConfirmation:(nonPlan?.requiresConfirmation??false)||!!result.verificationRequest};
 }
 export async function validateWorkflowResult(prepared:WorkflowRequest,result:WorkflowResult,context:CoreContext):Promise<Result<RecordingProposal>>{
  if(!requestSchema(prepared))return error(new Refusal('INVALID_EVIDENCE','Invalid workflow request'));
@@ -247,11 +281,17 @@ export async function recordWorkflow(proposal:RecordingProposal,context:CoreCont
   if(workflowStateDigest(v.state.request.checkout)!==proposal.currentStateDigest)fail('STALE_STATE','Proposal checkout bytes changed');
   const checked=await verify(v.state,v.result,context);if(checked.evidenceDigest!==proposal.evidenceDigest||checked.summary!==v.summary||canonical(checked.generated)!==canonical(v.generated))fail('STALE_STATE','Proposal evidence changed');
   if(checked.requiresConfirmation){
-   if(!v.state.confirmContent)fail('CONFIRMATION_REQUIRED','Finalized content requires the preparation-bound direct-human interaction port');
+   if(!v.state.confirmContent)fail('CONFIRMATION_REQUIRED','This result requires the preparation-bound direct-human interaction port');
+   const ask=v.result.verificationRequest,finalizing=!!(checked.creation||v.result.finalizedEdits?.length);
    let response:import('./contracts.js').ConfirmationResponse|null=null;
    const signal=AbortSignal.any([v.state.context.signal!,...(context.signal?[context.signal]:[])]);
    const service=createConfirmation({checkout:v.state.request.checkout,extensionId:v.state.context.extensionId,operation:'workflow.record',lease:v.state.lease,
-    snapshot:()=>({targets:checked.generated.changes.map(c=>c.path),summary:(checked.creation?'Confirm this exact content and the listed new files. Lifecycle approval is a separate operation.\n':'Confirm these exact finalized spec edits. This does not approve a spec or change its lifecycle status.\n')+checked.generated.changes.map(c=>`File: ${c.path}\nBefore:\n${c.before}\nAfter:\n${c.after}`).join('\n'),state:workflowStateDigest(v.state.request.checkout),payload:{proposal,result:v.result},evidence:checked.generated}),mutate:()=>{if(workflowStateDigest(v.state.request.checkout)!==proposal.currentStateDigest)fail('STALE_STATE','Finalized content state changed');}},
+    snapshot:()=>({targets:checked.generated.changes.map(c=>c.path),summary:(ask?`The working session asks for your confirmation (${ask.kind}). Its stated reason, which you accept by confirming:\n${ask.reason}\n${ask.kind==='lower-minimum'?`Requested minimum: ${v.result.requestedTier} instead of the computed tier. Confirming skips the checks above that tier for this step.\n`:'Confirming records that you checked this step yourself, which meets the human check.\n'}This does not approve a spec or change a lifecycle status.\n`:'')+(finalizing?(checked.creation?'Confirm this exact content and the listed new files. Lifecycle approval is a separate operation.\n':'Confirm these exact finalized spec edits. This does not approve a spec or change its lifecycle status.\n')+checked.generated.changes.map(c=>`File: ${c.path}\nBefore:\n${c.before}\nAfter:\n${c.after}`).join('\n'):''),state:workflowStateDigest(v.state.request.checkout),payload:{proposal,result:v.result},evidence:ask?{generated:checked.generated,verificationRequest:ask}:checked.generated}),mutate:()=>{
+     if(workflowStateDigest(v.state.request.checkout)!==proposal.currentStateDigest)fail('STALE_STATE','Finalized content state changed');
+     // The user's acceptance is the only way these reach core's check state.
+     if(ask?.kind==='human-check')recordVerificationCheck(proposal.requestId,'human',proposal.currentStateDigest);
+     if(ask?.kind==='lower-minimum')recordLowering(proposal.requestId,v.result.requestedTier!,proposal.currentStateDigest);
+    }},
     {signal,clock:v.state.context.clock,interaction:{confirm:async challenge=>{const observed=await v.state.confirmContent!(challenge);response=observed?structuredClone(observed):null;return response;}}});
    const challenge=await service.prepare();await assertPrepared(proposal.requestId,context);
    if(!response)fail('CONFIRMATION_REQUIRED','No trusted response');
@@ -265,7 +305,7 @@ export async function recordWorkflow(proposal:RecordingProposal,context:CoreCont
   const manifestFile=path.join(runtime(v.state),'recording-set.json');
   try{privateWrite(v.state,'recording-set.json',checked.manifest);}catch(e){if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;if(sha256(bytes(runtime(v.state),'recording-set.json'))!==sha256(canonical(checked.manifest)))fail('RECOVERY_REQUIRED','Existing recording manifest differs');}
   assertOwner(v,context);await assertPrepared(proposal.requestId,context);
-  const finalChecked=await verify(v.state,v.result,context);
+  const finalChecked=await verify(v.state,v.result,context,true);
   if(finalChecked.evidenceDigest!==proposal.evidenceDigest||canonical(finalChecked.generated)!==canonical(checked.generated)||finalChecked.summary!==checked.summary)fail('STALE_STATE','Evidence changed before recording');
   const args=proposal.arguments as Extract<RecordingProposal,{operation:'plan.step-done'}>['arguments'];
   if(committing&&canonical(publicationTarget(cwd,v.state.request.base.branch)??null)!==canonical(v.upstream??null))fail('STALE_STATE','Publication destination changed before recording');
@@ -282,8 +322,9 @@ export async function recordWorkflow(proposal:RecordingProposal,context:CoreCont
   const generated=checked.generated;
   let recorded:StepDoneResult|ContentWorkflowRecordingReceipt;
   if(v.state.request.workflow==='plan-step'){
-   if(generated.changes.some(c=>c.before===null))fail('POLICY_DENIED','Plan recording cannot create generated content files');
-   const planGenerated:GeneratedRecording={changes:generated.changes.map(c=>({...c,before:c.before!})),trailers:generated.trailers,beforeWrite:persistIntent};
+   const gapPath=path.relative(cwd,path.join(planDir(v.state.request.scope.planId!,config,cwd),'spec-gaps.md')).split(path.sep).join('/');
+   if(generated.changes.some(c=>c.before===null&&c.path!==gapPath))fail('POLICY_DENIED','Plan recording cannot create generated content files');
+   const planGenerated:GeneratedRecording={changes:generated.changes,gapLines:generated.gapLines,trailers:generated.trailers,beforeWrite:persistIntent};
    recorded=stepDone(args.id,{...args,recordingSet:manifestFile},config,cwd,v.state.lease,checked.manifest,planGenerated);
   }
   else {

@@ -10,8 +10,9 @@ import { executeWorkflowTest } from './workflow-execution.js';
 import { validateWorkflowResult, recordWorkflow } from './workflow-recording.js';
 import { cancelWorkflow, inspectWorkflow } from './workflow-lifecycle.js';
 import { captureContribution } from './contribution-capture.js';
+import { prepareVerifyReview, recordVerifyReview } from './verify-review.js';
 
-export const RUNNER_METHODS = ['inspect', 'prepare', 'executeTest', 'validate', 'record', 'capture', 'cancel', 'close'] as const;
+export const RUNNER_METHODS = ['inspect', 'prepare', 'executeTest', 'validate', 'record', 'capture', 'cancel', 'close', 'prepareReview', 'recordReview'] as const;
 export type RunnerMethod = typeof RUNNER_METHODS[number];
 export type RunnerResponse = { id: string | number | null; result: Result<unknown> };
 export interface RunnerOptions {
@@ -123,6 +124,14 @@ export function createWorkflowRunner(options: RunnerOptions) {
         return r;
       }
       case 'capture': return captureContribution(params as never, context);
+      case 'prepareReview': {
+        if (!closed(params, ['requestId', 'workerSession']) || typeof params.requestId !== 'string' || typeof params.workerSession !== 'string') return fail('INVALID_REQUEST', 'prepareReview params must be exactly {requestId, workerSession}.');
+        return prepareVerifyReview({ requestId: params.requestId, workerSession: params.workerSession }, context);
+      }
+      case 'recordReview': {
+        if (!closed(params, ['reviewId', 'reviewerSession', 'result']) || typeof params.reviewId !== 'string' || typeof params.reviewerSession !== 'string') return fail('INVALID_REQUEST', 'recordReview params must be exactly {reviewId, reviewerSession, result}.');
+        return recordVerifyReview({ reviewId: params.reviewId, reviewerSession: params.reviewerSession, result: params.result }, context);
+      }
       case 'close': return fail('INVALID_REQUEST', 'close is handled by the transport.');
     }
   }

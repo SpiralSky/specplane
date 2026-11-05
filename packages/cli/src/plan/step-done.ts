@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { acquireWriterLease, checkoutIdentity, type WriterLease } from "../core/writer-leases.js";
 import { listWorktrees } from "../git/worktree.js";
 import { lifecycleContext, refusePendingRetarget } from "./lifecycle-context.js";
@@ -57,7 +57,10 @@ export interface StepDoneResult {
 
 /** Core-only transaction additions, never accepted from command options or workflow JSON. */
 export interface GeneratedRecording {
-  changes: { path: string; before: string; after: string }[];
+  /** A `before` of null creates the file (only core's `spec-gaps.md` write uses it). */
+  changes: { path: string; before: string | null; after: string }[];
+  /** Gap lines for entries core itself appended to `spec-gaps.md` in this recording (already formatted). */
+  gapLines?: string[];
   trailers: [string, string][];
   beforeWrite?: (intent: { tree: string; message: string; head: string; branch: string; receipt: Omit<StepDoneResult, 'commit'>; transaction: RecoveryTransaction }) => void;
   beforeCommit?: (intent: { tree: string; message: string; head: string; branch: string; receipt: Omit<StepDoneResult, 'commit'> }) => void;
@@ -108,7 +111,7 @@ export function stepDone(planId: string, opts: StepDoneOptions, config: Config, 
 function recordStep(planId: string, opts: StepDoneOptions, config: Config, root: string, heldLease?: WriterLease, internalManifest?: RecordingSet, generatedRecording?: GeneratedRecording): StepDoneResult {
   if (internalManifest && !heldLease) refuse("Internal recording manifests require a held writer lease.");
   if (generatedRecording && (!heldLease || !internalManifest)) refuse("Generated recording requires a held writer lease and internal manifest.");
-  const additions: GeneratedRecording = { changes: structuredClone(generatedRecording?.changes ?? []), trailers: structuredClone(generatedRecording?.trailers ?? []), beforeWrite: generatedRecording?.beforeWrite, beforeCommit: generatedRecording?.beforeCommit };
+  const additions: GeneratedRecording = { changes: structuredClone(generatedRecording?.changes ?? []), gapLines: structuredClone(generatedRecording?.gapLines ?? []), trailers: structuredClone(generatedRecording?.trailers ?? []), beforeWrite: generatedRecording?.beforeWrite, beforeCommit: generatedRecording?.beforeCommit };
   // Internal embedding transport only; never sourced from operation JSON.
   if (heldLease) {
     heldLease.assertOwned();
@@ -187,6 +190,7 @@ function recordStep(planId: string, opts: StepDoneOptions, config: Config, root:
     }
   }
 
+  gapLines.push(...(additions.gapLines ?? []));
   const changed = opts.changed ?? [];
   for (const c of changed) {
     if (!/^[^:]+:\s*\S/.test(c)) refuse(`\`--changed ${c}\` must have the form \`<path>:<reason>\`.`);
@@ -278,6 +282,12 @@ function recordStep(planId: string, opts: StepDoneOptions, config: Config, root:
   function checkAdditionPreimages(): void {
     assertRecordingPaths(root, additionPaths);
     for (const change of additions.changes) {
+      if (change.before === null) {
+        // A created file must be absent from the worktree and from the base commit.
+        const atBase = spawnSync('git', ['cat-file', '-e', `${manifest.head}:${change.path}`], { cwd: root });
+        if (typeof change.after !== 'string' || fs.existsSync(path.join(root, change.path)) || atBase.status === 0) refuse(`Generated recording preimage changed: ${change.path}`);
+        continue;
+      }
       if (typeof change.before !== 'string' || typeof change.after !== 'string' || change.before === change.after ||
           !fs.readFileSync(path.join(root, change.path)).equals(Buffer.from(change.before)) ||
           !run('git', ['show', `${manifest.head}:${change.path}`], { cwd: root, binary: true }).equals(Buffer.from(change.before))) refuse(`Generated recording preimage changed: ${change.path}`);
@@ -315,7 +325,7 @@ function recordStep(planId: string, opts: StepDoneOptions, config: Config, root:
   const complete: RecordingSet = { ...manifest, changes: [...manifest.changes,
     { path: generated[0], beforeDigest: handoffExisted ? hash(before) : "missing", afterDigest: hash(handoffAfter), purpose: "generated handoff" },
     ...(stepBefore === stepAfter ? [] : [{ path: generated[1], beforeDigest: hash(stepBefore), afterDigest: hash(stepAfter), purpose: "generated outcome" }]),
-    ...additions.changes.map(change => ({ path: change.path, beforeDigest: hash(change.before), afterDigest: hash(change.after), purpose: "generated contribution metadata" })),
+    ...additions.changes.map(change => ({ path: change.path, beforeDigest: change.before === null ? "missing" : hash(change.before), afterDigest: hash(change.after), purpose: change.path.endsWith('/spec-gaps.md') ? "generated review findings" : "generated contribution metadata" })),
   ] };
   const allReasons = complete.changes.map(c => `${c.path}:${c.purpose}`);
   const blob = (content: string) => execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: root, input: content, encoding: 'utf8' }).trim();
@@ -405,8 +415,8 @@ function recordStep(planId: string, opts: StepDoneOptions, config: Config, root:
     if (generatedWritten && !recovery) {
       for (const change of additions.changes) {
         const file = path.join(root, change.path);
-        if (equal(bytes(file), Buffer.from(change.after))) fs.writeFileSync(file, change.before);
-        else if (!equal(bytes(file), Buffer.from(change.before))) recovery = true;
+        if (equal(bytes(file), Buffer.from(change.after))) { if (change.before === null) fs.unlinkSync(file); else fs.writeFileSync(file, change.before); }
+        else if (!equal(bytes(file), change.before === null ? null : Buffer.from(change.before))) recovery = true;
       }
       if (stepAfter !== undefined && equal(bytes(target.file), Buffer.from(stepAfter))) fs.writeFileSync(target.file, stepBefore);
       else if (!equal(bytes(target.file), Buffer.from(stepBefore))) recovery = true;

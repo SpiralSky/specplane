@@ -120,6 +120,6 @@ test('exports without a dedicated suite are exercised directly: closed schemas, 
   const incompatible = await core.checkCompatibility({}, { extensionId: 'x', host: 'codex', surface: 'cli', workflow: 'validate', probes: {} } as never); assert.equal(incompatible.ok, false);
   const refused = core.inspectRepository({ checkout: '.' }); assert.equal(refused.ok, false);
   assert.throws(() => core.validateContribution({}, (() => true) as never));
-  assert.deepEqual([...core.RUNNER_METHODS], ['inspect', 'prepare', 'executeTest', 'validate', 'record', 'capture', 'cancel', 'close']);
+  assert.deepEqual([...core.RUNNER_METHODS], ['inspect', 'prepare', 'executeTest', 'validate', 'record', 'capture', 'cancel', 'close', 'prepareReview', 'recordReview']);
   assert.ok(core.spawnExecutionPort);
 });
