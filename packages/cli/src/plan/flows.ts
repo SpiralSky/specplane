@@ -17,7 +17,7 @@ import { run } from "../git/exec.js";
 import { defaultBranch, mainRoot } from "../git/repo.js";
 import { listWorktrees } from "../git/worktree.js";
 import type { Config, PlanStatus } from "../types.js";
-import { fetchPlanBranches, getPlanActivity, hasRemote, lenientFrontmatter, showFile, planReport, targetPlanRecord } from "./activity.js";
+import { hasRemote, lenientFrontmatter, showFile, planReport, targetPlanRecord } from "./activity.js";
 import { formatOpenGaps, parseGaps } from "./gaps.js";
 import { listStepFiles, parseStep } from "./parse.js";
 import { listPlans, planDir } from "./resolve.js";
@@ -748,13 +748,6 @@ function localMerge(id: string, branch: string, def: string, remote: boolean, ba
     try { run("git", ["push", "origin", def], { cwd: main }); }
     catch (e) { throw new PlanStateError(`Plan ${branch} was merged into ${def} at ${integrated}, but target publication failed; retry finish to publish this merge: ${String(e)}`); }
   }
-}
-
-/** Rewrite the `status:` line of a PLAN.md. */
-function setStatus(file: string, status: string): void {
-  const text = fs.readFileSync(file, "utf8");
-  const end = text.indexOf("\n---", 3);
-  fs.writeFileSync(file, text.slice(0, end).replace(/^status:.*$/m, `status: ${status}`) + text.slice(end));
 }
 
 function samePath(a: string, b: string): boolean {

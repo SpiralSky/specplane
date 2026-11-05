@@ -25,7 +25,7 @@ export function releaseIdentity(bundleDirectory?: string): ReleaseIdentity {
 }
 
 /** Why the managed block in `content` is stale for this release; empty when current. */
-export function standingBlockReasons(content: string | null, release: ReleaseIdentity, registry: Harness[] = HARNESSES): { state: GuidanceState; reasons: string[] } {
+export function standingBlockReasons(content: string | null, release: ReleaseIdentity): { state: GuidanceState; reasons: string[] } {
   const states = [checkStanding(content)];
   if (states[0] === 'missing') return { state: 'missing', reasons: ['managed block absent'] };
   if (states[0] === 'malformed') return { state: 'malformed', reasons: ['unbalanced or repeated begin/end markers'] };
@@ -53,7 +53,7 @@ function harnessAsset(root: string, h: Harness): GuidanceAsset {
 export function checkGuidance(root: string, options: GuidanceOptions = {}): GuidanceAsset[] {
   const registry = options.registry ?? HARNESSES;
   const release = releaseIdentity(options.bundleDirectory);
-  const block = standingBlockReasons(read(path.join(root, 'AGENTS.md')), release, registry);
+  const block = standingBlockReasons(read(path.join(root, 'AGENTS.md')), release);
   const assets: GuidanceAsset[] = [{ path: 'AGENTS.md', kind: 'standing-block', ...block }];
   for (const h of registry) if (h.rulesTemplate && h.detect(root)) assets.push(harnessAsset(root, h));
   return assets;

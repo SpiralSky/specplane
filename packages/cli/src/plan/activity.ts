@@ -58,7 +58,7 @@ export function localPlanIds(cwd: string): string[] {
   return (tryGit(["for-each-ref", "--format=%(refname:strip=3)", "refs/heads/plan/"], cwd) ?? "").split("\n").filter(Boolean);
 }
 
-export function planTextAt(ref: string, id: string, config: Config, cwd: string): string | null {
+function planTextAt(ref: string, id: string, config: Config, cwd: string): string | null {
   return showFile(ref, `${config.plans.dir}/${id}/PLAN.md`, cwd) ?? showFile(ref, `${config.plans.dir}/archive/${id}/PLAN.md`, cwd);
 }
 
@@ -205,22 +205,6 @@ export function lenientFrontmatter(text: string): Record<string, unknown> | null
   } catch {
     return null;
   }
-}
-
-/** Parsed `PLAN.md` frontmatter at the tip of `origin/plan/<id>`; null when unreadable or invalid. */
-export function remotePlanFrontmatter(id: string, config: Config, cwd: string, ref = `origin/plan/${id}`) {
-  const text = planTextAt(ref, id, config, cwd);
-  const data = text === null ? null : lenientFrontmatter(text);
-  if (!data || data.id !== id || typeof data.title !== "string" || typeof data.status !== "string" || !Array.isArray(data.specs)) {
-    return null;
-  }
-  return {
-    id,
-    title: data.title,
-    status: data.status as import("../types.js").PlanStatus,
-    specs: data.specs.map(String),
-    depends_on: Array.isArray(data.depends_on) ? data.depends_on.map(String) : [],
-  };
 }
 
 function readSteps(ref: string, id: string, config: Config, cwd: string): PlanActivity["steps"] {

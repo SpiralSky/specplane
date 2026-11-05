@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { test, after } from "node:test";
+import { after } from "node:test";
 import { fileURLToPath } from "node:url";
 import { makeRepo } from "../test-repo.js";
 import { startFixture } from "./setup-fixture.js";

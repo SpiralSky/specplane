@@ -204,12 +204,6 @@ export function specListCommand(opts: SpecListOptions): void {
   }
 }
 
-/** Absolute path of the spec for `id`, qualified by `--root` when the ID carries no prefix. */
-export function specShowPath(id: string, opts: { root?: string }, root: string, config: Config): string {
-  const raw = opts.root !== undefined && !id.includes(":") ? `${opts.root}:${id}` : id;
-  return resolveSpecId(raw, config, undefined, root).path;
-}
-
 export function specShowCommand(id: string, opts: { root?: string; json?: boolean }): void {
   try {
     const root = checkoutRoot();

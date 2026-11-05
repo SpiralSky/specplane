@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { validateCompatibility, type ExtensionManifest, type HostSelection } from './compatibility.js';
+import type { ExtensionManifest, HostSelection } from './compatibility.js';
 import * as fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { prepareWorkflow } from './index.js';

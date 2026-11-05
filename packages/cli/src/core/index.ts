@@ -9,7 +9,7 @@ import { coreInfo } from './build-info.js';
 import { runConductorImpl } from './conductor.js';
 import type { RunResult } from '../plan/run.js';
 import { validateCompatibility, type HostSelection } from './compatibility.js';
-import type { CoreContext, MechanicalRequest, Result, WorkflowTestRequest, WorkflowRequest, WorkflowResult, RecordingProposal, ContributionEvent, ContributionQuery, ConfirmationChallenge, ConfirmationResponse, ConductorRequest, SessionAdapter } from './contracts.js';
+import type { CoreContext, MechanicalRequest, Result, ConductorRequest, SessionAdapter } from './contracts.js';
 export { coreInfo };
 export type * from './contracts.js';
 export type { ExtensionManifest, HostSelection, Capabilities } from './compatibility.js';

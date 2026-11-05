@@ -5,7 +5,7 @@ import { refreshGuidance } from "../docs/freshness.js";
 import { CONFIG_PATH, loadConfig } from "../config.js";
 import { SpecplaneError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
-import { type Harness, HARNESSES, NO_HARNESS_HINT, Report, selectHarnesses } from "../harness/index.js";
+import { type Harness, NO_HARNESS_HINT, Report, selectHarnesses } from "../harness/index.js";
 import { assertInstallDestination } from "../harness/containment.js";
 import { InstallTransaction } from "../harness/containment.transaction.js";
 

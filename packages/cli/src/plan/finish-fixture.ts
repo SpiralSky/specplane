@@ -3,11 +3,9 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { test, after } from "node:test";
+import { after } from "node:test";
 import { fileURLToPath } from "node:url";
 import { makeRepo } from "../test-repo.js";
-import { loadConfig } from "../config.js";
-import { finishPlan } from "./flows.js";
 import { startFixture } from "./setup-fixture.js";
 
 interface Opts {

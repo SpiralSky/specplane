@@ -42,7 +42,7 @@ export function checkFreshness(root: string, registry: Harness[] = HARNESSES): V
   // Version/hash metadata embedded by an explicit refresh: stale release identity or an edited block is reported, never repaired.
   if (state === "ok") {
     try {
-      if (standingBlockReasons(content, releaseIdentity(), registry).state === "stale") state = "outdated";
+      if (standingBlockReasons(content, releaseIdentity()).state === "stale") state = "outdated";
     } catch {
       // A damaged documentation bundle is reported by `specplane docs`; it does not make the standing block stale.
     }
