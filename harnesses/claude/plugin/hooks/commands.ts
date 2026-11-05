@@ -126,9 +126,10 @@ export function serverReply(r: { content?: readonly { type?: string; text?: stri
   let parsed: unknown
   try { parsed = JSON.parse(text) } catch { parsed = undefined }
   if (typeof parsed === 'object' && parsed !== null && typeof (parsed as { ok?: unknown }).ok === 'boolean') {
-    const core = parsed as { ok: boolean; value?: unknown; error?: { message?: unknown } }
+    const core = parsed as { ok: boolean; value?: unknown; error?: { message?: unknown; code?: unknown } }
     const message = core.ok ? text : String(core.error?.message ?? text)
-    return { ok: core.ok && r.isError !== true, value: core.value, message }
+    const code = typeof core.error?.code === 'string' ? core.error.code : undefined
+    return { ok: core.ok && r.isError !== true, value: core.value, message, ...(code ? { code } : {}) }
   }
   return { ok: r.isError !== true, value: parsed ?? text, message: text }
 }
@@ -201,7 +202,7 @@ export interface HumanPort { confirm(summary: string): Promise<Confirmation> }
 /** The plugin's Specplane MCP server as `$.mcp` exposes it. `call` takes the tool's arguments as given. */
 export type ServerConnection = { connected: true } | { connected: false; message: string }
 /** `lost` marks a call that threw: the server may have taken a lease it could not report. */
-export interface ServerReply { ok: boolean; value?: unknown; message: string; lost?: boolean }
+export interface ServerReply { ok: boolean; value?: unknown; message: string; lost?: boolean; code?: string }
 export interface SpecplaneServer {
   connect(): Promise<ServerConnection>
   call(tool: string, args: Record<string, unknown>): Promise<ServerReply>
@@ -218,7 +219,14 @@ export interface ReasoningSession {
 }
 
 /** A prepared reasoning request whose model part is queued until the command's hook has returned. */
-export interface Delegation { workflow: string; requestId: string; assetPath: string; request: unknown }
+export interface Delegation {
+  workflow: string
+  requestId: string
+  assetPath: string
+  request: unknown
+  /** Results refused so far as correctable; see `acceptResult`. */
+  refusals?: number
+}
 export interface RunContext {
   origin: { kind: string }
   signal: AbortSignal
@@ -420,10 +428,21 @@ export async function runCommand(cmd: NativeCommand, args: string, ctx: RunConte
   }
 }
 
+/** Results one request may submit. A correctable refusal leaves the request open until this many have been refused. */
+export const MAX_RESULT_ATTEMPTS = 3
+
+/** A refusal's message as a sentence, followed by what became of the request. */
+function refused(message: string, next: string): { ok: false; text: string } {
+  return { ok: false, text: `${message.replace(/\.?\s*$/, '.')} Nothing was recorded. ${next}` }
+}
+const REQUEST_ENDED = 'This request has ended; rerun the command to try again.'
+
 /**
  * Accepts the completion tool's input. A result for an unknown or already-settled request is refused.
- * Otherwise the server validates the result against the prepared request and records the proposal; the
- * request's lease is closed whatever the outcome. Recording gates that need a human are the core's.
+ * Otherwise the server validates the result against the prepared request and records the proposal. An
+ * `INVALID_EVIDENCE` refusal is correctable and changes nothing in the core, so the request stays open for a
+ * corrected result, up to `MAX_RESULT_ATTEMPTS` (D23). Every other outcome closes the request's lease. Recording
+ * gates that need a human are the core's.
  */
 export async function acceptResult(
   pending: Map<string, Delegation>,
@@ -446,11 +465,18 @@ export async function acceptResult(
   try {
     // The server validates against the request it holds for this id; the request is not sent back.
     const validated = await send(session, 'validate', { requestId: id, result: input.result })
-    if (!validated.ok) return { ok: false, text: `${validated.message} Nothing was recorded.` }
+    if (!validated.ok) {
+      const refusals = (delegation.refusals ?? 0) + 1
+      const left = MAX_RESULT_ATTEMPTS - refusals
+      if (validated.code !== 'INVALID_EVIDENCE' || left < 1) return refused(validated.message, REQUEST_ENDED)
+      delegation.refusals = refusals
+      pending.set(id, delegation)
+      return refused(validated.message, `The request is still open: correct the result and call this tool again with the same requestId (${left} ${left === 1 ? 'attempt' : 'attempts'} left).`)
+    }
     const recorded = await send(session, 'record', validated.value as Record<string, unknown>)
-    if (!recorded.ok) return { ok: false, text: `${recorded.message} Nothing was recorded.` }
+    if (!recorded.ok) return refused(recorded.message, REQUEST_ENDED)
     return { ok: true, text: `Recorded the ${delegation.workflow} result.` }
   } finally {
-    await closeRequest(session, id)
+    if (!pending.has(id)) await closeRequest(session, id)
   }
 }

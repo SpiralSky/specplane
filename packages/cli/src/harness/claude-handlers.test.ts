@@ -288,6 +288,62 @@ test('close runs whether validation refuses, throws, or recording refuses', opts
   }
 });
 
+test('a correctable refusal keeps the request open for a corrected result (D23)', opts, async () => {
+  const m = await load();
+  let refusals = 1;
+  const fake = fakeServer({
+    ...PREPARE_OK,
+    validate: () => (refusals-- > 0 ? { ok: false, code: 'INVALID_EVIDENCE', message: 'Blocked result needs a concrete BLOCKED: open issue', value: undefined } : { ok: true, value: PROPOSAL, message: '' }),
+    record: () => ({ ok: true, value: {}, message: '' }),
+  });
+  const { ctx, queue } = context({ session: session(fake.server) });
+  await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  const pending = new Map([['r1', queue[0]]]);
+  const first = await m.acceptResult(pending, { requestId: 'r1', result: RESULT }, { session: ctx.session });
+  assert.equal(first.ok, false);
+  assert.match(first.text, /open issue\. Nothing was recorded\. The request is still open.*2 attempts left/);
+  assert.equal(fake.calls.some(c => c.tool === 'close'), false);
+  assert.equal(pending.has('r1'), true);
+  const second = await m.acceptResult(pending, { requestId: 'r1', result: RESULT }, { session: ctx.session });
+  assert.equal(second.ok, true);
+  assert.deepEqual(fake.calls.slice(-3).map(c => c.tool), ['validate', 'record', 'close']);
+  assert.equal(pending.has('r1'), false);
+});
+
+test('correctable refusals end the request at the attempt limit (D23)', opts, async () => {
+  const m = await load();
+  const fake = fakeServer({ ...PREPARE_OK, validate: () => ({ ok: false, code: 'INVALID_EVIDENCE', message: 'Invalid evidence.', value: undefined }) });
+  const { ctx, queue } = context({ session: session(fake.server) });
+  await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  const pending = new Map([['r1', queue[0]]]);
+  const texts: string[] = [];
+  for (let i = 0; i < m.MAX_RESULT_ATTEMPTS; i++) texts.push((await m.acceptResult(pending, { requestId: 'r1', result: RESULT }, { session: ctx.session })).text);
+  assert.match(texts[1], /1 attempt left/);
+  assert.match(texts.at(-1)!, /This request has ended/);
+  assert.equal(fake.calls.filter(c => c.tool === 'validate').length, m.MAX_RESULT_ATTEMPTS);
+  assert.deepEqual(fake.calls.at(-1)!.args, { requestId: 'r1', nonce: NONCE });
+  assert.equal(fake.calls.at(-1)!.tool, 'close');
+  assert.equal(pending.size, 0);
+});
+
+test('a refusal a corrected result cannot fix closes the request (D23)', opts, async () => {
+  const m = await load();
+  const script: Script[] = [
+    { validate: () => ({ ok: false, code: 'STALE_STATE', message: 'Session is stale.', value: undefined }) },
+    { validate: () => ({ ok: false, lost: true, message: 'Specplane server call validate failed.', value: undefined }) },
+  ];
+  for (const step of script) {
+    const fake = fakeServer({ ...PREPARE_OK, ...step });
+    const { ctx, queue } = context({ session: session(fake.server) });
+    await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+    const pending = new Map([['r1', queue[0]]]);
+    const out = await m.acceptResult(pending, { requestId: 'r1', result: RESULT }, { session: ctx.session });
+    assert.match(out.text, /This request has ended/);
+    assert.equal(fake.calls.at(-1)!.tool, 'close');
+    assert.equal(pending.size, 0);
+  }
+});
+
 test('a prepared request is read back in detail pages and its whole request is queued', opts, async () => {
   const m = await load();
   const fake = fakeServer(PREPARE_OK);
@@ -352,6 +408,7 @@ test('server replies are read from the core Result, or from plain text for bind 
   const okReply = m.serverReply({ content: [{ type: 'text', text: '{"protocol":1,"ok":true,"value":{"requestId":"r1"},"notices":[]}' }], isError: false });
   assert.equal(okReply.ok, true);
   assert.deepEqual(okReply.value, { requestId: 'r1' });
+  assert.equal(m.serverReply({ content: [{ type: 'text', text: '{"protocol":1,"ok":false,"error":{"code":"INVALID_EVIDENCE","message":"Bad."}}' }], isError: true }).code, 'INVALID_EVIDENCE');
   const stale = m.serverReply({ content: [{ type: 'text', text: '{"protocol":1,"ok":false,"error":{"code":"STALE_STATE","message":"Session is stale."}}' }], isError: true });
   assert.equal(stale.ok, false);
   assert.equal(stale.message, 'Session is stale.');
