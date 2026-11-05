@@ -339,3 +339,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 
 ## 2026-11-05 claude-delivery D24 offline
 - `af695ee` core refusal names the failing field; `f45c739` result template in the prompt, always-report rule, all six procedures corrected. Full suite Bun 1032 pass, 0 fail. No live run.
+
+## 2026-11-05 (session: D16 C, D22 wording, temporary decisions)
+- Recorded TEMPORARY decisions D11 (accept risk), D19 (option B), D24 live run skipped. Built D16 C in the MCP server (`f5bc57c`) and the `acceptResult` close check (`8e109c5`).
+- Fixed the HANDOFF workflow-recording 04 row (D1/D2 are settled per LOG). Focused 65 pass, 0 fail (4 files); `hooks.test.sh` 94 pass. Full suite not run.
