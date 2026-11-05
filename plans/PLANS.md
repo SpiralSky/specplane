@@ -7,16 +7,16 @@
 | ID | Title | Status | Target | Dependencies | Specs |
 |----|-------|--------|--------|--------------|-------|
 | [2026-10-30-plan-conductor](2026-10-30-plan-conductor/PLAN.md) | Plan conductor — plan run, session mode, and alerts | ready | repository default | [2026-10-30-plan-primitives](archive/2026-10-30-plan-primitives/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/plan-execution, feature/configuration, feature/spec-precedence, feature/agent-integration, claude:architecture/claude-integration, claude:feature/claude-integration |
-| [2026-11-01-claude-delivery](2026-11-01-claude-delivery/PLAN.md) | Claude extension-owned workflow delivery | blocked | repository default | [2026-11-01-extension-packaging](2026-11-01-extension-packaging/PLAN.md) | architecture/reference-cli, architecture/agent-skills, claude:architecture/claude-integration, claude:feature/claude-integration |
-| [2026-11-01-codex-delivery](2026-11-01-codex-delivery/PLAN.md) | Codex existing-session delivery | blocked | repository default | [2026-11-01-extension-packaging](2026-11-01-extension-packaging/PLAN.md) | architecture/reference-cli, architecture/agent-skills, codex:architecture/codex-integration, codex:feature/codex-integration |
+| [2026-11-01-claude-delivery](2026-11-01-claude-delivery/PLAN.md) | Claude extension-owned workflow delivery | ready | repository default | [2026-11-01-extension-packaging](2026-11-01-extension-packaging/PLAN.md) | architecture/reference-cli, architecture/agent-skills, claude:architecture/claude-integration, claude:feature/claude-integration |
+| [2026-11-01-codex-delivery](2026-11-01-codex-delivery/PLAN.md) | Codex existing-session delivery | done | repository default | [2026-11-01-extension-packaging](2026-11-01-extension-packaging/PLAN.md) | architecture/reference-cli, architecture/agent-skills, codex:architecture/codex-integration, codex:feature/codex-integration |
 | [2026-11-01-extension-conformance](2026-11-01-extension-conformance/PLAN.md) | Cross-package conformance and rollout evidence | blocked | repository default | [2026-11-01-claude-delivery](2026-11-01-claude-delivery/PLAN.md), [2026-11-01-codex-delivery](2026-11-01-codex-delivery/PLAN.md) | architecture/reference-cli, architecture/agent-skills, architecture/file-formats, codex:architecture/codex-integration, claude:architecture/claude-integration |
-| [2026-11-01-extension-packaging](2026-11-01-extension-packaging/PLAN.md) | Compatible packages and recoverable installation | blocked | repository default | [2026-11-02-product-docs](2026-11-02-product-docs/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/agent-integration |
-| [2026-11-01-manual-lifecycle](2026-11-01-manual-lifecycle/PLAN.md) | Human gates and neutral CLI lifecycle | blocked | repository default | [2026-11-01-workflow-recording](2026-11-01-workflow-recording/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/spec-policies, feature/plan-execution, feature/configuration, feature/decisions, feature/agent-integration |
-| [2026-11-01-workflow-recording](2026-11-01-workflow-recording/PLAN.md) | Prepared workflows and exact recording | blocked | repository default | [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md), [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | architecture/reference-cli, architecture/agent-skills, architecture/file-formats, feature/plan-steps, feature/spec-policies |
-| [2026-11-02-completion-assessment](2026-11-02-completion-assessment/PLAN.md) | Implementation declarations and content assessment | ready | repository default | [2026-11-01-core-foundation](archive/2026-11-01-core-foundation/PLAN.md) | architecture/reference-cli, architecture/file-formats, feature/spec-system, feature/tooling, feature/spec-policies |
-| [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md) | Explicit plan-index snapshots and lifecycle generation | blocked | repository default | [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | architecture/reference-cli, architecture/file-formats, architecture/ci, feature/plan-index, feature/tooling |
-| [2026-11-02-product-docs](2026-11-02-product-docs/PLAN.md) | Offline product documentation and release orientation | blocked | repository default | [2026-11-01-manual-lifecycle](2026-11-01-manual-lifecycle/PLAN.md), [2026-11-02-completion-assessment](2026-11-02-completion-assessment/PLAN.md), [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md) | architecture/reference-cli, architecture/file-formats, architecture/agent-skills, feature/agent-integration, feature/tooling |
-| [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | Target binding and lifecycle reconciliation | ready | repository default | [2026-11-01-core-foundation](archive/2026-11-01-core-foundation/PLAN.md) | architecture/reference-cli, architecture/file-formats, feature/plan-execution, feature/configuration, feature/tooling, feature/plan-system |
+| [2026-11-01-extension-packaging](2026-11-01-extension-packaging/PLAN.md) | Compatible packages and recoverable installation | done | repository default | [2026-11-02-product-docs](2026-11-02-product-docs/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/agent-integration |
+| [2026-11-01-manual-lifecycle](2026-11-01-manual-lifecycle/PLAN.md) | Human gates and neutral CLI lifecycle | done | repository default | [2026-11-01-workflow-recording](2026-11-01-workflow-recording/PLAN.md) | architecture/reference-cli, architecture/agent-skills, feature/spec-policies, feature/plan-execution, feature/configuration, feature/decisions, feature/agent-integration |
+| [2026-11-01-workflow-recording](2026-11-01-workflow-recording/PLAN.md) | Prepared workflows and exact recording | done | repository default | [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md), [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | architecture/reference-cli, architecture/agent-skills, architecture/file-formats, feature/plan-steps, feature/spec-policies |
+| [2026-11-02-completion-assessment](2026-11-02-completion-assessment/PLAN.md) | Implementation declarations and content assessment | done | repository default | [2026-11-01-core-foundation](archive/2026-11-01-core-foundation/PLAN.md) | architecture/reference-cli, architecture/file-formats, feature/spec-system, feature/tooling, feature/spec-policies |
+| [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md) | Explicit plan-index snapshots and lifecycle generation | done | repository default | [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | architecture/reference-cli, architecture/file-formats, architecture/ci, feature/plan-index, feature/tooling |
+| [2026-11-02-product-docs](2026-11-02-product-docs/PLAN.md) | Offline product documentation and release orientation | done | repository default | [2026-11-01-manual-lifecycle](2026-11-01-manual-lifecycle/PLAN.md), [2026-11-02-completion-assessment](2026-11-02-completion-assessment/PLAN.md), [2026-11-02-plan-index](2026-11-02-plan-index/PLAN.md) | architecture/reference-cli, architecture/file-formats, architecture/agent-skills, feature/agent-integration, feature/tooling |
+| [2026-11-02-target-lifecycle](2026-11-02-target-lifecycle/PLAN.md) | Target binding and lifecycle reconciliation | done | repository default | [2026-11-01-core-foundation](archive/2026-11-01-core-foundation/PLAN.md) | architecture/reference-cli, architecture/file-formats, feature/plan-execution, feature/configuration, feature/tooling, feature/plan-system |
 
 ## Archived plans
 
@@ -53,17 +53,17 @@ graph TD
     p_2026_10_29_feature_spec_alignment[feature-spec-alignment]:::done
     p_2026_10_30_plan_conductor[plan-conductor]:::ready
     p_2026_10_30_plan_primitives[plan-primitives]:::done
-    p_2026_11_01_claude_delivery[claude-delivery]:::blocked
-    p_2026_11_01_codex_delivery[codex-delivery]:::blocked
+    p_2026_11_01_claude_delivery[claude-delivery]:::ready
+    p_2026_11_01_codex_delivery[codex-delivery]:::done
     p_2026_11_01_core_foundation[core-foundation]:::done
     p_2026_11_01_extension_conformance[extension-conformance]:::blocked
-    p_2026_11_01_extension_packaging[extension-packaging]:::blocked
-    p_2026_11_01_manual_lifecycle[manual-lifecycle]:::blocked
-    p_2026_11_01_workflow_recording[workflow-recording]:::blocked
-    p_2026_11_02_completion_assessment[completion-assessment]:::ready
-    p_2026_11_02_plan_index[plan-index]:::blocked
-    p_2026_11_02_product_docs[product-docs]:::blocked
-    p_2026_11_02_target_lifecycle[target-lifecycle]:::ready
+    p_2026_11_01_extension_packaging[extension-packaging]:::done
+    p_2026_11_01_manual_lifecycle[manual-lifecycle]:::done
+    p_2026_11_01_workflow_recording[workflow-recording]:::done
+    p_2026_11_02_completion_assessment[completion-assessment]:::done
+    p_2026_11_02_plan_index[plan-index]:::done
+    p_2026_11_02_product_docs[product-docs]:::done
+    p_2026_11_02_target_lifecycle[target-lifecycle]:::done
     p_2026_10_29_feature_spec_alignment --> p_2026_10_29_assist_and_approve
     p_2026_10_29_claude_harness_files --> p_2026_10_29_claude_instructions_and_enforcement
     p_2026_10_28_reference_cli_core --> p_2026_10_29_cli_claude_harness_init
