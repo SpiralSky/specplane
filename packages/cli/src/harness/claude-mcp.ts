@@ -105,6 +105,12 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     const request = outcome.value as Json;
     const requestId = request.requestId;
     if (typeof requestId !== 'string') return text('Prepared request has no requestId; nothing can be closed by id.', true);
+    // D16 option C: the native path never runs a reviewed suite, so a plan-step with test requirements is refused.
+    const criteria = Array.isArray(request.criteria) ? (request.criteria as Array<{ testRequirements?: unknown[] }>) : [];
+    if (request.workflow === 'plan-step' && criteria.some(c => Array.isArray(c.testRequirements) && c.testRequirements.length > 0)) {
+      await release(requestId);
+      return text(`Native plan-step does not run reviewed test suites, and request ${requestId} has criteria with testRequirements. The request was cancelled and its lease released; run this step through the managed plan-step flow.`, true);
+    }
     const json = JSON.stringify(request);
     open.set(requestId, { request, json });
     const compact = { protocol: 1, ok: true, value: { requestId, workflow: request.workflow, status: 'prepared', detailChars: json.length }, notices: outcome.notices ?? [] };

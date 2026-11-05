@@ -165,6 +165,25 @@ test('a prepared request whose reply cannot be delivered is cancelled by the ser
   assert.equal(JSON.parse(replies[2].result.content[0].text).value.closed.length, 0, 'nothing is left open for the mod to close');
 });
 
+test('native plan-step with criteria that carry testRequirements is cancelled and refused (D16 C)', async () => {
+  const withTests = { requestId: 'req-t', workflow: 'plan-step', criteria: [{ id: 'c:1', testRequirements: [{ suiteId: 's', format: 'node-tap-v13' }] }] };
+  const noTests = { requestId: 'req-n', workflow: 'plan-step', criteria: [{ id: 'c:1', testRequirements: [] }] };
+  const other = { requestId: 'req-o', workflow: 'spec-assist', criteria: [{ id: 'c:1', testRequirements: [{ suiteId: 's', format: 'node-tap-v13' }] }] };
+  for (const [value, refused] of [[withTests, true], [noTests, false], [other, false]] as const) {
+    const runner = fakeRunner(method => ({ protocol: 1, ok: true, value: method === 'prepare' ? value : {}, notices: [] }));
+    const replies = await seq(createClaudeMcpServer(runner), [callTool('bind', { nonce: NONCE }, 1), callTool('prepare', { nonce: NONCE }, 2)]);
+    const cancels = runner.calls.filter(c => c.method === 'cancel').map(c => c.params);
+    if (refused) {
+      assert.equal(replies[1].result.isError, true);
+      assert.match(replies[1].result.content[0].text, /testRequirements/);
+      assert.deepEqual(cancels, [{ requestId: value.requestId }]);
+    } else {
+      assert.notEqual(replies[1].result.isError, true);
+      assert.deepEqual(cancels, []);
+    }
+  }
+});
+
 test('unknown tools and methods are refused with JSON-RPC errors or tool errors', async () => {
   const server = createClaudeMcpServer(fakeRunner());
   const replies = await drive(server, [
@@ -181,7 +200,7 @@ const passing: ExecutionPort = { execute: async () => ({ executable: process.exe
 
 async function preparedServer() {
   const r = repo();
-  const mapping = { schemaVersion: 1, workflow: 'plan-step', criteria: [{ sourcePath: stepFile, sourceDigest: sha256(fs.readFileSync(path.join(r.cwd, stepFile))), criterionIndex: 1, evidence: 'test', testRequirements: [{ suiteId: 'workflow-suite', format: 'node-tap-v13' }] }] };
+  const mapping = { schemaVersion: 1, workflow: 'plan-step', criteria: [{ sourcePath: stepFile, sourceDigest: sha256(fs.readFileSync(path.join(r.cwd, stepFile))), criterionIndex: 1, evidence: 'inspection', testRequirements: [] }] };
   const p = await fixture('plan-step', '# Contract\n\n## Procedure\n\n```specplane-test-requirements\n' + JSON.stringify(mapping) + '\n```\n');
   const runner = createWorkflowRunner({ checkout: r.cwd, extensionId: p.host.extensionId, compatibilityFor: () => ({ manifest: p.manifest, host: p.host }), execution: passing });
   const server = createClaudeMcpServer(runner);
