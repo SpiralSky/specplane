@@ -374,7 +374,7 @@ test('the tool.check nonce gate admits a server call only with the bound nonce; 
   assert.equal(h.refusesServerCall({ tool: 'Bash', input: { command: 'ls' } }, NONCE), false);
 });
 
-test('the registered gate denies a server call without the session nonce and a throwing gate denies it too', opts, async () => {
+test('the registered gate allows only the mod\'s own server call, denies the rest, and a throwing gate denies too', opts, async () => {
   const h = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
   const hooks: Record<string, { handler: any; catcher?: any }> = {};
   const on = (event: string, filter: unknown, fn?: unknown) => {
@@ -386,11 +386,19 @@ test('the registered gate denies a server call without the session nonce and a t
   await h.startNative({ command: { list: async () => { throw new Error('no inventory'); } }, ui: { log: () => undefined } }, '/repo');
   h.registerNative(on as any);
   const gate = hooks['tool.check']!;
-  const next = Object.assign(() => ({ decision: 'allow' }), { signal: new AbortController().signal });
+  const decider = (origin: unknown) => Object.assign(() => ({ decision: 'ask' }), { signal: new AbortController().signal, origin });
+  const next = decider({ plugin: 'specplane', tier: 'user' });
+  const model = decider({ plugin: 'engine', tier: 'core' });
+  const other = decider({ plugin: 'other', tier: 'user' });
   const server = { tool: 'mcp__plugin_specplane_specplane__prepare', input: {} };
+  const bound = { tool: 'mcp__plugin_specplane_specplane__prepare', input: { nonce: h.currentNonce() } };
   assert.equal(gate.handler({}, server, next).decision, 'deny');
-  assert.equal(gate.handler({}, { tool: 'mcp__plugin_specplane_specplane__prepare', input: { nonce: h.currentNonce() } }, next).decision, 'allow');
-  assert.equal(gate.handler({}, { tool: 'Bash', input: {} }, next).decision, 'allow');
+  assert.equal(gate.handler({}, bound, next).decision, 'allow'); // answered here, never put to the mode's decider
+  assert.equal(gate.handler({}, bound, model).decision, 'deny'); // a model holding the nonce is still refused
+  assert.equal(gate.handler({}, bound, other).decision, 'deny');
+  assert.equal(gate.handler({}, bound, decider(undefined)).decision, 'deny');
+  assert.equal(gate.handler({}, { tool: 'Bash', input: {} }, model).decision, 'ask');
+  assert.equal(gate.handler({}, { tool: h.COMPLETION_TOOL_NAME, input: {} }, model).decision, 'ask');
   assert.equal(gate.catcher({}, server, next).decision, 'deny');
-  assert.equal(gate.catcher({}, { tool: 'Bash', input: {} }, next).decision, 'allow');
+  assert.equal(gate.catcher({}, { tool: 'Bash', input: {} }, next).decision, 'ask');
 });

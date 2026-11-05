@@ -1,0 +1,36 @@
+Origin gate live check, D20 items 1 and 2. Claude Code 2.1.317, Haiku 5.5. 2026-11-05, about 03:05-03:20 UTC.
+
+Provenance: agent-driven terminal, NOT human-typed. The coordinator session ran an interactive `claude` in tmux and typed
+`/spec-assist search filter draft` with tmux send-keys. The user approved this check in conversation.
+
+Fixtures: two disposable repositories (`specplane init --harness claude` from the working tree), one per mode so a held lease
+could not affect the second run. In the installed copy only: reasoning flag true, the six public reasoning skills deleted, and a
+diagnostic in the tool.check hook recording tool name, next.origin, whether tool_use_id was present, and whether the nonce matched.
+The nonce value was not recorded. The workspace trust dialog was accepted for the fixture folders only.
+Launch: `claude --plugin-dir <fixture>/.claude/specplane --model haiku` (auto mode), then with `--permission-mode default`.
+
+Change under test: the tool.check hook answers `allow` when next.origin.plugin is `specplane` and the nonce matches, and `deny` for
+any other workflow-server call, instead of passing the mod's call on to the mode's decider.
+
+Results:
+1. tool.check FIRES for the mod's own `$.mcp.call`. Answers D13.
+2. next.origin for the mod's call is {"plugin":"specplane","tier":"user"}; for the model's call {"plugin":"engine","tier":"core"}.
+   The host's declarations document this only for `$.tool.call` and queries; observed here for `$.mcp.call`. tool_use_id was present
+   on both, so it does not separate them.
+3. Auto mode: bind 1, prepare 1, detail 55, all origin specplane, all allowed. No classifier refusal (previously refused, see
+   interactive-check.txt result 2).
+4. Default mode: bind 1, prepare 1, detail 55, all origin specplane, all allowed. No permission prompt on screen, so the nonce was
+   not displayed (previously shown, see interactive-check.txt result 3).
+5. No tool-results directory was written in the auto-mode session's project folder.
+6. Model call refused: in the auto-mode session the model, asked to call mcp__plugin_specplane_specplane__bind with a wrong nonce,
+   received "Permission to use mcp__plugin_specplane_specplane__bind denied by plugin specplane: Specplane workflow tools are
+   reserved for Specplane commands; the model cannot call them." A model holding the REAL nonce was not tried live; that case is
+   covered by the claude-handlers test only.
+7. Delegation does not start from the command alone (new, D21). The command replied "the reasoning procedure starts when this turn
+   completes", then nothing ran: over 20 s idle in auto mode, over 60 s idle in default mode. In auto mode the procedure message was
+   delivered at 03:11:34, immediately after the next typed prompt's turn ended, and the model then followed the procedure and stopped
+   to ask the user for content. The mod submits on turn.complete; a command answered without a model turn appears not to raise it
+   (inferred from this timing, not read from the host).
+8. Not exercised: specplane_result, completion, or close. The run stopped while the procedure was waiting for answers.
+9. Release: NOT ACHIEVED, unchanged (D20 item 6). After /exit in both modes the server process exited, and the checkout record,
+   repository record and host marker stayed in .git/specplane-runtime.

@@ -41,6 +41,8 @@ const pending = new Map<string, Delegation>()
 
 /** The plugin's MCP server key in its manifest; the host names it `plugin:<plugin>:<server>`. */
 export const SERVER_KEY = 'specplane'
+/** This plugin's manifest name, which the host reports as `next.origin.plugin` for the mod's own calls. */
+export const PLUGIN_NAME = 'specplane'
 export const SERVER_REFUSAL = 'Specplane workflow tools are reserved for Specplane commands; the model cannot call them.'
 /** The completion tool as the host names a tool this plugin registers (`mcp__<plugin>__<name>`). It is not a server tool. */
 export const COMPLETION_TOOL_NAME = `mcp__${SERVER_KEY}__${COMPLETION_TOOL}`
@@ -64,6 +66,14 @@ export function refusesServerCall(e: unknown, nonce: string | undefined): boolea
   const input = (e as { input?: unknown }).input
   const carried = typeof input === 'object' && input !== null && nonce !== undefined && (input as { nonce?: unknown }).nonce === nonce
   return !carried
+}
+
+/**
+ * True when the host names this plugin as the caller. The host sets `next.origin`, so unlike the nonce, which a
+ * permission prompt or a tool-results file can expose (D20), nothing the model writes can claim it.
+ */
+export function isOwnCall(origin: { plugin?: unknown } | undefined): boolean {
+  return origin?.plugin === PLUGIN_NAME
 }
 
 /** Per-session reasoning state, set at session.start. The nonce is sent only with the mod's own server calls. */
@@ -119,11 +129,13 @@ async function submitDelegation($: EngineInterface, d: Delegation): Promise<void
 
 export function registerNative(on: Parameters<Register>[0]): void {
 
-  // The workflow server's tools are the mod's own: the model may not call them except with the bound nonce,
-  // which the model never sees (D11 option E, D13). Fail closed: a throwing check refuses a server call.
+  // The workflow server's tools are the mod's own (D11 option E, D13). The mod's call is answered here, because
+  // passing it on reaches the mode's decider: a prompt showing every argument, or an auto-mode classifier with no
+  // request to judge (D20). Any other caller is refused, even with the nonce. Fail closed: a throwing check refuses.
   on('tool.check', (_$, e, next) => {
     if (refusesServerCall(e, session.nonce)) return { decision: 'deny', reason: SERVER_REFUSAL }
-    return next(e)
+    if (!isSpecplaneServerTool(e) || (e as { tool: string }).tool === COMPLETION_TOOL_NAME) return next(e)
+    return isOwnCall(next.origin) ? { decision: 'allow' } : { decision: 'deny', reason: SERVER_REFUSAL }
   }).catch((_$, e, next) => (isSpecplaneServerTool(e) ? { decision: 'deny', reason: SERVER_REFUSAL } : next(e)))
 
   // Queue, then submit once the turn that ran the command has ended.
