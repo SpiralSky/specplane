@@ -445,14 +445,20 @@ test('the prompt carries a schema-valid result for the request, so the model nee
 test('every reasoning procedure reads the request from the prompt and always reports (D24)', opts, async () => {
   const dir = path.join(repo, 'harnesses/claude/templates/skills');
   const procedures = fs.readdirSync(dir).filter(name => name.startsWith('specplane-reason-'));
-  assert.equal(procedures.length, 6);
-  for (const name of procedures) {
+  assert.equal(procedures.length, 7);
+  // The reviewer has no completion tool and no lease: its answer is the JSON object the mod records.
+  for (const name of procedures.filter(name => name !== 'specplane-reason-verify-review')) {
     const text = fs.readFileSync(path.join(dir, name, 'SKILL.md'), 'utf8');
     assert.doesNotMatch(text, /request file describes|Read that file/, name);
     assert.match(text, /no request file on disk/, name);
     assert.match(text, /LeaseRefused/, name);
     assert.match(text, /Call it even when you cannot finish/, name);
   }
+  const review = fs.readFileSync(path.join(dir, 'specplane-reason-verify-review', 'SKILL.md'), 'utf8');
+  assert.match(review, /You are read-only/);
+  assert.match(review, /one `verify-review` request/);
+  assert.match(review, /\{"verdict":"pass"\|"fail","findings":\["one finding per string"\]\}/);
+  assert.doesNotMatch(review, /specplane_result|specplane-contract/);
 });
 
 test('server replies are read from the core Result, or from plain text for bind and refusals', opts, async () => {
@@ -640,6 +646,84 @@ test('specplane_run_tests sends only requestId to the server and drops anything 
   assert.equal(fake.calls.filter(c => c.tool === 'executeTest').length, 1, 'an unknown request id is refused without a server call');
 });
 
+// The separate check (spec: Reviewed test suites, last paragraph). Live behaviour of $.agent.spawn is not exercised here.
+function reviewCase(script: Script = {}, reviewer: Record<string, unknown> | undefined = {}) {
+  const spawned: string[] = [];
+  const port = reviewer && { workerSession: async () => 'worker-session', spawn: async (prompt: string) => { spawned.push(prompt); return { agentId: 'agent-7' }; }, ...reviewer };
+  const fake = fakeServer({ ...PREPARE_OK, requestReview: () => ({ ok: true, value: { requestId: 'rev-1', workflow: 'verify-review', parentRequestId: 'r1', extensionId: 'x', criteria: [{ id: 'c1', text: 'Done' }], diff: '+a' }, message: '' }), ...script });
+  return { fake, spawned, port };
+}
+async function openStep(fake: ReturnType<typeof fakeServer>) {
+  const m = await load();
+  const { ctx, queue } = context({ session: session(fake.server) });
+  await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  return { m, ctx, pending: new Map([[queue[0].requestId, queue[0]]]), jobs: new Map() };
+}
+
+test('specplane_request_review sends only the request id and the host-reported worker identity, and starts a reviewer with the review request alone', opts, async () => {
+  const { fake, spawned, port } = reviewCase();
+  const { m, ctx, pending, jobs } = await openStep(fake);
+  const out = await m.requestReview(pending, jobs, { requestId: 'r1', note: 'looks fine', parentRequestId: 'x' }, { session: ctx.session, reviewer: port });
+  assert.equal(out.ok, true, out.text);
+  assert.deepEqual(fake.calls.filter(c => c.tool === 'requestReview').map(c => c.args), [{ requestId: 'r1', workerSession: 'worker-session', nonce: NONCE }]);
+  assert.equal(spawned.length, 1);
+  assert.match(spawned[0], /Read-only/);
+  assert.match(spawned[0], /"workflow":"verify-review"/);
+  assert.doesNotMatch(spawned[0], /parentRequestId|"r1"/, 'the reviewer is not told which working request it covers');
+  assert.equal(jobs.get('r1').agentId, 'agent-7');
+  const again = await m.requestReview(pending, jobs, { requestId: 'r1' }, { session: ctx.session, reviewer: port });
+  assert.match(again.text, /still running/);
+  assert.equal(spawned.length, 1, 'a running review is not started twice');
+});
+
+test('a finished reviewer is recorded with the identity the host gave it, and the model reads the verdict from the next call', opts, async () => {
+  const { fake, port } = reviewCase({ recordReview: () => ({ ok: true, value: { verdict: 'pass', findings: 1, satisfied: true }, message: '' }) });
+  const { m, ctx, pending, jobs } = await openStep(fake);
+  await m.requestReview(pending, jobs, { requestId: 'r1' }, { session: ctx.session, reviewer: port });
+  const job = m.reviewJobFor(jobs, 'agent-7');
+  assert.ok(job);
+  assert.equal(m.reviewJobFor(jobs, 'agent-other'), undefined);
+  await m.finishReview(job, 'Here you go:\n```json\n{"verdict":"pass","findings":["Name the file."]}\n```', { session: ctx.session });
+  assert.deepEqual(fake.calls.find(c => c.tool === 'recordReview')!.args, { reviewId: 'rev-1', reviewerSession: 'agent-7', result: { verdict: 'pass', findings: ['Name the file.'] }, nonce: NONCE });
+  const read = await m.requestReview(pending, jobs, { requestId: 'r1' }, { session: ctx.session, reviewer: port });
+  assert.match(read.text, /passed this state with 1 finding/);
+});
+
+test('a reviewer answer that is not the required JSON records nothing and the review can be requested again', opts, async () => {
+  const { fake, spawned, port } = reviewCase();
+  const { m, ctx, pending, jobs } = await openStep(fake);
+  await m.requestReview(pending, jobs, { requestId: 'r1' }, { session: ctx.session, reviewer: port });
+  await m.finishReview(m.reviewJobFor(jobs, 'agent-7'), 'I think it is fine.', { session: ctx.session });
+  assert.equal(fake.calls.filter(c => c.tool === 'recordReview').length, 0);
+  const again = await m.requestReview(pending, jobs, { requestId: 'r1' }, { session: ctx.session, reviewer: port });
+  assert.equal(again.ok, true);
+  assert.equal(spawned.length, 2);
+});
+
+test('a server refusal (stale state, same identity) is passed to the model and nothing counts as reviewed', opts, async () => {
+  const { fake, port } = reviewCase({ recordReview: () => ({ ok: false, value: undefined, message: 'The reviewer session identity equals the worker session identity.' }) });
+  const { m, ctx, pending, jobs } = await openStep(fake);
+  await m.requestReview(pending, jobs, { requestId: 'r1' }, { session: ctx.session, reviewer: port });
+  const job = m.reviewJobFor(jobs, 'agent-7');
+  await m.finishReview(job, '{"verdict":"pass","findings":[]}', { session: ctx.session });
+  assert.equal(job.state, 'failed');
+  assert.match(job.message, /equals the worker session identity/);
+});
+
+test('without a reviewer the tool refuses and points to a human-check, and an unknown request is refused before any server call', opts, async () => {
+  const { fake } = reviewCase();
+  const { m, ctx, pending, jobs } = await openStep(fake);
+  const none = await m.requestReview(pending, jobs, { requestId: 'r1' }, { session: ctx.session, reviewer: undefined });
+  assert.equal(none.ok, false);
+  assert.match(none.text, /human-check/);
+  const unknown = await m.requestReview(pending, jobs, { requestId: 'nope' }, { session: ctx.session, reviewer: { workerSession: async () => 'w', spawn: async () => ({ agentId: 'a' }) } });
+  assert.equal(unknown.ok, false);
+  assert.equal(fake.calls.filter(c => c.tool === 'requestReview').length, 0);
+  const denied = await m.requestReview(pending, jobs, { requestId: 'r1' }, { session: ctx.session, reviewer: { workerSession: async () => 'w', spawn: async () => undefined } });
+  assert.equal(denied.ok, false);
+  assert.match(denied.text, /human-check/);
+});
+
 test('the prompt names specplane_run_tests for a plan-step only, with the requestId as its only input', opts, async () => {
   const m = await load();
   const prompt = (workflow: string, criteria: unknown[]) => m.delegationPrompt({ workflow, requestId: 'r1', assetPath: 'SKILL.md', request: { criteria } });
@@ -674,7 +758,7 @@ test('completion, validate, plan-status and plan-start delegate to exactly the c
   assert.equal(model.calls.length, 0, 'a state-changing command from a model origin never reaches the core');
 });
 
-test('reasoning commands and both tools register whenever the inventory is available, and a pre-existing public skill keeps its name', opts, async () => {
+test('reasoning commands and the three tools register whenever the inventory is available, and a pre-existing public skill keeps its name', opts, async () => {
   const h = await import(pathToFileURL(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts')).href);
   const start = async (inventory: () => Promise<Array<{ name: string; source: string }>>) => {
     const commands: string[] = [], tools: string[] = [];
@@ -688,8 +772,8 @@ test('reasoning commands and both tools register whenever the inventory is avail
   };
   const on = await start(async () => []);
   assert.ok(on.commands.includes('plan-step'));
-  assert.equal(on.tools.length, 2);
-  assert.ok(on.tools.includes('specplane_run_tests') && on.tools.includes('specplane_result'));
+  assert.equal(on.tools.length, 3);
+  assert.ok(on.tools.includes('specplane_run_tests') && on.tools.includes('specplane_result') && on.tools.includes('specplane_request_review'));
   const skill = await start(async () => [{ name: 'plan-step', source: 'projectSettings' }]);
   assert.ok(!skill.commands.includes('plan-step'), 'a pre-existing public skill keeps /plan-step; native commands never shadow it');
   assert.ok(skill.commands.includes('plan-create'));

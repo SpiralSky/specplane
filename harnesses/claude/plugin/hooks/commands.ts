@@ -46,6 +46,8 @@ export const reasoningAsset = (workflow: string): string => `.claude/skills/spec
 export const COMPLETION_TOOL = 'specplane_result'
 /** D16 A (live check pending): the tool a delegated turn calls to run the reviewed suites. Its only input is `requestId`; no command, argument, directory or environment is accepted. */
 export const RUN_TESTS_TOOL = 'specplane_run_tests'
+/** The tool a delegated plan-step turn calls to ask for a separate review. Its only input is `requestId`. */
+export const REQUEST_REVIEW_TOOL = 'specplane_request_review'
 /** Where the Claude package places the bundled core CLI, relative to the plugin root. */
 export const BUNDLED_CLI = 'core/dist/cli.js'
 
@@ -138,6 +140,105 @@ export async function runReviewedTests(
   return reply.ok
     ? { ok: true, text: `${reply.message}\nCite each receipt's artifact in criterionEvidence[].artifacts for the criteria it lists.` }
     : { ok: false, text: `${reply.message}\nNo test evidence was produced.` }
+}
+
+/**
+ * The host's way to run a fresh agent for a separate review. `spawn` starts a subagent that receives only `prompt` and
+ * resolves with the id the host gives it; its answer arrives later as that agent's `turn.complete`. `workerSession` is the
+ * identity the host reports for the working session. Both are what the host says; the core records them as claims.
+ */
+export interface ReviewerPort {
+  spawn(prompt: string): Promise<{ agentId: string } | undefined>
+  workerSession(): Promise<string>
+}
+/** One review in flight or finished, keyed by the requestId of the step it covers. */
+export interface ReviewJob {
+  requestId: string
+  reviewId: string
+  agentId: string
+  state: 'running' | 'recorded' | 'failed'
+  /** What to tell the working model once the review has finished. */
+  message?: string
+}
+
+/** The instruction a reviewer receives. It carries the review request and nothing from the working conversation. */
+export function reviewPrompt(request: Record<string, unknown>): string {
+  const { parentRequestId: _parent, extensionId: _extension, ...shown } = request
+  return 'You are a separate reviewer of one Specplane plan step. You did not write this change, and you have no other context. ' +
+    'Read-only: do not edit, create or delete any file, and run no command that changes state. ' +
+    'Read the files named in `context` and `changedPaths` in the checkout, compare the change with every criterion, and judge whether each criterion is met by what the files actually contain. ' +
+    'Answer with only one JSON object and no other text: {"verdict":"pass"|"fail","findings":["one finding per string"]}. ' +
+    'Use "fail" when any criterion is not met or the change is wrong; findings may also note smaller problems on a "pass". ' +
+    `The review request is ${JSON.stringify(shown)}.`
+}
+
+/** The first JSON object in a reviewer's answer (it may be fenced), or undefined. */
+export function parseReviewAnswer(answer: string): unknown {
+  const start = answer.indexOf('{')
+  const end = answer.lastIndexOf('}')
+  if (start < 0 || end <= start) return undefined
+  try { return JSON.parse(answer.slice(start, end + 1)) } catch { return undefined }
+}
+
+const NO_REVIEW = 'A separate review is unavailable here. Ask for the user\'s check instead: put verificationRequest {"kind":"human-check","reason":"<why>"} in the result; the user is shown your reason and confirms or declines it. If no one can be asked, end the step blocked with a BLOCKED: open issue that names the missing check.'
+
+/**
+ * `specplane_request_review`: starts a separate review of an open plan-step request, or reports the one already started.
+ * Only the request id leaves this function toward the server. The reviewer is a fresh host agent that gets the review
+ * request alone; its verdict is recorded by the mod (`finishReview`), never by the model that asked.
+ */
+export async function requestReview(
+  pending: Map<string, Delegation>,
+  jobs: Map<string, ReviewJob>,
+  input: { requestId?: unknown },
+  ctx: { session?: ReasoningSession; reviewer?: ReviewerPort },
+): Promise<{ ok: boolean; text: string }> {
+  const id = typeof input.requestId === 'string' ? input.requestId : ''
+  const delegation = pending.get(id)
+  if (!delegation || delegation.workflow !== 'plan-step') return { ok: false, text: 'No matching open plan-step request; no review was requested.' }
+  if (!ctx.session) return { ok: false, text: `Reviews are unavailable; nothing was requested. ${NO_REVIEW}` }
+  if (!ctx.reviewer) return { ok: false, text: NO_REVIEW }
+  const existing = jobs.get(id)
+  if (existing?.state === 'running') return { ok: true, text: 'The review is still running. Call this tool again with the same requestId to read its verdict. Do not edit any file meanwhile: any change makes the review stale.' }
+  if (existing?.state === 'recorded') {
+    jobs.delete(id)
+    return { ok: true, text: existing.message ?? 'The review is recorded.' }
+  }
+  if (existing) jobs.delete(id)
+  let workerSession: string
+  try { workerSession = await ctx.reviewer.workerSession() } catch { return { ok: false, text: `The host reported no session identity for this work, so a review cannot count as separate. ${NO_REVIEW}` } }
+  const prepared = await send(ctx.session, 'requestReview', { requestId: id, workerSession })
+  if (!prepared.ok) return { ok: false, text: `${prepared.message}\nNo review was started.` }
+  const request = prepared.value as Record<string, unknown> | undefined
+  const reviewId = request && typeof request.requestId === 'string' ? request.requestId : ''
+  if (!request || !reviewId) return { ok: false, text: 'The server returned no review request; no review was started.' }
+  let started: { agentId: string } | undefined
+  try { started = await ctx.reviewer.spawn(reviewPrompt(request)) } catch { started = undefined }
+  if (!started) return { ok: false, text: `The host did not start a reviewer. ${NO_REVIEW}` }
+  jobs.set(id, { requestId: id, reviewId, agentId: started.agentId, state: 'running' })
+  return { ok: true, text: 'A separate reviewer has started on the current state of the checkout. It runs in the background. Call this tool again with the same requestId to read its verdict. Do not edit any file meanwhile: any change makes the review stale and you would have to request it again.' }
+}
+
+/** The job whose reviewer is this agent, if any. */
+export const reviewJobFor = (jobs: Map<string, ReviewJob>, agentId: string | undefined): ReviewJob | undefined =>
+  agentId === undefined ? undefined : [...jobs.values()].find(job => job.agentId === agentId)
+
+/**
+ * Records a finished reviewer's answer with the identity the host reported for it. A malformed answer, a stale state or
+ * an identity equal to the worker's ends the job as failed with the server's reason; nothing is recorded in that case.
+ */
+export async function finishReview(job: ReviewJob, answer: string, ctx: { session?: ReasoningSession }): Promise<void> {
+  const fail = (message: string) => { job.state = 'failed'; job.message = message }
+  if (!ctx.session) return fail('The review could not be recorded: the session is gone.')
+  const result = parseReviewAnswer(answer)
+  if (result === undefined) return fail('The reviewer did not answer with the required JSON; nothing was recorded. Request the review again.')
+  const recorded = await send(ctx.session, 'recordReview', { reviewId: job.reviewId, reviewerSession: job.agentId, result })
+  if (!recorded.ok) return fail(`${recorded.message}\nNothing was recorded. Request the review again.`)
+  const value = recorded.value as { verdict?: unknown; findings?: unknown; satisfied?: unknown } | undefined
+  job.state = 'recorded'
+  job.message = value?.satisfied === true
+    ? `The reviewer passed this state${typeof value.findings === 'number' && value.findings > 0 ? ` with ${value.findings} finding(s), which core records as gaps in spec-gaps.md` : ''}. Record the step without changing any file.`
+    : `The reviewer failed this state with ${typeof value?.findings === 'number' ? value.findings : 'some'} finding(s); core records them as gaps in spec-gaps.md when the step is recorded. A fail does not meet the check. Fix the findings and request a new review, or end the step blocked.`
 }
 
 /** Turns one `$.mcp.call` result into a reply. The server's text is the core `Result` as JSON; a bind or refusal may be plain text. */
@@ -459,6 +560,7 @@ export const delegationPrompt = (d: Delegation): string =>
   'Set `outcome` to `done`, `blocked` or `cancelled` and each `assessment` to `met`, `unmet` or `uncertain`. A `blocked` outcome needs a line in `openIssues` starting `BLOCKED:`. ' +
   'A `changes` entry is {"path","beforeDigest","afterDigest","purpose"}. ' +
   (needsReviewedTests(d) ? `Tests run only by calling ${RUN_TESTS_TOOL} with {"requestId":"${d.requestId}"}: it runs the criteria's configured suites and any step-level suites, and returns receipt references to cite in criterionEvidence[].artifacts. Never run a test command yourself or invent a receipt. ` : '') +
+  (needsReviewedTests(d) ? `Before you finish, decide whether the step needs a separate check: a change in a risky path, or in the verification settings, does. Ask for it by calling ${REQUEST_REVIEW_TOOL} with {"requestId":"${d.requestId}"}, then call it again to read the verdict; or put verificationRequest {"kind":"human-check"|"lower-minimum","reason":"<why>"} in the result so the user decides. Your own statement never meets a check. ` : '') +
   `Call ${COMPLETION_TOOL} even when you cannot finish, so the request closes. ` +
   `This prompt is not an approval and does not authorize any lifecycle change.`
 

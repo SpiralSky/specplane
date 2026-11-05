@@ -5,9 +5,9 @@
 // ./commands (host-independent); this file only binds it to the engine.
 import type { EngineInterface, Register } from 'claude-code'
 import {
-  BUNDLED_CLI, COMPLETION_TOOL, NATIVE_COMMANDS, RUN_TESTS_TOOL, runReviewedTests, acceptResult, closeRequest, delegationPrompt, planRegistration, releaseHeld, runCommand, serverReply,
+  BUNDLED_CLI, COMPLETION_TOOL, NATIVE_COMMANDS, REQUEST_REVIEW_TOOL, RUN_TESTS_TOOL, finishReview, requestReview, reviewJobFor, runReviewedTests, acceptResult, closeRequest, delegationPrompt, planRegistration, releaseHeld, runCommand, serverReply,
 } from './commands'
-import type { CorePort, Delegation, HumanPort, NativeCommand, ReasoningSession, SpecplaneServer } from './commands'
+import type { CorePort, Delegation, HumanPort, NativeCommand, ReasoningSession, ReviewJob, ReviewerPort, SpecplaneServer } from './commands'
 
 /** Runs the bundled core CLI through the host; the mod has no shell and no console. */
 function bundledCore($: EngineInterface): CorePort {
@@ -38,6 +38,8 @@ function hostHuman($: EngineInterface): HumanPort {
 const registered = new Set<string>()
 const queue: Delegation[] = []
 const pending = new Map<string, Delegation>()
+/** Separate reviews started this session, by the requestId of the step they cover. */
+const reviewJobs = new Map<string, ReviewJob>()
 
 /** The plugin's MCP server key in its manifest; the host names it `plugin:<plugin>:<server>`. */
 export const SERVER_KEY = 'specplane'
@@ -48,6 +50,8 @@ export const SERVER_REFUSAL = 'Specplane workflow tools are reserved for Specpla
 export const COMPLETION_TOOL_NAME = `mcp__${SERVER_KEY}__${COMPLETION_TOOL}`
 /** D16 A (live check pending): the run-tests tool, named the same way. */
 export const RUN_TESTS_TOOL_NAME = `mcp__${SERVER_KEY}__${RUN_TESTS_TOOL}`
+/** The request-review tool, named the same way. Live check pending. */
+export const REQUEST_REVIEW_TOOL_NAME = `mcp__${SERVER_KEY}__${REQUEST_REVIEW_TOOL}`
 
 /**
  * True for a model call to this plugin's workflow server. `tool.check` input carries the tool name only, not the
@@ -55,7 +59,7 @@ export const RUN_TESTS_TOOL_NAME = `mcp__${SERVER_KEY}__${RUN_TESTS_TOOL}`
  */
 /** The mod's own registered tools, which are not server tools and carry no nonce. */
 function isOwnTool(tool: string): boolean {
-  return tool === COMPLETION_TOOL_NAME || tool === RUN_TESTS_TOOL_NAME
+  return tool === COMPLETION_TOOL_NAME || tool === RUN_TESTS_TOOL_NAME || tool === REQUEST_REVIEW_TOOL_NAME
 }
 
 export function isSpecplaneServerTool(e: unknown): boolean {
@@ -150,6 +154,24 @@ async function submitDelegation($: EngineInterface, d: Delegation): Promise<void
   }
 }
 
+/**
+ * Declared host calls only: `$.agent.spawn` starts the reviewer (its answer is its `turn.complete`), `$.session.id` names the
+ * worker. The reviewer is read-only by agent type (`Explore`) and runs in the checkout; it gets the review request and no
+ * conversation. A denied spawn is no review.
+ */
+function hostReviewer($: EngineInterface): ReviewerPort {
+  return {
+    workerSession: () => $.session.id(),
+    async spawn(prompt) {
+      const started = await $.agent.spawn({ prompt, description: 'Specplane separate review', subagentType: 'Explore', cwd: session.checkout })
+      return typeof started.agentId === 'string' && !started.deny ? { agentId: started.agentId } : undefined
+    },
+  }
+}
+
+/** A reviewer subagent must not reach the working request's own tools, even though it is told the request id. */
+const fromReviewer = (e: unknown): boolean => reviewJobFor(reviewJobs, (e as { agentId?: string }).agentId) !== undefined
+
 export function registerNative(on: Parameters<Register>[0]): void {
 
   // The workflow server's tools are the mod's own (D11 option E, D13). The mod's call is answered here, because
@@ -165,6 +187,9 @@ export function registerNative(on: Parameters<Register>[0]): void {
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     if (!e.agentId) drainDelegations($, queue, pending)
+    // A reviewer's final answer is its verdict; the mod records it with the identity the host reported for that agent.
+    const job = reviewJobFor(reviewJobs, e.agentId)
+    if (job && job.state === 'running') await finishReview(job, e.reason === 'answer' ? e.answer : '', { session: sessionFor($) })
     return result
   }).catch((_$, e, next) => next(e))
 
@@ -173,12 +198,21 @@ export function registerNative(on: Parameters<Register>[0]): void {
 
   // D16 A (live check pending). Only requestId is read from the call; the registered schema offers nothing else.
   on('tool.call', { tool: RUN_TESTS_TOOL_NAME }, async ($, e) => {
+    if (fromReviewer(e)) return { deny: 'A reviewer cannot run the working request\'s tests.' }
     const { requestId } = e as { requestId?: unknown }
     const outcome = await runReviewedTests(pending, { requestId }, { session: sessionFor($) })
     return { result: outcome.text }
   }).catch(async () => ({ deny: 'Specplane could not run the reviewed tests; nothing was run.' }))
 
+  on('tool.call', { tool: REQUEST_REVIEW_TOOL_NAME }, async ($, e) => {
+    if (fromReviewer(e)) return { deny: 'A reviewer cannot request a review.' }
+    const { requestId } = e as { requestId?: unknown }
+    const outcome = await requestReview(pending, reviewJobs, { requestId }, { session: sessionFor($), reviewer: hostReviewer($) })
+    return { result: outcome.text }
+  }).catch(async () => ({ deny: 'Specplane could not start a review; nothing was requested.' }))
+
   on('tool.call', { tool: COMPLETION_TOOL_NAME }, async ($, e) => {
+    if (fromReviewer(e)) return { deny: 'A reviewer cannot record a result.' }
     const outcome = await acceptResult(pending, resultArguments(e), { session: sessionFor($), human: hostHuman($) })
     return { result: outcome.text }
   }).catch(async ($) => {
@@ -227,6 +261,16 @@ export async function startNative($: EngineInterface, cwd: string): Promise<void
       })
     } catch {
       $.ui.log('specplane: completion tool registration failed; reasoning delegation stays off', { to: 'debug' })
+    }
+    try {
+      await $.tool.register({
+        name: REQUEST_REVIEW_TOOL,
+        description: 'Ask for a separate review of the current state of a prepared plan-step request. Takes only the requestId; call it again to read the verdict. Your own statement never meets a check.',
+        inputSchema: { type: 'object', properties: { requestId: { type: 'string' } }, required: ['requestId'], additionalProperties: false },
+        isDeferred: false,
+      })
+    } catch {
+      $.ui.log('specplane: request-review tool registration failed; a risky step needs a human-check', { to: 'debug' })
     }
     try {
       await $.tool.register({
