@@ -14,7 +14,7 @@ The extension prepared the request in code (resolution, policy, context, locks) 
 
 ## Preconditions
 
-1. The prompt names a prepared request id and its request file. Read that file; it is the source of truth for the checkout, policy, context and edit set. If it is missing or does not match the id, stop and say so.
+1. The prompt names a prepared request id and carries the request as JSON; there is no request file on disk. That JSON is the source of truth for the checkout, policy, context and edit set. If it is missing or does not match the id, stop and say so.
 2. The completion tool `specplane_result` must be available. If it is not, stop and tell the user to run `/decision-new` manually.
 
 ## Do
@@ -29,7 +29,8 @@ The extension prepared the request in code (resolution, policy, context, locks) 
 - Reconstruct a mechanical operation (resolution, validation, staging, recording, commits) in prose or by hand; the core did the preparation and will do the recording.
 - Edit files outside the edit set named in the request.
 - Decide on the user's behalf or set the record to accepted.
+- Run a `specplane` or core command that writes, such as `spec new`, while the request is open, or remove a lock or guard file. The request's own lease holds the repository, so the command is refused with `LeaseRefused`; that refusal does not mean another session is running.
 
 ## Return
 
-Finish by calling `specplane_result` with `{"requestId": "<id>", "result": <WorkflowResult>}` exactly as the request file describes. Report the core's answer to the user in your own words, without adding claims it did not make.
+Finish by calling `specplane_result` with `{"requestId": "<id>", "result": <WorkflowResult>}`, starting from the `WorkflowResult` in the prompt. Call it even when you cannot finish: report `blocked`, so the request closes. If the reply says the request is still open, correct what it names and call the tool again. Report the core's answer to the user in your own words, without adding claims it did not make.

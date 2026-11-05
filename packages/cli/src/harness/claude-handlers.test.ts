@@ -11,6 +11,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import { coreInfo } from '../core/index.js';
+import { workflowResultSchema } from '../core/schemas.js';
+import { lazyValidator } from '../lazy-validator.js';
 import { CLAUDE_WORKFLOWS } from './conformance-matrix.js';
 
 const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -401,6 +403,39 @@ test('the delegation prompt inlines the prepared request, names the completion t
   assert.match(prompt, /"criteria":\[\]/);
   assert.match(prompt, /specplane_result/);
   assert.match(prompt, /not an approval/);
+});
+
+test('the prompt carries a schema-valid result for the request, so the model need not guess its shape (D24)', opts, async () => {
+  const m = await load();
+  const digest = 'a'.repeat(64);
+  const delegation = { workflow: 'spec-assist', requestId: 'r1', assetPath: 'SKILL.md', request: { base: { digest }, criteria: [{ id: 'c1' }, { id: 'c2' }] } };
+  const template = m.resultTemplate(delegation);
+  assert.equal(lazyValidator(workflowResultSchema)(template), true);
+  assert.deepEqual(template.criterionEvidence.map((e: { criterionId: string }) => e.criterionId), ['c1', 'c2']);
+  assert.equal(template.baseDigest, digest);
+  const prompt = m.delegationPrompt(delegation);
+  assert.ok(prompt.includes(JSON.stringify(template)));
+  assert.match(prompt, /even when you cannot finish/);
+});
+
+test('only workflows that would write a body are told to report blocked instead (D24, D17 B)', opts, async () => {
+  const m = await load();
+  const prompt = (workflow: string) => m.delegationPrompt({ workflow, requestId: 'r1', assetPath: 'SKILL.md', request: {} });
+  for (const workflow of ['spec-assist', 'spec-draft-architecture', 'plan-create', 'decision-new']) assert.match(prompt(workflow), /leave out `creation` and `finalizedEdits`/);
+  for (const workflow of ['plan-step', 'plan-finish']) assert.doesNotMatch(prompt(workflow), /finalizedEdits/);
+});
+
+test('every reasoning procedure reads the request from the prompt and always reports (D24)', opts, async () => {
+  const dir = path.join(repo, 'harnesses/claude/templates/skills');
+  const procedures = fs.readdirSync(dir).filter(name => name.startsWith('specplane-reason-'));
+  assert.equal(procedures.length, 6);
+  for (const name of procedures) {
+    const text = fs.readFileSync(path.join(dir, name, 'SKILL.md'), 'utf8');
+    assert.doesNotMatch(text, /request file describes|Read that file/, name);
+    assert.match(text, /no request file on disk/, name);
+    assert.match(text, /LeaseRefused/, name);
+    assert.match(text, /Call it even when you cannot finish/, name);
+  }
 });
 
 test('server replies are read from the core Result, or from plain text for bind and refusals', opts, async () => {

@@ -403,10 +403,44 @@ async function runReasoning(cmd: NativeCommand, raw: string, ctx: RunContext): P
 }
 
 /** Text of the extension-origin prompt (submitted without `asUser`, so it carries no human authority). */
+/**
+ * A schema-valid `WorkflowResult` for one request, with its identity and criteria filled in, for the model to start
+ * from. It says `blocked`, so a template sent back unchanged claims nothing.
+ */
+export function resultTemplate(d: Delegation): Record<string, unknown> {
+  const request = (typeof d.request === 'object' && d.request !== null ? d.request : {}) as { base?: { digest?: unknown }; criteria?: unknown }
+  const criteria = Array.isArray(request.criteria) ? request.criteria as { id?: unknown }[] : []
+  return {
+    protocol: 1,
+    requestId: d.requestId,
+    baseDigest: request.base?.digest ?? '',
+    outcome: 'blocked',
+    summary: 'One line saying what happened.',
+    changes: [],
+    criterionEvidence: criteria.map(c => ({ criterionId: c.id, assessment: 'unmet', rationale: 'Why, from what you checked.', artifacts: [] })),
+    gaps: [],
+    contextExpansion: [],
+    contributionEvents: [],
+    openIssues: 'BLOCKED: the reason.',
+    nextKnows: 'What the next person needs.',
+  }
+}
+
+/** Workflows whose result would create a file or bind finalized text, which needs a confirmation path (D17 B). */
+const MANUAL_WRITE_WORKFLOWS = new Set(['spec-assist', 'spec-draft-architecture', 'plan-create', 'decision-new'])
+const MANUAL_WRITE_RULE =
+  'This request cannot create a file or bind finalized text, and this overrides any procedure step that returns a body: ' +
+  'leave out `creation` and `finalizedEdits`, give the user the approved text in your reply, report `blocked`, and name the manual command. '
+
 export const delegationPrompt = (d: Delegation): string =>
   `Run the Specplane ${d.workflow} reasoning procedure in ${d.assetPath} for prepared request ${d.requestId}. ` +
   `The prepared request is ${JSON.stringify(d.request)}. ` +
   `Do only the reasoning phases; finish by calling ${COMPLETION_TOOL} with {"requestId":"${d.requestId}","result":<WorkflowResult>}. ` +
+  `Start from this WorkflowResult and replace its text: ${JSON.stringify(resultTemplate(d))}. ` +
+  'Set `outcome` to `done`, `blocked` or `cancelled` and each `assessment` to `met`, `unmet` or `uncertain`. A `blocked` outcome needs a line in `openIssues` starting `BLOCKED:`. ' +
+  'A `changes` entry is {"path","beforeDigest","afterDigest","purpose"}. ' +
+  (MANUAL_WRITE_WORKFLOWS.has(d.workflow) ? MANUAL_WRITE_RULE : '') +
+  `Call ${COMPLETION_TOOL} even when you cannot finish, so the request closes. ` +
   `This prompt is not an approval and does not authorize any lifecycle change.`
 
 /** Entry point for one `command.run`: never calls a model and never answers a human gate itself. */
