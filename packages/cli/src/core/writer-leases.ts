@@ -374,3 +374,70 @@ export function recoverDelegatedLease(delegation: WorkerDelegation, inspect: () 
     if (exists(delegationMarker(dir, delegation.generation))) fs.unlinkSync(delegationMarker(dir, delegation.generation));
   });
 }
+
+/** PROVISIONAL (D20 item 6, awaiting approval of the proposal's A3 and a reference-cli edit).
+ * Operator view of leases retained with host-worker evidence. */
+export interface RetainedHostLease {
+  requestId: string | null; markerFile: string; ageSeconds: number; checkouts: string[]; ownerPid: number | null;
+  ownerAlive: boolean | null; evidenceBound: boolean;
+  /** `recoverable` only when the marker and every lease record agree and the owner is dead. */
+  state: 'recoverable' | 'owner-alive' | 'recording-begun' | 'unidentifiable'; reason?: string;
+  binding?: HostLeaseBinding;
+}
+const runtimeDirIfAny = (commonDir: string): string | null => {
+  const dir = path.join(commonDir, 'specplane-runtime');
+  if (!exists(dir)) return null;
+  const stat = fs.lstatSync(dir);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new LeaseRefused('Runtime directory is not a real directory; inspect manually.', 'RECOVERY_REQUIRED');
+  return dir;
+};
+/** Read-only. Never mutates; an unreadable marker is reported, not skipped. */
+export function listRetainedHostLeases(commonDir: string, now = Date.now()): RetainedHostLease[] {
+  const dir = runtimeDirIfAny(commonDir);
+  if (!dir) return [];
+  const out: RetainedHostLease[] = [];
+  for (const name of fs.readdirSync(dir).filter(n => /^host-[a-f0-9]{64}\.marker$/.test(n)).sort()) {
+    const markerFile = path.join(dir, name);
+    let ageSeconds = 0;
+    try { ageSeconds = Math.max(0, Math.round((now - fs.lstatSync(markerFile).mtimeMs) / 1000)); } catch { /* reported below */ }
+    const bad = (reason: string, extra: Partial<RetainedHostLease> = {}): RetainedHostLease => ({ requestId: null, markerFile, ageSeconds, checkouts: [], ownerPid: null, ownerAlive: null, evidenceBound: false, state: 'unidentifiable', reason, ...extra });
+    let binding: HostLeaseBinding;
+    try { binding = readLeaseBinding(markerFile); } catch (e) { out.push(bad((e as Error).message)); continue; }
+    const base = { requestId: binding.requestId, markerFile, ageSeconds, checkouts: binding.keys.filter(k => k.kind === 'checkout').map(k => k.identity), evidenceBound: !!binding.evidenceDigest, binding };
+    if (hostMarker(dir, binding.generation) !== markerFile || binding.commonDir !== commonDir) { out.push({ ...bad('Marker does not match its own generation or this repository.'), ...base, ownerPid: null, state: 'unidentifiable', reason: 'Marker does not match its own generation or this repository.' }); continue; }
+    let records: RecordData[];
+    try {
+      if (exists(delegationMarker(dir, binding.generation))) throw new Error('Delegated worker evidence is present.');
+      records = binding.keys.map(k => readRecord(fileFor(dir, { kind: k.kind, identity: k.identity }), { kind: k.kind, identity: k.identity }));
+      if (records.some(r => r.requestId !== binding.requestId || r.generation !== binding.generation || r.token !== binding.token || r.pid !== records[0].pid || r.worker !== null)) throw new Error('Lease records do not match the marker.');
+      if (!binding.keys.some(k => k.kind === 'checkout')) throw new Error('Marker names no checkout.');
+    } catch (e) { out.push({ ...bad(`Cannot identify the lease: ${(e as Error).message}`), ...base, state: 'unidentifiable', reason: `Cannot identify the lease: ${(e as Error).message}` }); continue; }
+    const ownerPid = records[0].pid, gone = dead(ownerPid);
+    out.push({ ...base, ownerPid, ownerAlive: !gone,
+      state: !gone ? 'owner-alive' : base.evidenceBound ? 'recording-begun' : 'recoverable',
+      ...(!gone ? { reason: 'The owner process is still alive.' } : base.evidenceBound ? { reason: 'Recording had begun; this command restores no recording files. Use the recording recovery path.' } : {}) });
+  }
+  return out;
+}
+export interface LeaseRecoveryIo { isTTY: boolean; ask(question: string): Promise<string>; print(line: string): void }
+/** Operator recovery of a lease-only host request. Refuses a live or unidentifiable lease and a missing
+ * terminal; the typed request id is the stopped-worker attestation. Deletes only the lease records the
+ * core's own release removes; receipts, evidence and working-tree files are never touched. */
+export async function recoverRetainedHostLease(commonDir: string, requestId: string, io: LeaseRecoveryIo, opts: { dryRun?: boolean } = {}): Promise<{ released: boolean; dryRun: boolean }> {
+  const matches = listRetainedHostLeases(commonDir).filter(l => l.requestId === requestId);
+  if (matches.length === 0) throw new LeaseRefused(`No retained host lease found for request ${requestId}; nothing was changed.`, 'RECOVERY_REQUIRED');
+  if (matches.length > 1) throw new LeaseRefused(`More than one retained host lease names request ${requestId}; inspect manually.`, 'RECOVERY_REQUIRED');
+  const lease = matches[0];
+  if (lease.state !== 'recoverable' || !lease.binding) throw new LeaseRefused(`Request ${requestId} is not recoverable: ${lease.reason ?? lease.state}`, 'RECOVERY_REQUIRED');
+  io.print(`Request ${requestId}: owner process ${lease.ownerPid} is not running; lease held ${lease.ageSeconds}s on ${lease.checkouts.join(', ')}.`);
+  io.print('Recovery will release this lease only. Receipts, evidence and working-tree edits stay as they are; inspect `git status` afterwards.');
+  if (opts.dryRun) { io.print('Dry run: nothing was confirmed or changed.'); return { released: false, dryRun: true }; }
+  if (!io.isTTY) throw new LeaseRefused('CONFIRMATION_REQUIRED: recovery must be confirmed by typing the request id on a terminal; there is no --yes.', 'RECOVERY_REQUIRED');
+  const answer = (await io.ask(`Type the request id to confirm that the Claude session holding it has ended: `)).trim();
+  if (answer !== requestId) throw new LeaseRefused('The typed text does not match the request id; nothing was changed.', 'RECOVERY_REQUIRED');
+  // Rechecks owner, marker and records under the writer guard before adopting.
+  const adopted = recoverHostLease(lease.binding, () => {});
+  adopted.releaseStoppedHost();
+  io.print(`Released the lease for request ${requestId}.`);
+  return { released: true, dryRun: false };
+}

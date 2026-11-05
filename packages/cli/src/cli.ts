@@ -14,6 +14,7 @@ import { specApproveCommand, specReopenCommand } from "./commands/spec-approve.j
 import { searchCommand } from "./commands/search.js";
 import { docsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
+import { workflowListCommand, workflowRecoverCommand } from "./commands/workflow.js";
 
 const pkg = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -223,6 +224,16 @@ program
   .option("--json", "output JSON")
   .action((opts: { json?: boolean }) => validateCommand(opts));
 
+
+// PROVISIONAL (D20 item 6): operator view and recovery of leases left by an ended host session.
+const workflow = program.command("workflow").description("Inspect and recover workflow leases left by an ended session (list, recover)");
+workflow.command("list").description("List leases retained with host-worker evidence (read-only)").option("--json", "output JSON").action((opts: { json?: boolean }) => workflowListCommand(opts));
+workflow
+  .command("recover <request-id>")
+  .description("Release a lease left by an ended session; confirmed by typing the request id on a terminal")
+  .option("--dry-run", "run every check without confirming or changing anything")
+  .option("--json", "output JSON")
+  .action((requestId: string, opts: { dryRun?: boolean; json?: boolean }) => workflowRecoverCommand(requestId, opts));
 
 program
   .command("init")
