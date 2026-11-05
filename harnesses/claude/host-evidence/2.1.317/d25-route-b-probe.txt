@@ -1,0 +1,22 @@
+D25 route B live probe, Claude Code 2.1.317, session S4, 2026-11-05.
+Grant: G2, at most 5 `claude` process launches in total (every model-calling process counts). Never retried.
+Paths below use <fx> for the throwaway fixture directory under the session scratchpad; no account data recorded.
+
+== SLOT PLAN (written before any launch) ==
+1. Launch (probe step 3), fixture a, budget 0.10.
+2. Resume of slot 1's session (probe step 4), same fixture, budget 0.10. Spent only if slot 1 reached `completed`.
+3. Cancel (probe step 5), fixture b, budget 0.10. Needs its own launch.
+4. Budget stop (probe step 6), fixture c, --max-budget-usd 0.01. Needs its own launch.
+5. Reserve, unspent unless a case needs it (never a retry).
+Not run, no slot: D24 unprompted-report check, claude-delivery 03 criterion 3, conformance row 4, and a `done` result for criterion 1.
+Reason (checked before planning): all three need the reasoning plan-step procedure to run natively. `reasoning` is false in
+startNative, so the reasoning commands and completion tool are not registered, and the origin gate refuses them (see
+live-prepare-check.txt). The earlier live runs got past that only by setting the flag true in a fixture build, which this
+session may not do. A `done` result is unreachable without flipping D16 C, MANUAL_WRITE_RULE, D17 B, `reasoning` or wiring
+BUNDLED_SUITES (a mapped criterion is cancelled by D16 C, an unmapped one is INVALID_EVIDENCE). Recorded as BLOCKED, no slot spent.
+Safety: fixtures are `git init` repos with one empty commit; no plugin installed; no permission bypass flag.
+Narrowest allowlist that works: wrapper adds `--tools Read --strict-mcp-config --model haiku` before the adapter's argv
+(the adapter has no hook for extra flags, so the wrapper is the only deviation from buildArgv; the adapter argv follows verbatim).
+Host binding gap: this probe spawns through node:child_process, not `$.process.spawn`; that binding is unwritten and untested.
+
+== LAUNCH TALLY ==
