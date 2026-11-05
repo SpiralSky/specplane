@@ -10,6 +10,8 @@ import { prepareWorkflow, validateWorkflowResult, recordWorkflow, captureContrib
 import { fixture, repo, id, stepFile } from './workflow-test-fixture.js';
 import { releaseStoppedPreparation, sha256 } from './workflow-preparation.js';
 import type { ContributionEvent, CoreContext, WorkflowResult, ConfirmationChallenge } from './contracts.js';
+// Prints the TAP a passing node:test run emits. The child must not call `require('node:test')` itself: when the runner is Bun, `node` resolves to Bun and Bun 1.4 refuses `test()` outside `bun test`.
+const INSPECTION_TAP_ARGS = ['-e', "process.stdout.write('TAP version 13\\n# Subtest: inspection\\nok 1 - inspection\\n1..1\\n# tests 1\\n# suites 0\\n# pass 1\\n# fail 0\\n# cancelled 0\\n# skipped 0\\n# todo 0\\n')"];
 
 const spec = 'base:feature/test', file = 'specs/features/test.md';
 async function setup(workflow: 'validate' | 'spec-assist' = 'spec-assist', role: 'assist' | 'draft' | 'review' = 'draft', interaction?: CoreContext['interaction'], execution?: CoreContext['execution'], beforePrepare?: (r: ReturnType<typeof repo>) => void) {
@@ -320,7 +322,7 @@ for (const output of ['receipt', 'stdout'] as const) {
     const f = await setup('spec-assist', 'assist', { confirm: async challenge => { confirmations++; mutate(); return { challengeId: challenge.challengeId, decision: 'confirm', interactionId: 'private-evidence-review' }; } }, execution);
     try {
       f.result.finalizedEdits = [{ spec, body: '# Finalized after inspection\n' }];
-      const executed = await executeWorkflowTest({ requestId: f.prepared.requestId, criterionIds: [f.prepared.criteria[0].id], executable: 'node', args: ['--test-reporter=tap', '-e', "require('node:test').test('inspection',()=>{});"], reportFormat: 'node-tap-v13' }, f.context);
+      const executed = await executeWorkflowTest({ requestId: f.prepared.requestId, criterionIds: [f.prepared.criteria[0].id], executable: 'node', args: INSPECTION_TAP_ARGS, reportFormat: 'node-tap-v13' }, f.context);
       assert.ok(executed.ok, JSON.stringify(executed)); if (!executed.ok) return;
       f.result.criterionEvidence[0].artifacts = [executed.value.artifact];
       const target = path.join(f.cwd, '.git/specplane-runtime/workflows', f.prepared.requestId, 'evidence', output === 'receipt' ? executed.value.artifact.path : `${executed.value.executionId}.stdout`);
@@ -346,7 +348,7 @@ test('removed execution evidence is reported unavailable while the recorded comm
   const f = await setup('spec-assist', 'assist', { confirm: async challenge => { confirmations++; return { challengeId: challenge.challengeId, decision: 'confirm', interactionId: 'historical-evidence-review' }; } }, execution);
   try {
     f.result.finalizedEdits = [{ spec, body: '# Finalized after execution\n' }];
-    const executed = await executeWorkflowTest({ requestId: f.prepared.requestId, criterionIds: [f.prepared.criteria[0].id], executable: 'node', args: ['--test-reporter=tap', '-e', "require('node:test').test('inspection',()=>{});"], reportFormat: 'node-tap-v13' }, f.context);
+    const executed = await executeWorkflowTest({ requestId: f.prepared.requestId, criterionIds: [f.prepared.criteria[0].id], executable: 'node', args: INSPECTION_TAP_ARGS, reportFormat: 'node-tap-v13' }, f.context);
     assert.ok(executed.ok, JSON.stringify(executed)); if (!executed.ok) return;
     f.result.criterionEvidence[0].artifacts = [executed.value.artifact];
     const proposal = await validateWorkflowResult(f.prepared, f.result, f.context);
