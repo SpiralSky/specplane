@@ -366,3 +366,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 (session 7: Claude consumer suite)
 - Added `harness/claude-consumer.test` (7 pass) over the installed MCP server and CLI in temp repositories; no `claude` process. A `done` plan step is unreachable natively; a consumer install shows unresolved `architecture/agent-skills` anchor drift.
 - Session adapter not built: the Claude route, argv, prompt and observation mapping are unspecified; recorded as D25. `hooks.test.sh` 94 pass, `check-sync` OK.
+
+## 2026-11-05 (session 8: D25 route B, problems.md recheck)
+- Drafted route B session adapter as A13 in the spec-edit proposal (TEMPORARY choice, proposal only, not built).
+- Rechecked the five `problems.md` findings against source: all fixed, no code change needed (see HANDOFF Current state).
