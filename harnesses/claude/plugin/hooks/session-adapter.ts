@@ -54,8 +54,8 @@ type Tracked = {
   exit: { done: boolean; code: number | null }
   result?: { subtype: string; isError: boolean }
   unparseable: boolean
-  /** Set from `system/init`: true when the plugin is listed, false when it is not, undefined until init is seen. */
-  pluginLoaded?: boolean
+  /** Set from `system/init`: true when the plugin is listed and the mode is auto, false otherwise, undefined until init is seen. */
+  initOk?: boolean
 }
 
 const SEP = /[\r\n]/
@@ -63,25 +63,21 @@ const SEP = /[\r\n]/
 /** The plugin that must load in every child session; without it the mod's policy and server are absent. */
 export const PLUGIN_NAME = 'specplane'
 
-/**
- * Unattended permission policy (A13). `dontAsk` denies anything not listed, so nobody is needed to answer a prompt.
- * `Edit(...)` rules cover every built-in file-editing tool and keep edits in the checkout, plus /tmp for the recording
- * manifest the plan-step procedure writes outside the checkout. Interpreters and network clients are deliberately absent.
- */
-export const ALLOWED_TOOLS: readonly string[] = Object.freeze([
-  'Skill', 'Edit(./**)', 'Edit(//tmp/**)',
-  ...['git status', 'git diff', 'git log', 'git show', 'git fetch', 'git add', 'git commit', 'git mv', 'git rm', 'mkdir',
-    'specplane validate', 'specplane docs', 'specplane plan step-done', 'SPECPLANE_AGENT=* specplane plan step-done',
-    'npm test', 'npm run', 'npm ci', 'bun test', 'bun run', 'pnpm test', 'pnpm run', 'yarn test', 'yarn run',
-    'pytest', 'python -m pytest', 'python3 -m pytest', 'cargo test', 'cargo build', 'cargo check',
-    'go test', 'go build', 'go vet', 'make'].map(c => `Bash(${c} *)`),
-])
+/** The permission mode every child session must report in `system/init`. */
+export const PERMISSION_MODE = 'auto'
 
-/** Deny rules win over allow rules and apply to every subcommand of a compound command. */
-export const DISALLOWED_TOOLS: readonly string[] = Object.freeze([
-  'WebFetch', 'WebSearch',
-  ...['git push', 'git reset --hard', 'git clean', 'rm', 'sudo', 'curl', 'wget', 'npm publish'].map(c => `Bash(${c} *)`),
-])
+/**
+ * Unattended permission policy (A13). Auto mode's classifier reviews each action, and `--permission-prompts none` denies
+ * what would have prompted. Keep this list narrow: a matching allow rule skips the classifier.
+ */
+export const ALLOWED_TOOLS: readonly string[] = Object.freeze(['Skill'])
+
+/** Hard limits the classifier cannot override: deny rules win, and apply to every subcommand of a compound command. */
+export const DISALLOWED_TOOLS: readonly string[] = Object.freeze(
+  ['git push', 'git reset --hard', 'git clean', 'sudo', 'npm publish',
+    'specplane spec approve', 'specplane spec reopen', 'specplane plan approve', 'specplane plan finish', 'specplane plan abandon', 'specplane decision accept',
+  ].map(c => `Bash(${c} *)`),
+)
 
 /** The prompt names the installed procedure and the request path only; no free text from the plan. */
 export function buildPrompt(workflowRequestPath: string): string {
@@ -99,7 +95,7 @@ export function buildArgv(mode: 'launch' | 'resume', nativeSessionId: string, re
     if (!Number.isFinite(request.budgetUsd) || request.budgetUsd <= 0) throw new Error('budgetUsd must be a positive number')
     argv.push('--max-budget-usd', String(request.budgetUsd))
   }
-  argv.push('--permission-mode', 'dontAsk', '--permission-prompts', 'none',
+  argv.push('--permission-mode', PERMISSION_MODE, '--permission-prompts', 'none',
     '--allowedTools', ALLOWED_TOOLS.join(','), '--disallowedTools', DISALLOWED_TOOLS.join(','),
     '--output-format', 'stream-json', '--verbose', buildPrompt(request.workflowRequestPath))
   return argv
@@ -117,11 +113,11 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
       let ev: unknown
       try { ev = JSON.parse(line) } catch { t.unparseable = true; return }
       if (typeof ev !== 'object' || ev === null || Array.isArray(ev) || typeof (ev as { type?: unknown }).type !== 'string') { t.unparseable = true; return }
-      const e = ev as { type: string; subtype?: unknown; is_error?: unknown; plugins?: unknown }
+      const e = ev as { type: string; subtype?: unknown; is_error?: unknown; plugins?: unknown; permissionMode?: unknown }
       if (e.type === 'system' && e.subtype === 'init') {
-        t.pluginLoaded = Array.isArray(e.plugins) && e.plugins.some(p => (p as { name?: unknown } | null)?.name === PLUGIN_NAME)
-        // Without the plugin the session has no policy mod: stop it rather than let it work unguarded.
-        if (!t.pluginLoaded) { try { handle.kill('SIGTERM') } catch { /* the failed state below still holds */ } }
+        t.initOk = e.permissionMode === PERMISSION_MODE && Array.isArray(e.plugins) && e.plugins.some(p => (p as { name?: unknown } | null)?.name === PLUGIN_NAME)
+        // Without the plugin or the mode the session lacks its policy: stop it rather than let it work unguarded.
+        if (!t.initOk) { try { handle.kill('SIGTERM') } catch { /* the failed state below still holds */ } }
       }
       if (e.type === 'result') {
         if (typeof e.subtype !== 'string') { t.unparseable = true; return }
@@ -136,13 +132,13 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
   function stateOf(orchestrationId: string, t: Tracked | undefined): SessionState['state'] {
     if (!t) return 'unknown'
     if (t.unparseable) return 'unknown'
-    if (t.pluginLoaded === false) return 'failed'
+    if (t.initOk === false) return 'failed'
     if (!t.exit.done) return 'running' // a live process is running until it exits, even after a result event
     if (t.exit.code === null) return 'unknown'
     if (t.exit.code !== 0) return 'failed'
     if (!t.result) return 'unknown' // exit 0 without a terminal result: shape not recognised, never "no session"
     if (t.result.subtype !== 'success' || t.result.isError) return 'failed'
-    return t.pluginLoaded ? 'completed' : 'unknown' // success with no init seen proves nothing about the plugin
+    return t.initOk ? 'completed' : 'unknown' // success with no init seen proves nothing about the policy
   }
 
   async function begin(mode: 'launch' | 'resume', nativeSessionId: string, request: SessionRequest): Promise<SessionState> {

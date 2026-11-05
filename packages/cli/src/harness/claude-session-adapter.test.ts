@@ -45,7 +45,7 @@ const mk = async (f: ReturnType<typeof fake>, extra: Record<string, unknown> = {
   return m.createClaudeSessionAdapter({ process: f.port, store: f.store, newId: () => '11111111-1111-4111-8111-111111111111', version: '2.1.317', ...extra });
 };
 const tick = () => new Promise(r => setTimeout(r, 0));
-const INIT = JSON.stringify({ type: 'system', subtype: 'init', plugins: [{ name: 'cc-plugin-telemetry' }, { name: 'specplane' }] });
+const INIT = JSON.stringify({ type: 'system', subtype: 'init', permissionMode: 'auto', plugins: [{ name: 'cc-plugin-telemetry' }, { name: 'specplane' }] });
 
 test('route B launch: argv, checkout, mapping persisted before spawn, no --bare or permission bypass', opts, async () => {
   const f = fake();
@@ -116,28 +116,25 @@ test('route B launch: after a restart a stored mapping refuses unless its pid is
   }
 });
 
-test('route B permissions: dontAsk with the allowlist on launch and resume; the variadic lists never swallow the prompt; the policy leaves out push and interpreters', opts, async () => {
+test('route B permissions: auto mode on launch and resume; the variadic lists never swallow the prompt; allow rules stay narrow and the hard limits are denied', opts, async () => {
   const m = await load();
   for (const mode of ['launch', 'resume'] as const) {
     const argv: string[] = m.buildArgv(mode, 'sid', req());
-    assert.equal(argv[argv.indexOf('--permission-mode') + 1], 'dontAsk');
+    assert.equal(argv[argv.indexOf('--permission-mode') + 1], 'auto');
     assert.equal(argv[argv.indexOf('--permission-prompts') + 1], 'none');
-    assert.equal(argv[argv.indexOf('--allowedTools') + 1], m.ALLOWED_TOOLS.join(','));
+    assert.equal(argv[argv.indexOf('--allowedTools') + 1], 'Skill');
     assert.equal(argv[argv.indexOf('--disallowedTools') + 1], m.DISALLOWED_TOOLS.join(','));
     assert.match(argv[argv.indexOf('--disallowedTools') + 2], /^--/);
     assert.equal(argv.at(-2), '--verbose');
   }
-  const allowed: string[] = m.ALLOWED_TOOLS;
-  for (const need of ['Skill', 'Edit(./**)', 'Bash(git commit *)', 'Bash(specplane plan step-done *)', 'Bash(SPECPLANE_AGENT=* specplane plan step-done *)']) assert.ok(allowed.includes(need), need);
-  for (const rule of allowed) {
-    assert.ok(!rule.includes(','), rule);
-    assert.doesNotMatch(rule, /^(Bash|Edit|Write|Read)$|Bash\((\*|git push|rm|curl|wget|sudo|node|python \*|python3 \*|sh|bash|npx|specplane plan approve)/, rule);
-  }
-  for (const rule of ['Bash(git push *)', 'Bash(git reset --hard *)', 'Bash(git clean *)', 'Bash(rm *)', 'Bash(curl *)', 'WebFetch']) assert.ok(m.DISALLOWED_TOOLS.includes(rule), rule);
+  assert.deepEqual([...m.ALLOWED_TOOLS], ['Skill']);
+  for (const c of ['git push', 'git reset --hard', 'git clean', 'sudo', 'npm publish', 'specplane spec approve', 'specplane spec reopen', 'specplane plan approve', 'specplane plan finish', 'specplane plan abandon', 'specplane decision accept']) assert.ok(m.DISALLOWED_TOOLS.includes(`Bash(${c} *)`), c);
+  for (const rule of m.DISALLOWED_TOOLS) assert.ok(!rule.includes(','), rule);
 });
 
-test('route B plugin guard: init without the plugin stops the process and is failed; a malformed list counts as missing', opts, async () => {
-  for (const init of [{ plugins: [{ name: 'cc-plugin-telemetry' }] }, { plugins: [] }, {}, { plugins: 'specplane' }, { plugins: [null] }]) {
+test('route B guard: init without the plugin or without auto mode stops the process and is failed; a malformed value counts as missing', opts, async () => {
+  const plugins = [{ name: 'specplane' }];
+  for (const init of [{ permissionMode: 'auto', plugins: [{ name: 'cc-plugin-telemetry' }] }, { permissionMode: 'auto', plugins: [] }, { permissionMode: 'auto' }, { permissionMode: 'auto', plugins: 'specplane' }, { permissionMode: 'auto', plugins: [null] }, { plugins }, { permissionMode: 'default', plugins }, { permissionMode: 'dontAsk', plugins }]) {
     const f = fake();
     const a = await mk(f);
     const s = await a.launch(req());
@@ -150,7 +147,7 @@ test('route B plugin guard: init without the plugin stops the process and is fai
   }
 });
 
-test('route B plugin guard: a success with no init event is unknown, never completed; a listed plugin is not stopped', opts, async () => {
+test('route B guard: a success with no init event is unknown, never completed; a good init is not stopped', opts, async () => {
   const f = fake();
   const a = await mk(f);
   const s = await a.launch(req());
