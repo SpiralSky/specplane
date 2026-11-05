@@ -90,6 +90,32 @@ test('route B launch: a failed mapping save spawns nothing; a failed spawn is un
   assert.equal(g.events.filter(e => e === 'spawn').length, 1);
 });
 
+test('route B launch: a live process on the same orchestration id refuses, spawns nothing and keeps the mapping; an exited one may relaunch', opts, async () => {
+  const f = fake();
+  const a = await mk(f);
+  const first = await a.launch(req());
+  const saves = f.saved.length;
+  await assert.rejects(a.launch(req()), /launch refused/);
+  assert.equal(f.spawned.length, 1);
+  assert.equal(f.saved.length, saves);
+  assert.equal((await a.observe(first)).state, 'running');
+  await a.cancel(first, 'SIGTERM').catch(() => undefined);
+  f.spawned[0]!.exit(143);
+  await new Promise(r => setTimeout(r, 0));
+  await a.launch(req());
+  assert.equal(f.spawned.length, 2);
+});
+
+test('route B launch: after a restart a stored mapping refuses unless its pid is positively dead', opts, async () => {
+  for (const [alive, pid, refused] of [[() => true, 7, true], [undefined, 7, true], [() => false, undefined, true], [() => false, 7, false]] as const) {
+    const f = fake(alive ? { alive } : {});
+    f.saved.push({ orchestrationId: req().orchestrationId, nativeSessionId: 'old', ...(pid ? { pid } : {}) });
+    const a = await mk(f);
+    if (refused) { await assert.rejects(a.launch(req()), /launch refused/); assert.equal(f.spawned.length, 0); }
+    else { await a.launch(req()); assert.equal(f.spawned.length, 1); }
+  }
+});
+
 test('route B observe: result success with exit 0 is completed; the state is running until the process exits', opts, async () => {
   const f = fake();
   const a = await mk(f);

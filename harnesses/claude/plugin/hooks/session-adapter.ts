@@ -137,6 +137,14 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
     },
 
     async launch(request: SessionRequest): Promise<SessionState> {
+      const running = tracked.get(request.orchestrationId)
+      if (running) {
+        if (!running.exit.done) throw new Error('launch refused: a live process already holds this orchestration id')
+      } else {
+        // A mapping from an earlier adapter instance: only a pid that is positively dead allows a new launch, as for resume.
+        const rec = await deps.store.load(request.orchestrationId)
+        if (rec && (rec.pid === undefined || !deps.process.isAlive || deps.process.isAlive(rec.pid))) throw new Error('launch refused: cannot confirm the earlier process for this orchestration id has exited')
+      }
       return begin('launch', deps.newId(), request)
     },
 
