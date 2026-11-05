@@ -7,7 +7,7 @@ export type Digest = string;
 export type Artifact = { path: string; digest: Digest; kind: 'file' | 'test' };
 export type TestRequirement = { suiteId: string; format: 'node-tap-v13' | 'junit-xml' };
 export type Criterion = { id: string; text: string; sourcePath: string; sourceDigest: Digest; testRequirements: TestRequirement[] };
-export type WorkflowTestRequest = { requestId: string; criterionIds: string[]; executable: string; args: string[]; reportFormat: TestRequirement['format'] };
+export type WorkflowTestRequest = { requestId: string; criterionIds: string[]; suiteId?: string; executable: string; args: string[]; reportFormat: TestRequirement['format'] };
 /** Trusted host boundary: resolve executable names, enforce host permissions, launch without
  * a shell using the supplied environment, and propagate cancellation to the process tree.
  * Resolve/reject only after launch refusal or acknowledged worker stop; never truncate output. */
@@ -54,7 +54,7 @@ export type WorkflowCreation =
  | {operation:'plan.new';arguments:Extract<MechanicalRequest,{operation:'plan.new'}>['arguments'];body:string;steps:{title:string;body:string;context:import('../types.js').StepContextItem[]}[]}
  | {operation:'decision.new';arguments:{title:string};body:string};
 export type ContributionProposal = {kind:'finalized';edit:FinalizedSpecEdit}|{kind:'creation';creation:WorkflowCreation};
-export type WorkflowResult = { creation?:WorkflowCreation;finalizedEdits?: FinalizedSpecEdit[]; protocol: 1; requestId: string; baseDigest: Digest; outcome: 'done' | 'blocked' | 'cancelled'; summary: string; changes: { path: string; beforeDigest: Digest | 'missing'; afterDigest: Digest | 'missing'; purpose: string }[]; criterionEvidence: { criterionId: string; assessment: 'met' | 'unmet' | 'uncertain'; rationale: string; artifacts: Artifact[] }[]; gaps: string[]; contextExpansion: { path: string; anchor?: string; reason: string }[]; contributionEvents: ContributionEvent[]; openIssues: string; nextKnows: string };
+export type WorkflowResult = { creation?:WorkflowCreation;finalizedEdits?: FinalizedSpecEdit[]; protocol: 1; requestId: string; baseDigest: Digest; outcome: 'done' | 'blocked' | 'cancelled'; summary: string; changes: { path: string; beforeDigest: Digest | 'missing'; afterDigest: Digest | 'missing'; purpose: string }[]; criterionEvidence: { criterionId: string; assessment: 'met' | 'unmet' | 'uncertain'; rationale: string; artifacts: Artifact[] }[]; gaps: string[]; contextExpansion: { path: string; anchor?: string; reason: string }[]; contributionEvents: ContributionEvent[]; openIssues: string; nextKnows: string; requestedTier?: 'text' | 'standard' | 'risk' };
 export type RecordingProposal = { protocol: 1; requestId: string; resultDigest: Digest; currentStateDigest: Digest; paths: string[]; evidenceDigest: Digest; requiresConfirmation: boolean } & MechanicalRequest;
 
 type AdditionalOperations = {
@@ -77,7 +77,7 @@ export type ContributionEvent = { eventId: string; requestId: string; spec: stri
 export type ConfirmationChallenge = { challengeId: string; operation: string; targets: string[]; stateDigest: Digest; payloadDigest: Digest; evidenceDigest: Digest; expiresAt: string; summary: string };
 export type ConfirmationResponse = { challengeId: string; decision: 'confirm' | 'decline'; interactionId: string };
 export type TestAssertion = { suiteId: string; parentExecutionId: string | null; executed: number; failed: number; skipped: number; evidence: { path: string; digest: Digest; format: TestRequirement['format'] } };
-export type TestReceipt = { protocol: 1; requestId: string; executionId: string; stateDigest: Digest; executable: string; args: string[]; checkout: string; exitCode: number | null; signal: string | null; stdout: { path: string; digest: Digest }; stderr: { path: string; digest: Digest }; assertions: TestAssertion[] };
+export type TestReceipt = { protocol: 1; requestId: string; executionId: string; suiteId: string | null; stateDigest: Digest; executable: string; args: string[]; checkout: string; exitCode: number | null; signal: string | null; stdout: { path: string; digest: Digest }; stderr: { path: string; digest: Digest }; assertions: TestAssertion[] };
 export type TestExecutionResult = { artifact: Artifact & { kind: 'test' }; executionId: string; exitCode: number | null; signal: string | null; assertions: TestAssertion[] };
 export type ConductorRequest = { plans: string[]; until?: 'step' | 'finish'; maxSteps?: number; maxParallel?: number; maxBudgetUsd?: number; timeoutSeconds?: number; step?: number; force?: boolean; reason?: string; dryRun?: boolean };
 export type SessionRef = { orchestrationId: string; nativeSessionId?: string; pid?: number };

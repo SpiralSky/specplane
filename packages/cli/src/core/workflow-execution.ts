@@ -12,7 +12,7 @@ import type { Artifact, CoreContext, Result, TestExecutionResult, TestReceipt, W
 const validRequest=lazyValidator(workflowTestRequestSchema),validReceipt=lazyValidator(testReceiptSchema);
 class EvidenceError extends Error { constructor(readonly code:string,message:string){super(message);} }
 function fail(code:string,message:string):never {throw new EvidenceError(code,message);}
-interface Entry { receipt:TestReceipt; artifact:Artifact; criterionIds:string[]; format:WorkflowTestRequest['reportFormat']; ledgerDigest:string }
+interface Entry { receipt:TestReceipt; artifact:Artifact; criterionIds:string[]; suiteId:string|null; format:WorkflowTestRequest['reportFormat']; ledgerDigest:string }
 const ledger=new Map<string,Map<string,Entry>>();
 /** All tracked and nonignored untracked bytes/modes; .git evidence never affects this digest. */
 export function workflowStateDigest(checkout:string):string {
@@ -57,6 +57,13 @@ export async function executeWorkflowTest(input:WorkflowTestRequest,context:Core
     const state=await assertPrepared(request.requestId,context),cwd=state.request.checkout;
     const port=state.context.execution;
     if(!port)fail('UNSUPPORTED_CAPABILITY','Prepared host execution port is unavailable.');
+    if(!request.criterionIds.length&&request.suiteId===undefined)fail('INVALID_EVIDENCE','criterionIds may be empty only for a step-level run');
+    if(request.suiteId!==undefined){
+      const suite=Object.hasOwn(state.verification.verification.suites,request.suiteId)?state.verification.verification.suites[request.suiteId]:undefined;
+      if(!suite)fail('INVALID_EVIDENCE',`Unknown verification suite: ${request.suiteId}`);
+      if(request.executable!==suite.command[0]||canonical(request.args)!==canonical(suite.command.slice(1)))fail('INVALID_EVIDENCE',`Command differs from the configured command of suite ${request.suiteId}`);
+      if(request.reportFormat!==suite.format)fail('INVALID_EVIDENCE',`Report format differs from the configured format of suite ${request.suiteId}`);
+    }
     for(const id of request.criterionIds){const c=state.request.criteria.find(c=>c.id===id);if(!c)fail('INVALID_EVIDENCE','Unknown criterion');if(c.testRequirements.some(r=>r.format!==request.reportFormat))fail('INVALID_EVIDENCE','Report format does not match prepared requirements');}
     if((!path.isAbsolute(request.executable)&&/[\\/]/.test(request.executable))||request.executable.includes('\0')||request.args.some(s=>s.includes('\0')))fail('INVALID_EVIDENCE','NUL in command');
     const executionId=randomUUID(),root=checkoutIdentity(cwd).commonDir,stateDigest=workflowStateDigest(cwd);
@@ -70,17 +77,31 @@ export async function executeWorkflowTest(input:WorkflowTestRequest,context:Core
     const stdout={path:`${base}.stdout`,digest:sha256(Buffer.from(output.stdout))},stderr={path:`${base}.stderr`,digest:sha256(Buffer.from(output.stderr))};
     write(root,evidencePath(stdout.path),output.stdout);write(root,evidencePath(stderr.path),output.stderr);
     const assertions=parseTestReport(output.stdout,request.reportFormat).map(s=>({...s,parentExecutionId:null,evidence:{...stdout,format:request.reportFormat}}));
-    const receipt:TestReceipt={protocol:1,requestId:request.requestId,executionId,stateDigest,executable:output.executable,args:request.args,checkout:cwd,exitCode:output.exitCode,signal:output.signal,stdout,stderr,assertions};
+    const receipt:TestReceipt={protocol:1,requestId:request.requestId,executionId,suiteId:request.suiteId??null,stateDigest,executable:output.executable,args:request.args,checkout:cwd,exitCode:output.exitCode,signal:output.signal,stdout,stderr,assertions};
     if(!validReceipt(receipt))fail('INVALID_EVIDENCE','Host execution cannot form a valid receipt');
     const bytes=canonical(receipt),artifact={path:`${base}.json`,digest:sha256(bytes),kind:'test' as const};
     write(root,evidencePath(artifact.path),bytes);
-    const record=canonical({receiptDigest:artifact.digest,artifact,criterionIds:request.criterionIds,format:request.reportFormat,requestId:request.requestId,executionId,stateDigest});
+    const record=canonical({receiptDigest:artifact.digest,artifact,criterionIds:request.criterionIds,suiteId:request.suiteId??null,command:[request.executable,...request.args],format:request.reportFormat,requestId:request.requestId,executionId,stateDigest});
     write(root,`${prefix(request.requestId)}/${executionId}.ledger.json`,record);
     await assertPrepared(request.requestId,context);
     if(workflowStateDigest(cwd)!==stateDigest)fail('STALE_STATE','Checkout changed during execution; rerun checks.');
-    const entries=ledger.get(request.requestId)??new Map<string,Entry>();ledger.set(request.requestId,entries);entries.set(executionId,{receipt,artifact,criterionIds:request.criterionIds,format:request.reportFormat,ledgerDigest:sha256(record)});
+    const entries=ledger.get(request.requestId)??new Map<string,Entry>();ledger.set(request.requestId,entries);entries.set(executionId,{receipt,artifact,criterionIds:request.criterionIds,suiteId:request.suiteId??null,format:request.reportFormat,ledgerDigest:sha256(record)});
     return {protocol:1,ok:true,value:{artifact:structuredClone(artifact),executionId,exitCode:receipt.exitCode,signal:receipt.signal,assertions:structuredClone(assertions)},notices:assertions.length?[]:[{code:'UNCERTAIN_TEST_REPORT',message:'No supported complete report was parsed; output is diagnostic only.'}]} as Result<TestExecutionResult>;
   });}catch(error){return errorResult(error);}
+}
+/** Integrity and freshness of a ledger entry; passing is judged by the caller's requirement. */
+function checkEntry(requestId:string,checkout:string,entry:Entry,requirePassing:boolean):TestReceipt{
+  const root=checkoutIdentity(checkout).commonDir,r=entry.receipt,artifact=entry.artifact;
+  const evidencePath=(p:string)=>`${prefix(requestId)}/evidence/${p}`;
+  if(sha256(read(root,`${prefix(requestId)}/${r.executionId}.ledger.json`))!==entry.ledgerDigest)fail('INVALID_EVIDENCE','Execution ledger changed');
+  if(sha256(read(root,evidencePath(artifact.path)))!==artifact.digest)fail('INVALID_EVIDENCE','Execution receipt changed');
+  for(const output of [r.stdout,r.stderr])if(sha256(read(root,evidencePath(output.path)))!==output.digest)fail('INVALID_EVIDENCE','Execution output changed');
+  if(r.stateDigest!==workflowStateDigest(checkout))fail('STALE_STATE','Tested checkout state changed');
+  if(requirePassing&&(r.exitCode!==0||r.signal!==null||r.assertions.some(s=>s.failed>0)))fail('INVALID_EVIDENCE','Test execution did not exit successfully');
+  const parsed=parseTestReport(read(root,evidencePath(r.stdout.path)),entry.format);
+  const expected=parsed.map(s=>({...s,parentExecutionId:null,evidence:{...r.stdout,format:entry.format}}));
+  if(canonical(expected)!==canonical(r.assertions))fail('INVALID_EVIDENCE','Reporter assertions changed');
+  return structuredClone(r);
 }
 /** Called under the validation/recording activity reservation; never accepts public totals. */
 export async function validateExecutionArtifact(requestId:string,criterionId:string,artifact:Artifact,context:CoreContext,requirePassing=true):Promise<TestReceipt>{
@@ -88,16 +109,27 @@ export async function validateExecutionArtifact(requestId:string,criterionId:str
   if(!criterion||(requirePassing&&!criterion.testRequirements.length))fail('INVALID_EVIDENCE','No prepared test requirements for criterion');
   const entry=[...(ledger.get(requestId)?.values()??[])].find(e=>e.artifact.path===artifact.path);
   if(!entry||artifact.kind!=='test'||canonical(artifact)!==canonical(entry.artifact)||!entry.criterionIds.includes(criterionId))fail('INVALID_EVIDENCE','Receipt is not in this request execution ledger');
-  const root=checkoutIdentity(state.request.checkout).commonDir,r=entry.receipt;
-  const evidencePath=(p:string)=>`${prefix(requestId)}/evidence/${p}`;
-  if(sha256(read(root,`${prefix(requestId)}/${r.executionId}.ledger.json`))!==entry.ledgerDigest)fail('INVALID_EVIDENCE','Execution ledger changed');
-  if(sha256(read(root,evidencePath(artifact.path)))!==artifact.digest)fail('INVALID_EVIDENCE','Execution receipt changed');
-  for(const output of [r.stdout,r.stderr])if(sha256(read(root,evidencePath(output.path)))!==output.digest)fail('INVALID_EVIDENCE','Execution output changed');
-  if(r.stateDigest!==workflowStateDigest(state.request.checkout))fail('STALE_STATE','Tested checkout state changed');
-  if(requirePassing&&(r.exitCode!==0||r.signal!==null||r.assertions.some(s=>s.failed>0)))fail('INVALID_EVIDENCE','Test execution did not exit successfully');
-  const parsed=parseTestReport(read(root,evidencePath(r.stdout.path)),entry.format);
-  const expected=parsed.map(s=>({...s,parentExecutionId:null,evidence:{...r.stdout,format:entry.format}}));
-  if(canonical(expected)!==canonical(r.assertions))fail('INVALID_EVIDENCE','Reporter assertions changed');
+  const r=checkEntry(requestId,state.request.checkout,entry,requirePassing);
   for(const requirement of requirePassing?criterion.testRequirements:[]){const suite=r.assertions.find(s=>s.suiteId===requirement.suiteId&&s.evidence.format===requirement.format);if(!suite||suite.executed===0||suite.failed!==0)fail('INVALID_EVIDENCE',`Missing, skipped or failed expected suite: ${requirement.suiteId}`);}
-  return structuredClone(r);
+  return r;
+}
+/**
+ * The newest step-level receipt of a configured suite that is intact, fresh for the current checkout state and passing:
+ * exit 0, parsed `executed` above 0 and `failed` at 0. Throws a refusal that names the missing check otherwise.
+ */
+export async function validateStepLevelReceipt(requestId:string,suiteId:string,context:CoreContext):Promise<{receipt:TestReceipt;artifact:Artifact}>{
+  const state=await assertPrepared(requestId,context);
+  const entries=[...(ledger.get(requestId)?.values()??[])].filter(e=>e.suiteId===suiteId).reverse();
+  const missing=`Missing verification check: a passing step-level run of suite ${suiteId} for the state being recorded`;
+  if(!entries.length)fail('INVALID_EVIDENCE',`${missing} (no run recorded)`);
+  let reason='';
+  for(const entry of entries){
+    try{
+      const receipt=checkEntry(requestId,state.request.checkout,entry,false);
+      const executed=receipt.assertions.reduce((n,s)=>n+s.executed,0),failed=receipt.assertions.reduce((n,s)=>n+s.failed,0);
+      if(receipt.exitCode!==0||receipt.signal!==null||executed===0||failed>0){reason=reason||(failed>0?'it reported failures':receipt.exitCode!==0||receipt.signal!==null?'it did not exit successfully':'it executed no tests');continue;}
+      return {receipt,artifact:structuredClone(entry.artifact)};
+    }catch(e){if(e instanceof EvidenceError){reason=reason||e.message;continue;}throw e;}
+  }
+  fail('INVALID_EVIDENCE',`${missing} (${reason})`);
 }

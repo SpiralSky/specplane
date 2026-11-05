@@ -41,8 +41,10 @@ test('closed receipt and confirmation schemas reject inconsistent or extra field
   const { testReceiptSchema, confirmationResponseSchema } = await import('./schemas.js');
   const ajv = new Ajv(); const receipt = ajv.compile(testReceiptSchema); const response = ajv.compile(confirmationResponseSchema);
   const digest = 'a'.repeat(64); const output = { path: 'out.txt', digest };
-  const sample = { protocol: 1, requestId: 'request', executionId: 'execution', stateDigest: digest, executable: '/bin/node', args: [], checkout: '/checkout', exitCode: 0, signal: null, stdout: output, stderr: output, assertions: [] };
+  const sample = { protocol: 1, requestId: 'request', executionId: 'execution', suiteId: null, stateDigest: digest, executable: '/bin/node', args: [], checkout: '/checkout', exitCode: 0, signal: null, stdout: output, stderr: output, assertions: [] };
   assert.equal(receipt(sample), true);
+  assert.equal(receipt({ ...sample, suiteId: 'unit' }), true);
+  assert.equal(receipt({ ...sample, suiteId: undefined }), false);
   assert.equal(receipt({ ...sample, signal: 'SIGTERM' }), false);
   assert.equal(receipt({ ...sample, stdout: { ...output, path: '../outside' } }), false);
   assert.equal(response({ challengeId: 'c', decision: 'confirm', interactionId: 'i' }), true);
