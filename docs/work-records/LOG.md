@@ -336,3 +336,6 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 claude-delivery D23 built, recording live-checked (second approved run)
 - `ce5ecbd`: a correctable refusal keeps the request open, up to 3 attempts. Full suite Bun 1028 pass, 0 fail.
 - Live: blocked result recorded after two refusals, lease released before exit. One typed instruction was needed to make the model report. New D24.
+
+## 2026-11-05 claude-delivery D24 offline
+- `af695ee` core refusal names the failing field; `f45c739` result template in the prompt, always-report rule, all six procedures corrected. Full suite Bun 1032 pass, 0 fail. No live run.
