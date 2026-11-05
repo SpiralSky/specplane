@@ -59,6 +59,9 @@ test('Claude workflows report as pending, never passing, and the shipped skill t
   assert.match(reason, /PROVISIONAL/);
   assert.match(reason, /fixtures do not deliver a workflow to a host/);
   assert.match(reason, /Rows stay not-delivered and pending/);
+  assert.match(reason, /not through `\$.process.spawn`/);
+  assert.match(reason, /budget stop was NOT seen/);
+  assert.match(reason, /no done result exists/);
   assert.equal(fs.existsSync(path.join(dist, 'harness/claude-package.js')), true);
   const exportsCriterion = CRITERIA.find(c => c.id === 'exports-and-workflows');
   assert.ok(exportsCriterion?.suites.some(s => s.file === 'harness/claude-package'), 'the Claude package suite is traced to the unmet criterion');
