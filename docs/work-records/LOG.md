@@ -358,3 +358,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 (session: D20 item 6 offline, PROVISIONAL)
 - Built `specplane workflow list` and `workflow recover <request-id>` in one revertable commit; reuses the core's `recoverHostLease` plus `releaseStoppedHost` (no new core rule). Refusals tested in temp repos: live owner, unidentifiable, recording begun, no terminal, wrong id, no `--yes`.
 - Divergences from A3 (no recording restore, no workflow name, no `prepare` text) recorded in the proposal. Focused 22 + 31 pass.
+
+## 2026-11-05 (session 6: leftovers and conformance, offline)
+- Closed provisional leftovers: R1 reference-cli edit drafted in the proposal; later-writer refusal names the request id and recover command; delegation prompt names `specplane_run_tests` for plan-steps with `testRequirements`.
+- Conformance Claude rows stay not-delivered/pending; matrix reason and release blocker rewritten to state real evidence and PROVISIONAL status. Added a handler test for complete/validate/plan-status/plan-start. Pin refresh not done. Focused 119 pass.
