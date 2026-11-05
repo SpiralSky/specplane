@@ -504,6 +504,8 @@ The checkout is `SPECPLANE_CHECKOUT` when set, else the working directory, and m
 | `prepare` | Prepares a request and takes the writer lease. The reply is compact: `requestId`, `workflow`, `status`, `detailChars`. The full request stays in the server. |
 | `detail` | Returns one page of the prepared request, selected by `requestId` and `offset`. A page is at most 2048 characters of the serialized request; the reply gives `total`, `next` and `done`. |
 | `executeTest` | Runs the reviewed suite for a prepared request with a host-fixed command (`### Reviewed test suites`). |
+| `requestReview` | Prepares the read-only `verify-review` request for a held plan-step request. |
+| `recordReview` | Records the reviewer's `{verdict, findings}` and the host-reported reviewer identity. |
 | `validate` | Takes `requestId` and the `WorkflowResult`. The server validates against the request it holds for that id; the request is never sent back. A request that is not open is refused. |
 | `record` | Records a validated result. When the core needs the user's confirmation, see `### Confirming finalised content`. |
 | `capture` | Captures a proposed contribution. |
@@ -524,7 +526,7 @@ A plan step's tier may require suites (`architecture/reference-cli` § Verificat
 
 The model starts a run through the mod-registered tool `specplane_run_tests`, whose only input is `requestId`. The mod calls `executeTest` and returns the receipt reference for the model to cite in `criterionEvidence[].artifacts`. A receipt the core did not produce is not evidence.
 
-A separate check runs as a fresh host session or subagent that receives only the `verify-review` request.
+A separate check runs as a fresh host subagent (`$.agent.spawn`) that receives only the `verify-review` request. The model starts it through the mod-registered tool `specplane_request_review`, whose only input is `requestId`, and the mod reads the verdict when that agent finishes.
 
 ### Confirming finalised content
 

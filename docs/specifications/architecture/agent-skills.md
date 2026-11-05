@@ -291,6 +291,28 @@ One-paragraph summary: outcome, files changed, gaps (their `spec-gaps.md` IDs), 
 
 ---
 
+## `verify-review`
+
+### Purpose
+
+Compares a finished plan step with its spec as a second reader. Implements the `separate` check of `architecture/reference-cli` § Verification policy.
+
+### Policy check
+
+None.
+
+### Steps
+
+1. Read only the prepared request: the step's spec context, criteria and diff. The working conversation is not an input.
+2. For each criterion and each relevant spec requirement, decide whether the diff meets it.
+3. Return `{verdict, findings}`: `pass` when nothing blocks the step, otherwise `fail`. Each finding names the requirement, the file and what is wrong.
+4. Edit nothing. A mismatch may mean the spec is the side that is wrong, so report it and do not choose.
+
+### Output
+
+The structured verdict only.
+
+---
 ## `plan-finish`
 
 ### Purpose
