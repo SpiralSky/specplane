@@ -328,3 +328,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Commits `44072f9` (compact MCP replies, `detail` pages, validate by requestId, close by binding, 16 KB guard) and `ea58453` (installer `.gitignore` entry for the host tsconfig).
 - Focused suites 84 pass (7 files); plugin test 27 pass; hooks 94 pass; check-sync OK; validate 0 errors, 98 warnings.
 - Full suite stalled again: killed at 240 s with no summary; not rerun. Live invocations: none. D18, D19, D20 items 1, 2, 6 still open.
+
+## 2026-11-05 claude-delivery D22 live check (one approved run)
+- Not passed. Confirmed live: arguments reach the hook, `validate` reaches the server, `close` releases the lease before exit. `record` not reached.
+- New D23: a refused result ends the request, so the model's corrected retry found no request. Evidence in `origin-gate-check.txt`. No code changed; no tests run.

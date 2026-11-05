@@ -50,3 +50,27 @@ The user approved this check in conversation; the coordinator typed the fixture'
    "were closed" was therefore false: the checkout record still named the request while the server ran.
 6. After /exit the server exited and the lease files stayed (D20 item 6, unchanged).
 Both causes were fixed offline afterwards. Not yet live-checked: validate, record, close, and whether close releases the lease.
+
+Completion check, D22. Same day, about 03:49-03:53 UTC, auto mode, Haiku 5.5, one fresh fixture built the same way from 396bbd3.
+The user approved this one invocation in conversation; the coordinator typed the fixture's answers and approval through tmux.
+Result: NOT PASSED. Close and lease release are confirmed live; recording was not reached. Not retried.
+
+1. The procedure started from `/spec-assist search filter draft` alone, asked for content, showed the text and took the approval.
+   Checkout and repository records named the request while it ran.
+2. D22 cause A FIXED live: the requestId now reaches the hook; the reply no longer says the result names no request.
+3. D22 cause B FIXED live for validate: the first specplane_result (outcome blocked) returned the core's own refusal, "Blocked
+   result needs a concrete BLOCKED: open issue Nothing was recorded." That text comes from core/workflow-recording.ts, reached
+   through the server's `validate`.
+4. Close and release CONFIRMED: after that refusal the checkout record, repository record and host marker were gone from
+   .git/specplane-runtime while the session and server still ran; only `install` remained. The same state held after /exit, and
+   the server process exited.
+5. Record NOT EXERCISED: validation refused, so `record` was never sent.
+6. New, D23: a refused result ends the request. The model corrected openIssues and called again with the same requestId, and got
+   "No matching prepared Specplane request; nothing was recorded." The correctable refusal could not be corrected.
+7. New, D23: the first reply does not say the request was closed, so the model could not tell why the retry failed.
+8. Consistent with D17 B: the approved spec was new, the procedure said creation needs the dedicated operation, `specplane` was
+   not on PATH in the session, and the model reported blocked with no file written. The result had zero changes.
+9. Not confirmed: the gate log. The diagnostic used `require` inside the hook and wrote nothing (presumed unavailable there), so
+   this run has no per-call origin counts. Server contact is inferred from results 3 and 4.
+10. Observation, not explained: the transcript names the completion tool `mcp__specplane__specplane_result`, unlike the server's
+   `mcp__plugin_specplane_specplane__<tool>`. It may account for the second `specplane` entry in D13; not checked.
