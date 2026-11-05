@@ -222,6 +222,27 @@ export const CONFIG_SCHEMA = {
         max_budget_usd: { type: ["number", "null"], exclusiveMinimum: 0 },
       },
     },
+    verification: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        mode: enumOf("auto", "manual"),
+        suites: {
+          type: "object",
+          additionalProperties: {
+            type: "object",
+            additionalProperties: false,
+            required: ["command", "format"],
+            properties: {
+              command: { type: "array", minItems: 1, items: { type: "string", minLength: 1 } },
+              format: enumOf("node-tap-v13", "junit-xml"),
+            },
+          },
+        },
+        text_paths: { type: "array", items: { type: "string" } },
+        risk_paths: { type: "array", items: { type: "string" } },
+      },
+    },
     decisions: {
       type: "object",
       additionalProperties: false,

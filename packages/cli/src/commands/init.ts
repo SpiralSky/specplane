@@ -53,6 +53,12 @@ execution:
   max_parallel: 1
   max_budget_usd: null
 
+verification:
+  mode: auto                  # auto | manual
+  suites: {}                  # name -> { command: [argv...], format: node-tap-v13 | junit-xml }
+  text_paths: ["**/*.md", "docs/**"]   # changes limited to these need no tests
+  risk_paths: [".specplane/**", ".claude/**", ".agents/**", ".github/**", "AGENTS.md", "CLAUDE.md", "**/SKILL.md"]   # changes here need a separate or human check
+
 decisions:
   dir: docs/decisions         # directory holding ADRs
 `;

@@ -52,6 +52,12 @@ export const DEFAULT_CONFIG: Config = {
     max_parallel: 1,
     max_budget_usd: null,
   },
+  verification: {
+    mode: "auto",
+    suites: {},
+    text_paths: ["**/*.md", "docs/**"],
+    risk_paths: [".specplane/**", ".claude/**", ".agents/**", ".github/**", "AGENTS.md", "CLAUDE.md", "**/SKILL.md"],
+  },
   decisions: { dir: "docs/decisions" },
 };
 

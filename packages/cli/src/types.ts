@@ -58,6 +58,12 @@ export interface Config {
     max_parallel: number;
     max_budget_usd: number | null;
   };
+  verification: {
+    mode: "auto" | "manual";
+    suites: Record<string, { command: string[]; format: "node-tap-v13" | "junit-xml" }>;
+    text_paths: string[];
+    risk_paths: string[];
+  };
   decisions: { dir: string };
 }
 

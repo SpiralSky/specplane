@@ -203,3 +203,36 @@ test("init emits the complete runtime defaults including conductor settings", as
   const { DEFAULT_CONFIG_YAML } = await import("./commands/init.js");
   assert.deepEqual(yaml.load(DEFAULT_CONFIG_YAML), DEFAULT_CONFIG);
 });
+
+function loadVerification(verification: unknown): ReturnType<typeof loadConfig> {
+  const root = mkdtempSync(path.join(os.tmpdir(), "specplane-verification-config-"));
+  try {
+    mkdirSync(path.join(root, ".specplane"));
+    writeFileSync(path.join(root, ".specplane/config.yaml"), yaml.dump({ verification }));
+    return loadConfig(root, { checkSpecRoots: false });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test("verification config: defaults and accepted suites", () => {
+  const defaults = loadVerification({}).config.verification;
+  assert.deepEqual(defaults, DEFAULT_CONFIG.verification);
+  assert.equal(defaults.mode, "auto");
+  assert.deepEqual(defaults.suites, {});
+  const { config, warnings } = loadVerification({ mode: "manual", suites: { unit: { command: ["npm", "test"], format: "node-tap-v13" } }, text_paths: ["notes/**"] });
+  assert.equal(config.verification.mode, "manual");
+  assert.deepEqual(config.verification.suites.unit, { command: ["npm", "test"], format: "node-tap-v13" });
+  assert.deepEqual(config.verification.text_paths, ["notes/**"]);
+  assert.deepEqual(config.verification.risk_paths, DEFAULT_CONFIG.verification.risk_paths);
+  assert.deepEqual(warnings, []);
+});
+
+test("verification config: invalid values are rejected", () => {
+  const invalid = [
+    { mode: "strict" }, { suites: { unit: { command: "npm test", format: "junit-xml" } } },
+    { suites: { unit: { command: [], format: "junit-xml" } } }, { suites: { unit: { command: ["npm"], format: "tap" } } },
+    { suites: { unit: { command: ["npm"] } } }, { text_paths: "**/*.md" }, { risk_paths: [1] },
+  ];
+  for (const verification of invalid) assert.throws(() => loadVerification(verification), ConfigError, JSON.stringify(verification));
+});
