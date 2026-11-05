@@ -203,6 +203,17 @@ test('route B recovery: attach instructions from the persisted id, or an unavail
   assert.ok(r.reason);
 });
 
+test('route B recovery: a ref id without a matching persisted mapping is unavailable', opts, async () => {
+  const f = fake();
+  const a = await mk(f);
+  const none = await a.recovery({ orchestrationId: 'o9', nativeSessionId: 'made-up-id' });
+  assert.equal(none.available, false);
+  const s = await a.launch(req());
+  const other = await a.recovery({ orchestrationId: 'o1', nativeSessionId: 'not-the-persisted-id' });
+  assert.equal(other.available, false);
+  assert.equal((await a.recovery(s)).available, true);
+});
+
 test('route B probe is gated: every capability false without a passed probe record for the installed version', opts, async () => {
   const none = { launch: false, observe: false, resume: false, cancel: false, budgetEnforcement: false };
   const pass = { version: '2.1.317', launched: true, observed: true, resumed: true, cancelled: true, budgetStopSeen: true };

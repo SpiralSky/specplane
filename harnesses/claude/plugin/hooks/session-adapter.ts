@@ -163,9 +163,9 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
     },
 
     async recovery(ref: SessionRef): Promise<{ available: boolean; instructions?: string[][]; reason?: string }> {
-      let id = ref.nativeSessionId
-      if (!id) id = (await deps.store.load(ref.orchestrationId))?.nativeSessionId
+      const id = (await deps.store.load(ref.orchestrationId))?.nativeSessionId
       if (!id) return { available: false, reason: 'no persisted native session id for this orchestration' }
+      if (ref.nativeSessionId && ref.nativeSessionId !== id) return { available: false, reason: 'the session reference does not match the persisted mapping' }
       const instructions: string[][] = [[exe, '--resume', id]]
       const log = deps.logPath?.(ref)
       if (log) instructions.push(['less', log])
