@@ -1,7 +1,7 @@
 ---
 id: architecture/codex-integration
 title: Codex extension implementation
-status: approved
+status: review
 author: mixed
 implements: [codex:feature/codex-integration, feature/agent-integration]
 extends: [architecture/agent-skills]
