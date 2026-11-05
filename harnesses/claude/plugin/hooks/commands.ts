@@ -162,15 +162,16 @@ export async function openSession(session: ReasoningSession): Promise<ServerRepl
  * Releases one request's lease, or every open request of this binding when no id is given (for a result whose id
  * cannot be read). Never throws: a close that fails leaves the server's own end-of-session release.
  */
-export async function closeRequest(session: ReasoningSession | undefined, requestId?: string): Promise<void> {
-  if (session) await send(session, 'close', requestId === undefined ? {} : { requestId })
+export async function closeRequest(session: ReasoningSession | undefined, requestId?: string): Promise<boolean> {
+  if (!session) return false
+  return (await send(session, 'close', requestId === undefined ? {} : { requestId })).ok
 }
 
 /** Closes every request this module still holds, by binding, and forgets them. Used when a result cannot be read. */
-export async function releaseHeld(pending: Map<string, Delegation>, session: ReasoningSession | undefined): Promise<void> {
-  if (pending.size === 0) return
+export async function releaseHeld(pending: Map<string, Delegation>, session: ReasoningSession | undefined): Promise<boolean> {
+  if (pending.size === 0) return true
   pending.clear()
-  await closeRequest(session)
+  return closeRequest(session)
 }
 
 /**
@@ -488,8 +489,10 @@ export async function acceptResult(
   if (!delegation) {
     // An unreadable id cannot name its lease, so every delegation this module holds is closed.
     if (!id && pending.size > 0) {
-      await releaseHeld(pending, ctx.session)
-      return { ok: false, text: 'The result names no prepared request; the open Specplane requests were closed. Nothing was recorded.' }
+      const closed = await releaseHeld(pending, ctx.session)
+      return { ok: false, text: closed
+        ? 'The result names no prepared request; the open Specplane requests were closed. Nothing was recorded.'
+        : 'The result names no prepared request; closing the open Specplane requests failed, so they may still be open until the session ends. Nothing was recorded.' }
     }
     return { ok: false, text: 'No matching prepared Specplane request; nothing was recorded.' }
   }

@@ -388,6 +388,19 @@ test('a completion result whose request id cannot be read closes the open reques
   assert.deepEqual(fake.calls.at(-1), { tool: 'close', args: { nonce: NONCE } });
 });
 
+test('a result with no readable id does not claim the requests were closed when close fails', opts, async () => {
+  const m = await load();
+  const fake = fakeServer({ ...PREPARE_OK, close: () => ({ ok: false, message: 'close refused' }) });
+  const { ctx, queue } = context({ session: session(fake.server, { bound: true }) });
+  await m.runCommand(byName(m, 'plan-step'), '2026-11-01-plan', ctx);
+  const pending = new Map([[queue[0].requestId, queue[0]]]);
+  const out = await m.acceptResult(pending, { result: RESULT }, { session: ctx.session });
+  assert.equal(out.ok, false);
+  assert.doesNotMatch(out.text, /were closed/);
+  assert.match(out.text, /closing the open Specplane requests failed/);
+  assert.equal(pending.size, 0);
+});
+
 test('a result for an unknown request is refused and closes nothing', opts, async () => {
   const m = await load();
   const fake = fakeServer(PREPARE_OK);
