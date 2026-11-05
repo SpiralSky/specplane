@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-05 (coordinator, before the authorized run). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05 (S1). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -8,7 +8,7 @@ Updated 2026-11-05 (coordinator, before the authorized run). Branch `overnight/s
 - `reasoning` stays `false` in `startNative`; reasoning commands and the completion tool are not registered. The six legacy reasoning skills stay (D10), so they own the names `/spec-assist`, `/plan-create`, `/plan-step`, `/plan-finish`, `/decision-new`, `/spec-draft-architecture` (D19).
 - Built and committed offline: D14 installer staging; origin gate (D20 1 and 2, D21); compact MCP replies and close by binding (D20 3 to 5); D23 retry rule; D24 prompt/schema changes; D16 C (a plan-step with `testRequirements` is cancelled); D15 (`plan-finish` stays manual).
 - Built but PROVISIONAL (details in "Needs the user"): D17 A confirmation bridge, D16 A suite table, D20 item 6 `specplane workflow list|recover`.
-- Spec-edit proposal (docs only, no spec body edited): `docs/work-records/2026-11-05-claude-spec-edit-proposal.md`, edits A1 to A13, R1, F1 to F4 (the feature spec has `llm_role: assist`, so F1 to F4 need the user's wording).
+- Spec edits A1 to A13 (architecture), R1 (reference-cli) and F1 to F4 (feature) are APPLIED by S1 under G1 as separate docs commits; all three specs are still `status: approved` (unchanged, not re-approved). Proposal: `docs/work-records/2026-11-05-claude-spec-edit-proposal.md`. `specplane validate` after: 0 errors, 100 warnings (+2 "may contradict" on feature line 48, from F3).
 - Consumer suites: `harness/claude-consumer.test` (7) and `harness/codex-consumer.test` (7). A `done` plan-step is unreachable natively on Claude (unmapped criterion is `INVALID_EVIDENCE`, a mapped one is cancelled by D16 C). A consumer install shows `skill-drift` warnings because the skills cite `architecture/agent-skills`.
 - The `problems.md` findings were rechecked in session 8 and are all fixed in source.
 - Test runner notes: Bun 1.3.14 intermittently stalls at the end of a full parallel run (about half of runs on 2026-11-05; a worker spins inside Bun, root cause not named). `scripts/test.sh` runs Bun under a 180 s watchdog and on a stall reruns under `node --test` (`SPECPLANE_TEST_RUNNER=auto|bun|node`); the Node fallback skips 26 tests that load TypeScript source, including every `claude-handlers` test, so after a fallback also run `sh scripts/test.sh ./dist/harness/claude-handlers.test.js`. A second Bun failure was seen once: `EEXIST: file already exists, epoll_ctl` while loading `node:assert`, then `Cannot call test() after the test run has completed`, with 48 fail and only 510 of 1025 tests; it is not a stall and no fallback happens. Rerun once when that signature appears.
@@ -24,7 +24,7 @@ Every TEMPORARY (coordinator choice while you were offline) and PROVISIONAL (bui
 5. D20 item 6 TEMPORARY and PROVISIONAL: `specplane workflow list|recover` (commit `feat(claude-delivery): PROVISIONAL D20 item 6`). Alternatives: automatic reclaim at the next `prepare`, or manual lease-file deletion. Reference-cli spec edit drafted as R1.
 6. D17 A PROVISIONAL: confirmation bridge (the two `PROVISIONAL D17 A` commits). `MANUAL_WRITE_RULE` and D17 B stay active until you approve the spec edit and a live check passes. The A field and its spec wording (TEMPORARY choice in the proposal) are yours to confirm.
 7. D16 A PROVISIONAL: suite table (`PROVISIONAL D16 A` commit). The table is empty; you must add reviewed suites and say where to wire the install entry. D16 C stays active until then. The A command source is a TEMPORARY choice in the proposal.
-8. Approve the architecture and feature spec edits in the proposal (A1 to A13, R1, F1 to F4); a session then applies them in docs commits and reviews the provisional builds. No approved spec body was edited.
+8. Spec edits are applied (S1, G1); the specs are still `approved` at their pre-edit review: review the diffs `cd7b7f0`, `84f5b61`, `1ef0468` and re-approve with `/approve` if you accept them. S1 also ran `specplane spec pin` (`181574d`, `based_on` only). Wording notes: (a) proposal decision 4 says the reference-CLI edit was not drafted, but R1 is drafted and was applied; (b) R1 and the A3 recovery subsection disagree: A3 says `recover` restores recording files and `list` prints the workflow, R1 and the build do not; (c) A13 text replaced the 'No such adapter is delivered yet' sentence and the second paragraph of the adapter section, my reading of the ambiguous 'current text to replace'; (d) A3 and A6 carry TEMPORARY notes verbatim.
 9. extension-conformance 02: review the implementation, then the pin refresh can be done.
 10. Live runs for claude-delivery 03 criteria 1 and 3 and conformance row 4: each needs your approval; none retried (D18).
 11. Upgrading to Bun 1.4.4: your call; run the full suite on it first.
@@ -46,7 +46,7 @@ Not granted, so do not do:
 
 | Session | Work | State |
 | --- | --- | --- |
-| S1 | Apply G1 spec edits; `specplane validate` | pending |
+| S1 | Apply G1 spec edits; `specplane validate` | done (`cd7b7f0`, `84f5b61`, `1ef0468`, `181574d`) |
 | S2 | Review D17 A, D16 A and recovery builds against the applied specs; fill the D16 A table and wire the install entry; drop PROVISIONAL where the spec now covers it, keeping anything that needs a live check gated | pending |
 | S3 | Build the D25 route B session adapter offline (claude-delivery 03 criterion 1) | pending |
 | S4 | G2 live runs; D19 removal if and only if `done` passed live | pending |
@@ -87,7 +87,7 @@ Not granted, so do not do:
 | extension-conformance | 02 | partial; managed recording pending | guards built (`harness/release-evidence.test` (4)); blocker text refreshed; the pin refresh was not done and awaits the user's implementation review |
 
 ## Next session
-Follow "Authorized run": take the first pending session in its table. S1's first task: `cd packages/cli && npm test` and confirm it still passes, then apply the proposal.
+Follow "Authorized run": take the first pending session in its table (S2).
 
 ## How to continue (orchestration)
 The user runs steps through a coordinator session that chains **Sonnet 5.5 subagents sequentially, one step per subagent**. Each subagent acts as a complete session.

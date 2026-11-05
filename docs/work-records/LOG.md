@@ -374,3 +374,10 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 (session 9: Codex procedure test, Bun 1.4 cause, full verification)
 - Added a `codex-package.test` case that the delivered `docs/sources/agent-skills.md` plan-step section carries fetch and fast-forward, `spec-gaps.md` fields, acceptance check and publishing. Fixed the Bun 1.4.4 failures in `non-plan-workflow.test`: the child ran `node -e "require('node:test')..."`, and under Bun `node` is Bun, which refuses `test()` outside `bun test` in 1.4; the child now prints the TAP itself.
 - Full suite on Bun 1.3.14: 1076 pass, 0 fail, 106 files. Session 1 to 8 detail is in the entries above and in git history.
+
+## 2026-11-05 — S1 spec edits (grant G1)
+
+- Commits: `cd7b7f0` (A1 to A13), `84f5b61` (R1), `1ef0468` (F1 to F4), `181574d` (re-pin), on top of `a9d3b45`.
+- Scope: applied the proposal's wording; no `status:` changed. Re-pin by `specplane spec pin` changed `based_on` only; without it validate showed 1 error (stale feature pin).
+- Checks: `npm test` before edits 1076 pass, 0 fail, 106 files (Bun). `specplane validate` after: 0 errors, 100 warnings (baseline 98; +2 "may contradict" on feature lines 48 from F3).
+- Next: S2.
