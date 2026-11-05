@@ -381,3 +381,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Scope: applied the proposal's wording; no `status:` changed. Re-pin by `specplane spec pin` changed `based_on` only; without it validate showed 1 error (stale feature pin).
 - Checks: `npm test` before edits 1076 pass, 0 fail, 106 files (Bun). `specplane validate` after: 0 errors, 100 warnings (baseline 98; +2 "may contradict" on feature lines 48 from F3).
 - Next: S2.
+
+## 2026-11-05 — S2 review of D17 A, D16 A, recovery
+
+- `c2ca9e7`: `executeTest` accepts `criterionIds` (spec); 3 reviewed suites in `BUNDLED_SUITES`, not wired into the server (D16 C stays); PROVISIONAL dropped from D17 A and D16 A, kept on recovery for the A3 vs R1 point only.
+- Checks: `npm test` 1077 pass, 0 fail, 106 files (Bun, no fallback); `specplane validate` 0 errors, 100 warnings.
