@@ -2,7 +2,7 @@
 plan: 2026-11-01-manual-lifecycle
 step: 2
 title: "Lifecycle command integration"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Revision-bound human confirmation"
   - file: "packages/cli/src/commands/spec-approve.ts"

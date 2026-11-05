@@ -2,7 +2,7 @@
 plan: 2026-11-02-completion-assessment
 step: 1
 title: "Implement completion schema and versioned fingerprints"
-status: pending
+status: done
 context:
   - spec: "architecture/file-formats#10. Implementation assessment format and canonical content"
   - spec: "architecture/reference-cli#Implementation completion operations"

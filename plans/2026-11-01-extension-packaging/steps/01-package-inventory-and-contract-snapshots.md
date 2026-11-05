@@ -2,7 +2,7 @@
 plan: 2026-11-01-extension-packaging
 step: 1
 title: "Package inventory and contract snapshots"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Compatibility manifest and package delivery"
   - file: "packages/cli/src/harness/pack.test.ts"

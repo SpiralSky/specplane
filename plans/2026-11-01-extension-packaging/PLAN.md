@@ -1,7 +1,7 @@
 ---
 id: 2026-11-01-extension-packaging
 title: "Compatible packages and recoverable installation"
-status: ready
+status: done
 specs: ["architecture/reference-cli","architecture/agent-skills","feature/agent-integration"]
 depends_on: ["2026-11-02-product-docs"]
 ---

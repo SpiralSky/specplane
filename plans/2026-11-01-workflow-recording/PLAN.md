@@ -1,7 +1,7 @@
 ---
 id: 2026-11-01-workflow-recording
 title: "Prepared workflows and exact recording"
-status: ready
+status: done
 specs: ["architecture/reference-cli","architecture/agent-skills","architecture/file-formats","feature/plan-steps","feature/spec-policies"]
 depends_on: ["2026-11-02-target-lifecycle", "2026-11-02-plan-index"]
 ---

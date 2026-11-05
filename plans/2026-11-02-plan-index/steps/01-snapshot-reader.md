@@ -2,7 +2,7 @@
 plan: 2026-11-02-plan-index
 step: 1
 title: "Capture head, staged and working plan snapshots"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Snapshot selection and transactional generation"
 ---

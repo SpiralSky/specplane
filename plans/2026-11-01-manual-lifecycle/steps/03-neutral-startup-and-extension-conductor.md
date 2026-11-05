@@ -2,7 +2,7 @@
 plan: 2026-11-01-manual-lifecycle
 step: 3
 title: "Neutral startup and extension conductor"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Shared conductor and extension boundary"
   - file: "packages/cli/src/plan/run.ts"

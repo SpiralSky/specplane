@@ -2,7 +2,7 @@
 plan: 2026-11-02-target-lifecycle
 step: 5
 title: "Implement explicit retarget previews and atomic metadata updates"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Explicit managed retarget operation"
 ---

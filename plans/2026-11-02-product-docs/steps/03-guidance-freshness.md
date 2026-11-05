@@ -2,7 +2,7 @@
 plan: 2026-11-02-product-docs
 step: 3
 title: "Detect managed guidance drift without implicit upgrades"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Shared product documentation operations"
   - spec: "architecture/agent-skills#Shared documentation and completion guidance"

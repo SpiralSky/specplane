@@ -2,7 +2,7 @@
 plan: 2026-11-01-codex-delivery
 step: 3
 title: "Codex consumer integration"
-status: pending
+status: done
 context:
   - spec: "codex:architecture/codex-integration"
   - file: "packages/cli/src/harness/codex.test.ts"

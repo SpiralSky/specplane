@@ -1,7 +1,7 @@
 ---
 id: 2026-11-02-plan-index
 title: "Explicit plan-index snapshots and lifecycle generation"
-status: ready
+status: done
 specs: ["architecture/reference-cli", "architecture/file-formats", "architecture/ci", "feature/plan-index", "feature/tooling"]
 depends_on: ["2026-11-02-target-lifecycle"]
 ---

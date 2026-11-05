@@ -1,7 +1,7 @@
 ---
 id: 2026-11-01-codex-delivery
 title: "Codex existing-session delivery"
-status: ready
+status: done
 specs: ["architecture/reference-cli","architecture/agent-skills","codex:architecture/codex-integration","codex:feature/codex-integration"]
 depends_on: ["2026-11-01-extension-packaging"]
 ---

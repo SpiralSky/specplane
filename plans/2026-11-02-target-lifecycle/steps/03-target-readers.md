@@ -2,7 +2,7 @@
 plan: 2026-11-02-target-lifecycle
 step: 3
 title: "Use target context in plan discovery and reports"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Plan status (`plan/status.ts`)"
   - spec: "architecture/reference-cli#Plan activity (`plan list --json`)"

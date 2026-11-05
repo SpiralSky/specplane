@@ -1,7 +1,7 @@
 ---
 id: 2026-11-02-product-docs
 title: "Offline product documentation and release orientation"
-status: ready
+status: done
 specs: ["architecture/reference-cli", "architecture/file-formats", "architecture/agent-skills", "feature/agent-integration", "feature/tooling"]
 depends_on: ["2026-11-01-manual-lifecycle", "2026-11-02-completion-assessment", "2026-11-02-plan-index"]
 ---

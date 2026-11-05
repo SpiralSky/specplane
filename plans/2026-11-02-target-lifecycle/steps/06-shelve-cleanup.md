@@ -2,7 +2,7 @@
 plan: 2026-11-02-target-lifecycle
 step: 6
 title: "Reconcile shelving, resume and integration-checked cleanup"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Shelve and resume"
   - spec: "architecture/reference-cli#Cleanup, abandon, archive"

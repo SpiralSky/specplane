@@ -2,7 +2,7 @@
 plan: 2026-11-01-manual-lifecycle
 step: 1
 title: "Confirmation challenge primitive"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Revision-bound human confirmation"
 ---

@@ -2,7 +2,7 @@
 plan: 2026-11-02-product-docs
 step: 2
 title: "Expose shared offline docs index, topic and search"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Shared product documentation operations"
 ---

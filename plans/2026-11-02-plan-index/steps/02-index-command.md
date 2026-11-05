@@ -2,7 +2,7 @@
 plan: 2026-11-02-plan-index
 step: 2
 title: "Deliver plan index and deterministic rendering"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#PLANS.md generation (`generate/plans-md.ts`)"
   - spec: "architecture/ci"

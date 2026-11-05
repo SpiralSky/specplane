@@ -1,7 +1,7 @@
 ---
 id: 2026-11-01-manual-lifecycle
 title: "Human gates and neutral CLI lifecycle"
-status: ready
+status: done
 specs: ["architecture/reference-cli","architecture/agent-skills","feature/spec-policies","feature/plan-execution","feature/configuration","feature/decisions","feature/agent-integration"]
 depends_on: ["2026-11-01-workflow-recording"]
 ---

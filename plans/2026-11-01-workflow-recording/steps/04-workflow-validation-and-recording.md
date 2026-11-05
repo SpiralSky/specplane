@@ -2,7 +2,7 @@
 plan: 2026-11-01-workflow-recording
 step: 4
 title: "Workflow validation and recording"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Structured reasoning boundary"
   - spec: "architecture/agent-skills#plan-step"

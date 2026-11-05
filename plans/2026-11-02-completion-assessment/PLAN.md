@@ -1,7 +1,7 @@
 ---
 id: 2026-11-02-completion-assessment
 title: "Implementation declarations and content assessment"
-status: ready
+status: done
 specs: ["architecture/reference-cli", "architecture/file-formats", "feature/spec-system", "feature/tooling", "feature/spec-policies"]
 depends_on: ["2026-11-01-core-foundation"]
 ---

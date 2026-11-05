@@ -2,7 +2,7 @@
 plan: 2026-11-01-codex-delivery
 step: 1
 title: "Persistent runner"
-status: pending
+status: done
 context:
   - spec: "codex:architecture/codex-integration"
   - spec: "architecture/reference-cli#Structured reasoning boundary"

@@ -28,3 +28,7 @@ None.
 ### What the next step must know
 
 Observed manual verification: npm run build passed; initial Node TAP context/config/plan suites passed 34/34; after branch-name repair, build and context suite passed 5/5. git diff --check passed. Reused unchanged configuration/plan evidence; full suite not run. Exact five staged file hashes and 60-character subject checked by coordinator. Legacy CLI bootstrap has no recording manifest support or core-issued test receipts. Context expanded to config/schema/types, Git helpers, parsing, feature target requirements and regression suites. Resolver accepts captured snapshots and freshness; selected-target authoritative loading and lifecycle command wiring belong to later steps. Legacy execution requires independent historical-default evidence; no history fabricated. No spec gaps found.
+
+## Declaration 2026-11-05
+
+Declared done on 2026-11-05 by the user. Implemented outside the managed flow on `overnight/specplane-20261102T144630Z` at `5284f44dd3`. No managed recording or receipts exist for these steps, and acceptance checkboxes were left as they were because no one assessed them individually for this declaration.

@@ -2,7 +2,7 @@
 plan: 2026-11-01-codex-delivery
 step: 2
 title: "Complete installed procedure"
-status: pending
+status: done
 context:
   - spec: "codex:architecture/codex-integration"
   - spec: "architecture/agent-skills"

@@ -2,7 +2,7 @@
 plan: 2026-11-01-workflow-recording
 step: 1
 title: "Preparation and state binding"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Structured reasoning boundary"
   - spec: "architecture/agent-skills#plan-step"

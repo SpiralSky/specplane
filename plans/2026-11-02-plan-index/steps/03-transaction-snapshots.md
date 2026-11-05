@@ -2,7 +2,7 @@
 plan: 2026-11-02-plan-index
 step: 3
 title: "Integrate prospective lifecycle and recovery snapshots"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Snapshot selection and transactional generation"
 ---

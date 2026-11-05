@@ -2,7 +2,7 @@
 plan: 2026-11-02-product-docs
 step: 1
 title: "Build versioned documentation manifest and topic bundle"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Shared product documentation operations"
   - spec: "architecture/file-formats"

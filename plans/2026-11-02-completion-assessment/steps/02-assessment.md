@@ -2,7 +2,7 @@
 plan: 2026-11-02-completion-assessment
 step: 2
 title: "Evaluate completion independently of lifecycle state"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Implementation completion operations"
 ---

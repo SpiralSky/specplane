@@ -2,7 +2,7 @@
 plan: 2026-11-01-extension-packaging
 step: 3
 title: "Coexistence and legacy rollout"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Explicit upgrade transaction"
   - spec: "architecture/agent-skills#Standing instructions"

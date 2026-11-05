@@ -2,7 +2,7 @@
 plan: 2026-11-02-target-lifecycle
 step: 2
 title: "Create and resume plans against their recorded target"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Start"
   - spec: "architecture/reference-cli#plan new"

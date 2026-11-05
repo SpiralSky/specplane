@@ -2,7 +2,7 @@
 plan: 2026-11-01-extension-packaging
 step: 2
 title: "Containment and migration transaction"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Explicit upgrade transaction"
   - file: "packages/cli/src/commands/init.ts"

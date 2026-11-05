@@ -2,7 +2,7 @@
 plan: 2026-11-02-target-lifecycle
 step: 4
 title: "Use recorded destinations for finish and restack"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Finish"
   - spec: "architecture/reference-cli#Restack"

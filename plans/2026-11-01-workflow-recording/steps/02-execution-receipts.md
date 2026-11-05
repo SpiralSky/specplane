@@ -2,7 +2,7 @@
 plan: 2026-11-01-workflow-recording
 step: 2
 title: "Execution receipts"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli#Structured reasoning boundary"
   - spec: "architecture/reference-cli#Structured reasoning boundary"

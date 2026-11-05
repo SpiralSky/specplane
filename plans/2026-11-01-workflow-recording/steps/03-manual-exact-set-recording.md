@@ -2,7 +2,7 @@
 plan: 2026-11-01-workflow-recording
 step: 3
 title: "Manual exact-set recording"
-status: pending
+status: done
 context:
   - spec: "architecture/reference-cli"
   - file: "packages/cli/src/plan/step-done.ts"
