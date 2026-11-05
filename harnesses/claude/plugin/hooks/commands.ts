@@ -557,6 +557,7 @@ export const delegationPrompt = (d: Delegation): string =>
   `The prepared request is ${JSON.stringify(d.request)}. ` +
   `Do only the reasoning phases; finish by calling ${COMPLETION_TOOL} with {"requestId":"${d.requestId}","result":<WorkflowResult>}. ` +
   `Start from this WorkflowResult and replace its text: ${JSON.stringify(resultTemplate(d))}. ` +
+  'Keep `summary` under 40 characters: it becomes the commit subject. '+
   'Set `outcome` to `done`, `blocked` or `cancelled` and each `assessment` to `met`, `unmet` or `uncertain`. A `blocked` outcome needs a line in `openIssues` starting `BLOCKED:`. ' +
   'A `changes` entry is {"path","beforeDigest","afterDigest","purpose"}. ' +
   'A `met` criterion with empty `testRequirements` needs at least one file in `artifacts`: {"path","digest","kind":"file"}, where `digest` is the 64-character hex SHA-256 of the file, from `sha256sum <path>`. ' +

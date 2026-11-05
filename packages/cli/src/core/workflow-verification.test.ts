@@ -127,6 +127,15 @@ test('an unmapped criterion still needs file evidence to be met', async () => {
   } finally { f.close(); }
 });
 
+test('a summary too long for the commit subject is refused while the attempt can still be corrected', async () => {
+  const f = await setup();
+  try {
+    const res = f.result(['src/new.ts']);
+    res.summary = 'x'.repeat(80);
+    refused(await f.validate(res), /keep it to \d+/);
+  } finally { f.close(); }
+});
+
 test('a failing, empty or missing suite blocks done; a passing fresh run allows it', async () => {
   const f = await setup({ config: SUITES });
   try {

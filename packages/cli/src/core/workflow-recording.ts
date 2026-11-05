@@ -142,6 +142,11 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext,c
  generated.trailers.sort((a,b)=>a[0]===b[0]&&a[0]==='Specplane-Contribution'?(JSON.parse(a[1]).event_id<JSON.parse(b[1]).event_id?-1:1):0);
  if(result.contextExpansion.length)fail('STALE_STATE','Context expansion requires reviewed preparation before recording');
  if(!result.summary.trim()||/[\r\n]/.test(result.summary))fail('INVALID_EVIDENCE','A nonempty single-line commit summary is required');
+ if(r.workflow==='plan-step'){
+  // The summary becomes the commit subject; refusing here keeps the attempt correctable instead of failing at recording.
+  const room=72-`chore(${r.scope.planId!.replace(/^\d{4}-\d{2}-\d{2}-/,'')}): `.length;
+  if(result.summary.length>room)fail('INVALID_EVIDENCE',`The summary is ${result.summary.length} characters; keep it to ${room} because it becomes the commit subject`);
+ }
  if(result.outcome==='blocked'&&!result.openIssues.split('\n').some(l=>l.startsWith('BLOCKED:')))fail('INVALID_EVIDENCE','Blocked result needs a concrete BLOCKED: open issue');
  const ids=result.criterionEvidence.map(e=>e.criterionId);if(new Set(ids).size!==ids.length||ids.length!==r.criteria.length||r.criteria.some(c=>!ids.includes(c.id)))fail('INVALID_EVIDENCE','Criterion evidence must cover the exact prepared criteria once');
  const manifest=exact(state,result),summary:string[]=[],digests:string[]=[];
