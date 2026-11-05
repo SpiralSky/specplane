@@ -74,6 +74,13 @@ execution:
   max_parallel: 1
   max_budget_usd: null
 
+# ── Verification ──────────────────────────────────────────────────────────────
+verification:
+  mode: auto                  # auto | manual
+  suites: {}                  # name -> { command: [argv...], format: node-tap-v13 | junit-xml }
+  text_paths: ["**/*.md", "docs/**"]   # changes limited to these need no tests
+  risk_paths: [".specplane/**", ".claude/**", ".agents/**", ".github/**", "AGENTS.md", "CLAUDE.md", "**/SKILL.md"]   # changes here need a separate or human check
+
 # ── Decision records ──────────────────────────────────────────────────────────
 decisions:
   dir: docs/decisions         # directory holding ADRs
@@ -347,6 +354,42 @@ The actual worktree for a plan is created at `<worktree_dir>/<repo-name>/<plan-i
 `worktree_dir` and `<repo-name>` are always resolved against the **main checkout**, even when a command runs inside a plan worktree, so every worktree of a repository computes the same paths.
 
 A `worktree_dir` that resolves inside the main checkout is a hard error when the worktree backend is used.
+
+---
+
+### `verification.mode`
+
+**Type**: enum
+**Default**: `auto`
+
+`auto` sets a minimum check for each step from the files it changed (`feature/plan-steps` § Verification). `manual` sets no minimum.
+
+---
+
+### `verification.suites`
+
+**Type**: map of suite name to `{command, format}`
+**Default**: empty
+
+The test commands Specplane may run as proof. `command` is an argument list, never a shell string. `format` is the report format the command prints: `node-tap-v13` or `junit-xml`. Only the committed version counts, so an uncommitted edit cannot add a command. A step cannot edit the configuration, and if the `verification` settings changed after the plan started, the step needs a `human` check, so an agent cannot quietly change what proves its own work. This key is separate from `plans.test_command`, which belongs to the finish flow.
+
+---
+
+### `verification.text_paths`
+
+**Type**: list of glob patterns
+**Default**: `["**/*.md", "docs/**"]`
+
+A step whose changes all match these patterns needs no tests.
+
+---
+
+### `verification.risk_paths`
+
+**Type**: list of glob patterns
+**Default**: `[".specplane/**", ".claude/**", ".agents/**", ".github/**", "AGENTS.md", "CLAUDE.md", "**/SKILL.md"]`
+
+A step that changes a matching file needs a `separate` or `human` check against the spec. Files inside a configured spec root always count as risky. A file matching both this key and `verification.text_paths` counts as risky.
 
 ---
 
