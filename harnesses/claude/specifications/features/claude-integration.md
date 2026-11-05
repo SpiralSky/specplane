@@ -45,17 +45,17 @@ Specplane does not create or edit `CLAUDE.md`; it belongs to the repository's ma
 
 The base spec (`feature/agent-integration`) defines which workflow integrations Specplane requires and their policy contracts. In Claude Code, a plugin containing a mod provides deterministic slash-command handlers and bundles a compatible Specplane core. Skills deliver reasoning phases; they do not implement mechanical commands by asking the agent to reconstruct a procedure.
 
-Each workflow references and pins every applicable shared procedure and its Claude-specific contract. The extension packages these procedures for consumers and adds host invocation details without redefining policy. Mechanical commands parse arguments, invoke validated core operations, and display results without a model turn. Reasoning workflows invoke agent work only after deterministic preparation; final recording and policy checks run through the core. Approval commands collect the human decision directly and never use model output as authorization.
+Each workflow references and pins every applicable shared procedure and its Claude-specific contract. The extension packages these procedures for consumers and adds host invocation details without redefining policy. Mechanical commands parse arguments, invoke validated core operations, and display results without a model turn. Reasoning workflows invoke agent work only after deterministic preparation; final recording and policy checks run through the core. Approval commands collect the human decision directly and never use model output as authorization. When a workflow would create a file or bind finalised spec text, the user sees the exact content in a confirmation dialog and confirms it there; the agent's text is never the confirmation, and confirming does not approve a spec. Where no dialog is available the workflow reports the manual command instead.
 
 Host built-ins, including `/resume`, are not overridden. Commands are registered only on supported surfaces; missing native dispatch is reported explicitly, with the manual CLI available. Project skills can provide reasoning-only fallback workflows but must not masquerade as native deterministic handlers. Multiple contributing models are retained even when the user switches models inside a session.
 
 | Slash command | Base integration | Description |
 |---------------|-----------------|-------------|
-| `/spec-assist` | `spec-assist` | Help the user write a feature spec (without authoring it) |
+| `/spec-assist` | `spec-assist` | Help the user write a feature spec; under `assist` the agent writes the body only after the user approves the finalised content |
 | `/spec-draft-architecture` | `spec-draft-architecture` | Draft an architecture spec from feature specs |
 | `/plan-create` | `plan-create` | Create a new plan interactively |
 | `/plan-step` | `plan-step` | Execute the next step of the current plan |
-| `/plan-finish` | `plan-finish` | Run the finish flow for the current plan; without the CLI, prints the manual merge sequence |
+| `/plan-finish` | `plan-finish` | Assess whether the current plan is ready to finish and explain gaps; the finish itself is run by the user through the CLI, and the command says so |
 | `/validate` | `validate` | Run `specplane validate` and summarise results |
 | `/approve` | `approve` | Approve specs, plans, or decision records by ID (`--reopen` reopens an approved spec); only when the user invokes it |
 | `/plan-start` | `plan-start` | Start a plan and say where to continue it |
@@ -101,6 +101,8 @@ A **status line** shows the current plan, step progress, and blockers when the s
 A Claude Code session works on one plan, one step at a time, whether it runs in a local worktree, as a subagent, or as a cloud session. Several sessions may work on different plans in parallel; only one works on a given plan at a time. A session that finds its plan advanced elsewhere stops rather than overwriting that work. Sessions on other machines publish each finished step, so the next session and the live view see it.
 
 Cloud sessions use the same shared workflow contract, but extension delivery, native command handlers, and hooks must be verified for that surface. Missing native dispatch is reported explicitly; reasoning-only workflows and the manual CLI remain available where supported. The live view and mode display below are optional UI features, not requirements for executing a step.
+
+If a session ends while a workflow request is still open, the repository stays protected against other writers until the user releases it with an explicit command; nothing releases it silently, and the command first checks that the previous session's work has stopped.
 
 ---
 
