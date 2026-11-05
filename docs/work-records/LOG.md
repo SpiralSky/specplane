@@ -343,3 +343,7 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 (session: D16 C, D22 wording, temporary decisions)
 - Recorded TEMPORARY decisions D11 (accept risk), D19 (option B), D24 live run skipped. Built D16 C in the MCP server (`f5bc57c`) and the `acceptResult` close check (`8e109c5`).
 - Fixed the HANDOFF workflow-recording 04 row (D1/D2 are settled per LOG). Focused 65 pass, 0 fail (4 files); `hooks.test.sh` 94 pass. Full suite not run.
+
+## 2026-11-05 (session: Claude spec-edit proposal)
+- Wrote `docs/work-records/2026-11-05-claude-spec-edit-proposal.md`: architecture edits A1 to A12 (D17 A, D16 A, server surface, D23, D24, origin gate, corrected stale text) and feature suggestions F1 to F4, plus the D20 item 6 recovery design. Docs only; no spec body edited; `specplane validate` 0 errors, 98 warnings.
+- TEMPORARY: D17 A field name, D16 A command source, recovery CLI shape.

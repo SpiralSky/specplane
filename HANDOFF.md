@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-05T04:50Z. Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05T04:45Z. Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -18,6 +18,8 @@ Updated 2026-11-05T04:50Z. Branch `overnight/specplane-20261102T144630Z`; HEAD i
 - Not run: native macOS and Windows.
 - `/tmp` is a RAM-backed tmpfs here. Test leftovers reached 4.4 GB before `ba7087e`; they were removed on 2026-11-05. Keep `specplane-private-rewrite-20261103` there.
 
+- Spec-edit proposal written (docs only, no spec body edited): `docs/work-records/2026-11-05-claude-spec-edit-proposal.md`. It has edits A1 to A12 for the architecture spec and suggestions F1 to F4 for the feature spec (`llm_role: assist`, so they need the user's approved wording). It carries TEMPORARY choices for the D17 A field, the D16 A command source and the D20 item 6 CLI shape.
+
 ## Open decisions
 - D11: plugin ships an MCP server (option E). Open for the user: under `allowManagedHooksOnly` a user-tier plugin loads no hooks. Options: ship as managed, or accept the risk. Blocks nothing offline.
   TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): accept the risk for now (user-tier plugin, no managed shipping). Alternative: ship as managed.
@@ -30,7 +32,9 @@ Updated 2026-11-05T04:50Z. Branch `overnight/specplane-20261102T144630Z`; HEAD i
   TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): live run skipped (no approval available); not a blocker for the spec draft.
 - D19 (new, consequence of D10): in an install that keeps the six public skills, the reasoning commands are unregistered by collision even with the flip. Options: (A) remove the six skills now (conflicts with the D10 sequence); (B) keep them until the live path passes, then remove. Recommendation: B, matching the D10 sequence. Blocks normal-install use of the reasoning commands.
   TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review): option B (keep the six skills until the live path passes, then remove). Alternative: A.
-- D17, D16, D15: decided (below). Architecture-spec edits for D17 A and D16 A need the user's approval.
+- D17, D16, D15: decided (below). Architecture-spec edits for D17 A and D16 A are drafted in the proposal file and need the user's approval.
+- D20 item 6 (design drafted): `specplane workflow list` and `specplane workflow recover <request-id>` with a typed-id terminal confirmation, in the proposal's A3. TEMPORARY (coordinator, 2026-11-05, user offline; awaiting user review). Alternatives: automatic reclaim at the next `prepare` (no stop proof), manual lease-file deletion. Needs a matching reference-cli spec edit; not built.
+- Proposal finding: the architecture spec never says "in-process"; it is silent on the runner and lease location. The stale-text list in the proposal replaces the unverified one.
 
 ## Decided
 - D14 (coordinator, 2026-11-04): keep `.claude/specplane/core`; the installer also stages the plugin root's `.claude-plugin/plugin.json`, `hooks/` and `types/`. Built and confirmed by the live run.
@@ -63,11 +67,8 @@ Updated 2026-11-05T04:50Z. Branch `overnight/specplane-20261102T144630Z`; HEAD i
 | extension-conformance | 02 | partial; managed recording pending | guards built (`harness/release-evidence.test` (4)); pin refresh awaits user implementation review |
 
 ## Next session
-The D24 live run is skipped for now (TEMPORARY, user offline); the user may still approve one. Any live run needs fresh approval. To log gate calls, do not use `require` in the hook; it wrote nothing.
-Then:
-Spec-draft edit must also list the new surface: the `detail` tool, `validate` by requestId, `close` without requestId, the installer's `.gitignore` entry, and the origin gate (`allow` for the mod's own call). The draft can describe `close` as releasing the lease and `record` as live-checked for a blocked result, and must add the D23 attempt limit and the D24 result template and `MANUAL_WRITE_RULE`.
-Draft the combined Claude architecture-spec edit for the user's approval. It covers D17 option A (confirmation dialog plus protocol field), D16 option A (host-fixed test command), and the stale text listed below. Do not edit the spec body without that approval. Then continue `extension-conformance` 01 Claude rows.
-Stale spec text to list (not verified line by line): `harnesses/claude/specifications/architecture/claude-integration.md` describes the reasoning and lease path as in-process; it is now the plugin MCP server (D11). Its plugin layout (about line 68) and hooks section (about line 445) may be stale, and it does not mention the `.claude/specplane` root, `types/` or D18. `harnesses/claude/specifications/features/claude-integration.md` lines 54-58 are the reasoning rows.
+Any live run needs fresh approval; the D24 live run stays skipped (TEMPORARY, user offline). To log gate calls, do not use `require` in the hook; it wrote nothing.
+The user reviews `docs/work-records/2026-11-05-claude-spec-edit-proposal.md` (decisions list at its top). After approval a session applies A1 to A12 (and F1 to F4 as approved) in one docs commit, then builds D17 A, D16 A and the recovery command offline as listed at the end of the proposal. Do not edit either approved `claude-integration.md` before then. Until then continue `extension-conformance` 01 Claude rows.
 
 ## How to continue (orchestration)
 The user runs steps through a coordinator session that chains **Sonnet 5.5 subagents sequentially, one step per subagent**. Each subagent acts as a complete session.
