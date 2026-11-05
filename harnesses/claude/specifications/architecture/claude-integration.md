@@ -1,7 +1,7 @@
 ---
 id: architecture/claude-integration
 title: Claude Code integration implementation
-status: review
+status: approved
 author: mixed
 implements: [claude:feature/claude-integration, feature/agent-integration]
 based_on: { "claude:feature/claude-integration": "99b0d17", feature/agent-integration: "7720f2a" }
