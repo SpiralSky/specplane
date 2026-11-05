@@ -43,14 +43,6 @@ test("harness: claude templates resolve from the compiled module", () => {
   assert.ok(fs.existsSync(path.join(templatesDir("claude"), "settings.json")));
 });
 
-test("claude plan-step: blocked-step recovery uses the current CLI flag", () => {
-  const root = makeRepo({});
-  runInit(root, { harness: "claude" });
-  const skill = fs.readFileSync(path.join(root, ".claude/skills/plan-step/SKILL.md"), "utf8");
-  assert.match(skill, /Re-running a `blocked` step adds `--force`/);
-  assert.doesNotMatch(skill, /`--resume`/);
-});
-
 // --- Claude installer and settings merge ---
 import { mergeSettings } from "./claude.js";
 import { claude } from "./claude.js";
@@ -127,7 +119,7 @@ test("claude install: the host-written tsconfig is git-ignored once, existing .g
 test("claude install: files created, hooks executable, idempotent, CLAUDE.md untouched", () => {
   const root = makeRepo({ "CLAUDE.md": "mine\n", ".claude/settings.local.json": "{}" });
   const first = runInit(root, { harness: "claude" });
-  assert.ok(first.includes("Created .claude/skills/plan-step/SKILL.md"));
+  assert.ok(first.includes("Created .claude/skills/specplane-reason-plan-step/SKILL.md"));
   assert.ok(first.includes("Created .claude/rules/specplane.md"));
   assert.ok(first.includes("Created .claude/settings.json"));
   assert.equal(first.at(-1), "Claude Code integration files written to `.claude/`.");
@@ -143,7 +135,7 @@ test("claude install: files created, hooks executable, idempotent, CLAUDE.md unt
   const second = runInit(root, { harness: "claude" });
   assert.ok(second.some(line => line.startsWith("Skipped .claude/rules/specplane.md (customized or unrecognized file preserved")));
   assert.equal(fs.readFileSync(path.join(root, ".claude/rules/specplane.md"), "utf8"), "changed");
-  assert.ok(second.includes("Skipped .claude/skills/plan-step/SKILL.md (up to date)"));
+  assert.ok(second.includes("Skipped .claude/skills/specplane-reason-plan-step/SKILL.md (up to date)"));
   assert.ok(second.includes("Skipped .claude/settings.json (already registered)"));
   assert.equal(fs.statSync(hook).mode & 0o777, 0o755);
   const third = runInit(root, { harness: "claude" });

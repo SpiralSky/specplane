@@ -14,7 +14,7 @@ export const CLAUDE_EXTENSION_ID = "specplane-claude";
 export const CLAUDE_HOST_EVIDENCE_PATH = "host-evidence/claude-code.json";
 /** Entry point the plugin runs; the MCP server locates its package root two directories above it. */
 export const CLAUDE_MCP_ENTRY = "dist/harness/claude-mcp-main.js";
-/** Reasoning workflows with a fallback skill template; each cites its shared `agent-skills` section. */
+/** Reasoning workflows with an internal procedure; each cites its shared `agent-skills` section. */
 export const CLAUDE_REASONING_WORKFLOWS = ["plan-step", "plan-create", "plan-finish", "spec-assist", "spec-draft-architecture", "decision-new"] as const;
 
 /**

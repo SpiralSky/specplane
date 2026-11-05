@@ -47,7 +47,7 @@ test("packed tarball installs Claude and Codex integrations end to end", () => {
         "plan-step",
         "plan-finish",
         "decision-new",
-      ].map((s) => `skills/${s}/SKILL.md`),
+      ].map((s) => `skills/specplane-reason-${s}/SKILL.md`),
       ...["pre-commit", "policy-guard", "session-context", "statusline", "handoff-check", "generate"].map((h) => `hooks/specplane-${h}.sh`),
     ]) {
       assert.ok(files.includes(f), `missing ${f}`);

@@ -42,7 +42,7 @@ for (const order of [['claude', 'codex'], ['codex', 'claude']]) {
     assert.ok(settings.permissions.allow.includes('Bash(echo:*)'), 'user permission kept');
     assert.ok(JSON.stringify(settings.hooks.PreToolUse).includes('my-own-hook.sh'), 'user hook kept');
     assert.ok(read(root, 'AGENTS.md').startsWith(USER_AGENTS), 'user text before the managed block kept');
-    assert.ok(fs.existsSync(path.join(root, '.claude/skills/plan-step/SKILL.md')));
+    assert.ok(fs.existsSync(path.join(root, '.claude/skills/specplane-reason-plan-step/SKILL.md')));
     assert.ok(fs.existsSync(path.join(root, '.agents/skills/specplane/SKILL.md')));
     for (const h of ['claude', 'codex']) assert.equal(JSON.parse(read(root, installedManifestPath(h))).harness, h);
     const first = tree(root);
@@ -59,23 +59,21 @@ test('both install orders produce the same shared guidance and manifests', () =>
   assert.deepEqual(tree(a), tree(b));
 });
 
-test('a customized public skill is preserved, reported as a collision, and kept out of the manifest as installed', () => {
+test('a customized reasoning procedure is preserved, reported as a collision, and kept out of the manifest as installed', () => {
   const root = repo();
-  const custom = '.claude/skills/plan-step/SKILL.md';
+  const custom = '.claude/skills/specplane-reason-plan-step/SKILL.md';
   fs.mkdirSync(path.dirname(path.join(root, custom)), { recursive: true });
   fs.writeFileSync(path.join(root, custom), 'my own plan-step\n');
   const lines = runInit(root, { harness: 'claude' });
   assert.equal(read(root, custom), 'my own plan-step\n');
   const line = lines.find(l => l.startsWith(`Collision ${custom}`));
-  assert.ok(line?.includes('`/plan-step` stays unavailable') && line.includes('specplane init --harness claude'), line);
+  assert.ok(line?.includes('specplane init --harness claude'), line);
   const manifest = JSON.parse(read(root, installedManifestPath('claude')));
   assert.deepEqual(manifest.collisions.map((c: { path: string }) => c.path), [custom]);
   assert.equal(manifest.files.find((f: { path: string }) => f.path === custom).outcome, 'customized');
-  const legacy = manifest.legacy as { command: string; action: string }[];
-  assert.equal(legacy.find(l => l.command === '/plan-step')?.action, 'preserve');
-  assert.ok(legacy.filter(l => l.command !== '/plan-step').every(l => l.action === 'keep'), 'no replacement is observed, so every other public skill stays');
+  assert.deepEqual(manifest.legacy, [], 'no public skill is installed, so none needs retiring');
   assert.equal(manifest.state.enabled, 'unobserved');
-  assert.ok(fs.existsSync(path.join(root, '.claude/skills/decision-new/SKILL.md')), 'other commands remain available');
+  assert.ok(fs.existsSync(path.join(root, '.claude/skills/specplane-reason-decision-new/SKILL.md')), 'other procedures remain available');
 });
 
 test('legacy retirement needs an unmodified owned file and observed replacement evidence', () => {

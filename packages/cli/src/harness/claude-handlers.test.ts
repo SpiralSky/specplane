@@ -38,13 +38,12 @@ function context(overrides: Port = {}) {
   return { ctx, calls, queue, asked: () => asked };
 }
 
-test('every Claude workflow has a native command; reasoning workflows keep a fallback skill and mechanical ones have none', opts, async () => {
+test('every Claude workflow has a native command and none has a public skill', opts, async () => {
   const m = await load();
   for (const workflow of CLAUDE_WORKFLOWS) {
     const cmd = m.NATIVE_COMMANDS.find((c: { workflow: string }) => c.workflow === workflow);
     assert.ok(cmd, `${workflow} has no native command`);
-    const fallback = fs.existsSync(path.join(repo, 'harnesses/claude/templates/skills', workflow, 'SKILL.md'));
-    assert.equal(fallback, cmd.kind === 'reasoning', `${workflow}: fallback skill ${cmd.kind === 'reasoning' ? 'missing' : 'must not exist (D10)'}`);
+    assert.ok(!fs.existsSync(path.join(repo, 'harnesses/claude/templates/skills', workflow, 'SKILL.md')), `${workflow}: a public skill must not exist (D10, D19)`);
     const asset = path.join(repo, 'harnesses/claude/templates', m.reasoningAsset(workflow).replace(/^\.claude\//, ''));
     assert.equal(fs.existsSync(asset), cmd.kind === 'reasoning', `${workflow}: reasoning asset ${cmd.kind === 'reasoning' ? 'missing' : 'must not exist for a mechanical workflow'}`);
   }

@@ -35,7 +35,7 @@
     "scripts/validate-docs.mjs"
   ],
   "scripts": {
-    "build": "tsc && node scripts/build-core-info.mjs && node scripts/validate-docs.mjs && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\" && node -e \"require('fs').cpSync('../../harnesses/claude/templates','dist/templates/claude',{recursive:true})\" && node -e \"require('fs').cpSync('../../harnesses/codex/templates','dist/templates/codex',{recursive:true})\" && node -e \"require('fs').cpSync('../../harnesses/claude/plugin/.claude-plugin','dist/templates/claude-plugin/.claude-plugin',{recursive:true});require('fs').cpSync('../../harnesses/claude/plugin/hooks','dist/templates/claude-plugin/hooks',{recursive:true});require('fs').cpSync('../../harnesses/claude/plugin/types','dist/templates/claude-plugin/types',{recursive:true})\"",
+    "build": "node -e \"require('fs').rmSync('dist/templates',{recursive:true,force:true})\" && tsc && node scripts/build-core-info.mjs && node scripts/validate-docs.mjs && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\" && node -e \"require('fs').cpSync('../../harnesses/claude/templates','dist/templates/claude',{recursive:true})\" && node -e \"require('fs').cpSync('../../harnesses/codex/templates','dist/templates/codex',{recursive:true})\" && node -e \"require('fs').cpSync('../../harnesses/claude/plugin/.claude-plugin','dist/templates/claude-plugin/.claude-plugin',{recursive:true});require('fs').cpSync('../../harnesses/claude/plugin/hooks','dist/templates/claude-plugin/hooks',{recursive:true});require('fs').cpSync('../../harnesses/claude/plugin/types','dist/templates/claude-plugin/types',{recursive:true})\"",
     "test": "npm run build && sh scripts/test.sh",
     "start": "node dist/cli.js",
     "prepack": "npm run build"
