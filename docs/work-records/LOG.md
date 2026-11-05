@@ -386,3 +386,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 
 - `c2ca9e7`: `executeTest` accepts `criterionIds` (spec); 3 reviewed suites in `BUNDLED_SUITES`, not wired into the server (D16 C stays); PROVISIONAL dropped from D17 A and D16 A, kept on recovery for the A3 vs R1 point only.
 - Checks: `npm test` 1077 pass, 0 fail, 106 files (Bun, no fallback); `specplane validate` 0 errors, 100 warnings.
+
+## 2026-11-05 — S3 D25 route B session adapter (offline, gated)
+
+- `8e7c106`: `harnesses/claude/plugin/hooks/session-adapter.ts` per applied A13, with `harness/claude-session-adapter.test` (12, fake process port, no real `claude`); not wired into `handlers.ts`; `probe` all false without `ProbeEvidence`.
+- Checks: `npm test` 1089 pass, 0 fail, 107 files (Bun, no fallback); `hooks.test.sh` 94; `check-sync` OK; `specplane validate` 0 errors, 100 warnings.
