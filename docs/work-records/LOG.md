@@ -399,3 +399,8 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 ## 2026-11-05 S5 conformance matrix, Bun 1.4.4, reconciliation checklist
 - Matrix reason in `conformance-matrix.ts` now records the D25 probe (direct child process, not `$.process.spawn`; budget stop not seen; no `done`); rows unchanged; `conformance.test` asserts it. 02 pin refresh not done.
 - `scripts/test.sh` full suite: Bun 1.4.4 and 1.3.14 each 1089 pass, 0 fail, 107 files (38.88 s, 46.59 s), no stall or fallback. Checklist: `docs/work-records/2026-11-05-reconciliation-checklist.md`; no CLI repair for the legacy-history error found.
+
+## 2026-11-05 — S6 bug check since 8aa96aa
+- Commits: `17f4551` (recovery fix), on top of `9f20e6f`.
+- Reviewed in full: `session-adapter.ts`, `claude-mcp.ts` (`executeTest` criterionIds), `claude-suites.ts` (ran the three suite commands under `node --test --test-reporter=tap` and `parseTestReport`: ids resolve, all pass), A13 and the D25 probe text. Skimmed (comment-only or test-only changes): `commands.ts`, `handlers.ts`, `claude-mcp-main.ts`, `cli.ts`, `workflow.ts`, `writer-leases.ts`, `conformance-matrix.ts`. Not reviewed: new test bodies other than the adapter test, and the host `$.process.spawn` binding (does not exist).
+- Bug: `recovery` trusted a ref's `nativeSessionId` without a persisted mapping (A13: unavailable when the mapping is missing). Full suite 1090 pass on Bun, hooks 94, check-sync OK, validate 0 errors.

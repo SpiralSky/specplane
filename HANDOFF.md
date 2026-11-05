@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-05 (S5). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-05 (S6). Branch `overnight/specplane-20261102T144630Z`; HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -53,7 +53,7 @@ Not granted, so do not do:
 | S3 | Build the D25 route B session adapter offline (claude-delivery 03 criterion 1) | done (`8e7c106`; gated, no live evidence) |
 | S4 | G2 live runs; D19 removal if and only if `done` passed live | done (4 of 5 launches; D25 probe launch/observe/resume/cancel pass, budget stop not seen; D24, crit 3, row 4, `done` blocked; D19 not removed) |
 | S5 | Update conformance 01 and matrix from the evidence; full suite on Bun 1.4.4; write the reconciliation checklist | done (matrix reason; Bun 1.4.4 and 1.3.14 both 1089 pass; `docs/work-records/2026-11-05-reconciliation-checklist.md`) |
-| S6 | Bug check: review all commits since `8aa96aa`, fix confirmed bugs with tests | pending |
+| S6 | Bug check: review all commits since `8aa96aa`, fix confirmed bugs with tests | done (`17f4551`; one bug fixed; reviewed and unreviewed files in LOG) |
 | S7 | Second bug check on areas S6 did not cover plus S6's fixes; final full verification | pending |
 
 ## Open decisions
@@ -89,7 +89,7 @@ Not granted, so do not do:
 | extension-conformance | 02 | partial; managed recording pending | guards built (`harness/release-evidence.test` (4)); blocker text refreshed; the pin refresh was not done and awaits the user's implementation review |
 
 ## Next session
-Follow "Authorized run": S6 (bug check of commits since `8aa96aa`). The reconciliation commands are prepared in `docs/work-records/2026-11-05-reconciliation-checklist.md`; its open points are no CLI repair for "Legacy target history is ambiguous" (library-only `legacyEvidence`) and no defined way to bring the overnight implementation into plan checkouts for recording.
+Follow "Authorized run": S7 (second bug check: S6 did not review the new test bodies other than the adapter's, and fixed one `recovery` bug in `session-adapter.ts`; see LOG). The reconciliation commands are prepared in `docs/work-records/2026-11-05-reconciliation-checklist.md`; its open points are no CLI repair for "Legacy target history is ambiguous" (library-only `legacyEvidence`) and no defined way to bring the overnight implementation into plan checkouts for recording.
 Live follow-ups, each needing user approval: (1) D25 budget-stop case, with a task that costs more than the cap (the cheap model stayed under 0.01; try a larger task or `--model` default), then write the `$.process.spawn` binding and check its chunk shapes before any `ProbeEvidence`. (2) D24, claude-delivery 03 criteria 1 and 3 and conformance row 4 (and D19 removal) need a `done` plan-step natively. That needs a user decision on D16 C, `reasoning` and the unreviewed `BUNDLED_SUITES`; S4 flipped none of them. S4 used 4 of 5 G2 launches, so one remains in this grant.
 
 ## How to continue (orchestration)
