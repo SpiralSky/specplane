@@ -769,15 +769,15 @@ test('each writing workflow is told the exact creation or finalizedEdits shape, 
   assert.doesNotMatch(m.delegationPrompt({ workflow: 'decision-new', requestId: 'r1', assetPath: 'S', request: { criteria: [] } }), /needs at least one file/);
 });
 
-test('text too long for the dialog is printed whole, in rows the terminal draws in full', async () => {
+test('text too long for the dialog is printed whole, one line per row', async () => {
   const m = await load();
   assert.deepEqual(m.confirmationDialog('Confirm this?'), { rows: [], question: 'Confirm this?' });
   const summary = [...Array.from({ length: 200 }, (_, i) => `line ${i}`), 'x'.repeat(4000), 'end'].join('\n');
   const { rows, question } = m.confirmationDialog(summary);
   assert.ok(rows.length > 1);
   assert.ok(rows.every((row: string) => row.length <= 2000));
-  const body = rows.map((row: string) => row.slice(row.indexOf('\n') + 1)).join('\n');
-  assert.equal(body.replaceAll('\n', ''), summary.replaceAll('\n', ''), 'nothing is lost');
+  assert.ok(rows.every((row: string) => !row.includes('\n')));
+  assert.equal(rows.slice(1, -1).join(''), summary.replaceAll('\n', ''), 'nothing is lost');
   assert.match(question, /printed above.*\?$/);
 });
 
