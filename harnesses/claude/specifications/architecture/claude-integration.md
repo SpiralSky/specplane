@@ -198,7 +198,7 @@ When unsure, the agent treats the session as unattended. `/plan-step` states the
 
 ## Hooks
 
-All hook scripts are POSIX `sh`, executable, and exit `0` (allow) whenever they cannot do their job, so a missing tool never blocks work. They are no-ops in repositories without `.specplane/config.yaml`.
+All hook scripts are POSIX `sh`, executable, and exit `0` (allow) whenever they cannot do their job, so a missing tool never blocks work. One exception: the pre-commit hook's `plan step-done` deny holds without `jq`, by matching the raw tool call, because that record skips the verification minimum. They are no-ops in repositories without `.specplane/config.yaml`.
 
 ### Pre-commit validation (enabled by default)
 
@@ -206,14 +206,25 @@ All hook scripts are POSIX `sh`, executable, and exit `0` (allow) whenever they 
 
 ```sh
 #!/bin/sh
-# PreToolUse hook (matcher: Bash): block `git commit` while specplane validation reports errors.
+# PreToolUse hook (matcher: Bash): block `git commit` while specplane validation reports errors, and deny an agent's
+# `specplane plan step-done` (a manual, self-assessed declaration that skips the verification minimum; the core records
+# a step through the structured workflow). The CLI cannot tell a person from an agent, so this is the host's policy guard.
 [ -f "${CLAUDE_PROJECT_DIR:-.}/.specplane/config.yaml" ] || exit 0
-command -v specplane >/dev/null 2>&1 || exit 0
+deny_step_done() {
+  echo "specplane plan step-done is a manual declaration that skips the verification minimum; an agent records a step through /plan-step. Ask the user to run it if they want a manual record." >&2
+  exit 2
+}
+input=$(cat)
 if ! command -v jq >/dev/null 2>&1; then
+  # The command cannot be parsed without jq. Validation is skipped, but the deny holds: match the raw tool call.
+  printf '%s\n' "$input" | grep -Eq 'plan[[:space:]]+step-done' && deny_step_done
   echo "specplane pre-commit hook: jq not found; skipping validation." >&2
   exit 0
 fi
-cmd=$(jq -r '.tool_input.command // empty')
+cmd=$(printf '%s\n' "$input" | jq -r '.tool_input.command // empty')
+# `specplane plan step-done`, also through npx/bunx, a path to the binary, or `node .../cli.js`; global flags may precede `plan`.
+printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(])[[:space:]]*([A-Za-z_][A-Za-z_0-9]*=[^[:space:]]*[[:space:]]+)*((npx|bunx)([[:space:]]+-[^[:space:]]+)*[[:space:]]+)?([^[:space:];&|]*specplane|node([[:space:]]+-[^[:space:]]+)*[[:space:]]+[^[:space:];&|]*cli\.js)([[:space:]]+-[^[:space:]]+)*[[:space:]]+plan[[:space:]]+step-done([[:space:];&|)]|$)' && deny_step_done
+command -v specplane >/dev/null 2>&1 || exit 0
 printf '%s\n' "$cmd" | grep -Eq '(^|[;&|(])[[:space:]]*git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*[[:space:]]+commit([[:space:];&|)]|$)' || exit 0
 specplane validate >&2 && exit 0
 echo "specplane validate reported errors; fix them before committing." >&2
@@ -574,7 +585,7 @@ The only backend is `worktree`. The prompt is exactly `Run the installed plan-st
 
 **Observe.** `observe(ref)` reads the process's stream-json output and exit status. The adapter maps a final `result` event with `subtype: success` and exit 0 to `completed`; any other terminal `result` or a non-zero exit to `failed`; a live process with no terminal event to `running`; and a missing process, unparseable output, or an unrecognised event shape to `unknown`. `unknown` is never read as "no session". `completed` is advisory: the conductor still verifies the step commit, status and HANDOFF through the core.
 
-Observation is fail-closed. A `success` result with `is_error: true` is `failed`. A live process stays `running` after a `result` event until it exits. Exit 0 with no `result` event, a signal exit, and any unparseable or typeless line give `unknown`, which does not change afterwards. A `spawn` that throws after the mapping is saved returns `unknown` and is not retried.
+Observation is fail-closed. A `success` result with `is_error: true` is `failed`. A live process stays `running` after a `result` event until it exits. Exit 0 with no `result` event, a signal exit, and any unparseable or typeless line give `unknown`, which does not change afterwards. A `spawn` that throws after the mapping is saved returns `unknown` and is not retried by the adapter. The mapping is marked as a failed spawn, so a later explicit `launch` for that `orchestrationId` may start a new session; a mapping with no pid and no such mark stays refused, because a crash may have left its process alive.
 
 **Resume.** `resume(ref, request)` runs the same command with `--resume <nativeSessionId>` in place of `--session-id`, only when the persisted mapping matches `ref` and no live process holds the session. A mismatch, or a live process, refuses. After a restart, resume refuses unless the process port reports the recorded process dead.
 
