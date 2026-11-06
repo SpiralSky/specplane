@@ -61,6 +61,10 @@ verification:
 
 decisions:
   dir: docs/decisions         # directory holding ADRs
+
+# Agent guidance
+agent:
+  decision_framing: null      # how the agent frames decisions, e.g. what changes for the people using the product
 `;
 
 const FEATURES_INFO = `# Feature specifications
