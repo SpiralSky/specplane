@@ -60,6 +60,16 @@ const recorded = new Map<string, Recorded>();
 const artifactDirectory = (parent: string) => `specplane-runtime/workflows/${parent}`;
 const artifactName = (reviewId: string) => `review-${reviewId}.json`;
 
+/** The start of an untracked file, enough to fill the diff limit; a file holding a NUL byte is named, not shown. */
+function untrackedBody(file: string): string {
+  const fd = fs.openSync(file, 'r');
+  try {
+    const bytes = Buffer.alloc(REVIEW_DIFF_CHARS + 1);
+    const read = fs.readSync(fd, bytes, 0, bytes.length, 0);
+    return bytes.subarray(0, read).includes(0) ? '[binary file]' : bytes.toString('utf8', 0, read);
+  } finally { fs.closeSync(fd); }
+}
+
 function diffOf(cwd: string): { changedPaths: string[]; diff: string; truncated: boolean } {
   const tracked = run('git', ['diff', 'HEAD', '--no-ext-diff', '--no-color'], { cwd });
   const untracked = run('git', ['ls-files', '--others', '--exclude-standard', '-z'], { cwd, binary: true }).toString().split('\0').filter(Boolean).sort();
@@ -68,7 +78,7 @@ function diffOf(cwd: string): { changedPaths: string[]; diff: string; truncated:
   for (const name of untracked) {
     if (diff.length > REVIEW_DIFF_CHARS) break;
     let body = '';
-    try { const file = path.join(cwd, name); if (fs.lstatSync(file).isFile()) body = fs.readFileSync(file, 'utf8'); } catch { body = ''; }
+    try { const file = path.join(cwd, name); if (fs.lstatSync(file).isFile()) body = untrackedBody(file); } catch { body = ''; }
     diff += `\n--- /dev/null\n+++ b/${name}\n${body.split('\n').map(line => `+${line}`).join('\n')}\n`;
   }
   return { changedPaths: [...new Set([...changed, ...untracked])].sort(), diff: diff.slice(0, REVIEW_DIFF_CHARS), truncated: diff.length > REVIEW_DIFF_CHARS };

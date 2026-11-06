@@ -188,6 +188,7 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext,c
  let review:ReturnType<typeof reviewFor>=null;
  try{review=reviewFor(r.checkout,r.requestId,workflowStateDigest(r.checkout));}catch(e){if(result.outcome==='done')throw e;}
  if(review?.findings.length){
+  if(gapChange)fail('INVALID_EVIDENCE','The separate review has findings that core writes to spec-gaps.md when it records the step, so the result must not also change that file. Restore it, drop it from changes and gaps, report your own gap in openIssues, and request a new review.');
   const exists=fs.existsSync(gapFile),text=exists?fs.readFileSync(gapFile,'utf8'):null,parsed=exists?parseGaps(gapFile):{entries:[],problems:[]};
   if(parsed.problems.length)fail('INVALID_EVIDENCE','Malformed six-field gap record');
   const first=Math.max(0,...parsed.entries.map(e=>e.n))+1;

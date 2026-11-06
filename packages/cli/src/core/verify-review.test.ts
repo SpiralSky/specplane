@@ -67,6 +67,7 @@ function refused(outcome: { ok: boolean; error?: { code: string; message: string
   assert.equal(outcome.error?.code, code);
   assert.match(outcome.error?.message ?? '', pattern);
 }
+const OWN_GAP = '# Spec gaps\n\n## G1: Mine\n\n**Kind**: gap\n**Step**: 01\n**Case**: c\n**Resolution**: r\n**Target spec**: `base:feature/test`\n**Status**: open\n';
 const handoffOf = (f: Fixture) => fs.readFileSync(path.join(f.cwd, 'plans', id, 'HANDOFF.md'), 'utf8');
 const gapsOf = (f: Fixture) => fs.readFileSync(path.join(f.cwd, 'plans', id, 'spec-gaps.md'), 'utf8');
 const RISKY = '.claude/x.md';
@@ -155,6 +156,47 @@ test('findings of a passing review are appended after existing gaps when the ste
     assert.match(gapsOf(f), /## G4: Earlier\n[\s\S]*\*\*Status\*\*: open\n\n## G5: Minor: name the new file in the docs\./);
     assert.match(handoffOf(f), /- G5 \(gap\): Minor: name the new file in the docs\.\. See/);
     assert.equal(f.git('status', '--porcelain'), '');
+  } finally { f.close(); }
+});
+
+test('a result that changes spec-gaps.md is refused early when a review has findings, because core writes that file', async () => {
+  const f = await setup();
+  try {
+    const gaps = `plans/${id}/spec-gaps.md`;
+    f.put(gaps, OWN_GAP);
+    const res = f.result([RISKY]);
+    res.changes.push({ path: gaps, beforeDigest: 'missing', afterDigest: sha256(fs.readFileSync(path.join(f.cwd, gaps))), purpose: 'gap' });
+    res.gaps = ['G1'];
+    assert.equal((await f.review('pass', ['Minor: name the new file.'])).recorded.ok, true);
+    refused(await f.validate(res), /Restore it, drop it from changes and gaps/);
+  } finally { f.close(); }
+});
+
+test('a worker can record its own gap in a plan step, and core keeps it', async () => {
+  const f = await setup();
+  try {
+    const gaps = `plans/${id}/spec-gaps.md`;
+    f.put(gaps, OWN_GAP);
+    const res = f.result(['source-notes.md']);
+    res.changes.push({ path: gaps, beforeDigest: 'missing', afterDigest: sha256(fs.readFileSync(path.join(f.cwd, gaps))), purpose: 'gap' });
+    res.gaps = ['G1'];
+    const receipt = await f.record(res);
+    assert.equal(receipt.ok, true, JSON.stringify(receipt));
+    assert.match(gapsOf(f), /## G1: Mine/);
+    assert.equal(f.git('status', '--porcelain'), '');
+  } finally { f.close(); }
+});
+
+test('a review diff stops at the limit for a large untracked file and names a binary one without showing it', async () => {
+  const f = await setup();
+  try {
+    f.put('a-binary.dat', 'bytes\0more');
+    f.put('b-large.txt', 'x'.repeat(100_000));
+    const asked = await prepareVerifyReview({ requestId: f.prepared.requestId, workerSession: WORKER }, f.context);
+    assert.equal(asked.ok, true, JSON.stringify(asked));
+    if (!asked.ok) return;
+    assert.match(asked.value.diff, /a-binary\.dat\n\+\[binary file\]/);
+    assert.equal(asked.value.diffTruncated, true);
   } finally { f.close(); }
 });
 

@@ -231,7 +231,9 @@ export async function prepareWorkflow(request: WorkflowInitiation, context: Core
       const handoff = fileBytes(cwd, `${planDir}/HANDOFF.md`, true)?.toString() ?? '';
       if (!rerun && sectionSteps(handoff).some(n => n > selected!.frontmatter.step)) refuse('RECOVERY_REQUIRED', 'HANDOFF contains a later step; reconcile append-only history.');
       for (const s of steps) { const stepPath = rel(cwd, s.file); bind(stepPath); protectedPaths.add(stepPath); }
-      for (const file of ['PLAN.md', 'HANDOFF.md', 'spec-gaps.md']) protectedPaths.add(`${planDir}/${file}`);
+      for (const file of ['PLAN.md', 'HANDOFF.md']) protectedPaths.add(`${planDir}/${file}`);
+      // The worker appends its numbered gaps here; recording checks them against the result's `gaps`.
+      mutableInputs.push(`${planDir}/spec-gaps.md`);
       addCriteria(p);
       if (!criteria.length) refuse('INVALID_EVIDENCE', 'Selected step has no acceptance criteria.');
       for (const spec of parsePlan(path.join(cwd, planDir)).frontmatter.specs) bindSpec(spec);
