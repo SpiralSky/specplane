@@ -765,6 +765,8 @@ test('each writing workflow is told the exact creation or finalizedEdits shape, 
   }
   assert.match(m.delegationPrompt({ workflow: 'plan-step', requestId: 'r1', assetPath: 'S', request: { criteria: [] } }), /beforeDigest is the string "missing"/);
   assert.doesNotMatch(m.delegationPrompt({ workflow: 'plan-step', requestId: 'r1', assetPath: 'S', request: { criteria: [] } }), /dialog and confirms/);
+  assert.match(m.delegationPrompt({ workflow: 'plan-step', requestId: 'r1', assetPath: 'S', request: { criteria: [] } }), /needs at least one file/);
+  assert.doesNotMatch(m.delegationPrompt({ workflow: 'decision-new', requestId: 'r1', assetPath: 'S', request: { criteria: [] } }), /needs at least one file/);
 });
 
 test('completion, validate, plan-status and plan-start delegate to exactly the core CLI operations and refuse bad arguments before the core is touched', opts, async () => {
