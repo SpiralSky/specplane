@@ -10,9 +10,20 @@ export const STANDING_VERSION = "v2";
 export const NEUTRAL_WORKFLOWS_LINE =
   "use an explicitly installed Specplane extension for agent workflows, or the standalone `specplane` CLI for manual operations. Extensions deliver the shared workflow procedures and their host-specific invocation details.";
 
+/** Standing line for `agent.decision_framing`; absent when the key is unset. */
+export function decisionFramingLine(framing: string): string {
+  return `- **Decisions**: When you need a decision from the user, frame it in terms of ${framing}: what changes, the tradeoff, and your recommendation. This does not change who approves specs, plans or decisions.`;
+}
+
+/** `text` with the framing line after its shared Workflows line. Text without that line is returned unchanged. */
+export function withDecisionFraming(text: string, framing: string | null): string {
+  if (framing === null) return text;
+  return text.replace(/^- \*\*Workflows\*\*: .*$/m, (line) => `${line}\n${decisionFramingLine(framing)}`);
+}
+
 /** Canonical standing text (`architecture/agent-skills` § Standing instructions → Content). */
-export function standingText(): string {
-  return `## Specplane
+export function standingText(framing: string | null = null): string {
+  return withDecisionFraming(`## Specplane
 
 Specplane tracks intended behaviour, review, implementation completion and evidence separately. Plans are optional; branches have no prescribed role. Specs and implementation may change together or separately. Completion is a declaration; matching its content fingerprint does not prove code correctness. Changed definitions can require reassessment. Use \`specplane docs\` for concepts and the requested workflow.
 
@@ -22,7 +33,7 @@ This repository uses Specplane. Before acting on specs, plans, or ADRs, read \`.
 - **Precedence**: when implementing, the architecture spec wins and the feature spec fills gaps; when using a managed plan, record gaps and assumptions in its \`spec-gaps.md\`; otherwise use the user's chosen record or conversation. If specs contradict each other, stop and report it; do not implement either side.
 - **Plans**: when invoking managed plan execution, work only in its checkout (branch \`plan/<id>\`), one step at a time, following the plan-step workflow. HANDOFF.md and \`spec-gaps.md\` in the plan folder are the source of truth for progress and gaps.
 - **Commits**: managed commands that create commits follow their documented format. Ordinary work needs no Specplane trailers. Manual implementation-completion edits are valid and do not approve a spec.
-- **Workflows**: ${NEUTRAL_WORKFLOWS_LINE}`;
+- **Workflows**: ${NEUTRAL_WORKFLOWS_LINE}`, framing);
 }
 
 /** Release identity embedded in the begin marker so freshness can be checked without regenerating text. */
@@ -82,9 +93,10 @@ export function upsertBlock(
   content: string | null,
   /** When given (explicit refresh), the marker records this release identity and the text hash. */
   release?: ReleaseIdentity,
+  framing: string | null = null,
 ): { content: string; action: UpsertAction } {
   const eol = content !== null && content.includes("\r\n") ? "\r\n" : "\n";
-  const body = standingText();
+  const body = standingText(framing);
   const hash = blockHash(body);
   const info = content === null ? null : findBlock(content);
   // Without a release identity, keep an existing marker only while its recorded hash still describes this text.
@@ -108,11 +120,11 @@ export function upsertBlock(
 export type StandingState = "ok" | "missing" | "outdated" | "malformed";
 
 /** Compare a file's content with the current standing instructions. */
-export function checkStanding(content: string | null): StandingState {
+export function checkStanding(content: string | null, framing: string | null = null): StandingState {
   if (content === null) return "missing";
   const info = findBlock(content);
   if (info === null) return "missing";
   if (info === "malformed") return "malformed";
   if (info.version < Number(STANDING_VERSION.slice(1))) return "outdated";
-  return info.text.trimEnd() === standingText().trimEnd() ? "ok" : "outdated";
+  return info.text.trimEnd() === standingText(framing).trimEnd() ? "ok" : "outdated";
 }

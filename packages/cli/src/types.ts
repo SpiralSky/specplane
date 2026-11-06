@@ -65,6 +65,7 @@ export interface Config {
     risk_paths: string[];
   };
   decisions: { dir: string };
+  agent: { decision_framing: string | null };
 }
 
 /** Non-fatal diagnostic produced while loading configuration. */

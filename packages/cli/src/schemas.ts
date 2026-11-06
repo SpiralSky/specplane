@@ -248,6 +248,11 @@ export const CONFIG_SCHEMA = {
       additionalProperties: false,
       properties: { dir: { type: "string" } },
     },
+    agent: {
+      type: "object",
+      additionalProperties: false,
+      properties: { decision_framing: { type: ["string", "null"], pattern: "^[^\\r\\n]*\\S[^\\r\\n]*$" } },
+    },
   },
 } as const;
 

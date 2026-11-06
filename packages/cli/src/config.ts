@@ -59,6 +59,7 @@ export const DEFAULT_CONFIG: Config = {
     risk_paths: [".specplane/**", ".claude/**", ".agents/**", ".github/**", "AGENTS.md", "CLAUDE.md", "**/SKILL.md"],
   },
   decisions: { dir: "docs/decisions" },
+  agent: { decision_framing: null },
 };
 
 /** Resolve session mode without ever upgrading an unattended detection to attended. */
@@ -176,6 +177,15 @@ function checkCrossFields(config: Config, root: string, opts: LoadConfigOptions)
 export function loadConfig(root: string, opts: LoadConfigOptions = {}): { config: Config; warnings: Warning[] } {
   const file = path.join(root, CONFIG_PATH);
   return parseConfigText(fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null, root, opts);
+}
+
+/** `agent.decision_framing` for `root`. Unreadable config reads as unset here; `validate` reports the config itself. */
+export function configuredFraming(root: string): string | null {
+  try {
+    return loadConfig(root, { checkSpecRoots: false, snapshot: true }).config.agent.decision_framing;
+  } catch {
+    return null;
+  }
 }
 
 /** Parse configuration bytes from a committed tree without consulting working files. */

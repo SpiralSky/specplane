@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { upsertBlock } from "../agents/standing.js";
 import { refreshGuidance } from "../docs/freshness.js";
-import { CONFIG_PATH, loadConfig } from "../config.js";
+import { CONFIG_PATH, configuredFraming, loadConfig } from "../config.js";
 import { SpecplaneError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { type Harness, NO_HARNESS_HINT, Report, selectHarnesses } from "../harness/index.js";
@@ -120,7 +120,7 @@ function scaffold(root: string, opts: { harness?: string; registry?: Harness[]; 
       out.push(e.action === "unchanged" ? "Skipped AGENTS.md (Specplane block is up to date)" : e.action === "preserved" ? `Skipped AGENTS.md (${e.detail})` : `Updated AGENTS.md (${e.detail})`);
     }
   } else {
-    const res = upsertBlock(existing);
+    const res = upsertBlock(existing, undefined, configuredFraming(root));
     if (res.action === "malformed") {
       out.push("Skipped AGENTS.md (malformed specplane block; fix the begin/end markers by hand)");
     } else if (res.action === "unchanged") {

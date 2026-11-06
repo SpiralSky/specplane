@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { InstallTransaction } from '../harness/containment.transaction.js';
-import { blockHash, checkStanding, findBlock, upsertBlock, type ReleaseIdentity } from '../agents/standing.js';
+import { blockHash, checkStanding, findBlock, upsertBlock, withDecisionFraming, type ReleaseIdentity } from '../agents/standing.js';
+import { configuredFraming } from '../config.js';
 import { assertInstallDestination, writeInstallFile } from '../harness/containment.js';
 import { HARNESSES, templatesDir, type Harness } from '../harness/index.js';
 import { loadReleasedDocs } from './operations.js';
@@ -25,8 +26,8 @@ export function releaseIdentity(bundleDirectory?: string): ReleaseIdentity {
 }
 
 /** Why the managed block in `content` is stale for this release; empty when current. */
-export function standingBlockReasons(content: string | null, release: ReleaseIdentity): { state: GuidanceState; reasons: string[] } {
-  const states = [checkStanding(content)];
+export function standingBlockReasons(content: string | null, release: ReleaseIdentity, framing: string | null = null): { state: GuidanceState; reasons: string[] } {
+  const states = [checkStanding(content, framing)];
   if (states[0] === 'missing') return { state: 'missing', reasons: ['managed block absent'] };
   if (states[0] === 'malformed') return { state: 'malformed', reasons: ['unbalanced or repeated begin/end markers'] };
   const reasons: string[] = [];
@@ -40,9 +41,14 @@ export function standingBlockReasons(content: string | null, release: ReleaseIde
   return { state: reasons.length ? 'stale' : 'current', reasons };
 }
 
+/** The rules file `h` should have in `root`: its bundled template plus any configured decision framing. */
+function expectedRules(root: string, h: Harness): Buffer {
+  return Buffer.from(withDecisionFraming(fs.readFileSync(path.join(templatesDir(h.name), h.rulesTemplate!), 'utf8'), configuredFraming(root)));
+}
+
 function harnessAsset(root: string, h: Harness): GuidanceAsset {
   const file = path.join(root, h.rulesFile);
-  const expected = fs.readFileSync(path.join(templatesDir(h.name), h.rulesTemplate!));
+  const expected = expectedRules(root, h);
   if (!fs.existsSync(file)) return { path: h.rulesFile, kind: 'harness-guidance', state: 'missing', reasons: ['file absent'] };
   const actual = fs.readFileSync(file);
   if (actual.equals(expected)) return { path: h.rulesFile, kind: 'harness-guidance', state: 'current', reasons: [] };
@@ -53,7 +59,7 @@ function harnessAsset(root: string, h: Harness): GuidanceAsset {
 export function checkGuidance(root: string, options: GuidanceOptions = {}): GuidanceAsset[] {
   const registry = options.registry ?? HARNESSES;
   const release = releaseIdentity(options.bundleDirectory);
-  const block = standingBlockReasons(read(path.join(root, 'AGENTS.md')), release);
+  const block = standingBlockReasons(read(path.join(root, 'AGENTS.md')), release, configuredFraming(root));
   const assets: GuidanceAsset[] = [{ path: 'AGENTS.md', kind: 'standing-block', ...block }];
   for (const h of registry) if (h.rulesTemplate && h.detect(root)) assets.push(harnessAsset(root, h));
   return assets;
@@ -87,7 +93,7 @@ export function refreshGuidance(root: string, options: RefreshOptions = {}): Ref
 
   const entries: RefreshEntry[] = [];
   const writes: [string, string | Buffer][] = [];
-  const block = upsertBlock(read(agents), release);
+  const block = upsertBlock(read(agents), release, configuredFraming(root));
   if (block.action === 'malformed') entries.push({ path: 'AGENTS.md', action: 'preserved', detail: 'malformed Specplane markers; fix the begin/end markers by hand' });
   else if (block.action === 'unchanged') entries.push({ path: 'AGENTS.md', action: 'unchanged', detail: 'managed block is current' });
   else {
@@ -95,7 +101,7 @@ export function refreshGuidance(root: string, options: RefreshOptions = {}): Ref
     entries.push({ path: 'AGENTS.md', action: block.action === 'updated' ? 'updated' : 'created', detail: block.action === 'appended' ? 'managed block appended; existing text kept' : 'managed block refreshed; text outside it kept' });
   }
   for (const h of targets) {
-    const template = fs.readFileSync(path.join(templatesDir(h.name), h.rulesTemplate!));
+    const template = expectedRules(root, h);
     const file = path.join(root, h.rulesFile);
     if (!fs.existsSync(file)) {
       writes.push([file, template]);

@@ -2,9 +2,9 @@ import { releaseIdentity, standingBlockReasons } from "../docs/freshness.js";
 import { capturePlanSnapshot, hasRecoveryOperation, type PlanSnapshot } from "../generate/snapshot.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { checkStanding } from "../agents/standing.js";
+import { checkStanding, withDecisionFraming } from "../agents/standing.js";
 import { type Harness, HARNESSES, templatesDir } from "../harness/index.js";
-import { CONFIG_PATH, loadConfig } from "../config.js";
+import { CONFIG_PATH, configuredFraming, loadConfig } from "../config.js";
 import { loadAdrs, validateAdrs } from "../decisions/validate.js";
 import { ConfigError, FrontmatterError, FrontmatterMissingError } from "../errors.js";
 import { generatePlansMd } from "../generate/plans-md.js";
@@ -26,7 +26,8 @@ function rulesFresh(h: Harness, root: string): boolean {
   if (!h.rulesTemplate) return false;
   const abs = path.join(root, h.rulesFile);
   const tpl = path.join(templatesDir(h.name), h.rulesTemplate);
-  return fs.existsSync(abs) && fs.existsSync(tpl) && fs.readFileSync(abs).equals(fs.readFileSync(tpl));
+  if (!fs.existsSync(abs) || !fs.existsSync(tpl)) return false;
+  return fs.readFileSync(abs, "utf8") === withDecisionFraming(fs.readFileSync(tpl, "utf8"), configuredFraming(root));
 }
 
 /**
@@ -38,11 +39,12 @@ export function checkFreshness(root: string, registry: Harness[] = HARNESSES): V
   const abs = path.join(root, file);
   const content = fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null;
   const installed = registry.filter((h) => h.detect(root));
-  let state = checkStanding(content);
+  const framing = configuredFraming(root);
+  let state = checkStanding(content, framing);
   // Version/hash metadata embedded by an explicit refresh: stale release identity or an edited block is reported, never repaired.
   if (state === "ok") {
     try {
-      if (standingBlockReasons(content, releaseIdentity()).state === "stale") state = "outdated";
+      if (standingBlockReasons(content, releaseIdentity(), framing).state === "stale") state = "outdated";
     } catch {
       // A damaged documentation bundle is reported by `specplane docs`; it does not make the standing block stale.
     }
