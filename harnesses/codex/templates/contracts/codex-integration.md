@@ -5,7 +5,7 @@ status: approved
 author: mixed
 implements: [codex:feature/codex-integration, feature/agent-integration]
 extends: [architecture/agent-skills]
-based_on: { architecture/agent-skills: "c27e3f1" }
+based_on: { architecture/agent-skills: "7b6ddea", "codex:feature/codex-integration": "c7db36d", feature/agent-integration: "7720f2a" }
 ---
 
 <!-- Architecture reconciliation 2026-11-02: current feature contracts govern this draft revision. Stored lifecycle status and dependency pins are preserved; this edit is not approval or evidence of implementation. -->

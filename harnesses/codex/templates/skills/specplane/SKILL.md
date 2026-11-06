@@ -3,7 +3,7 @@ name: specplane
 description: Use Specplane specifications and isolated plan worktrees through its CLI in Codex or Dot cloud sessions. Preserve human approval and final-merge gates.
 ---
 <!-- specplane-codex: managed v1 -->
-<!-- specplane-contract: architecture/codex-integration#workflow-contract@e1311e7 -->
+<!-- specplane-contract: architecture/codex-integration#workflow-contract@7675426 -->
 
 # Specplane in Codex and Dot cloud
 
