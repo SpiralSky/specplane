@@ -324,6 +324,32 @@ export interface CorePort {
 }
 export interface HumanPort { confirm(summary: string): Promise<Confirmation> }
 
+const DIALOG_MAX_LINES = 10
+const DIALOG_MAX_CHARS = 800
+const LOG_ROW_CHARS = 1800 // the terminal draws the first 2000 characters of a logged row
+
+/**
+ * The host dialog cuts a long question to fit the terminal, and the user must see all they confirm. Short text stays
+ * in the dialog; longer text is printed to the transcript in rows the terminal draws whole, and the dialog points there.
+ */
+export function confirmationDialog(summary: string): { rows: string[]; question: string } {
+  if (summary.split('\n').length <= DIALOG_MAX_LINES && summary.length <= DIALOG_MAX_CHARS) return { rows: [], question: summary }
+  const parts: string[] = []
+  let part = ''
+  for (const line of summary.split('\n')) {
+    for (let piece = line, first = true; first || piece; first = false, piece = piece.slice(LOG_ROW_CHARS)) {
+      const chunk = piece.slice(0, LOG_ROW_CHARS)
+      if (part && part.length + chunk.length + 1 > LOG_ROW_CHARS) { parts.push(part); part = '' }
+      part += (part ? '\n' : '') + chunk
+    }
+  }
+  if (part) parts.push(part)
+  return {
+    rows: parts.map((text, i) => `Content to confirm, part ${i + 1} of ${parts.length}:\n${text}`),
+    question: `The full content is printed above in ${parts.length} part${parts.length === 1 ? '' : 's'}; it is too long for this dialog. Scroll up and read it. Confirm this exact content?`,
+  }
+}
+
 /** The plugin's Specplane MCP server as `$.mcp` exposes it. `call` takes the tool's arguments as given. */
 export type ServerConnection = { connected: true } | { connected: false; message: string }
 /** `lost` marks a call that threw: the server may have taken a lease it could not report. */

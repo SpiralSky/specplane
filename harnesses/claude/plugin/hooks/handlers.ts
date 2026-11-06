@@ -5,7 +5,7 @@
 // ./commands (host-independent); this file only binds it to the engine.
 import type { EngineInterface, Register } from 'claude-code'
 import {
-  BUNDLED_CLI, COMPLETION_TOOL, NATIVE_COMMANDS, REQUEST_REVIEW_TOOL, RUN_TESTS_TOOL, finishReview, requestReview, reviewJobFor, runReviewedTests, acceptResult, closeRequest, delegationPrompt, planRegistration, releaseHeld, runCommand, serverReply,
+  BUNDLED_CLI, COMPLETION_TOOL, confirmationDialog, NATIVE_COMMANDS, REQUEST_REVIEW_TOOL, RUN_TESTS_TOOL, finishReview, requestReview, reviewJobFor, runReviewedTests, acceptResult, closeRequest, delegationPrompt, planRegistration, releaseHeld, runCommand, serverReply,
 } from './commands'
 import type { CorePort, Delegation, HumanPort, NativeCommand, ReasoningSession, ReviewJob, ReviewerPort, SpecplaneServer } from './commands'
 
@@ -25,7 +25,9 @@ function hostHuman($: EngineInterface): HumanPort {
   return {
     async confirm(summary) {
       try {
-        const answer = await $.ui.ask(summary, ['Confirm', 'Cancel'])
+        const { rows, question } = confirmationDialog(summary)
+        for (const row of rows) $.ui.log(row)
+        const answer = await $.ui.ask(question, ['Confirm', 'Cancel'])
         return answer === 'Confirm' ? 'confirmed' : 'declined'
       } catch {
         return 'unavailable'
