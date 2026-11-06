@@ -1,7 +1,7 @@
 ---
 id: architecture/file-formats
 title: "File formats: frontmatter schemas, naming, markdown conventions, and templates"
-status: approved
+status: review
 author: mixed
 implements: [feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions, feature/configuration, feature/plan-index, feature/tooling]
 based_on: { feature/spec-system: "919d9e8", feature/plan-system: "49347a9", feature/plan-steps: "2365e49", feature/decisions: "b8abaa0", feature/configuration: "3b96920", feature/plan-index: "ab8faed", feature/tooling: "9abfce2" }
@@ -961,6 +961,17 @@ related_specs: []
         "session_mode":  { "type": "string", "enum": ["auto", "unattended"] },
         "max_parallel":  { "type": "integer", "minimum": 1 },
         "max_budget_usd": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "usage_limits": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["window", "percent"],
+            "properties": {
+              "window": { "type": "string", "enum": ["five_hour", "seven_day"] },
+              "percent": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 }
+            }
+          }
+        },
         "notify": {
           "type": "object", "additionalProperties": false,
           "properties": {
@@ -998,6 +1009,13 @@ related_specs: []
       "additionalProperties": false,
       "properties": {
         "dir": { "type": "string" }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision_framing": { "type": ["string", "null"], "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$" }
       }
     }
   }
