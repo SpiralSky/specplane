@@ -4,18 +4,18 @@ description: Internal Specplane reasoning procedure for the decision-new workflo
 user-invocable: false
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#decision-new@74958ce -->
+<!-- specplane-contract: architecture/agent-skills#decision-new@788636b -->
 
 # specplane-reason-decision-new
 
 Internal reasoning procedure for the `decision-new` workflow, owned by the Specplane extension. Write the body of a proposed decision record from the user's own description.
 
-The extension prepared the request in code (resolution, policy, context, locks) before this prompt and validates and records your result in code afterwards. Do only the reasoning phases below. The public fallback is the `/decision-new` skill with the `specplane` CLI, which is a labeled manual path and does not claim a native handler ran.
+The extension prepared the request in code (resolution, policy, context, locks) before this prompt and validates and records your result in code afterwards. Do only the reasoning phases below. Without the extension, the `specplane` CLI is a labeled manual path, which does not claim a native handler ran.
 
 ## Preconditions
 
 1. The prompt names a prepared request id and carries the request as JSON; there is no request file on disk. That JSON is the source of truth for the checkout, policy, context and edit set. If it is missing or does not match the id, stop and say so.
-2. The completion tool `specplane_result` must be available. If it is not, stop and tell the user to run `/decision-new` manually.
+2. The completion tool `specplane_result` must be available. If it is not, stop and tell the user that the Specplane extension is not available, so `/decision-new` cannot run here; the `specplane` CLI is the labeled manual path.
 
 ## Do
 

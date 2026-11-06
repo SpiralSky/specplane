@@ -4,23 +4,24 @@ description: Internal Specplane reasoning procedure for the plan-step workflow. 
 user-invocable: false
 disable-model-invocation: true
 ---
-<!-- specplane-contract: architecture/agent-skills#plan-step@74958ce -->
+<!-- specplane-contract: architecture/agent-skills#plan-step@788636b -->
 
 # specplane-reason-plan-step
 
 Internal reasoning procedure for the `plan-step` workflow, owned by the Specplane extension. Implement exactly one prepared plan step and assess its acceptance criteria.
 
-The extension prepared the request in code (resolution, policy, context, locks) before this prompt and validates and records your result in code afterwards. Do only the reasoning phases below. The public fallback is the `/plan-step` skill with the `specplane` CLI, which is a labeled manual path and does not claim a native handler ran.
+The extension prepared the request in code (resolution, policy, context, locks) before this prompt and validates and records your result in code afterwards. Do only the reasoning phases below. Without the extension, the `specplane` CLI is a labeled manual path, which does not claim a native handler ran.
 
 ## Preconditions
 
 1. The prompt names a prepared request id and carries the request as JSON; there is no request file on disk. That JSON is the source of truth for the checkout, policy, context and edit set. If it is missing or does not match the id, stop and say so.
-2. The completion tool `specplane_result` must be available. If it is not, stop and tell the user to run `/plan-step` manually.
+2. The completion tool `specplane_result` must be available. If it is not, stop and tell the user that the Specplane extension is not available, so `/plan-step` cannot run here; the `specplane` CLI is the labeled manual path.
 
 ## Do
 
 1. Work only on the step named in the request, in the checkout it names, loading the named context items.
 2. Implement the step. Identify spec gaps, contradictions and any scope expansion; report them, do not resolve contradictions by guessing (unattended runs stop and report).
+   - Record a gap as the next numbered six-field entry in the plan's `spec-gaps.md`, list that file in `changes`, and name the entry in `gaps`. Finish these edits before requesting a review. If a review has findings, core writes that file itself: restore it, report your gap in `openIssues`, and request a new review.
 3. Assess each acceptance criterion with evidence (tests, checks) and return structured acceptance, gap, expansion and contribution evidence in the `WorkflowResult`.
    - A criterion with empty `testRequirements` is assessed by citing files, and is recorded as self-assessed. Each cited file is an `artifacts` entry `{"path", "digest", "kind": "file"}`, where `digest` is the 64-character hex SHA-256 from `sha256sum <path>`.
    - Run tests only by calling `specplane_run_tests` with `{"requestId": "<id>"}` after the edits are final. It runs the suites the repository configures for this step. The core finds step-level receipts itself; cite a receipt in `criterionEvidence[].artifacts` only for a criterion whose `testRequirements` are not empty. Never run a test command yourself or write a receipt: a receipt the core did not produce is not evidence.
