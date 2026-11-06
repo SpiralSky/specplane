@@ -205,6 +205,15 @@ out=$(PATH="$tmp/nojq" CLAUDE_PROJECT_DIR="$tmp/pg-none" "$tmp/nojq/sh" "$hooks/
 EOJ
 )
 [ $? = 0 ] && [ -z "$out" ] && report "guard: missing jq" 1 || report "guard: missing jq" 0
+# without jq the step-done deny still holds, and everything else stays allowed
+PATH="$tmp/nojq" CLAUDE_PROJECT_DIR="$tmp/pg-none" "$tmp/nojq/sh" "$hooks/specplane-pre-commit.sh" >/dev/null 2>&1 <<EOJ
+$(cj 'specplane plan step-done p --outcome done')
+EOJ
+[ $? = 2 ] && report "pre-commit: step-done denied without jq" 1 || report "pre-commit: step-done denied without jq" 0
+PATH="$tmp/nojq" CLAUDE_PROJECT_DIR="$tmp/pg-none" "$tmp/nojq/sh" "$hooks/specplane-pre-commit.sh" >/dev/null 2>&1 <<EOJ
+$(cj 'git commit -m x')
+EOJ
+[ $? = 0 ] && report "pre-commit: other commands allowed without jq" 1 || report "pre-commit: other commands allowed without jq" 0
 out=$(PATH="$ORIG_PATH" CLAUDE_PROJECT_DIR="$tmp/pg-none" sh "$hooks/specplane-policy-guard.sh" 2>/dev/null <<EOJ
 $(pgj Edit specs/f1.md '')
 EOJ
