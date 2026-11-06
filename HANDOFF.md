@@ -100,6 +100,14 @@ Order, as of the end of the 11-06 continuation session:
 Waiting on the user:
 - Decide soft and hard stops for `execution.usage_limits`, then finalise `docs/product-requirements.md`.
 
+Open decision, soft and hard stops (recommended to the user on 2026-11-06, not yet answered; do not ask for approval until it is settled):
+- Shape: `usage_limits: [{ window, soft, hard }]`, `soft` optional, default `[]`. Example values `five_hour` 75/90, `seven_day` 85/95, taken from `heavy-usage`.
+- Soft: the conductor starts no further session and the running one finishes its step, so the step's commit and handoff are the checkpoint; no agent cooperation needed. It cannot hurry a long step. Hard: today's cancel, which may leave uncommitted work; resume after a kill is untested.
+- If the user says yes: change the config key, `file-formats` schema, `feature/configuration` text, `reference-cli` and `claude-integration` limit text, the adapter and the conductor on `spec-edits-20261106`, refresh snapshots, then give one approval list. The specs are still in `review`, so no new reopen is needed for those already reopened. If no: approve as is; adding soft later needs another reopen.
+- Build it in Specplane, do not depend on an extension. Checked on 2026-11-06, READMEs and search summaries only, no code reviewed or tested: `heavyc-dev/heavy-usage` (status line; 75% warn, 90% wind-down message, not a hard block; MIT; 0 stars), `denverbaumgartner/usage-guard` (status line; PreToolUse `continue: false` at 90%; 1 star), `willyt3hwhale/rate-limit-guard` (fixed 90/95), `ManvikPasula/usage-guard` (holds until reset), `claude-session-budget` (estimates from logs). Neither README read says it works under `claude -p`. Specplane reads the stream event instead, seen under `claude -p` on 2.1.317. Specplane's limit never covers interactive sessions; `heavy-usage` could, after its code is read, and it needs the status line slot.
+
+Offered, not answered: add to the plan, after approval, the binding work: merge, `$.process.spawn` binding, then one approved live run that stops a session just above current usage and tries a resume. Until the binding exists no usage limit can take effect in a real run.
+
 Still open afterwards: what `claude -p` does at a real usage limit (the adapter fails closed; the docs are silent), the `$.process.spawn` binding, the native `done` plan-step rerun with capture, D24, and the checklist's two open points (no CLI repair for "Legacy target history is ambiguous"; no way to record overnight work in plan checkouts).
 
 ## How to continue (orchestration)
