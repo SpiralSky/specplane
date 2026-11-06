@@ -13,7 +13,7 @@ import { planNext, type PlanNext } from './next.js';
 import { acquireRunLock, LockRefused, positiveLimit, runGate, type GateResult } from './gate.js';
 import { attentionFor, dispatchAlerts, type Attention } from './alerts.js';
 export interface RunOptions {
- until?:string; maxSteps?:number|string; maxParallel?:number|string; maxBudgetUsd?:number|string;
+ until?:string; maxSteps?:number|string; maxParallel?:number|string; maxBudgetUsd?:number|string; usageLimits?:SessionLimit[];
  force?:boolean; reason?:string; step?:number|string; dryRun?:boolean; pollMs?:number; timeoutSeconds?:number|string; signal?:AbortSignal;
 }
 export interface RunResult { plan:string;ok:boolean;code:number;action:string;reason:string;steps:number;sessionId?:string;checkout?:string;commands?:string[][]; reservedBudgetUsd:number }
@@ -41,6 +41,18 @@ const readRecord=(file:string):SessionRecord|null=>{
 const refOf=(r:SessionRecord):SessionRef=>({orchestrationId:r.orchestrationId,...(r.nativeSessionId?{nativeSessionId:r.nativeSessionId}:{}),...(r.pid?{pid:r.pid}:{})});
 /** The adapter must be supplied explicitly by the calling extension; there is no default, discovery or fallback. */
 export type ConductorDependencies=RunDependencies&{adapter:SessionAdapter};
+const USAGE_WINDOWS:readonly string[]=['five_hour','seven_day'];
+function validateUsageLimits(input:SessionLimit[]|undefined):SessionLimit[]{
+ if(input===undefined)return [];
+ if(!Array.isArray(input))throw new Error('usageLimits must be an array.');
+ return input.map(l=>{
+  const v=l as {kind?:unknown;window?:unknown;amount?:unknown}|null;
+  if(!v||v.kind!=='usage_percent')throw new Error('usageLimits accepts only usage_percent limits.');
+  if(typeof v.window!=='string'||!USAGE_WINDOWS.includes(v.window))throw new Error('usage_percent window must be five_hour or seven_day.');
+  if(typeof v.amount!=='number'||!Number.isFinite(v.amount)||v.amount<=0||v.amount>100)throw new Error('usage_percent amount must be above 0 and at most 100.');
+  return {kind:'usage_percent',window:v.window as 'five_hour'|'seven_day',amount:v.amount};
+ });
+}
 /** Run one plan serially. No code path invokes approve, step-done, finish, merge, push, or cleanup. */
 export async function runPlan(id:string,config:Config,root:string,opts:RunOptions={},deps:ConductorDependencies):Promise<RunResult>{
  const adapter=deps.adapter;
@@ -52,7 +64,9 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
  if(opts.force&&!opts.reason?.trim()) throw new Error('--force requires a non-empty --reason.');
  const totalBudget=opts.maxBudgetUsd===undefined?config.execution.max_budget_usd:positiveLimit(opts.maxBudgetUsd,'--max-budget-usd',false);
  const stepBudget=totalBudget===null?null:totalBudget/maxSteps;
- const limits:SessionLimit[]=stepBudget===null?[]:[{kind:'usd',amount:stepBudget}];
+ // Usage thresholds are account-wide: validated here, then passed whole to every session and never added to the reserved budget.
+ const usageLimits=validateUsageLimits(opts.usageLimits);
+ const limits:SessionLimit[]=[...(stepBudget===null?[]:[{kind:'usd' as const,amount:stepBudget}]),...usageLimits];
  const targetStep=opts.step===undefined?undefined:positiveLimit(opts.step,'--step');
  if(opts.force&&targetStep===undefined)throw new Error('--force requires --step to identify the completed step to rerun.');
  if(opts.reason && /[\r\n]/.test(opts.reason))throw new Error('--reason must be one line.');
@@ -164,6 +178,7 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
    log(`step ${String(before).padStart(2,'0')} ${resuming?'resumed':'started'} (${orchestrationId})`);
    for(let current=started0;;){
     if(current.state==='completed')break;
+    if(current.state==='failed'&&current.stop==='limit'){const gate=limit('A requested session limit stopped the session; no further session was started. Inspect it before restarting.');recovery=await recoveryOf(record);alert(gate,last);return result(gate);}
     if(current.state!=='running')throw new Error(`Session ${current.state}; no completion inferred. Inspect it with the recovery instructions before retrying.`);
     if(interrupted()){const gate=interruptedGate();alert(gate,last);return result(gate);}
     await sleep(pollMs);

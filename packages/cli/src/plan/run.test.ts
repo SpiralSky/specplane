@@ -238,3 +238,45 @@ test("conductor: finish-ready and stop-at-finish never call approval, finish or 
   assert.deepEqual([...new Set(adapter.calls)].sort(), ["launch", "observe", "probe", "recovery"], "only adapter session methods are used");
   assert.equal(n.effectiveStatus, "in_progress");
 });
+
+const usage = (window: "five_hour" | "seven_day", amount: number) => ({ kind: "usage_percent" as const, window, amount });
+
+test("conductor: usage limits pass whole to every attempt, unsplit, beside the divided usd limit and outside the reserved budget", async t => {
+  const root = temp(t); let n = ready(root); const seen: SessionRequest["limits"][] = [];
+  const adapter = fake(r => { seen.push(r.limits); n = n.step!.number === 1 ? { ...n, step: { ...n.step!, number: 2 } } : finished(n); }, undefined, { limitKinds: ["usd", "usage_percent"] });
+  const result = await runPlan(id, structuredClone(DEFAULT_CONFIG), root, { maxSteps: 2, maxBudgetUsd: 1, usageLimits: [usage("five_hour", 80)] }, deps(root, () => n, adapter));
+  assert.equal(result.code, 0); assert.equal(result.reservedBudgetUsd, 1);
+  assert.deepEqual(seen, [[{ kind: "usd", amount: 0.5 }, usage("five_hour", 80)], [{ kind: "usd", amount: 0.5 }, usage("five_hour", 80)]]);
+});
+
+test("conductor: an undeclared usage_percent kind is refused before any launch; usd-only behaviour is unchanged", async t => {
+  const root = temp(t); let launches = 0;
+  const adapter = fake(() => launches++);
+  const denied = await runPlan(id, structuredClone(DEFAULT_CONFIG), root, { usageLimits: [usage("seven_day", 50)] }, deps(root, () => ready(root), adapter));
+  assert.equal(denied.code, 5); assert.equal(launches, 0); assert.match(denied.reason, /cannot enforce the requested usage_percent limit/);
+  let n = ready(root); const p2 = fake(() => { n = finished(n); });
+  const ok = await runPlan(id, structuredClone(DEFAULT_CONFIG), root, { maxBudgetUsd: 2 }, deps(root, () => n, p2));
+  assert.equal(ok.code, 0); assert.deepEqual(p2.requests[0].limits, [{ kind: "usd", amount: 2 }]);
+});
+
+test("conductor: invalid usage limits are rejected before any launch", async t => {
+  const root = temp(t);
+  const bad: unknown[] = [[usage("five_hour", 0)], [usage("five_hour", -1)], [usage("five_hour", 100.5)], [usage("five_hour", Number.NaN)], [{ kind: "usage_percent", window: "hourly", amount: 10 }], [{ kind: "usd", amount: 1 }], "x"];
+  for (const usageLimits of bad) {
+    let launches = 0;
+    await assert.rejects(runPlan(id, structuredClone(DEFAULT_CONFIG), root, { usageLimits: usageLimits as never }, deps(root, () => ready(root), fake(() => launches++, undefined, { limitKinds: ["usd", "usage_percent"] }))), /usage_percent|usageLimits/);
+    assert.equal(launches, 0);
+  }
+  let n = ready(root); const edge = fake(() => { n = finished(n); }, undefined, { limitKinds: ["usd", "usage_percent"] });
+  assert.equal((await runPlan(id, structuredClone(DEFAULT_CONFIG), root, { usageLimits: [usage("seven_day", 100)] }, deps(root, () => n, edge))).code, 0);
+});
+
+test("conductor: a session the adapter stopped for a usage limit ends the run with the limit exit code and starts no further session", async t => {
+  const root = temp(t); const n = ready(root); let launches = 0;
+  const adapter = fake(() => launches++, undefined, { limitKinds: ["usd", "usage_percent"] });
+  adapter.observe = async ref => ({ orchestrationId: ref.orchestrationId, state: "failed", stop: "limit" });
+  const result = await runPlan(id, structuredClone(DEFAULT_CONFIG), root, { maxSteps: 3, usageLimits: [usage("five_hour", 90)] }, deps(root, () => n, adapter));
+  assert.equal(result.code, 4); assert.equal(result.action, "limit"); assert.equal(launches, 1);
+  const plain = fake(); plain.observe = async ref => ({ orchestrationId: ref.orchestrationId, state: "failed" });
+  assert.equal((await runPlan(id, structuredClone(DEFAULT_CONFIG), root, {}, deps(root, () => ready(root), plain))).code, 5);
+});

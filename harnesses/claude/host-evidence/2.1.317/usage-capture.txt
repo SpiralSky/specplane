@@ -1,0 +1,26 @@
+Usage capture, Claude Code 2.1.317, 2026-11-06. One launch, not retried, approved in HANDOFF "Next session" step 2.
+Transcript: usage-capture.jsonl, complete, with home paths redacted to /home/user and -home-user.
+
+== PASS CONDITION (written before the launch) ==
+Task: a fresh `claude -p` process in a throwaway git repo answers one trivial prompt.
+Pass: the stream holds at least one `rate_limit_event` line that parses as JSON, saved whole with every field,
+and the final `result` line if one is emitted. A usage limit is not sought.
+Not a pass condition: whether the event carries a usable percentage. That is read from the capture afterwards.
+
+== RUN ==
+argv: claude -p --model haiku --tools Read --strict-mcp-config --max-budget-usd 0.10 --output-format stream-json --verbose
+      "Reply with the single word ok."
+Login: subscription (`apiKeySource: none`). Exit 0. Six stream lines, all parsed. Cost 0.0011229.
+Stderr: only the host's "no stdin data received in 3s" warning, because stdin was left open.
+Order: system hook_started, hook_response, init, assistant, rate_limit_event, result.
+
+== VERDICT: PASS ==
+Event path: type `rate_limit_event`, `rate_limit_info.unifiedWindows.<window>.utilization`.
+Windows: `five_hour` 0.01 and `seven_day` 0.17, both in one event. usagePercentSeen: true for 2.1.317.
+
+== WHAT THIS DOES NOT SHOW ==
+Unit: `utilization` is read as a 0..1 fraction. That is inferred from the name and values; it was not compared with
+the percentage the host shows. If it were already a percent, the reader would overstate usage and stop too early.
+Frequency: one event in a one-turn run, after the first assistant message. Not seen before the first API response, so
+how far a run can overshoot between events is unknown.
+Not exercised: an API-key login, an account at a real limit, values above 1, and resuming a session killed at a threshold.

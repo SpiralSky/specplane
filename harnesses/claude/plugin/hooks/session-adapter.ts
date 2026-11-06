@@ -8,8 +8,8 @@
 
 /** Structural copies of the core Protocol 1 types (packages/cli/src/core/contracts.ts); kept local because the plugin ships alone. */
 export type SessionRef = { orchestrationId: string; nativeSessionId?: string; pid?: number }
-export type SessionState = SessionRef & { state: 'running' | 'completed' | 'failed' | 'unknown' }
-export type SessionLimit = { kind: string; amount: number }
+export type SessionState = SessionRef & { state: 'running' | 'completed' | 'failed' | 'unknown'; stop?: 'limit' }
+export type SessionLimit = { kind: string; amount: number; window?: string }
 export type SessionRequest = { requestId: string; orchestrationId: string; plan: string; step: number; checkout: string; workflowRequestPath: string; mode: 'unattended'; limits?: SessionLimit[]; signal?: AbortSignal }
 export type SessionCapabilities = { host: string; version?: string; surface: string; backends: string[]; launch: boolean; observe: boolean; resume: boolean; cancel: boolean; limitKinds: string[] }
 
@@ -33,7 +33,9 @@ export interface MappingStore {
   load(orchestrationId: string): MappingRecord | undefined | Promise<MappingRecord | undefined>
 }
 /** A recorded passing probe against one named version. Flags are only ever derived from it, never from help text. */
-export interface ProbeEvidence { version: string; launched: boolean; observed: boolean; resumed: boolean; cancelled: boolean; budgetStopSeen: boolean }
+export interface ProbeEvidence { version: string; launched: boolean; observed: boolean; resumed: boolean; cancelled: boolean; budgetStopSeen: boolean
+  /** Optional; true only when a live probe recorded a usable usage percentage in the stream for this version. Absent or false keeps `usage_percent` undeclared. */
+  usagePercentSeen?: boolean }
 
 export interface AdapterDeps {
   process: ProcessPort
@@ -47,6 +49,32 @@ export interface AdapterDeps {
   cancelWaitMs?: number
   /** Executable; defaults to `claude`. */
   executable?: string
+  /**
+   * Reads account usage from one parsed stream event; one event can carry several windows. There is NO default: the
+   * event format belongs to one host version, so the host binding passes `readClaudeUsage` for a version it has evidence
+   * for. `usage_percent` is declared only with this AND `evidence.usagePercentSeen` for the installed version.
+   */
+  readUsage?: (event: unknown) => UsageReading[] | undefined
+}
+
+export interface UsageReading { window: string; usedPercent: number }
+
+/**
+ * Reader for the `rate_limit_event` recorded on Claude Code 2.1.317 (host-evidence/2.1.317/usage-capture.txt).
+ * `utilization` is read as a 0..1 fraction. A value above 1 is an account past its limit, so it reads as 100 and stops
+ * the session rather than being dropped. Rounded because 0.29 * 100 is below 29 in floating point.
+ */
+export function readClaudeUsage(event: unknown): UsageReading[] | undefined {
+  const e = event as { type?: unknown; rate_limit_info?: { unifiedWindows?: unknown } } | null
+  if (e?.type !== 'rate_limit_event') return undefined
+  const windows = e.rate_limit_info?.unifiedWindows
+  if (typeof windows !== 'object' || windows === null) return undefined
+  const readings: UsageReading[] = []
+  for (const [window, value] of Object.entries(windows)) {
+    const used = (value as { utilization?: unknown } | null)?.utilization
+    if (typeof used === 'number' && Number.isFinite(used) && used >= 0) readings.push({ window, usedPercent: Math.round(Math.min(used, 1) * 10000) / 100 })
+  }
+  return readings
 }
 
 type Tracked = {
@@ -57,6 +85,11 @@ type Tracked = {
   unparseable: boolean
   /** Set from `system/init`: true when the plugin is listed and the mode is auto, false otherwise, undefined until init is seen. */
   initOk?: boolean
+  /** The usage limits this session must honour, and the windows for which a usable reading has been seen. */
+  usageLimits: Array<{ window: string; amount: number }>
+  usageSeen: Set<string>
+  /** Set when a usage threshold was crossed; the session is cancelled and reported as a limit stop. */
+  limitStop?: boolean
 }
 
 const SEP = /[\r\n]/
@@ -86,13 +119,22 @@ export function buildPrompt(workflowRequestPath: string): string {
   return `Run the installed plan-step procedure for the workflow request at ${workflowRequestPath}`
 }
 
+const isUsageWindow = (w: unknown): w is string => w === 'five_hour' || w === 'seven_day'
+
 /**
- * `claude -p` argv. No --bare (the installed plugin must load) and no permission-bypass flag. `--max-budget-usd` only for a `usd` limit; any other kind refuses.
+ * `claude -p` argv. No --bare (the installed plugin must load) and no permission-bypass flag. `--max-budget-usd` only for a `usd` limit; `usage_percent` adds no flag and is accepted only when `usageEnabled`; any other kind refuses.
  * The tool lists are variadic, so another option must follow them: the prompt stays last, after `--verbose`.
  */
-export function buildArgv(mode: 'launch' | 'resume', nativeSessionId: string, request: SessionRequest, executable = 'claude'): string[] {
+export function buildArgv(mode: 'launch' | 'resume', nativeSessionId: string, request: SessionRequest, executable = 'claude', usageEnabled = false): string[] {
   const argv = [executable, '-p', mode === 'launch' ? '--session-id' : '--resume', nativeSessionId]
   for (const limit of request.limits ?? []) {
+    if (limit.kind === 'usage_percent') {
+      // Enforced by observation, not by a host flag, and only when the adapter declares it; otherwise refuse.
+      if (!usageEnabled) throw new Error(`unsupported limit kind: ${limit.kind}`)
+      if (!isUsageWindow(limit.window)) throw new Error('usage_percent window must be five_hour or seven_day')
+      if (!Number.isFinite(limit.amount) || limit.amount <= 0 || limit.amount > 100) throw new Error('usage_percent amount must be above 0 and at most 100')
+      continue
+    }
     if (limit.kind !== 'usd') throw new Error(`unsupported limit kind: ${limit.kind}`)
     if (!Number.isFinite(limit.amount) || limit.amount <= 0) throw new Error('usd limit must be a positive number')
     argv.push('--max-budget-usd', String(limit.amount))
@@ -107,9 +149,29 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
   const tracked = new Map<string, Tracked>()
   const exe = deps.executable ?? 'claude'
 
+  /** Declared only with a caller-supplied reader and recorded evidence for this exact installed version. */
+  function usageDeclared(): boolean {
+    const ev = deps.evidence
+    return !!deps.readUsage && !!ev && !!deps.version && ev.version === deps.version && ev.usagePercentSeen === true
+  }
+
+  async function cancelTracked(t: Tracked): Promise<{ stopped: boolean; recoveryRequired: boolean }> {
+    if (t.exit.done) return { stopped: true, recoveryRequired: false }
+    try { t.handle.kill('SIGTERM') } catch { return { stopped: false, recoveryRequired: true } }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const waited = await Promise.race([
+      t.handle.exited.then(() => true, () => true),
+      new Promise<boolean>(r => { timer = setTimeout(() => r(false), deps.cancelWaitMs ?? 10_000) }),
+    ])
+    if (timer) clearTimeout(timer)
+    // Stopped only after the exit is observed.
+    return waited && t.exit.done ? { stopped: true, recoveryRequired: false } : { stopped: false, recoveryRequired: true }
+  }
+
   function start(argv: string[], request: SessionRequest, nativeSessionId: string): Tracked {
     const handle = deps.process.spawn(argv, { cwd: request.checkout })
-    const t: Tracked = { handle, nativeSessionId, exit: { done: false, code: null }, unparseable: false }
+    const usageLimits = (request.limits ?? []).filter(l => l.kind === 'usage_percent' && typeof l.window === 'string').map(l => ({ window: l.window as string, amount: l.amount }))
+    const t: Tracked = { handle, nativeSessionId, exit: { done: false, code: null }, unparseable: false, usageLimits, usageSeen: new Set() }
     handle.onLine(line => {
       if (!line.trim()) return
       let ev: unknown
@@ -120,6 +182,16 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
         t.initOk = e.permissionMode === PERMISSION_MODE && Array.isArray(e.plugins) && e.plugins.some(p => (p as { name?: unknown } | null)?.name === PLUGIN_NAME)
         // Without the plugin or the mode the session lacks its policy: stop it rather than let it work unguarded.
         if (!t.initOk) { try { handle.kill('SIGTERM') } catch { /* the failed state below still holds */ } }
+      }
+      if (usageLimits.length && deps.readUsage && !t.limitStop) {
+        let readings: unknown
+        try { readings = deps.readUsage(ev) } catch { readings = undefined }
+        // Only a finite 0..100 reading for a window with an active limit counts; anything else is "no reading".
+        for (const u of Array.isArray(readings) ? readings as Partial<UsageReading>[] : []) {
+          if (typeof u?.window !== 'string' || typeof u.usedPercent !== 'number' || !Number.isFinite(u.usedPercent) || u.usedPercent < 0 || u.usedPercent > 100) continue
+          t.usageSeen.add(u.window)
+          if (!t.limitStop && usageLimits.some(l => l.window === u.window && u.usedPercent! >= l.amount)) { t.limitStop = true; void cancelTracked(t) }
+        }
       }
       if (e.type === 'result') {
         if (typeof e.subtype !== 'string') { t.unparseable = true; return }
@@ -135,16 +207,19 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
     if (!t) return 'unknown'
     if (t.unparseable) return 'unknown'
     if (t.initOk === false) return 'failed'
+    if (t.limitStop) return t.exit.done ? 'failed' : 'running' // reported as a limit stop only once the cancelled process has exited
     if (!t.exit.done) return 'running' // a live process is running until it exits, even after a result event
     if (t.exit.code === null) return 'unknown'
     if (t.exit.code !== 0) return 'failed'
     if (!t.result) return 'unknown' // exit 0 without a terminal result: shape not recognised, never "no session"
     if (t.result.subtype !== 'success' || t.result.isError) return 'failed'
+    // A usage limit is active but a window never produced a usable reading: success proves nothing about the threshold.
+    if (t.usageLimits.some(l => !t.usageSeen.has(l.window))) return 'unknown'
     return t.initOk ? 'completed' : 'unknown' // success with no init seen proves nothing about the policy
   }
 
   async function begin(mode: 'launch' | 'resume', nativeSessionId: string, request: SessionRequest): Promise<SessionState> {
-    const argv = buildArgv(mode, nativeSessionId, request, exe)
+    const argv = buildArgv(mode, nativeSessionId, request, exe, usageDeclared())
     if (request.signal?.aborted) throw new Error('launch aborted before the process started')
     // Persist the mapping before the process starts, so a crash never leaves an unmapped live session.
     await deps.store.save({ orchestrationId: request.orchestrationId, nativeSessionId })
@@ -168,7 +243,7 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
       return {
         host: 'claude-code', version: deps.version, surface: 'headless', backends: ['worktree'],
         launch: f(ev?.launched), observe: f(ev?.observed), resume: f(ev?.resumed), cancel: f(ev?.cancelled),
-        limitKinds: f(ev?.budgetStopSeen) ? ['usd'] : [],
+        limitKinds: [...(f(ev?.budgetStopSeen) ? ['usd'] : []), ...(usageDeclared() ? ['usage_percent'] : [])],
       }
     },
 
@@ -187,7 +262,8 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
     async observe(ref: SessionRef): Promise<SessionState> {
       const t = tracked.get(ref.orchestrationId)
       const mapped = t && (ref.nativeSessionId === undefined || ref.nativeSessionId === t.nativeSessionId)
-      return { ...ref, state: mapped ? stateOf(ref.orchestrationId, t) : 'unknown' }
+      const state = mapped ? stateOf(ref.orchestrationId, t) : 'unknown'
+      return { ...ref, state, ...(state === 'failed' && t?.limitStop ? { stop: 'limit' as const } : {}) }
     },
 
     async resume(ref: SessionRef, request: SessionRequest): Promise<SessionState> {
@@ -219,16 +295,7 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
     async cancel(ref: SessionRef, _signal?: AbortSignal): Promise<{ stopped: boolean; recoveryRequired: boolean }> {
       const t = tracked.get(ref.orchestrationId)
       if (!t) return { stopped: false, recoveryRequired: true }
-      if (t.exit.done) return { stopped: true, recoveryRequired: false }
-      try { t.handle.kill('SIGTERM') } catch { return { stopped: false, recoveryRequired: true } }
-      let timer: ReturnType<typeof setTimeout> | undefined
-      const waited = await Promise.race([
-        t.handle.exited.then(() => true, () => true),
-        new Promise<boolean>(r => { timer = setTimeout(() => r(false), deps.cancelWaitMs ?? 10_000) }),
-      ])
-      if (timer) clearTimeout(timer)
-      // Stopped only after the exit is observed.
-      return waited && t.exit.done ? { stopped: true, recoveryRequired: false } : { stopped: false, recoveryRequired: true }
+      return cancelTracked(t)
     },
   }
 }
