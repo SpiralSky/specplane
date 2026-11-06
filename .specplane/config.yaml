@@ -86,3 +86,6 @@ plans:
 execution:
   backend: worktree                # use git worktrees for parallel plan execution
   worktree_dir: ../.specplane-worktrees
+
+agent:
+  decision_framing: what changes for the people using the product
