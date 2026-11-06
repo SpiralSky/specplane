@@ -259,6 +259,19 @@ test("conductor: an undeclared usage_percent kind is refused before any launch; 
   assert.equal(ok.code, 0); assert.deepEqual(p2.requests[0].limits, [{ kind: "usd", amount: 2 }]);
 });
 
+test("conductor: execution.usage_limits reaches every session, and an explicit option replaces it", async t => {
+  const root = temp(t); const config = structuredClone(DEFAULT_CONFIG);
+  config.execution.usage_limits = [{ window: "seven_day", percent: 80 }];
+  let n = ready(root);
+  const configured = fake(() => { n = finished(n); }, undefined, { limitKinds: ["usage_percent"] });
+  assert.equal((await runPlan(id, config, root, {}, deps(root, () => n, configured))).code, 0);
+  assert.deepEqual(configured.requests[0].limits, [usage("seven_day", 80)]);
+  n = ready(root);
+  const explicit = fake(() => { n = finished(n); }, undefined, { limitKinds: ["usage_percent"] });
+  assert.equal((await runPlan(id, config, root, { usageLimits: [usage("five_hour", 50)] }, deps(root, () => n, explicit))).code, 0);
+  assert.deepEqual(explicit.requests[0].limits, [usage("five_hour", 50)]);
+});
+
 test("conductor: invalid usage limits are rejected before any launch", async t => {
   const root = temp(t);
   const bad: unknown[] = [[usage("five_hour", 0)], [usage("five_hour", -1)], [usage("five_hour", 100.5)], [usage("five_hour", Number.NaN)], [{ kind: "usage_percent", window: "hourly", amount: 10 }], [{ kind: "usd", amount: 1 }], "x"];

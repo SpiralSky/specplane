@@ -57,6 +57,7 @@ export interface Config {
     };
     max_parallel: number;
     max_budget_usd: number | null;
+    usage_limits: Array<{ window: "five_hour" | "seven_day"; percent: number }>;
   };
   verification: {
     mode: "auto" | "manual";

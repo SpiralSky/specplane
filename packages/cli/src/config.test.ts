@@ -204,6 +204,13 @@ test("init emits the complete runtime defaults including conductor settings", as
   assert.deepEqual(yaml.load(DEFAULT_CONFIG_YAML), DEFAULT_CONFIG);
 });
 
+test("execution.usage_limits accepts a window and percent and refuses anything else", () => {
+  assert.deepEqual(loadExecution({ usage_limits: [{ window: "five_hour", percent: 80 }] }).config.execution.usage_limits, [{ window: "five_hour", percent: 80 }]);
+  for (const bad of [{ window: "daily", percent: 80 }, { window: "five_hour", percent: 0 }, { window: "five_hour", percent: 101 }, { window: "five_hour" }]) {
+    assert.throws(() => loadExecution({ usage_limits: [bad] }), /usage_limits/);
+  }
+});
+
 function loadVerification(verification: unknown): ReturnType<typeof loadConfig> {
   const root = mkdtempSync(path.join(os.tmpdir(), "specplane-verification-config-"));
   try {

@@ -65,7 +65,7 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
  const totalBudget=opts.maxBudgetUsd===undefined?config.execution.max_budget_usd:positiveLimit(opts.maxBudgetUsd,'--max-budget-usd',false);
  const stepBudget=totalBudget===null?null:totalBudget/maxSteps;
  // Usage thresholds are account-wide: validated here, then passed whole to every session and never added to the reserved budget.
- const usageLimits=validateUsageLimits(opts.usageLimits);
+ const usageLimits=validateUsageLimits(opts.usageLimits??config.execution.usage_limits.map(l=>({kind:'usage_percent' as const,window:l.window,amount:l.percent})));
  const limits:SessionLimit[]=[...(stepBudget===null?[]:[{kind:'usd' as const,amount:stepBudget}]),...usageLimits];
  const targetStep=opts.step===undefined?undefined:positiveLimit(opts.step,'--step');
  if(opts.force&&targetStep===undefined)throw new Error('--force requires --step to identify the completed step to rerun.');

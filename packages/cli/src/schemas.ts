@@ -220,6 +220,15 @@ export const CONFIG_SCHEMA = {
         },
         max_parallel: { type: "integer", minimum: 1 },
         max_budget_usd: { type: ["number", "null"], exclusiveMinimum: 0 },
+        usage_limits: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["window", "percent"],
+            properties: { window: enumOf("five_hour", "seven_day"), percent: { type: "number", exclusiveMinimum: 0, maximum: 100 } },
+          },
+        },
       },
     },
     verification: {

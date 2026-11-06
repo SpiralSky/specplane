@@ -51,6 +51,7 @@ export const DEFAULT_CONFIG: Config = {
     },
     max_parallel: 1,
     max_budget_usd: null,
+    usage_limits: [],
   },
   verification: {
     mode: "auto",

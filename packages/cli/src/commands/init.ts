@@ -52,6 +52,7 @@ execution:
     dedupe: true
   max_parallel: 1
   max_budget_usd: null
+  usage_limits: []            # [{ window: five_hour | seven_day, percent: 1-100 }]; account-wide, never divided
 
 verification:
   mode: auto                  # auto | manual
