@@ -1,6 +1,6 @@
 # Session limit proposal (2026-11-06)
 
-Status: proposal. Nothing here is approved. The code is on local branch `limits-seam-20261106`, not on `main`.
+Status: applied on local branch `limits-seam-20261106`, not on `main`. Both specs are in `review` and await the user's re-approval.
 
 ## Why
 
@@ -30,7 +30,7 @@ Unchanged: `execution.max_budget_usd`, `--max-budget-usd` on the conductor, `res
 6. Launch: replace ``--max-budget-usd` is omitted only when the request has no `budgetUsd`.`` with ``--max-budget-usd` is passed only for a `usd` limit, and any other limit kind refuses.``
 7. Probe: replace `` and `budgetEnforcement` true, only after`` with `` and `limitKinds` as `['usd']`, only after``, and replace `Otherwise the capability is false` with `Otherwise each capability is false and `limitKinds` is empty`.
 
-Applying them also needs the packaged copy in `packages/cli/assets/docs/sources/` and its manifest digest refreshed, then a `specplane spec pin --check`.
+These edits are applied on the branch. The packaged copy in `packages/cli/assets/docs/sources/` is left alone: it was already an older approved snapshot, 44 diff lines behind the spec, so refreshing it belongs to a separate step after re-approval.
 
 ## Adding a percentage limit later
 
