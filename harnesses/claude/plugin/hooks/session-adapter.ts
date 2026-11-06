@@ -26,7 +26,7 @@ export interface ProcessPort {
   /** Optional: whether a pid from an earlier run is still alive. Without it, resume after a restart refuses. */
   isAlive?(pid: number): boolean
 }
-export interface MappingRecord { orchestrationId: string; nativeSessionId: string; pid?: number }
+export interface MappingRecord { orchestrationId: string; nativeSessionId: string; pid?: number; spawnFailed?: boolean }
 export interface MappingStore {
   save(record: MappingRecord): void | Promise<void>
   load(orchestrationId: string): MappingRecord | undefined | Promise<MappingRecord | undefined>
@@ -148,7 +148,8 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
     await deps.store.save({ orchestrationId: request.orchestrationId, nativeSessionId })
     let t: Tracked
     try { t = start(argv, request, nativeSessionId) } catch {
-      // Outcome uncertain: report unknown; the adapter never retries a launch by itself.
+      // Report unknown and never retry by itself; the mark lets a later explicit launch reuse this id.
+      await deps.store.save({ orchestrationId: request.orchestrationId, nativeSessionId, spawnFailed: true })
       return { orchestrationId: request.orchestrationId, nativeSessionId, state: 'unknown' }
     }
     if (t.handle.pid !== undefined) await deps.store.save({ orchestrationId: request.orchestrationId, nativeSessionId, pid: t.handle.pid })
@@ -176,7 +177,7 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
       } else {
         // A mapping from an earlier adapter instance: only a pid that is positively dead allows a new launch, as for resume.
         const rec = await deps.store.load(request.orchestrationId)
-        if (rec && (rec.pid === undefined || !deps.process.isAlive || deps.process.isAlive(rec.pid))) throw new Error('launch refused: cannot confirm the earlier process for this orchestration id has exited')
+        if (rec && !rec.spawnFailed && (rec.pid === undefined || !deps.process.isAlive || deps.process.isAlive(rec.pid))) throw new Error('launch refused: cannot confirm the earlier process for this orchestration id has exited')
       }
       return begin('launch', deps.newId(), request)
     },

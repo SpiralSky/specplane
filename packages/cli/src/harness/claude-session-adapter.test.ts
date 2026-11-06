@@ -90,6 +90,14 @@ test('route B launch: a failed mapping save spawns nothing; a failed spawn is un
   assert.equal(g.events.filter(e => e === 'spawn').length, 1);
 });
 
+test('route B launch: after a spawn that threw, a later explicit launch of the same id starts a new session', opts, async () => {
+  const g = fake({ throwOnSpawn: true });
+  const b = await mk(g);
+  await b.launch(req());
+  assert.equal((await b.launch(req())).state, 'unknown');
+  assert.equal(g.events.filter(e => e === 'spawn').length, 2);
+});
+
 test('route B launch: a live process on the same orchestration id refuses, spawns nothing and keeps the mapping; an exited one may relaunch', opts, async () => {
   const f = fake();
   const a = await mk(f);
