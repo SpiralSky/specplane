@@ -1068,6 +1068,7 @@ Harness attribution trailers (`Co-Authored-By:`) follow the harness's own conven
 | `step` | agent (`plan-step`) | `plan/<id>` | `<type>(<slug>): <summary>` |
 | `plan-create` | agent (`plan-create`) | any | `docs(<slug>): create plan` |
 | `spec` | agent (`spec-draft-architecture`, approved `spec-assist` edits) | any | `docs(specs): <summary>` |
+| `decision-new` | agent (`decision-new`) | any | `docs(decisions): create <id>` |
 | `approve` | CLI `spec approve`, `spec reopen`, `plan approve`, `decision accept` | any | `docs(specs): approve <id>`, `docs(specs): reopen <id>`, `docs(<plan-id>): approve plan`, `docs(decisions): accept <id>` |
 | `start` | CLI first start, execution binding | `plan/<id>` | `chore(specplane): start <id>` |
 | `claim` | CLI start/finish (frontmatter mode) | integration target | `chore(specplane): claim <id> <status>` |
