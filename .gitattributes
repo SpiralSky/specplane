@@ -1,1 +1,3 @@
+# Specplane hashes text files byte for byte, so every checkout keeps LF.
+* text=auto eol=lf
 PLANS.md linguist-generated=true
