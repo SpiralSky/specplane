@@ -83,8 +83,10 @@ export type TestReceipt = { protocol: 1; requestId: string; executionId: string;
 export type TestExecutionResult = { artifact: Artifact & { kind: 'test' }; executionId: string; exitCode: number | null; signal: string | null; assertions: TestAssertion[] };
 export type ConductorRequest = { plans: string[]; until?: 'step' | 'finish'; maxSteps?: number; maxParallel?: number; maxBudgetUsd?: number; timeoutSeconds?: number; step?: number; force?: boolean; reason?: string; dryRun?: boolean };
 export type SessionRef = { orchestrationId: string; nativeSessionId?: string; pid?: number };
-export type SessionRequest = { requestId: string; orchestrationId: string; plan: string; step: number; checkout: string; workflowRequestPath: string; mode: 'unattended'; budgetUsd?: number; signal?: AbortSignal };
+/** A limit the adapter enforces on one session. Adding a kind means one more union member and an adapter that declares it. */
+export type SessionLimit = { kind: 'usd'; amount: number };
+export type SessionRequest = { requestId: string; orchestrationId: string; plan: string; step: number; checkout: string; workflowRequestPath: string; mode: 'unattended'; limits?: SessionLimit[]; signal?: AbortSignal };
 export type SessionState = SessionRef & { state: 'running' | 'completed' | 'failed' | 'unknown' };
-export type SessionCapabilities = { host: string; version?: string; surface: string; backends: string[]; launch: boolean; observe: boolean; resume: boolean; cancel: boolean; budgetEnforcement: boolean };
+export type SessionCapabilities = { host: string; version?: string; surface: string; backends: string[]; launch: boolean; observe: boolean; resume: boolean; cancel: boolean; limitKinds: SessionLimit['kind'][] };
 export type SessionAdapter = { name: string; /** Optional local alert sink; never executes commands. */ notify?(message: string): void; probe(request: { checkout: string; requirements: string[]; signal?: AbortSignal }): Promise<SessionCapabilities>; launch(request: SessionRequest): Promise<SessionState>; observe(ref: SessionRef): Promise<SessionState>; resume(ref: SessionRef, request: SessionRequest): Promise<SessionState>; recovery(ref: SessionRef): Promise<{ available: boolean; instructions?: string[][]; reason?: string }>; cancel(ref: SessionRef, signal?: AbortSignal): Promise<{ stopped: boolean; recoveryRequired: boolean }> };
 export type ContributionQuery = { spec?: string; requestId?: string };

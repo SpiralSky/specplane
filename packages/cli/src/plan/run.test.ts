@@ -25,7 +25,7 @@ type State = SessionState["state"];
 interface Fake extends SessionAdapter { calls: string[]; requests: SessionRequest[]; caps: SessionCapabilities; }
 function fake(onLaunch: (r: SessionRequest) => void = () => {}, observe: () => State = () => "completed", caps: Partial<SessionCapabilities> = {}): Fake {
   const calls: string[] = []; const requests: SessionRequest[] = [];
-  const capabilities: SessionCapabilities = { host: "fake", surface: "test", backends: ["worktree"], launch: true, observe: true, resume: true, cancel: true, budgetEnforcement: true, ...caps };
+  const capabilities: SessionCapabilities = { host: "fake", surface: "test", backends: ["worktree"], launch: true, observe: true, resume: true, cancel: true, limitKinds: ['usd'], ...caps };
   return {
     name: "fake", calls, requests, caps: capabilities,
     async probe() { calls.push("probe"); return capabilities; },
@@ -109,12 +109,12 @@ test("conductor: distinct plans honor parallel bound and duplicate IDs fail befo
 
 test("conductor: reserves bounded session budgets and refuses unsupported enforcement", async t => {
   const root = temp(t); let n = ready(root); const budgets: (number | null | undefined)[] = [];
-  const adapter = fake(r => { budgets.push(r.budgetUsd); n = n.step!.number === 1 ? { ...n, step: { ...n.step!, number: 2 } } : finished(n); });
+  const adapter = fake(r => { budgets.push(r.limits?.[0]?.amount); n = n.step!.number === 1 ? { ...n, step: { ...n.step!, number: 2 } } : finished(n); });
   const result = await runPlan(id, structuredClone(DEFAULT_CONFIG), root, { maxSteps: 2, maxBudgetUsd: 1 }, deps(root, () => n, adapter));
   assert.equal(result.code, 0); assert.deepEqual(budgets, [0.5, 0.5]); assert.equal(result.reservedBudgetUsd, 1);
-  let launches = 0; const unsupported = fake(() => launches++, undefined, { budgetEnforcement: false });
+  let launches = 0; const unsupported = fake(() => launches++, undefined, { limitKinds: [] });
   const denied = await runPlan(id, structuredClone(DEFAULT_CONFIG), root, { maxBudgetUsd: 1 }, deps(root, () => ready(root), unsupported));
-  assert.equal(denied.code, 5); assert.equal(launches, 0); assert.equal(denied.reservedBudgetUsd, 0);
+  assert.equal(denied.code, 5); assert.equal(launches, 0); assert.equal(denied.reservedBudgetUsd, 0); assert.match(denied.reason, /cannot enforce the requested usd limit/);
 });
 
 test("conductor: concurrent invocation of one plan refuses a duplicate session", async t => {

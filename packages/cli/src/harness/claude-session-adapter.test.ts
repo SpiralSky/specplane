@@ -39,7 +39,7 @@ function fake(opts2: { throwOnSpawn?: boolean; ignoreKill?: boolean; alive?: (pi
   };
   return { port, store, spawned, saved, events };
 }
-const req = (o: Record<string, unknown> = {}): Any => ({ requestId: 'r1', orchestrationId: 'o1', plan: 'p', step: 1, checkout: '/work/plan-p', workflowRequestPath: '/work/plan-p/.specplane/req.json', mode: 'unattended', budgetUsd: 2.5, ...o });
+const req = (o: Record<string, unknown> = {}): Any => ({ requestId: 'r1', orchestrationId: 'o1', plan: 'p', step: 1, checkout: '/work/plan-p', workflowRequestPath: '/work/plan-p/.specplane/req.json', mode: 'unattended', limits: [{ kind: 'usd', amount: 2.5 }], ...o });
 const mk = async (f: ReturnType<typeof fake>, extra: Record<string, unknown> = {}) => {
   const m = await load();
   return m.createClaudeSessionAdapter({ process: f.port, store: f.store, newId: () => '11111111-1111-4111-8111-111111111111', version: '2.1.317', ...extra });
@@ -63,12 +63,12 @@ test('route B launch: argv, checkout, mapping persisted before spawn, no --bare 
   assert.equal(s.pid, 4001);
 });
 
-test('route B launch: --max-budget-usd is omitted only without budgetUsd; invalid budgets and multi-line paths refuse before any save or spawn', opts, async () => {
+test('route B launch: --max-budget-usd is omitted only without a usd limit; invalid limits, unknown kinds and multi-line paths refuse before any save or spawn', opts, async () => {
   const f = fake();
   const a = await mk(f);
-  await a.launch(req({ budgetUsd: undefined }));
+  await a.launch(req({ limits: undefined }));
   assert.ok(!f.spawned[0].argv.includes('--max-budget-usd'));
-  for (const bad of [{ budgetUsd: 0 }, { budgetUsd: -1 }, { budgetUsd: Number.NaN }, { workflowRequestPath: '/a\nb' }, { workflowRequestPath: '' }]) {
+  for (const bad of [{ limits: [{ kind: 'usd', amount: 0 }] }, { limits: [{ kind: 'usd', amount: -1 }] }, { limits: [{ kind: 'usd', amount: Number.NaN }] }, { limits: [{ kind: 'usage_percent', amount: 80 }] }, { workflowRequestPath: '/a\nb' }, { workflowRequestPath: '' }]) {
     await assert.rejects(a.launch(req({ orchestrationId: 'ox', ...bad })));
   }
   assert.equal(f.spawned.length, 1);
@@ -232,7 +232,7 @@ test('route B resume: --resume replaces --session-id, only when the mapping matc
   await assert.rejects(a.resume({ ...s, nativeSessionId: 'wrong' }, req()), /no persisted mapping/);
   await assert.rejects(a.resume({ orchestrationId: 'o1' }, req()), /no persisted mapping/);
   await assert.rejects(a.resume(s, req({ orchestrationId: 'o2' })), /no persisted mapping/);
-  const r = await a.resume(s, req({ budgetUsd: 1 }));
+  const r = await a.resume(s, req({ limits: [{ kind: 'usd', amount: 1 }] }));
   assert.equal(r.state, 'running');
   const argv = f.spawned[1].argv;
   assert.deepEqual(argv.slice(0, 6), ['claude', '-p', '--resume', s.nativeSessionId, '--max-budget-usd', '1']);
@@ -294,13 +294,13 @@ test('route B recovery: a ref id without a matching persisted mapping is unavail
 });
 
 test('route B probe is gated: every capability false without a passed probe record for the installed version', opts, async () => {
-  const none = { launch: false, observe: false, resume: false, cancel: false, budgetEnforcement: false };
+  const none = { launch: false, observe: false, resume: false, cancel: false, limitKinds: [] };
   const pass = { version: '2.1.317', launched: true, observed: true, resumed: true, cancelled: true, budgetStopSeen: true };
   const probe = async (extra: Record<string, unknown>) => {
     const caps = await (await mk(fake(), extra)).probe({ checkout: '/x', requirements: ['launch'] });
     return caps;
   };
-  const pick = (c: Any) => ({ launch: c.launch, observe: c.observe, resume: c.resume, cancel: c.cancel, budgetEnforcement: c.budgetEnforcement });
+  const pick = (c: Any) => ({ launch: c.launch, observe: c.observe, resume: c.resume, cancel: c.cancel, limitKinds: c.limitKinds });
   const bare = await probe({});
   assert.deepEqual(pick(bare), none);
   assert.deepEqual(bare.backends, ['worktree']);
@@ -309,7 +309,7 @@ test('route B probe is gated: every capability false without a passed probe reco
   assert.deepEqual(pick(await probe({ evidence: pass, version: '2.1.999' })), none);
   assert.deepEqual(pick(await probe({ evidence: pass, version: undefined })), none);
   assert.deepEqual(pick(await probe({ evidence: { ...pass, budgetStopSeen: false } })), { ...none, launch: true, observe: true, resume: true, cancel: true });
-  assert.deepEqual(pick(await probe({ evidence: pass })), { launch: true, observe: true, resume: true, cancel: true, budgetEnforcement: true });
+  assert.deepEqual(pick(await probe({ evidence: pass })), { launch: true, observe: true, resume: true, cancel: true, limitKinds: ['usd'] });
 });
 
 test('route B stays gated in the plugin: handlers do not import the adapter and no marker gates reasoning', opts, async () => {

@@ -5,7 +5,7 @@ import { run as git } from '../git/exec.js';
 import { defaultBranch } from '../git/repo.js';
 import type { Config } from '../types.js';
 import { sessionIdFor } from './session-identity.js';
-import type { SessionAdapter, SessionCapabilities, SessionRef, SessionRequest, SessionState } from '../core/contracts.js';
+import type { SessionAdapter, SessionCapabilities, SessionLimit, SessionRef, SessionRequest, SessionState } from '../core/contracts.js';
 import { randomUUID } from 'node:crypto';
 import { listStepFiles, parseStep } from './parse.js';
 import { planDir } from './resolve.js';
@@ -52,6 +52,7 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
  if(opts.force&&!opts.reason?.trim()) throw new Error('--force requires a non-empty --reason.');
  const totalBudget=opts.maxBudgetUsd===undefined?config.execution.max_budget_usd:positiveLimit(opts.maxBudgetUsd,'--max-budget-usd',false);
  const stepBudget=totalBudget===null?null:totalBudget/maxSteps;
+ const limits:SessionLimit[]=stepBudget===null?[]:[{kind:'usd',amount:stepBudget}];
  const targetStep=opts.step===undefined?undefined:positiveLimit(opts.step,'--step');
  if(opts.force&&targetStep===undefined)throw new Error('--force requires --step to identify the completed step to rerun.');
  if(opts.reason && /[\r\n]/.test(opts.reason))throw new Error('--reason must be one line.');
@@ -81,12 +82,13 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
   if(branch!==`plan/${id}`||branch===defaultBranch(initial.checkout!)) return result({allowed:false,code:5,action:'ask_human',reason:'Refusing to launch outside the exact isolated plan branch.'});
  }
  /** Probe again before every launch; a failed or insufficient probe never substitutes a host or skips a check. */
- const probe=async(checkout:string,budgeted:boolean,resuming:boolean):Promise<SessionCapabilities>=>{
-  const requirements=['launch','observe',`backend:${config.execution.backend}`,...(budgeted?['budget']:[]),...(resuming?['resume']:[])];
+ const probe=async(checkout:string,resuming:boolean):Promise<SessionCapabilities>=>{
+  const requirements=['launch','observe',`backend:${config.execution.backend}`,...limits.map(l=>`limit:${l.kind}`),...(resuming?['resume']:[])];
   const caps=await adapter.probe({checkout,requirements,signal:opts.signal});
   if(!caps.launch||!caps.observe)throw new Error(`Adapter ${adapter.name} cannot launch and observe sessions.`);
   if(!caps.backends.includes(config.execution.backend))throw new Error(`Adapter ${adapter.name} does not support the ${config.execution.backend} backend.`);
-  if(budgeted&&!caps.budgetEnforcement)throw new Error('Selected adapter cannot enforce the requested session budget.');
+  const unenforced=limits.find(l=>!caps.limitKinds.includes(l.kind));
+  if(unenforced)throw new Error(`Adapter ${adapter.name} cannot enforce the requested ${unenforced.kind} limit.`);
   if(resuming&&!caps.resume)throw new Error('Selected adapter cannot resume the interrupted session; inspect it with its recovery instructions.');
   return caps;
  };
@@ -95,7 +97,7 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
  const recordFile=path.join(state,`${key}.session.json`);
  if(opts.dryRun) {
   try {
-   await probe(initial.checkout!,stepBudget!==null,false);
+   await probe(initial.checkout!,false);
    const prior=readRecord(recordFile);
    const unfinished=prior?.step===initial.step!.number;
    const obs=unfinished?await adapter.observe(refOf(prior!)):null;
@@ -136,7 +138,7 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
    // Clear resolved considerations while holding the lock, before the next session starts.
    dispatchAlerts({plan:id,checkout:last.checkout!,sessionId:sessionId??'',alerts:[],cache:path.join(state,`${key}.alerts.json`),config,log,harness:adapter.notify?.bind(adapter)});
    const resuming=priorState?.state==='failed';
-   await probe(last.checkout!,stepBudget!==null,resuming);
+   await probe(last.checkout!,resuming);
    if(!deps.next){
     const branch=git('git',['branch','--show-current'],{cwd:last.checkout!}).trim();
     if(branch!==`plan/${id}`||branch===defaultBranch(last.checkout!))throw new Error('Plan checkout changed branches; refusing to launch.');
@@ -148,7 +150,7 @@ export async function runPlan(id:string,config:Config,root:string,opts:RunOption
    const requestId=randomUUID();
    const requestPath=path.join(state,`${key}.workflow-request.json`);
    writePrivate(requestPath,{protocol:1,requestId,workflow:'plan-step',plan:id,step:before,mode:'unattended',...(targetStep!==undefined?{rerun:{step:targetStep,reason:opts.reason}}:{})});
-   const request:SessionRequest={requestId,orchestrationId,plan:id,step:before,checkout:last.checkout!,workflowRequestPath:requestPath,mode:'unattended',...(stepBudget!==null?{budgetUsd:stepBudget}:{}),...(opts.signal?{signal:opts.signal}:{})};
+   const request:SessionRequest={requestId,orchestrationId,plan:id,step:before,checkout:last.checkout!,workflowRequestPath:requestPath,mode:'unattended',...(limits.length?{limits}:{}),...(opts.signal?{signal:opts.signal}:{})};
    steps++; reservedBudgetUsd+=stepBudget??0;
    // Persist before launching: an exception or crash after this point leaves the attempt visible and unrepeatable.
    const record:SessionRecord={orchestrationId,step:before,requestId};

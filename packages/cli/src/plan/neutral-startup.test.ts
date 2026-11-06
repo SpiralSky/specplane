@@ -59,7 +59,7 @@ test("core runConductor outside a Git checkout returns a normalised failure with
     const calls: string[] = [];
     const adapter: SessionAdapter = {
       name: "fake",
-      async probe() { calls.push("probe"); return { host: "fake", surface: "t", backends: ["worktree"], launch: true, observe: true, resume: true, cancel: true, budgetEnforcement: true }; },
+      async probe() { calls.push("probe"); return { host: "fake", surface: "t", backends: ["worktree"], launch: true, observe: true, resume: true, cancel: true, limitKinds: ["usd"] }; },
       async launch() { calls.push("launch"); throw new Error("no"); }, async observe() { calls.push("observe"); throw new Error("no"); },
       async resume() { calls.push("resume"); throw new Error("no"); }, async recovery() { return { available: false }; }, async cancel() { return { stopped: false, recoveryRequired: false }; },
     };

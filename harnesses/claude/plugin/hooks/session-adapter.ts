@@ -9,8 +9,9 @@
 /** Structural copies of the core Protocol 1 types (packages/cli/src/core/contracts.ts); kept local because the plugin ships alone. */
 export type SessionRef = { orchestrationId: string; nativeSessionId?: string; pid?: number }
 export type SessionState = SessionRef & { state: 'running' | 'completed' | 'failed' | 'unknown' }
-export type SessionRequest = { requestId: string; orchestrationId: string; plan: string; step: number; checkout: string; workflowRequestPath: string; mode: 'unattended'; budgetUsd?: number; signal?: AbortSignal }
-export type SessionCapabilities = { host: string; version?: string; surface: string; backends: string[]; launch: boolean; observe: boolean; resume: boolean; cancel: boolean; budgetEnforcement: boolean }
+export type SessionLimit = { kind: string; amount: number }
+export type SessionRequest = { requestId: string; orchestrationId: string; plan: string; step: number; checkout: string; workflowRequestPath: string; mode: 'unattended'; limits?: SessionLimit[]; signal?: AbortSignal }
+export type SessionCapabilities = { host: string; version?: string; surface: string; backends: string[]; launch: boolean; observe: boolean; resume: boolean; cancel: boolean; limitKinds: string[] }
 
 /** One spawned process, as the adapter needs it. The host binding wraps `$.process.spawn` (argument array, no shell). */
 export interface ProcessHandle {
@@ -86,14 +87,15 @@ export function buildPrompt(workflowRequestPath: string): string {
 }
 
 /**
- * `claude -p` argv. No --bare (the installed plugin must load) and no permission-bypass flag. `--max-budget-usd` only when budgeted.
+ * `claude -p` argv. No --bare (the installed plugin must load) and no permission-bypass flag. `--max-budget-usd` only for a `usd` limit; any other kind refuses.
  * The tool lists are variadic, so another option must follow them: the prompt stays last, after `--verbose`.
  */
 export function buildArgv(mode: 'launch' | 'resume', nativeSessionId: string, request: SessionRequest, executable = 'claude'): string[] {
   const argv = [executable, '-p', mode === 'launch' ? '--session-id' : '--resume', nativeSessionId]
-  if (request.budgetUsd !== undefined) {
-    if (!Number.isFinite(request.budgetUsd) || request.budgetUsd <= 0) throw new Error('budgetUsd must be a positive number')
-    argv.push('--max-budget-usd', String(request.budgetUsd))
+  for (const limit of request.limits ?? []) {
+    if (limit.kind !== 'usd') throw new Error(`unsupported limit kind: ${limit.kind}`)
+    if (!Number.isFinite(limit.amount) || limit.amount <= 0) throw new Error('usd limit must be a positive number')
+    argv.push('--max-budget-usd', String(limit.amount))
   }
   argv.push('--permission-mode', PERMISSION_MODE, '--permission-prompts', 'none',
     '--allowedTools', ALLOWED_TOOLS.join(','), '--disallowedTools', DISALLOWED_TOOLS.join(','),
@@ -166,7 +168,7 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
       return {
         host: 'claude-code', version: deps.version, surface: 'headless', backends: ['worktree'],
         launch: f(ev?.launched), observe: f(ev?.observed), resume: f(ev?.resumed), cancel: f(ev?.cancelled),
-        budgetEnforcement: f(ev?.budgetStopSeen),
+        limitKinds: f(ev?.budgetStopSeen) ? ['usd'] : [],
       }
     },
 
