@@ -169,7 +169,8 @@ async function verify(state:Prepared,result:WorkflowResult,context:CoreContext,c
    digests.push(artifact.digest);
   }
   if(evidence.assessment==='met'&&criterion.testRequirements.length&&!tests.length)fail('INVALID_EVIDENCE','Met test criterion requires core execution evidence');
-  if(evidence.assessment==='met'&&!criterion.testRequirements.length&&!evidence.artifacts.some(a=>a.kind==='file'))fail('INVALID_EVIDENCE','Met inspection criterion requires file evidence');
+  // Content that needs the human's confirmation is shown to them exactly, so that confirmation stands in for file evidence.
+  if(evidence.assessment==='met'&&!criterion.testRequirements.length&&!nonPlan?.requiresConfirmation&&!evidence.artifacts.some(a=>a.kind==='file'))fail('INVALID_EVIDENCE','Met inspection criterion requires file evidence');
   summary.push(`Criterion ${criterion.id}: ${evidence.assessment}${state.uncertainCriteria.includes(criterion.id)&&evidence.assessment==='met'?' (self-assessed; no reviewed mapping)':''}. ${evidence.rationale}`);
   for(const receipt of tests){const artifact=evidence.artifacts.find(a=>a.kind==='test'&&a.path===`${receipt.executionId}.json`)!;summary.push(`Local execution evidence ${receipt.executionId}, receipt SHA-256 ${artifact.digest}; command ${JSON.stringify([receipt.executable,...receipt.args])}; tested state ${receipt.stateDigest}; exit ${receipt.exitCode}, signal ${receipt.signal}.`);for(const s of receipt.assertions)summary.push(`Suite ${JSON.stringify(s.suiteId)}: executed ${s.executed}, failed ${s.failed}, skipped ${s.skipped}.`);}
  }

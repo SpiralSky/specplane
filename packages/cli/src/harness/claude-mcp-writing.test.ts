@@ -45,7 +45,7 @@ async function session(c: Case) {
   const request = JSON.parse(json);
   const result = {
     protocol: 1, requestId, baseDigest: request.base.digest, outcome: 'done', summary: 'save the finalised text', changes: [],
-    criterionEvidence: request.criteria.map((criterion: { id: string }) => ({ criterionId: criterion.id, assessment: 'met', rationale: 'The user confirms exactly this text', artifacts: [{ path: c.file, digest: sha256(c.body), kind: 'file' }] })),
+    criterionEvidence: request.criteria.map((criterion: { id: string }) => ({ criterionId: criterion.id, assessment: 'met', rationale: 'The user confirms exactly this text', artifacts: [] })),
     gaps: [], contextExpansion: [], contributionEvents: [], openIssues: '', nextKnows: 'Nothing further.',
     ...c.extra(requestId),
   };
@@ -133,6 +133,13 @@ for (const [name, c] of Object.entries(cases)) {
     assert.deepEqual(f.runner.tracked(), []);
   });
 }
+
+test('a done result with nothing for the user to confirm still needs file evidence', async () => {
+  const f = await session({ ...cases['decision-new']!, extra: () => ({}) });
+  const refused = await call(f.server, 4, 'validate', { requestId: f.requestId, result: f.result });
+  assert.equal(refused.isError, true);
+  assert.match(refused.text, /file evidence/);
+});
 
 test('a done result citing a file the request does not create is refused before any prompt', async () => {
   const c = cases['decision-new']!;

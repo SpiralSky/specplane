@@ -563,7 +563,7 @@ export function writingInstructions(workflow: string): string {
     'The user sees the exact content in a dialog and confirms or declines it; nothing is written before that, and saving does not approve anything. ' +
     'Include only text the user has finalised or whose content they asked for; if they have not, set outcome blocked with a BLOCKED: open issue and ask them. ' +
     'A new file has no earlier content, so a changes entry for it is not used: the creation or finalizedEdits field carries the text, and changes stays []. ' +
-    'To end the request done, set every assessment to met and cite as artifacts the file being created or finalised: {"path":"<the file the core will write>","digest":"<64-hex SHA-256>","kind":"file"}, where digest is the SHA-256 of the exact body string you put in the result (UTF-8, no frontmatter). The core refuses any other digest and any other file that does not exist. When in doubt use blocked. '
+    'To end the request done, set every assessment to met with empty artifacts: the user confirming the exact content is the evidence, so do not work out file names or digests. When in doubt use blocked. '
   switch (workflow) {
     case 'spec-assist':
       return common +
