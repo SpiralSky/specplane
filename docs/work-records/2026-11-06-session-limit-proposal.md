@@ -1,6 +1,6 @@
 # Session limit proposal (2026-11-06)
 
-Status: applied on local branch `limits-seam-20261106`, not on `main`. Both specs are in `review` and await the user's re-approval.
+Status: applied on local branch `limits-seam-20261106`, not on `main`. The user re-approved both specs on 2026-11-06.
 
 ## Why
 
