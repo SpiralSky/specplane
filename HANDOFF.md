@@ -90,7 +90,7 @@ Decided:
 - `Regenerate PLANS.md`: disable with `gh workflow disable` rather than edit it (`workflows.test` and `ci.md` keep the file as it is). No branch protection for now: it would block the direct pushes this repo uses.
 
 Order, as of the end of the 11-06 continuation session:
-1. BLOCKED on the user. The auto mode classifier refused `git push origin main` and `gh workflow disable "Regenerate PLANS.md"`; neither ran. The user runs both (see "Waiting on the user" below).
+1. Done by the user on 2026-11-06: `main` pushed at `35916b0`, `Regenerate PLANS.md` is `disabled_manually`. The auto mode classifier refuses both from an agent, so pushes stay with the user.
 2. Done. Capture passed: `usage-capture.txt` and `.jsonl` in `host-evidence/2.1.317/`, on the usage branch. `rate_limit_info.unifiedWindows.<window>.utilization` carries `five_hour` and `seven_day` in one event.
 3. Done on `usage-percent-limit-20261106` (`1b1f202`, `29a4781`): `readClaudeUsage`, and `readUsage` now returns every window in an event. Full suite on Bun 1.4.4: 1185 pass, 0 fail, 110 files. `tsc` leaves compiled tests from another branch in `dist`, so delete them after switching branches or they fail as unhandled errors. Not wired: the host binding does not exist, and no config key sets a usage limit yet (`execution.usage_limits` is only proposed).
 4. Done on `decision-framing-20261106` (`2dc3788` to `a20d24c`), built from `main`, not from the usage branch: `agent.decision_framing`, on in this repo; `check-sync` allows the one line. Full suite on Bun 1.4.4 (`PATH=/usr/bin:$PATH SPECPLANE_TEST_RUNNER=bun`): 1178 pass, 1 fail, 111 files. The failure is `DEFAULT_CONFIG equals the defaults table in feature/configuration`, expected until that spec is edited. `hooks.test.sh` 104 pass, `check-sync` OK, `validate` 0 errors, 54 warnings. `docs/product-requirements.md` is a draft on that branch.
@@ -98,7 +98,6 @@ Order, as of the end of the 11-06 continuation session:
 6. Plan check done: dependents see the done plans. The command is `specplane plan list`; `plan status` does not exist. `2026-11-02-target-lifecycle` still lists as in progress although item "Eight plans" calls it declared done. Abandoning `2026-10-30-plan-conductor` is not done; it stays after step 5.
 
 Waiting on the user:
-- `! git push origin main`, then `! gh workflow disable "Regenerate PLANS.md"`.
 - Compare the host's usage display with the capture's 1% (five hour) and 17% (seven day) readings if still close: the reader treats `utilization` as a fraction, by inference.
 - Finalise the feature text in the framing proposal and `docs/product-requirements.md`, then reopen the six specs.
 
