@@ -51,7 +51,8 @@ test('the suite of a mapped criterion runs the configured command and the reply 
   assert.equal(prepare.isError, false, prepare.content[0].text);
   const out = await call(server, 'executeTest', { nonce: NONCE, requestId: 'req-1' }, 3);
   assert.equal(out.result.isError, false, out.result.content[0].text);
-  assert.deepEqual(executeCalls(runner).map(c => c.params), [{ requestId: 'req-1', criterionIds: ['c:1'], executable: 'node', args: ['--test', 'dist/unit.test.js'], reportFormat: 'node-tap-v13' }, { requestId: 'req-1', criterionIds: [], executable: 'node', args: ['--test', 'dist/unit.test.js'], reportFormat: 'node-tap-v13', suiteId: 'unit-suite' }]);
+  // One run serves the criterion and the step-level receipt, so the suite never runs twice.
+  assert.deepEqual(executeCalls(runner).map(c => c.params), [{ requestId: 'req-1', criterionIds: ['c:1'], executable: 'node', args: ['--test', 'dist/unit.test.js'], reportFormat: 'node-tap-v13', suiteId: 'unit-suite' }]);
   const receipts = JSON.parse(out.result.content[0].text).value.receipts;
   assert.equal(receipts[0].suiteId, 'unit-suite');
   assert.deepEqual(receipts[0].suites, [{ suiteId: 'unit-suite', executed: 3, failed: 0, skipped: 0 }]);

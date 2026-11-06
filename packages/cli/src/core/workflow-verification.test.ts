@@ -163,6 +163,21 @@ test('a failing, empty or missing suite blocks done; a passing fresh run allows 
   } finally { f.close(); }
 });
 
+test('one run carrying a suite and its criterion is both the criterion evidence and the step-level receipt', async () => {
+  const f = await setup({ config: SUITES, mapped: true });
+  try {
+    const res = f.result(['source-notes.md']);
+    const criterionIds = f.prepared.criteria.filter(c => c.testRequirements.length).map(c => c.id);
+    assert.ok(criterionIds.length > 0);
+    const run = await f.run({ criterionIds });
+    assert.equal(run.ok, true, JSON.stringify(run));
+    if (!run.ok) return;
+    for (const evidence of res.criterionEvidence) if (criterionIds.includes(evidence.criterionId)) evidence.artifacts = [run.value.artifact];
+    const proposal = await f.validate(res);
+    assert.equal(proposal.ok, true, JSON.stringify(proposal));
+  } finally { f.close(); }
+});
+
 test('a stale step-level receipt does not count after a further edit', async () => {
   const f = await setup({ config: SUITES });
   try {

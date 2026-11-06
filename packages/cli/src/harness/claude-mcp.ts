@@ -297,7 +297,9 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     if (held.request.workflow === 'plan-step' && verification.mode === 'auto' && args.criterionIds === undefined) {
       for (const suiteId of Object.keys(suites).sort()) {
         const command = resolveSuite(suites, suiteId);
-        if (command) runs.push({ suiteId, command, criterionIds: [], stepLevel: true });
+        const covered = runs.find(run => run.suiteId === suiteId);
+        if (covered) covered.stepLevel = true; // one run is both the criterion evidence and the step-level receipt
+        else if (command) runs.push({ suiteId, command, criterionIds: [], stepLevel: true });
       }
     }
     if (runs.length === 0) return text(`Request ${requestId} has no test requirements to run.`, true);
