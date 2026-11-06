@@ -1,7 +1,7 @@
 ---
 id: architecture/repository-layout
 title: Repository layout
-status: review
+status: approved
 author: mixed
 implements: [feature/spec-system, feature/configuration, feature/plan-system, feature/decisions]
 ---
