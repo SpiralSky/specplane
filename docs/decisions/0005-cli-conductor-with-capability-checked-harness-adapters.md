@@ -2,7 +2,7 @@
 id: decision/0005
 title: "Shared conductor with extension-owned harness adapters"
 date: 2026-11-01
-status: proposed
+status: accepted
 superseded_by: ""
 related_specs: [architecture/reference-cli, feature/plan-execution]
 ---
