@@ -4,6 +4,7 @@
 # settings.json is compared as normalized JSON (jq -S .): the template must be a SUBSET of
 # .claude/settings.json, so the dogfood copy may add extra keys of its own but must contain
 # everything the template defines.
+# The installed rules file may add the one `**Decisions**` line that `agent.decision_framing` writes.
 # Exits 1 and lists differences or missing files; exits 0 when everything is in sync.
 root=$(git rev-parse --show-toplevel) || exit 1
 tpl="$root/harnesses/claude/templates"
@@ -14,6 +15,8 @@ check() { # $1 template file, $2 installed file
   if [ ! -f "$2" ]; then
     echo "MISSING: ${2#"$root"/} (template ${1#"$root"/})"
     fail=1
+  elif [ "${1##*/}" = specplane.md ] && grep -v '^- \*\*Decisions\*\*: ' "$2" | cmp -s "$1" -; then
+    :
   elif ! cmp -s "$1" "$2"; then
     echo "DIFFERS: ${2#"$root"/} (template ${1#"$root"/})"
     fail=1

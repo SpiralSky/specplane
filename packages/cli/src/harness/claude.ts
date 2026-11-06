@@ -1,6 +1,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { withDecisionFraming } from "../agents/standing.js";
+import { configuredFraming } from "../config.js";
 import { type Harness, Report, skillDirsIn, templatesDir, withInstallTransaction } from "./index.js";
 import { assertInstallDestination, InstallationPathError } from "./containment.js";
 import type { InstallTransaction } from "./containment.transaction.js";
@@ -228,7 +230,8 @@ export const claude: Harness = {
       for (const rel of files) {
         if (rel === "settings.json") continue;
         const dest = path.join(root, ".claude", rel);
-        const src = fs.readFileSync(path.join(tplDir, rel));
+        const template = fs.readFileSync(path.join(tplDir, rel));
+        const src = rel === claude.rulesTemplate ? Buffer.from(withDecisionFraming(template.toString("utf8"), configuredFraming(root))) : template;
         const exec = rel.startsWith("hooks/") && rel.endsWith(".sh");
         const skill = /^skills\/([^/]+)\/SKILL\.md$/.exec(rel);
         const kind = tx.classify(dest, src);

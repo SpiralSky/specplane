@@ -10,6 +10,7 @@ This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.s
 - **Plans**: when invoking managed plan execution, work only in its checkout (branch `plan/<id>`), one step at a time, following the plan-step workflow. HANDOFF.md and `spec-gaps.md` in the plan folder are the source of truth for progress and gaps.
 - **Commits**: managed commands that create commits follow their documented format. Ordinary work needs no Specplane trailers. Manual implementation-completion edits are valid and do not approve a spec.
 - **Workflows**: use an explicitly installed Specplane extension for agent workflows, or the standalone `specplane` CLI for manual operations. Extensions deliver the shared workflow procedures and their host-specific invocation details.
+- **Decisions**: When you need a decision from the user, frame it in terms of what changes for the people using the product: what changes, the tradeoff, and your recommendation. This does not change who approves specs, plans or decisions.
 
 ### Claude Code
 - Workflows: `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/validate`, `/approve`, `/plan-start`, `/decision-new`, `/plan-status`, `/plan-abandon`; without them, follow the contracts in `architecture/agent-skills`.
