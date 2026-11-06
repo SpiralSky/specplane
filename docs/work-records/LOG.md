@@ -251,53 +251,53 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Tests: `containment.transaction.test` (16: five interruption points, committed-marker finish, mid-apply failure, edit-after-apply, link/parent swap, preimage conflict, lock, stale lock, ownership, non-git). Full Bun 952 pass, 0 fail, 93 files, 37.57 s; no timeout this run.
 
 ## 2026-11-04T13:00Z — extension-packaging 03 coexistence and legacy rollout
-- Commits: see `git log` after `f7d1574`.
+- Commits: see `git log` after `9dc8d30`.
 - Scope: canonical standing text (D8, v2), neutral shared block for every init order, installed manifest staged last, legacy decision and collision reporting, `refreshGuidance` through the install transaction.
 - Checks: full suite 958 pass, 0 fail, 94 files; `check-sync.sh` OK; hooks untouched.
 - Next: codex-delivery 01.
 
 ## 2026-11-04T14:00Z — codex-delivery 01 persistent runner
-- Commit: `b11eef6`. `core/workflow-runner.ts` (`createWorkflowRunner`, `parseServeArgs`, `spawnExecutionPort`, exported from core), template `harnesses/codex/templates/skills/specplane/scripts/workflow.mjs`, `harness/codex-channel.ts`.
+- Commit: `f8a21d5`. `core/workflow-runner.ts` (`createWorkflowRunner`, `parseServeArgs`, `spawnExecutionPort`, exported from core), template `harnesses/codex/templates/skills/specplane/scripts/workflow.mjs`, `harness/codex-channel.ts`.
 - Closed NDJSON framing, serialized mutations, LOCKED on overlapping executeTest, cancel bypasses the queue, EOF/close cancel through `cancelWorkflow`; an unproven stop exits 1 with the lease kept.
 - Checks: `core/workflow-runner.test` (7); full suite 965 pass, 0 fail, 95 files. Not run: Node, live Codex, packaging (step 02 delivers the script).
 
 ## 2026-11-04T15:00Z — codex-delivery 02 installed procedure
-- Commit: `4de9d55`. Codex installer delivers a self-contained package (runtime, production deps, docs, reference, runner script, manifest, inventory) through one install transaction; manifest last.
+- Commit: `5c1d008`. Codex installer delivers a self-contained package (runtime, production deps, docs, reference, runner script, manifest, inventory) through one install transaction; manifest last.
 - `assembleExtensionPackage` (sync) split from `buildExtensionPackage`; template script now imports `../dist/core/index.js`; SKILL.md documents runner, fallback and false capability flags.
 - Checks: `harness/codex-package.test` (6); full suite 971 pass, 0 fail, 96 files. Not run: Node, live Codex.
 
 ## 2026-11-04T16:00Z — codex-delivery 03 consumer integration
-- Commits: `272bb62` (ship `templates/codex` in the package), `14b797d` (consumer tests), plus this entry's commit.
+- Commits: `80656a4` (ship `templates/codex` in the package), `9b5ea4f` (consumer tests), plus this entry's commit.
 - `harness/codex-consumer.test` (7) drives the installed script as a scripted client: sync, implement, real assertion, record, publish; failed push, diverged remote, no-plan work, offline docs, stale completion, unverified capabilities.
 - Checks: full suite 978 pass, 0 fail, 97 files, run from `packages/cli`. Not run: Node, live Codex.
 
 ## 2026-11-04T17:00Z — extension-conformance 01 acceptance matrix
-- Commit `49b98eb`: `harness/conformance-matrix.ts` and `harness/conformance.test` (8): suite traceability, core export map, Codex/Claude host rows, offline docs parity, unobserved-host checks.
+- Commit `6c78f46`: `harness/conformance-matrix.ts` and `harness/conformance.test` (8): suite traceability, core export map, Codex/Claude host rows, offline docs parity, unobserved-host checks.
 - Claude workflows report pending; exports/workflows criterion left unmet for that reason. No decision needed.
 - Checks: full suite 986 pass, 0 fail, 98 files; `validate` 0 errors, 89 warnings. Not run: Node, live hosts.
 
 ## 2026-11-04T18:00Z — extension-conformance 02 release-evidence guards
-- Commit `8eb0fdd`: `harness/release-evidence.ts` and `.test` (4): skill drift vs spec pins, derived Claude/pin blockers, human-only steps.
+- Commit `98d84c3`: `harness/release-evidence.ts` and `.test` (4): skill drift vs spec pins, derived Claude/pin blockers, human-only steps.
 - Pins and skill comments deliberately not refreshed (awaiting user implementation review); 89 warnings unchanged.
 - Checks: full suite 990 pass, 0 fail, 99 files. Not run: Node tests, live hosts.
 
 ## 2026-11-04 night claude-delivery 02 (Sonnet 5.5 subagent)
-- Commits ded75b2, ae6c6f2, 373e9cc: policy guard reconstructs edits; native handlers (`commands.ts`, `handlers.ts`); six `specplane-reason-*` skills and `harness/claude-handlers.test`.
+- Commits 5a7e32c, e7c79ff, 891ee38: policy guard reconstructs edits; native handlers (`commands.ts`, `handlers.ts`); six `specplane-reason-*` skills and `harness/claude-handlers.test`.
 - Checks: full Bun suite 988 pass, 0 fail, 100 files; `claude plugin test` 27 pass; `hooks.test.sh` 94 pass; check-sync OK; `plugin validate` passes. Not run: live host, Node tests.
 - Open: D9 (no lease across a reasoning turn: `$.process.spawn` stdin is write-once), D10 (legacy skills collide with native names).
 
 ## 2026-11-04 night decisions D9/D10 and legacy skill removal (Haiku 5.5 session)
 - User decided D9 (a, in-process bundled core; one allowed live check in claude-delivery 03) and D10 (remove legacy Claude skills); recorded in HANDOFF "Decided (by the user)".
-- Commit `f57d03e`: removed `validate`, `approve`, `plan-status`, `plan-start`, `plan-abandon` skills from templates and `.claude/skills/`; conformance, pack and coexistence tests updated.
+- Commit `3db0f64`: removed `validate`, `approve`, `plan-status`, `plan-start`, `plan-abandon` skills from templates and `.claude/skills/`; conformance, pack and coexistence tests updated.
 - Checks: Bun suite 988 pass, 0 fail, 100 files; `claude plugin test` 27 pass; `hooks.test.sh` 94 pass; check-sync OK; `validate` 0 errors, 98 warnings. Not run: live hosts, Node tests.
 
 ## 2026-11-04 claude-delivery 03 live gate (Haiku 5.5 session)
 - Built a one-shot probe mod outside the repo (node:fs, node:path, real writer-lease module, bundled for Node). `claude plugin validate` refused it: `cannot import "node:fs"` in a hooks module ("relative path and claude-code, nothing else").
-- The one live invocation was not spent. Evidence: `harnesses/claude/host-evidence/2.1.317/live-probe-gate.txt` (commit `e1d2ff8`). New open decision D11 (options A/B/C) in HANDOFF.
+- The one live invocation was not spent. Evidence: `harnesses/claude/host-evidence/2.1.317/live-probe-gate.txt` (commit `68081c8`). New open decision D11 (options A/B/C) in HANDOFF.
 - D9(a) and D10's reasoning-skill removal stay blocked. Checks: check-sync OK, `validate` 0 errors, 98 warnings. No code changed, so no Bun suite run this session.
 
 ## 2026-11-04 claude-delivery 03 under D11 option E (Haiku 5.5 session)
-- Built `claude-mcp.ts` (JSON-RPC stdio, one bind, forwards runner ops; `close` cancels one request) and `claude-mcp-main.ts`; `tool.check` gate and `mcpServers` entry in the mod. Commits `28fbec6`, `b553c17`.
+- Built `claude-mcp.ts` (JSON-RPC stdio, one bind, forwards runner ops; `close` cancels one request) and `claude-mcp-main.ts`; `tool.check` gate and `mcpServers` entry in the mod. Commits `53195af`, `ae1b374`.
 - Checks: Bun suite 995 pass, 0 fail, 101 files; `claude-mcp.test` 6 pass; `claude plugin test` 27 pass; `claude plugin validate` passed with warnings.
 - Live check not spent: `prepare` needs Claude compatibility inputs that do not exist yet (D12). Evidence: `harnesses/claude/host-evidence/2.1.317/mcp-lease-live-gate.txt`.
 - Reasoning port and skill removal not done. Open: D12, D13. Next: decide D12.
@@ -308,24 +308,24 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Checks not rerun (docs only). Open: D11 (managed/user-tier risk), D13 (live). Next session starts with the Claude package inputs.
 
 ## 2026-11-04 claude-delivery 03 run 1: Claude package and installed prepare (UTC 14:10)
-- Commits `8603136` (shared runtime inputs), `7ff6063` (Claude package, installer staging, MCP reads installed manifest and host selection), `f2b3289` (conformance trace); HANDOFF rewritten in compact format.
+- Commits `66386d6` (shared runtime inputs), `4d37f98` (Claude package, installer staging, MCP reads installed manifest and host selection), `125e439` (conformance trace); HANDOFF rewritten in compact format.
 - `harness/claude-package.test` (5) and the Codex package and MCP suites pass. Full Bun run 1000 pass, 0 fail, 102 files. `specplane validate`: 0 errors, 98 warnings.
 - Reasoning commands and live check not done. New open decision D14 (installed package location `.claude/specplane/core`). Next: run 2, nonce gate and six native reasoning commands, offline.
 
 ## 2026-11-04 claude-delivery 03 run 2: nonce gate and reasoning handlers, offline (14:19 UTC)
-- Commits `c21141c` (gate, six reasoning handlers, close on every outcome) and `2bffb7d` (Bun coverage, conformance comments). Gate fix: the completion tool is exempt, so results can return.
+- Commits `793b6f8` (gate, six reasoning handlers, close on every outcome) and `1e1474b` (Bun coverage, conformance comments). Gate fix: the completion tool is exempt, so results can return.
 - Full Bun 1012 pass, 0 fail; `claude plugin test` 27 pass; validate passes with warnings; hooks 94 pass; check-sync OK; `specplane validate` 0 errors.
 - Reasoning commands stay unregistered until the live check. New open decisions D15 (plan-finish has no core initiation), D16 (executeTest wiring), D17 (human confirmation for record).
 - Next: run 3, one prepare-only live check, then legacy skill removal. Plan in HANDOFF Next session.
 
 ## 2026-11-04 claude-delivery 03 run 3: D14 staging and one live prepare attempt (UTC 15:15)
-- Commits `9553c2d` and `6782cd7` (plugin root `.claude-plugin`, `hooks/`, `types/` staged beside core), `f128b35` (live evidence), `ba8cdca` (matrix reason). Reasoning flag tested in the fixture only, then reverted.
+- Commits `68f810d` and `26f822d` (plugin root `.claude-plugin`, `hooks/`, `types/` staged beside core), `2c3b0aa` (live evidence), `50c04a8` (matrix reason). Reasoning flag tested in the fixture only, then reverted.
 - Live check (one `claude -p` run in a fixture): host loaded the plugin and started the server from `.claude/specplane/core`. Refused at the origin gate (`sdk`) before prepare; no lease taken. Not passed; D18 recorded.
 - Also found D19 (public skills collide with reasoning names). Focused suites 58 pass; full suite stalled, not rerun per coordinator.
 - Next: user decision on D18, then the Claude architecture-spec edit draft for approval.
 
 ## 2026-11-04 claude-delivery D20 items 3-5 offline (UTC 15:50)
-- Commits `44072f9` (compact MCP replies, `detail` pages, validate by requestId, close by binding, 16 KB guard) and `ea58453` (installer `.gitignore` entry for the host tsconfig).
+- Commits `fd993ab` (compact MCP replies, `detail` pages, validate by requestId, close by binding, 16 KB guard) and `21bfd3e` (installer `.gitignore` entry for the host tsconfig).
 - Focused suites 84 pass (7 files); plugin test 27 pass; hooks 94 pass; check-sync OK; validate 0 errors, 98 warnings.
 - Full suite stalled again: killed at 240 s with no summary; not rerun. Live invocations: none. D18, D19, D20 items 1, 2, 6 still open.
 
@@ -334,14 +334,14 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - New D23: a refused result ends the request, so the model's corrected retry found no request. Evidence in `origin-gate-check.txt`. No code changed; no tests run.
 
 ## 2026-11-05 claude-delivery D23 built, recording live-checked (second approved run)
-- `ce5ecbd`: a correctable refusal keeps the request open, up to 3 attempts. Full suite Bun 1028 pass, 0 fail.
+- `0fcb9b4`: a correctable refusal keeps the request open, up to 3 attempts. Full suite Bun 1028 pass, 0 fail.
 - Live: blocked result recorded after two refusals, lease released before exit. One typed instruction was needed to make the model report. New D24.
 
 ## 2026-11-05 claude-delivery D24 offline
-- `af695ee` core refusal names the failing field; `f45c739` result template in the prompt, always-report rule, all six procedures corrected. Full suite Bun 1032 pass, 0 fail. No live run.
+- `5f8906a` core refusal names the failing field; `2b49af4` result template in the prompt, always-report rule, all six procedures corrected. Full suite Bun 1032 pass, 0 fail. No live run.
 
 ## 2026-11-05 (session: D16 C, D22 wording, temporary decisions)
-- Recorded TEMPORARY decisions D11 (accept risk), D19 (option B), D24 live run skipped. Built D16 C in the MCP server (`f5bc57c`) and the `acceptResult` close check (`8e109c5`).
+- Recorded TEMPORARY decisions D11 (accept risk), D19 (option B), D24 live run skipped. Built D16 C in the MCP server (`72f96e8`) and the `acceptResult` close check (`61a6539`).
 - Fixed the HANDOFF workflow-recording 04 row (D1/D2 are settled per LOG). Focused 65 pass, 0 fail (4 files); `hooks.test.sh` 94 pass. Full suite not run.
 
 ## 2026-11-05 (session: Claude spec-edit proposal)
@@ -377,19 +377,19 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 
 ## 2026-11-05 — S1 spec edits (grant G1)
 
-- Commits: `cd7b7f0` (A1 to A13), `84f5b61` (R1), `1ef0468` (F1 to F4), `181574d` (re-pin), on top of `a9d3b45`.
+- Commits: `9183172` (A1 to A13), `f021da1` (R1), `355d4d9` (F1 to F4), `ebe5778` (re-pin), on top of `39e3517`.
 - Scope: applied the proposal's wording; no `status:` changed. Re-pin by `specplane spec pin` changed `based_on` only; without it validate showed 1 error (stale feature pin).
 - Checks: `npm test` before edits 1076 pass, 0 fail, 106 files (Bun). `specplane validate` after: 0 errors, 100 warnings (baseline 98; +2 "may contradict" on feature lines 48 from F3).
 - Next: S2.
 
 ## 2026-11-05 — S2 review of D17 A, D16 A, recovery
 
-- `c2ca9e7`: `executeTest` accepts `criterionIds` (spec); 3 reviewed suites in `BUNDLED_SUITES`, not wired into the server (D16 C stays); PROVISIONAL dropped from D17 A and D16 A, kept on recovery for the A3 vs R1 point only.
+- `a33e6b8`: `executeTest` accepts `criterionIds` (spec); 3 reviewed suites in `BUNDLED_SUITES`, not wired into the server (D16 C stays); PROVISIONAL dropped from D17 A and D16 A, kept on recovery for the A3 vs R1 point only.
 - Checks: `npm test` 1077 pass, 0 fail, 106 files (Bun, no fallback); `specplane validate` 0 errors, 100 warnings.
 
 ## 2026-11-05 — S3 D25 route B session adapter (offline, gated)
 
-- `8e7c106`: `harnesses/claude/plugin/hooks/session-adapter.ts` per applied A13, with `harness/claude-session-adapter.test` (12, fake process port, no real `claude`); not wired into `handlers.ts`; `probe` all false without `ProbeEvidence`.
+- `889e5be`: `harnesses/claude/plugin/hooks/session-adapter.ts` per applied A13, with `harness/claude-session-adapter.test` (12, fake process port, no real `claude`); not wired into `handlers.ts`; `probe` all false without `ProbeEvidence`.
 - Checks: `npm test` 1089 pass, 0 fail, 107 files (Bun, no fallback); `hooks.test.sh` 94; `check-sync` OK; `specplane validate` 0 errors, 100 warnings.
 
 ## 2026-11-05 S4 live D25 probe
@@ -400,14 +400,14 @@ Append-only. Add new entries at the end; never edit or delete earlier ones. Corr
 - Matrix reason in `conformance-matrix.ts` now records the D25 probe (direct child process, not `$.process.spawn`; budget stop not seen; no `done`); rows unchanged; `conformance.test` asserts it. 02 pin refresh not done.
 - `scripts/test.sh` full suite: Bun 1.4.4 and 1.3.14 each 1089 pass, 0 fail, 107 files (38.88 s, 46.59 s), no stall or fallback. Checklist: `docs/work-records/2026-11-05-reconciliation-checklist.md`; no CLI repair for the legacy-history error found.
 
-## 2026-11-05 — S6 bug check since 8aa96aa
-- Commits: `17f4551` (recovery fix), on top of `9f20e6f`.
+## 2026-11-05 — S6 bug check since b5ee37c
+- Commits: `3a069f3` (recovery fix), on top of `5a7bfe4`.
 - Reviewed in full: `session-adapter.ts`, `claude-mcp.ts` (`executeTest` criterionIds), `claude-suites.ts` (ran the three suite commands under `node --test --test-reporter=tap` and `parseTestReport`: ids resolve, all pass), A13 and the D25 probe text. Skimmed (comment-only or test-only changes): `commands.ts`, `handlers.ts`, `claude-mcp-main.ts`, `cli.ts`, `workflow.ts`, `writer-leases.ts`, `conformance-matrix.ts`. Not reviewed: new test bodies other than the adapter test, and the host `$.process.spawn` binding (does not exist).
 - Bug: `recovery` trusted a ref's `nativeSessionId` without a persisted mapping (A13: unavailable when the mapping is missing). Full suite 1090 pass on Bun, hooks 94, check-sync OK, validate 0 errors.
 
 ## 2026-11-05 — S7 second bug check
-- Commits: `6c9894f` (`workflow list` on a symlinked runtime dir), then docs. Probe line 31 ("failed (signal exit)") was a misdescription: the code maps a null exit to `unknown`; the real `claude` exited with a non-zero code after SIGTERM (exact code unlogged); correction appended to `d25-route-b-probe.txt`.
-- Reviewed: new test bodies in `claude-mcp-suites`, `conformance`, `workflow` tests (assert real behaviour), comment-only edits in `commands.ts`, `handlers.ts`, `claude-mcp-main.ts`, `cli.ts`, `writer-leases.ts`, `17f4551`, D17 A bridge and `workflow list|recover` (no stale-lease or request-id bug found). HANDOFF test counts corrected (adapter 13, codex-package 7, freshness 8).
+- Commits: `0239a39` (`workflow list` on a symlinked runtime dir), then docs. Probe line 31 ("failed (signal exit)") was a misdescription: the code maps a null exit to `unknown`; the real `claude` exited with a non-zero code after SIGTERM (exact code unlogged); correction appended to `d25-route-b-probe.txt`.
+- Reviewed: new test bodies in `claude-mcp-suites`, `conformance`, `workflow` tests (assert real behaviour), comment-only edits in `commands.ts`, `handlers.ts`, `claude-mcp-main.ts`, `cli.ts`, `writer-leases.ts`, `3a069f3`, D17 A bridge and `workflow list|recover` (no stale-lease or request-id bug found). HANDOFF test counts corrected (adapter 13, codex-package 7, freshness 8).
 - Open: launch over a live orchestration id orphans the old handle (HANDOFF item 13). Full suite via `scripts/test.sh` on Bun 1.3.14: 1091 pass, 0 fail, 107 files.
 
 ## 2026-11-05 — Authorized run closed (coordinator)

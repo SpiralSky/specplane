@@ -2,7 +2,7 @@
 
 Date 2026-11-05. Status: proposal, not applied. Nothing in this file edits an approved spec.
 Targets: `harnesses/claude/specifications/architecture/claude-integration.md` (`architecture/claude-integration`, approved, `llm_role: draft`) and `harnesses/claude/specifications/features/claude-integration.md` (`feature/claude-integration`, approved, `llm_role: assist`).
-Built against branch `overnight/specplane-20261102T144630Z` at `46bf791`. A later session builds offline from this file once the user approves it.
+Built against branch `overnight/specplane-20261102T144630Z` at `c055b71`. A later session builds offline from this file once the user approves it.
 
 ## Decisions needed from the user
 

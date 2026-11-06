@@ -1,7 +1,7 @@
 # Proposal: verification levels and remaining cleanup
 
 Date 2026-11-05. Status: proposal, not applied. Nothing in this file edits a spec, a plan or the configuration.
-Written against `d773a26` on `overnight/specplane-20261102T144630Z`.
+Written against `a71e936` on `overnight/specplane-20261102T144630Z`.
 
 One approval from the user covers everything below. Section 8 lists what happens after that approval, in order. Approving this file does not approve a spec: re-approving a reopened spec stays a separate user instruction.
 
@@ -12,7 +12,7 @@ One approval from the user covers everything below. Section 8 lists what happens
 | Verification | Add verification levels and an automatic mode (sections 2 and 3). A step can reach `done` in any repository with no setup, and the record states what was really checked. |
 | Mappings | Optional. An unmapped criterion can be met by file evidence and is labelled self-assessed. |
 | D16 | Replace options A and C. Suite commands move from `BUNDLED_SUITES` to `verification.suites` in each repository's configuration. |
-| D19 | Settled: the six legacy skills are removed (`d773a26`). The stale spec text is corrected in section 4. |
+| D19 | Settled: the six legacy skills are removed (`a71e936`). The stale spec text is corrected in section 4. |
 | `reasoning` gate | The native reasoning commands are registered by default, because nothing else now provides those command names. The `native-reasoning` marker is deleted. This lifts the earlier rule that the commands wait for a live check (D13, D24), so the first live run happens with them already on. |
 | D17 A | Keep the `confirmation` field on `record`. Turn the bridge on and delete `MANUAL_WRITE_RULE`, otherwise `/spec-assist`, `/spec-draft-architecture`, `/plan-create` and `/decision-new` can never write a file. The first live run is their check. |
 | D15 | Reverse option B: add a core initiation for `plan-finish`, so `/plan-finish` works natively instead of being refused at `prepare`. |
@@ -306,7 +306,7 @@ Add to `specs.feature.leak_guard_allow`, under a comment `# Public plan and comp
 
 ### C2. Plan references
 
-- In `claude-delivery` step 03 and `manual-lifecycle` step 03, replace the context file `packages/cli/src/harness/session.ts`, removed in `60e84e8`, with `harnesses/claude/plugin/hooks/session-adapter.ts`.
+- In `claude-delivery` step 03 and `manual-lifecycle` step 03, replace the context file `packages/cli/src/harness/session.ts`, removed in `6efe842`, with `harnesses/claude/plugin/hooks/session-adapter.ts`.
 - `specplane validate` stops warning about missing context files and anchors in archived plans, because those records are history. This clears the 8 remaining plan warnings.
 
 ### C3. `docs/OPEN-QUESTIONS.md` and ADR 0005
@@ -343,7 +343,7 @@ ADR 0005 already describes this design, so its text does not change. Accepting i
 
 The tradeoff is that these plans lose managed receipts they never really had. Anyone reading them sees a declaration, not evidence.
 
-**Push.** Handled in `5284f44`: the remote commits are merged with no file change, so a plain push works and no force is needed. Before that merge, a plain push failed because the remote branch had `63cd572` and `cff7c78`. Comparison: every code line `63cd572` added to `contracts.ts`, `index.ts`, `workflow-preparation.ts` and `workflow-recording.ts` is here or has been replaced by a newer form (`assertContributionRecordingAvailable` became `validatedContributions` in recording), and `contribution-capture.ts` here has all three of their exports and more, so their code is superseded. Two record files exist only on the remote: `docs/work-records/2026-11-03-workflow-contribution-capture-result.json` and `docs/work-records/implementation-forecast.json`. This branch replaced per-batch records with `LOG.md` in `7bde247`, so losing them matches that decision. The push stays the user's action.
+**Push.** Handled in `429638f`: the remote commits are merged with no file change, so a plain push works and no force is needed. Before that merge, a plain push failed because the remote branch had `63cd572` and `cff7c78`. Comparison: every code line `63cd572` added to `contracts.ts`, `index.ts`, `workflow-preparation.ts` and `workflow-recording.ts` is here or has been replaced by a newer form (`assertContributionRecordingAvailable` became `validatedContributions` in recording), and `contribution-capture.ts` here has all three of their exports and more, so their code is superseded. Two record files exist only on the remote: `docs/work-records/2026-11-03-workflow-contribution-capture-result.json` and `docs/work-records/implementation-forecast.json`. This branch replaced per-batch records with `LOG.md` in `7bde247`, so losing them matches that decision. The push stays the user's action.
 
 ## 7. Build order
 

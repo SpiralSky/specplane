@@ -35,7 +35,7 @@ Results:
 9. Release: NOT ACHIEVED, unchanged (D20 item 6). After /exit in both modes the server process exited, and the checkout record,
    repository record and host marker stayed in .git/specplane-runtime.
 
-Delegation check, D21. Same day, about 03:29-03:33 UTC, auto mode, one fresh fixture built the same way from c636c23.
+Delegation check, D21. Same day, about 03:29-03:33 UTC, auto mode, one fresh fixture built the same way from 6295e7d.
 The user approved this check in conversation; the coordinator typed the fixture's answers and approval through tmux.
 
 1. D21 FIXED live: after typing only `/spec-assist search filter draft`, the procedure started by itself and finished its first
@@ -51,7 +51,7 @@ The user approved this check in conversation; the coordinator typed the fixture'
 6. After /exit the server exited and the lease files stayed (D20 item 6, unchanged).
 Both causes were fixed offline afterwards. Not yet live-checked: validate, record, close, and whether close releases the lease.
 
-Completion check, D22. Same day, about 03:49-03:53 UTC, auto mode, Haiku 5.5, one fresh fixture built the same way from 396bbd3.
+Completion check, D22. Same day, about 03:49-03:53 UTC, auto mode, Haiku 5.5, one fresh fixture built the same way from e4b08f5.
 The user approved this one invocation in conversation; the coordinator typed the fixture's answers and approval through tmux.
 Result: NOT PASSED. Close and lease release are confirmed live; recording was not reached. Not retried.
 
@@ -76,7 +76,7 @@ Result: NOT PASSED. Close and lease release are confirmed live; recording was no
    `mcp__plugin_specplane_specplane__<tool>`. It may account for the second `specplane` entry in D13; not checked.
 
 Recording check, D22 and D23. Same day, about 03:55-03:59 UTC, auto mode, Haiku 5.5, one fresh fixture built the same way from
-ce5ecbd, with no gate diagnostic. The user approved this one further run in conversation; the coordinator typed the fixture's answers
+0fcb9b4, with no gate diagnostic. The user approved this one further run in conversation; the coordinator typed the fixture's answers
 through tmux.
 Result: PASSED for a blocked result. Validate, record and close all ran, and close released the lease before /exit.
 

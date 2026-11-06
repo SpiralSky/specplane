@@ -1,7 +1,7 @@
 # Final reconciliation checklist (prepare-only, 2026-11-05)
 
 Nothing here has been run except the read-only checks marked "ran". Every mutating command needs the user's go-ahead.
-Command names and flags were checked against `specplane <cmd> --help` (built `packages/cli/dist/cli.js`, HEAD `ada0ab1` plus S5 edits) and
+Command names and flags were checked against `specplane <cmd> --help` (built `packages/cli/dist/cli.js`, HEAD `198bde1` plus S5 edits) and
 `docs/specifications/architecture/reference-cli.md`. In this checklist `specplane` means `node packages/cli/dist/cli.js` run from the
 named checkout (the CLI is not on PATH in this environment; after `npm run build` in `packages/cli`). Anything not verified is marked **UNVERIFIED**.
 
@@ -16,7 +16,7 @@ named checkout (the CLI is not on PATH in this environment; after `npm run build
 ## 1. Decide first (user)
 
 1. Where the implementation lives for recording. `plan step-done` records exactly the uncommitted working-tree changes in the plan checkout (branch `plan/<id>`) against a reviewed manifest. The implementation is committed on the overnight branch, not in the plan checkouts. How to move it into a plan checkout as an uncommitted, manifest-matching change set (for example merge the overnight branch into the integration branch first, or replay per-step diffs) is **UNVERIFIED**; the spec defines only the manifest, not a bring-over method. This is the user's decision.
-2. The S6 and S7 bug checks are done (fixes `17f4551`, `6c9894f`); decide whether the open items in HANDOFF "Needs the user" (5, 13) must be settled before recording.
+2. The S6 and S7 bug checks are done (fixes `3a069f3`, `0239a39`); decide whether the open items in HANDOFF "Needs the user" (5, 13) must be settled before recording.
 
 ## 2. Repair "Legacy target history is ambiguous" (target-lifecycle, core-foundation)
 
