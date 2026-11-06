@@ -961,6 +961,17 @@ related_specs: []
         "session_mode":  { "type": "string", "enum": ["auto", "unattended"] },
         "max_parallel":  { "type": "integer", "minimum": 1 },
         "max_budget_usd": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "usage_limits": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["window", "percent"],
+            "properties": {
+              "window": { "type": "string", "enum": ["five_hour", "seven_day"] },
+              "percent": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 }
+            }
+          }
+        },
         "notify": {
           "type": "object", "additionalProperties": false,
           "properties": {
@@ -998,6 +1009,13 @@ related_specs: []
       "additionalProperties": false,
       "properties": {
         "dir": { "type": "string" }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision_framing": { "type": ["string", "null"], "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$" }
       }
     }
   }

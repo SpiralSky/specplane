@@ -4,6 +4,8 @@ Status: code is on local branch `usage-percent-limit-20261106`, gated and unusab
 
 ## What the code does now
 
+Update, 2026-11-06: `execution.usage_limits` now exists and feeds the conductor. The `no config key` note below describes the earlier state.
+
 - Core: `SessionLimit` gains `{ kind: 'usage_percent'; window: 'five_hour' | 'seven_day'; amount }`, with `0 < amount <= 100`. `SessionState` gains an optional `stop: 'limit'`, set with `state: 'failed'` when the adapter stopped the session because a requested limit was reached.
 - Conductor: a programmatic `usageLimits` option (no CLI flag, no config key). Entries are validated, appended to `limits` after any `usd` entry, and passed whole to every session. They are never divided and never added to `reservedBudgetUsd`. The `limit:usage_percent` probe requirement and refusal come from the existing generic path. A session reported as `failed` with `stop: 'limit'` ends the run with exit code 4 (`action: limit`), starts no further session, and keeps the session record.
 - Claude adapter: optional `readUsage(event)` dependency with no default, returning every window in the event, and optional `usagePercentSeen` on the probe evidence. `usage_percent` is declared only when both are present for the exact installed version. Undeclared, `buildArgv` and `launch` refuse it as before. No argv flag is added; enforcement is observation plus the existing cancel path.

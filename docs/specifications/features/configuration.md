@@ -73,6 +73,7 @@ execution:
     dedupe: true
   max_parallel: 1
   max_budget_usd: null
+  usage_limits: []            # [{ window: five_hour | seven_day, percent: 1-100 }]; account-wide, never divided
 
 # ── Verification ──────────────────────────────────────────────────────────────
 verification:
@@ -84,6 +85,10 @@ verification:
 # ── Decision records ──────────────────────────────────────────────────────────
 decisions:
   dir: docs/decisions         # directory holding ADRs
+
+# ── Agent guidance ────────────────────────────────────────────────────────────
+agent:
+  decision_framing: null      # how the agent frames decisions, e.g. what changes for the people using the product
 ```
 
 ---
@@ -400,6 +405,13 @@ A step that changes a matching file needs a `separate` or `human` check against 
 
 The directory (relative to the repository root) holding architecture decision records. See `feature/decisions`.
 
+### `agent.decision_framing`
+
+**Type**: string or null  
+**Default**: `null`
+
+One line of text naming what decisions should be framed around, for example `what changes for the people using the product`. When set, `specplane init` adds it to the standing instructions, and `specplane validate` reports them as out of date until `specplane init` runs again after a change. It does not change who approves specs, plans or decisions.
+
 ---
 
 ## Acceptance scenarios
@@ -471,6 +483,8 @@ Execution backend, isolation, limits, and notification preferences are shared po
 Command transport receives `SPECPLANE_PLAN`, `SPECPLANE_KIND`, `SPECPLANE_DETAIL`, `SPECPLANE_COMMAND`, `SPECPLANE_SESSION`, and `SPECPLANE_CHECKOUT`. Specplane never enables a transport or external notification channel itself.
 
 `execution.max_parallel` is a positive integer, default 1, limiting distinct concurrent plans. `execution.max_budget_usd` is a positive finite number or null (default, no configured bound). The conductor reserves the bound in equal shares across its maximum session attempts. Unsupported budget enforcement is a refusal; reservations include uncertain launch attempts and are not a measurement of cost.
+
+`execution.usage_limits` is a list of `{window, percent}` entries, `window` being `five_hour` or `seven_day` and `percent` above 0 and at most 100. Each entry stops a session when account usage in that window reaches the percent. Unlike the budget it is not divided across attempts and is not part of the reserved budget. Usage is account-wide, so other sessions count toward it, and enforcement overshoots by up to one observation. An adapter that cannot enforce it causes a refusal. Subscribers only; API-key users have no percentage and keep `max_budget_usd`.
 
 ## Scope of policy and managed workflows
 

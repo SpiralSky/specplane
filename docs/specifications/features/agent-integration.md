@@ -25,6 +25,7 @@ Specplane's instructions to agents come in two parts:
   3. **Precedence rules**: architecture spec first, feature spec for gaps, stop on contradictions.
   4. **Optional plans and commits**: managed plan execution uses its designated checkout and recording workflow. Ordinary work needs neither a plan nor Specplane commit trailers. Manual implementation-completion edits are valid.
   5. **Workflows**: how to invoke the workflow integrations in this harness.
+  6. **Decisions**: when `agent.decision_framing` is set, how to frame a decision for the user: "When you need a decision from the user, frame it in terms of {text}: what changes, the tradeoff, and your recommendation. This does not change who approves specs, plans or decisions."
 - **Workflow procedures**: the step context contract, the HANDOFF.md format, the step commit, and the common flows (assist with a feature spec, draft an architecture spec, create a plan, execute the next step, finish a plan). These live in the workflow integrations (§ Workflow integrations), which load only when used.
 
 ### Delivery without overwriting user files

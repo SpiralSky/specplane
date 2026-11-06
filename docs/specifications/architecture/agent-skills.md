@@ -132,6 +132,8 @@ This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.s
 
 The shared AGENTS.md block always uses this neutral Workflows line. Harness-owned instruction files may add invocation details without replacing shared guidance. The detailed rules live in the versioned product docs and their source contracts; consumer instructions link to `specplane docs` topic IDs rather than assuming the product's source specs are present (`feature/agent-integration`: no duplicated policy).
 
+When `agent.decision_framing` is set, this line follows the Workflows line in the block and in any harness file that carries the shared Workflows line: `- **Decisions**: When you need a decision from the user, frame it in terms of {text}: what changes, the tradeoff, and your recommendation. This does not change who approves specs, plans or decisions.` With the key unset, the text is the canonical text above.
+
 **Routing table (project-owned, outside the managed text).** Skills with `disable-model-invocation: true` are hidden from the model, so a natural-language request such as "start the plan" would otherwise lead to hand-edited plan files. A project that wants those requests to work adds a short routing table to a file it owns (for `AGENTS.md`, outside the managed block): a request to start, step, finish, or show the status of a plan means running `specplane plan <op>` (the CLI stays reachable through the shell even when the skill is not), and those requested managed transitions are performed through the CLI. This routing does not prohibit explicit manual declarations or ordinary Git work outside that workflow. Specplane does not write this table and `init` never touches it; the managed text stays unchanged.
 
 ### Delivery
