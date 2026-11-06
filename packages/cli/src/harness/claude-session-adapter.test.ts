@@ -312,6 +312,103 @@ test('route B probe is gated: every capability false without a passed probe reco
   assert.deepEqual(pick(await probe({ evidence: pass })), { launch: true, observe: true, resume: true, cancel: true, limitKinds: ['usd'] });
 });
 
+const PASS_U = { version: '2.1.317', launched: true, observed: true, resumed: true, cancelled: true, budgetStopSeen: true, usagePercentSeen: true };
+// Test-only reader for a made-up event shape; the real shape is unverified and the adapter ships no default.
+const readU = (e: Any) => (e && e.type === 'test_usage' ? { window: e.window, usedPercent: e.pct } : undefined);
+const U = (window: string, pct: unknown) => JSON.stringify({ type: 'test_usage', window, pct });
+const ulim = (window: string, amount: number) => ({ limits: [{ kind: 'usage_percent', window, amount }] });
+
+test('route B usage_percent: undeclared without readUsage, without evidence, with other-version evidence or without usagePercentSeen', opts, async () => {
+  const kinds = async (extra: Record<string, unknown>) => (await (await mk(fake(), extra)).probe({ checkout: '/x', requirements: [] })).limitKinds;
+  assert.deepEqual(await kinds({ evidence: PASS_U }), ['usd']);
+  assert.deepEqual(await kinds({ readUsage: readU }), []);
+  assert.deepEqual(await kinds({ readUsage: readU, evidence: PASS_U, version: '2.1.999' }), []);
+  assert.deepEqual(await kinds({ readUsage: readU, evidence: { ...PASS_U, usagePercentSeen: false } }), ['usd']);
+  assert.deepEqual(await kinds({ readUsage: readU, evidence: { ...PASS_U, usagePercentSeen: undefined } }), ['usd']);
+  assert.deepEqual(await kinds({ readUsage: readU, evidence: PASS_U }), ['usd', 'usage_percent']);
+  // Undeclared: launch refuses before any spawn, as before.
+  const f = fake();
+  await assert.rejects((await mk(f, { evidence: PASS_U })).launch(req(ulim('five_hour', 80))));
+  await assert.rejects((await mk(f, { readUsage: readU, evidence: { ...PASS_U, usagePercentSeen: false } })).launch(req(ulim('five_hour', 80))));
+  assert.equal(f.spawned.length, 0);
+});
+
+test('route B usage_percent: declared adapter validates window and amount and adds no argv flag', opts, async () => {
+  const f = fake();
+  const a = await mk(f, { readUsage: readU, evidence: PASS_U });
+  for (const bad of [ulim('hourly', 50), ulim('five_hour', 0), ulim('five_hour', 101), ulim('five_hour', Number.NaN)]) await assert.rejects(a.launch(req({ orchestrationId: 'ox', ...bad })));
+  assert.equal(f.spawned.length, 0);
+  await a.launch(req({ limits: [{ kind: 'usd', amount: 2 }, { kind: 'usage_percent', window: 'seven_day', amount: 100 }] }));
+  const argv = f.spawned[0].argv;
+  assert.equal(argv.filter(x => x === '--max-budget-usd').length, 1);
+  assert.ok(!argv.some(x => /usage|percent/.test(x)));
+});
+
+const startU = async (limits: Any, extra: Record<string, unknown> = {}, fopts: Parameters<typeof fake>[0] = {}) => {
+  const f = fake(fopts);
+  const a = await mk(f, { readUsage: readU, evidence: PASS_U, ...extra });
+  const s = await a.launch(req({ limits }));
+  f.spawned[0].emit(INIT);
+  return { f, a, ref: { orchestrationId: 'o1', nativeSessionId: s.nativeSessionId } };
+};
+const finish = async (f: ReturnType<typeof fake>) => { f.spawned[0].emit(JSON.stringify({ type: 'result', subtype: 'success', is_error: false })); f.spawned[0].exit(0); await tick(); };
+
+test('route B usage_percent: crossing the threshold for the matching window cancels through the cancel path and reports a limit stop', opts, async () => {
+  const { f, a, ref } = await startU(ulim('five_hour', 80).limits);
+  f.spawned[0].emit(U('seven_day', 99)); await tick();
+  assert.deepEqual(f.spawned[0].kills, []);
+  f.spawned[0].emit(U('five_hour', 79.9)); await tick();
+  assert.deepEqual(f.spawned[0].kills, []);
+  assert.equal((await a.observe(ref)).state, 'running');
+  f.spawned[0].emit(U('five_hour', 80)); await tick();
+  assert.deepEqual(f.spawned[0].kills, ['SIGTERM']);
+  const s = await a.observe(ref);
+  assert.equal(s.state, 'failed'); assert.equal(s.stop, 'limit');
+  assert.deepEqual(await a.cancel(ref), { stopped: true, recoveryRequired: false });
+});
+
+test('route B usage_percent: a limit stop is reported only after the process exits; a late success result cannot turn it into completed', opts, async () => {
+  const { f, a, ref } = await startU(ulim('seven_day', 50).limits, {}, { ignoreKill: true });
+  f.spawned[0].emit(U('seven_day', 60)); await tick();
+  assert.equal((await a.observe(ref)).state, 'running');
+  await finish(f);
+  const o = await a.observe(ref);
+  assert.equal(o.state, 'failed'); assert.equal(o.stop, 'limit');
+});
+
+test('route B usage_percent: below the threshold the session continues to completed', opts, async () => {
+  const { f, a, ref } = await startU(ulim('five_hour', 80).limits);
+  f.spawned[0].emit(U('five_hour', 10)); f.spawned[0].emit(U('five_hour', 79)); await finish(f);
+  assert.deepEqual(f.spawned[0].kills, []);
+  const s = await a.observe(ref);
+  assert.equal(s.state, 'completed'); assert.equal(s.stop, undefined);
+});
+
+test('route B usage_percent: with the limit active, no usable reading is unknown, never completed (fail-closed)', opts, async () => {
+  const unusable: unknown[] = [undefined, { window: 'five_hour', usedPercent: Number.NaN }, { window: 'five_hour', usedPercent: -1 }, { window: 'five_hour', usedPercent: 101 }, { window: 'five_hour', usedPercent: '50' }];
+  for (const r of unusable) {
+    const { f, a, ref } = await startU(ulim('five_hour', 80).limits, { readUsage: () => r });
+    f.spawned[0].emit(U('five_hour', 1));
+    await finish(f);
+    assert.equal((await a.observe(ref)).state, 'unknown');
+  }
+  // A throwing reader and a reading for only the other window are equally unusable.
+  const t1 = await startU(ulim('five_hour', 80).limits, { readUsage: () => { throw new Error('boom'); } });
+  await finish(t1.f); assert.equal((await t1.a.observe(t1.ref)).state, 'unknown');
+  const t2 = await startU(ulim('five_hour', 80).limits);
+  t2.f.spawned[0].emit(U('seven_day', 1)); await finish(t2.f); assert.equal((await t2.a.observe(t2.ref)).state, 'unknown');
+  // Two windows: both must have a reading.
+  const t3 = await startU([...ulim('five_hour', 80).limits, ...ulim('seven_day', 80).limits]);
+  t3.f.spawned[0].emit(U('five_hour', 1)); await finish(t3.f); assert.equal((await t3.a.observe(t3.ref)).state, 'unknown');
+});
+
+test('route B usage_percent: without a usage limit the reader is not consulted and usd-only sessions behave as before', opts, async () => {
+  let calls = 0;
+  const { f, a, ref } = await startU([{ kind: 'usd', amount: 2.5 }], { readUsage: () => { calls++; return undefined; } });
+  await finish(f);
+  assert.equal(calls, 0); assert.equal((await a.observe(ref)).state, 'completed');
+});
+
 test('route B stays gated in the plugin: handlers do not import the adapter and no marker gates reasoning', opts, async () => {
   const fs = await import('node:fs');
   const handlers = fs.readFileSync(path.join(repo, 'harnesses/claude/plugin/hooks/handlers.ts'), 'utf8');
