@@ -4,6 +4,7 @@ title: "File formats: frontmatter schemas, naming, markdown conventions, and tem
 status: approved
 author: mixed
 implements: [feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions, feature/configuration, feature/plan-index, feature/tooling]
+based_on: { feature/spec-system: "919d9e8", feature/plan-system: "49347a9", feature/plan-steps: "2365e49", feature/decisions: "b8abaa0", feature/configuration: "3b96920", feature/plan-index: "ab8faed", feature/tooling: "9abfce2" }
 ---
 
 <!-- Plan index proposal 2026-11-02: user agreed naming/source semantics and approved the companion feature patch, now applied. Architecture revision awaits review; not implemented behavior. -->
@@ -971,6 +972,27 @@ related_specs: []
         }
       }
     },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode":       { "type": "string", "enum": ["auto", "manual"] },
+        "suites": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["command", "format"],
+            "properties": {
+              "command": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+              "format":  { "type": "string", "enum": ["node-tap-v13", "junit-xml"] }
+            }
+          }
+        },
+        "text_paths": { "type": "array", "items": { "type": "string" } },
+        "risk_paths": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "decisions": {
       "type": "object",
       "additionalProperties": false,
@@ -1046,6 +1068,7 @@ Harness attribution trailers (`Co-Authored-By:`) follow the harness's own conven
 | `step` | agent (`plan-step`) | `plan/<id>` | `<type>(<slug>): <summary>` |
 | `plan-create` | agent (`plan-create`) | any | `docs(<slug>): create plan` |
 | `spec` | agent (`spec-draft-architecture`, approved `spec-assist` edits) | any | `docs(specs): <summary>` |
+| `decision-new` | agent (`decision-new`) | any | `docs(decisions): create <id>` |
 | `approve` | CLI `spec approve`, `spec reopen`, `plan approve`, `decision accept` | any | `docs(specs): approve <id>`, `docs(specs): reopen <id>`, `docs(<plan-id>): approve plan`, `docs(decisions): accept <id>` |
 | `start` | CLI first start, execution binding | `plan/<id>` | `chore(specplane): start <id>` |
 | `claim` | CLI start/finish (frontmatter mode) | integration target | `chore(specplane): claim <id> <status>` |

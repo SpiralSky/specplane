@@ -4,7 +4,7 @@ title: "Agent skills: config resolution and harness-neutral prompt contracts"
 status: approved
 author: mixed
 implements: [feature/agent-integration, feature/spec-precedence, feature/spec-policies, feature/spec-system, feature/plan-steps, feature/plan-execution, feature/tooling]
-based_on: { feature/agent-integration: "6fd87da" }
+based_on: { feature/agent-integration: "7720f2a", feature/spec-precedence: "233c5a1", feature/spec-policies: "9e333d1", feature/spec-system: "919d9e8", feature/plan-steps: "2365e49", feature/plan-execution: "59b4b17", feature/tooling: "9abfce2" }
 ---
 
 <!-- Plan index proposal 2026-11-02: user agreed naming/source semantics and approved the companion feature patch, now applied. Architecture revision awaits review; not implemented behavior. -->
@@ -279,7 +279,7 @@ Determine whether the session is attended (feature/spec-precedence).
 3. Load context: every item in the step's `context` field (spec sections by anchor, ADRs, files) plus all prior sections of HANDOFF.md.
 4. Avoid reading other files unless the listed context is insufficient; record any expansion in HANDOFF.md.
 5. Execute the tasks, following `feature/spec-precedence` (record gaps; on contradictions, stop if attended, or record `BLOCKED:` and continue with unaffected tasks if unattended). Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>/spec-gaps.md` as a new numbered entry (`## G<n>: <case>`, the six fields and statuses of `architecture/file-formats` §4.2, `**Status**: open`): create the file on the first entry and never reuse a number. A step that would propose a spec edit it may not make itself writes a `proposal` entry; `feature-spec-proposals.md` is the archived format and is not written by new plans.
-6. Check the acceptance criteria. Tests are specified by the step criteria/tasks and its reviewed test procedure; project test files are part of the implementation. In the structured workflow, request executable checks through `executeWorkflowTest` (Codex runner: `executeTest`) after edits, and return its artifacts with criterion evidence. Missing suite/report mappings remain uncertain until resolved and bound by preparation. Report commands, outcomes and limitations; core records the verification summary in HANDOFF.md as specified in reference-cli. In the manual CLI fallback, pass observed results through `--next-knows`, explicitly distinguishing them from core-issued receipts.
+6. Check the acceptance criteria. Tests are specified by the step criteria/tasks and its reviewed test procedure; project test files are part of the implementation. In the structured workflow, request executable checks through `executeWorkflowTest` (Codex runner: `executeTest`) after edits, and return its artifacts with criterion evidence. Report commands, outcomes and limitations; core records the verification summary in HANDOFF.md as specified in reference-cli. In the manual CLI fallback, pass observed results through `--next-knows`, explicitly distinguishing them from core-issued receipts. A criterion with no mapping is assessed by citing files. Run every configured suite the step's tier requires. If the tier needs a separate check, request it after the edits are final. Never lower a minimum yourself: ask the user, or end the step `blocked` when unattended.
 7. Decide the outcome: `done`, or `blocked` if a blocking issue prevents the criteria from being met.
 8. Record it with the CLI: inspect the exact edit set and create the digest-bound recording manifest outside the checkout, then run `specplane plan step-done <plan-id> --outcome <outcome> --summary <text> --recording-set <file>` with `--changed`, `--deviation`, `--open-issue`, `--gap`, `--next-knows`, and the harness attribution `--trailer` (`architecture/reference-cli` § `plan step-done`). The CLI appends the HANDOFF.md section (`architecture/file-formats` §4.1), sets the step's `status` to the outcome, and makes the step commit (§8) in one operation. The "Gaps found in specs" subsection lists each `spec-gaps.md` entry this step added, by ID, through `--gap`.
 9. Without the CLI or compatible core, new target-aware plans refuse managed recording rather than bypassing binding/lease checks. For legacy plans only, when the historical target and scope are unambiguous and the user chooses the labelled manual fallback, do the same by hand: set the `status`, append the §4.1 section with `**Outcome**` equal to the status and "None." for empty sections, and commit per `architecture/file-formats` §8 with `Specplane-Workflow: step`, `Specplane-Plan`, `Specplane-Step`, and `Specplane-Agent` (plus `Specplane-Session` when the harness exposes one), e.g. `feat(search-indexer): build graph from spec links`, a bullet summary, then the trailers.
@@ -291,6 +291,28 @@ One-paragraph summary: outcome, files changed, gaps (their `spec-gaps.md` IDs), 
 
 ---
 
+## `verify-review`
+
+### Purpose
+
+Compares a finished plan step with its spec as a second reader. Implements the `separate` check of `architecture/reference-cli` § Verification policy.
+
+### Policy check
+
+None.
+
+### Steps
+
+1. Read only the prepared request: the step's spec context, criteria and diff. The working conversation is not an input.
+2. For each criterion and each relevant spec requirement, decide whether the diff meets it.
+3. Return `{verdict, findings}`: `pass` when nothing blocks the step, otherwise `fail`. Each finding names the requirement, the file and what is wrong.
+4. Edit nothing. A mismatch may mean the spec is the side that is wrong, so report it and do not choose.
+
+### Output
+
+The structured verdict only.
+
+---
 ## `plan-finish`
 
 ### Purpose

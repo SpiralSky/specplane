@@ -21,12 +21,12 @@
         {
           "id": "base:architecture/reference-cli",
           "path": "sources/reference-cli.md",
-          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+          "sha256": "d1258fe055c3c1faf65032971e7befa149016e0d704f2d30c8d9733f68374120"
         },
         {
           "id": "base:architecture/file-formats",
           "path": "sources/file-formats.md",
-          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+          "sha256": "f3fea06fa24de6b0682dd9a0457be2a31b226bc7c8c437c4ca61e6cffc87b045"
         }
       ]
     },
@@ -44,17 +44,17 @@
         {
           "id": "base:architecture/reference-cli",
           "path": "sources/reference-cli.md",
-          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+          "sha256": "d1258fe055c3c1faf65032971e7befa149016e0d704f2d30c8d9733f68374120"
         },
         {
           "id": "base:architecture/file-formats",
           "path": "sources/file-formats.md",
-          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+          "sha256": "f3fea06fa24de6b0682dd9a0457be2a31b226bc7c8c437c4ca61e6cffc87b045"
         },
         {
           "id": "base:architecture/agent-skills",
           "path": "sources/agent-skills.md",
-          "sha256": "dbe456171c02558a2aad91d06684cf018b5729e382e5982b136e31d702daa752"
+          "sha256": "6a653e08280ea468e8521a96a20497db41b8406bcbe4c70352e18bdb2eae16e4"
         }
       ]
     },
@@ -71,12 +71,12 @@
         {
           "id": "base:architecture/reference-cli",
           "path": "sources/reference-cli.md",
-          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+          "sha256": "d1258fe055c3c1faf65032971e7befa149016e0d704f2d30c8d9733f68374120"
         },
         {
           "id": "base:architecture/file-formats",
           "path": "sources/file-formats.md",
-          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+          "sha256": "f3fea06fa24de6b0682dd9a0457be2a31b226bc7c8c437c4ca61e6cffc87b045"
         }
       ]
     },
@@ -93,17 +93,17 @@
         {
           "id": "base:architecture/reference-cli",
           "path": "sources/reference-cli.md",
-          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+          "sha256": "d1258fe055c3c1faf65032971e7befa149016e0d704f2d30c8d9733f68374120"
         },
         {
           "id": "base:architecture/file-formats",
           "path": "sources/file-formats.md",
-          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+          "sha256": "f3fea06fa24de6b0682dd9a0457be2a31b226bc7c8c437c4ca61e6cffc87b045"
         },
         {
           "id": "base:architecture/agent-skills",
           "path": "sources/agent-skills.md",
-          "sha256": "dbe456171c02558a2aad91d06684cf018b5729e382e5982b136e31d702daa752"
+          "sha256": "6a653e08280ea468e8521a96a20497db41b8406bcbe4c70352e18bdb2eae16e4"
         }
       ]
     },
@@ -120,12 +120,12 @@
         {
           "id": "base:architecture/reference-cli",
           "path": "sources/reference-cli.md",
-          "sha256": "2d0c4be5130362b4749acc95d5fce2f09020b8324e72df895192e01624184097"
+          "sha256": "d1258fe055c3c1faf65032971e7befa149016e0d704f2d30c8d9733f68374120"
         },
         {
           "id": "base:architecture/file-formats",
           "path": "sources/file-formats.md",
-          "sha256": "8bdb4c7005c66a10b817882ba2e02240162aaf38957a200af7ab000478e10210"
+          "sha256": "f3fea06fa24de6b0682dd9a0457be2a31b226bc7c8c437c4ca61e6cffc87b045"
         }
       ]
     }
