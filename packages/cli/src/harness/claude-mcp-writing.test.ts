@@ -139,6 +139,10 @@ test('a spec selected by its plain id can be finalised', async () => {
   assert.ok(fs.readFileSync(f.file, 'utf8').includes('finalised'));
 });
 
+test('a plain spec id no root holds is refused and nothing is prepared', async () => {
+  await assert.rejects(session({ ...cases['spec-assist (finalised edit)']!, specIds: ['feature/absent'] }), /absent/);
+});
+
 test('a done result with nothing for the user to confirm still needs file evidence', async () => {
   const f = await session({ ...cases['decision-new']!, extra: () => ({}) });
   const refused = await call(f.server, 4, 'validate', { requestId: f.requestId, result: f.result });

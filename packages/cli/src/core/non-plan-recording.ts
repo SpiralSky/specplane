@@ -60,7 +60,7 @@ export function prepareNonPlanRecording(state: PreparedState, result: WorkflowRe
   const seen = new Set<string>();
   const config = result.finalizedEdits?.length ? loadConfig(request.checkout).config : null;
   for (const edit of result.finalizedEdits ?? []) {
-    const explicitSpecs = state.initiation.workflow === 'plan-step' || state.initiation.workflow === 'plan-finish' ? [] : state.initiation.selection.specIds.map(id => { const selected = resolveSpecId(id, config!, undefined, request.checkout); return `${selected.root}:${selected.id}`; });
+    const explicitSpecs = state.initiation.workflow === 'plan-step' || state.initiation.workflow === 'plan-finish' ? [] : state.initiation.selection.specIds;
     if (!editing || !request.scope.specIds.includes(edit.spec) || !explicitSpecs.includes(edit.spec)) fail('POLICY_DENIED', 'Finalized content must identify an explicitly selected prepared editable spec');
     const resolved = resolveSpecId(edit.spec, config!, undefined, request.checkout);
     if (edit.spec !== `${resolved.root}:${resolved.id}`) fail('INVALID_EVIDENCE', 'Finalized content requires an exact root-qualified spec ID');

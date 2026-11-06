@@ -8,6 +8,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { RunnerResponse } from '../core/workflow-runner.js';
 import { resolveSuite, type SuiteTable } from './claude-suites.js';
+import { loadConfig } from '../config.js';
+import { resolveSpecId } from '../spec/resolve.js';
 import type { ConfirmationChallenge, ConfirmationResponse, InteractionPort } from '../core/contracts.js';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
@@ -67,6 +69,16 @@ export function createConfirmationBridge(): ConfirmationBridge {
 
 /** The part of the runner this server uses; tests pass a fake. */
 export interface RunnerPort { handleLine(line: string): Promise<RunnerResponse | null> }
+
+/** People write `feature/add`; a WorkflowInitiation takes root-qualified ids. An id no root holds, or more than one holds, throws. */
+export function qualifySpecIds(params: Json): Json {
+  const selection = params.selection as { specIds?: unknown } | undefined;
+  const ids = selection?.specIds;
+  if (!Array.isArray(ids) || ids.every(id => typeof id !== 'string' || id.includes(':'))) return params;
+  const checkout = String(params.checkout), { config } = loadConfig(checkout);
+  const qualified = ids.map(id => { const spec = resolveSpecId(String(id), config, undefined, checkout); return `${spec.root}:${spec.id}`; });
+  return { ...params, selection: { ...selection, specIds: [...new Set(qualified)] } };
+}
 
 type Forward = 'inspect' | 'prepare' | 'executeTest' | 'validate' | 'record' | 'capture' | 'cancel' | 'prepareReview' | 'recordReview';
 interface ToolSpec { name: string; description: string; forward?: Forward; release?: boolean; bind?: boolean; detail?: boolean }
@@ -336,6 +348,9 @@ export function createClaudeMcpServer(runner: RunnerPort, options: McpServerOpti
     if (method === 'executeTest') return runReviewedSuites(args);
     if (method === 'prepareReview' || method === 'recordReview') return reviewCall(method, params);
     let forwarded: Json = spec.release ? { requestId: params.requestId } : params;
+    if (method === 'prepare') {
+      try { forwarded = qualifySpecIds(params); } catch (e) { return text(protocol(refusal('INVALID_EVIDENCE', `${(e as Error).message} Nothing was prepared.`)), true); }
+    }
     if (method === 'validate') {
       const held = typeof params.requestId === 'string' ? open.get(params.requestId) : undefined;
       if (!held) return text(`Request ${String(params.requestId)} is not open; nothing was validated.`, true);
