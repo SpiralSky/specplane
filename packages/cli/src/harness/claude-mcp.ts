@@ -10,6 +10,7 @@ import type { RunnerResponse } from '../core/workflow-runner.js';
 import { resolveSuite, type SuiteTable } from './claude-suites.js';
 import { loadConfig } from '../config.js';
 import { resolveSpecId } from '../spec/resolve.js';
+import { SpecNotFoundError } from '../errors.js';
 import type { ConfirmationChallenge, ConfirmationResponse, InteractionPort } from '../core/contracts.js';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
@@ -70,13 +71,19 @@ export function createConfirmationBridge(): ConfirmationBridge {
 /** The part of the runner this server uses; tests pass a fake. */
 export interface RunnerPort { handleLine(line: string): Promise<RunnerResponse | null> }
 
-/** People write `feature/add`; a WorkflowInitiation takes root-qualified ids. An id no root holds, or more than one holds, throws. */
+/**
+ * People write `feature/add`; a WorkflowInitiation takes root-qualified ids. An id no root holds, or more than one holds, throws.
+ * A plan-create goal is free text, so a token no root holds is prose there and is dropped; `plan new` still rejects an unknown spec.
+ */
 export function qualifySpecIds(params: Json): Json {
   const selection = params.selection as { specIds?: unknown } | undefined;
   const ids = selection?.specIds;
   if (!Array.isArray(ids) || ids.every(id => typeof id !== 'string' || id.includes(':'))) return params;
   const checkout = String(params.checkout), { config } = loadConfig(checkout);
-  const qualified = ids.map(id => { const spec = resolveSpecId(String(id), config, undefined, checkout); return `${spec.root}:${spec.id}`; });
+  const qualified = ids.flatMap(id => {
+    try { const spec = resolveSpecId(String(id), config, undefined, checkout); return [`${spec.root}:${spec.id}`]; }
+    catch (e) { if (params.workflow === 'plan-create' && e instanceof SpecNotFoundError) return []; throw e; }
+  });
   return { ...params, selection: { ...selection, specIds: [...new Set(qualified)] } };
 }
 

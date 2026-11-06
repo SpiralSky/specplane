@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import { fixture, repo } from '../core/workflow-test-fixture.js';
 import { createWorkflowRunner } from '../core/workflow-runner.js';
 import { sha256 } from '../core/workflow-preparation.js';
-import { createClaudeMcpServer, createConfirmationBridge } from './claude-mcp.js';
+import { createClaudeMcpServer, createConfirmationBridge, qualifySpecIds } from './claude-mcp.js';
 
 const NONCE = 'nonce-0123456789abcdef';
 const rpc = (n: number, name: string, args: Record<string, unknown>) => ({ jsonrpc: '2.0', id: n, method: 'tools/call', params: { name, arguments: { nonce: NONCE, ...args } } });
@@ -141,6 +141,13 @@ test('a spec selected by its plain id can be finalised', async () => {
 
 test('a plain spec id no root holds is refused and nothing is prepared', async () => {
   await assert.rejects(session({ ...cases['spec-assist (finalised edit)']!, specIds: ['feature/absent'] }), /absent/);
+});
+
+test('a plan-create goal that mentions a path no root holds is prepared without it, and the real spec stays selected', async () => {
+  const r = repo();
+  const ask = (workflow: string) => ({ workflow, checkout: r.cwd, selection: { specIds: ['feature/test', 'feature/flags'], input: 'enable feature/flags for feature/test' } });
+  assert.deepEqual((qualifySpecIds(ask('plan-create')).selection as { specIds: string[] }).specIds, ['base:feature/test']);
+  assert.throws(() => qualifySpecIds(ask('spec-draft-architecture')), /flags/);
 });
 
 test('a done result with nothing for the user to confirm still needs file evidence', async () => {

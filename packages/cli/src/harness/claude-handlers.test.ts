@@ -698,6 +698,7 @@ test('a reviewer answer that is not the required JSON records nothing and the re
   const again = await m.requestReview(pending, jobs, { requestId: 'r1' }, { session: ctx.session, reviewer: port });
   assert.equal(again.ok, true);
   assert.equal(spawned.length, 2);
+  assert.match(again.text, /previous review did not count/);
 });
 
 test('a server refusal (stale state, same identity) is passed to the model and nothing counts as reviewed', opts, async () => {

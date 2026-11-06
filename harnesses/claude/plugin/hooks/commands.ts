@@ -206,6 +206,8 @@ export async function requestReview(
     jobs.delete(id)
     return { ok: true, text: existing.message ?? 'The review is recorded.' }
   }
+  // A new reviewer is started, but the model still learns why the last one did not count.
+  const previous = existing?.state === 'failed' && existing.message ? `The previous review did not count: ${existing.message}\n` : ''
   if (existing) jobs.delete(id)
   let workerSession: string
   try { workerSession = await ctx.reviewer.workerSession() } catch { return { ok: false, text: `The host reported no session identity for this work, so a review cannot count as separate. ${NO_REVIEW}` } }
@@ -218,7 +220,7 @@ export async function requestReview(
   try { started = await ctx.reviewer.spawn(reviewPrompt(request)) } catch { started = undefined }
   if (!started) return { ok: false, text: `The host did not start a reviewer. ${NO_REVIEW}` }
   jobs.set(id, { requestId: id, reviewId, agentId: started.agentId, state: 'running' })
-  return { ok: true, text: 'A separate reviewer has started on the current state of the checkout. It runs in the background. Call this tool again with the same requestId to read its verdict. Do not edit any file meanwhile: any change makes the review stale and you would have to request it again.' }
+  return { ok: true, text: previous + 'A separate reviewer has started on the current state of the checkout. It runs in the background. Call this tool again with the same requestId to read its verdict. Do not edit any file meanwhile: any change makes the review stale and you would have to request it again.' }
 }
 
 /** The job whose reviewer is this agent, if any. */
