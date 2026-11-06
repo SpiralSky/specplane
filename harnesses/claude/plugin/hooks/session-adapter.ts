@@ -50,10 +50,31 @@ export interface AdapterDeps {
   /** Executable; defaults to `claude`. */
   executable?: string
   /**
-   * Reads account usage from one parsed stream event. There is NO default: the event format is unverified, so the
-   * caller supplies it. `usage_percent` is declared only with this AND `evidence.usagePercentSeen` for the installed version.
+   * Reads account usage from one parsed stream event; one event can carry several windows. There is NO default: the
+   * event format belongs to one host version, so the host binding passes `readClaudeUsage` for a version it has evidence
+   * for. `usage_percent` is declared only with this AND `evidence.usagePercentSeen` for the installed version.
    */
-  readUsage?: (event: unknown) => { window: string; usedPercent: number } | undefined
+  readUsage?: (event: unknown) => UsageReading[] | undefined
+}
+
+export interface UsageReading { window: string; usedPercent: number }
+
+/**
+ * Reader for the `rate_limit_event` recorded on Claude Code 2.1.317 (host-evidence/2.1.317/usage-capture.txt).
+ * `utilization` is read as a 0..1 fraction. A value above 1 is an account past its limit, so it reads as 100 and stops
+ * the session rather than being dropped. Rounded because 0.29 * 100 is below 29 in floating point.
+ */
+export function readClaudeUsage(event: unknown): UsageReading[] | undefined {
+  const e = event as { type?: unknown; rate_limit_info?: { unifiedWindows?: unknown } } | null
+  if (e?.type !== 'rate_limit_event') return undefined
+  const windows = e.rate_limit_info?.unifiedWindows
+  if (typeof windows !== 'object' || windows === null) return undefined
+  const readings: UsageReading[] = []
+  for (const [window, value] of Object.entries(windows)) {
+    const used = (value as { utilization?: unknown } | null)?.utilization
+    if (typeof used === 'number' && Number.isFinite(used) && used >= 0) readings.push({ window, usedPercent: Math.round(Math.min(used, 1) * 10000) / 100 })
+  }
+  return readings
 }
 
 type Tracked = {
@@ -163,13 +184,13 @@ export function createClaudeSessionAdapter(deps: AdapterDeps) {
         if (!t.initOk) { try { handle.kill('SIGTERM') } catch { /* the failed state below still holds */ } }
       }
       if (usageLimits.length && deps.readUsage && !t.limitStop) {
-        let u: ReturnType<NonNullable<AdapterDeps['readUsage']>>
-        try { u = deps.readUsage(ev) } catch { u = undefined }
+        let readings: unknown
+        try { readings = deps.readUsage(ev) } catch { readings = undefined }
         // Only a finite 0..100 reading for a window with an active limit counts; anything else is "no reading".
-        if (u && typeof u.window === 'string' && typeof u.usedPercent === 'number' && Number.isFinite(u.usedPercent) && u.usedPercent >= 0 && u.usedPercent <= 100) {
+        for (const u of Array.isArray(readings) ? readings as Partial<UsageReading>[] : []) {
+          if (typeof u?.window !== 'string' || typeof u.usedPercent !== 'number' || !Number.isFinite(u.usedPercent) || u.usedPercent < 0 || u.usedPercent > 100) continue
           t.usageSeen.add(u.window)
-          const crossed = usageLimits.some(l => l.window === u!.window && u!.usedPercent >= l.amount)
-          if (crossed) { t.limitStop = true; void cancelTracked(t) }
+          if (!t.limitStop && usageLimits.some(l => l.window === u.window && u.usedPercent! >= l.amount)) { t.limitStop = true; void cancelTracked(t) }
         }
       }
       if (e.type === 'result') {
