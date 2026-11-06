@@ -246,7 +246,7 @@ test('a final-file replacement during read refuses even when replacement bytes m
   assert.equal(fs.readFileSync(evidence, 'utf8'), 'original');
 }));
 
-test('journal replacement during sync refuses without cleaning up either directory', () => fixture((root, outside) => {
+test('journal replacement during sync refuses without cleaning up either directory', { skip: process.platform === 'win32' ? 'Windows refuses to rename a directory while a file inside it is open' : false }, () => fixture((root, outside) => {
   const journal = path.join(root, 'journal'), retained = path.join(root, 'retained');
   fs.mkdirSync(journal);
   const sync = fs.fsyncSync; let replaced = false;
