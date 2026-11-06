@@ -769,6 +769,18 @@ test('each writing workflow is told the exact creation or finalizedEdits shape, 
   assert.doesNotMatch(m.delegationPrompt({ workflow: 'decision-new', requestId: 'r1', assetPath: 'S', request: { criteria: [] } }), /needs at least one file/);
 });
 
+test('commands accept plain and root-qualified spec ids, and plan-create takes them from its goal', async () => {
+  const m = await load();
+  const specIds = (workflow: string, raw: string) => { const r = m.initiationFor(workflow, raw, '/c'); assert.ok(r.ok, raw); return (r.request.selection as { specIds: string[] }).specIds; };
+  assert.deepEqual(specIds('spec-draft-architecture', 'feature/add base:feature/add feature/add'), ['feature/add', 'base:feature/add']);
+  assert.deepEqual(specIds('spec-assist', 'feature/add'), ['feature/add']);
+  assert.deepEqual(specIds('spec-assist', 'write a spec based on feature/add'), []);
+  assert.deepEqual(specIds('plan-create', 'Plan `feature/add`, then base:feature/subtract.'), ['feature/add', 'base:feature/subtract']);
+  assert.deepEqual(specIds('plan-create', 'Plan the subtract work'), []);
+  assert.deepEqual(specIds('decision-new', 'Keep feature/add small'), []);
+  assert.equal(m.initiationFor('spec-draft-architecture', 'not a spec', '/c').ok, false);
+});
+
 test('completion, validate, plan-status and plan-start delegate to exactly the core CLI operations and refuse bad arguments before the core is touched', opts, async () => {
   const m = await load();
   const cmd = (name: string) => m.NATIVE_COMMANDS.find((c: { name: string }) => c.name === name);

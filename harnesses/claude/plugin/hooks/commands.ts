@@ -92,7 +92,9 @@ export type Confirmation = 'confirmed' | 'declined' | 'unavailable'
 
 /** The mod's own bundled identity; must equal `CLAUDE_EXTENSION_ID` in packages/cli/src/harness/claude-package.ts (claude-handlers.test). */
 export const CLAUDE_EXTENSION_ID = 'specplane-claude'
-const SPEC_ID = /^[A-Za-z0-9_-]+:(feature|architecture)\/[a-z0-9/-]+$/
+const SPEC_ID = /^(?:[A-Za-z0-9_-]+:)?(feature|architecture)\/[a-z0-9/-]+$/
+/** The spec ids named in free text, without surrounding quotes or punctuation. */
+const specIdsIn = (text: string): string[] => [...new Set(text.split(/\s+/).map(t => t.replace(/^[`"'(]+|[`"').,;:]+$/g, '')).filter(t => SPEC_ID.test(t)))]
 const PLAN_ID = /^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 /**
@@ -113,11 +115,11 @@ export function initiationFor(workflow: string, raw: string, checkout: string): 
       return { ok: true, request: { ...base, workflow, selection: { specIds: SPEC_ID.test(text) ? [text] : [], input: text } } }
     case 'spec-draft-architecture':
       if (!tokens.length || !tokens.every(t => SPEC_ID.test(t))) return { ok: false, error: 'Usage: /spec-draft-architecture <feature spec id>...' }
-      return { ok: true, request: { ...base, workflow, selection: { specIds: tokens, input: text } } }
+      return { ok: true, request: { ...base, workflow, selection: { specIds: [...new Set(tokens)], input: text } } }
     case 'plan-create':
     case 'decision-new':
       if (!text) return { ok: false, error: `Usage: /${workflow} <${workflow === 'plan-create' ? 'goal' : 'decision description'}>` }
-      return { ok: true, request: { ...base, workflow, selection: { specIds: [], input: text } } }
+      return { ok: true, request: { ...base, workflow, selection: { specIds: workflow === 'plan-create' ? specIdsIn(text) : [], input: text } } }
     default:
       return { ok: false, error: `/${workflow} has no reasoning initiation.` }
   }

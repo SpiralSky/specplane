@@ -134,6 +134,11 @@ for (const [name, c] of Object.entries(cases)) {
   });
 }
 
+test('a spec selected by its plain id can be finalised', async () => {
+  const f = await drive({ ...cases['spec-assist (finalised edit)']!, specIds: ['feature/test'] }, 'confirm');
+  assert.ok(fs.readFileSync(f.file, 'utf8').includes('finalised'));
+});
+
 test('a done result with nothing for the user to confirm still needs file evidence', async () => {
   const f = await session({ ...cases['decision-new']!, extra: () => ({}) });
   const refused = await call(f.server, 4, 'validate', { requestId: f.requestId, result: f.result });
