@@ -69,7 +69,7 @@ Specs should support optional contribution degrees. This describes each author's
 Specs should all have a status. The status is bound to a specific git commit.
 Statuses:
 - Awaiting Review (default): Unreviewed specifications or specifications that have been changed, OR specifications that reference **parts of** other specifications that have changed since their last Approved state.
-- Approved: Specifications approved by a user or LLM (LLM approval is off by default for **feature specs** but on for **architecture specs**).
+- Approved: Specifications approved by a role that has the required permissions.
 
 *R11.1: Spec Status records*
 Additional metadata records who approved the specification.
@@ -116,19 +116,26 @@ Specplane handles permissions for both user and LLMs with roles. User and harnes
 
 Specplane roles apply to both CLI and harness use.
 
-#### Roles
+#### Roles Permissions
 **R46: Role Permissions**
 Each role should have permissions assigned to them.
 
+There are 3 types of permissions:
+1. Standard Permissions. They are referred to as just permissions in this document.
+2. Management Permissions. (See `R43`)
+3. System Permissions. See `R60`
+
 **R42: Default Roles**
 There should be default roles providing permissions for each. Each role and permissions will be detailed below.
+
+Permissions for default roles are defined automatically within presets (see `R57`).
 
 *R42.1: Default Roles*
 *Standard User*
 The standard user should be the default role for users using the CLI and agentic harness.
 
 *LLM Role*
-The LLM default user should be the default user for LLMs in the harness.
+LLM user should be the default role for LLMs in the harness. Subagents inherit parent LLM roles unless overridden by `R44.1`
 
 *Administrator*
 The administrator user should have all permissions and be able to manage all other users.
@@ -139,13 +146,19 @@ The administrator user should have all permissions and be able to manage all oth
 - Administrator: Special (always higher than assignable levels)
 
 **R58: Role Permission Bypass**
-Specplane should have configurable guardrails against permission bypass via starting headless sessions, such as running `claude`, `codex` or the specplane CLI itself. One example is using environmental variables. Multiple preventative methods should be used and they should be all documented and configurable.
+Specplane should have configurable guardrails against permission bypass via starting headless sessions, such as running `claude -p` or the specplane CLI itself. One example is using environmental variables. Multiple preventative methods should be used and they should be all documented and configurable. The harness should be able to identify LLMs and subagents running and treat them as having their own specplane role so that specplane's LLM roles can be applied properly.
 
 **R44: Applying Custom Users**
-The configuration should allow users to apply custom specplane roles to Operating System users. Administrators or root accounts should be able to log in as the administrator user. User who do not have a role for the operating system will be assigned the standard user (See `R42.1: Default Roles`)
+The configuration should allow users to apply custom specplane roles to Operating System users. Administrators or root accounts should be able to log in as the administrator user. User who do not have a role for the operating system will be assigned the standard user (See `R42.1: Default Roles`).
+
+*R44.1: Custom LLM role rules*
+It should be easy to assign custom roles to LLMs based on rules with factors such as defined subagents (some harnesses have specific subagents defined for tasks), current agent type, agent provider and other factors. This defaults to the LLM default role.
+
+**R60: Permissions for applying Custom Users**
+Administrators should be able to fully manage and edit the mapping from OS users to specplane roles. A custom permission type, System Permissions should exist granting the ability to manage and edit OS user -> role mappings along with LLM to role mappings. Users with system permissions still have to obey permission levels: They cannot provide an OS user -> specplane role mapping to a role at an equal or higher level than them. This also applies to LLM mappings.
 
 **R48: Role Configuration Storage**
-Custom roles, permissions and other settings should be stored in git. However, operating system users to custom specplane roles will not be stored in git.
+Custom roles, permissions and other settings should be stored in git. However, mappings of agent types/OS user types to roles will not be stored in git, while the roles themselves are stored in git.
 
 **R55: Role Enforcement**
 Roles should be enforced with a combination of restricting access to specplane internally depending on the permissions an agent or user has, and guidelines for LLMs injected into prompts when they are denied and/or injected into the system prompt to prevent them from finding alternatives. They do not act as strict, airtight enforcement.
@@ -164,6 +177,8 @@ A role's permission level determines what roles it can change the permissions of
 Using specplane as an administrator (in the operating system) will optionally provide the option to switch user or login to specplane as an administrator. The administrator has the highest permissions of all users.
 
 ### Agent Steering
+**R59: Autogenerated Steering**
+Steering should be used to keep LLM to follow rules. Apart from what is mentioned in other sections, LLMs should be instructed to not attempt to bypass limitations and follow what their user role restricts them to do.
 
 ### General (Appears in both)
 **R12: Validation**
@@ -171,6 +186,9 @@ There should be a way to validate specs. Validation covers all rules specificati
 
 **R13: Auditing**
 Specplane should keep an internal log of **all actions taken** per repository. The internal log should not be committed to git, however, it should contain the branch the command was run on.
+
+*R13.1: Audit Retention*
+Audit Log retention should be configurable and settle at a reasonable default,
 
 **R14: Command Instructions**
 Commands have instructions and sometimes optional content injected when they are run (described in other parts of the specification). If the instruction is already within the context, they should not be sent a second time. The instructions should also be customisable but default to command documentation.
@@ -210,8 +228,7 @@ There should be permissions controlling whether a role can read and write metada
 
 ### Specplane Harness
 **R18: Harness - General commands**
-All harness commands should not be **directly executed** by the LLM. **This refers to execution when a user types a command, not the permissivity of agents running the commands in question**. For example, `/abc` (a placeholder example) will go through the harness itself and only pass arguments to the LLM if there are any.
-The CLI should be able to manage plans such as changing plan statuses by approving and archiving plans.
+All harness commands should not be **directly executed** by the LLM. **This refers to execution when a user types a command, not the permissivity of agents running the commands in question**. For example, `/abc` (a placeholder example) will go through the harness itself and only pass arguments to the LLM if there are any. 
 
 **R52: Requests System**
 A requests system should exist for LLMs to send requests to the user to approve. Dedicated permissions should exist as an alternative to allow/deny for certain actions within the harness for using the requests system. If there is no active session and the request only runs in the background, requests should still be in the requests list and can be accepted later by the user.
@@ -239,7 +256,7 @@ Deleting and Editing specifications need confirmation by default. As these are a
 *R19.1: Change Granularity*
 Depending on the change granularity, LLM authorship is automatically added by the LLM with contribution details also in metadata.
 
-*R19.2: Spec management Permissions
+*R19.2: Spec management Permissions*
 Permissions should control granularly whether a user can edit, delete or create specifications. Spec Management should have allow, deny and request user permissions.
 
 **R20: Spec approval**
@@ -254,14 +271,14 @@ Spec approval should have allow, deny and request user permissions.
 If the harness supports it, add a command for the user to view specific specs directly. The change in the spec since last approval should be highlighted if it is a spec that has been changed.
 
 *R21.1: Spec Viewing Permissions*
-Spec viewing should use `R26: Information Retreival` and therefore not have separate permissions. This should be documented.
+Spec viewing should use `R26: Information Retrieval` and therefore not have separate permissions. This should be documented.
 
 **R38: Spec reviewal and discussion**
 A command should exist for LLM to review and provide feedback on each spec. It should point out problems and potential missing gaps in feature and architecture specs, and ask questions for the user for the requirement specification on things it needs to clarify.
 
 This command should not use the LLM to change any files, being a read-only operation. This should also cover grammar mistakes, poor wording and unclear instructions across all specifications.
 
-*R38.1 Spec reviewal permissions*
+*R38.1: Spec reviewal permissions*
 Spec reviewal should use `R26: Information Retrieval` and therefore not have separate permissions. This should be documented.
 
 **R26: Information Retrieval**
@@ -270,16 +287,16 @@ The agent should be able to retrieve information for a spec file including all r
 *R26.1: Retrieval Configurability*
 Information Retrieval should be flexible and controllable, such as retrieving multiple related documents at once or only a single document.
 
-*R26.1: Information Retrieval Permissions*
+*R26.2: Information Retrieval Permissions*
 Information retrieval should have allow, deny and ask user permissions.
 
 **R31: Plan Management**
 The user should be able to use the harness to manage, edit and create plans. 
 
-*R31.1 Plan Management Permissions*
+*R31.1: Plan Management Permissions*
 Plan Management should have permissions for manage, editing and creating. Each permission should have 3 modes, allow, ask user and deny.
 
-*R31.1: Parallelism*
+*R31.2: Parallelism*
 The user should be able to control how much parallelism is used in the plan steps. A parallel step contains multiple different tasks that do not depend on each other and require the harness to have subagents to execute the tasks in parallel.
 
 **R27: Plan Execution**
@@ -355,6 +372,8 @@ This preset enables LLM editing of architecture while keeping all actions that e
 This preset disables all LLM editing permissions over all specifications while only enabling read-only permissions and other miscellaneous permissions to the LLM. Users have all permissions enabled.
 3. Feature-Level LLM Control
 This preset enables LLM editing permissions over feature and architectural specifications needing to request the user for editing requirement specifications. Users have all permissions enabled.
+4. Full LLM Control
+This preset enables LLM editing permissions over all specification types including the requirement specification.
 
 ### Default Profile
 
