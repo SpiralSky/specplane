@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-06 (end of the 11-06 continuation session; start with "Next session"). Branch `main`, which is now the integration branch (`origin/HEAD` points at it); HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
+Updated 2026-11-08 (requirements page finished; start with "Requirements page", then "Next session"). Branch `main`, which is now the integration branch (`origin/HEAD` points at it); HEAD is the last commit on this branch (`git log -1`). Read `AGENTS.md` and `.specplane/config.yaml` first.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
@@ -23,12 +23,16 @@ Updated 2026-11-06 (end of the 11-06 continuation session; start with "Next sess
 - Not run: native macOS and Windows. `/tmp` is a RAM-backed tmpfs; keep `specplane-private-rewrite-20261103` there and remove other test leftovers.
 
 ## Requirements page (next session starts here)
-`docs/product-requirements.md` is the user's new design base (uncommitted, user still editing; never change its content unless asked). It overrides `.claude/rules/specplane.md`, `AGENTS.md` and all specs on conflict; the user plans to rewrite those to match. Layer order is Requirements -> Feature -> Architecture (architecture follows features); requirements and plans are optional. R-numbers are permanent: a new one is the highest plus one (R33 at 2026-11-06 23:40); no duplicates now. Memory notes: `requirements-page-precedence`, `requirements-id-policy`.
-- Typo/numbering fixes done by the agent on request only. Still wrong in the file: R16 ("added as the approved the specification"); R11.2 body says "stale" under the title "Outdated Status"; R11 "Approved: ... by a user or LLM" (the user meant to scope LLM approval to the harness, not saved).
-- User will add: supported harnesses (#8), audit log access and retention (#9), "changed requirement makes citing specs outdated" (#5, forgotten earlier; R9/R11.2).
-- Needs discussion: non-goals and "must never happen" (ask who it is for, what a bad outcome is, what it will not do); autonomy limits for plan execution (R27) and config for what the LLM may do, with presets. Proposed requirement: config limits on the LLM are enforced by instruction, and only the CLI, validation and optional hooks can truly refuse, since an LLM can edit files. Requirement verification (#10): LLM writes tests in the feature spec, runs them, checks the feature matches its requirement.
-- Leanings, not decided: concurrent editing (#6) left to git as a non-goal; migration of existing projects (#7) a non-goal for now (only the user's "dot" repo consumes Specplane).
-- Not done: existing specs and code still describe the old rules (`feature/spec-precedence` architecture-wins wording, `feature/spec-policies` section 3 leak guard with `forbid_architecture` and about 50 `leak_guard_allow` entries, `draft`/`review`/`approved` statuses vs R11). Candidate requirements drawn from existing features were listed in chat but not written.
+`docs/product-requirements.md` is final in content as of 2026-11-08, but the user has not committed the latest edits (35 added, 6 removed lines since `b805fc6`). It is user-owned: never change its content unless asked. It overrides `.claude/rules/specplane.md`, `AGENTS.md` and all specs on conflict. Layer order is Requirements -> Feature -> Architecture; requirements and plans are optional. R-numbers are permanent; the highest is R63 (next is R64); there are no duplicate ids and no empty headings. Memory notes: `requirements-page-precedence`, `requirements-id-policy`.
+- Added on 2026-11-08 (user-approved wording): R61 and R61.1 (spec compliance tests per layer; a failed test never changes status but blocks approval, and blocks marking an architecture spec implemented; result metadata records who ran it, outdated when either spec changes); R62 to R62.5 (non-goals: agent control outside Specplane, concurrent editing, migration, team enforcement through a git server, cross-project budgeting) and R63 (unwanted outcomes) in a new `## Scope` section; R59 (steering); R13.1 (audit retention); R44 (mapping optional; standard user can switch to administrator without OS admin rights; identity source not tied to the OS); R44.1 (higher-level LLM role for a reviewing or managing LLM); R48 (roles, permissions and LLM role rules in git, changes pending until approved, elevated LLM rules trusted locally; OS user mappings local per machine); R41.3 (confirming LLM may deny with feedback, then forwards to the user after a configurable number of rounds).
+- Skipped by the user's choice: an explicit "changed requirement makes citing specs outdated" line (R11.2 already covers it).
+- Decided in discussion, not requirements: running tests is not a Specplane permission; the model choice is the user's, with only a note in the user docs (R22) to avoid the same model for author and reviewer; with a git server, give an LLM its own bot account and keep human tokens out of its reach; subagent budgets are the harness's business, cross-project budgets belong to an external coordinator.
+
+### Do next, in this order
+1. Ask the user whether to commit the page; stage that path only, never `problems.md`.
+2. List every conflict between the page and the existing specs, `AGENTS.md`, `.claude/rules/specplane.md`, `.specplane/config.yaml` and the code, without editing yet. Known ones: `feature/spec-precedence` (architecture wins), `feature/spec-policies` section 3 leak guard (`forbid_architecture`, about 50 `leak_guard_allow` entries), the `draft`/`review`/`approved` statuses against R11 (Awaiting Review and Approved only), authorship against roles and presets (R42 to R57), `llm_role` against permissions, decision records against R37, and the soft and hard stop shape below.
+3. Group the conflicts into a plan or a short list of spec edits and show the user. Spec editing follows `llm_role` for each type; approvals stay with the user, batched into one list.
+4. After that, the user docs notes (R22) and the rewrite of the standing instructions.
 
 ## Needs the user
 Every TEMPORARY (coordinator choice while you were offline) and PROVISIONAL (built, unapproved) item. Each is its own commit and easy to revert.
@@ -106,7 +110,7 @@ Order, as of the end of the 11-06 continuation session:
 6. Plan check done: dependents see the done plans. The command is `specplane plan list`; `plan status` does not exist. `2026-11-02-target-lifecycle` still lists as in progress although item "Eight plans" calls it declared done. Abandoning `2026-10-30-plan-conductor` is not done; it stays after step 5.
 
 Waiting on the user:
-- Decide soft and hard stops for `execution.usage_limits`, then finalise `docs/product-requirements.md`.
+- Decide soft and hard stops for `execution.usage_limits`. The page is final; note R27.1 says the soft stop instructs the model to create a handoff and the hard stop forces the session to end, which differs from the recommendation below (soft stop starts no further session and needs no agent cooperation). Reconcile with the user in product terms.
 
 Open decision, soft and hard stops (recommended to the user on 2026-11-06, not yet answered; do not ask for approval until it is settled):
 - Shape: `usage_limits: [{ window, soft, hard }]`, `soft` optional, default `[]`. Example values `five_hour` 75/90, `seven_day` 85/95, taken from `heavy-usage`.
