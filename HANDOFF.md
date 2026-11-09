@@ -16,7 +16,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 1 specifications (R1,R2,R4,R5,R7,R9,R10,R11,R40,R65,R67,R68): `docs/specifications/features/specifications.md`; `spec-system.md` and `spec-precedence.md` removed
 - [x] 2 plans (R28,R28.1,R29,R29.1-3,R30,R30.1,R69): `docs/specifications/features/plans.md`; `plan-system.md`, `plan-steps.md`, `plan-status.md`, `plan-index.md` removed
 - [x] 3 plan-execution (R27,R31): `docs/specifications/features/plan-execution.md`
-- [ ] 4 roles-and-permissions
+- [x] 4 roles-and-permissions (R42,R42.1,R42.2,R43,R44,R44.1,R46,R48,R49,R50,R55,R55.1,R56,R56.1,R57,R58,R60): `docs/specifications/features/roles-and-permissions.md`; `spec-policies.md` removed
 - [ ] 5 requests (R52)
 - [ ] 6 steering
 - [ ] 7 harness
@@ -55,7 +55,14 @@ Assumptions from spec 3 (all revisable):
 - Old finish-flow details (test command, rebase before final commit) were not carried; session 9 (verification) can adapt test running from git (`git show 49b4c5e^:docs/specifications/features/plan-execution.md`).
 - Cites made to later specs: `requests R52`, `steering R59`, `roles-and-permissions R57`, `configuration R25`. Permissions R27.1.1, R27.2.1, R31.1 are defined here; roles-and-permissions should list them as permission kinds. No hook blocked any edit.
 
-Next: spec 4, `roles-and-permissions`.
+Assumptions from spec 4 (all revisable):
+- Section ids: `roles-and-permissions` R42 (R42.1, R42.2), R43, R44 (R44.1), R46, R48, R49, R50 (permission kinds table and how modes apply), R55 (R55.1), R56 (R56.1), R57, R58, R60, plus `§1` terms and `§2` edge cases. R19.2, R16.1, R17.x, R25.1, R61.2 etc. stay page-level cites; their owning specs must define the permission itself; this spec only lists the kinds.
+- Later releases marked in the body: R43, R48, R49, R55.1, R58, R60, R44.1, role mappings in R44, creating/editing/deleting presets (R56). First release: four fixed default presets, one active (chosen as a configuration change), everyone Standard User, anyone may switch to Administrator by command (LLM roles cannot, R47).
+- Preset contents beyond the page (my choices): LLM role always allowed information retrieval, test results, metadata read, sending requests, soft stop; plan create/edit allow, start/resume/abandon/complete/delete/budget request user; metadata write deny; decision records retrieve allow, others request user; approval and configuration request user. Spec edit/create/delete per type: preset 1 arch allow, others request user; preset 2 all deny; preset 3 requirement request user, rest allow; preset 4 all allow. Standard User has everything except the three R17.2 protected overrides; Administrator is outside presets.
+- spec-policies was removed: authorship, `llm_role` (none/review/assist/draft), ordering policy and leak guard are gone; only "LLM-written specs start Awaiting Review" is kept (in `specifications` and R57). `.specplane/config.yaml` still has `authorship`/`llm_role`/leak guard keys, `INFO.md`, `configuration.md`, `agent-integration.md`, `tooling.md`, `spec-overlays.md` and others still cite `spec-policies`; spec 10 (configuration) and later cleanup must remove them.
+- Cites made to later specs: `requests R52`, `steering R51`, `steering R59`, `configuration R25`, `verification R61`, plus page-level R47, R54. No hook blocked any edit.
+
+Next: spec 5, `requests` (R52).
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
