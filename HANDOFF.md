@@ -11,6 +11,31 @@ Work with the user, one or two items at a time, showing proposed text as a diff.
 3. Write specs one at a time in the `docs/release-plan.md` order, Phase 1 first. Replace old files in place, since git keeps the old text. Ask the open questions from the conflict list only when the spec being written needs the answer.
 4. New specs stay unapproved until the user approves them. Do not write architecture specs or code yet.
 
+## Spec rewrite progress (hands-off sessions, started 2026-11-09)
+Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (frontmatter, `## R<n>` sections, citations such as `R11.2`, `plans R28`, `plans §2`). New specs are `status: awaiting-review`; nothing is approved. Old text stays in git (`git show 5b6b043^:docs/specifications/features/<old>.md`).
+- [x] 1 specifications (R1,R2,R4,R5,R7,R9,R10,R11,R40,R65,R67,R68): `docs/specifications/features/specifications.md`; `spec-system.md` and `spec-precedence.md` removed
+- [ ] 2 plans (R28,R29,R30,R69)
+- [ ] 3 plan-execution (R27,R31)
+- [ ] 4 roles-and-permissions
+- [ ] 5 requests (R52)
+- [ ] 6 steering
+- [ ] 7 harness
+- [ ] 8 cli
+- [ ] 9 verification
+- [ ] 10 configuration
+- [ ] 11 later-releases
+
+Assumptions and open questions from spec 1 (all revisable):
+- Retired specs are deleted, not marked `deprecated`; citing specs become Awaiting Review (R11.2). Conflict question 6 stays open.
+- Layer precedence: higher layer wins, no stop; same-layer contradictions are reported and the contradicted behaviour is not implemented. Gap/assumption records go in the plan record (`plans`, session 2 must define it; old `spec-gaps.md` text is in the removed spec-precedence).
+- Specs cite other specs by planned slug, so later specs must use the section ids spec 1 cites: `plans R28`, `plans R30.1`, `roles-and-permissions R57`, `harness R14`, `configuration R25`, `cli R16`, `verification R61`.
+- Old spec-system "implementation completion and reassessment" text was dropped here; session 9 (verification, R36) should adapt it from git.
+- Old `allow_architecture`/leak guard dropped; R4 is exceptions marked with a reason plus optional harness instructions. Overlays/`extends`/`based_on` not carried over (session 11, R39).
+- Spec locations (`docs/specifications/...`, INFO.md) are described only lightly; `INFO.md` is rewritten by nobody yet and still lists the old spec set.
+- `.specplane/config.yaml` (`llm_role: assist`) and the leak guard were not consulted for edits; no hook blocked anything.
+
+Next: spec 2, `plans` (merge plan-system, plan-steps, plan-status; scrap plan-index).
+
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
 - 2026-11-09: `AGENTS.md` gained Codex "Working rules" (commit as you go, one step at a time, size check, stop rule, subagent limits, records) and now gives each host its own step-recording route. `docs/codex-vs-claude-usage-analysis.md` is untracked and its "about 3x" headline and cause ranking are outdated; the Codex Specplane skill is installed in this checkout only (`.agents/` and `.specplane/installed/` are excluded through `.git/info/exclude`, so plan worktrees do not get it), and the global `specplane` link now points at this checkout.
