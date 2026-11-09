@@ -19,7 +19,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 4 roles-and-permissions (R42,R42.1,R42.2,R43,R44,R44.1,R46,R48,R49,R50,R55,R55.1,R56,R56.1,R57,R58,R60): `docs/specifications/features/roles-and-permissions.md`; `spec-policies.md` removed
 - [x] 5 requests (R52, R52.1-R52.5): `docs/specifications/features/requests.md`
 - [x] 6 steering (R22,R23,R51,R59,R59.1): `docs/specifications/features/steering.md`
-- [ ] 7 harness
+- [x] 7 harness (R14,R18,R19,R19.1,R19.2,R20,R20.1,R21,R21.1,R26,R26.1,R26.2,R34,R35,R35.1,R38,R38.1,R47): `docs/specifications/features/harness.md`; `agent-integration.md` removed
 - [ ] 8 cli
 - [ ] 9 verification
 - [ ] 10 configuration
@@ -73,6 +73,13 @@ Assumptions from spec 6 (all revisable):
 - Defaults chosen: in a plan block, send a non-blocking request and continue if other steps do not depend on it, else soft stop; when unsure between blocking and non-blocking, prefer blocking. Allow means act directly unless custom steering says otherwise (consistent with `requests R52`). Where a specific and a general custom steering conflict, the specific wins. A permission without attached instructions is a warning (R24).
 - Custom steering is changed through configuration; key names are left to `configuration R25`. The complete steering an LLM receives can be shown to the user.
 - Cites made: `harness R14` (how and when instructions are delivered; session 7 must provide that section), `configuration R25`, `plans R28`, `plan-execution R27.1/R27.3/R27.5`, `requests R52`, `roles-and-permissions R50/R57`, page-level R13.1, R14, R16, R24, R35.1, R47, R54, R55, R61. No hook blocked any edit. `agent-integration.md` was not touched.
+
+Assumptions from spec 7 (all revisable):
+- Section ids: `harness` R14, R18, R47, R19 (R19.1, R19.2), R20 (R20.1), R26 (R26.1, R26.2), R21 (R21.1, later release), R38 (R38.1, later release), R34, R35 (R35.1), plus `§1` terms, `§2` standing instructions, `§3` edge cases. R19.2, R20.1, R26.2, R21.1, R38.1 permission behaviour is defined here (allow/deny/request user; viewing and review reuse R26.2).
+- R14: instructions are sent when a command is used, not resent if in context, resent if unsure or after compaction, skills-on-demand preferred, customisable (default is command documentation), delivered at the nearest earlier point when the harness cannot deliver in time. The R4 separation-check instruction and the R66 migration prompt are described as R14 instructions.
+- R47: block is enforced by the harness where it can, steering only guides; stronger guardrails (headless sessions) stay with roles-and-permissions (R58, later). Harness is named by the user at setup, never auto-detected.
+- Standing instructions (`harness §2`): short, owned file or one marked block in a shared instruction file, never overwrites maintainers' text; old agent-integration workflow-contract text, skill pinning, per-`llm_role` enforcement tables, leak guard, MCP future note and automated-conductor extension text were dropped (extensions/overlays: session 11 if wanted). Commit attribution markers are kept lightly.
+- Cites made: `requests R52`, `steering R51`, `steering R59`, `roles-and-permissions R50/R57`, `specifications R9`, `plans R28`, `configuration R25` (must cover: customising command instructions, default for retrieval including referenced sections, recording LLM authorship). Page-level cites for `cli`: R16, R61.1 (approval checks) - session 8 should state the harness approval command runs under the same checks. Other specs still cite old agent-integration text: `tooling.md`, `spec-overlays.md`, `INFO.md` files, `docs/specifications/architecture/agent-skills.md`, harness specs under `harnesses/`; not touched. No hook blocked any edit.
 
 Next: spec 7, `harness` (R14, R18, R19, R20, R21, R26, R34, R35, R38, R47), replacing `agent-integration.md`.
 
