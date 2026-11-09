@@ -1,226 +1,113 @@
 ---
 id: feature/claude-integration
 title: Claude Code integration
-status: approved
-author: mixed
-extends: [feature/agent-integration, feature/plan-steps, feature/spec-policies]
-based_on: { feature/agent-integration: "7720f2a", feature/plan-steps: "90d5a81", feature/spec-policies: "9e333d1" }
+status: awaiting-review
+authors:
+  - llm: claude-sonnet-5-5
+    contribution: drafted
+covers: []
+references: [root:harness R34, root:harness R35, root:plan-execution R27, root:harness §2, root:steering R59, root:harness R47, root:harness R14, root:harness §3, root:verification R24, root:harness R18, root:harness R19, root:harness R20, root:harness R26, root:harness R35.1, root:plan-execution R31.2, root:plan-execution R27.4, root:plan-execution R27.5, root:plan-execution R27.6, root:plans R28]
 ---
-
-<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
-
-<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
 
 # Claude Code integration
 
-This spec describes features of Specplane that are specific to Claude Code as the agent harness. It is an extending overlay spec in the `claude` root: it extends `feature/agent-integration`, `feature/plan-steps`, and `feature/spec-policies`, adding Claude Code–specific capabilities without contradicting them. Its `based_on` pins record the versions of those specs it was last reviewed against; `validate` warns when one changes.
+This spec says what Specplane provides inside Claude Code, the harness in which the user and a Claude model work on a project. It adds nothing to the behaviour of `root:harness R34`: every command, permission, steering text and request behaves as the root specs say, and this spec only states how Claude Code delivers them and what it can or cannot do (`root:harness R35`). It covers no requirement of its own, so `covers` is empty (assumption: the page has no requirement for a single harness, so all sections here are `§` sections that refine `root:harness` sections).
 
-See `feature/agent-integration` (base) for the general agent integration model. This spec adds Claude Code–specific details.
+## §1 Terms
 
----
+- **Rules file:** the instruction file Claude Code loads in every session from the project's `.claude/` folder, owned by Specplane.
+- **Maintainers' file:** `CLAUDE.md` and any other instruction file the project's maintainers write. Specplane never creates, edits or reorders it.
+- **Plan checkout:** the worktree and branch a plan runs in (`root:plan-execution R27`).
 
-## Claude Code as the harness
+## §2 Standing instructions
 
-Claude Code is an AI coding assistant that operates in a terminal, reads files from the repository, and executes shell commands. In the Specplane context, Claude Code:
+Refines `root:harness §2`.
 
-- Receives the Specplane standing instructions in every session, and workflow procedures through slash commands.
-- Executes Specplane CLI commands.
-- Writes spec and plan files directly.
-- Runs plan steps by reading the step file and HANDOFF.md, executing tasks, and committing.
+- Claude Code receives the standing instructions in every session from the rules file. The text is the same as for any harness: Specplane is in use, read the configuration before acting on specs or plans, look up steering for your role, and do not call the CLI (`root:steering R59`, `root:harness R47`).
+- The rules file lists the Specplane slash commands as the way to run workflows. It carries no steering, rules or procedures; those arrive with the command (`root:harness R14`).
+- Specplane never writes `CLAUDE.md`. When a project forbids a marked block in a shared file, the rules file is the only delivery (`root:harness §2`). Two harnesses in one project share the same text (`root:harness §3`).
+- A missing or older rules file produces a warning (`root:verification R24`).
 
----
+Scenario: Given a project with a hand-written `CLAUDE.md`, When Specplane is set up for Claude Code, Then `CLAUDE.md` is unchanged and the rules file is added.
 
-## Standing instructions
+Scenario: Given the installed rules file is older than the installed Specplane, When the user validates, Then a warning names the rules file.
 
-Claude Code receives the standing instructions (`feature/agent-integration#agent-instructions`) from a Specplane-owned project rules file that Claude Code loads in every session. The file:
+## §3 Slash commands
 
-1. Contains the standing instructions, with the Specplane slash commands as the way to run workflows.
-2. Adds a few Claude Code–specific conventions (which tools to prefer, commit attribution).
+Refines `root:harness R18`, `root:harness R14`, `root:harness R19`, `root:harness R20` and `root:harness R26`.
 
-Specplane does not create or edit `CLAUDE.md`; it belongs to the repository's maintainers. Because the rules file is Specplane-owned, upgrading Specplane updates it without touching user content.
+Claude Code offers one slash command per workflow:
 
----
+| Command | Purpose |
+|---------|---------|
+| `/spec-assist` | Write or edit a feature or architecture spec with the user |
+| `/spec-draft-architecture` | Draft an architecture spec from feature specs |
+| `/plan-create` | Create a plan |
+| `/plan-start` | Start a plan in its own checkout and say where to continue |
+| `/plan-step` | Run the next step or steps of a plan |
+| `/plan-finish` | Review a plan and let the user decide |
+| `/plan-status` | Show plans with live status and next step |
+| `/plan-abandon` | Abandon a plan after confirmation |
+| `/validate` | Run validation and summarise the findings |
+| `/verify` | Judge an architecture spec against its implementation |
+| `/approve` | Approve specs or plans by ID; only the user can run it |
+| `/requests` | Open the pane of pending requests; only the user can run it |
 
-## Slash commands
+- A command typed without arguments runs without a model turn; with arguments it passes them and the command's instructions to Claude (`root:harness R18`). Asking Claude in plain words runs the same workflow under Claude's own role.
+- Instructions for a command are delivered when it is used, once per conversation, and again after compaction (`root:harness R14`). Claude Code loads them on demand as skills where it can.
+- Claude Code's own commands, such as `/resume`, are not replaced.
+- Decision records and migration add commands in a later release.
 
-The base spec (`feature/agent-integration`) defines which workflow integrations Specplane requires and their policy contracts. In Claude Code, a plugin containing a mod provides deterministic slash-command handlers and bundles a compatible Specplane core. Skills deliver reasoning phases; they do not implement mechanical commands by asking the agent to reconstruct a procedure.
+Scenario: Given the user types `/plan-status` with no arguments, When it runs, Then the plans are shown and no model turn starts.
 
-Each workflow references and pins every applicable shared procedure and its Claude-specific contract. The extension packages these procedures for consumers and adds host invocation details without redefining policy. Mechanical commands parse arguments, invoke validated core operations, and display results without a model turn. Reasoning workflows invoke agent work only after deterministic preparation; final recording and policy checks run through the core. Approval commands collect the human decision directly and never use model output as authorization. When a workflow would create a file or bind finalised spec text, the user sees the exact content in a confirmation dialog and confirms it there; the agent's text is never the confirmation, and confirming does not approve a spec. Where no dialog is available the workflow reports the manual command instead.
+Test (deterministic): type a no-argument command and check that no model turn is started.
 
-Host built-ins, including `/resume`, are not overridden. Commands are registered only on supported surfaces; missing native dispatch is reported explicitly, with the manual CLI available. Reasoning procedures are internal to the extension and are not public commands. Multiple contributing models are retained even when the user switches models inside a session.
+## §4 Hooks
 
-| Slash command | Base integration | Description |
-|---------------|-----------------|-------------|
-| `/spec-assist` | `spec-assist` | Help the user write a feature spec; under `assist` the agent writes the body only after the user approves the finalised content |
-| `/spec-draft-architecture` | `spec-draft-architecture` | Draft an architecture spec from feature specs |
-| `/plan-create` | `plan-create` | Create a new plan interactively |
-| `/plan-step` | `plan-step` | Execute the next step of the current plan |
-| `/plan-finish` | `plan-finish` | Assess whether the current plan is ready to finish and explain gaps; the finish itself is run by the user through the CLI, and the command says so |
-| `/validate` | `validate` | Run `specplane validate` and summarise results |
-| `/approve` | `approve` | Approve specs, plans, or decision records by ID (`--reopen` reopens an approved spec); only when the user invokes it |
-| `/plan-start` | `plan-start` | Start a plan and say where to continue it |
-| `/decision-new` | `decision-new` | Create a decision record, optionally written from the user's description |
-| `/plan-status` | `plan-status` | Show plans with live status and next step |
-| `/plan-abandon` | `plan-abandon` | Abandon a plan after confirmation |
+Refines `root:harness R47`, `root:harness R14` and `root:harness R35.1`.
 
----
+Claude Code can run a program before or after one of its tool calls. Specplane uses this for four things:
 
-## Subagents per step
+- **No CLI for the model.** A shell command from Claude that runs the Specplane CLI is denied, with a message pointing to the harness actions. Commands typed by the user in their own terminal are not affected. The check is best effort; Specplane says so at setup (`root:harness R35.1`).
+- **Session context.** When a session starts in a plan checkout, Claude is told the plan and its next step, and to work only on that step.
+- **Compaction.** After Claude Code compacts the conversation, command instructions are sent again at their next use.
+- **Commit check (assumption).** A commit made by Claude is blocked while validation reports errors; warnings do not block.
 
-Claude Code may run a step session as a subagent. This is an **opt-in** harness feature; it does not change the base step contract.
+A status line in a plan checkout shows the plan, its step progress and what is waiting (assumption; registered only when the user has no status line). Hooks are registered in the project's Claude Code settings, which the user can also edit. Hooks that stay installed from an older Specplane keep running until the user removes them.
 
-A step opts in by declaring `use_subagent: true` in its frontmatter (see `feature/plan-steps`). When enabled, the `/plan-step` skill:
-1. Launches a **fresh** subagent — one that starts with an empty context rather than inheriting the parent session's — told where to find the step file, HANDOFF.md, and the context items listed in the step frontmatter.
-2. The subagent loads that context itself, executes the tasks, sets the step's final status, appends to HANDOFF.md, and commits.
-3. The subagent returns a summary to the parent session.
+Scenario: Given Claude tries to run `specplane validate` in a shell, When the hook checks it, Then the command is not run and Claude is told to use the `/validate` command.
 
-The parent session retains only the subagent's summary, not the step's context or tool output — keeping the main context clean for subsequent steps. Because a subagent cannot ask the user questions mid-step, it handles spec contradictions in unattended mode (see `feature/spec-precedence`).
+Test (deterministic): feed the hook shell texts that call the CLI directly, through `env`, `npx` and `sh -c`, and check each is denied; feed an unrelated command and check it is allowed.
 
-**Default**: `use_subagent` is absent (off) unless declared in the step. The harness does not enable it globally.
+## §5 Subagents per step
 
----
+Refines `root:plan-execution R27` and `root:plan-execution R31.2`.
 
-## Hooks
+- A plan step may run as a fresh subagent: one that starts with an empty context and is told where to find the step, the handoff and the context the step names. The parent session keeps only the subagent's summary. Several steps run as a chain, one subagent per step, started by the parent one after another (assumption: matches the maintainers' practice).
+- A subagent has the role of the session that started it and works one step only (`root:plan-execution R27.4`).
+- A subagent cannot ask the user questions. It records gaps and assumptions, sends requests as non-blocking or blocking (`root:plan-execution R27.5`), or stops, as the root specs say.
+- Using subagents is off unless the user or the plan asks for it (assumption).
+- For parallel tasks inside a step, Claude uses subagents when parallelism is on and runs tasks one after another otherwise, telling the user (`root:plan-execution R31.2`).
 
-Claude Code supports hooks — shell commands that run before or after Claude tool calls. Specplane can use hooks for:
+## §6 Worktrees and the cloud
 
-- **Pre-commit validation**: run `specplane validate` before the agent makes a git commit, and block the commit if there are errors (warnings are allowed).
-- **Policy guard**: when the agent edits a spec, apply the spec type's `llm_role` as defined in `feature/spec-policies#meaning-of-each-value`; under `review` or `assist`, ask the user to approve the exact edit. Deny any agent edit that sets a spec to `approved`, a plan to `ready`, or a decision record to `accepted`; those changes go through `/approve`. Policy is enforced when it matters instead of relying on the agent to remember it.
-- **Session context**: when a session starts in a plan's checkout, tell the agent which plan it is in and which step is next.
-- **Post-step HANDOFF.md check**: verify that HANDOFF.md was updated by a step commit.
-- **Auto-generate PLANS.md**: run `specplane plan index --source working` after a plan file changes, so the uncommitted edit appears in the index. It does not stage or commit the output.
+Refines `root:plan-execution R27`, `root:plan-execution R27.6` and `root:plans R28`.
 
-A **status line** shows the current plan, step progress, and blockers when the session is in a plan checkout.
+- A plan runs in its own worktree on its own branch, started by `/plan-start`. The user's directory is never switched. The command prints how to open a Claude Code session in the checkout; Claude does not move a running session there (assumption).
+- A session in a plan checkout works on that plan only, one step at a time. Plans that are unrelated can run in several sessions at once.
+- A Claude Code session in the cloud follows the same rules. Plan execution is required on every supported harness (`root:harness R35.1`), so a cloud session must have the checkout, the Specplane files and the hooks it needs; if one is missing, Specplane says which and does not start the step. Files git does not track are absent in the cloud and the step handles that as the root spec says (`root:plan-execution R27`).
+- Each finished step is committed, and a cloud or remote session publishes it so the next session sees it (assumption).
 
-**Defaults**: pre-commit validation, the policy guard, and session context are enabled by Specplane's Claude Code setup; the status line is enabled unless the user already has one. The other hooks are documented and opt-in. Hooks are registered in Claude Code's project settings, which the user may also edit directly.
+Scenario: Given the user is on `main`, When they run `/plan-start`, Then they stay on `main` and are told which command opens a session in the new checkout.
 
----
+## §7 Memory
 
-## Sessions in worktrees and the cloud
+Refines `root:plan-execution R27`.
 
-A Claude Code session works on one plan, one step at a time, whether it runs in a local worktree, as a subagent, or as a cloud session. Several sessions may work on different plans in parallel; only one works on a given plan at a time. A session that finds its plan advanced elsewhere stops rather than overwriting that work. Sessions on other machines publish each finished step, so the next session and the live view see it.
+Claude Code has a per-user memory. It is never the source of truth: a plan's progress lives in its handoff, and memory may only point to it. Specplane recommends three entries, none enforced or validated: the active plan and its last finished step, open questions not yet in the handoff, and spec gaps not yet in the plan's gap record. A memory entry that disagrees with the plan record is stale, and the plan record wins.
 
-Cloud sessions use the same shared workflow contract, but extension delivery, native command handlers, and hooks must be verified for that surface. Missing native dispatch is reported explicitly; reasoning-only workflows and the manual CLI remain available where supported. The live view and mode display below are optional UI features, not requirements for executing a step.
+## §8 Context loading
 
-If a session ends while a workflow request is still open, the repository stays protected against other writers until the user releases it with an explicit command; nothing releases it silently, and the command first checks that the previous session's work has stopped.
+Refines `root:harness R26`.
 
----
-
-## Live view and Specplane mode (optional)
-
-Optional interface features of the Claude extension add:
-
-- **Live view**: a panel beside the chat listing active plans across all worktrees, remote branches, and cloud sessions, with step progress, the next step, blockers, and which agent session made the last step. It is read-only and offers the command to continue a plan in its checkout.
-- **Specplane mode**: a session mode (`step`, `spec`, or off). `step` mode, entered automatically in a plan checkout, keeps the agent's edits inside the checkout and the current step and shows the step's acceptance-criteria progress. `spec` mode shows the authorship policy and spec templates while writing specs.
-
-These interface features add visibility and tighten existing rules; command execution does not depend on enabling a pane. Without the extension, the complete manual CLI remains available and repository policy still applies. Availability in cloud/headless sessions is declared and checked separately from interactive UI support.
-
----
-
-## Memory integration
-
-Claude Code has a persistent memory system. Memory is per-user and is never the source of truth: a plan's progress lives in its `HANDOFF.md`, and memory only points to it.
-
-Specplane recommends the memory names below, so that sessions record the same things in the same place. They are recommendations only; Specplane does not enforce or validate them.
-
-| Memory name | Records |
-|-------------|---------|
-| `specplane-active-plan` | The active plan ID and current step number, as a pointer to the plan's `HANDOFF.md`. |
-| `specplane-open-questions` | Open questions found during step execution and not yet recorded in the plan's `HANDOFF.md`. |
-| `specplane-spec-gaps` | Spec gaps discovered and not yet recorded in the plan's `spec-gaps.md`. |
-
----
-
-## Context loading in Claude Code
-
-Claude Code agents load context by reading files. The step context contract (`feature/plan-steps`) applies. For Claude Code specifically:
-
-- The agent should use the `Read` tool (not `cat`) for spec and plan files, so the content is in the context window.
-- The agent should use `Glob` to discover files in a directory rather than `ls`.
-- For large spec files, the agent may read only the relevant sections using offset and limit.
-
----
-
-## Acceptance scenarios
-
-### Scenario 1: `/plan-step` skill reads HANDOFF.md
-
-Given the user invokes `/plan-step` on plan `2026-10-28-search-indexer`,
-And step 02 is the next incomplete step,
-When the skill runs,
-Then it reads `plans/2026-10-28-search-indexer/HANDOFF.md` and `plans/2026-10-28-search-indexer/steps/02-graph-builder.md` before executing tasks.
-
-### Scenario 2: Pre-commit hook blocks invalid spec
-
-Given the pre-commit validation hook is enabled,
-And a spec file has a frontmatter error,
-When the agent attempts to commit,
-Then the hook runs, finds the error, and the commit is blocked with the validation error message.
-
-### Scenario 3: CLAUDE.md is left alone
-
-Given a repository with its own `CLAUDE.md`,
-When `specplane init --harness claude` runs,
-Then `CLAUDE.md` is unchanged,
-And a new Claude Code session still has the standing instructions and the list of slash commands.
-
-### Scenario 4: Policy guard asks before a feature-spec edit
-
-Given `specs.feature.llm_role: review` or `assist`,
-When the agent tries to edit a feature spec,
-Then Claude Code asks the user to approve that exact edit before it is applied.
-
-### Scenario 5: Fresh session in a plan worktree
-
-Given plan `2026-10-28-search-indexer` has step 01 done and step 02 pending,
-When a new Claude Code session starts in that plan's worktree,
-Then the agent is told it is in that plan and that step 02 is next, before the user types anything.
-
-### Scenario 6: Skill refuses to draft feature spec under `llm_role: review`
-
-Given `specs.feature.llm_role: review`,
-When the user invokes `/spec-assist` and asks "Write the feature spec for search",
-Then the skill offers to help (ask questions, review a draft) but does not produce the spec body.
-
-### Scenario 6a: Skill writes a finalised feature spec under `llm_role: assist`
-
-Given `specs.feature.llm_role: assist`,
-When the user invokes `/spec-assist`, describes the feature, refines it with the agent, and confirms the Finalise summary,
-Then the skill shows the written body and writes the file only after the user approves it.
-
-### Scenario 6b: Agent cannot approve by editing
-
-Given `feature/search` is `review`,
-When the agent tries to edit it to `status: approved`,
-Then the policy guard denies the edit and points to `/approve`.
-
-### Scenario 6c: `/approve` on an overlay re-pins it
-
-Given `feature/spec-policies` is approved and committed, and `claude:feature/claude-integration` is `review` with a stale pin of it,
-When the user runs `/approve claude:feature/claude-integration`,
-Then one commit refreshes the pin and sets the overlay to `approved`.
-
-### Scenario 7: Skill contract drift
-
-Given the `/plan-step` skill pins the spec that defines the `plan-step` contract,
-And that spec has since changed,
-When the user runs `/validate`,
-Then the summary includes a skill-drift warning for the skill, and the user is told to review the diff and re-pin.
-
----
-
-## Open questions
-
-None. IDs refer to `docs/OPEN-QUESTIONS.md`.
-
-Resolved: OQ-2 (skills vs. bash aliases — § Slash commands), OQ-3 (subagents per step — § Subagents per step), OQ-4 (default hooks — § Hooks), OQ-5 (memory names — § Memory integration).
-
-## Automated plan execution
-
-This integration's automated execution follows `feature/agent-integration` § Automated plan execution. The local Claude executable must support the required capabilities; unavailable or incompatible versions are refused rather than guessed compatible. No live Claude session has been verified in the Dot cloud environment used for this branch.
-
-## Shared documentation and optional workflow guidance
-
-Deliver the shared conceptual orientation and expose documentation through the compatible bundled core's `docs` operation. Native documentation entry points return the same versioned topics as that core's CLI; host invocation and live capability notices may supplement them. Preserve existing host command names on collision and provide discovery of the available entry point. No network service or source checkout is required.
-
-Orient users and agents to optional plans, arbitrary Git branches, separate review/completion states, valid manual completion edits and fingerprint reassessment. Plan-only checkout and recording rules apply when that workflow is invoked. Shared docs never imply a host can execute an unsupported operation. Update managed guidance explicitly with the release's documentation and contract versions, preserving user-owned material.
+Claude reads specs and plans with `Read` rather than `cat`, finds files with `Glob`, and reads large specs by offset and limit. For several specs and their cited sections it uses one retrieval instead of reading each file (`root:harness R26`).
