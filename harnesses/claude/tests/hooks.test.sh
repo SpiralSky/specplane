@@ -166,7 +166,7 @@ for role in none assist draft absent; do
     none) fp=none; ap=none; ef=deny; ea=deny ;;
     assist) fp=assist; ap=assist; ef=ask; ea=ask ;;
     draft) fp=draft; ap=draft; ef=none; ea=none ;;
-    absent) fp=; ap=; ef=ask; ea=none ;;
+    absent) fp=; ap=; ef=none; ea=none ;;
   esac
   d="$tmp/pg-$role"; pg_proj "$d" "$fp" "$ap"; mkdir -p "$d/specs"
   printf -- '---\nid: feature/x\n---\nbody\n' > "$d/specs/f1.md"

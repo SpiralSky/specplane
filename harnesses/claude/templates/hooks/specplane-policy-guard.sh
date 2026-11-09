@@ -107,7 +107,7 @@ if [ "$approval" = 1 ]; then
 fi
 [ -n "$id" ] || exit 0
 case "$sid" in
-  feature/*) type=feature; default=assist ;;
+  feature/*) type=feature; default=draft ;;
   architecture/*) type=architecture; default=draft ;;
   *) exit 0 ;;
 esac
