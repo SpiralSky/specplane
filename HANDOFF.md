@@ -40,7 +40,7 @@ Assumptions from spec 2 (all revisable):
 - Plan id stays `YYYY-MM-DD-slug`, cited `plan/<id>`; plan-to-plan references are dependencies and a referenced plan must be completed first unless the user says otherwise (rule itself is for plan-execution R27).
 - Step status is only not started/done/skipped; the old `blocked` step status is dropped (page R27: requests or soft stop). Plan execution status: not started, in progress, stopped, completed, abandoned; plan approval (Awaiting Review/Approved) is separate.
 - Completed plan is archived in the plan branch's last commit so the merge carries it (answers conflict question 8 provisionally). Plan index (PLANS.md), `status_source`, `shelved`, `depends_on` modes, `archive_done` dropped.
-- Old step verification section (minimums, risk_paths, self/separate/human) was not carried; session 9 (verification) should adapt it from git (`git show HEAD~1^:docs/specifications/features/plan-steps.md` style, commit before this one).
+- Old step verification section (minimums, risk_paths, self/separate/human) was not carried; session 9 (verification) should adapt it from git (`git show 4dfd5d8^:docs/specifications/features/plan-steps.md`; same for plan-system, plan-status, plan-index).
 - Requirement-level citations used for specs not yet written: `plan-execution R27/R27.1/R27.2/R27.6`, `requests R52`, `steering R59`, `R19.2`, `R24`; later specs must provide those section ids.
 - No hook or guard blocked any edit.
 
