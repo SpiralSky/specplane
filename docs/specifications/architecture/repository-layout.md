@@ -1,146 +1,135 @@
 ---
 id: architecture/repository-layout
 title: Repository layout
-status: approved
-author: mixed
-implements: [feature/spec-system, feature/configuration, feature/plan-system, feature/decisions]
+status: awaiting-review
+authors:
+  - llm: claude-sonnet-5-5
+    contribution: drafted
+implements: [specifications R7, plans §2, plans R29.2, plan-execution R27, plan-execution §2, plan-execution §3, configuration R25, harness §2]
+references: [architecture/file-formats §1.1, architecture/file-formats §1.2, architecture/file-formats §5.1, architecture/file-formats §6, architecture/file-formats §6.1, architecture/file-formats §9.1, architecture/file-formats §10, architecture/file-formats §11.4, architecture/file-formats §12.1, architecture/file-formats §12.3, R7]
 ---
-
-<!-- Plan index proposal 2026-11-02: user agreed naming/source semantics and approved the companion feature patch, now applied. Architecture revision awaits review; not implemented behavior. -->
-
-
-<!-- Architecture reconciliation 2026-11-02: current feature contracts govern this draft revision. Stored lifecycle status and dependency pins are preserved; this edit is not approval or evidence of implementation. -->
-
-<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
 
 # Repository layout
 
-This spec defines the supported repository layout when Specplane is initialized. Plans and managed checkouts are optional; ordinary spec/code work and manual completion declarations require neither. Paths shown below are defaults, always resolved from configuration. Product documentation belongs to the installed release, not the consumer's spec roots.
+This spec says where Specplane's files live in a repository, where plan checkouts are created, which files are generated or kept out of git, and how a harness installs its files without touching the project's own. File contents are in `architecture/file-formats`; how the CLI finds and checks these paths is `architecture/reference-cli`. Every path below is a default that the configuration can change (`architecture/file-formats §6.1`); tools always resolve paths from the configuration and never assume one. Details the feature specs leave open are marked "assumption".
 
----
+## §1 Tracked files in the project
 
-## Top-level structure
+Implements `specifications R7`, `plans §2`, `plans R29.2`, `configuration R25`.
 
 ```
 <repo-root>/
   .specplane/
-    config.yaml              # single config file; all policy lives here
-  .git/
+    config.yaml                    configuration (architecture/file-formats §6)
   docs/
-    specifications/          # default base spec root
-      features/
-        INFO.md              # optional; free-form
-        <slug>.md            # feature specs
-      architecture/
-        INFO.md              # optional; free-form
-        <slug>.md            # architecture specs
-    decisions/               # decisions.dir (default); created with the first ADR
-      <NNNN>-<slug>.md       # architecture decision records
-    OPEN-QUESTIONS.md        # design questions and their resolutions (optional)
-  plans/
-    PLANS.md                 # GENERATED; never hand-edit
-    <plan-id>/
-      PLAN.md
-      steps/
-        <NN>-<slug>.md
-      HANDOFF.md             # created by first recorded step
-      spec-gaps.md           # created when a step records a gap
-    archive/                 # created when the first plan is archived
-      <plan-id>/             # completed or abandoned plans (PLAN.md, steps/, HANDOFF.md)
-  AGENTS.md                  # tool-agnostic agent workflow instructions
-  README.md
+    requirements/                  paths.requirements: requirement files
+    specifications/
+      features/<slug>.md           paths.features: feature specs
+      architecture/<slug>.md       paths.architecture: architecture specs
+    plans/                         plans.dir
+      <plan-id>/                   one folder per plan (architecture/file-formats §5.1)
+      archive/<plan-id>/           completed and abandoned plans
+      <shared-file>.md             shared plan files (architecture/file-formats §12.3)
+    test-logs/<log-id>.log         only when tests.logs is git (architecture/file-formats §11.4)
+  AGENTS.md, CLAUDE.md, ...        project instruction files; see §5
 ```
 
----
+- **Config location.** `.specplane/config.yaml` is at the repository root, is tracked in git, and is the only file in `.specplane/`. It may be absent; defaults then apply (`architecture/file-formats §6`).
+- **Spec roots.** There is one requirements directory and one directory per spec layer, each from `paths.*`. A spec lives directly in its layer directory (`architecture/file-formats §1.1`). The old `spec_roots` list and overlay roots no longer exist; a spec of a subproject lives in that subproject's own layout (later release, `architecture/file-formats §12.4`).
+- **Documentation files.** `INFO.md` in a layer directory is documentation and never a spec (`architecture/file-formats §1.1`). Markdown files elsewhere in a spec layer directory, or nested in subfolders, are not specs and are ignored (assumption).
+- **Plans.** Plan folders sit directly in `plans.dir`, archived plans in `plans.dir/archive/`. A plan's move to the archive is part of its last commit on the plan branch (`architecture/file-formats §5.1`). No plan folder contains another; the only folder in `plans.dir` that is not a plan is `archive/`. There is no generated index file of plans; plan lists are computed on demand.
+- **Created on demand.** `archive/` and `test-logs/` do not exist until first needed; absence means empty. Tools create them when they first write to them.
+- **Defaults.** The default paths are the ones in `architecture/file-formats §6.1`. A configured path must be repository-relative, inside the repository and, for `plans.dir` and `paths.*`, must not overlap another configured directory (assumption).
 
-## Overlay root structure
+## §2 Local state
 
-Overlay spec roots follow the same layout as the base spec root:
+Implements `configuration R25`, `plan-execution R27`.
 
-```
-<overlay-root-path>/
-  features/
-    INFO.md
-    <slug>.md
-  architecture/
-    INFO.md
-    <slug>.md
-```
+State that is not project content lives under the git common directory, in `<git-common-dir>/specplane/`, as defined in `architecture/file-formats §9.1`: requests, the audit log (`architecture/file-formats §10`), test logs (`architecture/file-formats §11.4`) and the plan-to-worktree map `worktrees.json`.
 
-The path is declared in `.specplane/config.yaml`. Example for the Claude harness overlay:
+- The git common directory is the main repository's `.git` (found with `git rev-parse --git-common-dir`), so the main checkout and every plan worktree resolve to the same store.
+- Nothing here is committed or listed by `git status`, because it is inside the git directory. No `.gitignore` entry is needed for it.
+- It is recoverable data. Deleting it loses requests, audit history and local logs, but not the project or any plan record. A missing directory or file is treated as empty and created at the next write.
+- Writes use a temp file in the same directory and a rename, so a reader never sees a partial file (assumption). `audit.jsonl` is append-only except for retention pruning (`architecture/file-formats §10`).
+- Git operations on the main checkout, such as switching branches or `git gc`, do not touch it. Cloning or copying the repository does not carry it (assumption); the project still works, with empty local state.
 
-```
-harnesses/
-  claude/
-    specifications/          # overlay root
-      features/
-        claude-integration.md
-      architecture/
-        claude-integration.md
-    templates/               # harness files installed by `specplane init --harness claude`
-    tests/                   # harness tests (hook scripts, template sync)
-```
+## §3 Plan checkouts
 
-A harness directory's `templates/` and `tests/` are not part of the spec root and are ignored by spec discovery. Their contents are defined by the harness's architecture spec (for Claude Code, `claude:architecture/claude-integration`).
+Implements `plan-execution R27`, `plan-execution §2`, `plan-execution §3`.
 
-Codex follows the same structure under `harnesses/codex/`, with a `codex` overlay root extending `base`. Harness-specific contracts do not live in the base specification root. Each harness package contains its ecosystem manifest, complete workflow assets, applicable contract snapshots, adapter when supported, and integration tests. Claude's plugin package includes a mod for deterministic command dispatch; Codex packaging follows the verified capabilities of its target surface.
-
-The shared core and standalone CLI remain under `packages/cli/` initially, with separate public entry points for reusable operations and the manual command interface. Extensions bundle a compatible core version and identify their core/contract compatibility. The core never imports a host adapter to choose a runtime. Package assets are not spec roots and are ignored by spec discovery. Each released core also contains `docs/manifest.json`, Markdown topics, the compact orientation and audited contract snapshots (file-formats §10). Extensions bundle that same compatible documentation and runtime inventory. A consumer does not copy Specplane's source specifications into its own roots to use product docs. Managed asset installation records docs/contract versions and digests; only explicit init/upgrade refreshes owned guidance.
-
----
-
-## Generated and gitignored files
-
-| Path | Status | Notes |
-|------|--------|-------|
-| `plans/PLANS.md` | Committed | Generated; conflicts always resolved by regeneration |
-| `../.specplane-worktrees/` | Outside repository | Git worktrees; outside the repo; path configured in `execution.worktree_dir` |
-
-Nothing needs to be added to `.gitignore`: worktrees live outside the main checkout (validation rejects a `worktree_dir` inside it).
-
-Recommend adding to `.gitattributes` so forges collapse `PLANS.md` in diffs and exclude it from language statistics:
+A plan run happens in a separate git worktree on branch `plan/<plan-id>`, so the directory the user works in is never switched (`plan-execution R27`).
 
 ```
-PLANS.md linguist-generated=true
+<plans.worktree_dir>/
+  <project-folder>/
+    <plan-id>/                full checkout on branch plan/<plan-id>
 ```
 
----
+- **Location.** `plans.worktree_dir` defaults to `../specplane-plans`, next to the project (assumption, matching `architecture/file-formats §6`). A relative value is resolved against the main checkout's root, never against a plan worktree. `<project-folder>` is the base name of the main checkout's root directory, so sibling projects do not clash; the default for a project in `/home/u/specplane` is `/home/u/specplane-plans/specplane/<plan-id>`.
+- **Outside the project.** A `worktree_dir` that resolves inside the main checkout is a malformed setting and is reported (`architecture/file-formats §6.2`). This keeps plan checkouts out of the project's file listing and out of spec discovery.
+- **Creation.** Starting a plan runs `git worktree add -b plan/<plan-id> <path> <target-commit>`, with the commit recorded as the plan's start (`architecture/file-formats §5.4`). The path is recorded in `worktrees.json` (`§2`) after the add succeeds. The setup command (`plans.setup_command`) then runs once in the new directory; if it fails, the worktree and the branch are removed and the start fails (`plan-execution R27`).
+- **Untracked files.** A worktree contains only tracked files; ignored and untracked files of the main checkout are absent. Steps do not assume them (`plan-execution R27`).
+- **Which checkout holds which file.** The plan folder is tracked and changes on the plan branch, so the copy in the plan worktree is the live one while the plan runs. Local state is shared (`§2`). `.specplane/config.yaml` is read from the checkout the command runs in.
+- **Finding a plan's checkout.** The recorded path in `worktrees.json` is checked against `git worktree list --porcelain`; git's list wins when they disagree, and an entry whose directory is gone is dropped (assumption).
+- **Removal.** After the plan's branch is merged, or the plan is abandoned or deleted, `git worktree remove` deletes the directory. It is refused while the worktree has uncommitted changes unless the user says to force it (`plan-execution §3`). The branch is deleted after a merge and kept after abandonment (`plan-execution §2`, `plan-execution §3`). Empty `<project-folder>` directories are removed with the last plan checkout (assumption).
+- **No registration for other worktrees.** Other worktrees and branches the user creates are ordinary git and need no Specplane record.
 
-## File naming constraints
+## §4 Generated and ignored files
 
-| Pattern | Rule |
-|---------|------|
-| Spec slugs | Lowercase, hyphens only (`[a-z0-9-/]+`). No dots (reserved for extensions). Nested with `/`. |
-| Plan IDs | `YYYY-MM-DD-[a-z0-9-]+`. Date prefix, then 2–4 word kebab slug. |
-| Step filenames | `NN-[a-z0-9-]+.md`. Two-digit zero-padded integer prefix. |
-| ADR filenames | `NNNN-[a-z0-9-]+.md`. Four-digit zero-padded integer prefix. |
+Implements `plan-execution R27`, `configuration R25`.
 
----
+| Path | Tracked | Written by |
+|------|---------|------------|
+| `<git-common-dir>/specplane/**` | no (inside the git directory) | CLI and harness actions (`§2`) |
+| `<plans.worktree_dir>/**` | no (outside the repository) | plan start and cleanup (`§3`) |
+| `<plans.dir>/test-logs/*.log` | yes, only with `tests.logs: git` | test runs (`architecture/file-formats §11.4`) |
+| harness block and files | yes | harness setup (`§5`) |
 
-## Invariants
+- **Nothing generated is tracked.** Specplane does not commit a generated index or summary. Everything tracked in `.specplane/`, `docs/` and the harness files is either written by a person or by an explicit command the user ran.
+- **No `.gitignore` edits.** The first release adds nothing to `.gitignore` or `.gitattributes`, because local state and worktrees are outside the working tree.
+- **Plan folders are normal files.** They are ordinary markdown and YAML, edited by tools and by people alike; they are not generated, so a merge conflict in one is resolved by hand like any other file.
 
-- `.specplane/config.yaml` always exists at the repository root when Specplane is initialised. If absent, defaults apply.
-- `plans/PLANS.md` describes the selected source after `specplane plan index` or CI runs, and is byte-identical for the same indexed plan/config snapshot; an unspecified target is labelled `repository default` until live resolution. Live ref/activity data is excluded.
-- `plans/archive/` and the decisions directory may be absent until first used; tools create them on demand and treat absence as empty.
-- No plan folder contains another plan folder; the only nested structure within `plans/` is `archive/`.
-- `INFO.md` files are never parsed as specs. They are read-only documentation; one with frontmatter is a validation error.
-- Spec files outside `features/` or `architecture/` within a spec root are ignored by Specplane (no error, no validation).
+## §5 Harness-installed files
 
----
+Implements `harness §2`.
 
-## Worktree layout
+A harness setup installs only what its harness needs. The files fall in three groups, and each is changed only the way its group allows.
 
-Managed worktree-backend checkouts are stored outside the repository at `<worktree_dir>/<repo-name>/<plan-id>/`:
+- **Owned files.** Files Specplane owns outright, such as a rules file, a skill or command folder, or a hook script in the harness's own directory (for example `.claude/`). Setup creates or replaces them; each carries a header naming the Specplane version that wrote it (assumption). A project may commit them or ignore them, as it chooses.
+- **Marked block in a shared file.** Where the harness has no place Specplane owns, standing instructions go in one block inside a shared instruction file such as `AGENTS.md`. The block is bounded by two comment lines (assumption, the form used by the current installer):
 
-```
-../.specplane-worktrees/
-  specs-framework/
-    2026-10-28-plan-index-generator/   # full repo checkout on plan branch
-    2026-11-01-search-indexer/
-  other-project/
-    2026-10-30-auth-rewrite/
-```
+  ```
+  <!-- specplane:begin v<N> — managed by `specplane init`; edits inside this block are overwritten -->
+  ...
+  <!-- specplane:end -->
+  ```
 
-`<repo-name>` is the basename of the **main checkout's** root directory (e.g. `specs-framework` for `/home/user/projects/specs-framework`), and a relative `worktree_dir` is resolved against that root — never against a plan worktree. See `architecture/reference-cli` § Repository roots.
+  Setup adds the block once, at the end of the file if there is none, and later updates replace only the text between the markers. Text outside the markers is never read for changes, reordered or rewritten. The file is created if absent. If a begin marker has no end marker, or the markers appear more than once, setup stops with an error naming the file and changes nothing.
+- **Opt out.** A project may forbid the block (assumption: by a `harness` setting, `architecture/file-formats §6`). Its maintainers' own files, such as a hand-written `CLAUDE.md` that Specplane never ships, are then left alone.
+- **Two harnesses.** Two harnesses installed in one project share one block per file; the text is the same and neither setup removes the other's files (`harness §2`).
+- **Staleness.** The version in the begin marker, compared to the installed Specplane, is how a missing or older delivery is detected and warned about (`harness §2`).
+- **Not spec roots.** Harness directories are not spec roots and are ignored by spec discovery.
 
-Each worktree is a complete git worktree created with `git worktree add`. It shares the git object store and refs with the main checkout. Main checkout location determines worktree paths only; it does not determine a plan's integration destination. Administrative writes locate the recorded target's checkout by branch. Other ordinary Git worktrees and branches need no Specplane registration. Private leases, pending workflow journals and contribution capture live under `<git-common-dir>/specplane-runtime/`; they are recovery data, not source-of-truth completion records.
+## §6 File naming constraints
+
+Implements `specifications R7`, `plans §2`.
+
+The identifier forms are in `architecture/file-formats §12.1`; this section only adds what is about the file system.
+
+- Names of files Specplane creates use lower-case ASCII letters, digits and hyphens, with `.md`, `.yaml`, `.json` or `.jsonl` as the only extensions; no spaces, no dots in a slug, no leading hyphen (`architecture/file-formats §1.1`).
+- A plan folder name is its plan ID, a step file is `NN-<slug>.md`, a log is `<log-id>.log`; the names are derived from the ID and may not be renamed by hand (`architecture/file-formats §12.1`).
+- Names compare byte for byte, but two names that differ only in case are a collision and reported, since the project may be used on a case-insensitive file system (assumption).
+- Total path length of a plan checkout file stays under 200 characters; longer plan IDs are rejected at creation so the checkout path works on all platforms (assumption).
+- A symbolic link in a spec layer directory, plan folder or the `.specplane/` folder is not followed and is reported (assumption).
+
+## §7 Invariants
+
+Implements `specifications R7`, `plan-execution R27`.
+
+- Paths come only from the configuration or the defaults; no tool hard-codes a location.
+- Every path Specplane writes in the project is inside the repository, or inside `plans.worktree_dir`, or inside `<git-common-dir>/specplane/`; it writes nowhere else.
+- The main checkout's branch and files are unchanged by starting, running or removing a plan.
+- A plan has at most one worktree, and a worktree belongs to exactly one plan; two runs never share one (`plan-execution R27`).
+- Local state is never committed. Tracked files never contain absolute paths, user names or machine-specific values that Specplane wrote (assumption).
+- Missing optional locations (`archive/`, `test-logs/`, local store, the config file) mean empty or default, never an error.
+- Edits by Specplane to a shared instruction file change only the marked block (`§5`).
