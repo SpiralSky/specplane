@@ -1,5 +1,18 @@
 # Info - Product Requirements
 
+## Purpose
+When LLMs write and change specifications, the people responsible for a product can lose control of what it is meant to do. Specplane keeps intended behaviour in specifications that people control and review, so LLMs can implement from them without changing what was decided.
+
+Specplane is for developers building with LLM coding agents, working alone or in small teams.
+
+Specplane succeeds when:
+- An LLM can only change or approve specifications as its role allows, and exceptions are visible.
+- Every requirement can be traced to the specifications that cover it and the checks that verify them.
+- Users can decide how much control to give LLMs, from fully manual to fully LLM-driven.
+- Steering and permissions add little friction to work outside specifications.
+
+This document describes the planned new state of Specplane and replaces its existing rules, specifications and workflows where they differ.
+
 As this project is **Self-Describing**, Product Requirements will be described in the first section and this file should therefore also follow its rules.
 Requirements are things that the product should have. Some can be checked deterministically via tests while others have to be checked with intelligence (E.g. LLMs/Full product tests).
 
@@ -23,22 +36,43 @@ Specifications are divided into 3 layers:
 - Feature: Product Features with minimal architecture included.
 - Architecture: Product architecture.
 
-Each layer outranks the next, in the order Requirements -> Feature -> Architecture.
+**R65: Layer Precedence**
+Each layer outranks the next, in the order Requirements -> Feature -> Architecture. An LLM that finds specifications in conflict follows the higher layer and reports the conflict to the user.
 In agentic harness implementations, feature specifications can be generated from the requirements specifications, and architecture specifications can be generated from feature specifications.
 
 Requirement specs are optional while feature and architecture specs are mandatory, and specplane should work without requirement specs.
 
+## Scope
+
+**R62: Non-Goals**
+Specplane is a tool for handling specifications with or without an LLM. It is mainly designed for use with an LLM.
+
+*R62.1: Agent Control*
+Specplane does not control what an agent does outside of Specplane. That is up to the user. Specplane's limits, guidelines and steering only apply to an agent's actions on Specplane itself, such as bypassing limits or editing specifications.
+
+*R62.2: Concurrent Editing*
+Concurrent editing of specifications is left to git and is not handled by Specplane.
+
+*R62.3: Migration*
+Migration without an LLM, such as an automatic converter, is not a goal for now (see `R66`).
+
+*R62.4: Team Enforcement*
+Enforcing roles for teams through a git server is not a goal for now.
+
+*R62.5: Cross-Project Budgeting*
+Managing budgets across multiple Specplane projects is not a goal. This is left to an external coordinator. Specplane only handles the budget of a single plan (see `R27.1`).
+
+**R63: Unwanted Outcomes**
+An LLM should not be able to change or approve specifications beyond what its role permits. Specplane's limits and steering (see `R55`, `R59`) exist to prevent this where possible.
+
 ## Specification State
 
 **R40: Specification Versioning**
-Specplane should use git for the current specification state. The current committed state is the current state of the specification, allowing additional metadata to be calculated and attached to git commits. Uncommitted changes are thus **ignored** and not the current state of the specification.
+Specplane should use git for the current specification state. The current committed state on the checked-out branch is the current state of the specification, allowing additional metadata to be calculated and attached to git commits. Each branch therefore has its own state, and merging follows git. Uncommitted changes are thus **ignored** and not the current state of the specification.
 
 ### Requirements Specification
 
 The format for the requirement specifications is described in `R1` and `R2`.
-
-**R3: Human Written Recommendation**
-Specplane should recommend and by default refuse LLM changes to the requirements specifications for all commands. The option should be configurable (on/off). See `R14`.
 
 **R4: Feature and Architecture Separation**
 Feature and Architecture should be separated in their respective specifications. Therefore, architecture should ideally not exist in the feature specifications, with exceptions controlled by the user. In the case of harness writing, optional instructions to verify and warn the user per change or review should exist (see `R14`). The instructions should be configurable by users. 
@@ -49,13 +83,12 @@ Feature and Architecture specifications describe concrete features for the user.
 **R5: Feature & Architecture Specification Layouts**
 Feature specifications should be in a layout that is easy for both a User and LLM to access, and be divided into sections and optionally small subsections for referencing.
 
-**R6: Editing Guardrails**
-Optional guardrails should exist to prevent the LLM from editing the feature and architecture specifications. The guardrails should have minimal interference with other LLM work and be configurable. (See `Configurations`)
-
 **R7: Format**
 Both feature and architecture specifications should be in a consistent, checkable and citable format.
 
 #### Specification Metadata
+Specification metadata applies to all specification layers, including requirements.
+
 **R9: Spec Dependencies**
 All things specs refer to are classified as dependencies. The format used should follow `R7`.
 
@@ -66,7 +99,7 @@ Specs should support a list of authors, including human and LLM authorship. This
 Specs should support optional contribution degrees. This describes each author's contribution to the spec in question.
 
 **R11: Spec Status**
-Specs should all have a status. The status is bound to a specific git commit.
+Specs should all have a status. The status is bound to the spec's committed content and records the commit it was set on. An approval stays valid while that content is unchanged, including after a rebase or squash merge.
 Statuses:
 - Awaiting Review (default): Unreviewed specifications or specifications that have been changed, OR specifications that reference **parts of** other specifications that have changed since their last Approved state.
 - Approved: Specifications approved by a role that has the required permissions.
@@ -75,10 +108,10 @@ Statuses:
 Additional metadata records who approved the specification.
 
 *R11.2: Outdated Specs to Awaiting Review*
-Specs that refer to parts of specifications that have changed are automatically marked *Awaiting Review* by specplane.
+Specs that refer to parts of specifications that have changed or been deleted are automatically marked *Awaiting Review* by specplane.
 
 *R11.3: Awaiting Review post-edit*
-After a spec has been edited, its status is automatically set to Awaiting Review for user review and more editing.
+After a commit changes a spec's content, its status is automatically set to Awaiting Review for user review and more editing. Changes to metadata alone do not count as an edit.
 
 *R11.4: Tracking Awaiting Review reasoning*
 Specplane should provide metadata attached to the specification state if the state is Awaiting Review as a combination of being Outdated (see `R11.2`) or having been edited (See `R11.3`).
@@ -87,32 +120,63 @@ Specplane should provide metadata attached to the specification state if the sta
 Architecture specs should record status of implementation as implemented or unimplemented.
 
 *R36.1: Implementation Tracking*
-Architecture specs should have two ways of determining whether they are implemented or not: Tests declared within the specs per architecture with detailed description on what and how to test, and intelligent judgement. This can either be approved by the user or LLM (LLMs can approve by default, but this should be configurable). Generally, both are used in combination. This is harness-only.
+Architecture specs should have two ways of determining whether they are implemented or not: Tests declared within the specs per architecture with detailed description on what and how to test, and intelligent judgement. This can either be approved by the user or LLM (LLMs can approve by default, but this should be configurable). Each spec, or section of a spec, declares which it uses: tests, intelligent judgement or both, and everything declared must pass. A spec that declares neither uses intelligent judgement. Intelligent judgement is harness-only.
+
+*R36.2: Implementation Status Commit*
+Implemented status is bound to a specific commit and is only set when everything the spec declares (see `R36.1`) passes on that commit. Checks run against committed state, ignoring uncommitted changes (see `R40`). A commit that changes the spec's content returns it to unimplemented. Other commits do not change the status, which shows the commit it was last verified on.
+
+*R36.3: Test Commit Gate*
+An option should exist in the config to block commits when an architecture spec's deterministic tests fail, using a pre-commit hook managed as in `R32`. This should be disabled by default.
+
+**R61: Spec Compliance Verification**
+Each specification layer should be able to declare tests that verify the layer below it complies with it: requirements for feature specifications, feature specifications for architecture specifications, and architecture specifications for the implementation (see `R36.1`). Tests can be deterministic or checked with intelligence (E.g. LLMs), and are written in the spec with what and how to test. Deterministic tests can be run through both the CLI and harness. Tests checked with intelligence are harness-only.
+
+*R61.1: Test Pass State*
+The result of the tests, including who ran them, is recorded in the metadata of the spec being tested, and a recorded result is outdated when either spec changes (see `R11.2`). A failed test does not change the spec status. Instead, a spec with a failed test cannot be approved (see `R16`), and an architecture spec with a failed test cannot be marked as implemented (see `R36`).
+
+*R61.2: Test Result Permissions*
+Recording a test result should have allow, request user and deny permissions. LLM roles are allowed in all default presets.
+
+*R61.3: Test Records*
+Each result in the spec's metadata includes a short summary: what failed for deterministic tests, and the reasoning for tests checked with intelligence. Steering (see `R59`) instructs the LLM to keep private information, such as credentials, out of the summary.
+
+*R61.4: Test Logs*
+Full test output and LLM session logs are stored locally per machine by default, with configurable retention (see `R13.1`). Storing them should be configurable (on/off), and they can be configured to be stored in git instead. The documentation (see `R22`) should warn that logs in git may expose private information and are not removed by retention.
 
 ## Plans
-Plans are a managed list of markdown files containing steps with *what to do* along with shared markdown files containing metadata or shared memory for use by multiple plans. Plans are to be used in a new branch with changed specifications where the feature is ahead or different from implementations, and the plan will cover what to change to update the implementation to follow the updated specifications.
+Plans are a managed list of markdown files containing steps with *what to do* along with shared markdown files containing metadata or shared memory for use by multiple plans. Plans are to be used in a new branch with changed specifications where the feature is ahead or different from implementations, and the plan will cover what to change to update the implementation to follow the updated specifications. Plans can also write specifications from a higher layer (see `R30.1`).
 
 Plans are optional.
 
 **R29: Plan Metadata**
-Plans inherit the same metadata as specifications and additionally reference the current feature specification it aims to implement via git. 
+Plans inherit the same metadata as specifications and additionally reference the specifications they implement or write from via git. 
 
-*R29.1: Plan Execution Status and Progress*:
-Plans should have an execution status: in progress, completed and abandoned. Plans in progress should store metadata for their current progress such as the step they are at. Completed plans are archived automatically.
+*R29.1: Plan Execution Status and Progress*
+Plans should have an execution status: not started, in progress, stopped, completed and abandoned. Plans in progress or stopped should store metadata for their current progress such as the step they are at. Completed plans are archived automatically.
 
-*R29.2: Archived and Abandoned Plans* Archived plans should rest in a separate directory from other plans. Abandoned plans are also archived, and status differentiates completed plans and abandoned plans within the archive. Plans can also be deleted. Deleted plans do not have a status as they do not exist any more.
+*R29.2: Archived and Abandoned Plans*
+Archived plans should rest in a separate directory from other plans. Abandoned plans are also archived, and status differentiates completed plans and abandoned plans within the archive. Plans can also be deleted. Deleted plans do not have a status as they do not exist any more.
+
+*R29.3: Outdated Plan References*
+If a plan references a specification at an older commit than its latest commit on the current branch, Specplane should show a warning (see `R24`), and steering (see `R59`) should instruct the LLM to check what changed before continuing.
 
 **R30: Plan Format**
 Plans should have a similar format to specifications, where they can similarly reference other plans and specifications.
 
+*R30.1: Specification Steps*
+Plan steps can write or change specifications from a higher layer, such as features from requirements and architecture from features. These steps follow the LLM role's permissions (see `R19.2`), and the specifications they write start as Awaiting Review. A step that implements one of those specifications cannot run until it is Approved.
+
 **R28: Plan Branches**
 Plans should by default work in a separate git branch for the plan. Work should be committed when each step is done and a final review to merge will decide whether a plan is completed.
+
+*R28.1: Specification Changes During a Plan*
+The final review shows any referenced specification that changed on the target branch since the plan started.
 
 ## Usage
 Specplane can be used in two main ways: Agentic Harnesses and the CLI.
 
 ### Roles
-Specplane handles permissions for both user and LLMs with roles. User and harness LLMs each have roles with different defaults.
+Specplane handles permissions with roles. A role holds permissions and is assigned to a user, an LLM or, in the future, other actors such as an API. User and harness LLMs each have roles with different defaults.
 
 Specplane roles apply to both CLI and harness use.
 
@@ -130,7 +194,7 @@ There should be default roles providing permissions for each. Each role and perm
 
 Permissions for default roles are defined automatically within presets (see `R57`).
 
-*R42.1: Default Roles*
+*R42.1: Default Role Definitions*
 *Standard User*
 The standard user should be the default role for users using the CLI and agentic harness.
 
@@ -149,16 +213,18 @@ The administrator user should have all permissions and be able to manage all oth
 Specplane should have configurable guardrails against permission bypass via starting headless sessions, such as running `claude -p` or the specplane CLI itself. One example is using environmental variables. Multiple preventative methods should be used and they should be all documented and configurable. The harness should be able to identify LLMs and subagents running and treat them as having their own specplane role so that specplane's LLM roles can be applied properly.
 
 **R44: Applying Custom Users**
-The configuration should allow users to apply custom specplane roles to Operating System users. Administrators or root accounts should be able to log in as the administrator user. User who do not have a role for the operating system will be assigned the standard user (See `R42.1: Default Roles`).
+The configuration should allow users to apply custom specplane roles to Operating System users. Administrators or root accounts should be able to log in as the administrator user. User who do not have a role for the operating system will be assigned the standard user (See `R42.1: Default Role Definitions`).
+
+Mapping operating system users is optional. When no mapping is configured, every user of the CLI and the harness is the standard user and can switch to the administrator with a command, without needing operating system administrator rights. Once a mapping is configured, users without a role are assigned the standard user. The source of identities should not be tied to the operating system, so that identities can come from elsewhere later, such as a git server.
 
 *R44.1: Custom LLM role rules*
-It should be easy to assign custom roles to LLMs based on rules with factors such as defined subagents (some harnesses have specific subagents defined for tasks), current agent type, agent provider and other factors. This defaults to the LLM default role.
+It should be easy to assign custom roles to LLMs based on rules with factors such as defined subagents (some harnesses have specific subagents defined for tasks), current agent type, agent provider and other factors. This defaults to the LLM default role. For example, a higher level LLM role can be assigned to an LLM that reviews or manages the work of other LLMs.
 
 **R60: Permissions for applying Custom Users**
-Administrators should be able to fully manage and edit the mapping from OS users to specplane roles. A custom permission type, System Permissions should exist granting the ability to manage and edit OS user -> role mappings along with LLM to role mappings. Users with system permissions still have to obey permission levels: They cannot provide an OS user -> specplane role mapping to a role at an equal or higher level than them. This also applies to LLM mappings.
+Administrators should be able to fully manage and edit the mapping from OS users to specplane roles. A custom permission type, System Permissions should exist granting the ability to manage and edit OS user -> role mappings along with LLM to role mappings. Roles with system permissions still have to obey permission levels: They cannot provide an OS user -> specplane role mapping to a role at an equal or higher level than them. This also applies to LLM mappings. Administrators are exempt from this limit for OS user mappings only.
 
 **R48: Role Configuration Storage**
-Custom roles, permissions and other settings should be stored in git. However, mappings of agent types/OS user types to roles will not be stored in git, while the roles themselves are stored in git.
+Custom roles, permissions and LLM role rules (see `R44.1`) should be stored in git. Changes to them are pending until approved by a role with sufficient management permissions and level, and an LLM role rule that gives a role above the default LLM role must be trusted locally before it applies. Mappings of operating system users to roles are stored locally, outside of git, per machine.
 
 **R55: Role Enforcement**
 Roles should be enforced with a combination of restricting access to specplane internally depending on the permissions an agent or user has, and guidelines for LLMs injected into prompts when they are denied and/or injected into the system prompt to prevent them from finding alternatives. They do not act as strict, airtight enforcement.
@@ -173,22 +239,28 @@ Management Permissions control what permissions a role can set for other roles. 
 **R49: Role Management Levels**
 A role's permission level determines what roles it can change the permissions of **even with management permissions** (see `R43: Role Management`). Management Levels are numerical. A role with a higher management level can edit all roles with a lower management level than it, and cannot edit permission for all roles with an equal or higher management level than it.
 
-**R45 Administration and User Management**
+**R45: Administration and User Management**
 Using specplane as an administrator (in the operating system) will optionally provide the option to switch user or login to specplane as an administrator. The administrator has the highest permissions of all users.
 
 ### Agent Steering
 **R59: Autogenerated Steering**
-Steering should be used to keep LLM to follow rules. Apart from what is mentioned in other sections, LLMs should be instructed to not attempt to bypass limitations and follow what their user role restricts them to do.
+Steering should be used to keep LLM to follow rules. Apart from what is mentioned in other sections, LLMs should be instructed to not attempt to bypass limitations and follow what their role restricts them to do.
+
+*R59.1: Custom Steering*
+Users should be able to customise steering, overall and per command or permission. For example, when an LLM should send requests: only when the user asked for the change, or whenever it sees a possible improvement. Steering guides the LLM and does not change what its permissions allow.
 
 ### General (Appears in both)
 **R12: Validation**
 There should be a way to validate specs. Validation covers all rules specifications should follow described elsewhere in the document.
 
+**R64: Specification Coverage**
+Specplane should show which specifications cover each requirement and feature specification, using their references (see `R9`). Requirements and feature specifications that nothing covers should appear as warnings (see `R24`). This should work with any layers that exist, such as feature and architecture specifications without requirements.
+
 **R13: Auditing**
 Specplane should keep an internal log of **all actions taken** per repository. The internal log should not be committed to git, however, it should contain the branch the command was run on.
 
 *R13.1: Audit Retention*
-Audit Log retention should be configurable and settle at a reasonable default,
+Audit Log retention should be configurable and settle at a reasonable default.
 
 **R14: Command Instructions**
 Commands have instructions and sometimes optional content injected when they are run (described in other parts of the specification). If the instruction is already within the context, they should not be sent a second time. The instructions should also be customisable but default to command documentation.
@@ -200,7 +272,7 @@ The CLI should not be directly callable by LLMs within the harness.
 Every command should have granular permissions to control what they can do. Additional sub-requirements may describe in more detail what the permissions are.
 
 **R51: Permission Steering**
-Permissions should have instructions attached to them, instructing the LLM both on it's permission limitations and an explicit denial for the LLM to not attempt to bypass the permission.
+Permissions should have instructions attached to them, instructing the LLM both on its permission limitations and an explicit denial for the LLM to not attempt to bypass the permission.
 
 **R54: Permission Documentation**
 All permissions should be clearly documented and viewable by both the CLI and harness.
@@ -211,14 +283,19 @@ The CLI is **generally intended for human use**, and is not intended to be run w
 **R16: CLI - Specification Approval**
 Specifications can be approved by a command. This command will fail if any entry within the specification references an unapproved specification. User who approved is automatically marked as the one who approved the specification and other appropriate metadata is stored.
 
+Specs that reference each other, directly or through other specs, are approved together in one command, which fails if any of them cannot be approved. Approval also fails while a spec references a part of a specification that no longer exists. Group approval should be documented (see `R22`), and the command should warn the user and list the specs being approved together.
+
 *R16.1: Specification Approval Permissions*
-Specification approval should have a single permission controlling whether a user can approve a specification
+Specification approval should have a single permission controlling whether a role can approve a specification
 
 **R17: CLI - Specification Metadata**
 The CLI should be able to change all aspects of specification metadata. This feature acts as an override. Changes should also appear in the audit log.
 
 *R17.1: Specification Metadata Permissions*
 Specification metadata should have permissions whether a role can read, write metadata. A permission for general metadata management should exist for managing all metadata while granular permissions should exist per-metadata.
+
+*R17.2: Protected Metadata Overrides*
+Overriding status, who approved a spec or test results should each have their own permission, which general metadata management does not include. Only the Administrator has these permissions by default, through having all permissions. An override is marked as one in the spec's metadata and in the audit log.
 
 **R33: CLI - Plan Management**
 The CLI should be able to manage plans by changing plan metadata.
@@ -237,35 +314,36 @@ A requests system should exist for LLMs to send requests to the user to approve.
 A command should exist to open an interactive requests pane in the harness for the user to view and accept requests.
 
 *R52.2: Requests Permissions*
-To accept a request, the user must have the permission to do what is requested. For example, to accept a request to change a plan's status, the user needs to have the permission to change plan statuses.
+To accept a request, the role must have the permission to do what is requested. For example, to accept a request to change a plan's status, the role needs to have the permission to change plan statuses.
 
 *R52.3: Request Permission Type*
-'Request User' in all sections refer to sending a request to the harness user via the Requests System. This is permission type exists globally for all permissions along with allow and deny.
+'Request User' in all sections refer to sending a request to the harness user via the Requests System. This permission type exists globally for all permissions along with allow and deny.
 
-**R41: Approving Spec Commands**
-For all spec commands that edit, delete or approve specifications, these configurations control the whether user and LLM roles are allowed to review and edit specs:
-1. Direct Approval: Whether user-run approval commands are allowed (enabled by default).
-2. User Confirmation: Where direct approval is not used, attempts by the LLM to approve will trigger a dialogue for the user to view and confirm the updated specification. The difference between the last approved spec and the current spec awaiting approval is displayed in git diff style (green and red changes for additions and deletions).
-3. LLM Confirmation: Confirmations are forwarded to a subagent with additional context for approval/denial. Requires a model to be configured in configuration. If user confirmation is enabled, uses a configurable timeout value to forward to LLM confirmation after the user has not responded for the duration of the timeout.
-4. Allow LLM approval requests: This controls whether LLM can send approval requests or not. This is *required* for #2 and #3 to work. If disabled, all LLM confirmation requests will be denied directly.
+A role with allow can still send a request or ask the user to run a command instead of acting, guided by steering (see `R59.1`). Without such steering, it acts directly.
+
+*R52.4: Request Dialogue*
+If a session is active, a request should open a dialogue for the user to view and answer it. A request involving a specification shows the difference from the last approved spec in git diff style (green and red changes for additions and deletions).
+
+*R52.5: Request Notifications*
+If the harness supports push notifications, new requests can be sent to the user as push notifications. This should be configurable, overall and per permission, and disabled by default.
 
 **R19: Spec creation, deletion, editing**
 The harness should be able to, edit, delete and create specifications through commands that accept natural language arguments. 
-Deleting and Editing specifications need confirmation by default. As these are actions done by the LLM, it needs to have the ability to do these actions on the behalf of the user.
+As these are actions done by the LLM, it needs to have the ability to do these actions on the behalf of the user.
 
 *R19.1: Change Granularity*
 Depending on the change granularity, LLM authorship is automatically added by the LLM with contribution details also in metadata.
 
 *R19.2: Spec management Permissions*
-Permissions should control granularly whether a user can edit, delete or create specifications. Spec Management should have allow, deny and request user permissions.
+Permissions should control granularly whether a role can edit, delete or create specifications. Spec Management should have allow, deny and request user permissions.
 
 **R20: Spec approval**
-The harness should support spec approval via commands. The command should support both natural language and a direct spec reference.
+The harness should support spec approval via a command that takes a direct spec reference, such as an ID, under the same checks as `R16` and `R61.1`. The command does not use an LLM.
 
-If natural language describing a specification, e.g. "Plan Execution" is provided, it is forwarded to an LLM to approve if configuration permits. If it is a direct spec reference, such as an ID, the intermediary LLM is bypassed.
+An LLM can also be asked in natural language to approve a specification, e.g. "Plan Execution". It identifies the specification and then uses its own approval permission (see `R20.1`), under the same checks: allow approves it, request user sends a request, and deny refuses it.
 
 *R20.1: Spec approval Permissions*
-Spec approval should have allow, deny and request user permissions.
+Spec approval should have allow, deny and request user permissions. The documentation (see `R22`) should note that an LLM role with allow approves without confirmation, and that steering does not guarantee it will ask first. Request user should be used where confirmation is required.
 
 **R21: Spec Viewing (Optional, per harness)**
 If the harness supports it, add a command for the user to view specific specs directly. The change in the spec since last approval should be highlighted if it is a spec that has been changed.
@@ -276,7 +354,7 @@ Spec viewing should use `R26: Information Retrieval` and therefore not have sepa
 **R38: Spec reviewal and discussion**
 A command should exist for LLM to review and provide feedback on each spec. It should point out problems and potential missing gaps in feature and architecture specs, and ask questions for the user for the requirement specification on things it needs to clarify.
 
-This command should not use the LLM to change any files, being a read-only operation. This should also cover grammar mistakes, poor wording and unclear instructions across all specifications.
+This command should not use the LLM to change any files, being a read-only operation, except for storing user decision records when enabled (see `R37`). This should also cover grammar mistakes, poor wording and unclear instructions across all specifications.
 
 *R38.1: Spec reviewal permissions*
 Spec reviewal should use `R26: Information Retrieval` and therefore not have separate permissions. This should be documented.
@@ -288,13 +366,13 @@ The agent should be able to retrieve information for a spec file including all r
 Information Retrieval should be flexible and controllable, such as retrieving multiple related documents at once or only a single document.
 
 *R26.2: Information Retrieval Permissions*
-Information retrieval should have allow, deny and ask user permissions.
+Information retrieval should have allow, deny and request user permissions.
 
 **R31: Plan Management**
 The user should be able to use the harness to manage, edit and create plans. 
 
 *R31.1: Plan Management Permissions*
-Plan Management should have permissions for manage, editing and creating. Each permission should have 3 modes, allow, ask user and deny.
+Plan Management should have permissions for editing, creating, deleting, starting, abandoning and completing plans. Each permission should have 3 modes, allow, request user and deny.
 
 *R31.2: Parallelism*
 The user should be able to control how much parallelism is used in the plan steps. A parallel step contains multiple different tasks that do not depend on each other and require the harness to have subagents to execute the tasks in parallel.
@@ -308,25 +386,40 @@ Steps should not require user input during plan execution. Plans should start in
 Harnesses should be able to assign budgets with the main metrics being tokens or usage limits depending on the subscription provider for executing a single plan. Note that every usage limit type should be supported (e.g. 5h and weekly limits for claude). There should be a soft and hard stop based on the resource consumed. Soft stop instructs the model to gracefully create a handoff which will be read instead. The hard stop window should forcefully stop the session if it runs out of resources after the soft stop. Hard and soft stops along with plan status should be attached to the plan metadata.
 
 *R27.1.1: Plan Budget Permissions*
-There should be a permission to set plan budgets with modes allow, ask user or deny.
+There should be a permission to set plan budgets with modes allow, request user or deny.
 
 *R27.2: Resuming Plans*
-Plans should be easily resumable through the command line interface. If the plan was hard stopped, it should refer to both the handoff and skim previous session logs to gather context. If the plan was successfully soft stopped, it should refer to just the handoff.
+Plans should be easily resumable through a harness command. If the plan was hard stopped, it should refer to both the handoff and skim previous session logs to gather context. If the plan was successfully soft stopped, it should refer to just the handoff.
 
 *R27.2.1: Plan Resuming Permissions*
-There should be a permission to resume a plan with modes allow, ask user or deny.
+There should be a permission to resume a plan with modes allow, request user or deny.
 
 *R27.3: Blocking in case of failure*
-If a plan is blocked mid-attempt and the LLM determines it cannot be continued, such as restrictions within the environment, the plan is stopped. As plan metadata should record the current progress of the plan and a reference to the session (see `R29.1`), it can then be resumed with changes in the environment via the resuming commands (see `R27.2`).
+If a plan hits a block mid-attempt, such as restrictions within the environment, the LLM decides whether to continue or stop the plan, guided by steering (see `R59.1`). The LLM should be able to stop the plan through a soft stop (see `R27.1`), which is allowed for LLM roles in all default presets. As plan metadata should record the current progress of the plan and a reference to the session (see `R29.1`), it can then be resumed with changes in the environment via the resuming commands (see `R27.2`).
+
+*R27.5: Requests During Execution*
+A request sent during plan execution is added to the requests list (see `R52`) and is either blocking or non-blocking. The LLM decides which, guided by steering (see `R59.1`).
+
+*R27.5.1: Blocking Requests*
+The plan soft stops (see `R27.1`) and can be resumed with the answer (see `R27.2`).
+
+*R27.5.2: Non-Blocking Requests*
+The plan continues with work that does not depend on the answer, without performing the requested action. Unanswered requests are shown at the plan's final review (see `R28`).
 
 *R27.4: Plan sub-commits*
 The policy for committing changes when implementing steps is up to the user. However, one commit must be made per step.
+
+*R27.6: Plan Start Conditions*
+A plan can only start when it and the specifications it already references are Approved. Specifications the plan will write do not count. This should be configurable (on/off) and enabled by default.
 
 **R37: User Decision Records**
 When the user uses specplane in the harness for discussion, decisions the user makes along with the context should be stored as decision records that can be retrieved for future LLM decisions. This should be configurable by the user (on/off).
 
 *R37.1: User Decision Records Permissions*
-There should be permissions to add, retrieve, edit and delete user decision records. Permission should have modes allow, ask user and deny.
+There should be permissions to add, retrieve, edit and delete user decision records. Permission should have modes allow, request user and deny.
+
+**R66: Project Migration**
+A harness command should guide an LLM through bringing an existing project into Specplane, including projects using an older Specplane format. It uses the project's existing specifications, documents and code as sources, and the prompt given to the LLM should be configurable (see `R14`). The LLM follows its role's permissions, and all resulting specifications start as Awaiting Review, regardless of any earlier approval.
 
 ## Supported Harnesses
 **R34: Harness Flexibility**
@@ -334,6 +427,9 @@ Specplane should be flexible in the event of new harnesses being added.
 
 **R35: Supported Harnesses**
 Specplane aims to support codex and claude code.
+
+*R35.1: Harness Capabilities*
+Plan execution (see `R27`) is required on every supported harness. Other capabilities may differ between harnesses. The documentation (see `R22`) should list what each harness supports. If a harness lacks a capability, Specplane should say so and refuse the action, and should not silently use a weaker substitute.
 
 ## Documentation
 **R22: User-facing documentation**
@@ -353,9 +449,12 @@ When using commands in specplane, the number of existing warnings is reported ea
 **R25: Accessible Configurations**
 All configurations should be easily accessible and modifiable in both the CLI and harness integrations.
 
+*R25.1: Configuration Permissions*
+Changing configuration should have allow, request user and deny permissions. Presets set the mode for each role.
+
 ## Default Permissions and Permission Profiles
 **R56: Permission Presets**
-Permission Presets should be creatable, editable and deletable. Permission presets apply to a group of roles including user and LLM roles. Permission Presets should require the user to have sufficient management permissions AND management level to apply the set of permissions to all the roles to apply.
+Permission Presets should be creatable, editable and deletable. Permission presets apply to a group of roles including user and LLM roles. Permission Presets should require the role to have sufficient management permissions AND management level to apply the set of permissions to all the roles to apply.
 
 Presets simply apply permissions to roles and they can still be changed.
 
@@ -366,6 +465,10 @@ Presets additionally define the default permission mode which will apply for all
 There should be a few default permission presets existing which are defined below. The default permission for unspecified permission will be deny for these default presets. Presets should also cover general use and thus be designed carefully.
 *Note: Permissions are separate from role management permissions*
 
+Changing configuration is request user for LLM roles in all default presets. Protected metadata overrides (see `R17.2`) are not enabled for any role in default presets, including where users otherwise have all permissions.
+
+Spec approval is request user for LLM roles in all default presets.
+
 1. Architecture-Level LLM Control (Default)
 This preset enables LLM editing of architecture while keeping all actions that edit other specifications as request-only. View-only permissions are enabled for all  specifications. Users have all permissions enabled.
 2. Full Manual Editing
@@ -374,8 +477,6 @@ This preset disables all LLM editing permissions over all specifications while o
 This preset enables LLM editing permissions over feature and architectural specifications needing to request the user for editing requirement specifications. Users have all permissions enabled.
 4. Full LLM Control
 This preset enables LLM editing permissions over all specification types including the requirement specification.
-
-### Default Profile
 
 ## Subprojects
 **R39: Subprojects**
@@ -386,3 +487,9 @@ When design of feature and architecture specifications is left to the LLM (where
 
 *R39.2: Subproject References*
 Subprojects should be able to reference requirement, feature and architecture specifications.
+
+*R39.3: Subproject IDs*
+Requirement IDs must be unique within the root project and within each subproject. References to another subproject or the root project name it as well as the ID.
+
+*R39.4: Subproject Precedence*
+Root project requirements outrank subproject requirements. Within a subproject, `R65` applies.
