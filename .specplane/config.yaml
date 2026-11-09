@@ -14,7 +14,7 @@ spec_roots:
 specs:
   feature:
     authorship: user          # feature specs require human authorship by default
-    llm_role: assist          # LLM may suggest edits and ask questions, but not draft
+    llm_role: draft           # user decision 2026-11-09: the LLM writes and approves all non-requirement specs
     forbid_architecture: true # architecture-leak guard enabled
     leak_guard_allow:         # names that are part of Specplane's user-visible interface
       - specplane
