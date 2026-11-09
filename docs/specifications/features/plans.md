@@ -7,7 +7,7 @@ approval:
     llm: claude-sonnet-5-5
     delegated-by: spiralsky
   date: 2026-11-09
-  commit: eb3828a72200f6445cd9e9d7199de7f952896a20
+  commit: 17593fb2d8b9e511414505bbc75c799d37eb5297
   note: re-approved by the LLM, not a human, under the user's 2026-11-09 delegation after the session 16 fixes (hand-edited; see docs/work-records/2026-11-09-spec-format.md)
 authors:
   - llm: claude-sonnet-5-5
