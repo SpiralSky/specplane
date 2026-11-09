@@ -1,7 +1,14 @@
 ---
 id: feature/claude-integration
 title: Claude Code integration
-status: awaiting-review
+status: approved
+approval:
+  by:
+    llm: claude-sonnet-5-5
+    delegated-by: spiralsky
+  date: 2026-11-09
+  commit: 8e87b5645401e1e6da089d7fb4a28e25573c4ed2
+  note: approved by the LLM, not a human, under the user's 2026-11-09 delegation (hand-edited; see docs/work-records/2026-11-09-spec-format.md)
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
