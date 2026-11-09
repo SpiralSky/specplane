@@ -15,7 +15,7 @@ Work with the user, one or two items at a time, showing proposed text as a diff.
 Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (frontmatter, `## R<n>` sections, citations such as `R11.2`, `plans R28`, `plans §2`). New specs are `status: awaiting-review`; nothing is approved. Old text stays in git (`git show 0925bbf^:docs/specifications/features/<old>.md`).
 - [x] 1 specifications (R1,R2,R4,R5,R7,R9,R10,R11,R40,R65,R67,R68): `docs/specifications/features/specifications.md`; `spec-system.md` and `spec-precedence.md` removed
 - [x] 2 plans (R28,R28.1,R29,R29.1-3,R30,R30.1,R69): `docs/specifications/features/plans.md`; `plan-system.md`, `plan-steps.md`, `plan-status.md`, `plan-index.md` removed
-- [ ] 3 plan-execution (R27,R31)
+- [x] 3 plan-execution (R27,R31): `docs/specifications/features/plan-execution.md`
 - [ ] 4 roles-and-permissions
 - [ ] 5 requests (R52)
 - [ ] 6 steering
@@ -24,6 +24,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [ ] 9 verification
 - [ ] 10 configuration
 - [ ] 11 later-releases
+- [ ] 12 (added by user, 2026-11-09) approve all new specs after review, through `specplane spec approve`, never by hand-editing status; the LLM may approve everything except the requirements page in this repo
 
 Assumptions and open questions from spec 1 (all revisable):
 - Retired specs are deleted, not marked `deprecated`; citing specs become Awaiting Review (R11.2). Conflict question 6 stays open.
@@ -44,7 +45,17 @@ Assumptions from spec 2 (all revisable):
 - Requirement-level citations used for specs not yet written: `plan-execution R27/R27.1/R27.2/R27.6`, `requests R52`, `steering R59`, `R19.2`, `R24`; later specs must provide those section ids.
 - No hook or guard blocked any edit.
 
-Next: spec 3, `plan-execution` (R27, R31), adapting old plan-execution.md.
+Assumptions from spec 3 (all revisable):
+- Section ids: `plan-execution R27` (with R27.1, R27.1.1, R27.2, R27.2.1, R27.3, R27.4, R27.5, R27.5.1, R27.5.2, R27.6), `R31`, `R31.1`, `R31.2`, plus `§1` terms, `§2` final review and finishing, `§3` abandoning and deleting. No new R-numbers invented.
+- Start rule: plan and already-referenced specs Approved (config on/off, default on); referenced plans must be completed, user may override by naming them (recorded in handoff); checked only at first start, resume skips it.
+- A user pause is a soft stop (stopped status, no separate paused; conflict question 7). Attended sessions are readable and the user may step in, but steps never need input (question 9). Stacking, backends (branch/external), `plan retarget`, comparison base, shelve and `archive_done` dropped.
+- Worktree is outside the project directory, location configurable, default next to the project; target branch is the one named at start, else the current branch, and is recorded. Setup command kept. Config key names are left to `configuration R25`.
+- Final review: opens when all steps are done or skipped, plan stays in progress until the decision; merge is by pull request or local merge as the user chooses, never on Specplane's own authority; worktree and branch removed after merge.
+- R31.2 parallelism is marked later release; default is one task at a time.
+- Old finish-flow details (test command, rebase before final commit) were not carried; session 9 (verification) can adapt test running from git (`git show 49b4c5e^:docs/specifications/features/plan-execution.md`).
+- Cites made to later specs: `requests R52`, `steering R59`, `roles-and-permissions R57`, `configuration R25`. Permissions R27.1.1, R27.2.1, R31.1 are defined here; roles-and-permissions should list them as permission kinds. No hook blocked any edit.
+
+Next: spec 4, `roles-and-permissions`.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
