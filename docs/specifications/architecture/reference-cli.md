@@ -47,7 +47,7 @@ src/
                cites.ts         extract and resolve cites (§4.3)
                requirements.ts  requirement markers and retired IDs (§4.4)
                project.ts       load the project snapshot (§4.5)
-               fingerprint.ts   spec-v2 and sec-v1 (§5.1)
+               fingerprint.ts   spec-v3 and sec-v1 (§5.1)
                status.ts        effective status, outdated reasons (§5.2)
                approve.ts       groups, checks, approval write (§5.3)
                metadata.ts      metadata read, write, overrides (§13.2)
@@ -138,9 +138,9 @@ Implements `specifications R11`, `specifications R11.1`, `specifications R11.2`,
 
 `fingerprint.ts` implements `architecture/file-formats §4.2` and `§4.3`:
 
-- `specFingerprint(text)`: parse frontmatter, drop `status`, `approval`, `authors`, `review-reason`, `results`, `implementation`, serialise `{frontmatter, body}` as canonical JSON (keys sorted by code point, no whitespace, literal Unicode), SHA-256, prefix `spec-v2:sha256:`. The body is the text after the closing fence with CRLF and CR turned into LF.
+- `specFingerprint(text)`: parse frontmatter, drop `status`, `approval`, `authors`, `review-reason`, `results`, `implementation`, `title`, `covers`, `implements`, `references` (metadata, `cli R17`), serialise `{frontmatter, body}` as canonical JSON (keys sorted by code point, no whitespace, literal Unicode), SHA-256, prefix `spec-v3:sha256:`. The body is the text after the closing fence with CRLF and CR turned into LF.
 - `partFingerprint(text)`: LF-normalised part text, trailing blank lines removed, prefix `sec-v1:sha256:`. A whole-spec cite uses `specFingerprint` of the cited file. An unresolved cite has no fingerprint.
-- `planFingerprint(text)`: the same procedure over PLAN.md with the `commit` of every `implements` entry removed as well, prefix `plan-v1:sha256:` (`architecture/file-formats §5.2`).
+- `planFingerprint(text)`: the same procedure over PLAN.md, keeping those four keys, with the `commit` of every `implements` entry removed as well, prefix `plan-v1:sha256:` (`architecture/file-formats §5.2`).
 - Canonical JSON is a small local function (about 30 lines) rather than a library, so the byte output is fixed by this spec and not by a dependency version (assumption). Fingerprint prefixes are versioned; an unknown prefix in a record is reported and treated as changed.
 
 ### §5.2 Effective status
@@ -149,7 +149,7 @@ Implements `specifications R11`, `specifications R11.1`, `specifications R11.2`,
 
 1. Read the spec blob at HEAD. No approval, or stored `awaiting-review`: `awaiting-review` with reason `never-approved`.
 2. Compare `specFingerprint` of the HEAD content with `approval.fingerprint`. Without a stored fingerprint (hand format), read the blob at `approval.commit` instead; a commit that is not in history adds reason `edited` and a note that approval cannot be checked.
-3. For each entry of `approval.cited`, resolve the cite at HEAD and compare part fingerprints; a difference, or no resolution, adds `outdated: <cite>`. A dependency not in `cited` counts as changed. **When `approval.cited` is absent (hand format)**, resolve each dependency a second time with `committed(approval.commit)`, and compare the part fingerprint there with the one at HEAD; a target that does not resolve at that commit counts as changed. The next `spec approve` of the spec writes `fingerprint` and `cited`, after which this branch is no longer used (`architecture/file-formats §2.3`).
+3. For each entry of `approval.cited`, resolve the cite at HEAD and compare part fingerprints; a difference, or no resolution, adds `outdated: <cite>`. A dependency not in `cited` was added after approval and is not compared (metadata, `architecture/file-formats §4.5`). **When `approval.cited` is absent (hand format)**, for each dependency that is in the frontmatter at `approval.commit`, resolve it a second time with `committed(approval.commit)` and compare the part fingerprint there with the one at HEAD; a target that does not resolve at that commit counts as changed. Dependencies added after that commit are not compared. The next `spec approve` of the spec writes `fingerprint` and `cited`, after which this branch is no longer used (`architecture/file-formats §2.3`).
 4. A requirement-file dependency is compared the same way; a requirement file without approval data is never itself a reason.
 5. Each dependency that resolves to a spec file with no `approval` block at HEAD adds `unapproved-dependency: <cite>` (`specifications R11`). It reads only whether the block exists, so `specifications R11.2` is not affected by unrelated changes in the cited spec.
 6. If the working tree file differs from HEAD, add the note "uncommitted changes are ignored" (`specifications R40`).
@@ -165,12 +165,12 @@ Statuses of many specs are computed in one pass over the shared snapshot, so lis
 
 1. **Resolve and expand.** Resolve each ID to a spec file. Build the dependency graph among specs and take strongly connected components: the group of a named spec is its component, so a spec that cites a cycle without being cited back is not in it (`cli §2`). The union of the groups of all named IDs is the set to approve.
 2. **Checks, all collected, none stopping the others** (`cli R16`):
-   - the role holds `spec.approve` as `allow` for every member (`cli R16.1`); under `request-user` one request is created for the whole set and nothing else runs (`§8`);
+   - the role holds `spec.approve` as `allow` for every member (`cli R16.1`); under `request-user` one request is created for the whole set and nothing else runs (`§8`). Pending the requests step: the reference build only refuses under `request-user`, says requests are not available yet, audits `refused` and creates no request;
    - each member's file is committed and unchanged in the working tree;
    - every cite resolves; a missing part is named;
    - each dependency outside the set is effectively `approved` at HEAD (requirement files are exempt, `§5.2` item 4, assumption: the page owner approves requirements);
    - no member has a current failed test result (`verification R61.1`, `§10.3`);
-   - the stored status of a member that is already effectively approved is left alone, and approving only such specs does nothing and says so.
+   - the stored status of a member that is already effectively approved is left alone. If its approval lacks `fingerprint` or `cited` (hand format), the command re-records them: `fingerprint` and `cited` are computed from the HEAD content and added to the existing block, and `by`, `date`, `commit` and `note` are kept (`architecture/file-formats §2.3`). Approving only members that are approved with both fields does nothing and says so.
 3. **Confirm.** When the set has more than one member, print the list and ask; `--yes` skips the prompt. Without a terminal and without `--yes` the command refuses (assumption).
 4. **Write.** If any check failed, nothing is written and every reason is printed. Otherwise, for each member, compute `approval.fingerprint` and `approval.cited` from the HEAD content, find `approval.commit`, and write the block (`architecture/file-formats §2.3`, `§4.4`): `by` from git `user.name` (an LLM approver is `{llm, delegated-by}`), `date` from the clock, `status: approved`, and removal of `review-reason`. Members of one group get the same `by` and `date`.
 5. **Content commit.** `approval.commit` is found by walking `git log --format=%H -- <path>` newest first and taking the last commit whose `specFingerprint` equals the current one before the first that differs.
@@ -453,7 +453,7 @@ The permission column names the permission that guards the command; Standard Use
 
 ### §13.2 Metadata
 
-`metadata.ts` reads and writes any frontmatter field of a spec through the YAML document, with the permission per piece: `title`, `authors`, `references`, `covers` and `approval` date and commit map to `meta.write.<piece>` (`cli R17.1`); `status`, `approval.by` and results map to the three overrides. An override writes the mark of `architecture/file-formats §2.4`, and for `override status approved` computes the fingerprints from the HEAD content so later edits reopen it (`cli R17.2`). All writes record `old` and `new` in the audit log (`cli R17`). Metadata writes do not change body or review state (`specifications R11.3`) and refuse a field that is not one of those in `architecture/file-formats §2.1`. `plan meta` commands use the same code on PLAN.md (later release).
+`metadata.ts` reads and writes any frontmatter field of a spec through the YAML document, with the permission per piece: `title`, `authors`, `references`, `covers` and `approval` date and commit map to `meta.write.<piece>` (`cli R17.1`); `status`, `approval.by` and results map to the three overrides. An override writes the mark of `architecture/file-formats §2.4`, and for `override status approved` computes the fingerprints from the HEAD content so later edits reopen it (`cli R17.2`). All writes record `old` and `new` in the audit log (`cli R17`). Metadata writes do not change body or review state (`specifications R11.3`): `title`, `covers`, `implements` and `references` are outside the fingerprint (`architecture/file-formats §4.2`), so correcting them leaves an approved spec approved and refuse a field that is not one of those in `architecture/file-formats §2.1`. `plan meta` commands use the same code on PLAN.md (later release).
 
 ### §13.3 Output and errors
 

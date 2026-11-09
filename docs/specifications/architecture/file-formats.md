@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4]
-references: [plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/reference-cli §13.4, architecture/repository-layout, architecture/reference-cli]
+references: [cli R17, architecture/reference-cli §5.3, plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/reference-cli §13.4, architecture/repository-layout, architecture/reference-cli]
 ---
 
 # File formats
@@ -66,7 +66,7 @@ approval:                     # present only when status is approved (§2.3)
   by: {llm: claude-sonnet-5-5, delegated-by: spiralsky}
   date: 2026-11-09
   commit: <40-hex commit hash>
-  fingerprint: spec-v2:sha256:<hex>        # assumption, §4.4
+  fingerprint: spec-v3:sha256:<hex>        # assumption, §4.4
   cited: {"plans R28": "sec-v1:sha256:<hex>"}  # assumption, §4.4; absent in the hand format (§2.3)
   note: <free text>           # optional
   override: {by: {human: admin}, date: 2026-11-10}   # present only when set by an override (§2.4)
@@ -114,7 +114,7 @@ Implements `specifications R11`, `specifications R11.1`, `cli R16`.
 - `date`: the day the approval was recorded.
 - `commit`: a real commit that contains the final approved content, the last commit that changed the spec's content before the approval edit. The approval edit itself is a metadata-only commit. This is the last content commit and not the commit the status was set on (`specifications R11`): a file cannot name the commit that contains it, and the last content commit identifies the same approved content.
 - `fingerprint`, `cited`: see `§4.4`. Assumption: needed so that approval survives rebase and squash merge, where `commit` may no longer exist.
-- **Hand format.** An approval written by hand has neither field. It is valid while `commit` is reachable, and `§4.5` checks it by reading the spec and each cited part as committed at `commit` and comparing them with now; a cited target that did not exist at `commit` counts as changed. It stays approved until the spec or a cited part really changes, so the hand-approved specs are not reopened by the first read of this format. The CLI writes `fingerprint` and `cited` into the block the next time it records approval of that spec (`cli R16`). Where `commit` is not reachable the approval cannot be checked: the spec is `awaiting-review` with reason `edited` and a warning (assumption).
+- **Hand format.** An approval written by hand has neither field. It is valid while `commit` is reachable, and `§4.5` checks it by reading the spec and each cited part as committed at `commit` and comparing them with now; a cited target that did not exist at `commit` counts as changed. It stays approved until the spec or a cited part really changes, so the hand-approved specs are not reopened by the first read of this format. The CLI writes `fingerprint` and `cited` into the block the next time it records approval of that spec (`cli R16`). Decision: `spec approve` on a spec that is stored and effectively approved with such a block re-records it by adding `fingerprint` and `cited` only. Status, `by`, `date`, `commit` and `note` stay as written, so a hand approval by an LLM under delegation is not turned into a human one, and the spec is not reopened first (`architecture/reference-cli §5.3`). Where `commit` is not reachable the approval cannot be checked: the spec is `awaiting-review` with reason `edited` and a warning (assumption).
 - `note`: optional free text.
 - A group of specs that cite each other is approved by one command and each member gets its own block with the same `by` and `date` (`cli R16`).
 
@@ -195,30 +195,30 @@ Implements `specifications R11`, `specifications R11.2`, `specifications R11.3`,
 
 ### §4.1 Purpose
 
-Approval is bound to a spec's committed content, not to a commit hash, so it survives rebase and squash. Two fingerprints are used: one for the whole spec (`spec-v2`), one for a cited part (`sec-v1`).
+Approval is bound to a spec's committed content, not to a commit hash, so it survives rebase and squash. Two fingerprints are used: one for the whole spec (`spec-v3`), one for a cited part (`sec-v1`).
 
-### §4.2 Spec fingerprint `spec-v2`
+### §4.2 Spec fingerprint `spec-v3`
 
-Adapted from the earlier `spec-v1` (assumption: version bumped because the exclusion list changed).
+Adapted from the earlier `spec-v1` and `spec-v2` (version bumped because the exclusion list changed; `spec-v2` also counted `title`, `covers`, `implements` and `references`).
 
-Serialize a JSON object with exactly `frontmatter` and `body`, encode as UTF-8, SHA-256 it, and write `spec-v2:sha256:<lowercase hex>`.
+Serialize a JSON object with exactly `frontmatter` and `body`, encode as UTF-8, SHA-256 it, and write `spec-v3:sha256:<lowercase hex>`.
 
-- `frontmatter` is the parsed frontmatter with these keys removed: `status`, `approval`, `authors`, `review-reason`, `results`, `implementation`. Everything else stays, including `id`, `title`, `covers`, `implements`, `references` and unknown keys. Mapping keys are sorted by Unicode code point, array order is kept, output is compact JSON with literal Unicode and standard escapes, numbers in ECMAScript form.
+- `frontmatter` is the parsed frontmatter with these keys removed: `status`, `approval`, `authors`, `review-reason`, `results`, `implementation`, `title`, `covers`, `implements`, `references`. Everything else stays, including `id` and unknown keys. Mapping keys are sorted by Unicode code point, array order is kept, output is compact JSON with literal Unicode and standard escapes, numbers in ECMAScript form.
 - `body` is everything after the closing `---` line and its newline, with CRLF and CR turned into LF. Nothing else is normalized: comments, whitespace and trailing newlines count, so a cosmetic edit is a content edit.
 - Rule of the feature specs: content means the whole file except `status`, `approval` and `authors` (`specifications R11.3`). `review-reason`, `results` and `implementation` are metadata Specplane writes, so they are excluded as well (assumption).
 - A change to any excluded field alone is not an edit.
-- Decision (assumption): `title`, `covers`, `implements` and `references` count as content even though the page calls dependencies metadata (`specifications R9`). A changed dependency list changes what a spec means, and keeping it in the fingerprint means such a change is never missed. The cost is that merely reordering `references` is an edit; authors keep the lists in a stable order. A plan's fingerprint is the variant `plan-v1` of `§5.2`.
+- Decision: `title`, `covers`, `implements` and `references` are metadata and so outside the fingerprint. The page lets a person correct them by hand and says that a change to metadata alone does not make a spec Awaiting Review (`cli R17`, `specifications R9`, `specifications R11.3`). A dependency changed this way is still tracked by `§4.5` step 3: a cite recorded in `cited` is compared, and a cite added later has nothing recorded to compare with, so it is not outdated until the next approval records it. Reordering a list is not an edit. A plan's fingerprint is the variant `plan-v1` of `§5.2`, which keeps these keys.
 - Changing these rules needs a new version tag; an old digest is never reinterpreted.
 
 ### §4.3 Part fingerprint `sec-v1`
 
-The part text (`§3.4` step 5), CRLF to LF, with trailing blank lines removed, then `sec-v1:sha256:<hex>` of its UTF-8 bytes. A whole-spec cite uses the `spec-v2` fingerprint of the cited file. A part that no longer resolves has no fingerprint, which counts as changed (`specifications R11.2`: deletion is a change).
+The part text (`§3.4` step 5), CRLF to LF, with trailing blank lines removed, then `sec-v1:sha256:<hex>` of its UTF-8 bytes. A whole-spec cite uses the `spec-v3` fingerprint of the cited file. A part that no longer resolves has no fingerprint, which counts as changed (`specifications R11.2`: deletion is a change).
 
 ### §4.4 What approval stores
 
 At approval the CLI writes into `approval`:
 
-- `fingerprint`: the `spec-v2` fingerprint of the spec's committed content at `commit`;
+- `fingerprint`: the `spec-v3` fingerprint of the spec's committed content at `commit`;
 - `cited`: a map from each dependency cite (`covers`, `implements`, `references`, as written) to the part fingerprint of the cited part as committed at approval time. A spec approved by hand has no `cited` map (`§2.3`).
 
 Assumption: these two fields extend the approval record in the shared format so that validity does not depend on `commit` being reachable.
@@ -228,8 +228,8 @@ Assumption: these two fields extend the approval record in the shared format so 
 From the committed state of the current branch (`specifications R40`); uncommitted edits are ignored and reported as a note.
 
 1. Read the spec at HEAD. If `status: awaiting-review` or no `approval`: effective status `awaiting-review`, reason `never-approved` (or the stored `review-reason`).
-2. Compute `spec-v2` of the committed content. If `approval.fingerprint` exists and differs: `awaiting-review`, reason `edited`. If it is absent, compare with the content at `approval.commit`; a missing commit gives `awaiting-review`, reason `edited` with a warning that the approval cannot be checked.
-3. For each cite in `approval.cited`: compute the part fingerprint now; if it differs or the part is gone, add `outdated: <cite>`. A dependency listed in `covers`, `implements` or `references` but absent from `cited` is treated as changed. Only cited parts count, never a change elsewhere in the cited spec. **When `approval.cited` is absent (hand format, `§2.3`)**, compute the part fingerprint of each dependency target as committed at `approval.commit` and compare it with the one computed now; a target that did not resolve at that commit counts as changed. A hand-approved spec therefore stays approved until a cited part really changes, and the next CLI approval records `cited`.
+2. Compute `spec-v3` of the committed content. If `approval.fingerprint` exists and differs: `awaiting-review`, reason `edited`. If it is absent, compare with the content at `approval.commit`; a missing commit gives `awaiting-review`, reason `edited` with a warning that the approval cannot be checked.
+3. For each cite in `approval.cited`: compute the part fingerprint now; if it differs or the part is gone, add `outdated: <cite>`. Only cited parts count, never a change elsewhere in the cited spec. **When `approval.cited` is absent (hand format, `§2.3`)**, compute the part fingerprint of each dependency target as committed at `approval.commit` and compare it with the one computed now; a target that did not resolve at that commit counts as changed. A cite in `covers`, `implements` or `references` that was added after approval (absent from `cited`; in the hand format, absent from the frontmatter at `approval.commit`) is not compared: adding a dependency is a metadata change (`§4.2`). A hand-approved spec therefore stays approved until a cited part really changes, and the next CLI approval records `cited`.
 4. For each dependency that resolves to a spec (not a requirements file) whose own file has no `approval` block at HEAD, add `unapproved-dependency: <cite>` (`specifications R11`: a spec citing a never-approved spec is Awaiting Review). Only the presence of the block is read, never the cited spec's own status, so a change elsewhere in the cited spec does not matter (`specifications R11.2`). Members of a group approved in one command all have blocks, so a group is not affected.
 5. If no reason was found, the spec is `approved`; otherwise `awaiting-review` with all reasons.
 
@@ -276,7 +276,7 @@ references: [plan/<other-id>, plans R28]
 ---
 ```
 
-- `status` and `approval` follow `§2` and `§4`. The plan's content fingerprint is `plan-v1:sha256:<hex>` (assumption), computed like `spec-v2` (`§4.2`) over the PLAN.md frontmatter minus `status`, `approval`, `authors`, `review-reason` and the `commit` of every `implements` entry, plus the PLAN.md body; `progress.yaml`, step files and the handoff are not part of the plan's content (assumption: steps may be edited by the plan edit rules of `plan-execution R31.1`, and then the plan returns to `awaiting-review` only if PLAN.md itself changed).
+- `status` and `approval` follow `§2` and `§4`. The plan's content fingerprint is `plan-v1:sha256:<hex>` (assumption), computed like `spec-v3` (`§4.2`) over the PLAN.md frontmatter minus `status`, `approval`, `authors`, `review-reason` and the `commit` of every `implements` entry, plus the PLAN.md body; `progress.yaml`, step files and the handoff are not part of the plan's content (assumption: steps may be edited by the plan edit rules of `plan-execution R31.1`, and then the plan returns to `awaiting-review` only if PLAN.md itself changed).
 - `implements` records the commit of each spec the plan was written against (`plans R29`). A later commit to that spec on the current branch that differs gives the outdated-reference warning naming plan, spec and both commits (`plans R29.3`). The pins are left out of the fingerprint, so updating one after checking what changed is a metadata edit that does not return the plan to `awaiting-review` or block starting it (`plan-execution R27.6`).
 - Body sections, any order, any may be omitted: `## Goal`, `## Scope` (in and out), `## Specifications`, `## Acceptance criteria`, `## Risks`, `## Steps` (the list, one summary line each, `<NN> <title>: <summary>`).
 - The plan's body cites with the same grammar and every cite appears in `references` or `implements`.
@@ -699,14 +699,14 @@ results:
     by: {human: spiralsky}            # or {llm: claude-sonnet-5-5}
     date: 2026-11-09
     commit: <hash the test ran on>
-    fingerprint: spec-v2:sha256:<hex> # of this spec at that commit
-    against: {"feature/plans": "spec-v2:sha256:<hex>"}   # spec(s) it was checked against, assumption
+    fingerprint: spec-v3:sha256:<hex> # of this spec at that commit
+    against: {"feature/plans": "spec-v3:sha256:<hex>"}   # spec(s) it was checked against, assumption
     summary: <one to a few lines>
     log: <log-id>                     # optional; absent when logs are off or elsewhere
     override: {by: {human: admin}, date: 2026-11-10}   # only when set by override
 ```
 
-- A result is current when the tested spec's `spec-v2` fingerprint and each `against` fingerprint equal those computed now; otherwise it is shown as outdated, counts as no result for approval and implementation, and is not deleted (`verification R61.1`). A removed test makes its results outdated by the content change.
+- A result is current when the tested spec's `spec-v3` fingerprint and each `against` fingerprint equal those computed now; otherwise it is shown as outdated, counts as no result for approval and implementation, and is not deleted (`verification R61.1`). A removed test makes its results outdated by the content change.
 - Latest result per `test` for the current content is in effect; earlier ones stay in the list. A re-run replaces an override as the effective result and the audit log keeps both (`verification §3`).
 - A failed current result blocks approval and mark-implemented; it does not change `status`.
 - The summary is short and holds no credentials; the CLI warns if a summary looks like one (a heuristic over tokens such as `key`, `secret`, `password`, high-entropy strings) and does not stop recording (`verification R61.3`).
@@ -724,12 +724,12 @@ Implements `verification R36.2`.
 implementation:
   status: implemented
   commit: <hash it was verified on>
-  fingerprint: spec-v2:sha256:<hex>
+  fingerprint: spec-v3:sha256:<hex>
   by: {llm: claude-sonnet-5-5}
   date: 2026-11-09
 ```
 
-- Absent means unimplemented. The status is implemented only while the `spec-v2` fingerprint matches the committed content and `commit` is in the current branch's history; otherwise it is reported unimplemented. When the CLI sees such a mismatch it removes the block, so an edit followed by a revert does not restore the evidence (`verification R36.2`).
+- Absent means unimplemented. The status is implemented only while the `spec-v3` fingerprint matches the committed content and `commit` is in the current branch's history; otherwise it is reported unimplemented. When the CLI sees such a mismatch it removes the block, so an edit followed by a revert does not restore the evidence (`verification R36.2`).
 - Written only when every declared check passes on `commit` (`verification R36.1`).
 - Only architecture specs carry the field; elsewhere it is a format error.
 
