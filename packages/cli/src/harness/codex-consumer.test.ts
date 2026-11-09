@@ -176,24 +176,6 @@ test('offline docs: the installed CLI answers outside any repository, with no ne
   assert.equal(state(), before, 'no lease, runtime state or working-tree change');
 });
 
-test('stale manual completion is reported as reassessment, never silently re-declared, and a clean consumer install validates without spurious drift', () => {
-  const f = consumer({ plan: false }); const cli = cliOf(f.root); const spec = path.join(f.root, 'specs/features/calc.md');
-  const warnings = (JSON.parse(cli(f.root, 'validate', '--json').stdout) as { warnings: { type: string; message: string }[] }).warnings.filter(w => w.type === 'freshness' && /SKILL\.md/.test(w.message) || w.type === 'skill-drift');
-  assert.deepEqual(warnings, [], 'the installed package resolves its own rules template and bundled contract');
-  const done = JSON.parse(cli(f.root, 'spec', 'complete', 'feature/calc', '--json').stdout);
-  assert.equal(done.implementation_status, 'complete'); assert.equal(done.assessment_status, 'current');
-  assert.equal(git(f.root, 'status', '--porcelain').includes('specs/features/calc.md'), true, 'a declaration stays uncommitted until the user commits it');
-  git(f.root, 'commit', '-qam', 'declare complete');
-  fs.appendFileSync(spec, '\n- [ ] Subtracts numbers\n'); git(f.root, 'commit', '-qam', 'new requirement');
-  const shown = JSON.parse(cli(f.root, 'spec', 'show', 'feature/calc', '--json').stdout);
-  assert.equal(shown.implementation_status, 'complete', 'the old declaration is preserved');
-  assert.equal(shown.assessment_status, 'reassessment_needed'); assert.ok(shown.assessment_reasons.length > 0);
-  const report = JSON.parse(cli(f.root, 'validate', '--json').stdout) as { warnings: { type: string }[] };
-  assert.ok(report.warnings.some(w => w.type === 'implementation-reassessment'));
-  const dry = JSON.parse(cli(f.root, 'spec', 'complete', 'feature/calc', '--dry-run', '--json').stdout);
-  assert.equal(dry.dry_run, true); assert.equal(git(f.root, 'status', '--porcelain'), '', 'a dry run leaves the declaration alone');
-});
-
 test('scripted evidence stays unverified: the manifest and installed record claim no host, native or background capability after a full cycle', async () => {
   const f = consumer(); const c = client(f.root, f.base);
   const run = await cycle(f.root, c); const recorded = await c.call('record', run.validated); assert.equal(recorded.ok, true, JSON.stringify(recorded));

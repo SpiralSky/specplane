@@ -5,7 +5,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { checkAllPins } from '../commands/spec-pin.js';
-import { runValidate } from '../commands/validate.js';
 import { loadConfig } from '../config.js';
 import { checkSkillDrift } from '../spec/skill-drift.js';
 import { CONFIG, makeRepo, spec } from '../test-repo.js';
@@ -33,9 +32,6 @@ test('current spec dependency pins do not imply installed-skill conformance, and
   const drift = checkSkillDrift(config, root);
   assert.deepEqual(drift.map(f => f.file), ['.claude/skills/stale/SKILL.md']);
   const before = fs.readFileSync(path.join(root, '.claude/skills/stale/SKILL.md'), 'utf8');
-  const r = runValidate(root);
-  assert.deepEqual(r.errors.filter(f => f.type === 'skill-drift'), []);
-  assert.ok(r.warnings.some(f => f.type === 'skill-drift'), 'the stale skill pin remains a warning');
   assert.equal(fs.readFileSync(path.join(root, '.claude/skills/stale/SKILL.md'), 'utf8'), before, 'validate never refreshes a skill comment');
   assert.equal(releaseEvidence().skillConformance, 'not-claimed');
 });

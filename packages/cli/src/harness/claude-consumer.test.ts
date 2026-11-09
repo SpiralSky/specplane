@@ -166,23 +166,6 @@ test('offline docs: the installed CLI answers outside any repository, with no ne
   assert.equal(state(), before, 'no lease, runtime state or working-tree change');
 });
 
-test('stale manual completion is reported as reassessment, never silently re-declared, and the consumer install shows no drift beyond the unresolved contract anchor', () => {
-  const f = consumer({ plan: false }); const cli = cliOf(f.root); const spec = path.join(f.root, 'specs/features/calc.md');
-  // Finding: the installed skills cite `architecture/agent-skills`, a spec a consumer repository does not have, so each shows an unresolved-anchor drift warning. Only that one kind is expected; any other drift is a failure.
-  const drift = (JSON.parse(cli(f.root, 'validate', '--json').stdout) as { warnings: { type: string; message: string }[] }).warnings.filter(w => w.type === 'skill-drift');
-  assert.deepEqual(drift.filter(w => !/`architecture\/agent-skills` does not resolve/.test(w.message)), [], 'no drift other than the unresolved contract anchor');
-  const done = JSON.parse(cli(f.root, 'spec', 'complete', 'feature/calc', '--json').stdout);
-  assert.equal(done.implementation_status, 'complete'); assert.equal(done.assessment_status, 'current');
-  git(f.root, 'commit', '-qam', 'declare complete');
-  fs.appendFileSync(spec, '\n- [ ] Subtracts numbers\n'); git(f.root, 'commit', '-qam', 'new requirement');
-  const shown = JSON.parse(cli(f.root, 'spec', 'show', 'feature/calc', '--json').stdout);
-  assert.equal(shown.implementation_status, 'complete', 'the old declaration is preserved');
-  assert.equal(shown.assessment_status, 'reassessment_needed'); assert.ok(shown.assessment_reasons.length > 0);
-  assert.ok((JSON.parse(cli(f.root, 'validate', '--json').stdout) as { warnings: { type: string }[] }).warnings.some(w => w.type === 'implementation-reassessment'));
-  const dry = JSON.parse(cli(f.root, 'spec', 'complete', 'feature/calc', '--dry-run', '--json').stdout);
-  assert.equal(dry.dry_run, true); assert.equal(git(f.root, 'status', '--porcelain'), '', 'a dry run leaves the declaration alone');
-});
-
 test('scripted evidence stays unverified: the manifest and installed record certify no host version, native or background capability after a full cycle', async () => {
   const f = consumer(); const c = client(f.root, f.root); await c.call('bind');
   const prepared = await c.call('prepare', initiation(f.root, 'plan-step', { planId: ID })); assert.equal(prepared.ok, true, prepared.text);

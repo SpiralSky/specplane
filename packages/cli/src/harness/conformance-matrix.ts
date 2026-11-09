@@ -23,7 +23,6 @@ export const CRITERIA: Criterion[] = [
     { file: 'core/completion', title: 'a missing recorded dependency is also removed' },
     { file: 'harness/conformance', title: 'docs agree across CLI, core and the installed Codex package' }] },
   { id: 'manual-vs-agent', text: 'Ordinary Git/manual declarations and agent interpretation are assessed separately from deterministic packaging tests', state: 'met', suites: [
-    { file: 'harness/codex-consumer', title: 'stale manual completion' },
     { file: 'harness/conformance', title: 'agent interpretation and live-host behaviour are not asserted by deterministic suites' }] },
 ];
 

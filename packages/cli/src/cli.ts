@@ -219,10 +219,10 @@ docs
   .action((words: string[], opts, command: Command) => docsSearchCommand(words, { json: Boolean(opts.json || command.parent?.opts().json) }));
 
 program
-  .command("validate")
-  .description("Validate the repository")
+  .command("validate [ids...]")
+  .description("Validate the requirements and specs (format, cites, requirement IDs, status)")
   .option("--json", "output JSON")
-  .action((opts: { json?: boolean }) => validateCommand(opts));
+  .action((ids: string[], opts: { json?: boolean }) => validateCommand(ids, opts));
 
 
 // D20 item 6 (spec: A3, R1): operator view and recovery of leases left by an ended host session.

@@ -81,9 +81,6 @@ test('freshness compares each selected output and reports source even when fresh
  }
  const working=capturePlanSnapshot(r.root,'working'); assert.equal(checkPlansMd(working.config,r.root,working).warnings.length,1);
  assert.match(notes.join('\n'),/source: head.*excluded pending inputs/); assert.match(notes.join('\n'),/source: staged.*excluded pending inputs/);
- const result=r.sp('validate','--json'); assert.doesNotThrow(()=>JSON.parse(result.stdout)); assert.match(result.stderr,/freshness source: head/);
- r.put('.specplane/config.yaml','plans: [invalid\n');
- const invalid=r.sp('validate','--json'); assert.doesNotThrow(()=>JSON.parse(invalid.stdout)); assert.match(invalid.stderr,/freshness source: head/);
 });
 for (const kind of ['merge','rebase','cherry-pick'] as const) test(`${kind} recovery uses resolved staged inputs through continuation`, () => {
  const r=repo(), f=`plans/${id}/PLAN.md`, out='plans/PLANS.md', other='other.txt';
@@ -95,10 +92,10 @@ for (const kind of ['merge','rebase','cherry-pick'] as const) test(`${kind} reco
  try { if (kind === 'merge') r.git('merge','side'); else if (kind === 'rebase') r.git('rebase','master'); else r.git('cherry-pick',side); } catch { /* expected conflicts */ }
  const bad=r.sp('plan','index','--source','staged'); assert.notEqual(bad.status,0); assert.match(bad.stderr,/Unresolved plan input/);
  const before=fs.readFileSync(path.join(r.root,out)); const index=r.git('ls-files','-u');
- const validation=r.sp('validate','--json'); assert.match(validation.stdout,/Unresolved plan input/); assert.equal(r.git('ls-files','-u'),index); assert.deepEqual(fs.readFileSync(path.join(r.root,out)),before);
+ assert.equal(r.git('ls-files','-u'),index); assert.deepEqual(fs.readFileSync(path.join(r.root,out)),before);
  r.put(f,plan('resolved')); r.git('add',f); const input=fs.readFileSync(path.join(r.root,f));
  const refused=r.sp('plan','index'); assert.notEqual(refused.status,0); assert.match(refused.stderr,/--source staged/);
- const pending=r.git('ls-files','-u'); const notice=r.sp('validate','--json'); assert.match(notice.stderr,/freshness source: staged/); assert.match(notice.stdout,/is conflicted/);
+ const pending=r.git('ls-files','-u');
  const rendered=r.sp('plan','index','--source','staged'); assert.equal(rendered.status,0,rendered.stderr); const bytes=fs.readFileSync(path.join(r.root,out)); assert.match(bytes.toString(),/\| resolved \|/);
  assert.deepEqual(fs.readFileSync(path.join(r.root,f)),input); assert.equal(r.git('ls-files','-u'),pending);
  r.put(other,'resolved other\n'); r.git('add',out,other);

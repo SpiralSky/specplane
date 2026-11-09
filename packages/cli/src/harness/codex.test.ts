@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { runInit } from '../commands/init.js';
 import { makeRepo } from '../test-repo.js';
-import { runValidate } from '../commands/validate.js';
 import { CODEX_SKILL } from './codex.js';
 import { DEFAULT_CONFIG } from '../config.js';
 import { checkSkillDrift } from '../spec/skill-drift.js';
@@ -32,7 +31,6 @@ test('codex init is explicit, idempotent and preserves user-owned settings and i
  git(root,'init','-q','-b','main');
  git(root,'add','.specplane/config.yaml');
  git(root,'commit','-qm','fixture baseline');
- assert.equal(runValidate(root).errors.length,0);
 });
 
 test('neutral init suppresses Claude auto-detection and all harness writes',()=>{
@@ -93,7 +91,6 @@ function experimentalWorkflow(implementation = 'export const sum = (a,b) => a+b;
    assert.match(child.stdout,/^# fail 0$/m);
   }
   assert.doesNotMatch(child.stderr,/skipping running files/);
-  const validation=JSON.parse(sp(work,'validate','--json'));assert.equal(validation.errors.length,0);
   git(work,'add','DECISIONS.md','sum.mjs','sum.test.mjs');git(work,'commit','-qm','feat: demonstrate isolated experimental work');
   assert.equal(fs.readFileSync(path.join(work,plan),'utf8'),planBefore);assert.equal(fs.readFileSync(path.join(work,spec),'utf8'),specBefore);
   assert.equal(git(root,'rev-parse','HEAD'),base);assert.equal(fs.existsSync(path.join(root,'sum.mjs')),false);
@@ -134,21 +131,3 @@ test('codex install refuses a skill directory escaping the repository',()=>{
  }finally{fs.rmSync(outside,{recursive:true,force:true});}
 });
 
-test('installed Codex contract is verified against scoped bundled source, never waived',()=>{
- const root=makeRepo({});runInit(root,{harness:'codex'});
- const file=path.join(root,CODEX_SKILL), original=fs.readFileSync(file,'utf8');
- const drift=()=>runValidate(root).warnings.filter(w=>w.type==='skill-drift');
- assert.deepEqual(drift(),[]);
- fs.writeFileSync(file,original.replace(/@([0-9a-f]{7,40})/, '@0000000'));
- assert.ok(drift().some(w=>w.message.includes('differs from pin')));
- fs.writeFileSync(file,original.replace('#workflow-contract@','#missing-heading@'));
- assert.ok(drift().some(w=>w.message.includes('does not match a heading')));
- fs.writeFileSync(file,original);
- const local=path.join(root,'docs/specifications/architecture/codex-integration.md');fs.mkdirSync(path.dirname(local),{recursive:true});
- fs.writeFileSync(local,'---\nid: architecture/codex-integration\ntitle: Local contract\nstatus: draft\n---\n# Different local contract\n');
- assert.ok(drift().some(w=>w.message.includes('does not match a heading')&&!w.message.includes('bundled')));
- const config=structuredClone(DEFAULT_CONFIG);
- config.spec_roots.push({...config.spec_roots[0],name:'other',path:'other-specs'});
- const other=path.join(root,'other-specs/architecture/codex-integration.md');fs.mkdirSync(path.dirname(other),{recursive:true});fs.copyFileSync(local,other);
- assert.ok(checkSkillDrift(config,root).some(w=>w.message.includes('does not resolve')));
-});

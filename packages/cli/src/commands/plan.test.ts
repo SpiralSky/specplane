@@ -119,7 +119,7 @@ function newRepo(): string {
   return root;
 }
 
-test("plan new: creates draft plan and steps/; HANDOFF waits for recording; validate passes", () => {
+test("plan new: creates draft plan and steps/; HANDOFF waits for recording", () => {
   const root = newRepo();
   const git = (...args: string[]) => spawnSync("git", args, { cwd: root, encoding: "utf8" });
   assert.equal(git("add", ".specplane/config.yaml", "plans", "specs").status, 0);
@@ -135,10 +135,6 @@ test("plan new: creates draft plan and steps/; HANDOFF waits for recording; vali
   assert.equal(fs.existsSync(path.join(dir, "HANDOFF.md")), false);
   assert.match(git("status", "--porcelain", "--untracked-files=all").stdout, /\?\? plans\/2026-02-01-beta\/PLAN\.md/);
   assert.notEqual(git("cat-file", "-e", "HEAD:plans/2026-02-01-beta/PLAN.md").status, 0);
-  const validation = run(root, "validate");
-  assert.equal(validation.code, 0, validation.out + validation.err);
-  assert.match(validation.err, /plan index freshness source: head/);
-  assert.match(validation.err, /2026-02-01-beta/);
 });
 
 test("plan new: existing ID, unknown spec/plan, bad ID, missing flags exit 1", () => {

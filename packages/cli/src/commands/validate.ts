@@ -4,18 +4,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { checkStanding, withDecisionFraming } from "../agents/standing.js";
 import { type Harness, HARNESSES, templatesDir } from "../harness/index.js";
-import { CONFIG_PATH, configuredFraming, loadConfig } from "../config.js";
-import { loadAdrs, validateAdrs } from "../decisions/validate.js";
-import { ConfigError, FrontmatterError, FrontmatterMissingError } from "../errors.js";
 import { generatePlansMd } from "../generate/plans-md.js";
 import { checkoutRoot } from "../git/repo.js";
-import { formatHuman } from "../output/human.js";
-import { formatJson } from "../output/json.js";
-import { listPlans } from "../plan/resolve.js";
-import { validatePlans } from "../plan/validate.js";
-import { finding, makeReport, mergeReports } from "../report.js";
-import { checkSkillDrift } from "../spec/skill-drift.js";
-import { validateSpecs } from "../spec/validate.js";
+import { configuredFraming } from "../config.js";
+import { finding, makeReport } from "../report.js";
+import { formatReport, validateProject } from "../verify/validate.js";
 import type { Config, ValidationReport } from "../types.js";
 
 const STANDING_MSG = (file: string, detail = "") =>
@@ -93,33 +86,9 @@ export function checkPlansMd(config: Config | undefined, root: string, selected?
   }
 }
 
-/** Run every validation and merge the results. */
-export function runValidate(root: string, notice?: (message: string) => void): ValidationReport {
-  let loaded;
-  try {
-    loaded = loadConfig(root);
-  } catch (e) {
-    if (e instanceof ConfigError || e instanceof FrontmatterError || e instanceof FrontmatterMissingError) {
-      return mergeReports(makeReport([finding("error", "config", CONFIG_PATH, e.message)], [CONFIG_PATH]), checkPlansMd(undefined, root, undefined, notice));
-    }
-    throw e;
-  }
-  const { config, warnings } = loaded;
-  const configReport = makeReport(
-    warnings.map((w) => finding("warning", "config", CONFIG_PATH, w.message)),
-    [CONFIG_PATH],
-  );
-  const specs = validateSpecs(config, root);
-  const { adrs, findings: adrLoad } = loadAdrs(config, root);
-  const adrReport = validateAdrs(adrs, config, root, adrLoad);
-  const plans = validatePlans(listPlans(config, root), adrs, config, root);
-  return mergeReports(configReport, specs, adrReport, plans, checkFreshness(root), checkPlansMd(config, root, undefined, notice), makeReport(checkSkillDrift(config, root)));
+export function validateCommand(ids: string[], opts: { json?: boolean }): void {
+  const report = validateProject(checkoutRoot(), { ids });
+  if (opts.json) process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+  else process.stderr.write(formatReport(report));
+  process.exitCode = report.counts.errors === 0 ? 0 : 1;
 }
-
-export function validateCommand(opts: { json?: boolean }): void {
-  const report = runValidate(checkoutRoot(), message => process.stderr.write(`notice: ${message}\n`));
-  if (opts.json) process.stdout.write(formatJson(report));
-  else process.stderr.write(formatHuman(report));
-  process.exitCode = report.valid ? 0 : 1;
-}
-
