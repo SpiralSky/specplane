@@ -85,7 +85,7 @@ Requirement IDs must be unique within the root project and within each subprojec
 - A reference that names a project that does not exist, or an ID that does not exist in the named project, is reported by validation as an error.
 - A subproject's name is unique in the root project and does not change once specifications reference it.
 
-Scenario: Given the root project and the subproject `claude` both have a requirement R7, When a specification in `claude` cites R7, Then it means the subproject's R7, and `root:R7` means the root project's.
+Scenario: Given the root project and the subproject `claude` both have a requirement R7, When a specification in `claude` cites R7, Then it means the subproject's R7, and the root project prefix followed by the number 7 means the root project's.
 
 ### R39.4: Subproject Precedence
 

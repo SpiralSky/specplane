@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R12, R13, R13.1, R24, R24.1, R32, R36, R36.1, R36.2, R36.3, R61, R61.1, R61.2, R61.3, R61.4, R64]
-references: [R4, R7, R9, R11.2, R16, R17.2, R22, R40, R50, R59, R62, R63, specifications R5, specifications R7, specifications R9, specifications R10, specifications R11, requests R52, plans R28, plans R30, roles-and-permissions R50, roles-and-permissions R57, cli R17, steering R59, harness R14, configuration R25, plans R29.3, specifications R1, specifications R68]
+references: [R4, R7, R9, R11.2, R16, R17.2, R22, R40, R50, R59, R62, R63, specifications R5, specifications R7, specifications R9, specifications R10, specifications R11, requests R52, plans R28, plans R30, roles-and-permissions R50, roles-and-permissions R57, cli R17, steering R59, harness R14, configuration R25, plans R29.3, specifications R1, specifications R68, plans]
 ---
 
 # Verification

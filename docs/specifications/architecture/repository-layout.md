@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [specifications R7, plans §2, plans R29.2, plan-execution R27, plan-execution §2, plan-execution §3, configuration R25, harness §2]
-references: [architecture/file-formats §1.1, architecture/file-formats §1.2, architecture/file-formats §5.1, architecture/file-formats §6, architecture/file-formats §6.1, architecture/file-formats §9.1, architecture/file-formats §10, architecture/file-formats §11.4, architecture/file-formats §12.1, architecture/file-formats §12.3, architecture/file-formats §12.4, architecture/file-formats §5.4, architecture/file-formats §6.2, architecture/file-formats §7.4, steering R22, architecture/reference-cli §12.5, architecture/file-formats §9.3, architecture/reference-cli §14.2]
+references: [architecture/file-formats §1.1, architecture/file-formats §1.2, architecture/file-formats §5.1, architecture/file-formats §6, architecture/file-formats §6.1, architecture/file-formats §9.1, architecture/file-formats §10, architecture/file-formats §11.4, architecture/file-formats §12.1, architecture/file-formats §12.3, architecture/file-formats §12.4, architecture/file-formats §5.4, architecture/file-formats §6.2, architecture/file-formats §7.4, steering R22, architecture/reference-cli §12.5, architecture/file-formats §9.3, architecture/reference-cli §14.2, architecture/file-formats, architecture/reference-cli]
 ---
 
 # Repository layout

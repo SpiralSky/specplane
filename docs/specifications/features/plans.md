@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R28, R28.1, R29, R29.1, R29.2, R29.3, R30, R30.1, R69]
-references: [R7, R9, R11, R11.2, R19.2, R24, specifications R65, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.6, plan-execution R27.3, requests R52, steering R59, R27, R4, plan-execution R31.1]
+references: [R7, R9, R11, R11.2, R19.2, R24, specifications R65, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.6, plan-execution R27.3, requests R52, steering R59, R27, R4, plan-execution R31.1, feature/cli]
 ---
 
 # Plans

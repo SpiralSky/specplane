@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R16, R16.1, R17, R17.1, R17.2, R33, R33.1]
-references: [R11.1, R11.2, R13.1, R18, R20, R22, R47, R61.1, specifications R9, specifications R10, specifications R11, plans R29, plan-execution R31.1, roles-and-permissions R42, roles-and-permissions R50, roles-and-permissions R57, roles-and-permissions R58, harness R20, harness R47, verification R61, configuration R25, R9]
+references: [R11.1, R11.2, R13.1, R18, R20, R22, R47, R61.1, specifications R9, specifications R10, specifications R11, plans R29, plan-execution R31.1, roles-and-permissions R42, roles-and-permissions R50, roles-and-permissions R57, roles-and-permissions R58, harness R20, harness R47, verification R61, configuration R25, R9, verification]
 ---
 
 # CLI

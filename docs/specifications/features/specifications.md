@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R1, R2, R4, R5, R7, R9, R10, R10.1, R11, R11.1, R11.2, R11.3, R11.4, R40, R65, R67, R68]
-references: [later-releases R39.3, verification R64, plans R28, plans R30.1, roles-and-permissions R57, harness R14, configuration R25, cli R16, verification R61, plans §2]
+references: [later-releases R39.3, verification R64, plans R28, plans R30.1, roles-and-permissions R57, harness R14, configuration R25, cli R16, verification R61, plans §2, roles-and-permissions, feature/plans, feature/cli]
 ---
 
 # Specifications
@@ -95,7 +95,7 @@ A citation names a requirement or a part of a specification in a fixed shape:
 - `R11` or `R11.2`: a requirement or sub-requirement.
 - `plans R28`: the section of the named feature spec that covers that requirement.
 - `plans §2`: a section of the named spec that is not tied to a requirement.
-- `architecture/cli R16`: the same for an architecture spec. A name without a layer always means a feature spec.
+- `architecture/<slug> R<n>`: the same for an architecture spec. A name without a layer always means a feature spec.
 - `claude:R7`, `claude:harness R14`: a cite into a subproject or the root project, written `<project>:<cite>` with any of the shapes above. A cite without a project means the citing spec's own project; `root` always names the root project and cannot be a subproject name; spec IDs are unique within a project (`later-releases R39.3`). This syntax is an assumption, because the page only asks that the project be named.
 
 A citation to a part means that section and its subsections. A citation to a whole spec is allowed but marks the citing spec outdated whenever anything in the cited spec changes (`R11.2`), so citing the narrowest part is preferred.
@@ -175,9 +175,9 @@ A spec that refers to a part of another spec or requirement that has changed or 
 - Deleting a cited part counts as a change.
 - This applies across all layers, including requirements.
 
-Scenario: Given `feature/a` cites `b R7` and `b R9` changes, When status is calculated, Then `feature/a` stays Approved.
+Scenario: Given `feature/a` cites section R7 of another feature spec and section R9 of that spec changes, When status is calculated, Then `feature/a` stays Approved.
 
-Scenario: Given `feature/a` cites `b R7` and `b R7` changes, When status is calculated, Then `feature/a` is Awaiting Review with the reason that a cited part changed.
+Scenario: Given `feature/a` cites section R7 of another feature spec and that section changes, When status is calculated, Then `feature/a` is Awaiting Review with the reason that a cited part changed.
 
 ### R11.3: Awaiting Review post-edit
 

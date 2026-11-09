@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4]
-references: [plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/reference-cli §13.4]
+references: [plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/reference-cli §13.4, architecture/repository-layout, architecture/reference-cli]
 ---
 
 # File formats
@@ -157,7 +157,7 @@ file-ref = "file:" PATH                     ; a repository file, relative to the
 layer    = "feature" | "architecture"
 ```
 
-A name without a layer is a feature spec. `req-file` is the only place the layer `requirement` is used. `plan-ref` and `file-ref` take no project prefix; `file` is reserved so that `file:docs/x.md` never parses as project `file` (assumption: this extends the `root` restriction of `later-releases R39.3`). The project prefix is an assumption of the feature specs (`specifications R7`); no prefix means the citing spec's own project, `root` names the root project (`later-releases R39.3`).
+A name without a layer is a feature spec. `req-file` is the only place the layer `requirement` is used. `plan-ref` and `file-ref` take no project prefix; `file` is reserved so that a cite such as `file` followed by a colon and a path never parses as project `file` (assumption: this extends the `root` restriction of `later-releases R39.3`). The project prefix is an assumption of the feature specs (`specifications R7`); no prefix means the citing spec's own project, `root` names the root project (`later-releases R39.3`).
 
 ### §3.2 Where a cite appears
 
