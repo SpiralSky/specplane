@@ -20,10 +20,21 @@ The plan skills are user-invoked only, so route natural-language requests to the
 | The user asks to | Run |
 |------------------|-----|
 | start a plan | `specplane plan start <id>` |
-| do the next step of a plan | `specplane plan next <id>`, then execute the step it names (`/plan-step`); record it with `specplane plan step-done <id>` |
+| do the next step of a plan | `specplane plan next <id>`, then execute the step it names. Claude Code uses `/plan-step`, which records the step; agents there must not run `step-done`. Codex follows the step procedure in `harnesses/codex/templates/skills/specplane/SKILL.md` and records with `specplane plan step-done <id>` and the flags that procedure requires |
 | finish a plan | `specplane plan finish <id>` |
 | see plan status | `specplane plan list --live` |
 | rebase a stacked plan after its base merged | `specplane plan restack <id>` |
+
+## Working rules
+
+These apply to any implementation work in this repository, and they take priority over a general default to keep going without stopping.
+
+- **Commit as you go.** Commit after each coherent unit of work and before ending a session, without being asked, so no large diff sits uncommitted. Keep commits small and single-purpose, follow `file-formats` §8, and stage specific paths rather than `git add -A`. Never push or rewrite history unless asked.
+- **One step at a time.** A plan step ends built, tested and committed, and the report gives the exact test result. Code that has not been built and tested is not done.
+- **Check the size first.** If a step looks too large to finish and commit in one session (roughly more than 1,000 changed lines), stop and propose a split before starting.
+- **Stop when progress stops.** After about an hour of work or 150 tool calls without a commit, commit whatever passes. If nothing can be committed, stop and report what is blocking instead of continuing.
+- **Subagents.** Use them only when asked, with one self-contained task each. Start them with `fork_turns: "none"`, `model: "gpt-6.1-sol"` and `reasoning_effort: "medium"` unless the user says otherwise. A subagent builds and runs its focused tests before reporting done; do not defer this to a later coordinated build. Integrate and commit a batch before starting another, and do not split one oversized step across parallel workers.
+- **Keep records to what landed.** Do not forecast, count remaining steps or rewrite `HANDOFF.md` unless asked; record a result only after it lands. Do not create per-batch result, review or audit files. Progress belongs in the plan's `HANDOFF.md` and gaps in its `spec-gaps.md`.
 
 ## Test runtime
 
