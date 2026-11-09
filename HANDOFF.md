@@ -22,7 +22,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 7 harness (R14,R18,R19,R19.1,R19.2,R20,R20.1,R21,R21.1,R26,R26.1,R26.2,R34,R35,R35.1,R38,R38.1,R47): `docs/specifications/features/harness.md`; `agent-integration.md` removed
 - [x] 8 cli (R16,R16.1,R17,R17.1,R17.2,R33,R33.1): `docs/specifications/features/cli.md`; `tooling.md` removed
 - [x] 9 verification (R12,R13,R13.1,R24,R24.1,R32,R36,R36.1-3,R61,R61.1-4,R64): `docs/specifications/features/verification.md`
-- [ ] 10 configuration
+- [x] 10 configuration (R25, R25.1, R54): `docs/specifications/features/configuration.md`
 - [ ] 11 later-releases
 - [ ] 12 (added by user, 2026-11-09) separate agent reviews all new specs
 - [ ] 13 (added by user, 2026-11-09) fix review findings and approve all new specs through `specplane spec approve`, never by hand-editing status; the LLM may approve everything except the requirements page in this repo
@@ -93,7 +93,13 @@ Assumptions from spec 9 (all revisable):
 - R36: marking implemented needs all declared checks pass on a commit; LLM may mark implemented by default, configurable; intelligent judgement is harness-only. Old `implementation: incomplete/partial/complete`, fingerprints, `spec complete` and step verification (minimums, risk_paths, self/separate/human) were dropped. Old finish-flow test command not carried (plan-execution does not define one).
 - Cites made: `configuration R25` must cover: audit retention (R13.1), auto-warn on/off (R24.1), pre-commit duplicate-id check (R32) and test commit gate (R36.3), whether an LLM may mark implemented (R36.1), test log storage on/off/local/git and its retention (R61.4), plus unknown keys being validated (R12). Also cites `requests R52`, `plans R28/R30`, `specifications R4/R5/R7/R9/R10/R11/§2`, `steering R59`, `harness R14`, `cli R17`. No hook blocked any edit.
 
-Next: spec 10, `configuration` (R25, R54), replacing old `configuration.md`.
+Assumptions from spec 10 (all revisable):
+- Section ids: `configuration` R25 (settings tables, validation), R25.1, R54, plus `§1` terms and `§2` edge cases. Setting names are my choice: `plans.worktree_dir`, `plans.setup_command`, `plans.start_conditions` (on), `notifications.push` (off) and `notifications.push_permissions`, `steering.custom`, `permissions.preset`, `harness.instructions`, `harness.retrieval_include_references` (off), `authorship.record_llm` (on), `audit.retention` (30 days), `auto_warn` (on), `architecture.llm_may_mark_implemented` (on), `tests.logs` (local/git/off), `tests.logs_retention` (30 days), later release `pre_commit.duplicate_requirement_ids` and `pre_commit.tests` (off). Retention defaults of 30 days are my choice.
+- Unknown or malformed keys are reported by validation and the default applies (verification R12). Old keys (authorship policy, llm_role, leak guard, overlays, status_source, dependency_mode) are dropped. `.specplane/config.yaml` still has old keys; not touched.
+- Configuration change permission: default presets user allow, LLM request user, most restrictive preset deny (matches the roles-and-permissions table; check against preset contents). No per-user override in first release. R54 documentation lists modes per preset and steering; command names for viewing were left unnamed.
+- `INFO.md` in features rewritten with the new spec set; it still mentions `decisions` and `spec-overlays` as old text for session 11 to replace. No hook blocked any edit. Cites made: `verification R12/R13/R61`, `requests R52`, `roles-and-permissions R50/R56/R57`, `steering R51/R59`, `harness R14`, `plan-execution R27/R31`, `specifications R9`.
+
+Next: spec 11, `later-releases` (R37, R39.1-R39.4, R66), replacing `decisions.md` and `spec-overlays.md`.
 Earlier next-note: spec 9 done. Earlier: spec 7, `harness` (R14, R18, R19, R20, R21, R26, R34, R35, R38, R47), replacing `agent-integration.md`.
 
 ## Current state
