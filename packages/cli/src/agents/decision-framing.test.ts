@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { test } from "node:test";
 import { runInit } from "../commands/init.js";
 import { checkFreshness } from "../commands/validate.js";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { checkGuidance } from "../docs/freshness.js";
 import { ConfigError } from "../errors.js";
 import { checkStanding, decisionFramingLine, standingText, upsertBlock, withDecisionFraming } from "./standing.js";

@@ -1,4 +1,4 @@
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { startPlan, type StartOptions } from './flows.js';
 
 /** Fixture setup uses the real start implementation without a separate CLI process.

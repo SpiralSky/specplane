@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { test } from 'node:test';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { parseFrontmatter } from '../frontmatter.js';
 import { renderSpecNew, specNew } from '../commands/spec.js';
 import { renderPlanNew, planNew } from '../commands/plan.js';

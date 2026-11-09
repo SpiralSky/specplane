@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 
 import * as path from "node:path";
 import { test } from "node:test";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { finishPlan, type FinishGate } from "./flows.js";
 import { acquireWriterLease } from "../core/writer-leases.js";
 import { createFinishFixture } from "./finish-fixture.js";

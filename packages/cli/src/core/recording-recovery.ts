@@ -2,7 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { lazyValidator } from '../lazy-validator.js';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { run } from '../git/exec.js';
 import { readTrailerEntries } from '../git/commit.js';
 import { planDir } from '../plan/resolve.js';

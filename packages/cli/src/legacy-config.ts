@@ -10,6 +10,21 @@ import type { Config, SessionMode, Warning } from "./types.js";
 
 export const CONFIG_PATH = ".specplane/config.yaml";
 
+/**
+ * LEGACY loader for the old plan, execution and decision subsystems, which `architecture/reference-cli` §11 rewrites later.
+ * The project's configuration is `config.ts` (`feature/configuration`); this file only keeps the old subsystems running and is
+ * removed with them. It silently skips the keys the new configuration owns so they are not reported twice.
+ */
+const NEW_MODEL_TOP = ["paths", "notifications", "steering", "permissions", "harness", "audit", "auto_warn", "architecture", "tests", "pre_commit", "coverage", "subprojects", "strict_mode", "bypass_guards", "roles"];
+const NEW_MODEL_PLANS = ["worktree_dir", "setup_command", "start_conditions", "parallelism"];
+
+function skipNewModelKeys(raw: Record<string, unknown>): void {
+  for (const k of NEW_MODEL_TOP) delete raw[k];
+  if (isObject(raw.authorship) && !("llm_role" in raw.authorship)) delete raw.authorship;
+  if (isObject(raw.plans)) for (const k of NEW_MODEL_PLANS) delete raw.plans[k];
+  if (isObject(raw.decisions)) delete raw.decisions.enabled;
+}
+
 /** Defaults from feature/configuration. */
 export const DEFAULT_CONFIG: Config = {
   spec_roots: [{ name: "base", path: "docs/specifications" }],
@@ -202,6 +217,7 @@ export function parseConfigText(text: string | null, root: string, opts: LoadCon
       throw new ConfigError(CONFIG_PATH, `malformed YAML: ${(e as Error).message.split("\n")[0]}`);
     }
     if (!isObject(raw)) throw new ConfigError(CONFIG_PATH, "must be a mapping");
+    skipNewModelKeys(raw);
   }
 
   const validate = validator(CONFIG_SCHEMA);

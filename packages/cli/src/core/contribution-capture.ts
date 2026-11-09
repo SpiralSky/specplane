@@ -7,7 +7,7 @@ import { readContainedFile, withContainedDirectory, type ContainedDirectory } fr
 import { run } from '../git/exec.js';
 import { parseFrontmatter } from '../frontmatter.js';
 import { lazyValidator } from '../lazy-validator.js';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { resolveSpecId } from '../spec/resolve.js';
 import { checkoutIdentity } from './writer-leases.js';
 import { assertPrepared, assertPreparedIdentity, canonical, sha256, withPreparedActivity, type PreparedState } from './workflow-preparation.js';

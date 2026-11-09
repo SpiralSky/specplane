@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { readTrailerEntries } from '../git/commit.js';
 import { acquireWriterLease } from '../core/writer-leases.js';
 import { repo, id, stepFile } from '../core/workflow-test-fixture.js';

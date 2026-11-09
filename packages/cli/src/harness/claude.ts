@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { withDecisionFraming } from "../agents/standing.js";
-import { configuredFraming } from "../config.js";
+import { configuredFraming } from "../legacy-config.js";
 import { type Harness, Report, skillDirsIn, templatesDir, withInstallTransaction } from "./index.js";
 import { assertInstallDestination, InstallationPathError } from "./containment.js";
 import type { InstallTransaction } from "./containment.transaction.js";

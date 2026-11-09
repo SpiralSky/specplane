@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { executeOperation } from '../core/index.js';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { shelveTransition } from './shelve.js';
 import { cleanupPlan } from './flows.js';
 import { planNext } from './next.js';
@@ -44,7 +44,7 @@ test('shelve and resume retain a dirty plan checkout and override its stale stat
  fs.writeFileSync(post,`#!/bin/sh\ngit update-ref 'refs/heads/plan/${id}' '${terminal}'\n`,{mode:0o755});
  let raceError='';try{shelveTransition(id,'shelve',config,root);}catch(e){raceError=String(e);}const raceCommit=git(root,'rev-parse','HEAD');assert.notEqual(raceCommit,head);assert.match(raceError,new RegExp(`commit ${raceCommit}.*retained`, 'i'));assert.equal(git(root,'rev-parse',`plan/${id}`),terminal);fs.rmSync(post);git(root,'reset','--hard',head);git(wt,'reset','--hard',planHead);
  // Inject an I/O failure at the second write, after the PLAN write completed.
- const moduleUrl=new URL('./shelve.js',import.meta.url).href, configUrl=new URL('../config.js',import.meta.url).href;
+ const moduleUrl=new URL('./shelve.js',import.meta.url).href, configUrl=new URL('../legacy-config.js',import.meta.url).href;
  const script=`import fs from 'node:fs'; import {syncBuiltinESMExports} from 'node:module'; const {filesystemMocks}=await import(${JSON.stringify(new URL('../fixtures.js', import.meta.url).href)}); const mocks=await filesystemMocks(); const original=fs.writeFileSync; mocks.method(fs,'writeFileSync',function(p,...a){ if(String(p)===process.argv[2]) throw new Error('injected index write failure'); return original.call(this,p,...a); }); syncBuiltinESMExports(); const {shelveTransition}=await import(${JSON.stringify(moduleUrl)}); const {loadConfig}=await import(${JSON.stringify(configUrl)}); try { shelveTransition(${JSON.stringify(id)},'shelve',loadConfig(process.argv[1]).config,process.argv[1]); process.exitCode=2; } catch(e) { if(!String(e).includes('injected index write failure')) { console.error(e); process.exitCode=3; } }`;
  const injected=spawnSync(process.execPath,['--input-type=module','-e',script,root,path.join(root,'plans/PLANS.md')],{encoding:'utf8',timeout:10000});assert.equal(injected.status,0,injected.stderr);assert.equal(git(root,'rev-parse','HEAD'),head);assert.equal(git(root,'status','--porcelain'),'');assert.equal(fs.readFileSync(path.join(root,file),'utf8'),text);assert.equal(fs.existsSync(path.join(root,'plans/PLANS.md')),false);
  const partialScript=script.replace("throw new Error('injected index write failure')", "{ original.call(this,p,'partial'); throw new Error('injected index write failure'); }").replace("if(!String(e).includes('injected index write failure'))", "if(!String(e).includes('ambiguous bytes retained'))");const partial=spawnSync(process.execPath,['--input-type=module','-e',partialScript,root,path.join(root,'plans/PLANS.md')],{encoding:'utf8',timeout:10000});assert.equal(partial.status,0,partial.stderr);assert.equal(fs.readFileSync(path.join(root,file),'utf8'),text);assert.equal(fs.readFileSync(path.join(root,'plans/PLANS.md'),'utf8'),'partial');assert.equal(git(root,'rev-parse','HEAD'),head);fs.rmSync(path.join(root,'plans/PLANS.md'));

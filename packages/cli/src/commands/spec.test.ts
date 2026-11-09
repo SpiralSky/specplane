@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { CONFIG, makeRepo, spec } from "../test-repo.js";
 import { fingerprintSpec } from "../core/completion.js";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { loadSpecs } from "../spec/validate.js";
 import { assessContent, completionSnapshot } from "../spec/completion.js";
 

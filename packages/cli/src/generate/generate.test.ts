@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { test } from "node:test";
 import { checkPlansMd } from "../commands/validate.js";
 import { runInit } from "../commands/init.js";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { blockedReason, getIndexStatus } from "../plan/status.js";
 import { makeRepo } from "../test-repo.js";
 import { toMermaid } from "./mermaid.js";

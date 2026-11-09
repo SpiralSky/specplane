@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { SpecplaneError, UnknownRootError, reportError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { readFrontmatter } from "../frontmatter.js";

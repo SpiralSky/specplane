@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
-import { DEFAULT_CONFIG } from "../config.js";
+import { DEFAULT_CONFIG } from "../legacy-config.js";
 import { FrontmatterError, PlanNotFoundError } from "../errors.js";
 import { fixture } from "../fixtures.js";
 import { listStepFiles, parsePlan, parseStep } from "./parse.js";

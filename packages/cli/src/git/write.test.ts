@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
-import { DEFAULT_CONFIG } from "../config.js";
+import { DEFAULT_CONFIG } from "../legacy-config.js";
 import { GitError, RebaseConflictError } from "../errors.js";
 import { branchExists, createBranch, deleteBranch, rebaseOnto } from "./branch.js";
 import { createWorktree, listWorktrees, removeWorktree, worktreePath } from "./worktree.js";

@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import { runInit } from '../commands/init.js';
 import { makeRepo } from '../test-repo.js';
 import { CODEX_SKILL } from './codex.js';
-import { DEFAULT_CONFIG } from '../config.js';
+import { DEFAULT_CONFIG } from '../legacy-config.js';
 import { checkSkillDrift } from '../spec/skill-drift.js';
 import { runPlan } from '../plan/run.js';
 const cli=path.join(path.dirname(fileURLToPath(import.meta.url)),'..','cli.js');

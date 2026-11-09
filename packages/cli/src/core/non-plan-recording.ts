@@ -4,7 +4,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { parseFrontmatter } from '../frontmatter.js';
 import * as path from 'node:path';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { resolveSpecId } from '../spec/resolve.js';
 import { run } from '../git/exec.js';
 import { validateRecordingSet, type RecordingSet } from '../plan/recording-set.js';

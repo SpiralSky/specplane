@@ -9,7 +9,7 @@ import { acquireWriterLease } from '../core/writer-leases.js';
 import { executeOperation } from '../core/index.js';
 import { lifecycleContext, refusePendingRetarget } from './lifecycle-context.js';
 import { firstStart } from './first-start.js';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 const id = '2026-11-02-example';
 function fixture() {
  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'retarget-'));

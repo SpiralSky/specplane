@@ -9,12 +9,3 @@ paths:
 
 plans:
   dir: plans
-
-# Kept only because the still-installed .claude/hooks/specplane-policy-guard.sh reads specs.<type>.llm_role.
-# The current model has no such setting; remove this block together with that hook (user decision 2026-11-09:
-# the LLM writes all non-requirement specs).
-specs:
-  feature:
-    llm_role: draft
-  architecture:
-    llm_role: draft

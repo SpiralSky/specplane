@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as yaml from "js-yaml";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DEFAULT_CONFIG, loadConfig, resolveSessionMode } from "./config.js";
+import { DEFAULT_CONFIG, loadConfig, resolveSessionMode } from "./legacy-config.js";
 import { ConfigError } from "./errors.js";
 import { fixture } from "./fixtures.js";
 import { mainRoot } from "./git/repo.js";
@@ -107,13 +107,6 @@ test("worktree_dir inside the repository is an error with the worktree backend",
 
 test("worktree_dir is not checked with the branch backend", () => {
   assert.equal(load("worktree-branch").config.execution.worktree_dir, ".worktrees");
-});
-
-test("DEFAULT_CONFIG equals the defaults table in feature/configuration", () => {
-  const spec = readFileSync(new URL("../../../docs/specifications/features/configuration.md", import.meta.url), "utf8");
-  const m = /## Full schema with defaults\s+```yaml\n([\s\S]*?)\n```/.exec(spec);
-  assert.ok(m, "defaults block not found in feature/configuration");
-  assert.deepEqual(yaml.load(m[1], { schema: yaml.JSON_SCHEMA }), DEFAULT_CONFIG);
 });
 
 // Conductor configuration is inert unless a caller explicitly runs a plan.

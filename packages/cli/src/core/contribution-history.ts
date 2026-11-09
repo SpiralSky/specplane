@@ -1,7 +1,7 @@
 /** Read committed attribution without turning published declarations into host proof. */
 import * as path from 'node:path';
 import { run } from '../git/exec.js';
-import { CONFIG_PATH, parseConfigText } from '../config.js';
+import { CONFIG_PATH, parseConfigText } from '../legacy-config.js';
 import { SpecNotFoundError, UnknownRootError } from '../errors.js';
 import { resolveSpecId } from '../spec/resolve.js';
 import { parseSpecContent } from '../spec/parse.js';

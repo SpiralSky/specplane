@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import * as yaml from 'js-yaml';
-import { parseConfigText, CONFIG_PATH } from '../config.js';
+import { parseConfigText, CONFIG_PATH } from '../legacy-config.js';
 import { acquireWriterLease, inspectWriterLease } from '../core/writer-leases.js';
 import { PlanStateError } from '../errors.js';
 import { run } from '../git/exec.js';

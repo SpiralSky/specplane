@@ -1,7 +1,7 @@
 import { withCheckoutLease } from "../core/checkout-coordination.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { SpecNotFoundError, SpecplaneError } from "../errors.js";
 import { abbrev, committedBlob, hasUncommittedChanges } from "../git/blobs.js";
 import { checkoutRoot } from "../git/repo.js";

@@ -8,7 +8,7 @@ import { releaseStoppedPreparation, sha256, preparedVerification } from './workf
 import { computeTier, globMatch, recordVerificationCheck } from './verification.js';
 import { workflowStateDigest } from './workflow-execution.js';
 import { prepareVerifyReview, recordVerifyReview } from './verify-review.js';
-import { DEFAULT_CONFIG } from '../config.js';
+import { DEFAULT_CONFIG } from '../legacy-config.js';
 import type { CoreContext, ExecutionPort, WorkflowResult, WorkflowTestRequest } from './contracts.js';
 
 const TAP_PASS = 'TAP version 13\n# Subtest: unit\n    ok 1 - adds\n    1..1\nok 1 - unit\n1..1\n';

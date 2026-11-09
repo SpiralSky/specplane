@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { lazyValidator } from '../lazy-validator.js';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { checkoutRoot } from '../git/repo.js';
 import { run } from '../git/exec.js';
 import { hasRecoveryOperation } from '../generate/snapshot.js';

@@ -2,7 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { lazyValidator } from '../lazy-validator.js';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { run } from '../git/exec.js';
 import { stepDone, type StepDoneResult, type GeneratedRecording } from '../plan/step-done.js';
 import { validatePlans } from '../plan/validate.js';

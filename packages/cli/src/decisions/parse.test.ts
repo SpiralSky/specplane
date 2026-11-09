@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DEFAULT_CONFIG } from "../config.js";
+import { DEFAULT_CONFIG } from "../legacy-config.js";
 import { fixture } from "../fixtures.js";
 import { listAdrs } from "./parse.js";
 

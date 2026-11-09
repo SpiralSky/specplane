@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { upsertBlock } from "../agents/standing.js";
 import { refreshGuidance } from "../docs/freshness.js";
-import { CONFIG_PATH, configuredFraming, loadConfig } from "../config.js";
+import { CONFIG_PATH, configuredFraming, loadConfig } from "../legacy-config.js";
 import { SpecplaneError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { type Harness, NO_HARNESS_HINT, Report, selectHarnesses } from "../harness/index.js";

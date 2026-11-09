@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { resolveCommit, resolvePlanContext, validateExecutionBinding } from "./context.js";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { parsePlan } from "./parse.js";
 
 const id = "2026-11-02-example";

@@ -8,7 +8,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { RunnerResponse } from '../core/workflow-runner.js';
 import { resolveSuite, type SuiteTable } from './claude-suites.js';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { resolveSpecId } from '../spec/resolve.js';
 import { SpecNotFoundError } from '../errors.js';
 import type { ConfirmationChallenge, ConfirmationResponse, InteractionPort } from '../core/contracts.js';

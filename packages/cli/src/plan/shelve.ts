@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { acquireWriterLease, inspectWriterLease } from '../core/writer-leases.js';
 import { PlanStateError } from '../errors.js';
 import { generatePlansMd } from '../generate/plans-md.js';

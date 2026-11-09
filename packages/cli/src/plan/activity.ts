@@ -9,7 +9,7 @@ import { defaultBranch } from "../git/repo.js";
 import { resolvePlanContext, validateExecutionBinding, validatePlanBranches, validateTargetBranch, type PlanBranchSnapshot } from "./context.js";
 import * as fs from "node:fs";
 import { isDeepStrictEqual } from "node:util";
-import { CONFIG_PATH, parseConfigText } from "../config.js";
+import { CONFIG_PATH, parseConfigText } from "../legacy-config.js";
 import { PLAN_SCHEMA, validator } from "../schemas.js";
 import { mergedPRCommit } from "../git/forge.js";
 import { PlanStateError } from "../errors.js";

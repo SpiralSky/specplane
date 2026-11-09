@@ -2,7 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { parseFrontmatter } from '../frontmatter.js';
 import { resolveSpecId } from '../spec/resolve.js';
 import { slugify } from '../spec/slug.js';

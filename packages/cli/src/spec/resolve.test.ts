@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import * as path from "node:path";
 import { test } from "node:test";
-import { DEFAULT_CONFIG } from "../config.js";
+import { DEFAULT_CONFIG } from "../legacy-config.js";
 import { AmbiguousIdError, SpecNotFoundError, UnknownRootError } from "../errors.js";
 import { fixture } from "../fixtures.js";
 import type { Config } from "../types.js";

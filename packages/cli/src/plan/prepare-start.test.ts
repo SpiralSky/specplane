@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { prepareStart } from "./prepare-start.js";
 
 const id = "2026-11-02-example";

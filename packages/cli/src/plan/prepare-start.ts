@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import { parseConfigText, CONFIG_PATH } from "../config.js";
+import { parseConfigText, CONFIG_PATH } from "../legacy-config.js";
 import { AmbiguousIdError, PlanNotFoundError, PlanStateError, SpecNotFoundError, UnknownRootError } from "../errors.js";
 import { run } from "../git/exec.js";
 import { readTrailers } from "../git/commit.js";

@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { withCheckoutLease } from "../core/checkout-coordination.js";
 
 import { loadAdrs, validateAdrs } from "../decisions/validate.js";

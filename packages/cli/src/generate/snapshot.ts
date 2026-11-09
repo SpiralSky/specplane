@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import { run } from '../git/exec.js';
 import { GitError } from '../errors.js';
-import { CONFIG_PATH, parseConfigText } from '../config.js';
+import { CONFIG_PATH, parseConfigText } from '../legacy-config.js';
 import type { Config, Warning } from '../types.js';
 
 export type SnapshotSource = 'head' | 'staged' | 'working';

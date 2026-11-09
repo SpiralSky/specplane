@@ -98,7 +98,7 @@ export function createFinishFixture() {
   // Scripted human port: exercises the actual confirmation callback with the displayed head and target.
   const finConfirmed = (r: R, noFetch = false, env: NodeJS.ProcessEnv = ENV) => {
     const flow = new URL("./flows.js", import.meta.url).href;
-    const config = new URL("../config.js", import.meta.url).href;
+    const config = new URL("../legacy-config.js", import.meta.url).href;
     const script = `import { finishPlan } from ${JSON.stringify(flow)}; import { loadConfig } from ${JSON.stringify(config)};
       try { const result = await finishPlan(process.argv[1], loadConfig(process.cwd()).config, process.cwd(), { fetch: ${!noFetch}, confirm: async q => { if (!/ at .* into .* at /.test(q)) throw new Error("missing state"); return true; } });
         process.stdout.write((result.outcome === "merged" ? "Finished and merged" : result.outcome === "pushed" ? "Finished and pushed" : "Finished") + "\\n"); process.stderr.write(result.notices.join("\\n")); }
@@ -109,7 +109,7 @@ export function createFinishFixture() {
 
   const finWithCallback = (r: R, callbackBody: string) => {
     const flow = new URL("./flows.js", import.meta.url).href;
-    const config = new URL("../config.js", import.meta.url).href;
+    const config = new URL("../legacy-config.js", import.meta.url).href;
     const script = `import { finishPlan } from ${JSON.stringify(flow)}; import { loadConfig } from ${JSON.stringify(config)}; import { execFileSync } from "node:child_process"; import fs from "node:fs";
       let count = 0; try { const result = await finishPlan(process.argv[1], loadConfig(process.cwd()).config, process.cwd(), { confirm: async q => { count++; ${callbackBody} return true; } }); console.log(result.outcome); }
       catch (e) { console.error(String(e)); process.exitCode = 1; }`;

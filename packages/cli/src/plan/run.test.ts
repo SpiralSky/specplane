@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { test, type TestContext } from "node:test";
-import { DEFAULT_CONFIG } from "../config.js";
+import { DEFAULT_CONFIG } from "../legacy-config.js";
 import type { SessionAdapter, SessionCapabilities, SessionRequest, SessionState } from "../core/contracts.js";
 import { sessionIdFor } from "./session-identity.js";
 import type { PlanNext } from "./next.js";

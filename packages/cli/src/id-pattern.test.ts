@@ -15,7 +15,7 @@ test("ID pattern rejects invalid IDs", () => {
 });
 
 test("qualified IDs resolve through the root prefix", async () => {
-  const { DEFAULT_CONFIG } = await import("./config.js");
+  const { DEFAULT_CONFIG } = await import("./legacy-config.js");
   const { resolveSpecId } = await import("./spec/resolve.js");
   const cfg = { ...DEFAULT_CONFIG, spec_roots: [{ name: "claude", path: "docs/specifications" }] };
   assert.throws(() => resolveSpecId("claude:feature/x", cfg, undefined, "/nonexistent"), /not found/);

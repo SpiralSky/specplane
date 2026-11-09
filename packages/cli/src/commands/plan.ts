@@ -2,7 +2,7 @@ import { firstStart } from "../plan/first-start.js";
 import { withBranchNameCache } from "../git/branch-name.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { AlreadyExistsError, SpecplaneError, reportError } from "../errors.js";
 import { generateWorkingPlansMd } from "../generate/plans-md.js";
 import { ask, csv, interactive, applyCreationScaffold, type CreationScaffold } from "./spec.js";

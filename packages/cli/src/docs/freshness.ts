@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { InstallTransaction } from '../harness/containment.transaction.js';
 import { blockHash, checkStanding, findBlock, upsertBlock, withDecisionFraming, type ReleaseIdentity } from '../agents/standing.js';
-import { configuredFraming } from '../config.js';
+import { configuredFraming } from '../legacy-config.js';
 import { assertInstallDestination, writeInstallFile } from '../harness/containment.js';
 import { HARNESSES, templatesDir, type Harness } from '../harness/index.js';
 import { loadReleasedDocs } from './operations.js';

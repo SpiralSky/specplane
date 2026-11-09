@@ -9,6 +9,7 @@ import { planApproveCommand } from "./commands/plan-approve.js";
 import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
+import { configGetCommand, configListCommand, configSetCommand, configUnsetCommand, permissionsCommand } from "./commands/config.js";
 import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, specReopenHuman } from "./commands/spec-human.js";
 import { searchCommand } from "./commands/search.js";
 import { docsCommand, docsSearchCommand } from "./commands/docs.js";
@@ -172,6 +173,12 @@ override.command("approver <id> <approver>").description("Set the approver: huma
   .action((id: string, approver: string, opts) => specOverrideHuman("approver", id, [approver], opts));
 override.command("test <id> <test> <result>").description("Set a test result (passed, failed) or clear it").option("--summary <text>").option("--no-commit").option("--json")
   .action((id: string, test: string, result: string, opts) => specOverrideHuman("test", id, [test, result], opts));
+const configCmd = program.command("config").description("Read or change settings (feature/configuration)");
+configCmd.command("get [key]").description("Show a setting, its source and default; all settings without a key").option("--json").action((key: string | undefined, opts) => configGetCommand(key, opts));
+configCmd.command("list").description("Show every setting").option("--json").action((opts) => configListCommand(opts));
+configCmd.command("set <key> <value>").description("Set a setting (needs the config.change permission)").option("--json").action((k: string, v: string, opts) => configSetCommand(k, v, opts));
+configCmd.command("unset <key>").description("Remove a setting so its default applies").option("--json").action((k: string, opts) => configUnsetCommand(k, opts));
+program.command("permissions [id]").description("Show which role holds which permission, or the documentation of one permission").option("--json").action((id: string | undefined, opts) => permissionsCommand(id, opts));
 const role = program.command("role").description("Show or switch the CLI role");
 role.command("show").action(() => roleShowHuman());
 role.command("switch <role>").description("administrator or standard-user").action((r: string) => roleSwitchHuman(r));

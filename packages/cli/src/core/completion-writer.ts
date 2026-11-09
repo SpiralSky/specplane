@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import * as yaml from 'js-yaml';
 import { isDeepStrictEqual } from 'node:util';
-import { CONFIG_PATH, parseConfigText } from '../config.js';
+import { CONFIG_PATH, parseConfigText } from '../legacy-config.js';
 import { checkoutRoot } from '../git/repo.js';
 import { run } from '../git/exec.js';
 import { parseFrontmatter } from '../frontmatter.js';

@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../legacy-config.js";
 import { acquireWriterLease } from "../core/writer-leases.js";
 import { firstStart, recheckStartRefs } from "./first-start.js";
 import { prepareStart } from "./prepare-start.js";

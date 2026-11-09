@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { checkAllPins } from '../commands/spec-pin.js';
-import { loadConfig } from '../config.js';
+import { loadConfig } from '../legacy-config.js';
 import { checkSkillDrift } from '../spec/skill-drift.js';
 import { CONFIG, makeRepo, spec } from '../test-repo.js';
 import { EXPECTED_CLAUDE_PENDING, releaseBlockers, releaseEvidence } from './release-evidence.js';

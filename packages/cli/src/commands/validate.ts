@@ -6,7 +6,7 @@ import { checkStanding, withDecisionFraming } from "../agents/standing.js";
 import { type Harness, HARNESSES, templatesDir } from "../harness/index.js";
 import { generatePlansMd } from "../generate/plans-md.js";
 import { checkoutRoot } from "../git/repo.js";
-import { configuredFraming } from "../config.js";
+import { configuredFraming } from "../legacy-config.js";
 import { finding, makeReport } from "../report.js";
 import { formatReport, validateProject } from "../verify/validate.js";
 import type { Config, ValidationReport } from "../types.js";
