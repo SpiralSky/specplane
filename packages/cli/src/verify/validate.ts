@@ -81,7 +81,7 @@ function checkSpecFormat(doc: SpecDoc, emit: Emit): void {
       if (m) err(m);
       if (typeof a.date !== "string" || !DATE.test(a.date)) err("approval.date must be YYYY-MM-DD");
       if (typeof a.commit !== "string" || !/^[0-9a-f]{40}$/.test(a.commit)) err("approval.commit must be a 40-character commit hash");
-      if (a.fingerprint !== undefined && (typeof a.fingerprint !== "string" || !/^spec-v2:sha256:[0-9a-f]{64}$/.test(a.fingerprint))) err("approval.fingerprint must look like spec-v2:sha256:<hex>");
+      if (a.fingerprint !== undefined && (typeof a.fingerprint !== "string" || !/^spec-v3:sha256:[0-9a-f]{64}$/.test(a.fingerprint))) err("approval.fingerprint must look like spec-v3:sha256:<hex>");
       if (a.cited !== undefined) {
         if (!isMap(a.cited) || Object.values(a.cited).some((x) => typeof x !== "string")) err("approval.cited must map cite strings to part fingerprints");
       }

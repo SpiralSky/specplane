@@ -242,7 +242,10 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   }
 
   const todo = members.filter((d) => effective.get(d.id)?.status !== "approved");
-  if (todo.length === 0) {
+  // An approved spec whose approval was written by hand lacks `fingerprint`/`cited`: re-record them (`file-formats` §2.3).
+  const rerecord = members.filter((d) => effective.get(d.id)?.status === "approved" && d.fm.data?.status === "approved"
+    && isMap(d.fm.data.approval) && (d.fm.data.approval.fingerprint === undefined || d.fm.data.approval.cited === undefined));
+  if (todo.length === 0 && rerecord.length === 0) {
     for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "done", reason: "already approved" });
     return result({ ok: true, lines: [`Already approved: ${members.map((m) => m.id).join(", ")}. Nothing changed.`] });
   }
@@ -265,18 +268,30 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   const ops: WriteOp[] = todo.map((doc) => ({
     doc, edits: { status: "approved", "review-reason": undefined, approval: approvalBlock(ctx, head, doc, name!) },
   }));
-  const body = todo.length > 1 ? `Approved together as a group: ${todo.map((d) => d.id).join(", ")}.` : "";
-  const subject = `approve ${todo.map((d) => d.id).join(" ")}`;
-  const summary = `docs(specs): ${subject}`.length <= 72 ? subject : `approve ${todo.length} specs`;
-  const { commit, notes } = writeAndCommit(auth, ctx, ops, "approve", summary, body || todo.map((d) => d.id).join("\n"), !!opts.noCommit);
+  // Re-recording keeps who approved, when, the commit and the note; it only adds the two fields.
+  for (const doc of rerecord) {
+    ops.push({ doc, edits: { approval: { ...(doc.fm.data!.approval as Record<string, unknown>), ...fingerprintsOf(head, doc) } } });
+  }
+  const all = [...todo, ...rerecord];
+  const body = all.length > 1 ? `Approved together as a group: ${all.map((d) => d.id).join(", ")}.` : "";
+  const verb = todo.length === 0 ? "record approval of" : "approve";
+  const subject = `${verb} ${all.map((d) => d.id).join(" ")}`;
+  const summary = `docs(specs): ${subject}`.length <= 72 ? subject : `${verb} ${all.length} specs`;
+  const { commit, notes } = writeAndCommit(auth, ctx, ops, "approve", summary, body || all.map((d) => d.id).join("\n"), !!opts.noCommit);
   for (const doc of todo) {
     auditAll(ctx, { command: "spec approve", args: [doc.id], permission: "spec.approve", outcome: "done",
       old: { status: doc.fm.data?.status ?? null, effective: effective.get(doc.id)?.status }, new: { status: "approved", by: { human: name } } });
   }
-  const skipped = members.filter((m) => !todo.includes(m));
+  for (const doc of rerecord) {
+    auditAll(ctx, { command: "spec approve", args: [doc.id], permission: "spec.approve", outcome: "done", reason: "re-recorded fingerprint and cited",
+      old: { status: "approved", fingerprint: null }, new: { status: "approved", fingerprint: "recorded" } });
+  }
+  const skipped = members.filter((m) => !all.includes(m));
+  const cm = commit ? ` (commit ${commit.slice(0, 7)})` : "";
   return result({
-    ok: true, commit, written: todo.map((d) => d.id),
-    lines: [`Approved ${todo.map((d) => d.id).join(", ")} as ${name}${commit ? ` (commit ${commit.slice(0, 7)})` : ""}.`,
+    ok: true, commit, written: all.map((d) => d.id),
+    lines: [...(todo.length ? [`Approved ${todo.map((d) => d.id).join(", ")} as ${name}${cm}.`] : []),
+      ...(rerecord.length ? [`Re-recorded fingerprint and cited parts of ${rerecord.map((d) => d.id).join(", ")}; status and approver unchanged${todo.length ? "" : cm}.`] : []),
       ...(skipped.length ? [`Already approved, left alone: ${skipped.map((s) => s.id).join(", ")}.`] : []), ...notes],
   });
 }
@@ -370,14 +385,6 @@ export function metaSet(ctx: Ctx, id: string, field: string, raw: string, opts: 
   const { commit, notes } = writeAndCommit(g.token, ctx, [{ doc, edits }], "spec", `set ${field} of ${id}`, "", !!opts.noCommit);
   auditAll(ctx, { command: "spec meta set", args: [id, field], permission: g.permissions[0], outcome: "done", old: { [field]: old }, new: { [field]: value } });
   const lines = [`Set \`${field}\` of \`${id}\`.${commit ? ` Commit ${commit.slice(0, 7)}.` : ""}`, ...notes];
-  if (commit && ["title", "covers", "references"].includes(field)) {
-    const after = loadHead(ctx.root);
-    const d2 = after.specs.get(id)!;
-    const st = computeStatus(after, d2, new CommitProjects(ctx.root, after));
-    if (st.status === "awaiting-review" && d2.fm.data?.status === "approved") {
-      lines.push(`Note: \`${field}\` is part of the content fingerprint, so \`${id}\` is now awaiting review (${st.reasons.join("; ")}).`);
-    }
-  }
   return result({ ok: true, commit, written: [id], lines });
 }
 

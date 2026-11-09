@@ -56,7 +56,7 @@ export function computeStatus(head: Project, doc: SpecDoc, commits: CommitProjec
   const nowSpecFp = specFingerprint(doc.text);
   const storedFp = typeof approval.fingerprint === "string" ? approval.fingerprint : null;
   if (storedFp) {
-    if (!/^spec-v2:sha256:[0-9a-f]{64}$/.test(storedFp)) { reasons.push("edited"); warnings.push(`unknown fingerprint version in approval: ${storedFp}`); }
+    if (!/^spec-v3:sha256:[0-9a-f]{64}$/.test(storedFp)) { reasons.push("edited"); warnings.push(`unknown fingerprint version in approval: ${storedFp}`); }
     else if (storedFp !== nowSpecFp) reasons.push("edited");
   } else {
     const then = atCommit?.source.read(doc.file) ?? null;
@@ -74,14 +74,20 @@ export function computeStatus(head: Project, doc: SpecDoc, commits: CommitProjec
     const res = resolveCite(head, cite);
     if (!res.ok && res.code === "later-release") continue;
     const nowFp = res.ok ? targetFingerprint(res.target) : null;
+    // A dependency added after approval is a metadata change, not an edit (`cli R17`): nothing was recorded to
+    // compare it with, so it is not outdated until the spec is approved again.
     let changed: boolean;
     if (cited) {
       const exp = cited[raw];
-      changed = typeof exp !== "string" || nowFp === null || exp !== nowFp;
+      changed = typeof exp === "string" && (nowFp === null || exp !== nowFp);
     } else if (!atCommit) changed = false; // approval cannot be checked; step 2 already reported it
     else {
-      const then = resolveCite(atCommit, cite);
-      changed = !then.ok || nowFp === null || targetFingerprint(then.target) !== nowFp;
+      const thenData = atCommit.specs.get(doc.id)?.fm.data;
+      if (!thenData || !dependencyCites(thenData).includes(raw)) changed = false;
+      else {
+        const then = resolveCite(atCommit, cite);
+        changed = !then.ok || nowFp === null || targetFingerprint(then.target) !== nowFp;
+      }
     }
     if (changed) reasons.push(`outdated: ${raw}`);
     if (res.ok && res.target.specId && res.target.specId !== doc.id) {

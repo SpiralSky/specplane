@@ -23,13 +23,16 @@ const lf = (s: string): string => s.replace(/\r\n?/g, "\n");
 
 export const SPEC_EXCLUDED = ["status", "approval", "authors", "review-reason", "results", "implementation"] as const;
 
-/** `spec-v2` fingerprint of a spec file, or null when its frontmatter cannot be read. */
+/** Metadata a spec fingerprint leaves out: a change to metadata alone is not an edit (`cli R17`, `specifications R11.3`). */
+export const SPEC_FP_EXCLUDED = [...SPEC_EXCLUDED, "title", "covers", "implements", "references"] as const;
+
+/** `spec-v3` fingerprint of a spec file, or null when its frontmatter cannot be read. */
 export function specFingerprint(text: string): string | null {
   const fm = splitFrontmatter(text);
   if (!fm.data) return null;
   const frontmatter: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(fm.data)) if (!(SPEC_EXCLUDED as readonly string[]).includes(k)) frontmatter[k] = v;
-  return `spec-v2:sha256:${sha(canonicalJson({ frontmatter, body: lf(fm.body) }))}`;
+  for (const [k, v] of Object.entries(fm.data)) if (!(SPEC_FP_EXCLUDED as readonly string[]).includes(k)) frontmatter[k] = v;
+  return `spec-v3:sha256:${sha(canonicalJson({ frontmatter, body: lf(fm.body) }))}`;
 }
 
 /** `sec-v1` fingerprint of a cited part: LF text with trailing blank lines removed. */
@@ -39,7 +42,7 @@ export function partFingerprint(text: string): string {
   return `sec-v1:sha256:${sha(lines.join("\n"))}`;
 }
 
-/** `plan-v1` fingerprint of a PLAN.md: like `spec-v2` without the `commit` of each `implements` entry. */
+/** `plan-v1` fingerprint of a PLAN.md: like `spec-v3` (but with title, covers, implements and references kept) without the `commit` of each `implements` entry. */
 export function planFingerprint(text: string): string | null {
   const fm = splitFrontmatter(text);
   if (!fm.data) return null;

@@ -118,13 +118,14 @@ test("requirements: duplicate, retired-in-use and orphan IDs are reported", () =
   assert.ok(msgs.some((m) => /R5.1 has no parent R5/.test(m)));
 });
 
-test("fingerprints: spec-v2 ignores status, approval, authors, review-reason; counts body and dependencies", () => {
+test("fingerprints: spec-v3 ignores status, approval, authors, review-reason and title, covers, references; counts body", () => {
   const base = specFingerprint(SPEC)!;
-  assert.match(base, /^spec-v2:sha256:[0-9a-f]{64}$/);
+  assert.match(base, /^spec-v3:sha256:[0-9a-f]{64}$/);
   const approved = SPEC.replace("status: awaiting-review", "status: approved\napproval:\n  commit: abc").replace("authors:\n  - llm: claude-sonnet-5-5\n    contribution: drafted", "authors: []\nreview-reason: edited");
   assert.equal(specFingerprint(approved), base);
   assert.notEqual(specFingerprint(SPEC.replace("Sub text.", "Sub text!")), base);
-  assert.notEqual(specFingerprint(SPEC.replace("covers: [R1]", "covers: [R1, R2]")), base);
+  assert.equal(specFingerprint(SPEC.replace("covers: [R1]", "covers: [R1, R2]")), base, "covers is metadata");
+  assert.equal(specFingerprint(SPEC.replace(/^title: .*$/m, "title: Other")), base, "title is metadata");
   assert.equal(specFingerprint(SPEC.replace(/\n/g, "\r\n")), base, "CRLF is normalised to LF");
   assert.equal(specFingerprint("no frontmatter"), null);
 });

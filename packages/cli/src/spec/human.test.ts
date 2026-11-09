@@ -61,7 +61,7 @@ test("approve: records approver, fingerprint and cited map, commits only the spe
   assert.match(text, /status: approved/);
   assert.match(text, /by:\n {4}human: Pat Person/);
   assert.match(text, /date: 2026-11-10/);
-  assert.match(text, /fingerprint: spec-v2:sha256:[0-9a-f]{64}/);
+  assert.match(text, /fingerprint: spec-v3:sha256:[0-9a-f]{64}/);
   assert.match(text, /b R9: sec-v1:sha256:[0-9a-f]{64}/);
   assert.match(text, /commit: [0-9a-f]{40}/);
   assert.equal(effective(root, "a").status, "approved");
@@ -146,6 +146,27 @@ test("approve: already approved does nothing and says so", async () => {
   assert.equal(count(root), before);
 });
 
+test("approve: an approved spec with a hand-format approval is re-recorded, status and approver unchanged", async () => {
+  const root = repo({ a: fm("a") });
+  await approveSpecs(ctx(root), ["feature/a"]);
+  const p = path.join(root, F, "a.md");
+  const stripped = fs.readFileSync(p, "utf8").replace(/^ {2}fingerprint: .*\n/m, "").replace(/^ {2}cited: \{\}\n/m, "");
+  assert.doesNotMatch(stripped, /fingerprint/);
+  fs.writeFileSync(p, stripped);
+  sh(root, "add", p); sh(root, "commit", "-qm", "hand approval");
+  assert.equal(effective(root, "a").status, "approved");
+  const r = await approveSpecs(ctx(root), ["feature/a"]);
+  assert.ok(r.ok, r.reasons.join());
+  assert.match(r.lines.join("\n"), /Re-recorded/);
+  const text = read(root, "a");
+  assert.match(text, /fingerprint: spec-v3:sha256:[0-9a-f]{64}/);
+  assert.match(text, /status: approved/);
+  assert.match(text, /human: Pat Person/);
+  assert.equal(effective(root, "a").status, "approved");
+  const again = await approveSpecs(ctx(root), ["feature/a"]);
+  assert.match(again.lines[0], /Already approved/);
+});
+
 test("approve: a current failed test result blocks approval; an outdated one does not", async () => {
   const root = repo({ a: fm("a") });
   const set = overrideSpec(ctx(root, "administrator"), "test", "feature/a", ["R9#1", "failed"]);
@@ -228,10 +249,13 @@ test("meta set title: one audit entry with field, old value, new value and user;
   const t = metaSet(ctx(root), "feature/a", "title", "Better title");
   assert.ok(t.ok);
   assert.match(read(root, "a"), /^title: Better title$/m);
-  assert.match(t.lines.join("\n"), /content fingerprint/);
+  assert.doesNotMatch(t.lines.join("\n"), /fingerprint|awaiting/);
+  assert.equal(effective(root, "a").status, "approved", "title is metadata (cli R17)");
   const e = audit(root).at(-1)!;
   assert.deepEqual([e.command, e.old, e.new, e.actor.name, e.permission], ["spec meta set", { title: "a" }, { title: "Better title" }, "Pat Person", "meta.write.title"]);
   assert.match(read(root, "a"), /status: approved/, "stored status is untouched by metadata");
+  assert.ok(metaSet(ctx(root), "feature/a", "covers", "R9, R10").ok);
+  assert.equal(effective(root, "a").status, "approved", "covers is metadata (cli R17)");
 });
 
 test("meta set: refuses unknown fields and bad values, never touches the body", async () => {
