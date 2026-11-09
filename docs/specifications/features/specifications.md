@@ -12,7 +12,7 @@ approval:
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-covers: [R1, R2, R4, R5, R7, R9, R10, R11, R40, R65, R67, R68]
+covers: [R1, R2, R4, R5, R7, R9, R10, R10.1, R11, R11.1, R11.2, R11.3, R11.4, R40, R65, R67, R68]
 references: [later-releases R39.3, verification R64, plans R28, plans R30.1, roles-and-permissions R57, harness R14, configuration R25, cli R16, verification R61, plans §2]
 ---
 

@@ -12,8 +12,8 @@ approval:
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-covers: [R28, R29, R30, R69]
-references: [R7, R9, R11, R11.2, R19.2, R24, specifications R65, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.6, requests R52, steering R59, R27, R4, plan-execution R31.1]
+covers: [R28, R28.1, R29, R29.1, R29.2, R29.3, R30, R30.1, R69]
+references: [R7, R9, R11, R11.2, R19.2, R24, specifications R65, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.6, plan-execution R27.3, requests R52, steering R59, R27, R4, plan-execution R31.1]
 ---
 
 # Plans
@@ -45,7 +45,7 @@ A plan is written in a format similar to a specification (`R7`): metadata at the
 - A plan's identifier is the date it was created followed by two to four words, for example `2026-11-09-plan-editing`. It matches the plan's folder name and never changes, even if the title does. Two plans created on parallel branches with the same identifier show up as an ordinary git conflict.
 - A plan is cited as `plan/<id>`. Citing another plan or a specification makes it a dependency of the plan (`R9`), and a reference that does not exist is reported.
 - The plan body states, in any order and with any of these left out: the goal, what is in and out of scope, the specifications it implements or writes, acceptance criteria that confirm the plan is complete, risks, and the list of steps with a one-line summary each.
-- A plan that references another plan does not start before that plan is completed unless the user says otherwise (`plan-execution R27`).
+- A plan that references another plan does not start before that plan is completed unless the user says otherwise (`plan-execution R27.6`; this rule is an assumption beyond the page).
 - A reference cycle between plans is reported before the plan starts.
 
 Scenario: Given plan A references plan B and plan B references plan A, When the user validates, Then the cycle is reported naming both.
@@ -58,7 +58,7 @@ A step can write or change specifications of a higher layer than the implementat
 
 - Such a step follows the permissions of the LLM's role (`R19.2`). A role that may not write a specification cannot run the step; the plan stops (`plan-execution R27.1`) or sends a request (`requests R52`) instead of writing.
 - Specifications a step writes start as Awaiting Review (`R11`). Writing them never approves them.
-- A step that implements a specification written by an earlier step in the same plan cannot run until that specification is Approved. Until then the plan stops or the step is held while later work that does not depend on the specification continues, as `plan-execution R27` describes.
+- A step that implements a specification written by an earlier step in the same plan cannot run until that specification is Approved. Until then the plan stops at that step with a soft stop that names the approval it waits for (`plan-execution R27.3`). No later step runs past it, because the next step is always the lowest-numbered step that is not done; only work inside the held step that does not depend on the specification may continue.
 - Each step names the specifications it writes and those it implements, so the dependency is visible before anything runs.
 
 Scenario: Given step 2 writes `feature/export` from a requirement and step 3 implements it, When step 2 finishes, Then `feature/export` is Awaiting Review and step 3 does not run until it is Approved.

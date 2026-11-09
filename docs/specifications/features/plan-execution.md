@@ -12,7 +12,7 @@ approval:
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-covers: [R27, R31]
+covers: [R27, R27.1, R27.1.1, R27.2, R27.2.1, R27.3, R27.4, R27.5, R27.5.1, R27.5.2, R27.6, R31, R31.1, R31.2]
 references: [R11, R18, R19.2, R24, R33, plans R28, plans R28.1, plans R29, plans R30, plans R30.1, plans §1, plans §2.1, plans §2.2, plans §3.1, plans §3.2, requests R52, steering R59, roles-and-permissions R57, configuration R25]
 ---
 
@@ -71,7 +71,7 @@ The user can start a plan run through the harness. The run is a session the user
 - **Target branch.** The target branch is the one named when the plan starts, and otherwise the branch the user is on. It is recorded with the commit the plan started from, and later steps and the final review use that record even if the branches move. A plan whose target branch no longer exists stops until the user chooses a new one.
 - **Steps and sessions.** A session works through steps in order, one at a time. Each finished step ends with a handoff entry (`plans §2.1`) and at least one commit (`R27.4`). A session that continues for several steps and a fresh session on a later step behave the same, because the plan record and handoff carry everything needed.
 - **Status.** While a run is working the plan is in progress. A run that ends without finishing, without a stop having been recorded, for example because the machine lost power, leaves the plan stopped with the reason "session ended unexpectedly" the next time its status is read (`plans R29`).
-- **Steps that implement an unapproved specification** do not run until it is Approved (`plans R30.1`). Where later steps do not depend on it, the run continues with them and stops at the end of what it can do, naming what it waits for.
+- **Steps that implement an unapproved specification** do not run until it is Approved (`plans R30.1`). The plan stops at that step with a soft stop that names the approval it waits for (`R27.3`). No later step runs past it, because a selection never skips a step that is not done (`R27.2`); only work inside the held step that does not depend on the specification may continue.
 - **A plan outdated by specification changes.** If a referenced specification changed since the plan was written, the run warns (`R24`) and the LLM is told to check what changed before continuing (`steering R59`).
 - **Cleanup.** After the plan's branch is merged, or the plan is abandoned, its worktree is removed. Removal is refused while the worktree has uncommitted changes unless the user says to force it, so no work is lost silently. The plan's branch is kept when the plan is abandoned, since it may hold useful work, and removed after a merge.
 - **Unrelated plans can run at the same time**, each in its own checkout. Two runs never share a plan checkout.
@@ -169,7 +169,7 @@ Scenario: Given a step asks to change an approved specification, When the LLM ma
 A plan starts only when the plan itself and every specification it already references are Approved (`R11`). Specifications the plan will write do not count, because they do not exist as Approved before the plan runs. This check is configurable as on or off and is on by default (`configuration R25`).
 
 - The check happens when the plan starts for the first time. A refusal names each plan or specification that is not Approved.
-- A plan that references another plan does not start before that plan is completed (`plans R30`). Abandoned or unfinished plans do not satisfy it. If the user says to start anyway, naming the plans, the plan starts, and the handoff records which plans were not completed.
+- Assumption beyond the page (the page covers only Approved status): a plan that references another plan does not start before that plan is completed (`plans R30`). Abandoned or unfinished plans do not satisfy it. As part of the same assumption, if the user says to start anyway, naming the plans, the plan starts, and the handoff records which plans were not completed.
 - A plan that has a reference cycle does not start (`plans R30`).
 - With the check off, the plan starts without the approval conditions, but plan dependencies and cycles are still checked.
 - Starting also needs the permission to start plans (`R31.1`).

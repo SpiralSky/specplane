@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R42, R42.1, R42.2, R43, R44, R44.1, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R57, R58, R60]
-references: [R16.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64]
+references: [R16.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, requests R52.3, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64]
 ---
 
 # Roles and Permissions
@@ -136,7 +136,7 @@ The presets differ in what the LLM role may do to specifications. Create, edit a
 
 Scenario: Given the default preset, When the LLM is asked to rewrite a feature specification, Then a request is sent to the user and nothing is written until it is accepted.
 
-Scenario: Given the Full Manual Editing preset, When a plan step needs the LLM to write an architecture specification, Then the step cannot do it, and the plan stops with a soft stop or sends a request as `plan-execution R27.1` and `requests R52` describe.
+Scenario: Given the Full Manual Editing preset, When a plan step needs the LLM to write an architecture specification, Then the step cannot do it, and the plan stops with a soft stop (`plan-execution R27.1`) that names the denied permission; deny cannot send a request for that action (`requests R52.3`).
 
 Test (deterministic): for each default preset, check the mode of each permission kind against the table and lists above for the Standard User, LLM and Administrator roles.
 

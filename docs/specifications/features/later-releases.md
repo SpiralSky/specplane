@@ -36,7 +36,7 @@ Later release. When the user discusses work with the LLM in the harness and make
 - A record can be corrected by editing it, or removed by deleting it. Editing and deleting are explicit actions, never a side effect of other work.
 - A record is not a specification. It does not define behaviour, is not approved and is not checked by tests. Where a decision should bind the product, the user puts it in a specification.
 - Records are part of the project and travel with it, so that every user and every LLM in the project sees the same decisions.
-- Taking the old architecture decision records into this feature is optional: existing records of that kind can be kept as decision records, but Specplane no longer requires them, and they are never approved by an LLM.
+- Taking the old architecture decision records into this feature is optional: existing records of that kind can be kept as decision records, but Specplane no longer requires them.
 - Assumption, awaiting the user's confirmation: the page describes only user decision records, so the older architecture decision records (numbering, supersession, their own validation and approval workflow) are not carried over as a separate feature. This answers conflict question 4 in `docs/work-records/2026-11-09-requirements-conflicts.md` provisionally.
 
 Scenario: Given decision records are on, When the user decides in a discussion to keep push notifications off by default, Then the LLM stores a record with that decision and the reason, and a later session asked to enable them by default finds the record and asks the user before acting against it.
@@ -50,7 +50,7 @@ There are four permissions: add, retrieve, edit and delete decision records. Eac
 - In the default presets, the LLM role may retrieve records and needs the user's agreement to add, edit or delete one (request user); the user may do all four (`roles-and-permissions R57`).
 - With request user, the LLM sends a request showing the record as it would be stored, or the change to it, and nothing is stored until the user accepts (`requests R52`).
 - With deny, the LLM does not store or change records and is told not to work around the limit. It can still make a suggestion in the conversation for the user to store.
-- Retrieving with deny means the LLM does not see records; it is told that records exist only if the user asks.
+- Retrieving with deny means the LLM is not shown any records and does not say whether any exist. Records are shown to it only when the user brings one into the conversation.
 - Steering for each permission is part of its documentation (`steering R59`).
 
 Test (deterministic): with decision records on and add set to deny for the LLM role, an attempt to add a record is refused and nothing is stored; with retrieve set to allow, searching returns the records that match.

@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R25, R25.1, R54]
-references: [R12, later-releases R37, R13.1, R22, R24.1, R32, R36.1, R36.3, R42, R47, R51, R52.5, R61.4, harness R14, plan-execution R27, plan-execution R31, requests R52, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, specifications R9, steering R51, steering R59, verification R12, verification R13, verification R61, later-releases R39, plan-execution R31.2, roles-and-permissions R44, roles-and-permissions R44.1, roles-and-permissions R48, roles-and-permissions R55, roles-and-permissions R55.1, roles-and-permissions R58, specifications R4, verification R64]
+references: [later-releases R37, R13.1, R22, R24.1, R32, R36.1, R36.3, R42, R47, R51, R52.5, R61.4, harness R14, plan-execution R27, plan-execution R31, requests R52, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, specifications R9, steering R51, steering R59, verification R12, verification R13, verification R61, later-releases R39, plan-execution R31.2, roles-and-permissions R44, roles-and-permissions R44.1, roles-and-permissions R48, roles-and-permissions R55, roles-and-permissions R55.1, roles-and-permissions R58, specifications R4, verification R64]
 ---
 
 # Configuration
@@ -99,7 +99,7 @@ Later releases:
 
 ### Validation
 
-Validation checks the configuration (`verification R12`, `R12`).
+Validation checks the configuration (`verification R12`).
 
 - An unknown setting is reported, so that a misspelled setting does not silently leave the default in place.
 - A malformed setting is reported: a value of the wrong kind (for example text where `on` or `off` is expected), a number that is not positive, a folder that cannot be used, or a permission or preset that does not exist.

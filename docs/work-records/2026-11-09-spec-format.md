@@ -26,7 +26,7 @@ references: [R7, R11.2, plans R28]
 - `status`: only `awaiting-review` or `approved` (`R11`). New specs are written as `awaiting-review`. Once the CLI reads this format, Specplane records approval; until then approval is recorded by hand as in "Approval record" below.
 - `authors`: list; each item is `human: <name>` or `llm: <model id>` with an optional `contribution` (`R10.1`) such as `drafted`, `revised`, `reviewed`. Only record what happened; do not invent a human author.
 - `references`: every citation the body uses, deduplicated (`R9`). A citation in the body that is missing from this list is a format error.
-- `covers`: the requirement IDs this spec is responsible for. Each requirement is normally covered by one spec; a requirement may be covered by several, and the owner may keep it requirement-only (`R62`, `R63`, and their sub-requirements).
+- `covers`: the requirement IDs this spec is responsible for. Each requirement is normally covered by one spec; a requirement may be covered by several, and the owner may keep it requirement-only (`R62`, `R63`, and their sub-requirements). Convention (session 16): `covers` lists every requirement ID the spec has a heading for, parent and sub-requirements (`R27` and `R27.1`, and so on), so a spec's `covers` equals the set of its `## R<n>` and `### R<n>.<m>` headings. A parent is not taken to cover its children implicitly.
 
 ### Approval record (by hand, until the CLI reads this format)
 
