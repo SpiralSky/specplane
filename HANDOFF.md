@@ -20,7 +20,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 5 requests (R52, R52.1-R52.5): `docs/specifications/features/requests.md`
 - [x] 6 steering (R22,R23,R51,R59,R59.1): `docs/specifications/features/steering.md`
 - [x] 7 harness (R14,R18,R19,R19.1,R19.2,R20,R20.1,R21,R21.1,R26,R26.1,R26.2,R34,R35,R35.1,R38,R38.1,R47): `docs/specifications/features/harness.md`; `agent-integration.md` removed
-- [ ] 8 cli
+- [x] 8 cli (R16,R16.1,R17,R17.1,R17.2,R33,R33.1): `docs/specifications/features/cli.md`; `tooling.md` removed
 - [ ] 9 verification
 - [ ] 10 configuration
 - [ ] 11 later-releases
@@ -81,7 +81,13 @@ Assumptions from spec 7 (all revisable):
 - Standing instructions (`harness §2`): short, owned file or one marked block in a shared instruction file, never overwrites maintainers' text; old agent-integration workflow-contract text, skill pinning, per-`llm_role` enforcement tables, leak guard, MCP future note and automated-conductor extension text were dropped (extensions/overlays: session 11 if wanted). Commit attribution markers are kept lightly.
 - Cites made: `requests R52`, `steering R51`, `steering R59`, `roles-and-permissions R50/R57`, `specifications R9`, `plans R28`, `configuration R25` (must cover: customising command instructions, default for retrieval including referenced sections, recording LLM authorship). Page-level cites for `cli`: R16, R61.1 (approval checks) - session 8 should state the harness approval command runs under the same checks. Other specs still cite old agent-integration text: `tooling.md`, `spec-overlays.md`, `INFO.md` files, `docs/specifications/architecture/agent-skills.md`, harness specs under `harnesses/`; not touched. No hook blocked any edit.
 
-Next: spec 7, `harness` (R14, R18, R19, R20, R21, R26, R34, R35, R38, R47), replacing `agent-integration.md`.
+Assumptions from spec 8 (all revisable):
+- Section ids: `cli` R16, R16.1, R17, R17.1, R17.2, R33, R33.1, plus `§1` terms and `§2` edge cases. Cites made: `harness R20/R47`, `roles-and-permissions R42/R50/R57/R58`, `verification R61`, `configuration R25`, `plans R29`, `plan-execution R31.1`.
+- Kept CLI behaviour at product level: approval by ID only, committed content only, group approval with warning and confirmation, all-or-nothing, failed test blocks approval (R61.1). Old `spec new/list/show/pin/reopen/validate`, plan lifecycle commands, init, search, docs, decision and completion commands were dropped here (scrapped, belong to other specs or architecture); `verification` owns validate, tests and audit.
+- Granular metadata pieces (title, authors, references, covered requirements, approval date/commit) are my choice; more permissive of general vs granular wins. No protected override for plans. Plan management is marked later release. CLI is not callable by LLMs, stated from the CLI side.
+- No hook blocked any edit. Other files still cite `tooling.md` (INFO.md, architecture specs, old specs); untouched.
+
+Next: spec 9, `verification` (R12, R13, R24, R32, R36, R61, R64). Earlier: spec 7, `harness` (R14, R18, R19, R20, R21, R26, R34, R35, R38, R47), replacing `agent-integration.md`.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.

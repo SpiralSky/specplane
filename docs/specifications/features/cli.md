@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R16, R16.1, R17, R17.1, R17.2, R33, R33.1]
-references: [R11, R11.1, R11.2, R13.1, R18, R20, R44, R47, R50, R61.1, R64, specifications R9, specifications R10, specifications R11, plans R29, roles-and-permissions R42, roles-and-permissions R50, roles-and-permissions R57, harness R20, harness R47, verification R61, configuration R25]
+references: [R11, R11.1, R11.2, R13.1, R16.1, R17, R17.1, R17.2, R18, R20, R22, R33, R47, R61.1, specifications R9, specifications R10, specifications R11, plans R29, plan-execution R31.1, roles-and-permissions R42, roles-and-permissions R50, roles-and-permissions R57, roles-and-permissions R58, harness R20, harness R47, verification R61, configuration R25]
 ---
 
 # CLI
@@ -28,7 +28,7 @@ A person approves a specification with a command that takes one or more specific
 - **Committed content only.** Approval applies to the committed content of the specification (`specifications R11`). If the file has uncommitted changes, the command refuses and says so.
 - **Unapproved references.** The command fails if any part of the specification references a specification that is not approved. The failure names the referenced specification and its status.
 - **Missing references.** The command fails while the specification references a part of a specification, or a requirement, that no longer exists (`R11.2`). The failure names the missing part.
-- **Groups.** Specifications that reference each other are approved together in a single command (`§2`). Naming one member of a group approves the whole group. Before approving, the command warns the user and lists every specification in the group, and the user confirms. If any member cannot be approved, nothing in the group is approved and every reason is listed. The documentation describes group approval (`R22` on the page).
+- **Groups.** Specifications that reference each other are approved together in a single command (`§2`). Naming one member of a group approves the whole group. Before approving, the command warns the user and lists every specification in the group, and the user confirms. If any member cannot be approved, nothing in the group is approved and every reason is listed. The documentation describes group approval (`R22`).
 - **Failed tests.** A specification with a recorded failed test cannot be approved (`R61.1`; test results are described in `verification R61`).
 - **Nothing partial.** Approving several IDs in one command either approves all of them or none, and when it refuses it lists every reason it found, not only the first.
 - **Already approved.** Approving a specification that is already Approved does nothing and says so.
@@ -113,7 +113,7 @@ Test (deterministic): set each protected value as the Administrator and check th
 A person can manage plans from the CLI by changing plan metadata: a plan carries the same metadata as a specification (`plans R29`). This is a later release.
 
 - Changes made here are overrides and are recorded in the audit log in the same way as for specifications (`R17`, `R13.1`).
-- This is about metadata. Starting, resuming, stopping and finishing plans, and the plan's steps, are described in `plans` and `plan-execution`, and in a harness they are LLM actions that follow the LLM's role.
+- This is about metadata. Starting, resuming, stopping and finishing plans, and the plan's steps, are described in `plans R29` and `plan-execution R31.1`, and in a harness they are LLM actions that follow the LLM's role.
 - Reading plan metadata shows the current values, including the plan's approval status and the plan's execution status as `plans R29` describes them.
 
 Scenario: Given a plan with an outdated title in its metadata, When a person with the plan metadata permission changes it, Then the plan's title changes and the audit log records the change.
@@ -130,5 +130,5 @@ Plan metadata has a read permission, a general write permission that covers all 
 - **Approval during a plan.** A plan does not approve the specifications it edits (`specifications R11`); approving them is a separate action by the user.
 - **Reapproval after metadata change.** Changing metadata alone does not reopen a specification, and does not approve one either.
 - **No LLM.** The CLI is not callable by LLMs in the harness (`R47`, `harness R47`): an LLM asks the user to run a CLI command rather than running it, and the user's CLI permissions are the user's own. A person running the CLI in a terminal outside the harness acts as themselves, with the role that applies to them.
-- **Headless and guardrails.** Preventing an LLM from using the CLI through a shell or a headless session is described under guardrails in `roles-and-permissions` (`R58`).
+- **Headless and guardrails.** Preventing an LLM from using the CLI through a shell or a headless session is described in `roles-and-permissions R58`.
 - **Same checks everywhere.** Approving from the CLI, from a harness command and by asking an LLM all end in the same checks; only the permission used differs.
