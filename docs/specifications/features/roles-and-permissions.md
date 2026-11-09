@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R42, R42.1, R42.2, R43, R44, R44.1, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R57, R58, R60]
-references: [R16.1, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, steering R51, steering R59, configuration R25, specifications R11, verification R61]
+references: [R16.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, later-releases R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, steering R51, steering R59, configuration R25, specifications R11, verification R61]
 ---
 
 # Roles and Permissions

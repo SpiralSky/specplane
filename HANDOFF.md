@@ -23,7 +23,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 8 cli (R16,R16.1,R17,R17.1,R17.2,R33,R33.1): `docs/specifications/features/cli.md`; `tooling.md` removed
 - [x] 9 verification (R12,R13,R13.1,R24,R24.1,R32,R36,R36.1-3,R61,R61.1-4,R64): `docs/specifications/features/verification.md`
 - [x] 10 configuration (R25, R25.1, R54): `docs/specifications/features/configuration.md`
-- [ ] 11 later-releases
+- [x] 11 later-releases (R37, R37.1, R39, R39.1-R39.4, R66): `docs/specifications/features/later-releases.md`; `decisions.md` and `spec-overlays.md` removed
 - [ ] 12 (added by user, 2026-11-09) separate agent reviews all new specs
 - [ ] 13 (added by user, 2026-11-09) fix review findings and approve all new specs through `specplane spec approve`, never by hand-editing status; the LLM may approve everything except the requirements page in this repo
 
@@ -99,7 +99,14 @@ Assumptions from spec 10 (all revisable):
 - Configuration change permission: default presets user allow, LLM request user, most restrictive preset deny (matches the roles-and-permissions table; check against preset contents). No per-user override in first release. R54 documentation lists modes per preset and steering; command names for viewing were left unnamed.
 - `INFO.md` in features rewritten with the new spec set; it still mentions `decisions` and `spec-overlays` as old text for session 11 to replace. No hook blocked any edit. Cites made: `verification R12/R13/R61`, `requests R52`, `roles-and-permissions R50/R56/R57`, `steering R51/R59`, `harness R14`, `plan-execution R27/R31`, `specifications R9`.
 
-Next: spec 11, `later-releases` (R37, R39.1-R39.4, R66), replacing `decisions.md` and `spec-overlays.md`.
+Assumptions from spec 11 (all revisable):
+- All three features are marked later release. Section ids: `later-releases` R37, R37.1, R39 (R39.1 to R39.4), R66, plus `§1` terms and `§2` edge cases. Old ADR content (numbering, supersession, ADR validation) was not carried; old records may be kept as decision records. Overlays become subprojects; reference syntax `<project>:R<n>` (e.g. `claude:R7`, `root:R7`) is my choice.
+- Setting added to `configuration R25`: `decisions.enabled` (default `off`, later release). The migration prompt uses `harness.instructions`; no new setting. Decision record permissions in default presets: LLM retrieve allow, others request user (matches roles-and-permissions). Subproject creation by the LLM uses the existing spec-create permissions, no new permission.
+- Cites to `later-releases R37/R37.1/R66` added to harness, roles-and-permissions (table + references) and configuration.
+- `INFO.md` updated (later-releases row, old text mention removed). No hook blocked any edit.
+- Consistency pass (script over all 11 specs): every `<spec> R<n>`/`§` cite resolves; every R-number except R62 and R63 is covered by exactly one spec; no cites to removed specs (only ordinary uses of the word "decisions"). Fixed missing `references` entries (requests: `plan-execution R27.1`; roles-and-permissions: `R52`, `plan-execution R27`; later-releases: dropped unused `R65`). Left as is: `specifications` mentions `plans §2` only as an example of cite syntax; `cli` lists `R11` but has no plain cite; `harness` keeps plain `R37`, `R37.1` besides the later-releases cites; `covers` lists often name parent R-ids only (sub-requirements such as R27.1 are covered through the parent's section).
+
+Next: step 12, a separate agent reviews all 11 new specs (check later-releases' invented subproject reference syntax and the ADR drop first), then step 13.
 Earlier next-note: spec 9 done. Earlier: spec 7, `harness` (R14, R18, R19, R20, R21, R26, R34, R35, R38, R47), replacing `agent-integration.md`.
 
 ## Current state

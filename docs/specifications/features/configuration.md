@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R25, R25.1, R54]
-references: [R12, R13.1, R22, R24.1, R32, R36.1, R36.3, R42, R47, R51, R52.5, R61.4, harness R14, plan-execution R27, plan-execution R31, requests R52, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, specifications R9, steering R51, steering R59, verification R12, verification R13, verification R61]
+references: [R12, later-releases R37, R13.1, R22, R24.1, R32, R36.1, R36.3, R42, R47, R51, R52.5, R61.4, harness R14, plan-execution R27, plan-execution R31, requests R52, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, specifications R9, steering R51, steering R59, verification R12, verification R13, verification R61]
 ---
 
 # Configuration
@@ -72,6 +72,12 @@ Verification (`verification R12`, `verification R13`, `verification R61`):
 | `tests.logs_retention` | How long local test logs are kept, in days, or `forever`. Does not apply to logs kept in git | 30 days |
 | `pre_commit.duplicate_requirement_ids` | Installs a check that refuses a commit in which two requirements share an identifier (`R32`). Later release | `off` |
 | `pre_commit.tests` | Installs a check that refuses a commit when the deterministic tests of an architecture specification fail (`R36.3`). Later release | `off` |
+
+Later releases (`later-releases R37`):
+
+| Setting | Meaning | Default |
+|---------|---------|---------|
+| `decisions.enabled` | Whether user decision records are stored and retrieved (`later-releases R37`). Later release | `off` |
 
 - Choosing `git` for `tests.logs` makes Specplane tell the user that logs in git can expose private information and are not removed by retention (`verification R61`).
 - Turning on a pre-commit setting installs the check and turning it off removes it, the same way for both (`verification R12`).
