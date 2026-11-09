@@ -1,13 +1,13 @@
 # Release Plan
 
-This is the intended build order for `docs/product-requirements.md`. It cites requirement IDs and can change without changing the requirements. Sub-requirements follow their parent unless listed separately. `R62` and `R63` define scope and apply throughout.
+This is the intended build order for `docs/requirements/product-requirements.md`. It cites requirement IDs and can change without changing the requirements. Sub-requirements follow their parent unless listed separately. `R62` and `R63` define scope and apply throughout.
 
 ## Phase 1: Plans
 
 Plans come first so that an agent can carry out the remaining work, including writing specifications (`R30.1`).
 
-- Specification basics: `R1`, `R2`, `R7`, `R9`, `R11`, `R16`, `R40`
-- Plans, including budgets (`R27.1`): `R27`, `R28`, `R29`, `R30`, `R31`
+- Specification basics: `R1`, `R2`, `R7`, `R9`, `R11`, `R16`, `R40`, `R68`
+- Plans, including budgets (`R27.1`): `R27`, `R28`, `R29`, `R30`, `R31`, `R67`, `R69`
 - Harness: `R18`, `R19`, `R20`, `R26`, `R34`, `R35`
 - Requests: `R52`
 - Default roles, presets and steering: `R42`, `R46`, `R47`, `R50`, `R51`, `R55`, `R57`, `R59`
@@ -27,7 +27,6 @@ Plans come first so that an agent can carry out the remaining work, including wr
 - Decision records: `R37`
 - Subprojects: `R39`
 - Custom roles and role management: `R43`, `R48`, `R49`, `R56`, `R60`, and role mappings in `R44` and `R44.1`
-- Administrator login through the operating system: `R45`
 - Stronger enforcement: `R55.1`, `R58`, `R36.3`, `R32`
 - Plan parallelism: `R31.2`
 - CLI plan management: `R33`

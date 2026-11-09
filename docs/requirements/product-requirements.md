@@ -13,16 +13,30 @@ Specplane succeeds when:
 
 This document describes the planned new state of Specplane and replaces its existing rules, specifications and workflows where they differ.
 
+## Terms
+- **User:** a person using Specplane.
+- **LLM / Agent:** a model acting through a harness, including subagents. These words mean the same thing here.
+- **Harness:** the agent tool Specplane integrates with, such as Claude Code or Codex.
+- **CLI:** Specplane's own command line tool, for human management.
+- **Role:** a named set of permissions, assigned to a user, an LLM or, in the future, other actors such as an API.
+- **Standard User / LLM / Administrator:** the default roles.
+- **Request:** an LLM's ask for a user to accept an action, through the requests list.
+- **Steering:** instructions that guide an LLM but do not enforce anything.
+- **Plan:** a managed list of steps, run in its own branch.
+- **Step:** one unit of a plan, ending in at least one commit.
+
 As this project is **Self-Describing**, Product Requirements will be described in the first section and this file should therefore also follow its rules.
 Requirements are things that the product should have. Some can be checked deterministically via tests while others have to be checked with intelligence (E.g. LLMs/Full product tests).
 
 ### Requirements
 
 **R1: Requirements Formatting**
-Requirements in the requirement specification should be prefixed with `R<number>`. This is one example of this. Sub-requirements follow the format `R<number>.<number>` and so on, with numbers separated by a dot. One example is `R1.1`. Ids should be unique and permanent.
+Requirements in the requirement specification should be prefixed with `R<number>`. This is one example of this. Sub-requirements follow the format `R<number>.<number>` and so on, with numbers separated by a dot. One example is `R1.1`. Ids should be unique and permanent. Ids of removed requirements are not reused.
+
+Retired IDs: `R3`, `R6`, `R8`, `R15`, `R41`, `R45`, `R53`.
 
 **R2: Requirements Storage**
-Requirements should be easily accessible, viewable and editable by the user. Therefore, they should be in markdown files within a folder for requirements. If multiple requirements files exist, they should be able to reference each other by the file name and have a central requirements file referencing and describing each of the other files. Using only one file should also be supported.
+Requirements should be accessible, viewable and editable by the user. Therefore, they should be in markdown files within a folder for requirements. If multiple requirements files exist, they should be able to reference each other by the file name and have a central requirements file referencing and describing each of the other files. Using only one file should also be supported.
 
 **R32: Requirements Testing**
 Requirements should be testable for duplicate requirement IDs before committing to git. An option for adding pre-commit hook should also exist in the config to prevent duplicate requirement IDs from being committed. The added pre-commit hook should be easily removable without affecting the other code in the pre-commit hook and removed automatically when it is disabled in the config.
@@ -38,8 +52,10 @@ Specifications are divided into 3 layers:
 
 **R65: Layer Precedence**
 Each layer outranks the next, in the order Requirements -> Feature -> Architecture. An LLM that finds specifications in conflict follows the higher layer and reports the conflict to the user.
-In agentic harness implementations, feature specifications can be generated from the requirements specifications, and architecture specifications can be generated from feature specifications.
+**R67: Specification Generation**
+In agentic harness implementations, feature specifications can be generated from the requirements specifications, and architecture specifications can be generated from feature specifications (see `R30.1`).
 
+**R68: Required Layers**
 Requirement specs are optional while feature and architecture specs are mandatory, and specplane should work without requirement specs.
 
 ## Scope
@@ -74,14 +90,14 @@ Specplane should use git for the current specification state. The current commit
 
 The format for the requirement specifications is described in `R1` and `R2`.
 
-**R4: Feature and Architecture Separation**
-Feature and Architecture should be separated in their respective specifications. Therefore, architecture should ideally not exist in the feature specifications, with exceptions controlled by the user. In the case of harness writing, optional instructions to verify and warn the user per change or review should exist (see `R14`). The instructions should be configurable by users. 
-
 ### Feature and Architecture Specifications
-Feature and Architecture specifications describe concrete features for the user.
+Feature specifications describe concrete features for the user. Architecture specifications describe how they are built.
+
+**R4: Feature and Architecture Separation**
+Feature and Architecture should be separated in their respective specifications. Therefore, architecture should ideally not exist in the feature specifications, with exceptions controlled by the user. In the case of harness writing, optional instructions to verify and warn the user per change or review should exist (see `R14`). The instructions should be configurable by users.
 
 **R5: Feature & Architecture Specification Layouts**
-Feature specifications should be in a layout that is easy for both a User and LLM to access, and be divided into sections and optionally small subsections for referencing.
+Feature and architecture specifications should be in a layout that is easy for both a User and LLM to access, and be divided into sections and optionally small subsections for referencing.
 
 **R7: Format**
 Both feature and architecture specifications should be in a consistent, checkable and citable format.
@@ -146,6 +162,7 @@ Full test output and LLM session logs are stored locally per machine by default,
 ## Plans
 Plans are a managed list of markdown files containing steps with *what to do* along with shared markdown files containing metadata or shared memory for use by multiple plans. Plans are to be used in a new branch with changed specifications where the feature is ahead or different from implementations, and the plan will cover what to change to update the implementation to follow the updated specifications. Plans can also write specifications from a higher layer (see `R30.1`).
 
+**R69: Optional Plans**
 Plans are optional.
 
 **R29: Plan Metadata**
@@ -178,11 +195,9 @@ Specplane can be used in two main ways: Agentic Harnesses and the CLI.
 ### Roles
 Specplane handles permissions with roles. A role holds permissions and is assigned to a user, an LLM or, in the future, other actors such as an API. User and harness LLMs each have roles with different defaults.
 
-Specplane roles apply to both CLI and harness use.
-
 #### Roles Permissions
 **R46: Role Permissions**
-Each role should have permissions assigned to them.
+Each role should have permissions assigned to them. Roles apply to both CLI and harness use.
 
 There are 3 types of permissions:
 1. Standard Permissions. They are referred to as just permissions in this document.
@@ -213,12 +228,12 @@ The administrator user should have all permissions and be able to manage all oth
 Specplane should have configurable guardrails against permission bypass via starting headless sessions, such as running `claude -p` or the specplane CLI itself. One example is using environmental variables. Multiple preventative methods should be used and they should be all documented and configurable. The harness should be able to identify LLMs and subagents running and treat them as having their own specplane role so that specplane's LLM roles can be applied properly.
 
 **R44: Applying Custom Users**
-The configuration should allow users to apply custom specplane roles to Operating System users. Administrators or root accounts should be able to log in as the administrator user. User who do not have a role for the operating system will be assigned the standard user (See `R42.1: Default Role Definitions`).
+The configuration should allow users to apply custom specplane roles to Operating System users. Administrators or root accounts should optionally be able to switch to or log in as the administrator user. User who do not have a role for the operating system will be assigned the standard user (See `R42.1: Default Role Definitions`).
 
 Mapping operating system users is optional. When no mapping is configured, every user of the CLI and the harness is the standard user and can switch to the administrator with a command, without needing operating system administrator rights. Once a mapping is configured, users without a role are assigned the standard user. The source of identities should not be tied to the operating system, so that identities can come from elsewhere later, such as a git server.
 
 *R44.1: Custom LLM role rules*
-It should be easy to assign custom roles to LLMs based on rules with factors such as defined subagents (some harnesses have specific subagents defined for tasks), current agent type, agent provider and other factors. This defaults to the LLM default role. For example, a higher level LLM role can be assigned to an LLM that reviews or manages the work of other LLMs.
+Assigning custom roles to LLMs should be accessible to users, based on rules with factors such as defined subagents (some harnesses have specific subagents defined for tasks), current agent type, agent provider and other factors. This defaults to the LLM default role. For example, a higher level LLM role can be assigned to an LLM that reviews or manages the work of other LLMs.
 
 **R60: Permissions for applying Custom Users**
 Administrators should be able to fully manage and edit the mapping from OS users to specplane roles. A custom permission type, System Permissions should exist granting the ability to manage and edit OS user -> role mappings along with LLM to role mappings. Roles with system permissions still have to obey permission levels: They cannot provide an OS user -> specplane role mapping to a role at an equal or higher level than them. This also applies to LLM mappings. Administrators are exempt from this limit for OS user mappings only.
@@ -239,9 +254,6 @@ Management Permissions control what permissions a role can set for other roles. 
 **R49: Role Management Levels**
 A role's permission level determines what roles it can change the permissions of **even with management permissions** (see `R43: Role Management`). Management Levels are numerical. A role with a higher management level can edit all roles with a lower management level than it, and cannot edit permission for all roles with an equal or higher management level than it.
 
-**R45: Administration and User Management**
-Using specplane as an administrator (in the operating system) will optionally provide the option to switch user or login to specplane as an administrator. The administrator has the highest permissions of all users.
-
 ### Agent Steering
 **R59: Autogenerated Steering**
 Steering should be used to keep LLM to follow rules. Apart from what is mentioned in other sections, LLMs should be instructed to not attempt to bypass limitations and follow what their role restricts them to do.
@@ -260,10 +272,10 @@ Specplane should show which specifications cover each requirement and feature sp
 Specplane should keep an internal log of **all actions taken** per repository. The internal log should not be committed to git, however, it should contain the branch the command was run on.
 
 *R13.1: Audit Retention*
-Audit Log retention should be configurable and settle at a reasonable default.
+Audit Log retention should be configurable, with its default stated in the documentation.
 
 **R14: Command Instructions**
-Commands have instructions and sometimes optional content injected when they are run (described in other parts of the specification). If the instruction is already within the context, they should not be sent a second time. The instructions should also be customisable but default to command documentation.
+Commands have instructions and sometimes optional content injected when they are run (described in other parts of the specification). If the instruction is already within the context, they should not be sent a second time. If Specplane cannot tell, or the context has been compacted, they should be sent again. If the harness has better support for this, such as skills loaded on demand, Specplane should use that instead. The instructions should also be customisable but default to command documentation.
 
 **R47: CLI-Harness Separation**
 The CLI should not be directly callable by LLMs within the harness.
@@ -305,7 +317,7 @@ There should be permissions controlling whether a role can read and write metada
 
 ### Specplane Harness
 **R18: Harness - General commands**
-All harness commands should not be **directly executed** by the LLM. **This refers to execution when a user types a command, not the permissivity of agents running the commands in question**. For example, `/abc` (a placeholder example) will go through the harness itself and only pass arguments to the LLM if there are any. 
+When a user types a harness command, the harness runs it itself and only passes arguments to the LLM if there are any. For example, `/abc` (a placeholder example). This does not limit which commands an LLM can run under its permissions. 
 
 **R52: Requests System**
 A requests system should exist for LLMs to send requests to the user to approve. Dedicated permissions should exist as an alternative to allow/deny for certain actions within the harness for using the requests system. If there is no active session and the request only runs in the background, requests should still be in the requests list and can be accepted later by the user.
@@ -378,7 +390,7 @@ Plan Management should have permissions for editing, creating, deleting, startin
 The user should be able to control how much parallelism is used in the plan steps. A parallel step contains multiple different tasks that do not depend on each other and require the harness to have subagents to execute the tasks in parallel.
 
 **R27: Plan Execution**
-The user should be able to use the harness to start a session that is accessible for reading and *potential* intervention by the user. The user should be able to control what steps to execute, or execute all steps at once. However, the harness should deny the steps if they have a gap between them.
+The user should be able to use the harness to start a session that is accessible for reading and *potential* intervention by the user. The user should be able to control what steps to execute, or execute all steps at once. However, the harness should deny a selection that skips a step that has not been completed.
 
 Steps should not require user input during plan execution. Plans should start in a separate worktree while also using a separate branch to keep the current directory the user is on the same.
 
@@ -389,7 +401,7 @@ Harnesses should be able to assign budgets with the main metrics being tokens or
 There should be a permission to set plan budgets with modes allow, request user or deny.
 
 *R27.2: Resuming Plans*
-Plans should be easily resumable through a harness command. If the plan was hard stopped, it should refer to both the handoff and skim previous session logs to gather context. If the plan was successfully soft stopped, it should refer to just the handoff.
+Plans should be resumable through a harness command. If the plan was hard stopped, it should refer to both the handoff and skim previous session logs to gather context. If the plan was successfully soft stopped, it should refer to just the handoff.
 
 *R27.2.1: Plan Resuming Permissions*
 There should be a permission to resume a plan with modes allow, request user or deny.
@@ -407,7 +419,7 @@ The plan soft stops (see `R27.1`) and can be resumed with the answer (see `R27.2
 The plan continues with work that does not depend on the answer, without performing the requested action. Unanswered requests are shown at the plan's final review (see `R28`).
 
 *R27.4: Plan sub-commits*
-The policy for committing changes when implementing steps is up to the user. However, one commit must be made per step.
+The policy for committing changes when implementing steps is up to the user. However, at least one commit must be made per step.
 
 *R27.6: Plan Start Conditions*
 A plan can only start when it and the specifications it already references are Approved. Specifications the plan will write do not count. This should be configurable (on/off) and enabled by default.
@@ -423,7 +435,7 @@ A harness command should guide an LLM through bringing an existing project into 
 
 ## Supported Harnesses
 **R34: Harness Flexibility**
-Specplane should be flexible in the event of new harnesses being added.
+Adding a new harness should only require building its integration, without changing Specplane's core behaviour.
 
 **R35: Supported Harnesses**
 Specplane aims to support codex and claude code.
@@ -447,7 +459,7 @@ When using commands in specplane, the number of existing warnings is reported ea
 
 ## Configurations
 **R25: Accessible Configurations**
-All configurations should be easily accessible and modifiable in both the CLI and harness integrations.
+All configurations should be accessible and modifiable in both the CLI and harness integrations.
 
 *R25.1: Configuration Permissions*
 Changing configuration should have allow, request user and deny permissions. Presets set the mode for each role.
@@ -462,7 +474,7 @@ Presets simply apply permissions to roles and they can still be changed.
 Presets additionally define the default permission mode which will apply for all unspecified permission in the preset.
 
 **R57: Default Presets**
-There should be a few default permission presets existing which are defined below. The default permission for unspecified permission will be deny for these default presets. Presets should also cover general use and thus be designed carefully.
+The default permission presets are defined below. The default permission for unspecified permission will be deny for these default presets.
 *Note: Permissions are separate from role management permissions*
 
 Changing configuration is request user for LLM roles in all default presets. Protected metadata overrides (see `R17.2`) are not enabled for any role in default presets, including where users otherwise have all permissions.
@@ -476,7 +488,7 @@ This preset disables all LLM editing permissions over all specifications while o
 3. Feature-Level LLM Control
 This preset enables LLM editing permissions over feature and architectural specifications needing to request the user for editing requirement specifications. Users have all permissions enabled.
 4. Full LLM Control
-This preset enables LLM editing permissions over all specification types including the requirement specification.
+This preset enables LLM editing permissions over all specification types including the requirement specification. Users have all permissions enabled.
 
 ## Subprojects
 **R39: Subprojects**
