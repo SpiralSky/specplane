@@ -21,7 +21,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 6 steering (R22,R23,R51,R59,R59.1): `docs/specifications/features/steering.md`
 - [x] 7 harness (R14,R18,R19,R19.1,R19.2,R20,R20.1,R21,R21.1,R26,R26.1,R26.2,R34,R35,R35.1,R38,R38.1,R47): `docs/specifications/features/harness.md`; `agent-integration.md` removed
 - [x] 8 cli (R16,R16.1,R17,R17.1,R17.2,R33,R33.1): `docs/specifications/features/cli.md`; `tooling.md` removed
-- [ ] 9 verification
+- [x] 9 verification (R12,R13,R13.1,R24,R24.1,R32,R36,R36.1-3,R61,R61.1-4,R64): `docs/specifications/features/verification.md`
 - [ ] 10 configuration
 - [ ] 11 later-releases
 - [ ] 12 (added by user, 2026-11-09) separate agent reviews all new specs
@@ -87,7 +87,14 @@ Assumptions from spec 8 (all revisable):
 - Granular metadata pieces (title, authors, references, covered requirements, approval date/commit) are my choice; more permissive of general vs granular wins. No protected override for plans. Plan management is marked later release. CLI is not callable by LLMs, stated from the CLI side.
 - No hook blocked any edit. Other files still cite `tooling.md` (INFO.md, architecture specs, old specs); untouched.
 
-Next: spec 9, `verification` (R12, R13, R24, R32, R36, R61, R64). Earlier: spec 7, `harness` (R14, R18, R19, R20, R21, R26, R34, R35, R38, R47), replacing `agent-integration.md`.
+Assumptions from spec 9 (all revisable):
+- Section ids: `verification` R12, R13 (R13.1), R24 (R24.1), R32 (later release), R36 (R36.1, R36.2, R36.3 later release), R61 (R61.1 to R61.4), R64, plus `§1` terms, `§2` test kinds and running, `§3` edge cases. R61.2 behaviour: allow records, request user runs the test and records on acceptance, deny shows the result unrecorded; running a test needs no permission.
+- User-visible command names chosen: `specplane validate`, `specplane warnings`. Validate errors vs warnings: broken or unusable files are errors, state-based findings (uncovered, outdated) are warnings; exit failure on errors only. Auto warn is on by default. Audit log is local, logs refusals, never blocks work.
+- R36: marking implemented needs all declared checks pass on a commit; LLM may mark implemented by default, configurable; intelligent judgement is harness-only. Old `implementation: incomplete/partial/complete`, fingerprints, `spec complete` and step verification (minimums, risk_paths, self/separate/human) were dropped. Old finish-flow test command not carried (plan-execution does not define one).
+- Cites made: `configuration R25` must cover: audit retention (R13.1), auto-warn on/off (R24.1), pre-commit duplicate-id check (R32) and test commit gate (R36.3), whether an LLM may mark implemented (R36.1), test log storage on/off/local/git and its retention (R61.4), plus unknown keys being validated (R12). Also cites `requests R52`, `plans R28/R30`, `specifications R4/R5/R7/R9/R10/R11/§2`, `steering R59`, `harness R14`, `cli R17`. No hook blocked any edit.
+
+Next: spec 10, `configuration` (R25, R54), replacing old `configuration.md`.
+Earlier next-note: spec 9 done. Earlier: spec 7, `harness` (R14, R18, R19, R20, R21, R26, R34, R35, R38, R47), replacing `agent-integration.md`.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
