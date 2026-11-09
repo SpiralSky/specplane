@@ -14,7 +14,7 @@ Work with the user, one or two items at a time, showing proposed text as a diff.
 ## Spec rewrite progress (hands-off sessions, started 2026-11-09)
 Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (frontmatter, `## R<n>` sections, citations such as `R11.2`, `plans R28`, `plans §2`). New specs are `status: awaiting-review`; nothing is approved. Old text stays in git (`git show 0925bbf^:docs/specifications/features/<old>.md`).
 - [x] 1 specifications (R1,R2,R4,R5,R7,R9,R10,R11,R40,R65,R67,R68): `docs/specifications/features/specifications.md`; `spec-system.md` and `spec-precedence.md` removed
-- [ ] 2 plans (R28,R29,R30,R69)
+- [x] 2 plans (R28,R28.1,R29,R29.1-3,R30,R30.1,R69): `docs/specifications/features/plans.md`; `plan-system.md`, `plan-steps.md`, `plan-status.md`, `plan-index.md` removed
 - [ ] 3 plan-execution (R27,R31)
 - [ ] 4 roles-and-permissions
 - [ ] 5 requests (R52)
@@ -34,7 +34,17 @@ Assumptions and open questions from spec 1 (all revisable):
 - Spec locations (`docs/specifications/...`, INFO.md) are described only lightly; `INFO.md` is rewritten by nobody yet and still lists the old spec set.
 - `.specplane/config.yaml` (`llm_role: assist`) and the leak guard were not consulted for edits; no hook blocked anything.
 
-Next: spec 2, `plans` (merge plan-system, plan-steps, plan-status; scrap plan-index).
+Assumptions from spec 2 (all revisable):
+- User instruction (relayed 2026-11-09): for Specplane itself the user owns only the requirements page; the LLM has allow on feature and architecture specs and handles them without asking or request panels. This never authorizes setting any spec to approved.
+- Plan record: folder per plan with plan file, numbered step files, handoff file (append-only entries), gaps and assumptions file (`plans §2`, `§2.1`, `§2.2`; entry kinds gap/assumption/proposal). `specifications` cites `plans R28` (gap recording rule is stated there and detailed in §2.2) and `plans R30.1`.
+- Plan id stays `YYYY-MM-DD-slug`, cited `plan/<id>`; plan-to-plan references are dependencies and a referenced plan must be completed first unless the user says otherwise (rule itself is for plan-execution R27).
+- Step status is only not started/done/skipped; the old `blocked` step status is dropped (page R27: requests or soft stop). Plan execution status: not started, in progress, stopped, completed, abandoned; plan approval (Awaiting Review/Approved) is separate.
+- Completed plan is archived in the plan branch's last commit so the merge carries it (answers conflict question 8 provisionally). Plan index (PLANS.md), `status_source`, `shelved`, `depends_on` modes, `archive_done` dropped.
+- Old step verification section (minimums, risk_paths, self/separate/human) was not carried; session 9 (verification) should adapt it from git (`git show HEAD~1^:docs/specifications/features/plan-steps.md` style, commit before this one).
+- Requirement-level citations used for specs not yet written: `plan-execution R27/R27.1/R27.2/R27.6`, `requests R52`, `steering R59`, `R19.2`, `R24`; later specs must provide those section ids.
+- No hook or guard blocked any edit.
+
+Next: spec 3, `plan-execution` (R27, R31), adapting old plan-execution.md.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
