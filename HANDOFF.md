@@ -35,6 +35,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 11 later-releases (R37, R37.1, R39, R39.1-R39.4, R66): `docs/specifications/features/later-releases.md`; `decisions.md` and `spec-overlays.md` removed
 - [x] 12 (added by user, 2026-11-09) separate agent reviews all new specs: `docs/work-records/2026-11-09-spec-rewrite-review.md` (1 blocker, 9 should-fix, 8 minor)
 - [x] 13 (added by user, 2026-11-09) fix review findings (done, commit `9d26072`) and approve all new specs through `specplane spec approve`: approval NOT done, the CLI cannot read the new-format specs (see "Current state and next task")
+- [x] 15 second check: pass with notes (1 should-fix, 4 minor, 2 notes), `docs/work-records/2026-11-09-spec-second-check.md`
 
 Assumptions and open questions from spec 1 (all revisable):
 - Retired specs are deleted, not marked `deprecated`; citing specs become Awaiting Review (R11.2). Conflict question 6 stays open.
