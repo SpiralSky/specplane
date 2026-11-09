@@ -26,11 +26,8 @@ test("validate on the specs-framework repository reports no format or requiremen
   }
 });
 
-test("generate --print emits Active plans and a Mermaid block, deterministically", () => {
-  const out = sp("plan", "index", "--print");
-  assert.match(out, /## Active plans/);
-  assert.match(out, /```mermaid\ngraph TD/);
-  assert.equal(sp("plan", "index", "--print"), out);
+test("plan index is gone: PLANS.md is not part of the new plan system", () => {
+  assert.throws(() => sp("plan", "index", "--print"));
 });
 
 test("spec pin is gone: base pins are not part of the new format", () => {

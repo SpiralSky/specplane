@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { checkPlansMd } from "../commands/validate.js";
 import { runInit } from "../commands/init.js";
 import { loadConfig } from "../legacy-config.js";
-import { blockedReason, getIndexStatus } from "../plan/status.js";
+import { blockedReason, getIndexStatus } from "../legacy-plan/status.js";
 import { makeRepo } from "../test-repo.js";
 import { toMermaid } from "./mermaid.js";
 import { generateWorkingPlansMd } from "./plans-md.js";

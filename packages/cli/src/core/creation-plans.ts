@@ -10,7 +10,7 @@ import { loadAdrs } from '../decisions/validate.js';
 import { renderSpecNew, applySpecNew, applyCreationScaffold, type CreationScaffold } from '../commands/spec.js';
 import { renderPlanNew, applyPlanNew } from '../commands/plan.js';
 import { renderDecisionNew, applyDecisionNew } from '../commands/decision.js';
-import { assertRecordingPaths } from '../plan/recording-set.js';
+import { assertRecordingPaths } from '../legacy-plan/recording-set.js';
 import { setFinalizedAssistAuthor } from './contribution-metadata.js';
 import { readContainedFile } from './contained-files.js';
 import { canonical, sha256, type PreparedState } from './workflow-preparation.js';

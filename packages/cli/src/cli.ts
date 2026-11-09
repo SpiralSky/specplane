@@ -2,10 +2,8 @@
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { executeOperation } from "./core/index.js";
-import { generateCommand } from "./commands/generate.js";
 import { reportError } from "./errors.js";
-import { planGraphCommand, planListCommand, planNewCommand, planShowCommand, planFinishCommand, planStartCommand, planAbandonCommand, planCleanupCommand, planArchiveCommand, planRestackCommand, planNextCommand, planStepDoneCommand } from "./commands/plan.js";
-import { planApproveCommand } from "./commands/plan-approve.js";
+import { registerPlanCommands } from "./commands/plan-cli.js";
 import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
@@ -26,113 +24,11 @@ program
   .description("Specplane reference CLI")
   .version(pkg.version);
 
-const plan = program.command("plan").description("Work with plans (list, new, show, graph, next, step-done, start, approve, finish, abandon, cleanup, archive, restack, retarget)");
-plan
-  .command("index")
-  .description("Generate the plan index from an explicit snapshot")
-  .option("--source <source>", "head, staged, or working", "head")
-  .option("--print", "print Markdown without writing")
-  .option("--live", "include live status and targets (requires --print)")
-  .action(generateCommand);
 program.on("command:*", (args: string[]) => {
-  if (args[0] === "generate") { process.stderr.write("The generate command was removed; use specplane plan index.\n"); process.exitCode = 1; }
+  if (args[0] === "generate") { process.stderr.write("The generate command was removed.\n"); process.exitCode = 1; }
   else { process.stderr.write(`Unknown command: ${args[0]}\n`); process.exitCode = 1; }
 });
-plan
-  .command("list")
-  .description("List plans with their effective statuses")
-  .option("--status <status>", "filter by effective status")
-  .option("--json", "output JSON")
-  .option("--live", "include plan activity (branches, steps, last step commit) and remote-only plans")
-  .option("--no-fetch", "with --live, do not fetch origin first")
-  .action((opts) => planListCommand(opts));
-plan
-  .command("new")
-  .description("Create a draft plan folder")
-  .option("--id <id>", "full plan ID (YYYY-MM-DD-slug)")
-  .option("--title <title>", "plan title")
-  .option("--specs <ids>", "comma-separated spec IDs")
-  .option("--depends-on <ids>", "comma-separated plan IDs")
-  .option("--target <branch>", "intended integration branch")
-  .option("--comparison-base <commit>", "comparison baseline commit")
-  .option("--dry-run", "validate without creating the plan")
-  .action((opts) => planNewCommand(opts));
-plan.command("show <id>").description("Print a plan's PLAN.md").action((id) => planShowCommand(id));
-plan.command("start <id>").description("Start or resume a plan (branch, worktree, setup hook)").option("--no-fetch", "do not fetch origin before starting").option("--target <branch>", "select an integration target").option("--dry-run", "prepare without mutation").option("--json", "print the result as JSON").action((id, opts) => planStartCommand(id, opts));
-plan.command("retarget <id>").description("Reconcile the recorded destination without committing").requiredOption("--target <branch>").option("--dry-run").option("--json").action((id: string, opts: { target: string; dryRun?: boolean; json?: boolean }) => {
-  const result = executeOperation({ operation: 'plan.retarget', arguments: { id, target: opts.target, dryRun: !!opts.dryRun } }, { extensionId: 'cli' });
-  if (!result.ok) { process.stderr.write(`${result.error.message}\n`); process.exitCode = 1; return; }
-  if (opts.json) process.stdout.write(`${JSON.stringify(result.value)}\n`);
-  else {
-    const value = result.value;
-    process.stdout.write(`${id}: ${value.old_target} -> ${value.new_target}; ${value.changed ? (opts.dryRun ? 'preview' : 'updated, uncommitted') : 'unchanged'}\n`);
-    if (opts.dryRun) process.stdout.write(`Original start: ${value.start_target_branch} at ${value.start_base}\nComparison baseline: ${value.comparison_base ?? '(none)'}\nChanged paths: ${value.changed_files.map(f => f.path).join(', ') || '(none)'}\nRefs may change before the update.\n`);
-  }
-});
-for (const operation of ['shelve', 'resume'] as const) {
-  plan.command(`${operation} <id>`).description(`${operation} a started plan`).option('--dry-run', 'preview without mutation').option('--json', 'output a structured receipt').action((id: string, opts: { dryRun?: boolean; json?: boolean }) => {
-    const result = executeOperation({ operation: operation === 'shelve' ? 'plan.shelve' : 'plan.resume', arguments: { id, ...(opts.dryRun ? { dryRun: true } : {}) } }, { extensionId: 'cli' });
-    if (!result.ok) { process.stderr.write(`${result.error.message}\n`); process.exitCode = 1; return; }
-    if (opts.json) { process.stdout.write(`${JSON.stringify(result.value)}\n`); return; }
-    process.stdout.write(`${opts.dryRun ? 'Would ' + operation : operation === 'shelve' ? 'Shelved' : 'Resumed'} ${id} on ${result.value.target}${result.value.commit ? ` (${result.value.commit})` : ''}\n`);
-    if (result.value.effectiveStatus) process.stdout.write(`Effective status: ${result.value.effectiveStatus}\n`);
-    if (result.value.next) process.stdout.write(`Next step: ${result.value.next.number} ${result.value.next.title} (${result.value.next.status})\n`);
-    if (operation === 'resume' && !result.value.checkout) process.stdout.write(`Checkout missing; run specplane plan start ${id} to recreate it.\n`);
-  });
-}
-plan
-  .command("finish <id>")
-  .description("Finish a plan: tests, rebase, done and archive commit, merge (lists open spec-gaps.md entries)")
-  .option("--yes", "confirm the local merge without asking")
-  .option("--no-fetch", "do not fetch origin during the flow")
-  .action((id, opts) => planFinishCommand(id, opts));
-plan
-  .command("abandon <id>")
-  .description("Abandon a plan: mark it abandoned, remove its worktree")
-  .option("--delete-branch", "also delete branch plan/<id>")
-  .option("--force", "remove the worktree even if it has uncommitted changes")
-  .action((id, opts) => planAbandonCommand(id, opts));
-plan
-  .command("cleanup <id>")
-  .description("Remove the worktree and delete plan/<id> once the plan is done on the default branch")
-  .option("--force", "remove the worktree even if it has uncommitted changes")
-  .action((id, opts) => planCleanupCommand(id, opts));
-plan.command("archive <id>").description("Move a done or abandoned plan into the archive").action((id) => planArchiveCommand(id));
-plan
-  .command("restack <id>")
-  .description("Rebase a stacked plan's own commits onto its new base")
-  .option("--dry-run", "check and report without rewriting history")
-  .action((id, opts) => planRestackCommand(id, opts));
-plan
-  .command("next <id>")
-  .description("Show the next step, its context, and the recommended action (read-only)")
-  .option("--json", "print the result as JSON")
-  .option("--no-fetch", "accepted for symmetry with `plan list --live`; `plan next` never fetches")
-  .action((id, opts) => planNextCommand(id, opts));
-const collect = (v: string, prev: string[] = []): string[] => [...prev, v];
-plan
-  .command("step-done <id>")
-  .description("Append the step's HANDOFF.md section, set its status, and make the step commit (never pushes)")
-  .requiredOption("--outcome <outcome>", "done, blocked, or skipped")
-  .requiredOption("--summary <text>", "commit subject text after `<type>(<slug>): `")
-  .option("--type <type>", "Conventional Commits type of the step's main change", "feat")
-  .option("--changed <path:reason>", "file changed and why (repeatable, order kept)", collect)
-  .option("--deviation <text>", "deviation from the plan (repeatable)", collect)
-  .option("--open-issue <text>", "open issue (repeatable; `BLOCKED: ...` when blocked)", collect)
-  .option("--gap <id>", "spec-gaps.md entry this step added, e.g. G3 (repeatable)", collect)
-  .option("--next-knows <text>", "what the next step must know")
-  .option("--recording-set <file>", "required reviewed digest-bound JSON manifest outside the checkout")
-  .option("--step <n>", "step number (default: the lowest step not done or skipped)", (v) => Number(v))
-  .option("--force", "override the blocker guard and mark the step done anyway")
-  .option("--reason <text>", "audit reason required when re-recording a completed step")
-  .option("--trailer <line>", "extra trailer such as `Co-Authored-By: ...` (repeatable)", collect)
-  .action((id, opts) => planStepDoneCommand(id, opts));
-plan.command("graph").description("Print the Mermaid dependency graph").action(() => planGraphCommand());
-plan
-  .command("approve <ids...>")
-  .description("Approve plans and commit the status change")
-  .option("--dry-run", "report the planned changes and commits")
-  .action((ids: string[], opts: { dryRun?: boolean }) => planApproveCommand(ids, opts));
+registerPlanCommands(program);
 
 const spec = program.command("spec").description("Work with specs (new, list, show, validate, approve, reopen, meta, override)");
 function completionCommand(id: string, opts: { root?: string; dryRun?: boolean; json?: boolean; status?: string }, alias: boolean): void {

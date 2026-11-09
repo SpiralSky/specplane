@@ -23,7 +23,7 @@ test('branch syntax cache is operation-scoped and never caches refs or plan-spec
       import fs from 'node:fs';
       import { execFileSync } from 'node:child_process';
       import { isBranchName, withBranchNameCache } from ${JSON.stringify(new URL('./branch-name.js', import.meta.url).href)};
-      import { resolvePlanContext, validateTargetBranch } from ${JSON.stringify(new URL('../plan/context.js', import.meta.url).href)};
+      import { resolvePlanContext, validateTargetBranch } from ${JSON.stringify(new URL('../legacy-plan/context.js', import.meta.url).href)};
       const root = ${JSON.stringify(root)}, log = ${JSON.stringify(log)}, base = ${JSON.stringify(base)};
       const git = (...args) => execFileSync(${JSON.stringify(realGit)}, args, { cwd: root, encoding: 'utf8', stdio: 'pipe' }).trim();
     const count = () => fs.readFileSync(log, 'utf8').trim().split('\\n').length;

@@ -15,7 +15,7 @@ import { parseSpecContent } from "../spec/parse.js";
 import type { ImplementationAssessment } from "../core/completion.js";
 import { loadSpecs, validateSpecs } from "../spec/validate.js";
 import { withContainedDirectory } from "../core/contained-files.js";
-import { assertRecordingPaths } from "../plan/recording-set.js";
+import { assertRecordingPaths } from "../legacy-plan/recording-set.js";
 import type { Config, SpecRootConfig, ValidationReport } from "../types.js";
 
 /** Usage errors that have no dedicated error class (exit 1). */

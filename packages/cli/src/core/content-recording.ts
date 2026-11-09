@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { run } from '../git/exec.js';
-import { assertRecordingPaths, validateRecordingSet, type RecordingSet } from '../plan/recording-set.js';
+import { assertRecordingPaths, validateRecordingSet, type RecordingSet } from '../legacy-plan/recording-set.js';
 import { checkoutIdentity, type WriterLease } from './writer-leases.js';
 import type { RecoveryTransaction } from './pending-recovery.js';
 

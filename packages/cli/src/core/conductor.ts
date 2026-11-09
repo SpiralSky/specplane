@@ -1,6 +1,6 @@
 import { loadConfig } from '../legacy-config.js';
 import { checkoutRoot } from '../git/repo.js';
-import { runPlans, type RunResult } from '../plan/run.js';
+import { runPlans, type RunResult } from '../legacy-plan/run.js';
 import type { ConductorRequest, CoreContext, Result, SessionAdapter } from './contracts.js';
 
 const ADAPTER_METHODS = ['probe', 'launch', 'observe', 'resume', 'recovery', 'cancel'] as const;

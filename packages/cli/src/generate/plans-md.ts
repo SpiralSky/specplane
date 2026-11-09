@@ -1,11 +1,11 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { listPlans } from '../plan/resolve.js';
+import { listPlans } from '../legacy-plan/resolve.js';
 import { parseFrontmatter } from '../frontmatter.js';
 import { FrontmatterError } from '../errors.js';
 import { PLAN_SCHEMA, validator, describeErrors } from '../schemas.js';
-import { buildGraph } from '../plan/graph.js';
-import { getIndexStatus, type IndexStatus } from '../plan/status.js';
+import { buildGraph } from '../legacy-plan/graph.js';
+import { getIndexStatus, type IndexStatus } from '../legacy-plan/status.js';
 import type { Config, PlanFrontmatter } from '../types.js';
 import type { PlanSnapshot } from './snapshot.js';
 import { toMermaid } from './mermaid.js';

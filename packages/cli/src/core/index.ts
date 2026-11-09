@@ -1,13 +1,13 @@
 /** Import-safe library entry point. The CLI is deliberately not imported here. */
 import { lazyValidator } from '../lazy-validator.js';
 import { writeImplementation, type CompletionReceipt } from './completion-writer.js';
-import { transitionFromCheckout, type ShelveReceipt } from '../plan/shelve.js';
-import { retargetPlan, type RetargetReceipt } from '../plan/retarget.js';
+import { transitionFromCheckout, type ShelveReceipt } from '../legacy-plan/shelve.js';
+import { retargetPlan, type RetargetReceipt } from '../legacy-plan/retarget.js';
 import { LeaseRefused } from './writer-leases.js';
 import { mechanicalRequestSchema, workflowRequestSchema, workflowResultSchema, workflowTestRequestSchema, recordingProposalSchema, contributionEventSchema, confirmationChallengeSchema, confirmationResponseSchema, conductorRequestSchema, contributionQuerySchema } from './schemas.js';
 import { coreInfo } from './build-info.js';
 import { runConductorImpl } from './conductor.js';
-import type { RunResult } from '../plan/run.js';
+import type { RunResult } from '../legacy-plan/run.js';
 import { validateCompatibility, type HostSelection } from './compatibility.js';
 import type { CoreContext, MechanicalRequest, Result, ConductorRequest, SessionAdapter } from './contracts.js';
 export { coreInfo };
@@ -53,13 +53,13 @@ export function runConductor(request: ConductorRequest, context: CoreContext & {
   if (!validate.conductor(request)) return Promise.resolve(checked('runConductor', false));
   return runConductorImpl(request, context);
 }
-export type { RunResult } from '../plan/run.js';
+export type { RunResult } from '../legacy-plan/run.js';
 export { captureContribution, captureProposedContribution, readContributions } from './contribution-capture.js';
 
 export * from "./completion.js";
 
 export type { CompletionReceipt } from './completion-writer.js';
-export type { RetargetReceipt } from '../plan/retarget.js';
+export type { RetargetReceipt } from '../legacy-plan/retarget.js';
 
 export { recoverWorkflowRecording } from './recording-recovery.js';
 export { inspectCommittedContributions } from './contribution-history.js';

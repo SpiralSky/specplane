@@ -7,8 +7,8 @@ import { generatePlansMd, snapshotRecords, type LiveContext } from '../generate/
 import { checkoutRoot } from '../git/repo.js';
 import { branchExists, remoteBranchExists } from '../git/branch.js';
 import { hasOpenPR } from '../git/forge.js';
-import { localPlanIds, remotePlanIds, planReport, targetPlanRecord, selectedPlanBranch } from '../plan/activity.js';
-import { getEffectiveStatus, type IndexStatus } from '../plan/status.js';
+import { localPlanIds, remotePlanIds, planReport, targetPlanRecord, selectedPlanBranch } from '../legacy-plan/activity.js';
+import { getEffectiveStatus, type IndexStatus } from '../legacy-plan/status.js';
 import type { PlanFrontmatter } from '../types.js';
 
 export function generateCommand(opts: { print?: boolean; live?: boolean; source?: string }): void {

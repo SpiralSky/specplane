@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import { ConfigError, NotARepoError } from "./errors.js";
-import { validateTargetBranch } from "./plan/context.js";
+import { validateTargetBranch } from "./legacy-plan/context.js";
 import { mainRoot } from "./git/repo.js";
 import { isBranchName } from "./git/branch-name.js";
 import { CONFIG_SCHEMA, describeError, dotted, validator } from "./schemas.js";

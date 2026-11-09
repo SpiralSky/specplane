@@ -4,7 +4,7 @@
  */
 import * as path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { configAt } from '../plan/prepare-start.js';
+import { configAt } from '../legacy-plan/prepare-start.js';
 import type { Config } from '../types.js';
 
 export type Tier = 'text' | 'standard' | 'risk';

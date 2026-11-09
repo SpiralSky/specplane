@@ -7,7 +7,7 @@ import { CONFIG, makeRepo, spec } from '../test-repo.js';
 import { prepareConfirmation as prepareConfirmedOperation, confirmOperation as confirmConfirmedOperation } from './index.js';
 import { acquireWriterLease } from './writer-leases.js';
 import { loadConfig } from '../legacy-config.js';
-import { startPlan } from '../plan/flows.js';
+import { startPlan } from '../legacy-plan/flows.js';
 import type { CoreContext, MechanicalRequest, ConfirmationChallenge, ConfirmationResponse } from './contracts.js';
 
 const planId = '2026-01-01-confirmation';

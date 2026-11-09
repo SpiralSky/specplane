@@ -4,8 +4,8 @@ import { loadConfig } from "../legacy-config.js";
 import { SpecplaneError, UnknownRootError, reportError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { readFrontmatter } from "../frontmatter.js";
-import { listStepFiles } from "../plan/parse.js";
-import { listPlans } from "../plan/resolve.js";
+import { listStepFiles } from "../legacy-plan/parse.js";
+import { listPlans } from "../legacy-plan/resolve.js";
 import { loadSpecs } from "../spec/validate.js";
 import type { Config } from "../types.js";
 

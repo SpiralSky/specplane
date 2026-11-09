@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { run } from '../git/exec.js';
 import { lazyValidator } from '../lazy-validator.js';
-import { validateRecordingSet, type RecordingSet } from '../plan/recording-set.js';
+import { validateRecordingSet, type RecordingSet } from '../legacy-plan/recording-set.js';
 import { readContainedFile } from './contained-files.js';
 import { canonical, sha256, assertPreparedIdentity, preparedActivity, finishStoppedPreparation, type PreparedState } from './workflow-preparation.js';
 import { checkoutIdentity, inspectHostLeaseRecovery, recoverHostLease, verifyCompletedHostLease, type HostLeaseBinding, type WriterLease } from './writer-leases.js';

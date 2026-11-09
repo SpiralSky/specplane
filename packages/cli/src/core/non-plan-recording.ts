@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import { loadConfig } from '../legacy-config.js';
 import { resolveSpecId } from '../spec/resolve.js';
 import { run } from '../git/exec.js';
-import { validateRecordingSet, type RecordingSet } from '../plan/recording-set.js';
+import { validateRecordingSet, type RecordingSet } from '../legacy-plan/recording-set.js';
 import { readContainedFile } from './contained-files.js';
 import { setFinalizedAssistAuthor } from './contribution-metadata.js';
 import { prepareCreation, type PreparedCreation } from './creation-plans.js';

@@ -1,5 +1,5 @@
-import type { DirectedGraph } from "../plan/graph.js";
-import type { IndexStatus } from "../plan/status.js";
+import type { DirectedGraph } from "../legacy-plan/graph.js";
+import type { IndexStatus } from "../legacy-plan/status.js";
 
 const CLASS_DEFS = [
   "draft fill:#f9fafb,color:#374151,stroke:#d1d5db",

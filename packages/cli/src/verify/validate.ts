@@ -4,6 +4,8 @@ import { loadProject, resolveCite, type Project, type SpecDoc } from "../spec/pr
 import { checkRequirementIds } from "../spec/requirements.js";
 import { CommitProjects, computeStatus, dependencyCites } from "../spec/status.js";
 import { committedSource, headCommit, worktreeSource } from "../spec/source.js";
+import { loadPlans } from "../plan/model.js";
+import { validatePlanRecords } from "../plan/validate.js";
 
 /** Validation rules over the project snapshot (`architecture/reference-cli` §6). Read-only. */
 
@@ -169,6 +171,9 @@ export function validateProject(root: string, opts: ValidateOptions = {}): Repor
     checkSpecFormat(doc, emit);
     checkSpecCites(wt, doc, emit);
   }
+
+  // Plans (`reference-cli` §11.1). A project without plans reports nothing (`plans R69`).
+  validatePlanRecords(loadPlans(wt.source, paths.plansDir), wt, root, (sev, rule, m, f, l) => emit(sev, rule, m, f, l), wanted);
 
   // Status from committed content.
   const statuses: Report["statuses"] = [];

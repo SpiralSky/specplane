@@ -11,10 +11,10 @@ import { approveSpec, reopenSpec, reopenDependants } from '../commands/spec-appr
 import { approvePlan } from '../commands/plan-approve.js';
 import { acceptDecision } from '../commands/decision.js';
 import { resolveSpecId } from '../spec/resolve.js';
-import { planDir } from '../plan/resolve.js';
+import { planDir } from '../legacy-plan/resolve.js';
 import { listWorktrees } from '../git/worktree.js';
-import { abandonPlan, finishPlan, type AbandonPreview, type FinishGate } from '../plan/flows.js';
-import { lifecycleContext } from '../plan/lifecycle-context.js';
+import { abandonPlan, finishPlan, type AbandonPreview, type FinishGate } from '../legacy-plan/flows.js';
+import { lifecycleContext } from '../legacy-plan/lifecycle-context.js';
 import { loadAdrs } from '../decisions/validate.js';
 import { withApprovalProjection } from '../commands/approval-read-tree.js';
 import { readFrontmatter, renderStatus } from '../frontmatter.js';
