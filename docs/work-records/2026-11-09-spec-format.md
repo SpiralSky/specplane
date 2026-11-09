@@ -72,3 +72,7 @@ A citation to a part of a spec means that section and its subsections only. A ba
 ## 5. Order and dependencies
 
 Specs are written in the order in `docs/release-plan.md` as listed in HANDOFF. A spec may cite a spec that is not written yet by its planned slug (`plans`, `plan-execution`, `roles-and-permissions`, `requests`, `steering`, `harness`, `cli`, `verification`, `configuration`, `later-releases`); keep such citations at requirement level (`R28`) when the target section does not exist yet.
+
+### Standing delegation: hand approval of all specs (user, 2026-11-09, second instruction)
+
+Specplane's own CLI is broken for the new format (it cannot read it), so the user said the LLM may approve ALL specs (feature and architecture) manually, by editing metadata in the shape above, for as long as the CLI cannot do it. This applies to this repository only, not to the requirements page, which the user owns. Approvals made this way carry the note "approved by the LLM, not a human, under the user's 2026-11-09 delegation". Once the CLI reads the new format, re-record them with `specplane spec approve`. Applied to the 11 feature specs (earlier) and the 4 architecture specs (session 17).
