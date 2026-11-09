@@ -1,0 +1,55 @@
+import { createHash } from "node:crypto";
+import { splitFrontmatter } from "./frontmatter.js";
+
+/** Content fingerprints (`architecture/file-formats` §4.2, §4.3, §5.2). */
+
+const cmp = (a: string, b: string): number => {
+  const x = Array.from(a, (c) => c.codePointAt(0)!);
+  const y = Array.from(b, (c) => c.codePointAt(0)!);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return x[i] - y[i];
+  return x.length - y.length;
+};
+
+/** Compact JSON with mapping keys sorted by code point; fixed by the spec, not by a library. */
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  const obj = value as Record<string, unknown>;
+  return `{${Object.keys(obj).sort(cmp).map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`).join(",")}}`;
+}
+
+const sha = (s: string): string => createHash("sha256").update(s, "utf8").digest("hex");
+const lf = (s: string): string => s.replace(/\r\n?/g, "\n");
+
+export const SPEC_EXCLUDED = ["status", "approval", "authors", "review-reason", "results", "implementation"] as const;
+
+/** `spec-v2` fingerprint of a spec file, or null when its frontmatter cannot be read. */
+export function specFingerprint(text: string): string | null {
+  const fm = splitFrontmatter(text);
+  if (!fm.data) return null;
+  const frontmatter: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fm.data)) if (!(SPEC_EXCLUDED as readonly string[]).includes(k)) frontmatter[k] = v;
+  return `spec-v2:sha256:${sha(canonicalJson({ frontmatter, body: lf(fm.body) }))}`;
+}
+
+/** `sec-v1` fingerprint of a cited part: LF text with trailing blank lines removed. */
+export function partFingerprint(text: string): string {
+  const lines = lf(text).split("\n");
+  while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+  return `sec-v1:sha256:${sha(lines.join("\n"))}`;
+}
+
+/** `plan-v1` fingerprint of a PLAN.md: like `spec-v2` without the `commit` of each `implements` entry. */
+export function planFingerprint(text: string): string | null {
+  const fm = splitFrontmatter(text);
+  if (!fm.data) return null;
+  const frontmatter: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fm.data)) if (!(SPEC_EXCLUDED as readonly string[]).includes(k)) frontmatter[k] = v;
+  if (Array.isArray(frontmatter.implements)) {
+    frontmatter.implements = frontmatter.implements.map((e) => {
+      if (e && typeof e === "object" && !Array.isArray(e)) { const { commit: _c, ...rest } = e as Record<string, unknown>; return rest; }
+      return e;
+    });
+  }
+  return `plan-v1:sha256:${sha(canonicalJson({ frontmatter, body: lf(fm.body) }))}`;
+}
