@@ -15,6 +15,7 @@ export type Kind =
   | { t: "bool" }
   | { t: "enum"; values: readonly string[] }
   | { t: "path" }
+  | { t: "outpath" }
   | { t: "filename" }
   | { t: "posint" }
   | { t: "days" }
@@ -50,7 +51,7 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "paths.architecture", kind: { t: "path" }, def: "docs/specifications/architecture", doc: "Folder of the architecture specifications" },
   { key: "paths.test_logs", kind: { t: "path" }, def: "docs/test-logs", doc: "Folder of test logs kept in git (used only when tests.logs is git)" },
   { key: "plans.dir", kind: { t: "path" }, def: "docs/plans", doc: "Folder of the plans" },
-  { key: "plans.worktree_dir", kind: { t: "path" }, def: null, defText: "a folder next to the project", doc: "Folder in which plan worktrees are created, one subfolder per plan" },
+  { key: "plans.worktree_dir", kind: { t: "outpath" }, def: null, defText: "a folder next to the project", doc: "Folder in which plan worktrees are created, one subfolder per plan" },
   { key: "plans.setup_command", kind: { t: "text" }, def: null, defText: "none", doc: "Command run once in a new plan worktree; if it fails the plan does not start" },
   { key: "plans.start_conditions", kind: { t: "bool" }, def: true, doc: "on requires the plan and the specifications it references to be Approved before it starts" },
   { key: "plans.parallelism", kind: { t: "posint" }, def: 1, later: true, doc: "Greatest number of tasks in a plan step run at once" },
@@ -131,6 +132,7 @@ function allowedFor(kind: Kind): string {
     case "bool": return "on or off";
     case "enum": return kind.values.join(", ");
     case "path": return "a path inside the repository";
+    case "outpath": return "a folder outside the project, absolute or relative to the project";
     case "filename": return "a file name";
     case "posint": return "a whole number above 0";
     case "days": return "a whole number of days above 0, or forever";
@@ -160,6 +162,11 @@ export function checkValue(kind: Kind, v: unknown): { ok: true; value: unknown }
     case "path": {
       if (typeof v !== "string" || v.trim() === "") return bad("must be a non-empty path");
       return isInside(v) ? good(normPath(v)) : bad(`${JSON.stringify(v)} is not inside the repository`);
+    }
+    case "outpath": {
+      // Plan worktrees live outside the project (`architecture/repository-layout` §3); a folder that resolves inside it is refused when a plan starts.
+      if (typeof v !== "string" || v.trim() === "") return bad("must be a non-empty path");
+      return good(v.trim());
     }
     case "filename":
       return typeof v === "string" && v !== "" && !/[\\/]/.test(v) ? good(v) : bad(`${JSON.stringify(v)} is not a plain file name`);

@@ -3,7 +3,7 @@
 A managed plan has explicit readiness, dependency and checkout requirements. Use the configured plans directory. Human readiness, approval and merge decisions remain distinct.
 
 ```sh
-specplane plan list --live --no-fetch
+specplane plan list --live
 specplane plan next 2026-01-01-example --json
 ```
 
