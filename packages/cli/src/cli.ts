@@ -9,8 +9,7 @@ import { planApproveCommand } from "./commands/plan-approve.js";
 import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
-import { specPinCommand } from "./commands/spec-pin.js";
-import { specApproveCommand, specReopenCommand } from "./commands/spec-approve.js";
+import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, specReopenHuman } from "./commands/spec-human.js";
 import { searchCommand } from "./commands/search.js";
 import { docsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
@@ -134,7 +133,7 @@ plan
   .option("--dry-run", "report the planned changes and commits")
   .action((ids: string[], opts: { dryRun?: boolean }) => planApproveCommand(ids, opts));
 
-const spec = program.command("spec").description("Work with specs (new, list, show, validate, pin, approve, reopen)");
+const spec = program.command("spec").description("Work with specs (new, list, show, validate, approve, reopen, meta, override)");
 function completionCommand(id: string, opts: { root?: string; dryRun?: boolean; json?: boolean; status?: string }, alias: boolean): void {
   const common = { id, ...(opts.root !== undefined ? { root: opts.root } : {}), ...(opts.dryRun ? { dryRun: true } : {}) };
   const request = alias ? { operation: "spec.complete" as const, arguments: common } : { operation: "spec.implementation" as const, arguments: { ...common, status: opts.status as "incomplete" | "partial" | "complete" } };
@@ -147,19 +146,35 @@ spec.command("complete <id>").description("Declare implementation complete").opt
 spec.command("implementation <id>").description("Declare implementation status").requiredOption("--status <status>").option("--root <name>").option("--dry-run").option("--json").action((id, opts) => completionCommand(id, opts, false));
 spec
   .command("approve <ids...>")
-  .description("Approve specs and commit the status change")
-  .option("--dry-run", "report the planned changes and commits")
-  .action((ids: string[], opts: { dryRun?: boolean }) => specApproveCommand(ids, opts));
+  .description("Approve specs by ID (committed content only; a group is approved together)")
+  .option("--yes", "confirm group approval in advance")
+  .option("--no-commit", "stage the approval instead of committing it")
+  .option("--json", "output JSON")
+  .action((ids: string[], opts) => specApproveHuman(ids, opts));
 spec
   .command("reopen <id>")
-  .description("Set an approved spec back to review")
-  .option("--dry-run", "report the planned change and commit")
-  .action((id: string, opts: { dryRun?: boolean }) => specReopenCommand(id, opts));
-spec
-  .command("pin [id] [refs...]")
-  .description("Write or check base pins (based_on) of a spec")
-  .option("--check", "list stale pins for all specs; exit 1 if any")
-  .action((id: string | undefined, refs: string[], opts: { check?: boolean }) => specPinCommand(id, refs, opts));
+  .description("Set a spec back to awaiting review")
+  .option("--no-commit", "stage instead of committing")
+  .option("--json", "output JSON")
+  .action((id: string, opts) => specReopenHuman(id, opts));
+const meta = spec.command("meta").description("Read or correct spec metadata");
+meta.command("get <id>").description("Show metadata, with overrides marked").option("--json").action((id: string, opts) => specMetaGetHuman(id, opts));
+meta
+  .command("set <id> <field> <value>")
+  .description("Set title, authors, references, covers, approval.date or approval.commit (lists are comma separated; authors are human:<name> or llm:<model>)")
+  .option("--no-commit", "stage instead of committing")
+  .option("--json")
+  .action((id: string, field: string, value: string, opts) => specMetaSetHuman(id, field, value, opts));
+const override = spec.command("override").description("Protected overrides (Administrator by default)");
+override.command("status <id> <status>").description("Set status by hand: approved or awaiting-review").option("--no-commit").option("--json")
+  .action((id: string, status: string, opts) => specOverrideHuman("status", id, [status], opts));
+override.command("approver <id> <approver>").description("Set the approver: human:<name> or llm:<model>@<human>").option("--no-commit").option("--json")
+  .action((id: string, approver: string, opts) => specOverrideHuman("approver", id, [approver], opts));
+override.command("test <id> <test> <result>").description("Set a test result (passed, failed) or clear it").option("--summary <text>").option("--no-commit").option("--json")
+  .action((id: string, test: string, result: string, opts) => specOverrideHuman("test", id, [test, result], opts));
+const role = program.command("role").description("Show or switch the CLI role");
+role.command("show").action(() => roleShowHuman());
+role.command("switch <role>").description("administrator or standard-user").action((r: string) => roleSwitchHuman(r));
 
 spec
   .command("new <type> <slug>")

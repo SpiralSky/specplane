@@ -13,10 +13,10 @@ const ENV = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT
 function repo() {
   const root = makeRepo({
     ".specplane/config.yaml": CONFIG,
-    "specs/features/draft.md": spec({ id: "feature/draft", title: "Draft", status: "review", author: "user" }),
+    "docs/specifications/features/draft.md": "---\nid: feature/draft\ntitle: Draft\nstatus: awaiting-review\nauthors: []\ncovers: []\nreferences: []\n---\n\n# Draft\n",
     "decisions/0001-example.md": "---\nid: decision/0001\ntitle: Example\ndate: 2026-01-01\nstatus: proposed\n---\n# Example\n",
   });
-  for (const args of [["init", "-q", "-b", "main"], ["add", "-A"], ["commit", "-q", "-m", "init"]]) spawnSync("git", args, { cwd: root, env: ENV });
+  for (const args of [["init", "-q", "-b", "main"], ["config", "user.name", "t"], ["add", "-A"], ["commit", "-q", "-m", "init"]]) spawnSync("git", args, { cwd: root, env: ENV });
   return root;
 }
 const sp = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd, encoding: "utf8", env: ENV, input: "" });
@@ -39,7 +39,7 @@ test("stateful spec and ADR commands refuse while another writer holds the check
     }
     assert.equal(fs.existsSync(path.join(root, "specs/features/held.md")), false);
     assert.equal(head(root), before);
-    assert.match(fs.readFileSync(path.join(root, "specs/features/draft.md"), "utf8"), /status: "?review"?/);
+    assert.match(fs.readFileSync(path.join(root, "docs/specifications/features/draft.md"), "utf8"), /status: awaiting-review/);
     lease.release();
     const ok = sp(root, "spec", "new", "feature", "held", "--title", "Held");
     assert.equal(ok.status, 0, ok.stderr);
