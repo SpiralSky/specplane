@@ -18,7 +18,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 3 plan-execution (R27,R31): `docs/specifications/features/plan-execution.md`
 - [x] 4 roles-and-permissions (R42,R42.1,R42.2,R43,R44,R44.1,R46,R48,R49,R50,R55,R55.1,R56,R56.1,R57,R58,R60): `docs/specifications/features/roles-and-permissions.md`; `spec-policies.md` removed
 - [x] 5 requests (R52, R52.1-R52.5): `docs/specifications/features/requests.md`
-- [ ] 6 steering
+- [x] 6 steering (R22,R23,R51,R59,R59.1): `docs/specifications/features/steering.md`
 - [ ] 7 harness
 - [ ] 8 cli
 - [ ] 9 verification
@@ -68,7 +68,13 @@ Assumptions from spec 5 (all revisable):
 - Accepting needs the permission to do the action in mode allow (no separate accept permission); a role whose own mode is request user or deny cannot accept. Deny means no request can be sent. Accepting does the action once and does not grant the permission. Requests never expire; pending requests do not change on preset changes (checked at acceptance).
 - Unapproved specs shown in a request dialogue are shown as all additions. Push notification config key names are left to `configuration R25`. Cites made: `plan-execution R27.5*`, `roles-and-permissions R50/R57/§2`, `steering R59`, `configuration R25`. No hook blocked any edit.
 
-Next: spec 6, `steering` (R22, R23, R51, R59).
+Assumptions from spec 6 (all revisable):
+- Section ids: `steering R59` (contains the request/ask/soft-stop decisions and the blocking vs non-blocking guidance as `###` subsections; no separate R59.1 cites needed), `steering R59.1`, `steering R51`, `steering R22`, `steering R23`, plus `§1` terms and `§2` edge cases. R22 and R23 are marked Phase 2.
+- Defaults chosen: in a plan block, send a non-blocking request and continue if other steps do not depend on it, else soft stop; when unsure between blocking and non-blocking, prefer blocking. Allow means act directly unless custom steering says otherwise (consistent with `requests R52`). Where a specific and a general custom steering conflict, the specific wins. A permission without attached instructions is a warning (R24).
+- Custom steering is changed through configuration; key names are left to `configuration R25`. The complete steering an LLM receives can be shown to the user.
+- Cites made: `harness R14` (how and when instructions are delivered; session 7 must provide that section), `configuration R25`, `plans R28`, `plan-execution R27.1/R27.3/R27.5`, `requests R52`, `roles-and-permissions R50/R57`, page-level R13.1, R14, R16, R24, R35.1, R47, R54, R55, R61. No hook blocked any edit. `agent-integration.md` was not touched.
+
+Next: spec 7, `harness` (R14, R18, R19, R20, R21, R26, R34, R35, R38, R47), replacing `agent-integration.md`.
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
