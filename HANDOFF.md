@@ -12,7 +12,7 @@ Work with the user, one or two items at a time, showing proposed text as a diff.
 4. New specs stay unapproved until the user approves them. Do not write architecture specs or code yet.
 
 ## Spec rewrite progress (hands-off sessions, started 2026-11-09)
-Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (frontmatter, `## R<n>` sections, citations such as `R11.2`, `plans R28`, `plans §2`). New specs are `status: awaiting-review`; nothing is approved. Old text stays in git (`git show 5b6b043^:docs/specifications/features/<old>.md`).
+Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (frontmatter, `## R<n>` sections, citations such as `R11.2`, `plans R28`, `plans §2`). New specs are `status: awaiting-review`; nothing is approved. Old text stays in git (`git show 0925bbf^:docs/specifications/features/<old>.md`).
 - [x] 1 specifications (R1,R2,R4,R5,R7,R9,R10,R11,R40,R65,R67,R68): `docs/specifications/features/specifications.md`; `spec-system.md` and `spec-precedence.md` removed
 - [ ] 2 plans (R28,R29,R30,R69)
 - [ ] 3 plan-execution (R27,R31)
