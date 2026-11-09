@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R1, R2, R4, R5, R7, R9, R10, R11, R40, R65, R67, R68]
-references: [R1, R2, R7, R9, R11.2, R11.3, plans R28, plans R30.1, roles-and-permissions R57, harness R14, configuration R25, cli R16, verification R61]
+references: [later-releases R39.3, verification R64, plans R28, plans R30.1, roles-and-permissions R57, harness R14, configuration R25, cli R16, verification R61, plans §2]
 ---
 
 # Specifications
@@ -40,7 +40,7 @@ Each layer outranks the next in the order requirement, feature, architecture. Wh
 
 - When the higher layer is silent on something, the lower layer fills the gap. Where there is a plan, the LLM records the gap or assumption in the plan's record (`plans R28`); otherwise it tells the user in conversation.
 - When neither layer covers a case, the LLM picks the most reasonable and least destructive default, proceeds, and reports the assumption the same way.
-- Two specs in the same layer that contradict each other are reported to the user as a conflict; the LLM does not implement the contradicted behaviour until the user resolves it, and continues with unrelated work.
+- Assumption, not on the page: two specs in the same layer that contradict each other are reported to the user as a conflict; the LLM does not implement the contradicted behaviour until the user resolves it, and continues with unrelated work.
 - Implementation may be ahead of or behind the specifications, and specifications may change together with code or separately. Which branch holds what has no meaning to Specplane.
 
 Scenario: Given `architecture/cli` says results are sorted ascending and `feature/cli` says descending, When an LLM implements sorting, Then it follows `feature/cli` and tells the user the two disagree.
@@ -49,13 +49,13 @@ Scenario: Given a requirement says a command must not need network access and a 
 
 ## R1: Requirements formatting
 
-Requirements are written as `R<number>`, with sub-requirements as `R<number>.<number>` and deeper levels separated by dots, for example `R1.1`.
+Requirements are written as `R<number>`, with sub-requirements as `R<number>.<number>` and deeper levels separated by dots, for example R1.1.
 
 - Each requirement ID is unique across the project and permanent.
 - The ID of a removed requirement is retired and never reused. The requirements document lists its retired IDs.
 - The next new requirement takes the highest ID ever used plus one.
 
-Scenario: Given `R41` is retired, When a user adds a requirement, Then it cannot be called `R41` and checking reports the clash if it is.
+Scenario: Given R41 is retired, When a user adds a requirement, Then it cannot be called R41 and checking reports the clash if it is.
 
 ## R2: Requirements storage
 
@@ -89,6 +89,7 @@ A citation names a requirement or a part of a specification in a fixed shape:
 - `plans R28`: the section of the named feature spec that covers that requirement.
 - `plans §2`: a section of the named spec that is not tied to a requirement.
 - `architecture/cli R16`: the same for an architecture spec. A name without a layer always means a feature spec.
+- `claude:R7`, `claude:harness R14`: a cite into a subproject or the root project, written `<project>:<cite>` with any of the shapes above. A cite without a project means the citing spec's own project; `root` always names the root project and cannot be a subproject name; spec IDs are unique within a project (`later-releases R39.3`). This syntax is an assumption, because the page only asks that the project be named.
 
 A citation to a part means that section and its subsections. A citation to a whole spec is allowed but marks the citing spec outdated whenever anything in the cited spec changes (`R11.2`), so citing the narrowest part is preferred.
 
@@ -107,7 +108,7 @@ A feature or architecture spec is easy for a person and an LLM to find a part of
 - Acceptance scenarios are written as Given, When, Then and sit under the section they check.
 - A section may declare how it is verified: tests (deterministic or checked with intelligence) or neither, in which case intelligent judgement applies (`verification R61`).
 
-A requirement is covered by exactly one feature spec. A requirement that no spec covers can be listed by checking, unless the user keeps it requirement-only.
+A requirement that no spec covers can be listed by checking, unless the user keeps it requirement-only. Requirement-only is the owner's choice for a requirement (and its sub-requirements) and is recorded by the project's coverage rules, not by a spec (`verification R64`); on this project R62 and R63 are requirement-only.
 
 ## R4: Feature and architecture separation
 

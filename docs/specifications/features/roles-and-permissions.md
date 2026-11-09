@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R42, R42.1, R42.2, R43, R44, R44.1, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R57, R58, R60]
-references: [R16.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, later-releases R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, steering R51, steering R59, configuration R25, specifications R11, verification R61]
+references: [R16.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64]
 ---
 
 # Roles and Permissions
@@ -90,8 +90,11 @@ These are the standard permissions. The section named in the last column defines
 | Soft stop a plan | The LLM stopping the plan it is running (`plan-execution R27.1`); no mode other than allow is needed by default | `R27.3` |
 | Decision records | Add, retrieve, edit and delete user decision records; a later release | `R37.1` |
 | Change configuration | Any change to Specplane's configuration, including which preset is active | `R25.1`, `configuration R25` |
-| Requests | Sending a request and accepting one | `R52`, `R52.2` |
+| Validate, list warnings, show coverage, run tests, read the audit log | Read-only checks and reads; they use the information retrieval permission and have none of their own. Recording a test result is separate (`R61.2`) | `verification R12`, `verification R24`, `verification R13`, `verification R64` |
+| Mark an architecture specification implemented | No permission of its own: it needs the permission to record a test result, and for an LLM the setting `architecture.llm_may_mark_implemented` (`configuration R25`) | `verification R36.1` |
+| Requests | Sending a request is always allowed to the LLM role. Accepting a request has no permission of its own: it uses the permission of the requested action | `R52`, `R52.2` |
 
+- Switching to the Administrator is not a permission of a role but a change of role, described with the role mapping in `R44`.
 - The list is complete in the sense of `R50`: a new command that does something not covered by an existing permission brings its own permission, with a default in each default preset.
 - A role needs the permission for each thing a command does. For example, a step that writes a specification needs the permission to edit that type of specification (`R19.2`); a plan that starts runs only if both the starting permission and the start conditions are met (`plan-execution R31.1`).
 - All permissions are documented and can be viewed from the CLI and the harness (`R54`). Each permission has instructions attached to it that tell the LLM about the limit and that it must not try to bypass it (`R51`, `steering R51`).
@@ -107,7 +110,7 @@ All four presets have these in common:
 - **Approval.** Approving specifications is request user for the LLM role.
 - **Configuration.** Changing configuration is request user for the LLM role.
 - **Always allowed for the LLM role:** information retrieval for all specifications, recording a test result (`R61.2`), reading specification metadata, sending requests, and the soft stop of a plan it runs (`R27.3`).
-- **Plans for the LLM role:** creating and editing plans are allowed; starting, resuming, abandoning, completing and deleting plans and setting a plan budget are request user. The plan itself can still stop and resume as `plan-execution R27` describes.
+- **Plans for the LLM role:** creating and editing plans are allowed in presets 1, 3 and 4 and request user in preset 2 (an assumption: the page says preset 2 enables only read-only and miscellaneous permissions, and a plan can contain steps that write specifications); starting, resuming, abandoning, completing and deleting plans and setting a plan budget are request user. The plan itself can still stop and resume as `plan-execution R27` describes.
 - **Metadata and decision records for the LLM role:** writing metadata is deny; retrieving decision records is allowed, and adding, editing and deleting them is request user.
 
 The presets differ in what the LLM role may do to specifications. Create, edit and delete are set together for each type:

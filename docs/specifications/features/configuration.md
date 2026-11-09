@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R25, R25.1, R54]
-references: [R12, later-releases R37, R13.1, R22, R24.1, R32, R36.1, R36.3, R42, R47, R51, R52.5, R61.4, harness R14, plan-execution R27, plan-execution R31, requests R52, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, specifications R9, steering R51, steering R59, verification R12, verification R13, verification R61]
+references: [R12, later-releases R37, R13.1, R22, R24.1, R32, R36.1, R36.3, R42, R47, R51, R52.5, R61.4, harness R14, plan-execution R27, plan-execution R31, requests R52, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, specifications R9, steering R51, steering R59, verification R12, verification R13, verification R61, later-releases R39, plan-execution R31.2, roles-and-permissions R44, roles-and-permissions R44.1, roles-and-permissions R48, roles-and-permissions R55, roles-and-permissions R55.1, roles-and-permissions R58, specifications R4, verification R64]
 ---
 
 # Configuration
@@ -57,6 +57,7 @@ Harness (`harness R14`, `specifications R9`):
 
 | Setting | Meaning | Default |
 |---------|---------|---------|
+| `harness.separation_check` | Whether the optional instructions that check feature and architecture separation and warn per change or review are used (`specifications R4`, `harness R14`) | `on` (assumption) |
 | `harness.instructions` | A replacement text for the instructions delivered with a command. It changes only the text; limits Specplane checks itself still apply | The command's documentation |
 | `harness.retrieval_include_references` | Whether retrieving a specification also includes the sections it references, when the request does not say | `off` |
 | `authorship.record_llm` | Whether the harness adds the LLM as an author when it writes or changes a specification | `on` |
@@ -72,16 +73,22 @@ Verification (`verification R12`, `verification R13`, `verification R61`):
 | `tests.logs_retention` | How long local test logs are kept, in days, or `forever`. Does not apply to logs kept in git | 30 days |
 | `pre_commit.duplicate_requirement_ids` | Installs a check that refuses a commit in which two requirements share an identifier (`R32`). Later release | `off` |
 | `pre_commit.tests` | Installs a check that refuses a commit when the deterministic tests of an architecture specification fail (`R36.3`). Later release | `off` |
+| `coverage.requirement_only` | Requirements the owner keeps requirement-only, which coverage does not report (`verification R64`). Assumption: the page has no way to mark this | None |
 
-Later releases (`later-releases R37`):
+Later releases:
 
 | Setting | Meaning | Default |
 |---------|---------|---------|
 | `decisions.enabled` | Whether user decision records are stored and retrieved (`later-releases R37`). Later release | `off` |
+| `subprojects` | The named locations in the project that are subprojects (`later-releases R39`). Later release | None |
+| `plans.parallelism` | The greatest number of tasks in a plan step run at once (`plan-execution R31.2`). Later release | 1 |
+| `strict_mode.enabled` and `strict_mode.<measure>` | Strict mode as a whole, and each of its measures (blocking direct file edits in the harness, git safeguards, operating system safeguards) on its own (`roles-and-permissions R55.1`). Later release | `off` |
+| `bypass_guards.<measure>` | Each guardrail against permission bypass by headless sessions or the CLI inside an LLM session, on its own (`roles-and-permissions R58`). Later release | `on` (assumption) |
+| `roles.os_user_mapping` | The optional mapping from operating system users to roles, kept locally per machine, not in git (`roles-and-permissions R44`). Later release | No mapping |
+| `roles.llm_rules` | Rules that give a role to an LLM by subagent, agent type or provider (`roles-and-permissions R44.1`); custom roles and these rules are kept in git (`roles-and-permissions R48`). Later release | The default LLM role |
 
 - Choosing `git` for `tests.logs` makes Specplane tell the user that logs in git can expose private information and are not removed by retention (`verification R61`).
 - Turning on a pre-commit setting installs the check and turning it off removes it, the same way for both (`verification R12`).
-- Settings that existed in earlier versions and no longer have a meaning are not part of configuration. This includes the per-type LLM role and authorship policy, the architecture-leak guard, overlay roots, the plan status source and the plan dependency mode. Their purpose is now served by permissions, requests and steering.
 
 ### Validation
 
@@ -99,15 +106,15 @@ Scenario: Given `auto_warn` is `on`, When the user turns it off in the CLI, Then
 
 Changing configuration is a permission with the modes allow, request user and deny (`roles-and-permissions R50`). Presets set the mode for each role (`R42`, `roles-and-permissions R57`).
 
-- In the default presets the user may change configuration, and the LLM role needs the user's agreement (request user). In the most restrictive preset the LLM role cannot change configuration at all (`roles-and-permissions R57`).
+- In every default preset the Standard User may change configuration (allow) and the LLM role needs the user's agreement (request user) (`roles-and-permissions R57`). A custom role can have deny.
 - Reading configuration needs no permission; anyone can see every setting.
-- A change to the active preset is a configuration change like any other. An LLM can therefore not widen its own permissions unless its preset allows changing configuration (`R47`).
+- A change to the active preset is a configuration change like any other. An LLM can therefore not widen its own permissions without the user's agreement (`roles-and-permissions R55`).
 - With request user, the LLM sends a request showing the setting, the old value and the new value, and the change is made only if the user accepts (`requests R52`).
 - Each configuration change is recorded in the audit log (`verification R13`).
 
 Scenario: Given the LLM role has configuration set to request user, When the LLM wants to turn `auto_warn` off, Then the user sees a request with the old and new value and nothing changes until it is accepted.
 
-Scenario: Given the LLM role has configuration set to deny, When the LLM tries to change `permissions.preset`, Then the change is refused with an instruction not to work around it, and the refusal is logged.
+Scenario: Given a custom role whose configuration permission is deny, When an LLM with that role tries to change `permissions.preset`, Then the change is refused with an instruction not to work around it, and the refusal is logged.
 
 ## R54: Permission Documentation
 
@@ -129,4 +136,5 @@ Test (deterministic): list the permissions in the CLI and the harness for the sa
 - A setting with the value of the default that is explicitly written is kept as written, and removing it is not a change in behaviour.
 - A configuration change cannot be made by editing around a denied permission: the harness stops such edits where it can, and otherwise validation and the audit log show the change afterwards (`R47`).
 - Changing `permissions.preset` does not change pending requests; they are checked when accepted (`requests R52`).
+- The active preset (`permissions.preset`) is part of the first release (Phase 1 of `docs/release-plan.md`), while configuration as a whole is Phase 2; until configuration exists, the default preset is active.
 - Settings for a later release can be written already; until the release exists they have no effect and validation does not report them as unknown.

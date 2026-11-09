@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R16, R16.1, R17, R17.1, R17.2, R33, R33.1]
-references: [R11, R11.1, R11.2, R13.1, R16.1, R17, R17.1, R17.2, R18, R20, R22, R33, R47, R61.1, specifications R9, specifications R10, specifications R11, plans R29, plan-execution R31.1, roles-and-permissions R42, roles-and-permissions R50, roles-and-permissions R57, roles-and-permissions R58, harness R20, harness R47, verification R61, configuration R25]
+references: [R11.1, R11.2, R13.1, R18, R20, R22, R47, R61.1, specifications R9, specifications R10, specifications R11, plans R29, plan-execution R31.1, roles-and-permissions R42, roles-and-permissions R50, roles-and-permissions R57, roles-and-permissions R58, harness R20, harness R47, verification R61, configuration R25, R9]
 ---
 
 # CLI
@@ -28,7 +28,7 @@ A person approves a specification with a command that takes one or more specific
 - **Committed content only.** Approval applies to the committed content of the specification (`specifications R11`). If the file has uncommitted changes, the command refuses and says so.
 - **Unapproved references.** The command fails if any part of the specification references a specification that is not approved. The failure names the referenced specification and its status.
 - **Missing references.** The command fails while the specification references a part of a specification, or a requirement, that no longer exists (`R11.2`). The failure names the missing part.
-- **Groups.** Specifications that reference each other are approved together in a single command (`§2`). Naming one member of a group approves the whole group. Before approving, the command warns the user and lists every specification in the group, and the user confirms. If any member cannot be approved, nothing in the group is approved and every reason is listed. The documentation describes group approval (`R22`).
+- **Groups.** Specifications that reference each other are approved together in a single command (`§2`). Naming one member of a group approves the whole group. Before approving, the command warns the user and lists every specification in the group, and the user confirms, unless the command is given a flag that confirms in advance so that scripted approval still works (an assumption: the page only asks for the warning and the list). If any member cannot be approved, nothing in the group is approved and every reason is listed. The documentation describes group approval (`R22`).
 - **Failed tests.** A specification with a recorded failed test cannot be approved (`R61.1`; test results are described in `verification R61`).
 - **Nothing partial.** Approving several IDs in one command either approves all of them or none, and when it refuses it lists every reason it found, not only the first.
 - **Already approved.** Approving a specification that is already Approved does nothing and says so.
@@ -81,7 +81,7 @@ Specification metadata has these permissions, each with the three modes:
 - **Manage metadata (general).** Writing any metadata, except the protected overrides of `R17.2`. It covers everything below.
 - **Granular write permissions**, one for each piece of metadata, so that a role can be allowed to write one piece without writing the others. The pieces are: title, authors, references, covered requirements, and the approval records that are not protected (the approval date and commit).
 
-A role may write a piece of metadata if it has either the general permission or the granular permission for that piece, subject to the mode. If the two differ, the more permissive mode wins. Deny on the general permission does not remove a granular allow.
+A role may write a piece of metadata if it has either the general permission or the granular permission for that piece, subject to the mode. If the two differ, the more permissive mode wins (an assumption: the page does not say how the two combine). Deny on the general permission does not remove a granular allow.
 
 Scenario: Given a role with allow for the authors permission only, When it changes the authors of a specification, Then the change is made; When it changes the title, Then it is refused naming the title permission.
 

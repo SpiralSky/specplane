@@ -5,7 +5,7 @@ status: awaiting-review
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-references: [R14, R62.3, specifications R4, specifications R9, specifications R11, specifications R65, roles-and-permissions R50, roles-and-permissions R57, harness R14, configuration R25, requests R52, steering R59]
+references: [R14, R62.3, specifications R9, specifications R11, specifications R65, roles-and-permissions R50, roles-and-permissions R57, harness R14, configuration R25, requests R52, steering R59, R68, specifications R7]
 covers: [R37, R37.1, R39, R39.1, R39.2, R39.3, R39.4, R66]
 ---
 
@@ -30,6 +30,7 @@ Later release. When the user discusses work with the LLM in the harness and make
 - A record is not a specification. It does not define behaviour, is not approved and is not checked by tests. Where a decision should bind the product, the user puts it in a specification.
 - Records are part of the project and travel with it, so that every user and every LLM in the project sees the same decisions.
 - Taking the old architecture decision records into this feature is optional: existing records of that kind can be kept as decision records, but Specplane no longer requires them, and they are never approved by an LLM.
+- Assumption, awaiting the user's confirmation: the page describes only user decision records, so the older architecture decision records (numbering, supersession, their own validation and approval workflow) are not carried over as a separate feature. This answers conflict question 4 in `docs/work-records/2026-11-09-requirements-conflicts.md` provisionally.
 
 Scenario: Given decision records are on, When the user decides in a discussion to keep push notifications off by default, Then the LLM stores a record with that decision and the reason, and a later session asked to enable them by default finds the record and asks the user before acting against it.
 
@@ -51,10 +52,10 @@ Test (deterministic): with decision records on and add set to deny for the LLM r
 
 Later release. A project can contain subprojects, for example folders that hold feature and architecture specifications. Requirements specifications can also live in a subproject. For example, an integration for one harness can have its own feature and architecture specifications while sharing the requirements of the root project, which then has no requirements of its own to write.
 
-- Each subproject is a named location in the project (`configuration R25`). Specifications in it behave like any other specifications: types, layers, approval, metadata and checks all apply (`specifications R11`, `specifications R65`).
+- Each subproject is a named location in the project, set in the `subprojects` setting (`configuration R25`). Specifications in it behave like any other specifications: types, layers, approval, metadata and checks all apply (`specifications R11`, `specifications R65`).
 - A subproject may have no requirements specification of its own; it then relies on the root project's.
 - Roots and subprojects are checked together: warnings, validation and coverage reports show which project each finding belongs to.
-- Old overlay roots (a root that extends another) are not part of Specplane any more; a project that used them declares each overlay as a subproject (`R66`).
+- Assumption, awaiting the user's confirmation: the page has no overlays, so overlay roots (a root that extends another) are not part of Specplane; a project that used them declares each overlay as a subproject (`R66`). This answers conflict question 5 in `docs/work-records/2026-11-09-requirements-conflicts.md` provisionally.
 
 ### R39.1: Subproject Decisions
 
@@ -72,24 +73,24 @@ Specifications in a subproject can reference requirement, feature and architectu
 
 Requirement IDs must be unique within the root project and within each subproject. The same ID may appear in two different subprojects, because each is a separate numbering.
 
-- A reference to something in another subproject, or in the root project, names the project as well as the ID, for example `claude:R7` for requirement `R7` of the subproject `claude`. A reference without a project name means the project of the specification that makes the reference.
+- A reference to something in another subproject, or in the root project, names the project as well as the cite, written `<project>:<cite>` where the cite is any citation shape (`specifications R7`). Examples are `claude:R7` for requirement R7 of the subproject `claude`, and `claude:harness R14` for a section of a feature specification in it. A reference without a project name means the project of the specification that makes the reference. The syntax is an assumption, because the page only says the project is named as well as the ID.
+- The name `root` always means the root project and cannot be used as a subproject name. Specification IDs are unique within a project, so the project name tells apart two specifications with the same ID in different projects.
 - A reference that names a project that does not exist, or an ID that does not exist in the named project, is reported by validation as an error.
 - A subproject's name is unique in the root project and does not change once specifications reference it.
 
-Scenario: Given the root project and the subproject `claude` both have a requirement `R7`, When a specification in `claude` cites `R7`, Then it means the subproject's `R7`, and `root:R7` means the root project's.
+Scenario: Given the root project and the subproject `claude` both have a requirement R7, When a specification in `claude` cites R7, Then it means the subproject's R7, and `root:R7` means the root project's.
 
 ### R39.4: Subproject Precedence
 
 The root project's requirements outrank a subproject's requirements. Within a subproject, layer precedence applies as in the rest of the project (`specifications R65`): requirements outrank feature specifications, which outrank architecture specifications.
 
 - If a subproject requirement contradicts a root requirement, the root requirement wins and the contradiction is reported as a warning for the user to resolve; the LLM does not implement the subproject side.
-- The root project's feature and architecture specifications are not outranked by a subproject's: precedence between them follows the layer order, with the root requirement still on top.
 
 ## R66: Project Migration
 
 Later release. A harness command guides the LLM through bringing an existing project into Specplane, including a project that uses an older Specplane format. Migration without an LLM is not a goal (`R62.3`).
 
-- The LLM uses the project's existing specifications, documents and code as sources. It writes specifications for the project, each tracing to requirements, and shows the user what it found and what it proposes to write before it writes.
+- The LLM uses the project's existing specifications, documents and code as sources. It writes specifications for the project, each tracing to requirements where the project has requirements (`R68`), and shows the user what it found and what it proposes to write before it writes.
 - The prompt the LLM receives is configurable like any other command instructions (`R14`, `harness R14`). The default prompt tells the LLM to prefer asking the user over guessing, and to leave out what it cannot find evidence for.
 - The LLM follows the permissions of its role. Where it may not create a specification, it requests it or tells the user what to create (`roles-and-permissions R50`, `requests R52`).
 - Every specification that results from migration starts as Awaiting Review, even if the source had been approved in an older format, because approval in the old format says nothing about the new content (`specifications R11`).
@@ -99,7 +100,7 @@ Later release. A harness command guides the LLM through bringing an existing pro
 
 Scenario: Given a project with specifications in an older format, all approved, When the user runs the migration command, Then the LLM proposes the new specifications, writes them within its permissions, and all of them are Awaiting Review.
 
-Test (deterministic): run the migration command in a project with previously approved specifications under a preset that lets the LLM create specifications; expect every new specification to be Awaiting Review and the old files unchanged.
+Test (intelligent): run the migration command in a project with previously approved specifications under a preset that lets the LLM create specifications; expect every new specification to be Awaiting Review and the old files unchanged.
 
 ## §2 Edge cases
 

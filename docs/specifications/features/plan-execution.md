@@ -55,10 +55,10 @@ Scenario: Given parallelism is set to three and a step lists four independent ta
 
 The user can start a plan run through the harness. The run is a session the user can read and can step into if they choose. The user controls which steps run, or runs all remaining steps. A selection that skips a step that is not yet completed is denied.
 
-- **Selection.** The user can ask for the next step, a number of steps, or all remaining steps. The first step in any selection must be the plan's next step (`plans §3.1`); a selection that would begin later is denied with the name of the step that comes first. A step is skipped only by a recorded decision with a reason (`plans §3.1`), never by a selection.
+- **Selection.** The user can ask for the next step, a number of steps, or all remaining steps. The first step in any selection must be the plan's next step (`plans §3.1`); a selection that would begin later is denied with the name of the step that comes first. A step is never skipped by a selection; a step the user no longer wants is removed by editing the plan (`plans §3.1`).
 - **No input needed.** Steps never need the user's input to run. Where the LLM lacks something, it records a gap or assumption and goes on (`plans §2.2`), sends a request (`R27.5`), or stops (`R27.3`). The user may read the session and step in, and doing so does not change what the plan requires.
 - **Plan checkout.** A run happens in a separate worktree on a separate branch for the plan (`plans R28`), so the directory the user is working in is never switched or changed. The branch is `plan/<id>`, created when the plan starts from the target branch.
-- **Where the worktree lives.** The worktree is a directory outside the project's working directory, in a folder for plan worktrees whose location is configurable (`configuration R25`) and whose default is next to the project. Each plan has its own subfolder named after its id, and the project's folder name is part of the path so that sibling projects do not clash.
+- **Where the worktree lives (assumption: the page says only that plans run in a separate worktree and branch).** The worktree is a directory outside the project's working directory, in a folder for plan worktrees whose location is configurable (`configuration R25`) and whose default is next to the project. Each plan has its own subfolder named after its id, and the project's folder name is part of the path so that sibling projects do not clash.
 - **Setup.** If the project defines a setup command (`configuration R25`), it runs once in a new worktree, because the worktree does not share installed dependencies. If it fails, the worktree is removed again and the start fails with the command's error.
 - **Files that are not tracked.** Files git does not track, such as local secrets, are not in the worktree. A step must not assume they are there; where one is needed, the run stops or sends a request.
 - **Target branch.** The target branch is the one named when the plan starts, and otherwise the branch the user is on. It is recorded with the commit the plan started from, and later steps and the final review use that record even if the branches move. A plan whose target branch no longer exists stops until the user chooses a new one.
@@ -109,7 +109,7 @@ A stopped plan can be resumed through a harness command. The command starts a ne
 - **After a hard stop**, or after a session that ended unexpectedly, the new session reads the handoff and also skims the earlier session's log to find what the handoff misses. The partial state in the log is not trusted over what the files and the last commit show.
 - Resuming clears the stop reason and sets the plan to in progress. The earlier stop reason stays in the handoff, so the record of what happened is kept.
 - A resume does not check the start conditions again (`R27.6`), because the plan's own changes to specifications must not keep it from continuing. It does check that the plan's checkout still exists; if it was removed, resuming recreates it from the plan's branch.
-- A resume does not skip steps. It continues at the first step that is not done or skipped.
+- A resume does not skip steps. It continues at the first step that is not done.
 - A plan that is completed or abandoned cannot be resumed (`plans R29`).
 - Anything the user changed in the environment since the stop, such as a fixed permission or a restored file, is what resuming is meant to pick up.
 
@@ -129,7 +129,7 @@ When a run hits something that blocks it, such as a restriction in its environme
 
 - The LLM can stop the plan itself with a soft stop (`R27.1`). Every default role preset allows this (`roles-and-permissions R57`).
 - Stopping records why, and what a person or a later session must change before the plan continues (`plans R29`). The plan can then be resumed once the environment is changed (`R27.2`).
-- A block is never turned into a skipped step. The step stays as it is until it is done or the user records a decision to skip it.
+- A block is never turned into a skipped step. The step stays as it is until it is done or the user edits it out of the plan.
 - A plan can also be stopped by the user at any time. This is the same soft stop, and also covers the user pausing a plan on purpose; there is no separate paused status.
 
 Scenario: Given a step needs a tool the environment forbids, When the LLM cannot do the step any other way, Then it stops the plan, the handoff says which tool is needed, and the plan is stopped with that reason.
@@ -178,12 +178,12 @@ Test (deterministic): start a plan that references an Awaiting Review specificat
 
 This section describes how the final review of `plans R28` runs. It adds no behaviour to the plan's contents; those are in `plans R28` and `plans R28.1`.
 
-- **When it opens.** When every step is done or skipped, the run ends by opening the final review instead of completing the plan. The plan stays in progress until the review decides. A user can also ask for the review earlier, and it then lists the steps that have not run.
-- **Who prepares it.** The LLM gathers the review: for each step what it did, the open entries of the gaps and assumptions record (`plans §2.2`), skipped or unrun steps, unanswered requests (`requests R52`), and referenced specifications that changed on the target branch or on the plan branch (`plans R28.1`). It checks the plan's acceptance criteria and says which are met and on what evidence, but it does not decide.
+- **When it opens.** When every step is done, the run ends by opening the final review instead of completing the plan. The plan stays in progress until the review decides. A user can also ask for the review earlier, and it then lists the steps that have not run.
+- **Who prepares it.** The LLM gathers the review: for each step what it did, the open entries of the gaps and assumptions record (`plans §2.2`), unrun steps, unanswered requests (`requests R52`), and referenced specifications that changed on the target branch or on the plan branch (`plans R28.1`). It checks the plan's acceptance criteria and says which are met and on what evidence, but it does not decide.
 - **Who decides.** The user, or a role with the completing permission (`R31.1`), completes the plan or sends it back. With the permission set to request user, the decision goes to the user as a request (`requests R52`). An LLM never completes a plan without that permission.
 - **Sent back.** The plan returns to in progress with the reasons recorded in its notes. The reasons can add steps or change later steps, and the run continues from the first step that is not done.
 - **Completed.** The plan is completed and archived in the plan branch's last commit (`plans R28`). The plan's worktree stays until the branch is merged.
-- **Merging.** Specplane does not merge on its own authority. After completion the plan's branch is ready for merging into the target branch, either by opening a pull request or by a local merge, as the user chooses. A local merge always creates a merge commit so the plan's commits stay together, and only runs in a checkout of the target branch without uncommitted changes. If the target branch moved after the final review began, the review is shown again before a merge, because the changes to specifications may have changed. Conflicts are shown to the user and are never resolved automatically.
+- **Merging (assumption: the page says only that a final review decides completion).** Specplane does not merge on its own authority. After completion the plan's branch is ready for merging into the target branch, either by opening a pull request or by a local merge, as the user chooses. A local merge always creates a merge commit so the plan's commits stay together, and only runs in a checkout of the target branch without uncommitted changes. If the target branch moved after the final review began, the review is shown again before a merge, because the changes to specifications may have changed. Conflicts are shown to the user and are never resolved automatically.
 - **After the merge** the worktree and the plan's branch are removed (`R27`).
 
 Scenario: Given every step is done and one request is unanswered, When the run ends, Then the final review lists the request, and the plan is still in progress.

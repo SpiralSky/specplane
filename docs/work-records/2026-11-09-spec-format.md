@@ -18,15 +18,15 @@ status: awaiting-review
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-references: [R7, R11.2, plans R28]
 covers: [R1, R2]
+references: [R7, R11.2, plans R28]
 ---
 ```
 
 - `status`: only `awaiting-review` or `approved` (`R11`). New specs are written as `awaiting-review`. Nothing here sets `approved`; approval is recorded by Specplane with who approved and the commit (`R11.1`), never typed by an LLM.
 - `authors`: list; each item is `human: <name>` or `llm: <model id>` with an optional `contribution` (`R10.1`) such as `drafted`, `revised`, `reviewed`. Only record what happened; do not invent a human author.
 - `references`: every citation the body uses, deduplicated (`R9`). A citation in the body that is missing from this list is a format error.
-- `covers`: the requirement IDs this spec is responsible for. Each requirement is covered by exactly one spec, unless it is requirement-only (`R62`, `R63`).
+- `covers`: the requirement IDs this spec is responsible for. Each requirement is normally covered by one spec; a requirement may be covered by several, and the owner may keep it requirement-only (`R62`, `R63`, and their sub-requirements).
 
 ## 3. Sections and traceability (`R5`, `R7`)
 
@@ -44,6 +44,7 @@ covers: [R1, R2]
 | `<slug> R<n>` | The section of that feature spec that covers `R<n>`, for example `plans R28` |
 | `<slug> §<n>` | A non-requirement section, for example `plans §2` |
 | `architecture/<slug> R<n>` | The same for an architecture spec; a bare slug always means a feature spec |
+| `<project>:<cite>` | A cite into a subproject or the root project, for example `claude:R7`, `claude:harness R14`. No project means the citing spec's own project. `root` names the root project and is not allowed as a subproject name; spec IDs are unique per project. Assumption (session 13): the page only says the project is named |
 
 A citation to a part of a spec means that section and its subsections only. A bare spec cite (`plans`) means the whole spec and should be avoided, because `R11.2` marks a citing spec outdated when any cited part changes.
 

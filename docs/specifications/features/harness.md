@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R14, R18, R19, R19.1, R19.2, R20, R20.1, R21, R21.1, R26, R26.1, R26.2, R34, R35, R35.1, R38, R38.1, R47]
-references: [R4, R10, R11, R16, R18, R19.2, R20, R20.1, R21.1, R22, R24, R26.2, R27, R35.1, R37, R37.1, R38.1, R47, R61.1, R66, later-releases R37, later-releases R37.1, later-releases R66, requests R52, roles-and-permissions R50, roles-and-permissions R57, steering R51, steering R59, specifications R9, plans R28, configuration R25]
+references: [R4, R10, R11, R16, R22, R24, R27, R37, R61.1, R66, later-releases R37, later-releases R37.1, later-releases R66, requests R52, roles-and-permissions R50, roles-and-permissions R57, steering R51, steering R59, specifications R9, configuration R25, plans R30.1, specifications R11.3]
 ---
 
 # Harness
@@ -67,7 +67,7 @@ Scenario: Given an LLM in the harness tries to run a Specplane CLI command, When
 
 The user can edit, delete and create specifications in the harness through commands that take natural language arguments. These are actions carried out by the LLM on the user's behalf, so the LLM needs the ability to do them.
 
-- The user describes the change in their own words. The LLM identifies the specification and makes the change. A new specification starts as Awaiting Review, and an edit to an approved specification makes it Awaiting Review (`specifications R9`).
+- The user describes the change in their own words. The LLM identifies the specification and makes the change. A new specification starts as Awaiting Review, and an edit to an approved specification makes it Awaiting Review (`specifications R11.3`).
 - Each action is checked against the LLM's role (`R19.2`). A denied action is refused and says which permission applies. A request-user action sends a request and the change is made only if the user accepts it (`requests R52`).
 - Creating, editing or deleting a specification never approves it (`roles-and-permissions R57`).
 
@@ -84,7 +84,7 @@ Whether a role may edit, delete or create specifications is controlled by granul
 - A role with allow does the action without asking.
 - A role with request user sends a request to the user, who sees the change as a difference from the last approved text (`requests R52`).
 - A role with deny cannot do it, and the LLM is told so (`steering R51`).
-- Which role holds which mode by default is in the default presets (`roles-and-permissions R50`). Plan steps that write specifications follow these permissions too (`plans R28`).
+- Which role holds which mode by default is in the default presets (`roles-and-permissions R57`). Plan steps that write specifications follow these permissions too (`plans R30.1`).
 
 Scenario: Given the LLM role has request user for editing feature specifications, When the user asks the LLM to change a feature spec, Then the user gets a request showing the change, and the file changes only if the user accepts.
 
@@ -136,7 +136,7 @@ Retrieval is flexible and controllable. The LLM or user can ask for several rela
 Information retrieval has the modes allow, deny and request user.
 
 - Spec viewing (`R21.1`) and spec review (`R38.1`) use this permission and have none of their own.
-- A role with deny cannot retrieve and the LLM is told so (`steering R51`). The default LLM role has allow (`roles-and-permissions R50`).
+- A role with deny cannot retrieve and the LLM is told so (`steering R51`). The default LLM role has allow (`roles-and-permissions R57`).
 - Retrieval does not depend on whether the role may edit the specification. A role that cannot write a specification can still read it, retrieve it and review it.
 
 Scenario: Given a feature spec cites two sections of other specs, When the LLM retrieves it, Then it gets the spec and those two sections only.
@@ -172,7 +172,7 @@ Adding a harness requires building only its integration, with no change to Specp
 
 - Every harness gets the same behaviour from the core: the same commands, permissions, steering and requests. A harness differs only in how it delivers them and in capabilities it lacks (`R35.1`).
 - A harness does not add rules of its own that contradict what the specifications say.
-- Specplane never picks a harness for the user from files that happen to be installed. The user names the harness at setup.
+- Specplane never picks a harness for the user from files that happen to be installed. The user names the harness at setup (an assumption, not on the page).
 
 ## R35: Supported Harnesses
 
@@ -193,7 +193,7 @@ Scenario: Given a harness cannot show a specification, When the user runs the vi
 Some instructions apply even when no command is running. They are given to the LLM in every session and are short.
 
 - They say Specplane is in use, tell the LLM to read the configuration before acting on specifications or plans and to resolve paths from it, and point to the steering for its role (`steering R59`). They do not repeat steering, rules or procedures; the details arrive with the command that needs them (`R14`).
-- Instruction files in the project that belong to its maintainers, such as `AGENTS.md` or `CLAUDE.md`, are never overwritten or reordered. A harness delivers the standing instructions through a file or place Specplane owns. Where the harness has none, Specplane may add one clearly marked block to a shared instruction file and changes only that block when updating. Text outside it belongs to the user.
+- Assumption, not on the page: instruction files in the project that belong to its maintainers, such as `AGENTS.md` or `CLAUDE.md`, are never overwritten or reordered. A harness delivers the standing instructions through a file or place Specplane owns. Where the harness has none, Specplane may add one clearly marked block to a shared instruction file (a project may instead forbid this, as Specplane's own repository does) and changes only that block when updating. Text outside it belongs to the user.
 - A user who edits inside the marked block loses the edits at the next update; the block says so.
 - When steering is regenerated (`steering R59`) the standing instructions are refreshed in the same way. Specplane warns when the delivered text is missing or older than the installed Specplane (`R24`).
 - An LLM in a project without Specplane configuration does not apply Specplane rules.

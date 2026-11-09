@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R28, R29, R30, R69]
-references: [R7, R9, R11, R11.2, R19.2, R24, specifications R65, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.6, requests R52, steering R59]
+references: [R7, R9, R11, R11.2, R19.2, R24, specifications R65, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.6, requests R52, steering R59, R27, R4, plan-execution R31.1]
 ---
 
 # Plans
@@ -80,7 +80,7 @@ A plan has an execution status, one of:
 
 A plan in progress or stopped stores its current progress:
 
-- the step it is at, and which steps are done or skipped;
+- the step it is at, and which steps are done;
 - a reference to the session that last worked on it, so it can be resumed (`plan-execution R27.2`);
 - for a stopped plan, why it stopped and what a person or a later session must do before it continues.
 
@@ -119,7 +119,7 @@ By default a plan works in a separate git branch for the plan. Work is committed
 - Each finished step is committed on the plan branch together with its handoff notes (`§2`). How many commits make up a step is the user's choice, with at least one per finished step.
 - The final review checks the plan against its acceptance criteria and shows the user, before deciding:
   - what each step did, and the gaps and assumptions recorded in the plan's gaps and assumptions record (`§2`);
-  - steps that were skipped or never run;
+  - steps that never ran;
   - requests that nobody has answered (`requests R52`);
   - the changes to referenced specifications described in `R28.1`.
 - The user, or a role with the permission to do so, decides the outcome: the plan is completed, or it goes back in progress with the reasons recorded. A plan is not completed because its steps are done or its branch is merged; completion is a declaration at the final review (`plan-execution R27`).
@@ -142,6 +142,8 @@ Scenario: Given the target branch changed `feature/export` after the plan starte
 
 ## §2 The plan record
 
+The files named here are the user-facing record and an assumption beyond the page; their exact layout belongs in an architecture specification (`R4`).
+
 A plan folder inside the plans folder (`plans.dir` in configuration) holds the plan's files; the archive directory (`R29.2`) holds the folders of finished plans.
 
 - The plan file holds the metadata and body from `R30` and `R29`, and its steps are listed there.
@@ -154,7 +156,7 @@ All of these are markdown the user can read and edit with ordinary tools. Becaus
 
 ### §2.1 Handoff entries
 
-Each entry records, for the step it describes: the step and its outcome (done or skipped), what changed and why, how the work differed from the step, gaps found (by identifier), open issues or follow-ups, and what the next step must know. Every part is present; one with nothing to report says "None". The entry is self-contained: the next session reads the handoff and the step file, not the diff.
+Each entry records, for the step it describes: the step and its outcome (done), what changed and why, how the work differed from the step, gaps found (by identifier), open issues or follow-ups, and what the next step must know. Every part is present; one with nothing to report says "None". The entry is self-contained: the next session reads the handoff and the step file, not the diff.
 
 - A step that is run again after being stopped adds a new entry. The latest entry for a step is the authoritative one; earlier entries stay as the record.
 - If a step is halted partway, the entry records the partial state and where a re-run must start.
@@ -174,9 +176,9 @@ Scenario: Given an LLM implements a step and `architecture/cli` is silent about 
 
 ### §3.1 Step status
 
-A step is not started, done, or skipped. A skipped step has a reason in the handoff. A step is never left in a blocked state for a person to reset: a step that cannot go on because of a missing answer is handled by a request (`requests R52`) or by stopping the plan (`plan-execution R27.1`).
+A step is either not done or done. There is no skipped status: a step the user no longer wants is removed by editing the plan, which is a plan edit (`plan-execution R31.1`), and the denial of a selection that skips an uncompleted step (`R27`) has no exception. A step is never left in a blocked state for a person to reset: a step that cannot go on because of a missing answer is handled by a request (`requests R52`) or by stopping the plan (`plan-execution R27.1`).
 
-The next step is the lowest-numbered step that is neither done nor skipped.
+The next step is the lowest-numbered step that is not done.
 
 ### §3.2 Step contents
 

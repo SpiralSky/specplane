@@ -6,7 +6,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R12, R13, R13.1, R24, R24.1, R32, R36, R36.1, R36.2, R36.3, R61, R61.1, R61.2, R61.3, R61.4, R64]
-references: [R4, R7, R9, R11.2, R16, R17.2, R22, R40, R50, R59, R62, R63, specifications R4, specifications R5, specifications R7, specifications R9, specifications R10, specifications R11, specifications §2, requests R52, plans R28, plans R30, roles-and-permissions R50, roles-and-permissions R57, cli R17, steering R59, harness R14, configuration R25]
+references: [R4, R7, R9, R11.2, R16, R17.2, R22, R40, R50, R59, R62, R63, specifications R5, specifications R7, specifications R9, specifications R10, specifications R11, requests R52, plans R28, plans R30, roles-and-permissions R50, roles-and-permissions R57, cli R17, steering R59, harness R14, configuration R25, plans R29.3, specifications R1, specifications R68]
 ---
 
 # Verification
@@ -15,7 +15,7 @@ Specplane tracks intended behaviour, review, implementation and evidence separat
 
 ## §1 Terms
 
-- **Validation:** checking that specifications, plans and configuration follow the rules in this product's requirements and specs. It reads committed and working-tree files but changes nothing.
+- **Validation:** checking that specifications, plans and configuration follow the rules in this product's requirements and specs. It changes nothing; its status and outdated checks use committed state (`R40`).
 - **Error and warning:** an error is a broken rule that Specplane cannot work around, for example metadata that cannot be read. A warning is something worth a person's attention that does not stop work, for example a requirement that nothing covers.
 - **Test:** a check a specification declares to show that the layer below it complies with it. It is deterministic or checked with intelligence (`§2.1`).
 - **Result:** the recorded outcome of a test (passed or failed), with who ran it, a short summary and the commit it ran on.
@@ -29,16 +29,16 @@ There is a command to validate the project (`specplane validate`), and the same 
 - **What is checked.** At least:
   - the format of each specification: metadata present and readable, status one of Awaiting Review or Approved, the identifier matching the file's name, the authors, the references and the covered requirements well formed (`specifications R5`, `specifications R7`, `specifications R10`, `specifications R11`);
   - every citation in a body resolves to something that exists, and every citation appears in the references (`specifications R9`);
-  - requirement identifiers are unique and not reused; a retired or already used number cannot be added (`specifications R4`);
+  - requirement identifiers are unique and not reused; a retired or already used number cannot be added (`specifications R1`);
   - a file called `INFO.md` has no specification metadata, and a file with invalid metadata is reported rather than ignored;
   - plans: identifier matches folder, referenced specifications and plans exist, no reference cycle, steps are readable (`plans R28`, `plans R30`);
-  - approval and test state: an approved specification whose content changed since approval, or an outdated test result, is reported as such, not as an error (`R11.2`, `R61.1`);
+  - approval and test state: a specification outdated by a change of what it cites, or an outdated test result, is reported as such, not as an error (`R11.2`, `R61.1`);
   - configuration: unknown or malformed keys and values (`configuration R25`).
 - **Errors, warnings and notes.** Each finding says what is wrong, where (file, section and line where known), and which rule it breaks. Findings that depend only on the project's state, such as an uncovered requirement or a spec that has been outdated by a change, are warnings and join the warnings list (`R24`). Findings that mean a file cannot be trusted or used are errors.
-- **Scope.** The command checks the whole project by default. It can be limited to named specifications or plans. It checks the committed content as well as the working tree, and says which one a finding came from when they differ (`R40`).
+- **Scope.** The command checks the whole project by default. It can be limited to named specifications or plans. Status, outdated and test-state checks use committed content only (`R40`). Format checks can also read the working tree, and a finding says which one it came from when they differ.
 - **Result for scripts.** The command ends with a failure status when there are errors and a success status when there are none, so it can be used in automation. Warnings alone do not make it fail. The output can be read by people and by programs.
 - **Read-only.** Validation never edits a file, approves anything or changes a status.
-- **Missing layers.** A project without requirements, plans or decision records validates without complaints about their absence (`specifications §2`).
+- **Missing layers.** A project without requirements, plans or decision records validates without complaints about their absence (`specifications R68`).
 - **Intelligent checks.** Rules that need judgement, for example that a feature spec keeps architecture out (`R4`), are not decided by the command. Where the harness can run them, they are instructions to the LLM and their results are reported as warnings, never as errors.
 
 Scenario: Given a feature spec that cites a section of `plans` that does not exist, When the user runs `specplane validate`, Then the unresolved citation is reported as an error naming the spec and the citation, and the command ends with a failure status.
@@ -83,7 +83,7 @@ Test (deterministic): set the retention to one day, add an entry dated two days 
 
 Specplane keeps one list of warnings about the project. It is available through a command (`specplane warnings`) and, in a harness, to the LLM (`harness R14`).
 
-- **Sources.** Anything in the product's behaviour that says "reported as a warning" feeds this list: for example uncovered requirements and feature specs (`R64`), plans that reference an older version of a specification (`plans R28`), specifications outdated by a change of what they cite (`R11.2`), outdated test results (`R61.1`), steering that is missing or older than what is active (`steering R59`), permissions without instructions, a missing or stale harness installation, and an audit log that cannot be written (`R13`).
+- **Sources.** Anything in the product's behaviour that says "reported as a warning" feeds this list: for example uncovered requirements and feature specs (`R64`), plans that reference an older version of a specification (`plans R29.3`), specifications outdated by a change of what they cite (`R11.2`), outdated test results (`R61.1`), steering that is missing or older than what is active (`steering R59`), permissions without instructions, a missing or stale harness installation, and an audit log that cannot be written (`R13`).
 - **Each warning** has a short text, the thing it is about (specification, plan, permission, installation), and why it matters. Listing never edits anything. The list can be narrowed to one specification or plan.
 - **Current, not stored.** The list is worked out from the project's present state each time, so a warning disappears when its cause does. Nothing is remembered as dismissed; if a person wants a warning not to appear they fix its cause or change the configuration that produces it.
 - **Warnings never block.** They inform. Something that must block is an error (`R12`) or a permission, not a warning.
@@ -96,7 +96,7 @@ Test (deterministic): create the two situations above, list the warnings and exp
 
 Each Specplane command ends by reporting how many warnings exist, for example "3 warnings; run `specplane warnings`". This can be switched on or off (`configuration R25`) and is on by default.
 
-- The line is shown at the bottom of the output and does not change the command's own result or status. When there are no warnings it says so briefly or is left out; this is the same in both cases of the setting being on.
+- The line is shown at the bottom of the output and does not change the command's own result or status. When the setting is on and there are no warnings, it says so briefly (for example "0 warnings").
 - In a harness, the same count is included where the command's output is given to the LLM.
 - Commands whose output is meant for programs keep the line out of the data and report the count as a separate field.
 
@@ -115,7 +115,7 @@ Requirements can be checked for duplicate identifiers before they are committed,
 - Turning the option on adds the check to the repository's pre-commit steps without changing anything else there, and turning it off removes it again by itself, leaving the other steps as they were. A person can also remove it by hand without affecting the others.
 - When the check refuses a commit it says which identifier clashes and where.
 
-Scenario: Given the option is on and a commit adds a second `R14`, When the user commits, Then the commit is refused and both places are named.
+Scenario: Given the option is on and a commit adds a second R14, When the user commits, Then the commit is refused and both places are named.
 
 Scenario: Given the repository already has another pre-commit step, When the option is turned off, Then only Specplane's check is removed and the other step still runs.
 
@@ -249,10 +249,12 @@ Test (deterministic): run a test with logs set to local, git and off, and expect
 Specplane shows which specifications cover each requirement and feature specification, using their references (`R9`).
 
 - **Direction.** For a requirement: the feature specifications that cover it. For a feature specification: the architecture specifications that cover it. For a specification of any layer, the things above it that it covers. Coverage also appears in `covers` and in what a specification cites.
-- **Warnings.** Requirements and feature specifications that nothing covers are warnings (`R24`), not errors. A requirement that is requirement-only by the owner's choice (`R62`, `R63`) is exempt.
+- **Warnings.** Requirements and feature specifications that nothing covers are warnings (`R24`), not errors. A requirement that is requirement-only (below) is exempt.
 - **Any layers.** It works with whatever layers exist. A project with feature and architecture specifications and no requirements shows coverage for those two and no complaint about the missing layer.
 - **Two views.** One lists each item with what covers it; the other lists the uncovered items only. Both are available to people and LLMs.
-- **Several covers.** A requirement covered by more than one specification is shown with all of them; where the rules say each is covered by exactly one specification, more than one is reported (`specifications R9`).
+- **Several covers.** A requirement covered by more than one specification is shown with all of them. This is not a warning.
+- **How coverage is read.** A specification covers an item when the item is in its `covers` list or the specification cites it (`specifications R9`), which is how the page words it ("using their references").
+- **Requirement-only.** Non-goals and unwanted outcomes (`R62`, `R63` and their sub-requirements) describe no behaviour to cover and are never reported. Any other requirement the owner keeps requirement-only is listed in the setting `coverage.requirement_only` (`configuration R25`; assumption, the page has no way to mark it).
 
 Scenario: Given a requirement that no feature specification references, When the user asks for coverage, Then the requirement shows as uncovered and the warnings list includes it.
 
@@ -271,7 +273,7 @@ Test (deterministic): create a requirement, a covering feature specification and
 ### §2.2 Running
 
 - A test is run for one specification, for a section, or for all specifications with tests. The command shows each test's name, kind and result, and the summary for failures.
-- Running a test does not need a permission of its own; recording the result does (`R61.2`). Without the permission to record, the test still runs and its outcome is shown, with a note that it was not recorded.
+- Running a test needs only the information retrieval permission (`roles-and-permissions R50`); recording the result does (`R61.2`). Without the permission to record, the test still runs and its outcome is shown, with a note that it was not recorded.
 - Deterministic tests run against committed state like everything else (`R40`), and say so when the working tree differs.
 - A test that cannot run, for example because the harness is missing, is reported as not run. It is neither a pass nor a fail.
 
