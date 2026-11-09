@@ -1,25 +1,22 @@
 # Architecture Specifications — Specplane
 
-This folder contains the architecture specifications for the Specplane framework. Architecture specs describe **how** the framework is built: file formats, module structure, data schemas, algorithms, and technology choices.
+This folder contains the architecture specifications for Specplane. Architecture specs describe **how** the framework is built: file formats, module structure, data schemas, algorithms, and technology choices. They were rewritten on 2026-11-09 from the approved feature specs (`docs/work-records/2026-11-09-architecture-rewrite-plan.md`).
 
 ## Spec set
 
-| ID | Title | Status | Implements |
-|----|-------|--------|-----------|
-| `architecture/repository-layout` | Repository layout | review | feature/spec-system, feature/configuration, feature/plan-system, feature/decisions |
-| `architecture/file-formats` | File formats: frontmatter schemas, naming, templates | approved | feature/spec-system, feature/plan-system, feature/plan-steps, feature/decisions, feature/configuration, feature/plan-index, feature/tooling |
-| `architecture/reference-cli` | Reference CLI: modules, parsing, git integration, validation, plan flows | approved | feature/tooling, feature/plan-execution, feature/plan-index, feature/configuration, feature/spec-system, feature/spec-overlays, feature/spec-policies, feature/plan-system, feature/plan-status, feature/plan-steps, feature/decisions, feature/agent-integration |
-| `architecture/agent-skills` | Agent skills: config resolution and harness-neutral prompt contracts | approved | feature/agent-integration, feature/spec-precedence, feature/spec-policies, feature/spec-system, feature/plan-steps, feature/plan-execution, feature/tooling |
-| `architecture/ci` | CI: PLANS.md regeneration and validation | approved | feature/plan-index, feature/tooling |
+| ID | Title | Role |
+|----|-------|------|
+| `architecture/file-formats` | File formats | Frontmatter, approval record, cites, content fingerprint, plan record files, configuration schema, permission presets, request records, audit log, test results and logs |
+| `architecture/repository-layout` | Repository layout | Where files live, plan worktrees, local state, generated and ignored files, harness-installed files |
+| `architecture/reference-cli` | Reference CLI | Modules, parsing, fingerprints and status, validation, permissions, requests, audit, tests, plan flows, harness actions, human commands, pre-commit and CI checks |
+| `architecture/agent-skills` | Agent skills | Harness-neutral command contracts, standing instructions, steering and context retrieval |
 
-Harness-specific architecture specs live in their overlay roots and define how the harness-neutral contracts in `architecture/agent-skills` are packaged:
-- `claude:architecture/claude-integration` (`harnesses/claude/specifications/architecture/claude-integration.md`)
-- `codex:architecture/codex-integration` (`harnesses/codex/specifications/architecture/codex-integration.md`)
+The specs start as `awaiting-review` and are approved by a person or by an approver with the permission, as the feature specs are. The CI spec was deleted because the `PLANS.md` index it checked no longer exists; pre-commit and CI checks are in `architecture/reference-cli`.
 
-The status column reflects stored lifecycle metadata, not approval of uncommitted revisions. The 2026-11-02 reconciliation covers optional coordination, target-aware plans/index/CI, completion assessment and bundled docs across all architecture contracts; runtime delivery and human review remain separate.
+Harness specifications under `harnesses/*/specifications` define how the harness-neutral contracts in `architecture/agent-skills` are packaged; their citations are fixed in a later pass.
 
 ## Conventions
 
-- Architecture specs have a non-empty `implements` list.
+- Architecture specs list the feature sections they build in `implements` and every other cite in `references`; each body section states which feature sections it implements.
 - Templates for each file type are specified in `architecture/file-formats`, not as separate code files.
-- Cross-references use full IDs. Do not duplicate content from feature specs — reference the spec for the "what" and add the "how" here.
+- Cross-references use full IDs. Do not duplicate content from feature specs: reference the spec for the "what" and add the "how" here.

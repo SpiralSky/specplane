@@ -5,8 +5,8 @@ status: awaiting-review
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-implements: [harness R14, harness R18, harness R19, harness R19.1, harness R19.2, harness R20, harness R20.1, harness R26, harness R26.1, harness R26.2, harness R34, harness R35, harness R35.1, harness R47, harness §2, harness §3, harness R21, harness R38, steering R22, steering R23, steering R51, steering R59, steering R59.1, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.3, plan-execution R27.4, plan-execution R27.5, plan-execution R27.5.1, plan-execution R27.5.2, plan-execution R27.6, plan-execution R31, plan-execution §2, plan-execution §3, requests R52, requests R52.3, requests R52.4, specifications R67, verification R36.1, verification R61.2, verification R61.3, later-releases R37, later-releases R66]
-references: [plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.2, requests R52.1, requests R52.2, steering §2, roles-and-permissions R57, cli R16, cli R16.1, specifications R4, specifications R10, specifications R11.3, specifications R65, plans R28, plans R28.1, plans R30.1, plans R69, plans §3.2, verification R12, verification R24, verification R36, verification R36.2, verification R61.1, verification R64, configuration R54, later-releases R37.1, architecture/reference-cli §5.3, architecture/reference-cli §7.3, architecture/reference-cli §8, architecture/reference-cli §11.3, architecture/reference-cli §11.5, architecture/reference-cli §11.6, architecture/reference-cli §11.7, architecture/reference-cli §12.1, architecture/reference-cli §12.2, architecture/reference-cli §12.3, architecture/reference-cli §12.4, architecture/reference-cli §12.5, architecture/reference-cli §12.6, architecture/reference-cli §12.7, architecture/file-formats §5.5, architecture/file-formats §5.6, architecture/file-formats §6, architecture/file-formats §8, architecture/repository-layout §3, architecture/repository-layout §5, architecture/reference-cli §11.2, architecture/reference-cli §12]
+implements: [harness R14, harness R18, harness R19, harness R19.1, harness R19.2, harness R20, harness R20.1, harness R26, harness R26.1, harness R26.2, harness R34, harness R35, harness R35.1, harness R47, harness §2, harness §3, harness R21, harness R38, steering R22, steering R23, steering R51, steering R59, steering R59.1, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.3, plan-execution R27.4, plan-execution R27.5, plan-execution R27.5.1, plan-execution R27.5.2, plan-execution R27.6, plan-execution R31, plan-execution §2, plan-execution §3, requests R52, requests R52.3, requests R52.4, specifications R67, verification R36.1, verification R61.2, verification R61.3, later-releases R37, later-releases R66, specifications R4, specifications R65, plans §3.2, later-releases R37.1]
+references: [plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.2, requests R52.1, requests R52.2, steering §2, roles-and-permissions R57, cli R16, cli R16.1, specifications R10, specifications R11.3, plans R28, plans R28.1, plans R30.1, plans R69, verification R12, verification R24, verification R36, verification R36.2, verification R61.1, verification R64, configuration R54, architecture/reference-cli §5.3, architecture/reference-cli §7.3, architecture/reference-cli §8, architecture/reference-cli §11.3, architecture/reference-cli §11.5, architecture/reference-cli §11.6, architecture/reference-cli §11.7, architecture/reference-cli §12.1, architecture/reference-cli §12.2, architecture/reference-cli §12.3, architecture/reference-cli §12.4, architecture/reference-cli §12.5, architecture/reference-cli §12.6, architecture/reference-cli §12.7, architecture/file-formats §5.5, architecture/file-formats §5.6, architecture/file-formats §6, architecture/file-formats §8, architecture/repository-layout §3, architecture/repository-layout §5, architecture/reference-cli §11.2, architecture/reference-cli §12, architecture/file-formats §6.1]
 ---
 
 # Agent skills
@@ -30,19 +30,19 @@ Rules every contract follows:
 - **Config first.** The first step of every contract except documentation lookup reads `.specplane/config.yaml` through `config.get` and resolves every path from it (`architecture/file-formats §6`); it never assumes one. In a project without configuration the contract does nothing and says Specplane is not set up (`harness §2`).
 - **Typed command versus words.** A command typed with no arguments runs its `[code]` steps only and starts no model turn; with arguments it passes them with the contract to the LLM (`harness R18`). Asking the LLM in plain words runs the same contract under the LLM's role and the same checks (`harness R18`).
 - **Capability check.** A contract names the capabilities it needs (`instructions-on-demand`, `subagents`, `usage-measurement`, `viewing`). An adapter that lacks one refuses the command and says which, and does not substitute a weaker path such as asking the user to run the CLI (`harness R35.1`).
-- **No approval.** No contract sets `approved`, `ready` or `completed` by editing a file; only the approval and finish actions do, under the role (`harness R20`).
+- **No approval.** No contract sets a spec or plan to `approved`, or a plan to `completed` or `abandoned`, by editing a file; only the approval, finish and abandon actions do, under the role (`harness R20`).
 
 ## §2 Standing instructions
 
-Implements `harness §2`, `steering R59`.
+Implements `harness §2`, `harness §3`, `steering R59`.
 
 The standing instructions are a fixed short text, the same for every harness and role. They say: Specplane is in use; read `.specplane/config.yaml` before acting on specs or plans and resolve paths from it; the LLM has a role and must look up its steering before acting (`steering R59`); do not call the Specplane CLI, use the harness actions; commits made in a Specplane workflow carry the workflow, plan, step and session trailers when set (`architecture/file-formats §8`). They contain no steering, rules or procedures, no permission modes and no secrets: those arrive with the command (`§3`). The text carries the Specplane version and the steering stamp (`§4`).
 
-Delivery (assumption on form): an owned file in the harness's own directory when it has one, otherwise one marked block in a shared instruction file, added once and changed only between its markers (`architecture/repository-layout §5`, `architecture/reference-cli §12.6`). A project may forbid the block; its own instruction files are then never touched. Two harnesses share one block (`harness §3`). The block says edits inside it are overwritten. A missing or older delivery is a warning (`verification R24`).
+Delivery (assumption on form): an owned file in the harness's own directory when it has one, otherwise one marked block in a shared instruction file, added once and changed only between its markers (`architecture/repository-layout §5`, `architecture/reference-cli §12.6`). A project may forbid the block with `harness.install_block: off` (`architecture/file-formats §6.1`); its own instruction files are then never touched. Two harnesses share one block (`harness §3`). The block says edits inside it are overwritten. A missing or older delivery is a warning (`verification R24`).
 
 ## §3 Instruction assembly and delivery
 
-Implements `harness R14`, `steering R22`, `steering R23`.
+Implements `harness R14`, `steering R22`, `steering R23`, `specifications R4`.
 
 Each command and each permission has an **instruction text**. A text is assembled when needed, in this order:
 
@@ -57,7 +57,7 @@ Each command and each permission has an **instruction text**. A text is assemble
 
 ## §4 Steering assembly
 
-Implements `steering R59`, `steering R59.1`, `steering R51`.
+Implements `steering R59`, `steering R59.1`, `steering R51`, `specifications R65`.
 
 Steering is generated, never written by the model (`architecture/reference-cli §12.4`). Inputs: the acting role, the mode of each permission under the active preset, the command list, and the templates in `assets/steering/`. Outputs, three layers:
 
@@ -118,11 +118,11 @@ Implements `harness R26`, `harness R26.1`, `harness R26.2`, `harness R21`, `harn
 - **Use by contracts.** Every contract that touches a spec starts with one `spec.retrieve` per working set instead of reading referenced files, and reads a file directly only for a part retrieval did not return. `plan-step` retrieves the step's `context` cites; `spec-assist` and `spec-draft-architecture` retrieve the spec and the cited higher-layer parts (`§7`).
 - **Permission.** `info.retrieve`, mode allow by default; a role with deny is told so and the contract stops (`harness R26.2`). Retrieval does not depend on the permission to edit, so a role that cannot write a spec still reads it.
 - **Other reads.** `spec.review-context` returns a spec with its coverage, warnings and recorded results for review; `warnings`, `coverage` and `audit.read` are read-only actions under the same permission (`architecture/reference-cli §12.1`).
-- **Later release.** Viewing (`harness R21`) and spec review (`harness R38`) are contracts that use `spec.retrieve` and `spec.review-context`. Review is read-only: feedback goes to the user in conversation, and a change that follows is a separate edit under `harness R19.2`. When decision records are on the LLM may store the user's decision (`§7.13`). They use the same permission and have none of their own (`harness R26.2`).
+- **Later release.** Viewing (`harness R21`) and spec review (`harness R38`) are contracts that use `spec.retrieve` and `spec.review-context`. Review is read-only: feedback goes to the user in conversation, and a change that follows is a separate edit under `harness R19.2`. When decision records are on the LLM may store the user's decision (`§7.11`). They use the same permission and have none of their own (`harness R26.2`).
 
 ## §7 Command contracts
 
-Implements `harness R19`, `harness R20`, `plan-execution R31`, `plan-execution R27`, `plan-execution §2`, `plan-execution §3`, `specifications R67`, `verification R36.1`. Command names are those installed for Claude Code (`harness R18`); another harness may spell them differently but keeps the contract. A command marked "user only" is run by the person and is never offered to the LLM.
+Implements `harness R19`, `harness R19.1`, `harness R19.2`, `harness R20`, `harness R20.1`, `plan-execution R31`, `plan-execution R27`, `plan-execution R27.2`, `plan-execution R27.4`, `plan-execution R27.6`, `plan-execution §2`, `plan-execution §3`, `plans §3.2`, `specifications R67`, `verification R36.1`, `verification R61.2`, `verification R61.3`, `later-releases R37`, `later-releases R37.1`, `later-releases R66`. Command names are those installed for Claude Code (`harness R18`); another harness may spell them differently but keeps the contract. A command marked "user only" is run by the person and is never offered to the LLM.
 
 ### §7.1 spec-assist
 
@@ -165,11 +165,11 @@ Purpose: start a plan in its own worktree and branch (`plan-execution R27`, `pla
 1. `plan.start` with the target (user's, else current branch) and any named dependencies to force, which the handoff records (`architecture/reference-cli §11.3`).
 2. On refusal print each unapproved plan or spec, or the missing permission.
 
-Output: the plan ID, branch `plan/<id>`, the worktree path (`architecture/repository-layout §3`), and the command to continue there. The project directory stays on its branch.
+Output: the plan ID, branch `plan/<id>`, the worktree path (`architecture/repository-layout §3`), and the exact command that opens a session there (or, with `session opening`, that the session was opened, assumption). The project directory stays on its branch.
 
 ### §7.5 plan-step
 
-Purpose: do the next step, or several, of one plan, in its checkout (`plan-execution R27`, `plan-execution R27.4`). Preconditions: the session is in the plan's worktree on `plan/<id>`, else the command names the checkout and stops; `plan.next` reports a ready step (a waiting step names the unapproved spec it needs and the run stops with a soft stop, `plans R30.1`); the selection starts at the next step.
+Purpose: do the next step, or several, of one plan, in its checkout (`plan-execution R27`, `plan-execution R27.4`). Preconditions: the session is in the plan's worktree on `plan/<id>`, else the command names the checkout and stops (assumption beyond `plan-execution R27`, which has the harness start the session: in the first release the user opens it, using the command `plan-start` prints, and an adapter with the capability `session opening` opens it itself); `plan.next` reports a ready step (a waiting step names the unapproved spec it needs and the run stops with a soft stop, `plans R30.1`); the selection starts at the next step.
 
 1. `[code]` `plan.next` for the selection; a selection starting later is denied naming the step that comes first. If the plan is `stopped`, resume first (`§7.9`).
 2. `[code]` `spec.retrieve` of the step's `context` cites and `implements` specs, and the earlier handoff entries. If a referenced spec changed since the plan's recorded commit, the LLM checks what changed before going on (`§4`).
@@ -189,7 +189,7 @@ Purpose: the final review and decision (`plan-execution §2`, `plans R28`, `plan
 2. `[llm]` For each acceptance criterion state met or not met with the evidence. Do not decide.
 3. Show the user the review. The decision is the user's: `plan.finish` with `--complete` or `--back <reason>` under `plan.complete`. With request-user the decision is a request; with deny the LLM stops after the review (`§5.1`).
 4. `[code]` On complete: archive the plan in the plan branch's last commit. On back: set in-progress with the reason; the LLM proposes added or changed steps through `plan.edit`.
-5. Merging is separate: the LLM offers `plan merge` as a pull request or local merge, and never resolves conflicts; they are shown to the user (`plan-execution §2`, `architecture/reference-cli §11.6`). If the target moved since the review began, the review is shown again first.
+5. Merging is separate: the LLM offers the `plan.merge` action (guarded by `plan.complete`) as a pull request or local merge, and never resolves conflicts; they are shown to the user (`plan-execution §2`, `architecture/reference-cli §11.6`). If the target moved since the review began, the review is shown again first.
 
 Output: the review, the decision or the pending request, and the merge options.
 

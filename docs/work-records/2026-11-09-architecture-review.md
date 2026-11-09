@@ -116,3 +116,57 @@ Coverage summary (check 1): of the feature sections, the only ones no architectu
 - Config keys: every key used in `reference-cli`, `agent-skills` and `repository-layout` exists in `file-formats` §6, and the feature keys all appear there (extras `paths.*`, `plans.dir` are marked assumption).
 - Removed concepts: no draft or review spec status, overlays, pins, `PLANS.md` generation, leak guard, `llm_role` or authorship policy is used as live behaviour. They appear only in deletion lists and "reported as unknown" lists (`file-formats` §6.2, §8; `reference-cli` §2), apart from S10 and S14.
 - Fingerprint design (check 6): the two-fingerprint scheme (whole spec `spec-v2`, cited part `sec-v1`) is implementable: it needs only the committed blobs, survives rebase and squash because it never depends on commit hashes (apart from the hand format, B2), group approval is consistent (members' bodies do not change when approval blocks are written), and it matches `R11`, `R11.2` and `R11.3` except B1 and the two points below. Two things to decide while fixing: (a) `spec-v2` counts `title`, `covers`, `implements`, `references` as content, while the page calls dependencies metadata (`R9`, `R11.3`); a reordered `references` list alone makes a spec Awaiting Review. Either exclude those three keys (adding a reference is still caught by "absent from `cited` counts as changed") or state the choice as an assumption. (b) `approval.commit` records the last content commit, not "the commit it was set on" (`R11`); the rewrite record explains why, and it is sound, but `file-formats` §2.3 should say it in one line.
+
+## Resolution
+
+Written 2026-11-09 by the author of the architecture specs. All 33 findings were applied by editing the four architecture specs (and the two `INFO.md` files for S14); no feature spec, the requirements page or any status was changed, and nothing was approved. Frontmatter `implements` and `references` of the four specs were regenerated from the body cites and the sections' "Implements" lines, and a script confirmed that every cite in the frontmatter and body resolves and that the two lists match the body (M2, M3). Result: 27 fixed, 0 declined, 6 decisions (B2, S9, S11, S12, S13, S16; each is also applied in the specs and explained below), 33 in all.
+
+| ID | Outcome | Where |
+|----|---------|-------|
+| B1 | fixed | `file-formats` §4.5 step 4 and §2.5 (`unapproved-dependency: <cite>`); `reference-cli` §5.2 step 5 |
+| B2 | decision | `file-formats` §2.3, §4.5 step 3; `reference-cli` §5.2 step 3 and a deterministic test (see D1) |
+| B3 | fixed | `budget` moved to `progress.yaml` (`file-formats` §5.4); `budgets.json` dropped (`reference-cli` §3.3, §11.4) |
+| S1 | fixed | `file-formats` §2.4 rewritten; assumption note removed from `reference-cli` §5.2 |
+| S2 | fixed | `file-formats` §5.2 (`plan-v1`, pins excluded); `reference-cli` §5.1 |
+| S3 | fixed | `file-formats` §3.1 grammar (`plan-ref`, `file-ref`, reserved `file`), §3.4, §5.3 `context` as cite strings |
+| S4 | fixed | new `paths.test_logs` (`file-formats` §6, §6.1, §11.4); `repository-layout` §1, §4; `reference-cli` §10.5 |
+| S5 | fixed | `file-formats` §9.1 and new §9.3 hold the five files and formats; `repository-layout` §2; `reference-cli` §3.3 |
+| S6 | fixed | `file-formats` §9.2: `permissions` list, `params.patch`, `failed` marked as an assumption beyond `requests §2` |
+| S7 | fixed | `file-formats` §7.2: complete LLM block for preset 1 and a table for presets 2 to 4; `reference-cli` §7.4 test |
+| S8 | fixed | `reference-cli` §7.3 and §13.1 (`info.retrieve`) |
+| S9 | decision | `plan.list`, `plan.merge`, `warnings.report` added (`reference-cli` §12.1); see D2 |
+| S10 | fixed | `agent-skills` §6 (`§7.11`) and §1 "No approval" |
+| S11 | decision | new `reference-cli` §13.4; approval commit marked assumption (§5.3); see D3 |
+| S12 | decision | `file-formats` §1.2, `paths.requirements_index`; `reference-cli` §4.4; see D4 |
+| S13 | decision | `repository-layout` §1 (`docs/user/`); `reference-cli` §12.5 manifest and test; see D5 |
+| S14 | fixed | `architecture/INFO.md` rewritten; one sentence in `features/INFO.md` (documentation, not a spec) |
+| S15 | fixed | `repository-layout` §1, §7 (hooks path, `tmp/` instead of a system temp directory), `harness.install_block` (`file-formats` §6, §6.1; `agent-skills` §2) |
+| S16 | decision | `reference-cli` §13.1: human plan commands, `plan retarget` and `--force-deps` marked as assumptions; see D6 |
+| M1 | fixed | named sections moved into `implements` (`agent-skills` §3, §4, §7; `reference-cli` §15 line) |
+| M2 | fixed | unused references removed; unlisted cites made to resolve; body cites added in `repository-layout` |
+| M3 | fixed | frontmatter regenerated from the section "Implements" lines; `agent-skills` §2 and §7 lines extended |
+| M4 | fixed | `file-formats` §1.2 range wording |
+| M5 | fixed | override mark is one map (`file-formats` §2, §2.4) |
+| M6 | fixed | `repository-layout` §6 states the fixed upper-case names; plan ID limited to 64 characters (`file-formats` §5.1) |
+| M7 | fixed | `requirement/<file-stem>` in `file-formats` §1.1, §3.1, §12.1 |
+| M8 | fixed | `reference-cli` §6.3 and §13.3 marked as assumptions |
+| M9 | fixed | `reference-cli` §1 and §2 now implement only `harness R34` |
+| M10 | fixed | `plan.create` and `plan.edit` commit (`reference-cli` §11.5, `file-formats` §8) |
+| M11 | fixed | `current_step` declared derived (`file-formats` §5.4) |
+| M12 | fixed | runner audits every command, reads included (`file-formats` §10, `reference-cli` §7.3, §9) |
+| M13 | fixed | noted in `reference-cli` §7.5 |
+| M14 | fixed | `agent-skills` §7.4, §7.5: manual session start marked as an assumption, capability `session opening` |
+
+Declined: none.
+
+The two points of the fingerprint check (check 6): (a) kept `title`, `covers`, `implements` and `references` in the `spec-v2` content and stated this as a decision in `file-formats` §4.2 (see D7); (b) the one-line explanation that `approval.commit` is the last content commit was added to `file-formats` §2.3.
+
+### Decisions
+
+- **D1 (B2). First-check rule for hand approvals.** The 11 hand-approved feature specs have no `approval.cited` map, and adding one would edit approved feature specs. Instead, when `cited` is absent the CLI compares each cited part as committed at `approval.commit` with now (a target missing at that commit counts as changed), so the specs stay approved until a cited part really changes, and the next CLI approval writes `fingerprint` and `cited`. This is stricter than "valid if the spec's own fingerprint matches" because it still honours `specifications R11.2`; a hand approval has no stored fingerprint either, so the fingerprint is also compared at `approval.commit`. If the commit is not reachable, the spec is awaiting-review with a warning.
+- **D2 (S9).** Merging is the harness action `plan.merge`, guarded by `plan.complete`, rather than a rewording that sends the LLM to a CLI command, because `harness R47` keeps the LLM off the CLI. No new permission was added.
+- **D3 (S11).** Specplane commits its own metadata-only writes (approve, reopen, override, metadata set, recorded results, implementation status, plan commands) and leaves spec content and configuration edits in the working tree; a metadata write on a file with other uncommitted changes is written but not committed. The page does not say approval commits, so it is marked as an assumption.
+- **D4 (S12).** The central requirements file comes from the new `paths.requirements_index`, else the only file, else `index.md`, else `README.md`.
+- **D5 (S13).** User documentation lives in Specplane's own repository under `docs/user/`, is copied to `assets/docs/` by the build, and is read in projects through `specplane docs`; the manifest names the five mandatory notes and a deterministic test requires every permission, command and configuration key with its default.
+- **D6 (S16).** The human plan commands are kept as an assumption beyond `cli R33` rather than removed, so a person without a harness can run the same functions.
+- **D7 (fingerprint).** `title`, `covers`, `implements` and `references` stay in the content fingerprint, even though the page calls dependencies metadata; reordering a list is an edit. Dropping them would let a changed dependency list go unnoticed.

@@ -18,7 +18,7 @@ This folder contains the feature specifications for Specplane. Feature specs des
 | `feature/configuration` | Settings, permissions to change them, permission documentation | R25, R54 |
 | `feature/later-releases` | Decision records, subprojects, migration | R37, R39, R66 |
 
-All specs are `awaiting-review` until approved with `specplane spec approve`. The old specs `spec-system`, `spec-policies`, `spec-precedence`, `plan-system`, `plan-status`, `plan-steps`, `plan-index`, `tooling`, `agent-integration`, `decisions` and `spec-overlays` have been replaced by the specs above.
+All specs are approved. The old specs `spec-system`, `spec-policies`, `spec-precedence`, `plan-system`, `plan-status`, `plan-steps`, `plan-index`, `tooling`, `agent-integration`, `decisions` and `spec-overlays` have been replaced by the specs above.
 
 ## Conventions
 
