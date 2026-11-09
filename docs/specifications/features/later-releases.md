@@ -9,6 +9,29 @@ approval:
   date: 2026-11-09
   commit: 17593fb2d8b9e511414505bbc75c799d37eb5297
   note: re-approved by the LLM, not a human, under the user's 2026-11-09 delegation after the session 16 fixes (hand-edited; see docs/work-records/2026-11-09-spec-format.md)
+  fingerprint: spec-v3:sha256:7a8daef4d21cf12f35d0a5de2f46540821b12c85a44b5546c4d5fb41f9ce33cd
+  cited:
+    R37: sec-v1:sha256:7eb2b096d3266c52e3c5b200046efd11dd70fac7ee9042c081d971c2eee4956a
+    R37.1: sec-v1:sha256:ded3146384ebcb28de429cb55fba22bd7690806abe8e1ce83583682e9a03c8f2
+    R39: sec-v1:sha256:a89ca79a1e729dac084029b774c71c9e3e54d12b0bf99839394182c27807afd9
+    R39.1: sec-v1:sha256:2431690a7235645eb441e5575be0093bce45b90e3bd3331f7991c68affef605c
+    R39.2: sec-v1:sha256:39b97d687490efa513c50246e352eebfe6d8ed85539764f15013293160bcda08
+    R39.3: sec-v1:sha256:8fa60e43e8a85b597e62ee20202bba7f37aa078d6b7878d7cbeb907483476161
+    R39.4: sec-v1:sha256:079af62927bbd3dade5a9b335eb41fee9cca6f29043cc00ed999e49dcbd78a54
+    R66: sec-v1:sha256:5096aaea66887cd36536fffe4824778b40045d889af65e9b87b3aea138ae658c
+    R14: sec-v1:sha256:8ccf7a4a5b9852e8022cdf66efe5439946d7ff481b893c86a45ba5cf333b4e2c
+    R62.3: sec-v1:sha256:92c9b13c4f37b8fae856dfb136133ef8d03910e3f8745ef619f8da2c7c5c6607
+    specifications R9: sec-v1:sha256:faa3544c96036f5eb5010877f99d4e5bd3e346628f86440922d0b919ba0203e7
+    specifications R11: sec-v1:sha256:57fb631a35838abb06b893d183aae50c7cd3ab7d8e322aae1b81908c1be1f94e
+    specifications R65: sec-v1:sha256:d62687005561171f9fa170d8e5a9505e8ec81875f07a1c9d7bc8ac3de001c9bf
+    roles-and-permissions R50: sec-v1:sha256:6e06bc008e3c498900010a6e4117f60f0626279609ce22d6b0bcb36c4c245ce2
+    roles-and-permissions R57: sec-v1:sha256:1b06f3e6eaf07d7054ecb2cfcd8fb151df181db7d98bba461eae8802dd944f38
+    harness R14: sec-v1:sha256:c55f58fe1dea4db1a9b76c56fc683dad6c33fb43da8bca5e125c7a55e7ddd0ad
+    configuration R25: sec-v1:sha256:e07f837db35bfe39bbd28e56e36f3bbb1d0afc25bc3b8784f90a92be6d49b071
+    requests R52: sec-v1:sha256:4be72ae24a0b5e7c5b2eefb5802cfce58bb3673eef335e1e8496d43183631388
+    steering R59: sec-v1:sha256:7078d03a4c2a8767271e37f7c1b6ed4551ee563aa732399d8e620e759d99deb4
+    R68: sec-v1:sha256:e9eaf1d52d8d0cef132600b1477d50b693c999e94354ebe540005b2543cab444
+    specifications R7: sec-v1:sha256:b97cf139a08f8de7a4af660c79a35472f627e128accb361ef4a5453ad230418e
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted

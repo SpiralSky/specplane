@@ -9,6 +9,38 @@ approval:
   date: 2026-11-09
   commit: 17593fb2d8b9e511414505bbc75c799d37eb5297
   note: approved by the LLM, not a human, under the user's 2026-11-09 delegation (hand-edited; see docs/work-records/2026-11-09-spec-format.md)
+  fingerprint: spec-v3:sha256:3849a1a579ad520ab7f0e46baacbcf52c316a45474d285d9e798049439a9af3d
+  cited:
+    R16: sec-v1:sha256:3502177c2bc715f4d662d3bc5442b9c87f431d27f47ae2c5a574ec6528a364ea
+    R16.1: sec-v1:sha256:9c8cc6fe04de7202d76a9a8c7ca612fce0cb1aafe38f7ead0eb38e1fa9c3dd5c
+    R17: sec-v1:sha256:4f107e162972c3d29b2b11458054005642855b0e1e6cdafd6e3cc8c20103a694
+    R17.1: sec-v1:sha256:93a78c3118f5672de8ca159f7b33c6f060ae8406f1ef7a4fa1b463b54176458f
+    R17.2: sec-v1:sha256:de4223ef43d8165839f793c9df3cb6345076941af0045d0c87361735a1ef64eb
+    R33: sec-v1:sha256:5b8559ccf07969d062201ec2dd35563e21b03a619d514337da899c3d2fec4d22
+    R33.1: sec-v1:sha256:b44daa9e230cd6a68c2df195122c756bbce8889365ee179b7fa6e85d69504bd7
+    R11.1: sec-v1:sha256:7bf709eb5b4666fdbf8b696d64f53d34105853e4c5ed2e5e94736413a2fd8505
+    R11.2: sec-v1:sha256:afcaf48f6c11dc6ab83134a95c72322e891a5bff9f296cabe9bda28400d3e861
+    R13.1: sec-v1:sha256:847f7387b19758600e7498a0b329fa4681747b474745e7bc10935acb0550fe61
+    R18: sec-v1:sha256:f8638c210b1f25a3dcf8a55c5f3919bc18be649f8d396857afafd8c89e8f3e7a
+    R20: sec-v1:sha256:e504a6fb35a8e7416c317b08613e6950cf4050b49f40213d1c152fdc56eede09
+    R22: sec-v1:sha256:3447e20b17238f3f89477fa7bffbdd2bc9ce994e0abedb6687f26536e580ceba
+    R47: sec-v1:sha256:fe34b03e48652f20bf25ef6b4e150b084b73f3d30a552a60d1ce3e1d50afb68c
+    R61.1: sec-v1:sha256:63f91112b7067d4352621bd1c174f03d7e599ab96cca99c3dc674a09e9e3cb2c
+    specifications R9: sec-v1:sha256:faa3544c96036f5eb5010877f99d4e5bd3e346628f86440922d0b919ba0203e7
+    specifications R10: sec-v1:sha256:da377d2da649662a194aadf3214d2b0284eb19ee156cfe48a3cd3490102d782c
+    specifications R11: sec-v1:sha256:57fb631a35838abb06b893d183aae50c7cd3ab7d8e322aae1b81908c1be1f94e
+    plans R29: sec-v1:sha256:3fe70a4219adab63a737d32016915ed60a5fcebed12fa497d026c1b66bb1eb7d
+    plan-execution R31.1: sec-v1:sha256:bac85a98405325af2ed382a8ef7d41a7d6065a3dd5401ed330eaa852f184c4e7
+    roles-and-permissions R42: sec-v1:sha256:bf5c701b7be78ea0f002a6ae7ea6086718d25a4eea136d17d2d38eb847a3f22d
+    roles-and-permissions R50: sec-v1:sha256:6e06bc008e3c498900010a6e4117f60f0626279609ce22d6b0bcb36c4c245ce2
+    roles-and-permissions R57: sec-v1:sha256:1b06f3e6eaf07d7054ecb2cfcd8fb151df181db7d98bba461eae8802dd944f38
+    roles-and-permissions R58: sec-v1:sha256:d7ec215e8a95f13439d06e3727cf9048f635da9c3bf3b6f993671f6edf3944ff
+    harness R20: sec-v1:sha256:5bee5d75e8ce4a7bab24183624e0a504c6246f286a07ad4181d8b19f6aeaab87
+    harness R47: sec-v1:sha256:00141da5fe320b391ee24b77a44a26f4771c990c0fc6df86dc6bb6bad7596471
+    verification R61: sec-v1:sha256:8faf1fe8368dd68ecc9eaf7104385c4bf47d9db883e0bdcfbcf8323b9b38a87d
+    configuration R25: sec-v1:sha256:e07f837db35bfe39bbd28e56e36f3bbb1d0afc25bc3b8784f90a92be6d49b071
+    R9: sec-v1:sha256:5a307f37b0f358e2e7f96ba80fb97ce16e2a0a8f1cf9d7ec3ec75bec4a348bec
+    verification: spec-v3:sha256:b57ebad1ae275a2bf7fc5d0818467d26c4987151616b20efdde421dd1dbbd5ed
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
