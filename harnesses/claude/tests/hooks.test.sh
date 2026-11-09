@@ -46,15 +46,9 @@ EOJ
 }
 cj() { "$JQ" -n --arg c "$1" '{tool_input:{command:$c}}'; }
 
-# blocked
-run_case "block: git commit -m x" 2 "$(cj 'git commit -m x')" 1
-run_case "block: cd a && git commit -am x" 2 "$(cj 'cd a && git commit -am x')" 1
-run_case "block: git -C dir commit" 2 "$(cj 'git -C dir commit')" 1
-run_case "block: git -c user.name=x commit" 2 "$(cj 'git -c user.name=x commit')" 1
-run_case "block: git --no-pager commit" 2 "$(cj 'git --no-pager commit')" 1
-run_case "block: two-line, second git commit" 2 "$(cj 'echo hi
-git commit -m x')" 1
-run_case "block: (git commit)" 2 "$(cj '(git commit)')" 1
+# commits are never blocked, even when validation would fail (R36.3: commit gates are optional, off by default)
+run_case "allow: git commit -m x, validation failing" 0 "$(cj 'git commit -m x')" 1
+run_case "allow: cd a && git commit -am x, validation failing" 0 "$(cj 'cd a && git commit -am x')" 1
 # plan step-done is denied to agents, with or without specplane on PATH
 run_case "block: specplane plan step-done x" 2 "$(cj 'specplane plan step-done 2026-11-01-p --outcome done')" 0
 run_case "block: node dist/cli.js plan step-done" 2 "$(cj 'node packages/cli/dist/cli.js plan step-done p --outcome done')" 0
@@ -73,7 +67,6 @@ run_case "allow: echo commit" 0 "$(cj 'echo commit')" 1
 run_case "allow: git log --grep commit" 0 "$(cj 'git log --grep commit')" 1
 run_case "allow: git status" 0 "$(cj 'git status')" 1
 # allowed otherwise
-run_case "allow: stub exits 0" 0 "$(cj 'git commit -m x')" 0
 PATH="$tmp/nospec" CLAUDE_PROJECT_DIR="$tmp/proj" "$tmp/nospec/sh" "$hooks/specplane-pre-commit.sh" >/dev/null 2>&1 <<EOJ
 $(cj 'git commit -m x')
 EOJ
