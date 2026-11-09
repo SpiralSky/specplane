@@ -1,91 +1,20 @@
-# Specplane configuration for the Specplane framework repository itself.
-# This repo dogfoods the framework: it uses Specplane to track its own spec and plan work.
+# Specplane configuration for the Specplane framework repository itself (architecture/file-formats §6).
+# Every key is optional; the paths below are the defaults except plans.dir, which still points at the
+# existing plans folder.
 
-spec_roots:
-  - name: base
-    path: docs/specifications
-  - name: claude
-    path: harnesses/claude/specifications
-    extends: base
-  - name: codex
-    path: harnesses/codex/specifications
-    extends: base
-
-specs:
-  feature:
-    authorship: user          # feature specs require human authorship by default
-    llm_role: draft           # user decision 2026-11-09: the LLM writes and approves all non-requirement specs
-    forbid_architecture: true # architecture-leak guard enabled
-    leak_guard_allow:         # names that are part of Specplane's user-visible interface
-      - specplane
-      - Claude Code
-      - GitHub
-      - Mermaid
-      # Reviewed 2026-10-29 and accepted as fine: examples, user-visible fields, and Specplane's own layout
-      - SQLite
-      - JSON Schema
-      - $ref
-      - npm
-      - pip
-      # Public execution configuration keys and notification event, reviewed 2026-11-01
-      - session_mode
-      - finish_ready
-      - max_parallel
-      - max_budget_usd
-      - stored_status
-      - effective_status
-      - docs/OPEN-QUESTIONS.md
-      - docs/specifications/architecture/search.md
-      - docs/specifications/features/export.md
-      - docs/specifications/features/search.md
-      # Public plan and completion fields, reviewed 2026-11-05
-      - target_branch
-      - comparison_base
-      - start_base
-      - shelved_from
-      - reassessment_needed
-      - implementation_status
-      - assessment_status
-      - assessment_reasons
-      - verification
-      - text_paths
-      - risk_paths
-      - node-tap-v13
-      - junit-xml
-      - docs/specifications/features/
-      - specifications/features/search.md
-      - features/overlays/extension.md
-      - features/plan-system.md
-      - features/export.md
-      - features/search.md
-      - feature/spec-policies.md
-      - harnesses/claude/specifications/features/claude-integration.md
-      - plans/2026-10-28-search-indexer/steps/02-graph-builder.md
-      - plans/archive/2026-10-28-search-indexer/
-      - plans/2026-10-28-search-indexer/
-      - plans/archive/
-      - docs/specifications/features/INFO.md
-      - plans/2026-10-28-search-indexer/HANDOFF.md
-      - src/types/spec.ts
-      - src/graph/
-      - src/parser/
-  architecture:
-    authorship: either        # either user or LLM may author
-    llm_role: draft           # LLM may produce the initial draft
-    require_approved_features: true  # cannot approve arch spec until its feature specs are approved
+paths:
+  requirements: docs/requirements
+  features: docs/specifications/features
+  architecture: docs/specifications/architecture
 
 plans:
   dir: plans
-  require_approved_specs: feature  # plans require approved feature specs to start
-  status_source: git               # derive in_progress/review from git branch/PR state
-  merge: local_merge               # no remote: finish flow merges locally
-  dependency_mode: wait_for_merge  # dependent plans wait until dependency branch is merged
-  archive_done: true               # move completed plans into plans/archive/
-  setup_hook: ""                   # no install step needed for this markdown-only repo
 
-execution:
-  backend: worktree                # use git worktrees for parallel plan execution
-  worktree_dir: ../.specplane-worktrees
-
-agent:
-  decision_framing: what changes for the people using the product
+# Kept only because the still-installed .claude/hooks/specplane-policy-guard.sh reads specs.<type>.llm_role.
+# The current model has no such setting; remove this block together with that hook (user decision 2026-11-09:
+# the LLM writes all non-requirement specs).
+specs:
+  feature:
+    llm_role: draft
+  architecture:
+    llm_role: draft
