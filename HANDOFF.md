@@ -24,7 +24,7 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 9 verification (R12,R13,R13.1,R24,R24.1,R32,R36,R36.1-3,R61,R61.1-4,R64): `docs/specifications/features/verification.md`
 - [x] 10 configuration (R25, R25.1, R54): `docs/specifications/features/configuration.md`
 - [x] 11 later-releases (R37, R37.1, R39, R39.1-R39.4, R66): `docs/specifications/features/later-releases.md`; `decisions.md` and `spec-overlays.md` removed
-- [ ] 12 (added by user, 2026-11-09) separate agent reviews all new specs
+- [x] 12 (added by user, 2026-11-09) separate agent reviews all new specs: `docs/work-records/2026-11-09-spec-rewrite-review.md` (1 blocker, 9 should-fix, 8 minor)
 - [ ] 13 (added by user, 2026-11-09) fix review findings and approve all new specs through `specplane spec approve`, never by hand-editing status; the LLM may approve everything except the requirements page in this repo
 
 Assumptions and open questions from spec 1 (all revisable):
