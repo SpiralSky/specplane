@@ -1,551 +1,243 @@
 ---
 id: architecture/agent-skills
-title: "Agent skills: config resolution and harness-neutral prompt contracts"
-status: review
-author: mixed
-implements: [feature/agent-integration, feature/spec-precedence, feature/spec-policies, feature/spec-system, feature/plan-steps, feature/plan-execution, feature/tooling]
-based_on: { feature/agent-integration: "7720f2a", feature/spec-precedence: "233c5a1", feature/spec-policies: "9e333d1", feature/spec-system: "919d9e8", feature/plan-steps: "2365e49", feature/plan-execution: "59b4b17", feature/tooling: "9abfce2" }
+title: Agent skills
+status: awaiting-review
+authors:
+  - llm: claude-sonnet-5-5
+    contribution: drafted
+implements: [harness R14, harness R18, harness R19, harness R19.1, harness R19.2, harness R20, harness R20.1, harness R26, harness R26.1, harness R26.2, harness R34, harness R35, harness R35.1, harness R47, harness §2, harness §3, harness R21, harness R38, steering R22, steering R23, steering R51, steering R59, steering R59.1, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.3, plan-execution R27.4, plan-execution R27.5, plan-execution R27.5.1, plan-execution R27.5.2, plan-execution R27.6, plan-execution R31, plan-execution §2, plan-execution §3, requests R52, requests R52.3, requests R52.4, specifications R67, verification R36.1, verification R61.2, verification R61.3, later-releases R37, later-releases R66]
+references: [plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.2, requests R52.1, requests R52.2, steering §2, roles-and-permissions R57, cli R16, cli R16.1, specifications R4, specifications R10, specifications R11.3, specifications R65, plans R28, plans R28.1, plans R30.1, plans R69, plans §3.2, verification R12, verification R24, verification R36, verification R36.2, verification R61.1, verification R64, configuration R54, later-releases R37.1, architecture/reference-cli §5.3, architecture/reference-cli §7.3, architecture/reference-cli §8, architecture/reference-cli §11.3, architecture/reference-cli §11.5, architecture/reference-cli §11.6, architecture/reference-cli §11.7, architecture/reference-cli §12.1, architecture/reference-cli §12.2, architecture/reference-cli §12.3, architecture/reference-cli §12.4, architecture/reference-cli §12.5, architecture/reference-cli §12.6, architecture/reference-cli §12.7, architecture/file-formats §5.5, architecture/file-formats §5.6, architecture/file-formats §6, architecture/file-formats §8, architecture/repository-layout §3, architecture/repository-layout §5, architecture/reference-cli §11.2, architecture/reference-cli §12]
 ---
 
-<!-- Plan index proposal 2026-11-02: user agreed naming/source semantics and approved the companion feature patch, now applied. Architecture revision awaits review; not implemented behavior. -->
+# Agent skills
 
+This spec says how Specplane's harness-neutral command contracts work: what a contract contains, what the standing instructions say, how command instructions and steering are assembled and delivered, how the LLM retrieves specification context, and the contract of each harness command. A contract says what the LLM and the harness do; it never repeats a mechanical operation, which the CLI core performs and the harness reaches through actions (`architecture/reference-cli §12.1`). The modules that deliver these texts are in `architecture/reference-cli §12`; where installed files live is `architecture/repository-layout §5`; file contents are in `architecture/file-formats`. Each section states which feature sections it implements. Details the feature specs leave open are marked "assumption". Later-release items are marked "later release".
 
-<!-- Architecture reconciliation 2026-11-02: current feature contracts govern this draft revision. Stored lifecycle status and dependency pins are preserved; this edit is not approval or evidence of implementation. -->
+## §1 Contract structure
 
-<!-- Revision 2026-11-01: extension/core separation and contribution provenance agreed in conversation; existing lifecycle status is unchanged. Implementation and integration review remain pending. -->
+Implements `harness R34`, `harness R35`, `harness R35.1`, `harness R18`.
 
-<!-- Experimental development amendment 2026-11-01. Existing status records prior approval only; these branch changes await human final review. -->
+A **command contract** is one markdown template per command, shared by every harness (assumption: `assets/commands/<command>.md` in the package). Core steering and docs (`§4`, `§7`) are filled into it; a harness adapter packages the result in its own format (a skill folder, a prompt file, a hook payload) and adds only invocation detail, never behaviour (`harness R34`). Every contract has these parts in this order:
 
-<!-- Draft revision 2026-11-02: reconciles the user-approved optional-workflows feature text, completion assessment and shared docs. Existing lifecycle status describes prior approval, not approval or implementation of this architecture revision. -->
+1. **Purpose.** One paragraph: what the command does for the user and which feature sections it carries out.
+2. **Preconditions.** What must hold before anything happens: configuration present, permissions held (mode named per action), spec or plan state. A failed precondition ends the command with the reason and no change.
+3. **Steps.** Numbered, each marked `[code]` (done by an action, mechanical, no model) or `[llm]` (needs reasoning or writing). A `[code]` step is a named action of `architecture/reference-cli §12.1`; the LLM never reconstructs one by hand (`harness R47`).
+4. **Permissions and requests.** For each action the permission it uses and what happens under allow, request user and deny (`§5`).
+5. **Output.** What the LLM tells the user at the end, in a few sentences.
 
-# Agent skills: config resolution and harness-neutral prompt contracts
+Rules every contract follows:
 
-This spec defines the content of Specplane's workflow integrations (skills) independently of any agent harness: the policy checks each one performs, the procedure it follows, and what it outputs. A harness overlay defines how these contracts are packaged and invoked (file location, file format, invocation syntax, subagent use) — for Claude Code, see `claude:architecture/claude-integration`.
+- **Config first.** The first step of every contract except documentation lookup reads `.specplane/config.yaml` through `config.get` and resolves every path from it (`architecture/file-formats §6`); it never assumes one. In a project without configuration the contract does nothing and says Specplane is not set up (`harness §2`).
+- **Typed command versus words.** A command typed with no arguments runs its `[code]` steps only and starts no model turn; with arguments it passes them with the contract to the LLM (`harness R18`). Asking the LLM in plain words runs the same contract under the LLM's role and the same checks (`harness R18`).
+- **Capability check.** A contract names the capabilities it needs (`instructions-on-demand`, `subagents`, `usage-measurement`, `viewing`). An adapter that lacks one refuses the command and says which, and does not substitute a weaker path such as asking the user to run the CLI (`harness R35.1`).
+- **No approval.** No contract sets `approved`, `ready` or `completed` by editing a file; only the approval and finish actions do, under the role (`harness R20`).
 
-Each harness implementation must preserve the policy checks, steps, and outputs defined here. It may add harness-specific detail but must not remove or reorder required steps.
+## §2 Standing instructions
 
-An extension is any host plugin, extension, or mod delivering these workflows inside its harness. It bundles a compatible shared core and the complete applicable procedures. Mechanical phases run in code; only phases requiring reasoning are delegated to the agent. User command handlers, agent tools, and manual CLI commands call the same validated core operations. A prompt asking the agent to reconstruct a mechanical operation is not a deterministic implementation.
+Implements `harness §2`, `steering R59`.
 
----
+The standing instructions are a fixed short text, the same for every harness and role. They say: Specplane is in use; read `.specplane/config.yaml` before acting on specs or plans and resolve paths from it; the LLM has a role and must look up its steering before acting (`steering R59`); do not call the Specplane CLI, use the harness actions; commits made in a Specplane workflow carry the workflow, plan, step and session trailers when set (`architecture/file-formats §8`). They contain no steering, rules or procedures, no permission modes and no secrets: those arrive with the command (`§3`). The text carries the Specplane version and the steering stamp (`§4`).
 
-## Contract structure
+Delivery (assumption on form): an owned file in the harness's own directory when it has one, otherwise one marked block in a shared instruction file, added once and changed only between its markers (`architecture/repository-layout §5`, `architecture/reference-cli §12.6`). A project may forbid the block; its own instruction files are then never touched. Two harnesses share one block (`harness §3`). The block says edits inside it are overwritten. A missing or older delivery is a warning (`verification R24`).
 
-Every skill contract has these parts, and every harness packaging keeps them in this order:
+## §3 Instruction assembly and delivery
 
-1. **Purpose** — one paragraph describing what the skill does and which workflow integration from `feature/agent-integration` it implements.
-2. **Policy check** — the config keys the skill must read before acting, and what to do when policy forbids the action.
-3. **Steps** — the ordered procedure the agent follows.
-4. **Output** — what the agent should produce or say at the end.
+Implements `harness R14`, `steering R22`, `steering R23`.
 
-### Config resolution in skills
+Each command and each permission has an **instruction text**. A text is assembled when needed, in this order:
 
-Repository workflows must never hardcode paths. Every path to a spec, plan, or ADR is resolved from config. Product docs index/topic/search bypass this preamble: they use the installed bundle and work without a repository or config.
+1. The command's contract (`§1`), or for a permission its limit text (`§4`).
+2. The command's documentation, which is the default instruction (`steering R22`); `harness.instructions.<command>` replaces the documentation part only (`architecture/file-formats §6`). The contract's `[code]` steps and the checks of `architecture/reference-cli §7.3` stay whatever the replacement says (`harness R14`).
+3. Steering for the command and the permissions it uses (`§4`).
+4. The optional separation check when the command writes specs and `harness.separation_check` is on: the LLM verifies that feature and architecture content is separated and warns per change (`specifications R4`, `harness R14`).
 
-```
-1. Load config from .specplane/config.yaml at the repository root. If it is absent,
-   the skill does nothing and suggests `specplane init` (feature/agent-integration).
-2. For each spec ID referenced:
-   a. Apply the ID resolution rules (feature/spec-overlays; implemented in
-      architecture/reference-cli § Spec resolution).
-   b. Use the resolved file path.
-3. For plan operations: plan folder = <plans.dir>/<plan-id>/ (or <plans.dir>/archive/<plan-id>/).
-4. For ADRs: <decisions.dir>/<NNNN>-*.md.
-```
+**When it is sent.** Via `deliver(session, key)` (`architecture/reference-cli §12.3`): on the first use of a command in a session, never twice in one compaction epoch, again after a reported compaction, and always again when the adapter cannot report its context. A harness that loads instructions on demand gets a pointer to the packaged contract instead of the text, with the same effect (`harness R14`). If the adapter cannot deliver at the command, it delivers at session start and prints a notice that it did (`harness R35.1`).
 
-An extension calls its bundled compatible core for resolution, validation, and plan flows. A reasoning-only fallback session calls the verified CLI (`specplane`) when available. Neither path reconstructs deterministic operations in a prompt. Without either, only the explicitly labeled manual fallbacks below apply; no native dispatch or completed validation is claimed.
+**AI-facing documentation.** `build-ai-docs` derives it from the user documentation, so the two cannot disagree (`steering R23`). The always-loaded part is the orientation, the role and limits, and the steering of commands in use, under a size limit tested in the build. Everything else is searched through `docs.search`. The standing instructions and each contract tell the LLM that more documentation exists and to search it, not guess, when it lacks information (`steering R23`).
 
-### Deterministic phases and reasoning procedures
+## §4 Steering assembly
 
-The ordered contracts below describe the whole workflow, including mechanical operations and human gates; they are not instructions to send every phase to a model. `architecture/reference-cli#structured-reasoning-boundary` defines the request/result envelope and recording validation; its confirmation and upgrade sections define human interaction and asset migration. Extensions preserve this order while assigning each phase to code, agent reasoning, or direct human interaction:
+Implements `steering R59`, `steering R59.1`, `steering R51`.
 
-| Workflow | Preparation in code | Agent reasoning | Validation/recording in code |
-|----------|---------------------|-----------------|------------------------------|
-| `spec-assist` | Resolve policy, spec revision and context | Describe/refine; suggest or write only as the role permits | Bind finalized text to human confirmation when required; validate bytes, authorship and contribution events |
-| `spec-draft-architecture` | Resolve features, ADRs, policy and status warnings | Draft or assist/review under policy; identify GAPs | Create through the core, validate references and record allowed body/provenance |
-| `plan-create` | Resolve choices, dependencies and IDs | Propose goal, body, criteria and ordered steps | Collect approval of the proposal, create draft plan/steps, validate; never set ready |
-| `plan-step` | Synchronize, lock, select step and resolve context | Implement, identify gaps/expansion, assess acceptance | Validate structured evidence and staging, record outcome/HANDOFF/commit, publish when required |
-| `plan-finish` | Check all steps, run required tests and expose gaps | Assess each acceptance criterion and explain evidence | Collect separate human gates, revalidate revised evidence after rebase, then perform the authorized finish flow |
-| `validate` | Run deterministic validation | Optional configured LLM review, permitted by role; interpret findings | Check quoted evidence and label LLM warnings separately |
-| `decision-new` | Create proposed ADR | Write only the user's described decision | Validate body/provenance; never accept |
+Steering is generated, never written by the model (`architecture/reference-cli §12.4`). Inputs: the acting role, the mode of each permission under the active preset, the command list, and the templates in `assets/steering/`. Outputs, three layers:
 
-`approve`, `plan-start`, `plan-status`, and `plan-abandon` are wholly mechanical plus any explicit human interaction; they require no reasoning asset. Native handlers stop with an unavailable-capability result when the host lacks required dispatch or interaction APIs. A separately labeled existing-session fallback can follow these same procedures through the manual CLI, without claiming a native handler executed.
+- **Role steering** (short, in the standing delivery of `§2`): the role, what it may do in a line each, that Specplane's checks and not steering decide, that a denial is final, no bypass by another tool, rephrased action, another role, side route or direct file edit, no CLI, keep credentials out of summaries (`steering R59`, `verification R61.3`).
+- **Permission steering** (sent with the command that uses the permission): the limit in the role's mode, and the no-bypass statement (`steering R51`). The same text is the permission's documentation (`configuration R54`) and the body of a refusal reply naming the permission.
+- **Case steering**, attached to commands: the five cases (below), blocking choice, spec-change check, contradiction rule.
 
-In an extension-managed step, the agent returns `WorkflowResult`; it does not independently change step status, append HANDOFF, or commit before `recordWorkflow`. The core performs contract steps 8–10, including publication, using that result. In a reasoning-only CLI fallback, the agent invokes the same validated recording command after inspecting its edit set and evidence. Subagents follow the same boundary: the worker-side extension/core validates and records, and the parent receives the structured recording receipt. This preserves the required one-step commit without two competing recorders. Cancellation before recording produces no step outcome commit; cancellation after recording reports the existing commit and any incomplete publication. Do not treat a model's summary as evidence that any mechanical operation ran.
+The five cases a contract relies on, with their wording fixed in the templates:
 
-**Creation goes through the shared creation operation.** An extension calls the core equivalent of `specplane spec new <type> <slug>` or `specplane plan new`; a CLI fallback uses those commands. Neither hand-writes the frontmatter or skeleton when that operation is available. The operation writes `status: draft`, `author: user`, and the section headings of the templates in `architecture/file-formats` §1.3 and §1.4, and the agent then edits the body (as its `llm_role` allows) and, where required, only the `author` metadata field. Target root, implemented IDs, and `extends` are validated operation arguments rather than hand-written overlay frontmatter. Right after creation run the matching spec or repository validation and report the result. Without core or CLI, only a contract's explicit manual fallback applies, labeled as unvalidated manual work.
+| Mode or situation | The LLM is told to |
+|---|---|
+| `request-user` | send a request naming the one action, do not do it first |
+| `deny` | not do it, not look for another way, tell the user, leave the move to them |
+| user-run command (approval) | ask the user to run it and say what it will do |
+| `allow` | act directly unless custom steering says otherwise; steering does not guarantee the LLM asks first |
+| blocked in a plan run | continue unblocked work with a non-blocking request, else soft stop (`§5.3`) |
 
-### Operations and skills
+Further case texts: if a plan points at an older commit of a referenced spec than the latest, check what changed first (`plan-execution R27`, `plans R28.1`); a spec the LLM writes starts awaiting-review and cannot be approved by the LLM without the permission and the user's decision (`roles-and-permissions R57`); specs at different layers that contradict: follow the higher layer and report it (`specifications R65`); specs at the same layer that contradict: report and do not implement the contradicted behaviour (assumption beyond the page, as `steering R59` marks it); work one plan step at a time and record gaps in the plan record (`plans R28`).
 
-Every CLI operation is either exposed by an extension handler, CLI-only, or an internal primitive. An extension handler uses the bundled core for mechanical phases and host UI for explicit human decisions. Only phases requiring judgment or writing are skills; confirmation alone does not require a model. The contracts named in the table below are workflow contracts, not requirements to install public prompt skills. CLI-only operations remain accessible through the shell. Docs lookup is read-only and independent of repository setup; implementation declarations and retargeting are deterministic operations, not new reasoning skills.
+**Custom steering** comes from `steering.custom` items `{permission|command, scope, text}` (`architecture/file-formats §6`). It is appended after the generated text of the same permission or command, general before specific and each labelled, with the line "on conflict the more specific wins"; it never replaces role or permission steering and cannot widen or narrow a permission (`steering R59.1`). The complete text an LLM receives for a command or permission is shown by `specplane steering` (`steering R59.1`).
 
-| Operation | Workflow contract / dispatch | Reason |
-|-----------|-------|--------|
-| `plan new` | `plan-create` | Needs the goal, spec choices, and step files, which the skill writes. |
-| `plan list` (`--live`) | `plan-status` native handler | Format and highlight structured state without a model; optional interpretation is separate. |
-| `plan next` | not user-facing | Read-only resolver for `plan-step` and for conductors; its JSON is machine input. |
-| `plan step-done` | not user-facing | Called by `plan-step` to write the HANDOFF.md section and the step commit. |
-| `plan start` | `plan-start` native handler | Prepare the checkout and display where to continue without a model. |
-| `plan finish` | `plan-finish` | Needs confirmation and acceptance-criteria evidence; has a manual mode without the CLI. |
-| `plan approve`, `spec approve`, `spec reopen`, `decision accept` | `approve` native handler | Human decision collected by host interaction; user-invoked only. |
-| `plan abandon` | `plan-abandon` native handler | Host interaction confirms the operation; code executes it. |
-| `plan retarget` | CLI-only | Explicit destination reconciliation, with dry-run/JSON receipts; never a rebase or automatic commit. |
-| `plan restack` | CLI-only | Mechanical history rewrite; `plan-status` and the start flow name the command when a base plan has merged. |
-| `plan cleanup` | CLI-only | Mechanical; the finish flow runs it after a local merge. |
-| `plan archive` | CLI-only | File terminal plan records away; does not change status or manage the checkout. |
-| `plan shelve` | CLI-only | On user request, pause a started plan and retain its worktree and progress. |
-| `plan resume` | CLI-only | On user request, restore a shelved plan; report the next step without executing it. |
-| `plan show`, `plan graph` | CLI-only | Read-only output that needs no interpretation. |
-| `spec new` | `spec-assist`, `spec-draft-architecture` | Called by those skills; not a user-facing skill of its own. |
-| `spec pin` | CLI-only | Mechanical spec dependency pin update after review; does not rewrite skill comments. |
-| `spec complete`, `spec implementation` | Shared deterministic handlers or manual CLI | Explicit implementation declaration; preserves review state and requires no plan. |
-| `docs`, `docs search` | Shared read-only handlers or bundled CLI | Offline product orientation/topics; no model, config or repository required. |
-| `spec list`, `spec show`, `spec validate` | CLI-only | Read-only; `validate` wraps the whole-repository check. |
-| `validate` | `validate` | The skill summarises the results. |
-| `decision new` | `decision-new` | Writes the body from the user's description. |
-| `plan index` | CLI-only | Rebuilds `PLANS.md`; explicit head/staged/working sources, default head. CI uses head; the optional edit hook uses working. |
-| `search` | CLI-only | Read-only lookup. |
-| `init` | CLI-only | One-time setup, run before any skill exists. |
+**Stamp and staleness.** Generated text and delivered files carry the stamp of `architecture/reference-cli §12.4`. When roles, presets or custom steering change, the steering and installed files are regenerated; if regeneration fails, delivery is replaced by a notice that the text cannot be trusted and a warning is raised (`steering R59`, `steering §2`). Steering and permission disagreeing is reported, and the permission wins (`steering §2`).
 
----
+**Test (assumption, deterministic).** For every permission kind in the default presets the generated permission steering is non-empty and contains the no-bypass statement (`steering R51`).
 
-## Standing instructions
+## §5 Permissions, requests and soft stop in contracts
 
-Skills hold the procedures; they load only when invoked. A compact conceptual orientation and applicable repository policies must be available even when no skill is running (an ad hoc "edit this spec" request, a contradiction found mid-task). These **standing instructions** are a short, fixed text that every harness delivers to the agent at all times. They are kept short because they cost context in every session.
+Implements `requests R52`, `requests R52.3`, `requests R52.4`, `plan-execution R27.3`, `plan-execution R27.5`, `plan-execution R27.5.1`, `plan-execution R27.5.2`, `plan-execution R27.1`, `steering R59`.
 
-### Content
+### §5.1 Every action is checked
 
-The canonical text, versioned with the CLI (advance the standing-text version when implementing these changes):
+Each `[code]` step is an action whose handler calls the guard (`architecture/reference-cli §7.3`). The contract does not decide the outcome; it handles each reply:
 
-```markdown
-## Specplane
+- **Done.** Continue.
+- **Request sent** (mode `request-user`). The reply says a request was stored and nothing was done. The LLM tells the user what it asked for and does not retry the action, do part of it, or go round it (`requests R52`, `requests R52.3`). In a plan run it goes to `§5.3`.
+- **Refused** (mode `deny`). The reply names the permission. The LLM tells the user, and does not propose an alternative with the same effect. No request exists for a denied action (`requests R52.3`).
+- **Allowed but steered to ask.** If custom steering says to send a request or ask the user first, the LLM calls `request.send` with the permission the action would need (`architecture/reference-cli §8`) and waits for the user.
 
-Specplane tracks intended behaviour, review, implementation completion and evidence separately. Plans are optional; branches have no prescribed role. Specs and implementation may change together or separately. Completion is a declaration; matching its content fingerprint does not prove code correctness. Changed definitions can require reassessment. Use `specplane docs` for concepts and the requested workflow.
+The LLM has no action that accepts or declines a request, or that switches role (`architecture/reference-cli §12.1`). The request pane and dialogue belong to the user (`requests R52.1`, `requests R52.4`).
 
-This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.specplane/config.yaml`; resolve every path from it (`spec_roots`, `plans.dir`, `decisions.dir`), never assume one. `execution` says how plans run.
+### §5.2 Requests outside a plan
 
-- **Authorship**: `specs.<type>.llm_role` limits spec writing and review independently of `authorship`: `none` = read and implement only, with no spec-body edits, review, or suggestions; `review` = ask, suggest, and review without independently drafting the spec body; apply a suggested edit only after the user approves that exact change; `assist` = write the body only after the user finalises the content and approves the text (refine-then-write); `draft` = you may write a draft for review. Setting a spec to `approved`, a plan to `ready`, or a decision record to `accepted` is the human's decision: never do it by editing a file.
-- **Precedence**: when implementing, the architecture spec wins and the feature spec fills gaps; when using a managed plan, record gaps and assumptions in its `spec-gaps.md`; otherwise use the user's chosen record or conversation. If specs contradict each other, stop and report it; do not implement either side.
-- **Plans**: when invoking managed plan execution, work only in its checkout (branch `plan/<id>`), one step at a time, following the plan-step workflow. HANDOFF.md and `spec-gaps.md` in the plan folder are the source of truth for progress and gaps.
-- **Commits**: managed commands that create commits follow their documented format. Ordinary work needs no Specplane trailers. Manual implementation-completion edits are valid and do not approve a spec.
-- **Workflows**: use an explicitly installed Specplane extension for agent workflows, or the standalone `specplane` CLI for manual operations. Extensions deliver the shared workflow procedures and their host-specific invocation details.
-```
+A request is sent and the contract ends with an output line saying a request is pending and how to answer it in the pane. The LLM does not wait in the session (`requests R52`).
 
-The shared AGENTS.md block always uses this neutral Workflows line. Harness-owned instruction files may add invocation details without replacing shared guidance. The detailed rules live in the versioned product docs and their source contracts; consumer instructions link to `specplane docs` topic IDs rather than assuming the product's source specs are present (`feature/agent-integration`: no duplicated policy).
+### §5.3 Requests and blocks inside a plan run
 
-When `agent.decision_framing` is set, this line follows the Workflows line in the block and in any harness file that carries the shared Workflows line: `- **Decisions**: When you need a decision from the user, frame it in terms of {text}: what changes, the tradeoff, and your recommendation. This does not change who approves specs, plans or decisions.` With the key unset, the text is the canonical text above.
+- **Blocking.** The LLM sets `blocking: true` when the next work depends on the action or building on a refused change would be waste; it prefers blocking when unsure (`steering R59`). The action soft-stops the plan with reason `waiting for request <id>`; the contract then writes the handoff entry and ends the run (`plan-execution R27.5.1`, `architecture/reference-cli §11.3`).
+- **Non-blocking.** The LLM sends the request, records it in the step's handoff "Open issues" section (`architecture/file-formats §5.5`) and continues with work that does not depend on the answer without doing what was requested (`plan-execution R27.5.2`).
+- **Block that is not a request** (a forbidden tool, a missing file): if other steps do not depend on it the LLM sends a non-blocking request and continues; if nothing useful remains, or the block affects the whole plan, it calls `plan.softstop` with a reason and what must change. A block is never turned into a skipped step (`plan-execution R27.3`).
+- **Budget soft stop.** When the adapter reports a soft stop, the contract tells the LLM to reach a safe point, commit, write the partial handoff entry and call `plan.softstop`; the adapter ends the session by force at the hard stop (`plan-execution R27.1`, `architecture/reference-cli §11.3`).
+- **No waiting.** A run never waits open for an answer; waiting is a stopped plan (`plan-execution R27.5`).
 
-**Routing table (project-owned, outside the managed text).** Skills with `disable-model-invocation: true` are hidden from the model, so a natural-language request such as "start the plan" would otherwise lead to hand-edited plan files. A project that wants those requests to work adds a short routing table to a file it owns (for `AGENTS.md`, outside the managed block): a request to start, step, finish, or show the status of a plan means running `specplane plan <op>` (the CLI stays reachable through the shell even when the skill is not), and those requested managed transitions are performed through the CLI. This routing does not prohibit explicit manual declarations or ordinary Git work outside that workflow. Specplane does not write this table and `init` never touches it; the managed text stays unchanged.
+## §6 Context retrieval
 
-### Delivery
+Implements `harness R26`, `harness R26.1`, `harness R26.2`, `harness R21`, `harness R38`.
 
-A harness delivers the standing instructions through a file it owns whenever the harness supports one (for example a rules directory or an import), so no user-owned file is edited. The fallback is a **managed block** in `AGENTS.md`:
+- **Action.** `spec.retrieve` takes one or several spec IDs and `include_references` (default `harness.retrieval_include_references`). The reply names each spec, then each cited section with its source cite, the section and its subsections only, deduplicated; an unresolved cite is returned as `not found`; effectively awaiting-review specs and parts are marked; text comes from the working tree and status from HEAD, with a note when they differ (`architecture/reference-cli §12.5`).
+- **Use by contracts.** Every contract that touches a spec starts with one `spec.retrieve` per working set instead of reading referenced files, and reads a file directly only for a part retrieval did not return. `plan-step` retrieves the step's `context` cites; `spec-assist` and `spec-draft-architecture` retrieve the spec and the cited higher-layer parts (`§7`).
+- **Permission.** `info.retrieve`, mode allow by default; a role with deny is told so and the contract stops (`harness R26.2`). Retrieval does not depend on the permission to edit, so a role that cannot write a spec still reads it.
+- **Other reads.** `spec.review-context` returns a spec with its coverage, warnings and recorded results for review; `warnings`, `coverage` and `audit.read` are read-only actions under the same permission (`architecture/reference-cli §12.1`).
+- **Later release.** Viewing (`harness R21`) and spec review (`harness R38`) are contracts that use `spec.retrieve` and `spec.review-context`. Review is read-only: feedback goes to the user in conversation, and a change that follows is a separate edit under `harness R19.2`. When decision records are on the LLM may store the user's decision (`§7.13`). They use the same permission and have none of their own (`harness R26.2`).
 
-```markdown
-<!-- specplane:begin v<N> — managed by `specplane init`; edits inside this block are overwritten -->
-...standing instructions, with the harness-neutral Workflows line...
-<!-- specplane:end -->
-```
+## §7 Command contracts
 
-- `specplane init` creates `AGENTS.md` containing only the block if the file is absent; appends the block (after a blank line) if the file exists without one; and replaces the text between the markers if the block exists with a different version or content. Text outside the markers is never changed.
-- The base `init` always writes the `AGENTS.md` block, because harnesses other than the one installed may read `AGENTS.md`. A harness overlay may additionally install its own copy; a few duplicated lines are acceptable.
-- A file with a begin marker and no end marker (or several blocks) is not touched; `init` reports it and `validate` warns.
+Implements `harness R19`, `harness R20`, `plan-execution R31`, `plan-execution R27`, `plan-execution §2`, `plan-execution §3`, `specifications R67`, `verification R36.1`. Command names are those installed for Claude Code (`harness R18`); another harness may spell them differently but keeps the contract. A command marked "user only" is run by the person and is never offered to the LLM.
 
----
+### §7.1 spec-assist
 
-## `spec-assist`
+Purpose: write or edit a feature or architecture spec with the user (`harness R19`). Preconditions: config read; `spec.create.<type>` or `spec.edit.<type>` for the spec's type is not `deny` (`harness R19.2`).
 
-### Purpose
+1. `[code]` `config.get`; `spec.retrieve` of the spec being changed (if any) with its cited parts, and of related specs the user names.
+2. `[llm]` Discuss and refine the content with the user until they finalise it. Apply the separation check (`§3`). Do not invent requirements; ask.
+3. `[code]` `spec.create` (new spec, ID from the path, cites in `covers` or `implements`) or `spec.edit` (section or whole file). Under request-user the edit becomes a request holding a patch and nothing is written; the LLM stops at `§5.1` (`harness R19.2`).
+4. `[code]` The action appends the LLM as author with a contribution at the granularity of the change when `authorship.record_llm` is on, using the model the adapter reports (`harness R19.1`, `specifications R10`). It rejects any `approved` status or `approval` block in supplied text (`architecture/reference-cli §12.1`).
+5. `[code]` `validate` scoped to the spec; report its findings.
 
-Helps the user write a feature spec. Implements `spec-assist`. The mode follows `specs.feature.llm_role` (`feature/spec-policies` §1): refine-then-write under `assist`, review-only under `review`.
+Output: what changed, that the spec is awaiting-review, and that approval is a separate step for the user (`specifications R11.3`, `harness R20`).
 
-### Policy check
+### §7.2 spec-draft-architecture
 
-```
-Read config.specs.feature.llm_role
-If llm_role == "none": decline and explain
-If llm_role == "review": review-only mode
-If llm_role == "assist": refine-then-write mode
-If llm_role == "draft": drafting is permitted; default to refine-then-write unless the user asks for a draft
-```
+Purpose: generate an architecture spec from feature specs, or a feature spec from requirements (`specifications R67`). Preconditions: the source specs exist; the create permission is not `deny`; the sources need not be approved, and the output says when they are not.
 
-### Steps
+1. `[code]` `spec.retrieve` of the sources with referenced parts.
+2. `[llm]` Draft the spec: topics, not feature sections; each section cites the source parts it implements in its frontmatter and states them in the body; unclear or contradictory source parts are listed as questions for the user, not decided; detail the sources leave open is marked "assumption".
+3. `[code]` `spec.create` as in `§7.1` step 3 to 5.
+4. `[llm]` Report coverage of the sources: `coverage` shows source parts nothing covers (`verification R64`).
 
-Refine-then-write (`assist`), following `feature/spec-policies#refine-then-write-llm_role-assist`:
+Output: the new spec, its source cites, uncovered source parts, open questions. The draft is awaiting-review with the LLM as author; it may be a plan step (`plans R30.1`).
 
-1. **Describe**: ask the user to describe the feature in their own words. Write nothing to the spec.
-2. **Refine**: discuss the description to find issues — gaps, ambiguous rules, contradictions with other specs, missing edge cases and acceptance scenarios, and architecture leaks. Raise each issue with a suggested resolution; the user decides. Repeat until no issue is open or the user chooses to stop.
-3. **Finalise**: summarise the agreed content (rules, scenarios, the decision on each issue, and anything left open). The user confirms the summary is final.
-4. **Write**: write the body from the finalised content only, using the feature spec template in `architecture/file-formats` §1.3, and show it to the user. Write the file only after the user approves the text; mark every detail filled in as an assumption to confirm. For a new spec, after approval run `specplane spec new feature <slug> --title "<title>"` (adding `--root <name> --extends <ids>` for an overlay) and write the approved body into the file it creates; the CLI never takes content.
-5. Set `author: mixed` and leave `status` unchanged. Never set it to `approved`.
-6. Before writing, verify the exact approved text and distinguish incidental implementation choices from observable technical requirements. Explain any remaining concern to the user; do not rewrite or drop approved requirements. A content change under `assist` returns to Finalise and exact-text approval before writing.
-7. After writing, run `specplane spec validate <id>` and report the result.
+### §7.3 plan-create
 
-Review-only (`review`):
+Purpose: create a plan, optionally (`plans R69`). Preconditions: `plan.create` not `deny`.
 
-1. Ask the user what the spec is about and who it is for.
-2. Suggest a structure (list of section headings) without writing content.
-3. Ask clarifying questions to surface edge cases and acceptance scenarios.
-4. Review a draft the user has written: missing acceptance scenarios, ambiguous rules, and architecture-leak violations (implementation detail that is not part of the user-visible interface).
-5. Self-check every suggestion against the intended contract. Technical mechanisms that define observable behaviour are valid; explain suspected incidental choices and contradictions rather than classifying vocabulary alone as a violation.
-6. Propose edits as text; apply a suggested edit only after the user approves that exact change. Do not independently draft the spec body or include additional unapproved edits. The Claude overlay may collect that exact-edit approval through its tool review; a general host permission grant is not approval of unspecified text. Applying an approved edit does not grant lifecycle approval.
+1. `[code]` `config.get`; `spec.retrieve` of the specs the user names and those they cite.
+2. `[llm]` Propose goal, acceptance criteria, ordered steps (small enough for one session, `plans §3.2`), the specs each step implements, referenced plans and context cites. Show the proposal to the user as text and adjust.
+3. `[code]` `plan.create` writes the folder from the template: ID from today's date and two to four words, `status: awaiting-review`, empty progress `not-started`, step files (`architecture/reference-cli §11.5`).
+4. `[code]` `validate` scoped to the plan.
 
-Under `draft`, the agent may also produce a `draft` with `author: llm` when the user asks.
+Output: plan ID and path, steps, that nothing runs and that the plan is approved like a spec (`plan-execution R31`). `plan.edit` is the same flow for later changes, refused for a step that has started (`architecture/reference-cli §11.5`).
 
-### Output
+### §7.4 plan-start
 
-Refine-then-write: the written body and its path, after approval, with the assumptions listed and the validation result. Review-only: a summary of suggested additions and changes, identifying any exact user-approved edits applied; otherwise no body writes.
+Purpose: start a plan in its own worktree and branch (`plan-execution R27`, `plan-execution R27.6`). Preconditions: `plan.start` not `deny`; the plan and the specs it implements and references approved when `plans.start_conditions` is on. Wholly `[code]`:
 
----
+1. `plan.start` with the target (user's, else current branch) and any named dependencies to force, which the handoff records (`architecture/reference-cli §11.3`).
+2. On refusal print each unapproved plan or spec, or the missing permission.
 
-## `spec-draft-architecture`
+Output: the plan ID, branch `plan/<id>`, the worktree path (`architecture/repository-layout §3`), and the command to continue there. The project directory stays on its branch.
 
-### Purpose
+### §7.5 plan-step
 
-Drafts an architecture spec from feature specs. Implements `spec-draft-architecture`. Under `assist` it follows refine-then-write (`feature/spec-policies` §1) instead of drafting from the feature specs alone; under `review` it reviews an existing draft instead of producing one.
+Purpose: do the next step, or several, of one plan, in its checkout (`plan-execution R27`, `plan-execution R27.4`). Preconditions: the session is in the plan's worktree on `plan/<id>`, else the command names the checkout and stops; `plan.next` reports a ready step (a waiting step names the unapproved spec it needs and the run stops with a soft stop, `plans R30.1`); the selection starts at the next step.
 
-### Policy check
+1. `[code]` `plan.next` for the selection; a selection starting later is denied naming the step that comes first. If the plan is `stopped`, resume first (`§7.9`).
+2. `[code]` `spec.retrieve` of the step's `context` cites and `implements` specs, and the earlier handoff entries. If a referenced spec changed since the plan's recorded commit, the LLM checks what changed before going on (`§4`).
+3. `[llm]` Implement the tasks, one step only, never needing the user: a gap or assumption goes to `spec-gaps.md` as a new entry (`architecture/file-formats §5.6`), a needed spec change goes through `spec.edit` under its permission, a missing thing becomes a request or soft stop (`§5.3`). Precedence: architecture over feature; contradictions across layers follow the higher layer and are reported, same-layer contradictions stop the step (`steering R59`).
+4. `[code]` Declared tests of the step run with `test.run`, results with `test.record` (`§7.8`).
+5. `[llm]` Write the handoff entry sections (`architecture/file-formats §5.5`), with the outcome `done` or `partial`.
+6. `[code]` `plan.step-done` with the outcome: requires the handoff entry and a commit since the step began, makes an entry-only commit if there is none, advances progress and commits it (`architecture/reference-cli §11.3`, `architecture/file-formats §8`). A stopped partial step commits partial work and entry (`plan-execution R27.4`). Where a harness records the step itself, the LLM does not call this action.
+7. `[code]` If more steps are selected, repeat from 1; stop on a soft stop or a blocking request.
 
-```
-Read config.specs.architecture.llm_role
-If llm_role == "none": decline
-If llm_role == "review": review-only mode (spec-assist review steps)
-If llm_role == "assist": refine-then-write mode
-If llm_role == "draft": proceed
-```
+Output: outcome, files changed, gaps by ID, open issues, requests sent, next step. After the last step the contract opens the final review through `§7.6` rather than completing the plan (`plan-execution §2`).
 
-Under `assist`, the feature specs read in step 1 are the input to Describe and Refine, and Write uses the finalised content: `author: mixed`, `status` unchanged, and the file written only after the user approves the text. Under `review`, the agent reviews a draft the user wrote and may apply only an exact user-approved edit, following the `spec-assist` review steps; it does not independently draft the body.
+### §7.6 plan-finish
 
-### Steps
+Purpose: the final review and decision (`plan-execution §2`, `plans R28`, `plans R28.1`). Preconditions: `plan.review` is read-only and always allowed; the decision needs `plan.complete`.
 
-1. Identify the feature specs to implement (from the user).
-2. Read each feature spec (resolve path from config) and any ADRs listed in their text or whose `related_specs` include them.
-3. Check each feature spec's status. Warn about any that are not `approved`; note that the architecture spec cannot be approved until they are when `specs.architecture.require_approved_features: true`.
-4. Produce a draft using the template in `architecture/file-formats` §1.4.
-5. Mark any place where the feature specs leave the architecture open with `<!-- GAP: <description> -->`.
-6. For a newly authored draft, set `author: llm`, `status: draft`, and the `implements` list. When revising an existing architecture, preserve its lifecycle status and prior attribution; record actual new contributors when known and label the revision as awaiting review. Existing approval metadata does not approve the new text.
-7. Before writing, self-check the draft: every `implements` entry resolves, every feature-spec requirement is covered or marked with a GAP, and no section contradicts a feature spec (the architecture spec wins only where the feature spec is silent). Fix or mark with a GAP anything that fails.
-8. For a new file use `specplane spec new architecture <slug> --implements <ids> [--root <name>] [--extends <ids>]` (root from config; `base` unless the user names another), then write the body and record authorship per step 6. For an existing file edit the authorized body directly, preserving unrelated metadata and using the same coverage/validation checks. Revision alone does not approve, complete or commit the spec.
-9. Run `specplane spec validate <id>` and report the result.
+1. `[code]` `plan.review`: per-step outcomes, open gaps, unrun steps, pending requests of the plan, referenced specs changed on the target since the start, plan-branch spec changes (`architecture/reference-cli §11.6`).
+2. `[llm]` For each acceptance criterion state met or not met with the evidence. Do not decide.
+3. Show the user the review. The decision is the user's: `plan.finish` with `--complete` or `--back <reason>` under `plan.complete`. With request-user the decision is a request; with deny the LLM stops after the review (`§5.1`).
+4. `[code]` On complete: archive the plan in the plan branch's last commit. On back: set in-progress with the reason; the LLM proposes added or changed steps through `plan.edit`.
+5. Merging is separate: the LLM offers `plan merge` as a pull request or local merge, and never resolves conflicts; they are shown to the user (`plan-execution §2`, `architecture/reference-cli §11.6`). If the target moved since the review began, the review is shown again first.
 
-### Output
+Output: the review, the decision or the pending request, and the merge options.
 
-Path to the created file; list of GAPs found; the validation result.
+### §7.7 plan-status
 
----
+Wholly `[code]`, no model turn when typed without arguments. `plan.list` with live status reads each running plan's checkout; a run marker with no live session is shown as stopped, "session ended unexpectedly" (`architecture/reference-cli §11.2`). Output: each plan with status, stop reason, next step and what is waiting (a spec to approve, a request to answer).
 
-## `plan-create`
+### §7.8 validate and verify
 
-### Purpose
+**validate** (`verification R12`): `[code]` `validate`, then `warnings` and `coverage`; `[llm]` summarise findings by severity and name the fix for each; the LLM never edits to silence a finding without the user's say. Without arguments the harness prints the CLI output and starts no model turn.
 
-Creates a new plan interactively. Implements `plan-create`.
+**verify** (assumption: command name `verify`; implements `verification R36.1`): judges an architecture spec against its implementation.
 
-### Policy check
+1. `[code]` `spec.review-context` for the spec; the declared tests and which sections declare none.
+2. `[code]` `test.run` for each declared test; run on committed state with a note when the tree is dirty (`verification R36.2`).
+3. `[llm]` For each section declaring none, or declaring intelligent judgement, read the section and the implementation and decide met or not, with reasons of a few lines, keeping credentials and private data out of the summary (`verification R61.3`, `steering R59`).
+4. `[code]` `test.record` for each result: allow records; request-user records after the user accepts, and records nothing if the commit or content changed meanwhile; deny shows the outcome as not recorded (`verification R61.2`). Result belongs to the checked spec (`verification R61.1`).
+5. `[code]` When all pass and the permission and `architecture.llm_may_mark_implemented` allow, `spec.implement` (`verification R36`); a failed result refuses it, naming the test.
 
-```
-Read config.plans.require_approved_specs
-Specs below the requirement → warn (the plan can be created, but not started, until they are approved)
-```
+Output: per-section result, what was recorded, and the implemented status.
 
-### Steps
+### §7.9 approve and request handling
 
-1. Ask for the goal and title; propose a slug (2–4 words) and the ID `<today>-<slug>`. Confirm it does not exist.
-2. Ask for the specs, dependencies, intended integration destination and optional comparison baseline; resolve each spec ID (no root context) and plan ID. Reject unknown IDs, abandoned dependencies, and dependency cycles.
-3. Draft the PLAN.md body sections (`architecture/file-formats` §2.2) with the user.
-4. Propose a step decomposition following `feature/plan-steps` § Step grouping guidance, with a `context` list per step (spec IDs with anchors, `decision/NNNN` IDs, file paths). Ordering check: confirm that each step depends only on earlier steps (nothing a step needs is produced by a later one) and reorder before showing the proposal if not.
-5. After user approval, create `<plans.dir>/<id>/PLAN.md` (`status: draft`) and `steps/NN-<slug>.md` files (`status: pending`), using `specplane plan new --id <id> --title "<title>" --specs <ids> [--depends-on <ids>] [--target <branch>] [--comparison-base <commit>]` for `PLAN.md` and the empty steps directory; HANDOFF.md is created when the first step is recorded (the step files have no CLI command; write them by hand, then fill in the PLAN.md body).
-6. Run `specplane validate` and report the result for the new plan. Without the CLI, apply `architecture/file-formats` §2 by hand (create the files, check IDs and dependencies manually) and tell the user validation was not run.
+**approve** (user only, no model, `cli R16`, `harness R20`): the user runs it with one or more IDs; the adapter runs the user-command runner as `standard-user` (`architecture/reference-cli §12.2`) which applies the checks of `architecture/reference-cli §5.3`, including group approval with the listed warning and confirmation. The command never interprets words. When the user asks the LLM in words to approve, the LLM identifies the spec, then calls `spec.approve` under its own permission: allow approves, request-user sends a request, deny refuses (`harness R20`, `harness R20.1`, `cli R16.1`). The contract states that a role with allow approves without further question and that steering does not guarantee the LLM asks first (`harness R20.1`). The LLM never accepts a request and never approves by editing a file (`§1`).
 
-### Output
+**requests** (user only): opens the pane (`requests R52.1`, `requests R52.2`); no model. **plan resume** and **plan budget** are `[code]` actions: `plan.resume` returns the resume context (next step, handoff, answered requests; the earlier session log only after a hard stop or unexpected end, `plan-execution R27.2`) and the contract continues with `§7.5`; `plan.budget` sets `{resource, soft, hard}` and refuses an unmeasurable resource (`plan-execution R27.1`, `plan-execution R27.1.1`, `plan-execution R27.2.1`).
 
-Plan ID, path, and step list; a reminder that a human sets `status: ready` before the plan can be started, with the manual command `specplane plan approve <id>` or the invoking extension's available approval handler.
+### §7.10 plan-abandon
 
----
+Purpose: end a plan that will not be done (`plan-execution §3`). Preconditions: `plan.abandon` not `deny`. Steps: `[code]` show the plan, its run state and the worktree status, and ask the user to confirm; `plan.abandon` stops the run, archives the plan as abandoned and removes the worktree unless it has uncommitted changes, when the user chooses to force or leave it; the branch is kept (`architecture/reference-cli §11.7`). Output: the result, the kept branch, and plans that reference it and can no longer start. `plan.delete` follows the same flow under `plan.delete`.
 
-## `plan-step`
+### §7.11 Later release
 
-### Purpose
+- **decision-new** (`later-releases R37`, only when `decisions.enabled`): the LLM writes a decision record only after the user has made the decision in conversation, recording the decision, context, reasons, date and the spec or plan it concerns; it retrieves matching records before a related choice and says when one applies. Permissions are in `later-releases R37.1`. With decisions off nothing is stored or searched.
+- **migrate** (`later-releases R66`): the prompt is a configurable instruction (`harness R14`). Preconditions: create permission is not `deny`, else the LLM requests or tells the user what to create. Steps: `[llm]` read existing specs, documents and code and show what was found and what it proposes; `[code]` `spec.create` for each, all awaiting-review whatever the old status; old files untouched. Output lists migrated, left and uncertain items.
+- **parallelism** (`plan-execution R31.2`, assumption): steps that list independent tasks use subagents up to the configured number; without subagents tasks run one after another and the user is told.
 
-Executes the next step of a plan. Implements `plan-step`.
+## §8 Keeping the LLM off the CLI
 
-### Policy check
+Implements `harness R47`.
 
-```
-Read config.specs.* (authorship and llm_role) before editing any spec.
-Determine whether the session is attended (feature/spec-precedence).
-```
+Contracts name only harness actions, never `specplane` commands, and the standing instructions say not to call the CLI (`§2`). Enforcement is the adapter's shell hook (`architecture/reference-cli §12.7`); a harness without one says so at setup (`harness R35.1`). When an action is missing for something the LLM needs, the contract tells the user to run the human command, and that is a gap to fix, not a pattern.
 
-### Steps
+## §9 Keeping contracts in step with specs
 
-1. Identify the plan: from the current branch `plan/<id>`, or from the user. If not in its designated checkout on the plan's branch, report that checkout and stop managed execution; unrelated manual work remains permitted. If `origin/plan/<id>` exists, fetch it first: fast-forward when it is ahead, and stop when the branches have diverged ("Another session advanced `plan/<id>`; reconcile the branches before running a step"). Several sessions (worktrees, cloud runs) may work on a repository, but only one at a time on a given plan.
-2. Resolve the committed execution target and authoritative lifecycle state through the core. Refuse drafts, terminal/abandoned state, unresolved target context and pending retarget edits; require commit/discard before managed execution. Refuse execution or recording when the authoritative plan state is `shelved`; direct the user to explicit `specplane plan resume <id>`. Parse the step files. For an explicitly requested completed-step rerun, validate `--step N --force --reason TEXT` through the core and select exactly that completed step; do not apply the ordinary next-step selection below. All lifecycle, dependency and coordination guards still apply. Otherwise find the next step (lowest-numbered step that is not `done` or `skipped`). For ordinary next-step execution, ordering check: confirm every lower-numbered step is `done` or `skipped`; if any is `pending` or `blocked`, run that one first (or report its `BLOCKED:` issue) rather than the step the user named. If it is `blocked`, report its `BLOCKED:` issue and stop. If there is none, report that all steps are done and suggest `plan-finish`.
-3. Load context: every item in the step's `context` field (spec sections by anchor, ADRs, files) plus all prior sections of HANDOFF.md.
-4. Avoid reading other files unless the listed context is insufficient; record any expansion in HANDOFF.md.
-5. Execute the tasks, following `feature/spec-precedence` (record gaps; on contradictions, stop if attended, or record `BLOCKED:` and continue with unaffected tasks if unattended). Every gap, assumption, or proposed spec edit goes into `<plans.dir>/<plan-id>/spec-gaps.md` as a new numbered entry (`## G<n>: <case>`, the six fields and statuses of `architecture/file-formats` §4.2, `**Status**: open`): create the file on the first entry and never reuse a number. A step that would propose a spec edit it may not make itself writes a `proposal` entry; `feature-spec-proposals.md` is the archived format and is not written by new plans.
-6. Check the acceptance criteria. Tests are specified by the step criteria/tasks and its reviewed test procedure; project test files are part of the implementation. In the structured workflow, request executable checks through `executeWorkflowTest` (Codex runner: `executeTest`) after edits, and return its artifacts with criterion evidence. Report commands, outcomes and limitations; core records the verification summary in HANDOFF.md as specified in reference-cli. In the manual CLI fallback, pass observed results through `--next-knows`, explicitly distinguishing them from core-issued receipts. A criterion with no mapping is assessed by citing files. Run every configured suite the step's tier requires. If the tier needs a separate check, request it after the edits are final. Never lower a minimum yourself: ask the user, or end the step `blocked` when unattended.
-7. Decide the outcome: `done`, or `blocked` if a blocking issue prevents the criteria from being met.
-8. Record it with the CLI: inspect the exact edit set and create the digest-bound recording manifest outside the checkout, then run `specplane plan step-done <plan-id> --outcome <outcome> --summary <text> --recording-set <file>` with `--changed`, `--deviation`, `--open-issue`, `--gap`, `--next-knows`, and the harness attribution `--trailer` (`architecture/reference-cli` § `plan step-done`). The CLI appends the HANDOFF.md section (`architecture/file-formats` §4.1), sets the step's `status` to the outcome, and makes the step commit (§8) in one operation. The "Gaps found in specs" subsection lists each `spec-gaps.md` entry this step added, by ID, through `--gap`.
-9. Without the CLI or compatible core, new target-aware plans refuse managed recording rather than bypassing binding/lease checks. For legacy plans only, when the historical target and scope are unambiguous and the user chooses the labelled manual fallback, do the same by hand: set the `status`, append the §4.1 section with `**Outcome**` equal to the status and "None." for empty sections, and commit per `architecture/file-formats` §8 with `Specplane-Workflow: step`, `Specplane-Plan`, `Specplane-Step`, and `Specplane-Agent` (plus `Specplane-Session` when the harness exposes one), e.g. `feat(search-indexer): build graph from spec links`, a bullet summary, then the trailers.
-10. If `execution.backend` is `external`, or the plan branch has an upstream, push `plan/<id>` so the next session and other machines see the step.
+Implements `harness R34`, `harness R35.1`.
 
-### Output
-
-One-paragraph summary: outcome, files changed, gaps (their `spec-gaps.md` IDs), open issues, and the next step. Do not start the finish flow automatically after the last step; suggest it.
-
----
-
-## `verify-review`
-
-### Purpose
-
-Compares a finished plan step with its spec as a second reader. Implements the `separate` check of `architecture/reference-cli` § Verification policy.
-
-### Policy check
-
-None.
-
-### Steps
-
-1. Read only the prepared request: the step's spec context, criteria and diff. The working conversation is not an input.
-2. For each criterion and each relevant spec requirement, decide whether the diff meets it.
-3. Return `{verdict, findings}`: `pass` when nothing blocks the step, otherwise `fail`. Each finding names the requirement, the file and what is wrong.
-4. Edit nothing. A mismatch may mean the spec is the side that is wrong, so report it and do not choose.
-
-### Output
-
-The structured verdict only.
-
----
-## `plan-finish`
-
-### Purpose
-
-Runs the finish flow for the current plan. Implements `plan-finish`.
-
-### Policy check
-
-```
-Read config.plans and config.execution before finishing.
-If neither compatible core nor CLI is available: the manual sequence is allowed only for an unambiguously resolved legacy target, labelled "manual mode: no stale-base or divergence checks". Target-aware plans require the supporting core/CLI.
-If any step of the plan is not done or skipped: stop and report which.
-```
-
-### Steps
-
-1. Identify the current plan from the git branch.
-2. Confirm with the user: "Run finish flow for `<plan-id>`?" (unattended: proceed only if the session was explicitly started to finish the plan).
-3. Invoke `specplane plan finish <id>` (readiness checks, verification, rebase, final commit, PR or merge). Verification lists the open `spec-gaps.md` entries; open entries never stop the flow.
-4. When verification asks for acceptance-criteria confirmation, check each criterion and state the evidence. Report the open `spec-gaps.md` entries it listed (ID, kind, target spec) so they are reviewed, and say that they do not block the merge.
-
-**Manual mode (no CLI).** Instead of step 3, print "manual mode: no stale-base or divergence checks" once and follow this sequence (the finish flow's order, for the two merge modes only). Stop and tell the user to install the CLI when the plan has a new execution binding, target/comparison metadata, is stacked, has ambiguous historical context, or uses `plans.status_source: frontmatter`, since those need shared target, stack and claim logic. Resolve the historical target before the first mutation.
-
-1. Check that the branch is `plan/<id>`, `git status --porcelain` is empty, and every step is `done` or `skipped`.
-2. Run `plans.test_command` in the checkout when it is set; list the acceptance criteria and open `spec-gaps.md` entries as in step 4.
-3. `git fetch origin` when a remote exists, then `git rebase <target>`; on a conflict run `git rebase --abort` and stop. Re-run the tests when the rebase applied new commits.
-4. Set `status: done` in `<plans.dir>/<id>/PLAN.md`; when `archive_done` is true run `git mv <plans.dir>/<id> <plans.dir>/archive/<id>`; stage the plan folder and commit:
-   ```
-   chore(specplane): finish <id>
-
-   Specplane-Workflow: finish
-   Specplane-Plan: <id>
-   Specplane-Agent: <$SPECPLANE_AGENT, else harness name>
-   Specplane-Session: <$SPECPLANE_SESSION; omit when unset>
-   ```
-   followed by the harness attribution trailer.
-5. `pull_request`: `git push -u origin plan/<id>`, then open the pull request (`gh pr create --base <target> --head plan/<id> --title "chore(specplane): finish <id>"`), or print the push command and the PR URL instructions when no forge CLI is available. `local_merge`: confirm with the user, then in the clean checkout of the recorded target `git merge --no-ff -m "Merge plan/<id>" plan/<id>`, then `git worktree remove <checkout>` (worktree backend) and `git branch -d plan/<id>`.
-
-### Output
-
-The result: PR URL, merge confirmation, or the error that stopped the flow and what to do about it.
-
----
-
-## `validate`
-
-### Purpose
-
-Runs full repository validation and presents actionable results. Implements `validate`.
-
-### Policy check
-
-```
-Read config.specs.llm_review and config.specs.<type>.llm_role.
-If the CLI is unavailable: say so, do not claim the repository is valid, and perform only the LLM review of step 3 (when enabled) plus manual frontmatter checks from architecture/file-formats.
-```
-
-### Steps
-
-1. Run `specplane validate --json`.
-2. Parse the JSON output; group errors and warnings by file.
-3. If `specs.llm_review: true`:
-   a. For each feature spec (skipped if `specs.feature.llm_role: none`, or if the spec sets `allow_architecture: true`), ask: "Does this text prescribe incidental implementation choices, or is the technical mechanism itself part of the observable feature contract? Explain each suspected misplaced passage; technical vocabulary alone is not evidence." Each passage becomes a warning.
-   b. For each overlay spec with `extends`, read it together with its base spec and ask whether it adds to or contradicts the base. Each suspected contradiction becomes a warning quoting both passages.
-4. Self-check LLM-review findings before reporting: drop any passage that on re-reading does not describe implementation and any contradiction that cannot be quoted from both texts.
-5. Present a summary: "N errors, M warnings", with a suggested fix for each error (e.g. for an ID mismatch: "Rename the file or update the `id:` field").
-
-### Output
-
-The grouped summary. Warnings from LLM review are labelled as such.
-
----
-
-## `approve`
-
-### Purpose
-
-Approves specs, plans, and decision records, and reopens approved specs, on the user's request. Implements `approve`. Approval is the human's decision; the agent never runs this on its own initiative and never grants review approval by editing a lifecycle field (`feature/agent-integration` § `approve`). This restriction does not prohibit explicitly requested manual implementation-completion edits.
-
-### Policy check
-
-```
-No spec body is edited: approval changes only the `status:` line, through the CLI.
-If the CLI is unavailable: stop and tell the user to install it; this integration is not reimplemented by hand.
-Only when the user asks: never approve or accept during other work.
-```
-
-### Steps
-
-1. Parse `$ARGUMENTS` in the user's order: `--reopen` marks reopen mode; every other token is an ID.
-2. Resolve each ID's kind: a spec (through `spec/resolve.ts`), a plan (through `plan/resolve.ts`), or a decision record (`decision/<NNNN>`, through `decisions/parse.ts`).
-3. Run the matching command: `specplane spec approve <id>`, `specplane plan approve <id>`, or `specplane decision accept <id>`; several IDs of one kind may go in one command, which stops at the first refusal.
-4. On a refusal, report the reason and the fix for that ID and stop. Do not retry another way and do not edit frontmatter directly.
-5. In reopen mode, run `specplane spec reopen <id>` and show the specs it reports as no longer able to stay approved; reopen one only when the user asks for it.
-
-### Output
-
-One line per ID: the commit that approved it, or the refusal and its fix. In reopen mode, the reopen commit and the reported dependants with their commands.
-
----
-
-## `plan-start`
-
-### Purpose
-
-Starts a plan so its steps can run. Implements `plan-start`.
-
-### Policy check
-
-```
-Read config.execution.backend (worktree, branch, or external).
-```
-
-### Steps
-
-1. Identify the plan: the ID argument, else the current branch `plan/<id>`, else ask the user.
-2. Run `specplane plan start <id> [--target <branch>]`, forwarding an explicit user selection without inventing a target; it performs the checks of `feature/plan-execution` § Start flow.
-3. Report whether the checkout was created or resumed, the backend, checkout path, recorded target, starting commit, comparison baseline and next step from the CLI output. This mechanical operation requires no model call.
-4. For the `worktree` backend, report the checkout and tell the user to continue there. Only the explicitly invoking extension may add its verified host launch instructions, quoting shell paths or using argument arrays. The core returns no host command. With the `external` backend, say that the environment runs the finish flow itself and that `specplane plan finish` must not be run locally. Do not run a step in a session whose checkout differs from the plan's.
-
-### Output
-
-The outcome (created or resumed), backend, checkout path, target, starting commit, optional comparison baseline, and next step. The invoking extension may add verified host launch instructions; standalone output remains harness-neutral.
-
----
-
-## `decision-new`
-
-### Purpose
-
-Creates a decision record. Implements `decision-new`.
-
-### Policy check
-
-```
-The record starts as `status: proposed`; accepting it is the `approve` integration.
-Write the body only from the user's description: do not invent alternatives, consequences, or decisions.
-```
-
-### Steps
-
-1. Run `specplane decision new "<title>"` and keep the reported path.
-2. If the user describes the decision, write the body sections from `feature/decisions#adr-body-structure` from that description only, marking anything left open as open.
-3. Otherwise leave the sections for the user to fill in.
-
-### Output
-
-The created path and the sections still open.
-
----
-
-## `plan-status`
-
-### Purpose
-
-Shows where plans stand. Implements `plan-status`.
-
-### Policy check
-
-```
-Read config only; this integration changes nothing.
-```
-
-### Steps
-
-1. Run `specplane plan list --live` (without the CLI, read `PLAN.md` and step files by hand).
-2. When the session is in a plan's checkout (branch `plan/<id>`), highlight that plan. If `cwd` is not that plan's `checkout` (compare real paths; skip when `checkout` is null), warn once and name the `cd <checkout>` line.
-3. Summarise per plan: stored/effective status, target, starting commit, comparison baseline, integration evidence or awaiting-merge state, step progress, next step, `where`, `checkout`, and any `BLOCKED:` items. Label pending retarget edits and stale/offline refs separately.
-4. Point out plans that need attention: a next step that is blocked, or a stacked plan whose base has merged (`feature/plan-execution` § Restacking). For the latter, name the command `specplane plan restack <id>`; `plan list --live` prints it as a notice ("Base plan `<base-id>` has merged; run `specplane plan restack <id>`.").
-
-### Output
-
-The summary, current plan first when there is one.
-
----
-
-## `plan-abandon`
-
-### Purpose
-
-Abandons a plan. Implements `plan-abandon`.
-
-### Policy check
-
-```
-Read config.plans. Abandoning retains plan records and the branch unless branch deletion is requested, but removes the worktree (feature/plan-execution). Shelving retains the worktree for later resume.
-Unattended: do not proceed; report the plan that would be abandoned instead.
-```
-
-### Steps
-
-1. Identify the plan: the ID argument, else the current branch.
-2. Show what is being abandoned: stored status, step progress, retained plan records and branch, and the checkout that will be removed. Ask the user to confirm. If the intent is to pause and retain the checkout, explain `specplane plan shelve <id>` instead.
-3. Run `specplane plan abandon <id>`; add the branch-deletion option only when the user asks for it.
-
-### Output
-
-The result, and the documented manual cleanup for a branch that is kept (`git branch -D plan/<id>`).
-
----
-
-## Keeping skills in sync with specs
-
-Each skill declares the contract it implements with a contract pin: `<!-- specplane-contract: architecture/agent-skills#<skill-slug>@<blob7> -->`, where the anchor is the skill's section in this spec (e.g. `#plan-step`) and the hash is the blob of this file when the skill was last reviewed (format in `architecture/file-formats` §1.6). Skills reference contract sections by anchor, not by prose.
-
-An installed workflow may declare several contract comments. Declare every applicable shared procedure as well as its harness-specific contract; validate all declarations independently. Package the referenced procedures and versioned snapshots with the extension, including remote synchronization/publication, acceptance checks, and structured gap recording. Snapshot integrity is not evidence that the delivered workflow implements the procedure. Never refresh a pin until that implementation has been reviewed.
-
-`specplane validate` warns (type `skill-drift`) when a pin no longer matches the current blob of the spec, when the anchor does not resolve, or when a skill has no contract comment (`architecture/reference-cli` § Skill contract drift). Changes that only touch the spec's frontmatter `status`/`author` are ignored. After reviewing `git diff <pin> <current>` and updating the skill, refresh the pin to the committed blob (`specplane spec pin architecture/agent-skills` for the spec's own pins; skill comments are updated by hand to the new `git rev-parse HEAD:<path>` value). Because a pin must name a committed blob to be diffable, pins are refreshed in a commit after the spec change.
-
-Skills are committed to the repository and versioned. A PR that changes a workflow contract (in `feature/agent-integration`, this spec, or a harness overlay) updates the corresponding skill files and their contract pins in the same PR, then refreshes the pins once the spec change is committed.
-
-## Extension conductor contract
-
-Resolve config and call the shared conductor through the invoking extension, which must supply a session adapter explicitly. Standalone CLI commands never launch a harness. Shelved plans have no executable conductor action; neither a branch nor a pending step authorizes implicit resume. Never invoke approval or finish/merge automatically. Session identity is deterministic per plan and step for restart protection; the adapter maps it to a verified host session identity and preserves the mapping. A deterministic orchestration identity is not fabricated native-session provenance. The extension invokes its installed step workflow in unattended mode using its verified host mechanism, without embedding Claude syntax in the shared core.
-
-An explicit completed-step rerun adds `--step N --force --reason TEXT` to the workflow invocation. Select exactly that completed step, execute it again, and record using the same step/force/reason options on `plan step-done`, together with its reviewed recording manifest. The reason must be nonempty and single-line. The recorder appends a new outcome with the audit reason/trailer, even after later-numbered sections; the latest occurrence for the selected step is authoritative. Do not bypass safety conditions or erase earlier history. Without those arguments, existing lowest-pending ordering remains unchanged. Configured session mode may force unattended but never attended behavior.
-
-## Integration-target workflow requirements
-
-This contract implements the current integration-target feature requirements. Plan creation surfaces the user's integration destination and optional comparison baseline; it does not assume that approval belongs on main. Pass declared values through the CLI rather than writing execution metadata. First start resolves and displays the target and starting commit; every later workflow uses the recorded binding and reports conflicts rather than silently following a changed default.
-
-Step preparation, dependency checks, receipt validation and status inspection use the same target context as the core. Present the actual target in finish/merge confirmation. A completed candidate or positive metric result never authorizes promotion to another branch. Separate candidate plans must have distinct IDs, and an agent may generate or execute parallel candidates only when authorized by the user and repository policy.
-
-Manual finish must resolve a trustworthy historical target before fetching, rebasing or opening a PR. If unavailable or ambiguous, stop with recovery instructions; never substitute main. Local merge requires a suitable clean target checkout, not necessarily the main checkout. The CLI's execution-binding and target resolution logic must not be reimplemented by the agent when the CLI is unavailable. Existing legacy manual mode is limited to an unambiguous historical default target; new target-aware plans require the supporting CLI.
-
-## Shared documentation and completion guidance
-
-Deliver the compact orientation from the same reviewed release source as the bundled docs. Embed `docs_version` and `contract_version` in managed asset metadata; use manifest hashes for freshness checks. Do not regenerate instruction text from unreleased source specs at user-session startup. Refresh through the explicit existing installation transaction and preserve user-owned content. Harness-specific invocation hints supplement the shared orientation; they never replace it or redefine shared semantics.
-
-For conceptual questions, read `docs concepts` or `docs completion`; for a requested operation load its topic through the installed compatible core. Docs retrieval is read-only and must work without project config. Do not search a consumer repository for Specplane's own architectural source files. Repository spec IDs continue to resolve through that repository's config and are distinct from product-doc topic IDs.
-
-When asked to mark a spec complete, explain that the action records a declaration if needed, then invoke the shared completion operation; no plan is required. A manual status edit is valid if explicitly requested. Do not fabricate fingerprints, tests, review approval or implementation revisions. A stale declaration asks for reassessment, not automatic implementation or status reset. Body-writing authorship policies still apply independently.
-
-A technical feature requirement is not automatically an architecture leak. Explain suspected incidental detail and preserve user-approved contract mechanisms. Outside a managed plan, no plan checkout, handoff or managed commit format is imposed. Within one, use the operation's actual checks and recording procedure.
+- Every contract is a package asset and carries a version header; the installed copy is compared with the CLI's by validation, and an older or missing copy is a warning (`architecture/reference-cli §12.6`).
+- A change to a contract that alters preconditions, order of steps or permissions is a change to this spec first; the templates are then regenerated, and the harness copies are rewritten by setup. Contracts and steering are never hand-edited in a project.
+- Harness specifications may add invocation detail and must cite the contract section they package; they must not remove or reorder a step (`harness R34`).
+- The user documentation lists, for each harness, which commands and capabilities it supports (`steering R22`, `harness R35.1`).
