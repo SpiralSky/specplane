@@ -17,14 +17,15 @@ Format record for all specs: `docs/work-records/2026-11-09-spec-format.md` (fron
 - [x] 2 plans (R28,R28.1,R29,R29.1-3,R30,R30.1,R69): `docs/specifications/features/plans.md`; `plan-system.md`, `plan-steps.md`, `plan-status.md`, `plan-index.md` removed
 - [x] 3 plan-execution (R27,R31): `docs/specifications/features/plan-execution.md`
 - [x] 4 roles-and-permissions (R42,R42.1,R42.2,R43,R44,R44.1,R46,R48,R49,R50,R55,R55.1,R56,R56.1,R57,R58,R60): `docs/specifications/features/roles-and-permissions.md`; `spec-policies.md` removed
-- [ ] 5 requests (R52)
+- [x] 5 requests (R52, R52.1-R52.5): `docs/specifications/features/requests.md`
 - [ ] 6 steering
 - [ ] 7 harness
 - [ ] 8 cli
 - [ ] 9 verification
 - [ ] 10 configuration
 - [ ] 11 later-releases
-- [ ] 12 (added by user, 2026-11-09) approve all new specs after review, through `specplane spec approve`, never by hand-editing status; the LLM may approve everything except the requirements page in this repo
+- [ ] 12 (added by user, 2026-11-09) separate agent reviews all new specs
+- [ ] 13 (added by user, 2026-11-09) fix review findings and approve all new specs through `specplane spec approve`, never by hand-editing status; the LLM may approve everything except the requirements page in this repo
 
 Assumptions and open questions from spec 1 (all revisable):
 - Retired specs are deleted, not marked `deprecated`; citing specs become Awaiting Review (R11.2). Conflict question 6 stays open.
@@ -62,7 +63,12 @@ Assumptions from spec 4 (all revisable):
 - spec-policies was removed: authorship, `llm_role` (none/review/assist/draft), ordering policy and leak guard are gone; only "LLM-written specs start Awaiting Review" is kept (in `specifications` and R57). `.specplane/config.yaml` still has `authorship`/`llm_role`/leak guard keys, `INFO.md`, `configuration.md`, `agent-integration.md`, `tooling.md`, `spec-overlays.md` and others still cite `spec-policies`; spec 10 (configuration) and later cleanup must remove them.
 - Cites made to later specs: `requests R52`, `steering R51`, `steering R59`, `configuration R25`, `verification R61`, plus page-level R47, R54. No hook blocked any edit.
 
-Next: spec 5, `requests` (R52).
+Assumptions from spec 5 (all revisable):
+- Section ids: `requests R52` (with R52.1 to R52.5), plus `§1` terms and `§2` edge cases. R27.5, R27.5.1, R27.5.2 are only cited, to `plan-execution R27.5` and its subsections.
+- Accepting needs the permission to do the action in mode allow (no separate accept permission); a role whose own mode is request user or deny cannot accept. Deny means no request can be sent. Accepting does the action once and does not grant the permission. Requests never expire; pending requests do not change on preset changes (checked at acceptance).
+- Unapproved specs shown in a request dialogue are shown as all additions. Push notification config key names are left to `configuration R25`. Cites made: `plan-execution R27.5*`, `roles-and-permissions R50/R57/§2`, `steering R59`, `configuration R25`. No hook blocked any edit.
+
+Next: spec 6, `steering` (R22, R23, R51, R59).
 
 ## Current state
 - Only local `problems.md` is untracked; never stage it. Managed recording is deferred, so "complete" means implementation-complete on this branch.
