@@ -1,37 +1,8 @@
 ---
 id: feature/later-releases
 title: Later Releases
-status: approved
-approval:
-  by:
-    llm: claude-sonnet-5-5
-    delegated-by: spiralsky
-  date: 2026-11-09
-  commit: 17593fb2d8b9e511414505bbc75c799d37eb5297
-  note: re-approved by the LLM, not a human, under the user's 2026-11-09 delegation after the session 16 fixes (hand-edited; see docs/work-records/2026-11-09-spec-format.md)
-  fingerprint: spec-v3:sha256:7a8daef4d21cf12f35d0a5de2f46540821b12c85a44b5546c4d5fb41f9ce33cd
-  cited:
-    R37: sec-v1:sha256:7eb2b096d3266c52e3c5b200046efd11dd70fac7ee9042c081d971c2eee4956a
-    R37.1: sec-v1:sha256:ded3146384ebcb28de429cb55fba22bd7690806abe8e1ce83583682e9a03c8f2
-    R39: sec-v1:sha256:a89ca79a1e729dac084029b774c71c9e3e54d12b0bf99839394182c27807afd9
-    R39.1: sec-v1:sha256:2431690a7235645eb441e5575be0093bce45b90e3bd3331f7991c68affef605c
-    R39.2: sec-v1:sha256:39b97d687490efa513c50246e352eebfe6d8ed85539764f15013293160bcda08
-    R39.3: sec-v1:sha256:8fa60e43e8a85b597e62ee20202bba7f37aa078d6b7878d7cbeb907483476161
-    R39.4: sec-v1:sha256:079af62927bbd3dade5a9b335eb41fee9cca6f29043cc00ed999e49dcbd78a54
-    R66: sec-v1:sha256:5096aaea66887cd36536fffe4824778b40045d889af65e9b87b3aea138ae658c
-    R14: sec-v1:sha256:8ccf7a4a5b9852e8022cdf66efe5439946d7ff481b893c86a45ba5cf333b4e2c
-    R62.3: sec-v1:sha256:92c9b13c4f37b8fae856dfb136133ef8d03910e3f8745ef619f8da2c7c5c6607
-    specifications R9: sec-v1:sha256:faa3544c96036f5eb5010877f99d4e5bd3e346628f86440922d0b919ba0203e7
-    specifications R11: sec-v1:sha256:57fb631a35838abb06b893d183aae50c7cd3ab7d8e322aae1b81908c1be1f94e
-    specifications R65: sec-v1:sha256:d62687005561171f9fa170d8e5a9505e8ec81875f07a1c9d7bc8ac3de001c9bf
-    roles-and-permissions R50: sec-v1:sha256:6e06bc008e3c498900010a6e4117f60f0626279609ce22d6b0bcb36c4c245ce2
-    roles-and-permissions R57: sec-v1:sha256:1b06f3e6eaf07d7054ecb2cfcd8fb151df181db7d98bba461eae8802dd944f38
-    harness R14: sec-v1:sha256:c55f58fe1dea4db1a9b76c56fc683dad6c33fb43da8bca5e125c7a55e7ddd0ad
-    configuration R25: sec-v1:sha256:e07f837db35bfe39bbd28e56e36f3bbb1d0afc25bc3b8784f90a92be6d49b071
-    requests R52: sec-v1:sha256:4be72ae24a0b5e7c5b2eefb5802cfce58bb3673eef335e1e8496d43183631388
-    steering R59: sec-v1:sha256:7078d03a4c2a8767271e37f7c1b6ed4551ee563aa732399d8e620e759d99deb4
-    R68: sec-v1:sha256:e9eaf1d52d8d0cef132600b1477d50b693c999e94354ebe540005b2543cab444
-    specifications R7: sec-v1:sha256:b97cf139a08f8de7a4af660c79a35472f627e128accb361ef4a5453ad230418e
+status: awaiting-review
+review-reason: edited
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
@@ -60,7 +31,7 @@ Later release. When the user discusses work with the LLM in the harness and make
 - A record is not a specification. It does not define behaviour, is not approved and is not checked by tests. Where a decision should bind the product, the user puts it in a specification.
 - Records are part of the project and travel with it, so that every user and every LLM in the project sees the same decisions.
 - Taking the old architecture decision records into this feature is optional: existing records of that kind can be kept as decision records, but Specplane no longer requires them.
-- Assumption, awaiting the user's confirmation: the page describes only user decision records, so the older architecture decision records (numbering, supersession, their own validation and approval workflow) are not carried over as a separate feature. This answers conflict question 4 in `docs/work-records/2026-11-09-requirements-conflicts.md` provisionally.
+- Product scope decision awaiting review: the first implementation uses one decision-record system to avoid duplicate review and approval workflows. A separate ADR lifecycle is deferred, not ruled out by its absence from requirements. Existing ADRs remain available as source records; retaining or replacing their lifecycle needs a decision based on user value and maintenance cost.
 
 Scenario: Given decision records are on, When the user decides in a discussion to keep push notifications off by default, Then the LLM stores a record with that decision and the reason, and a later session asked to enable them by default finds the record and asks the user before acting against it.
 
@@ -85,7 +56,7 @@ Later release. A project can contain subprojects, for example folders that hold 
 - Each subproject is a named location in the project, set in the `subprojects` setting (`configuration R25`). Specifications in it behave like any other specifications: types, layers, approval, metadata and checks all apply (`specifications R11`, `specifications R65`).
 - A subproject may have no requirements specification of its own; it then relies on the root project's.
 - Roots and subprojects are checked together: warnings, validation and coverage reports show which project each finding belongs to.
-- Assumption, awaiting the user's confirmation: the page has no overlays, so overlay roots (a root that extends another) are not part of Specplane; a project that used them declares each overlay as a subproject (`R66`). This answers conflict question 5 in `docs/work-records/2026-11-09-requirements-conflicts.md` provisionally.
+- Product scope decision awaiting review: overlay inheritance is deferred while the initial model uses explicit subprojects and references. Requirements do not prohibit overlays. A subproject is not automatically equivalent to an overlay: migration must preserve the intended behaviour and obtain the user's decision before replacing inheritance (`R66`).
 
 ### R39.1: Subproject Decisions
 
@@ -126,7 +97,7 @@ Later release. A harness command guides the LLM through bringing an existing pro
 - Every specification that results from migration starts as Awaiting Review, even if the source had been approved in an older format, because approval in the old format says nothing about the new content (`specifications R11`).
 - Migration never deletes or rewrites the old files unless the user asks for it, and it can be stopped and resumed: a later run recognises what it has already written and carries on.
 - At the end, the LLM lists what it migrated, what it left, and what it was unsure about, so the user can review it.
-- The old architecture records, overlay roots and per-type LLM role settings of earlier versions are inputs to migration: records become decision records when those are on, overlays become subprojects (`R39`), and the old role settings are replaced by a permission preset the user chooses.
+- The old architecture records, overlay roots and per-type LLM role settings of earlier versions are inputs to migration: records may become decision records when those are on and the user chooses; overlays may become subprojects (`R39`) only after their inheritance semantics are accounted for and the user accepts the mapping; the old role settings are replaced by a permission preset the user chooses. Unmapped records and overlays are retained and reported, not silently discarded.
 
 Scenario: Given a project with specifications in an older format, all approved, When the user runs the migration command, Then the LLM proposes the new specifications, writes them within its permissions, and all of them are Awaiting Review.
 

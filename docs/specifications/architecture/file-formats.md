@@ -1,83 +1,8 @@
 ---
 id: architecture/file-formats
 title: File formats
-status: approved
-approval:
-  by:
-    llm: claude-sonnet-5-5
-    delegated-by: spiralsky
-  date: 2026-11-09
-  commit: 380a893a01aba93dd6694e9a0aab9e67cef0615f
-  note: approved by the LLM, not a human, under the user's 2026-11-09 delegation (hand-edited because the CLI cannot read this format; see docs/work-records/2026-11-09-spec-format.md)
-  fingerprint: spec-v3:sha256:1305925260c4b6989455012c2ad9c2f654a922141eaa07c4a8fcf89cb56be40d
-  cited:
-    specifications R1: sec-v1:sha256:e14e28290c7a996d6b4858b6fe7ed9206c48e45750806da7ed117c2068980161
-    specifications R2: sec-v1:sha256:9c38dd0e8485499de74f9e02965fcdb69355f53d1e9b4f99f77957973e83e914
-    specifications R5: sec-v1:sha256:88bdf67dbb7f5a04efaa64f11c63486a285c1a184090f0fe3ab6d2d8166eb9a2
-    specifications R7: sec-v1:sha256:b97cf139a08f8de7a4af660c79a35472f627e128accb361ef4a5453ad230418e
-    specifications R9: sec-v1:sha256:faa3544c96036f5eb5010877f99d4e5bd3e346628f86440922d0b919ba0203e7
-    specifications R10: sec-v1:sha256:da377d2da649662a194aadf3214d2b0284eb19ee156cfe48a3cd3490102d782c
-    specifications R10.1: sec-v1:sha256:bcd4914e643274025c85e5dc2f8ee8be06c8dbb8f11a8b3a27565924eac1f7e1
-    specifications R11: sec-v1:sha256:57fb631a35838abb06b893d183aae50c7cd3ab7d8e322aae1b81908c1be1f94e
-    specifications R11.1: sec-v1:sha256:29880970814e576e479b9aded1a2ea8c4b89a91c15a552242999690edab1bea8
-    specifications R11.2: sec-v1:sha256:bf6661cea11d86931085fc47823410d8d4b79e7f240a7d0100242ed9d51cccf3
-    specifications R11.3: sec-v1:sha256:39fae3fa736f7ec0cae702e7a5346d7ef7745af96bcc82fd9144c1eb54074978
-    specifications R11.4: sec-v1:sha256:f91b09b062967522d18f4cfea04f777a62e11db4531e25e446388cee0d800014
-    specifications R40: sec-v1:sha256:06256b91ec636327529518186fe36cf513ed6b4a33fbd4d4c259b52ff3e29f17
-    plans R28: sec-v1:sha256:d13d74927c488cfcd13db72c4379a0c833e16e4056d4314999028d2e568963bd
-    plans R29: sec-v1:sha256:3fe70a4219adab63a737d32016915ed60a5fcebed12fa497d026c1b66bb1eb7d
-    plans R29.1: sec-v1:sha256:49fde14b93412ce5869a57bae1085c04a08f6ae7b2deec5a92e8517d2539ba22
-    plans R29.2: sec-v1:sha256:bc3c3a58388481e6be01c429b7cc80b1a0459f4dde239072f5308f0c62c139b6
-    plans R30: sec-v1:sha256:fa450a722ef3c77c82274c05e2f549f368a62a4059a32bb39a9318e5f7d70335
-    plans §2: sec-v1:sha256:0f815d19f4e4ccd6eaf85f3825ada70b8ec20dd6fc9c97a9134bcebe8e2d233d
-    plans §2.1: sec-v1:sha256:db569dc411c857eedbbd39acdc9873aafc2a41adb75f2db78c2b6bb4cb801ef7
-    plans §2.2: sec-v1:sha256:69661f6b42e365736aeda828544f7563fa164965fc4238813c72f73f46f95dfc
-    plans §3: sec-v1:sha256:4683f2ee89a1df7343769321bc3128b06cb6347aed2df8db2b3648be34c3ef61
-    configuration R25: sec-v1:sha256:e07f837db35bfe39bbd28e56e36f3bbb1d0afc25bc3b8784f90a92be6d49b071
-    configuration R25.1: sec-v1:sha256:63db974347ae4f64926a4d697c3083844b86e14b46ef54ef53a16c4af19d20fa
-    roles-and-permissions R50: sec-v1:sha256:6e06bc008e3c498900010a6e4117f60f0626279609ce22d6b0bcb36c4c245ce2
-    roles-and-permissions R56: sec-v1:sha256:bb5d5bfb69c08d216d818c2b0ccd916e21fa1d60b85785285302a95fdb94975e
-    roles-and-permissions R57: sec-v1:sha256:1b06f3e6eaf07d7054ecb2cfcd8fb151df181db7d98bba461eae8802dd944f38
-    roles-and-permissions R44: sec-v1:sha256:1936fdd41a426f2a4d76c443f8a2a2520b04d8ac949469f1cf9cadbdce59de01
-    roles-and-permissions R48: sec-v1:sha256:6f356da94bdc42153c9510674b379680dd638066226a3650520cff0a4f8ca2d5
-    requests R52: sec-v1:sha256:4be72ae24a0b5e7c5b2eefb5802cfce58bb3673eef335e1e8496d43183631388
-    requests R52.2: sec-v1:sha256:130969d5e26b2d02492d3545aa7c3156e34944a3201ac5f63b81215ecb275fd5
-    requests R52.4: sec-v1:sha256:4344eca45bcf763953a988bb56e620a8fe3be41e9a484357c3a47c9533bcedac
-    verification R13: sec-v1:sha256:99caab386dc99044e2012a678aedafb986120fbe2a5250bd5bb919a773cdd240
-    verification R13.1: sec-v1:sha256:1aa194ab8cf86b69f12dc75d4699b0fed89fd5f7251408093122d21e660ff3bc
-    verification R36.2: sec-v1:sha256:610bbee4e80ee213a834ed7a50e9acf40047d9bf41477e7588198576e5df34b5
-    verification R61.1: sec-v1:sha256:743ffdc6f75452d7e76dceb994868cdfa983a388a0143a68167ae97b060d3a27
-    verification R61.3: sec-v1:sha256:76f9949f019b1f32264087bf7c894fc1b500fbb388104a2f55492fcc1ffc4a2d
-    verification R61.4: sec-v1:sha256:33d9f2074c2431ea4e976f9b0cb9e94a8e809280554248b86b6c7d935dc19668
-    cli R16: sec-v1:sha256:e984fad0ad0442293f6719a52445d2f03ea7cb11c08602d0eebbe488136d1b11
-    cli R17.2: sec-v1:sha256:db68716df13432cda3173ec1949ea0eec432d390cbac3f4924f6f5bf060c0749
-    plan-execution R27: sec-v1:sha256:16be697fca95202f6580e27147551a2774b7edabed2ca7abceb3656e707507db
-    plan-execution R27.2: sec-v1:sha256:ad9223052ac0145b15b4094fb5d03818a61a74b3eacbe4320cab3a8d60cc94b3
-    plan-execution R27.4: sec-v1:sha256:3d7b10b203e5ad988fa6007ece52ab79d06327886b8fa423411b32493e3fc95c
-    cli R17: sec-v1:sha256:fa2eada9b0354af5dec295777726f589bb0ec8c867fd3bf825008ebfdb5e5e85
-    architecture/reference-cli §5.3: sec-v1:sha256:6cf5b9caac3b3da0ee703a0628f94db87ee073f5c93c690a762f82602456fc6c
-    plans R29.3: sec-v1:sha256:e07b6ad570ab8184bdc89705217718f420bbe5d8da950ec4d9e837d773780ae7
-    plan-execution R31.1: sec-v1:sha256:bac85a98405325af2ed382a8ef7d41a7d6065a3dd5401ed330eaa852f184c4e7
-    verification R32: sec-v1:sha256:82af1b10e390df0f58d4a6b8438ae3b1e8e8d6a38bc199e0157d908d2818d6ee
-    verification R36.1: sec-v1:sha256:491627824855531136a03163f4ddd236da59d32e9e6baaab7470b61d1cdde3f2
-    verification §3: sec-v1:sha256:ff7ecd9663b35a60355a817e949b3be48f5c1503458c78b3974ebb714fc7ca3e
-    roles-and-permissions R42.1: sec-v1:sha256:854bd6cb3c3bbeb8c3e2277447d6fe5e711fd5b5e2639ff241ee29e452fcf03f
-    roles-and-permissions §2: sec-v1:sha256:e14c6ef033b445261b57332bf2eb941691aae0ac6d1c884fa4e9a594470000af
-    configuration §2: sec-v1:sha256:5a272b03d8faafa350a3e65f11279d9f04be0f0b4fb462ce7b56cd622c87a4bd
-    requests §2: sec-v1:sha256:5479166b365b32bbbba3ebaaf5989bb8e0c12bd160daf5876a5398fb33701d1d
-    requests R52.1: sec-v1:sha256:9104fb9e5d8088271f29b3e485b2600826be78ab86a925a460c1005497b13037
-    plans §3.1: sec-v1:sha256:a627ace4d1900314fb34c75d6c3c8f71039305d0665a81ad6acdc710a82225f0
-    plan-execution R27.1: sec-v1:sha256:eb372e0c9bc8e7d6356a33d6dfcea88ad37c6e2adec2470a2b7fa7464efc6783
-    steering R59.1: sec-v1:sha256:51c5ce271e04fa5e30d6868c79bb729f9150cbcfc9b225452e358924bf74fff4
-    later-releases R37: sec-v1:sha256:a56a6805e16e75b483b3459d08775ee9b700b0a479a8daa05075a6a014facc23
-    later-releases R39.3: sec-v1:sha256:efd0ff149f6b08376a66c0e028c93620ac0007d89af7e7107ae502ad6ea9c77e
-    R11: sec-v1:sha256:130c37023af0871109335af9caca60a91e1923fcc44e6643c5d53d4009bdf28d
-    R2: sec-v1:sha256:e803e5134c67f1acc356f9e754250e655ef433a4a51308b2db37a2343fc83b70
-    architecture/repository-layout §6: sec-v1:sha256:594e0b5421afb21c36cee36fd1db39fc141e61d969077fce63f3a29503c617db
-    plan-execution R27.6: sec-v1:sha256:c2519e0b501aa3182a71eea5440dd4d092f29e409c34df274fcd704996569b51
-    architecture/reference-cli §13.4: sec-v1:sha256:fd819eb2902c0880bc191fb07358541d878d4b78b9f86c230c0fca5442a156c6
-    architecture/repository-layout: spec-v3:sha256:c61e14edc80cfe585fa85ca11aff3edc27e466d9d25e0fa8ff144c8003e80868
-    architecture/reference-cli: spec-v3:sha256:6e1ef7c401ba94f9cea19d6a44cf55bac88917fe801fd46325bb7e2b4f900c55
+status: awaiting-review
+review-reason: edited
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
@@ -102,7 +27,7 @@ Implements `specifications R7`, `specifications R5`, `specifications R1`, `speci
 - `INFO.md` in a folder is documentation. It has no frontmatter; if it has, validation reports it as probably a misnamed spec. A file with no valid frontmatter is reported invalid.
 - A spec file is: frontmatter block (`---` fences, first line of the file), then the body in markdown.
 - A spec is retired by deleting the file; there is no `deprecated` status.
-- A requirement file's ID is `requirement/<file-stem>` (`§1.2`). It is not a spec layer and has no section headings; it is cited whole by that ID or by requirement ID.
+- A requirement file's ID is `requirement/<file-stem>` (`§1.2`). It belongs to the requirement layer; its body may contain ordinary headings and requirement markers. It is cited whole by that ID or by requirement ID.
 
 ### §1.2 Requirement files
 
@@ -299,7 +224,7 @@ From the committed state of the current branch (`specifications R40`); uncommitt
 1. Read the spec at HEAD. If `status: awaiting-review` or no `approval`: effective status `awaiting-review`, reason `never-approved` (or the stored `review-reason`).
 2. Compute `spec-v3` of the committed content. If `approval.fingerprint` exists and differs: `awaiting-review`, reason `edited`. If it is absent, compare with the content at `approval.commit`; a missing commit gives `awaiting-review`, reason `edited` with a warning that the approval cannot be checked.
 3. For each cite in `approval.cited`: compute the part fingerprint now; if it differs or the part is gone, add `outdated: <cite>`. Only cited parts count, never a change elsewhere in the cited spec. **When `approval.cited` is absent (hand format, `§2.3`)**, compute the part fingerprint of each dependency target as committed at `approval.commit` and compare it with the one computed now; a target that did not resolve at that commit counts as changed. A cite in `covers`, `implements` or `references` that was added after approval (absent from `cited`; in the hand format, absent from the frontmatter at `approval.commit`) is not compared: adding a dependency is a metadata change (`§4.2`). A hand-approved spec therefore stays approved until a cited part really changes, and the next CLI approval records `cited`.
-4. For each dependency that resolves to a spec (not a requirements file) whose own file has no `approval` block at HEAD, add `unapproved-dependency: <cite>` (`specifications R11`: a spec citing a never-approved spec is Awaiting Review). Only the presence of the block is read, never the cited spec's own status, so a change elsewhere in the cited spec does not matter (`specifications R11.2`). Members of a group approved in one command all have blocks, so a group is not affected.
+4. For each dependency that resolves to a spec (including the owning requirement file for a requirement ID) whose own file has no `approval` block at HEAD, add `unapproved-dependency: <cite>` (`specifications R11`: a spec citing a never-approved spec is Awaiting Review). Only the presence of the block is read, never the cited spec's own status, so a change elsewhere in the cited spec does not matter (`specifications R11.2`). Members of a group approved in one command all have blocks, so a group is not affected.
 5. If no reason was found, the spec is `approved`; otherwise `awaiting-review` with all reasons.
 
 Approval order is also enforced when approving (`cli R16`), so a spec cannot normally be approved before what it cites; step 4 covers specs approved by hand or by override, and specs whose cited spec was reopened later. Plans use the same steps with the fingerprint of `§5.2`.

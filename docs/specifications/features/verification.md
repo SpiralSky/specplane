@@ -1,62 +1,8 @@
 ---
 id: feature/verification
 title: Verification
-status: approved
-approval:
-  by:
-    llm: claude-sonnet-5-5
-    delegated-by: spiralsky
-  date: 2026-11-09
-  commit: 17593fb2d8b9e511414505bbc75c799d37eb5297
-  note: approved by the LLM, not a human, under the user's 2026-11-09 delegation (hand-edited; see docs/work-records/2026-11-09-spec-format.md)
-  fingerprint: spec-v3:sha256:b57ebad1ae275a2bf7fc5d0818467d26c4987151616b20efdde421dd1dbbd5ed
-  cited:
-    R12: sec-v1:sha256:181f04213a3634b87fb381c1bc8381e89dfa2eb243fc07509481f62f56735124
-    R13: sec-v1:sha256:69dc793eb06d51f8e5ff836baaa3bb00d29cc3cd1e3d449cf13f51436b116dac
-    R13.1: sec-v1:sha256:847f7387b19758600e7498a0b329fa4681747b474745e7bc10935acb0550fe61
-    R24: sec-v1:sha256:a0c47a1a63bd213837adef566be3e8ce5ab56db4bdab111beb0cb2bfd4eaab8c
-    R24.1: sec-v1:sha256:d6aba29cb588a161cab3725b6424c50ddb9d71c43d7e35d94c9cebd1f657270d
-    R32: sec-v1:sha256:35f3b2987a59ef842f5820b86506385391407254f04027c8424055165ef611de
-    R36: sec-v1:sha256:f1eb8c0ceb2c24f8aa7a75e9c54122a61a59f6ad1edd1025d145f0b73b952eae
-    R36.1: sec-v1:sha256:c20b9d48b9951357960cb9bd32ebd181f0bbc48d0cd2a826d619f2e1468efa2e
-    R36.2: sec-v1:sha256:d209c0fb3cbde4811ebb74e45d268654f38344998bc72998a51cfa459b52e4cb
-    R36.3: sec-v1:sha256:54a233af43c455e45238c0db36a73464b5f4631bf22b6a62faabec1ebe78ba91
-    R61: sec-v1:sha256:79bf70941878ded76b0db2e762f9578db29a66459ed5a138add6b2d3099ec7b1
-    R61.1: sec-v1:sha256:63f91112b7067d4352621bd1c174f03d7e599ab96cca99c3dc674a09e9e3cb2c
-    R61.2: sec-v1:sha256:bd4abd9a5ccae4ecb21f4839d87276a38491bbe596c3baf45d37b09e0a4af4a4
-    R61.3: sec-v1:sha256:9c632da2dbf33dbcc60ce1d9d4fbee81d580a839ab8f370d728a9e2a63d7df57
-    R61.4: sec-v1:sha256:5302283772fba54d0b0f69d5db1687c989430cd50a3e8cfec5f245df46f3866f
-    R64: sec-v1:sha256:45ee87a8370438c375df601bc29b29404ecaef22f8e4e36b53fe9d58af1d038d
-    R4: sec-v1:sha256:de291ce497122602d6e33b514aed039a3c7f318f4bd8c68adeb8d3dd2b7996b6
-    R7: sec-v1:sha256:c852e513177b9224c2d3f1b7846849e8bd2efdfe7ddfbfdab801e56d00c3dda7
-    R9: sec-v1:sha256:5a307f37b0f358e2e7f96ba80fb97ce16e2a0a8f1cf9d7ec3ec75bec4a348bec
-    R11.2: sec-v1:sha256:afcaf48f6c11dc6ab83134a95c72322e891a5bff9f296cabe9bda28400d3e861
-    R16: sec-v1:sha256:3502177c2bc715f4d662d3bc5442b9c87f431d27f47ae2c5a574ec6528a364ea
-    R17.2: sec-v1:sha256:de4223ef43d8165839f793c9df3cb6345076941af0045d0c87361735a1ef64eb
-    R22: sec-v1:sha256:3447e20b17238f3f89477fa7bffbdd2bc9ce994e0abedb6687f26536e580ceba
-    R40: sec-v1:sha256:caf927cdac902b6a76279f4c239972548d7d5103839cee6e297c998d20f75a65
-    R50: sec-v1:sha256:819f7b95d7021f36137f8ef6ec52895f786d66012ceb23126bcec59088f66ed0
-    R59: sec-v1:sha256:42034f7cc6189803d1d22a4eeb739be7e7f6a9adf43883e0f71e2381d22d5d07
-    R62: sec-v1:sha256:4d9170cfe4a72440bf9a1c6e24312cb163a21149a95c67a503819645505b30a8
-    R63: sec-v1:sha256:0faee28d5cade6745e72beaa4015ce3510c9bb4907881a8009174d4ddd25cd1e
-    specifications R5: sec-v1:sha256:88bdf67dbb7f5a04efaa64f11c63486a285c1a184090f0fe3ab6d2d8166eb9a2
-    specifications R7: sec-v1:sha256:b97cf139a08f8de7a4af660c79a35472f627e128accb361ef4a5453ad230418e
-    specifications R9: sec-v1:sha256:faa3544c96036f5eb5010877f99d4e5bd3e346628f86440922d0b919ba0203e7
-    specifications R10: sec-v1:sha256:da377d2da649662a194aadf3214d2b0284eb19ee156cfe48a3cd3490102d782c
-    specifications R11: sec-v1:sha256:57fb631a35838abb06b893d183aae50c7cd3ab7d8e322aae1b81908c1be1f94e
-    requests R52: sec-v1:sha256:4be72ae24a0b5e7c5b2eefb5802cfce58bb3673eef335e1e8496d43183631388
-    plans R28: sec-v1:sha256:d13d74927c488cfcd13db72c4379a0c833e16e4056d4314999028d2e568963bd
-    plans R30: sec-v1:sha256:fa450a722ef3c77c82274c05e2f549f368a62a4059a32bb39a9318e5f7d70335
-    roles-and-permissions R50: sec-v1:sha256:6e06bc008e3c498900010a6e4117f60f0626279609ce22d6b0bcb36c4c245ce2
-    roles-and-permissions R57: sec-v1:sha256:1b06f3e6eaf07d7054ecb2cfcd8fb151df181db7d98bba461eae8802dd944f38
-    cli R17: sec-v1:sha256:fa2eada9b0354af5dec295777726f589bb0ec8c867fd3bf825008ebfdb5e5e85
-    steering R59: sec-v1:sha256:7078d03a4c2a8767271e37f7c1b6ed4551ee563aa732399d8e620e759d99deb4
-    harness R14: sec-v1:sha256:c55f58fe1dea4db1a9b76c56fc683dad6c33fb43da8bca5e125c7a55e7ddd0ad
-    configuration R25: sec-v1:sha256:e07f837db35bfe39bbd28e56e36f3bbb1d0afc25bc3b8784f90a92be6d49b071
-    plans R29.3: sec-v1:sha256:e07b6ad570ab8184bdc89705217718f420bbe5d8da950ec4d9e837d773780ae7
-    specifications R1: sec-v1:sha256:e14e28290c7a996d6b4858b6fe7ed9206c48e45750806da7ed117c2068980161
-    specifications R68: sec-v1:sha256:06be08d4092f55d9bdca6f0c9b26cea80d2b3f5544ad1afcada0eb7c06e56682
-    plans: spec-v3:sha256:ee503b432bd8f546a8ee56fc1760b2b2e6f15e35ffc53eb072c08e8c22b12063
+status: awaiting-review
+review-reason: edited
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
@@ -304,12 +250,12 @@ Test (deterministic): run a test with logs set to local, git and off, and expect
 Specplane shows which specifications cover each requirement and feature specification, using their references (`R9`).
 
 - **Direction.** For a requirement: the feature specifications that cover it. For a feature specification: the architecture specifications that cover it. For a specification of any layer, the things above it that it covers. Coverage also appears in `covers` and in what a specification cites.
-- **Warnings.** Requirements and feature specifications that nothing covers are warnings (`R24`), not errors. A requirement that is requirement-only (below) is exempt.
+- **Warnings.** Requirements and feature specifications that nothing covers are warnings (`R24`), not errors. Requirement-only annotations do not suppress these warnings.
 - **Any layers.** It works with whatever layers exist. A project with feature and architecture specifications and no requirements shows coverage for those two and no complaint about the missing layer.
 - **Two views.** One lists each item with what covers it; the other lists the uncovered items only. Both are available to people and LLMs.
 - **Several covers.** A requirement covered by more than one specification is shown with all of them. This is not a warning.
 - **How coverage is read.** A specification covers an item when the item is in its `covers` list or the specification cites it (`specifications R9`), which is how the page words it ("using their references").
-- **Requirement-only.** Non-goals and unwanted outcomes (`R62`, `R63` and their sub-requirements) describe no behaviour to cover and are never reported. Any other requirement the owner keeps requirement-only is listed in the setting `coverage.requirement_only` (`configuration R25`; assumption, the page has no way to mark it).
+- **Requirement-only.** Non-goals and unwanted outcomes (`R62`, `R63` and their sub-requirements) constrain the product and are included in coverage like other requirements. The optional setting `coverage.requirement_only` annotates requirements the owner intentionally leaves without a lower-layer specification (`configuration R25`); the report shows this choice alongside the uncovered warning, rather than treating it as coverage or hiding it. The annotation is an added feature, not an exception to coverage checking.
 
 Scenario: Given a requirement that no feature specification references, When the user asks for coverage, Then the requirement shows as uncovered and the warnings list includes it.
 
