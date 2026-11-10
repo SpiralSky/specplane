@@ -5,6 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
 import { validateProject, type Report } from "./validate.js";
+import { specFingerprint } from "../spec/fingerprint.js";
 
 const git = (root: string, ...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } }).trim();
 
@@ -22,9 +23,13 @@ function commit(root: string, msg = "c"): string {
   git(root, "commit", "-qm", msg);
   return git(root, "rev-parse", "HEAD");
 }
-const REQ = "**R1: One**\nText\n\n**R2: Two**\nMore\n\n*R2.1: Sub*\nSub\n\nRetired IDs: `R9`.\n";
+const REQ_BODY = "**R1: One**\nText\n\n**R2: Two**\nMore\n\n*R2.1: Sub*\nSub\n\nRetired IDs: `R9`.\n";
 const spec = (o: { id: string; status?: string; approval?: string; covers?: string; implements?: string; references?: string; body?: string; extra?: string }) =>
   `---\nid: ${o.id}\ntitle: T\nstatus: ${o.status ?? "awaiting-review"}\n${o.approval ?? ""}authors: []\n${o.covers ? `covers: ${o.covers}\n` : ""}${o.implements ? `implements: ${o.implements}\n` : ""}references: ${o.references ?? "[]"}\n${o.extra ?? ""}---\n\n${o.body ?? "## R1: One\n\nText.\n"}`;
+// These status tests require an approved dependency; plain files are tested separately.
+const reqDraft = spec({ id: "requirement/product-requirements", body: REQ_BODY });
+const REQ = spec({ id: "requirement/product-requirements", body: REQ_BODY, status: "approved",
+  approval: `approval:\n  by: {human: p}\n  date: 2026-11-09\n  commit: ${"a".repeat(40)}\n  fingerprint: ${specFingerprint(reqDraft)}\n  cited: {}\n` });
 const rules = (r: Report, severity?: string) => r.findings.filter((f) => !severity || f.severity === severity).map((f) => `${f.rule}:${f.message}`);
 
 test("a clean repository with requirements and specs has no errors", () => {
@@ -35,7 +40,7 @@ test("a clean repository with requirements and specs has no errors", () => {
   commit(root);
   const r = validateProject(root);
   assert.deepEqual(rules(r, "error"), []);
-  assert.deepEqual(r.checked, ["feature/alpha"]);
+  assert.deepEqual(r.checked, ["feature/alpha", "requirement/product-requirements"]);
 });
 
 test("format errors: id mismatch, bad status, wrong-layer field, unknown field, missing frontmatter", () => {

@@ -9,7 +9,7 @@ import type { Source } from "./source.js";
 /** The project snapshot for one `Source` (`architecture/reference-cli` §4.5). */
 
 export interface SpecDoc {
-  /** Path-derived ID: `feature/<slug>` or `architecture/<slug>`. */
+  /** Path-derived ID: `requirement/<stem>`, `feature/<slug>` or `architecture/<slug>`. */
   id: string;
   layer: Layer;
   slug: string;
@@ -109,7 +109,13 @@ export function loadProject(source: Source, paths: SpecPaths): Project {
   for (const base of [paths.plansDir, `${paths.plansDir}/archive`]) {
     for (const name of listDirs(source, base)) if (name !== "archive") planIds.add(name);
   }
-  return { source, paths, requirements: loadRequirements(source, paths), specs, strayFiles, planIds };
+  const requirements = loadRequirements(source, paths);
+  for (const req of requirements.files) {
+    const stem = req.file.slice(req.file.lastIndexOf("/") + 1, -3);
+    const doc = makeSpecDoc("requirement", stem, req.file, req.text);
+    specs.set(doc.id, doc);
+  }
+  return { source, paths, requirements, specs, strayFiles, planIds };
 }
 
 /** Directory names inside `base`. */
@@ -124,7 +130,7 @@ export interface Target {
   startLine?: number;
   endLine?: number;
   text: string;
-  /** Path-derived ID of the spec the target is in, for spec and section targets. */
+  /** Path-derived ID of the owning spec, including requirement files. */
   specId?: string;
 }
 
@@ -156,12 +162,13 @@ export function resolveCite(project: Project, cite: Cite): Resolution {
       if (hits.length === 0) return fail(project.requirements.retired.has(id) ? `requirement ${id} is retired` : `requirement not found: ${id}`);
       if (hits.length > 1) return fail(`duplicate requirement ${id} (${hits.map((h) => `${h.file}:${h.startLine}`).join(", ")})`);
       const h = hits[0];
-      return { ok: true, target: { kind: "requirement", file: h.file, startLine: h.startLine, endLine: h.endLine, text: h.text } };
+      const specId = `requirement/${h.file.slice(h.file.lastIndexOf("/") + 1, -3)}`;
+      return { ok: true, target: { kind: "requirement", file: h.file, startLine: h.startLine, endLine: h.endLine, text: h.text, specId } };
     }
     case "req-file": {
       const file = `${project.paths.requirements}/${cite.slug}.md`;
-      const text = project.source.read(file);
-      return text === null ? fail(`requirements file ${cite.slug}.md not found`) : { ok: true, target: { kind: "requirement-file", file, text } };
+      const doc = project.specs.get(`requirement/${cite.slug}`);
+      return !doc ? fail(`requirements file ${cite.slug}.md not found in the project`) : { ok: true, target: { kind: "requirement-file", file, text: doc.text, specId: doc.id } };
     }
     case "spec":
     case "section": {

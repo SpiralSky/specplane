@@ -2,7 +2,7 @@ import { fencedLines, sectionAt, type SectionIndex } from "./sections.js";
 
 /** Cite grammar, extraction and parsing (`architecture/file-formats` §3.1, §3.2). Resolution is in `project.ts`. */
 
-export type Layer = "feature" | "architecture";
+export type Layer = "requirement" | "feature" | "architecture";
 
 export type Cite =
   | { kind: "req"; raw: string; project: string | null; reqId: string }

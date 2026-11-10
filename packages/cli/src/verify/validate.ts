@@ -57,6 +57,8 @@ function checkAuthorItem(v: unknown, where: string, allowDelegated: boolean): st
 function checkSpecFormat(doc: SpecDoc, emit: Emit): void {
   const f = doc.file;
   const err = (m: string) => emit("error", "spec-format", m, f, 1);
+  // Plain requirement files are valid, but have no approval until metadata is supplied.
+  if (doc.layer === "requirement" && doc.fm.missing) return;
   if (doc.fm.error || !doc.fm.data) { err(doc.fm.error ?? "frontmatter is missing"); return; }
   const d = doc.fm.data;
   if (d.id !== doc.id) err(`id is ${JSON.stringify(d.id)} but the path gives ${doc.id}`);
@@ -118,6 +120,12 @@ function checkSpecCites(project: Project, doc: SpecDoc, emit: Emit): void {
   };
   const seen = new Set<string>();
   for (const b of body) {
+    if (doc.layer === "requirement") {
+      // Retired declarations and references within this requirements file are not dependencies on another spec.
+      if (/^Retired IDs:/.test(doc.lines[b.line - 1])) continue;
+      const resolved = resolveCite(project, b.cite);
+      if (resolved.ok && resolved.target.file === doc.file) continue;
+    }
     const key = citeKey(b.raw);
     used.add(key);
     // A subproject cite cannot be resolved yet (later release), so listing it is not enforced either.
@@ -181,9 +189,9 @@ export function validateProject(root: string, opts: ValidateOptions = {}): Repor
     const commits = new CommitProjects(root, headProject);
     for (const doc of headProject.specs.values()) {
       if (wanted && !wanted.has(doc.id)) continue;
-      if (!doc.fm.data) continue;
+      if (!doc.fm.data && !(doc.layer === "requirement" && doc.fm.missing)) continue;
       const st = computeStatus(headProject, doc, commits, wt.source.read(doc.file));
-      const stored = typeof doc.fm.data.status === "string" ? doc.fm.data.status : null;
+      const stored = typeof doc.fm.data?.status === "string" ? doc.fm.data.status : null;
       statuses.push({ id: doc.id, stored, effective: st.status, reasons: st.reasons });
       for (const w of st.warnings) emit("warning", "status", w, doc.file, 1);
       for (const n of st.notes) emit("note", "status", n, doc.file);
