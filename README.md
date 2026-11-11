@@ -103,7 +103,7 @@ npm install -g --prefix ~/.local .   # puts `specplane` on your PATH (if ~/.loca
 ```sh
 cd your-project
 specplane init                      # creates .specplane/config.yaml, the spec roots and plans/
-specplane spec new feature login    # creates a draft feature spec
+# write docs/specifications/features/login.md in your editor
 specplane plan new --title "Login" --specs feature/login   # creates a draft plan folder
 specplane validate                  # checks specs, plans, pins and policies
 specplane plan start <plan-id>      # creates branch plan/<id> and its worktree
@@ -118,9 +118,7 @@ specplane plan finish <plan-id>     # tests, rebase, archive, merge
 | `specplane validate [--json]` | Validate the whole repository (it also runs as a pre-commit hook). |
 | `specplane generate [--print] [--live]` | Regenerate `plans/PLANS.md`. |
 | `specplane search <text> [--kind spec\|plan]` | Search specs and plans. |
-| `specplane spec new <type> <slug>` | Create a draft spec. |
-| `specplane spec list` / `show <id>` | List specs, or print one. |
-| `specplane spec validate [ids...]` | Validate one, several or all specs. |
+| `specplane spec list` / `show <id>` | List specs, or show one, with effective status, authors, results and implementation. |
 | `specplane spec pin [--check]` | Write or check base pins (`based_on`). |
 | `specplane spec approve <id>...` / `reopen <id>` | Approve specs (re-pinning an overlay's bases) or set one back to `review`; `--dry-run` prints the plan. |
 | `specplane plan new` | Create a draft plan folder. |

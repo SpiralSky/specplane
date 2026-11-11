@@ -157,6 +157,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U4 Spec list and show on the new model
 
+- **Status:** done. `commands/spec-read.ts` (list with `--status`/`--type`, show by ID or unique slug, JSON `data`); `spec new/validate` dropped; `plan.step` permission removed; `warnings` stays an array in JSON with a separate `warning_count`. Deferred: `commands/spec.ts` stays for legacy importers until U12; `harnesses/codex/templates/skills/specplane/SKILL.md` still mentions `spec new`.
 - **Goal:** `spec list` and `spec show <id>` print effective status, reasons, authors, current results and implementation from the notes store; `spec validate` becomes an alias of `validate` or is dropped; `spec new` is removed (spec content is edited in an editor, `§13.1`).
 - **Specs:** `reference-cli §13.1`, `§5.2`, `§10.3`, `§10.4`.
 - **Files:** new `commands/spec-read.ts`; `cli.ts` registration.

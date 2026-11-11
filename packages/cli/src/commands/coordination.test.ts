@@ -28,7 +28,6 @@ test("stateful spec and ADR commands refuse while another writer holds the check
     const before = head(root);
     const lease = acquireWriterLease({ repository: true, checkouts: [root], requestId: "other-writer" });
     const commands = [
-      ["spec", "new", "feature", "held", "--title", "Held"],
       ["decision", "new", "Held decision"],
       ["spec", "approve", "feature/draft"],
       ["decision", "accept", "decision/0001"],
@@ -37,13 +36,9 @@ test("stateful spec and ADR commands refuse while another writer holds the check
       const r = sp(root, ...args);
       assert.notEqual(r.status, 0, `${args.join(" ")} ran under a held lease: ${r.stdout}`);
     }
-    assert.equal(fs.existsSync(path.join(root, "specs/features/held.md")), false);
     assert.equal(head(root), before);
     assert.match(fs.readFileSync(path.join(root, "docs/specifications/features/draft.md"), "utf8"), /status: awaiting-review/);
     lease.release();
-    const ok = sp(root, "spec", "new", "feature", "held", "--title", "Held");
-    assert.equal(ok.status, 0, ok.stderr);
-    assert.equal(fs.existsSync(path.join(root, "specs/features/held.md")), true);
     assert.equal(sp(root, "spec", "approve", "feature/draft").status, 0);
     acquireWriterLease({ repository: true, checkouts: [root], requestId: "after" }).release();
   } finally { fs.rmSync(root, { recursive: true, force: true }); }

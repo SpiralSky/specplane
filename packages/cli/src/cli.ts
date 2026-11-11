@@ -7,7 +7,7 @@ import { requestsAccept, requestsDecline, requestsList, requestsShow } from "./c
 import { registerPlanCommands } from "./commands/plan-cli.js";
 import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
-import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
+import { specListCommand, specShowCommand } from "./commands/spec-read.js";
 import { configGetCommand, configListCommand, configSetCommand, configUnsetCommand, permissionsCommand } from "./commands/config.js";
 import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, migrateStatusHuman, specReopenHuman, syncHuman } from "./commands/spec-human.js";
 import { searchCommand } from "./commands/search.js";
@@ -38,7 +38,7 @@ program.on("command:*", (args: string[]) => {
 // Usage errors (unknown option, missing argument) exit 2; help and version exit 0 (`reference-cli` §13.3).
 registerPlanCommands(program);
 
-const spec = program.command("spec").description("Work with specs (new, list, show, validate, approve, reopen, meta, override)");
+const spec = program.command("spec").description("Work with specs (list, show, approve, reopen, meta, override)");
 function completionCommand(id: string, opts: { root?: string; dryRun?: boolean; json?: boolean; status?: string }, alias: boolean): void {
   const common = { id, ...(opts.root !== undefined ? { root: opts.root } : {}), ...(opts.dryRun ? { dryRun: true } : {}) };
   const request = alias ? { operation: "spec.complete" as const, arguments: common } : { operation: "spec.implementation" as const, arguments: { ...common, status: opts.status as "incomplete" | "partial" | "complete" } };
@@ -105,32 +105,17 @@ role.command("show").option("--json").action((opts) => runCommand({ command: "ro
 role.command("switch <role>").description("administrator or standard-user").option("--json").action((r: string, opts) => runCommand({ command: "role switch", args: [r], json: opts.json }, () => roleSwitchHuman(r)));
 
 spec
-  .command("new <type> <slug>")
-  .description("Create a draft spec")
-  .option("--root <name>", "spec root to create in", "base")
-  .option("--title <title>", "spec title")
-  .option("--implements <ids>", "feature spec IDs implemented (architecture specs)")
-  .option("--extends <ids>", "base spec IDs extended (overlay specs)")
-  .action((type: string, slug: string, opts) => specNewCommand(type, slug, opts));
-spec
   .command("list")
-  .description("List specs")
-  .option("--status <status>", "filter by status")
+  .description("List specs with effective status, authors, current results and implementation (needs info.retrieve)")
+  .option("--status <status>", "filter by effective status")
   .option("--type <type>", "filter by type (feature or architecture)")
-  .option("--root <name>", "filter by root")
   .option("--json", "output JSON")
-  .action((opts) => specListCommand(opts));
+  .action((opts: { status?: string; type?: string; json?: boolean }) => runCommand({ command: "spec list", args: [], json: opts.json }, () => specListCommand(opts)));
 spec
   .command("show <id>")
-  .description("Print a spec file")
-  .option("--root <name>", "qualify the root")
+  .description("Show one spec's effective status, reasons, authors, results and implementation (needs info.retrieve)")
   .option("--json", "output JSON")
-  .action((id: string, opts: { root?: string; json?: boolean }) => specShowCommand(id, opts));
-spec
-  .command("validate [ids...]")
-  .description("Validate one, several, or all specs")
-  .option("--json", "output JSON")
-  .action((ids: string[], opts: { json?: boolean }) => specValidateCommand(ids, opts));
+  .action((id: string, opts: { json?: boolean }) => runCommand({ command: "spec show", args: [id], json: opts.json }, () => specShowCommand(id)));
 
 const decision = program.command("decision").description("Work with decision records (new, accept)");
 decision.command("new <title>").description("Create a proposed decision record").action((title: string) => decisionNewCommand(title));
