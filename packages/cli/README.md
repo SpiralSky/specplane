@@ -1,6 +1,6 @@
 # specplane
 
-Reference CLI for [Specplane](../../README.md): manage specs, plans, and worktrees, validate a repository, and generate `PLANS.md`.
+Reference CLI for [Specplane](../../README.md): validate specs, approve them, record evidence, run plans, and serve the harness actions to an LLM.
 
 ## Install
 
@@ -8,33 +8,31 @@ Reference CLI for [Specplane](../../README.md): manage specs, plans, and worktre
 npm install -g specplane
 ```
 
-CI workflows pin the major version with `npm install -g specplane@0`. That only resolves once the first `0.x` release has been published.
+Nothing is published yet; until then build from source (`npm install && npm run build` here).
 
 ## Quick start
 
 ```sh
 cd your-repo
-specplane init --harness claude   # create .specplane/config.yaml and install the Claude Code harness
-specplane validate                # check specs, plans, and decisions
-specplane plan list               # show plans with effective status
-specplane search worktree --kind plan   # search plans only
-specplane plan restack <id> --dry-run   # show the commits a restack would replay
-specplane spec approve architecture/search # approve a spec, re-pinning an overlay's bases
-specplane spec reopen architecture/search  # approved -> review, reports the dependants
-specplane plan approve 2026-10-29-search   # draft plan -> ready, PLANS.md regenerated
-specplane decision new "Cache policy"      # create decisions/0004-cache-policy.md (proposed)
-specplane generate                # regenerate PLANS.md
+specplane init --harness claude   # notes refspecs and the Claude Code harness; or --harness codex
+specplane validate                # format, citations, requirement IDs, status
+specplane spec list               # specs with effective status
+specplane spec approve feature/login
+specplane coverage --uncovered
+specplane plan list
 ```
 
-Plans keep their gap records in `spec-gaps.md` next to `HANDOFF.md`; `plan finish` lists the open entries for review.
+The documentation is bundled and works offline: `specplane docs` lists the topics, `specplane docs <topic>` reads one and `specplane docs search <text>` searches them. Run `specplane --help` or `specplane <command> --help` for every command.
 
-Run `specplane --help` or `specplane <command> --help` for all commands.
+## Documentation build
+
+`npm run build` compiles the CLI, then builds the documentation: `scripts/build-docs.mjs` copies `docs/user/` (in the repository) to `assets/docs/` with a manifest and fails when a command, permission, configuration key with its default, or one of the five mandatory notes is undocumented; `scripts/build-ai-docs.mjs` derives `assets/ai-docs/essentials.md` (under an 8 KiB limit) from it. Both outputs are generated and never edited by hand.
 
 ## Requirements
 
 - Node.js 22 or later.
-- git 2.32 or later. The CLI uses worktrees, `git rev-parse --path-format` (2.31), and `git commit --trailer` (2.32).
-- Optional: the GitHub CLI `gh`, signed in. With `plans.forge: auto` (or `github`) and a GitHub `origin`, `plan finish` opens a pull request and `plan list` reports `review` while it is open. Without `gh` or a GitHub remote the CLI behaves as `plans.forge: none`.
+- git 2.32 or later (worktrees, `git rev-parse --path-format`, `git commit --trailer`).
+- Optional: the GitHub CLI `gh`, signed in, for `plan merge --pr`.
 
 ## License
 

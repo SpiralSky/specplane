@@ -1,16 +1,11 @@
-<!-- specplane:begin v2 — managed by `specplane init`; edits inside this block are overwritten -->
+<!-- specplane:begin v0.1.0 — managed by `specplane init`; edits inside this block are overwritten -->
 ## Specplane
 
-Specplane tracks intended behaviour, review, implementation completion and evidence separately. Plans are optional; branches have no prescribed role. Specs and implementation may change together or separately. Completion is a declaration; matching its content fingerprint does not prove code correctness. Changed definitions can require reassessment. Use `specplane docs` for concepts and the requested workflow.
+This repository uses Specplane. Before acting on specs or plans, read `.specplane/config.yaml` through the harness and resolve every path from it; never assume one.
+Look up your steering for your role and follow it. Use the Specplane harness actions, never the Specplane CLI.
+If the project has no Specplane configuration, do not apply Specplane rules.
 
-This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.specplane/config.yaml`; resolve every path from it (`spec_roots`, `plans.dir`, `decisions.dir`), never assume one. `execution` says how plans run.
-
-- **Authorship**: `specs.<type>.llm_role` limits spec writing and review independently of `authorship`: `none` = read and implement only, with no spec-body edits, review, or suggestions; `review` = ask, suggest, and review without independently drafting the spec body; apply a suggested edit only after the user approves that exact change; `assist` = write the body only after the user finalises the content and approves the text (refine-then-write); `draft` = you may write a draft for review. Setting a spec to `approved`, a plan to `ready`, or a decision record to `accepted` is the human's decision: never do it by editing a file.
-- **Precedence**: when implementing, the architecture spec wins and the feature spec fills gaps; when using a managed plan, record gaps and assumptions in its `spec-gaps.md`; otherwise use the user's chosen record or conversation. If specs contradict each other, stop and report it; do not implement either side.
-- **Plans**: when invoking managed plan execution, work only in its checkout (branch `plan/<id>`), one step at a time, following the plan-step workflow. HANDOFF.md and `spec-gaps.md` in the plan folder are the source of truth for progress and gaps.
-- **Commits**: managed commands that create commits follow their documented format. Ordinary work needs no Specplane trailers. Manual implementation-completion edits are valid and do not approve a spec.
-- **Workflows**: use an explicitly installed Specplane extension for agent workflows, or the standalone `specplane` CLI for manual operations. Extensions deliver the shared workflow procedures and their host-specific invocation details.
-- **Decisions**: When you need a decision from the user, frame it in terms of what changes for the people using the product: what changes, the tradeoff, and your recommendation. This does not change who approves specs, plans or decisions.
+Steering stamp: 7a5aebfbc41f5308f7ffe97948af900512d6e5337ce4d7978dfa5a1b9711ef73
 <!-- specplane:end -->
 
 ## Requirements override everything
@@ -23,15 +18,7 @@ This repository uses Specplane. Before acting on specs, plans, or ADRs, read `.s
 
 ## Routing plan requests
 
-The plan skills are user-invoked only, so route natural-language requests to the CLI. Run the command from the shell; never hand-edit `PLAN.md`, step files, or `HANDOFF.md` to do the same thing.
-
-| The user asks to | Run |
-|------------------|-----|
-| start a plan | `specplane plan start <id>` |
-| do the next step of a plan | `specplane plan next <id>`, then execute the step it names. Claude Code uses `/plan-step`, which records the step; agents there must not run `step-done`. Codex follows the step procedure in `harnesses/codex/templates/skills/specplane/SKILL.md` and records with `specplane plan step-done <id>` and the flags that procedure requires |
-| finish a plan | `specplane plan finish <id>` |
-| see plan status | `specplane plan list --live` |
-| rebase a stacked plan after its base merged | `specplane plan restack <id>` |
+Plans are optional and Specplane's own workflows are not run on this repository for now (`HANDOFF.md`). When the user explicitly asks for plan work, use the harness: Claude Code runs the typed commands `/plan-create`, `/plan-start`, `/plan-step`, `/plan-finish`, `/plan-status` and `/plan-abandon`; Codex follows the contracts in `.agents/skills/specplane/contracts/`. Both reach the same operations as the CLI (`plan create`, `plan start`, `plan next`, `plan step-done`, `plan finish`, `plan list`, `plan abandon`). Never hand-edit `progress.yaml`, step files or a plan's `HANDOFF.md` to do the same thing. From a source checkout run the CLI as `node packages/cli/dist/cli.js`; agents do not run the installed `specplane` name (the Claude CLI-block hook denies it).
 
 ## Working rules
 
