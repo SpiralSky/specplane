@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { DocumentationBundleError, loadDocumentationBundle, type DocumentationBundle, type DocumentationSource } from './bundle.js';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { DocumentationBundleError, ESSENTIALS_LIMIT_BYTES, loadDocumentationBundle, type DocumentationBundle } from './bundle.js';
+import { readContainedFile } from './contained-files.js';
 
-export type DocsIndex = { version: string; docs_version: string; orientation: string; items: { topic_id: string; title: string; related: string[] }[] };
-export type DocsTopic = { topic_id: string; title: string; version: string; docs_version: string; source_references: DocumentationSource[]; related: string[]; content: string };
+export type DocsIndex = { version: string; docs_version: string; orientation: string; items: { topic_id: string; title: string; summary: string; related: string[] }[] };
+export type DocsTopic = { topic_id: string; title: string; version: string; docs_version: string; related: string[]; content: string };
 export type DocsSearch = { version: string; docs_version: string; items: { topic_id: string; title: string; excerpts: { line: number; text: string }[] }[] };
 
 /** Caller mistakes (unknown topic, empty query). Package damage is `DocumentationBundleError`; both exit 1. */
@@ -23,7 +26,7 @@ export function loadReleasedDocs(bundleDirectory?: string): DocumentationBundle 
 
 export function docsIndex(bundleDirectory?: string): DocsIndex {
   const { manifest, orientation, topics } = loadReleasedDocs(bundleDirectory);
-  return { version: manifest.core_version, docs_version: manifest.docs_version, orientation, items: topics.map(t => ({ topic_id: t.id, title: t.title, related: [...t.related] })) };
+  return { version: manifest.core_version, docs_version: manifest.docs_version, orientation, items: topics.map(t => ({ topic_id: t.id, title: t.title, summary: t.summary, related: [...t.related] })) };
 }
 
 export function docsTopic(id: string, bundleDirectory?: string): DocsTopic {
@@ -31,7 +34,7 @@ export function docsTopic(id: string, bundleDirectory?: string): DocsTopic {
   // Exact match against manifest IDs only; the input never reaches a filesystem path.
   const topic = topics.find(t => t.id === id);
   if (!topic) throw new DocsUsageError('DOCS_UNKNOWN_TOPIC', `Unknown documentation topic \`${id.replace(/[\x00-\x1f`]/g, '?')}\`. ${discovery}`);
-  return { topic_id: topic.id, title: topic.title, version: manifest.core_version, docs_version: manifest.docs_version, source_references: topic.sources.map(s => ({ ...s })), related: [...topic.related], content: topic.content };
+  return { topic_id: topic.id, title: topic.title, version: manifest.core_version, docs_version: manifest.docs_version, related: [...topic.related], content: topic.content };
 }
 
 /**
@@ -56,7 +59,7 @@ export function docsSearch(query: string, bundleDirectory?: string): DocsSearch 
 }
 
 export function renderIndex(index: DocsIndex): string {
-  const rows = index.items.map(i => `  ${i.topic_id}  ${i.title}`).join('\n');
+  const rows = index.items.map(i => `  ${i.topic_id}  ${i.title}: ${i.summary}`).join('\n');
   return `${index.orientation.trimEnd()}\n\nTopics (Specplane ${index.version}, docs ${index.docs_version}):\n${rows}\n\nRun \`specplane docs <topic>\` to read one, or \`specplane docs search <text>\` to search.\n`;
 }
 export function renderTopic(topic: DocsTopic): string {
@@ -66,5 +69,23 @@ export function renderTopic(topic: DocsTopic): string {
 export function renderSearch(result: DocsSearch): string {
   if (!result.items.length) return 'No matching topics.\n';
   return result.items.map(i => `${i.topic_id}  ${i.title}\n${i.excerpts.map(e => `  ${e.line}: ${e.text}`).join('\n')}${i.excerpts.length ? '\n' : ''}`).join('\n');
+}
+
+/**
+ * The AI-facing essentials (`steering` R23): the file a harness loads into context. It is derived from the user
+ * documentation by `build-ai-docs`, checked against its manifest and size limit, and never read from anywhere else.
+ */
+export function loadEssentials(directory = fileURLToPath(new URL('../../assets/ai-docs/', import.meta.url))): string {
+  try {
+    const manifest = JSON.parse(readContainedFile(directory, 'manifest.json').toString('utf8')) as { essentials?: { path?: string; sha256?: string; bytes?: number } };
+    const entry = manifest.essentials;
+    if (!entry || entry.path !== 'essentials.md' || typeof entry.sha256 !== 'string') throw new Error('invalid manifest');
+    const bytes = readContainedFile(directory, entry.path);
+    if (createHash('sha256').update(bytes).digest('hex') !== entry.sha256) throw new Error('digest mismatch for essentials.md');
+    if (bytes.length > ESSENTIALS_LIMIT_BYTES) throw new Error('essentials exceed the size limit');
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch (error) {
+    throw new DocumentationBundleError(`AI documentation: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 export { DocumentationBundleError };

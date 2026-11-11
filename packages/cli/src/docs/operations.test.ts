@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { DocumentationBundleError, type DocumentationManifest } from './bundle.js';
+import { DocumentationBundleError, minimumDocumentationTopics, type DocumentationManifest } from './bundle.js';
 import { DocsUsageError, docsIndex, docsSearch, docsTopic } from './operations.js';
 
 const assetRoot = fileURLToPath(new URL('../../assets/docs/', import.meta.url));
@@ -31,15 +31,16 @@ const runCli = (args: string[], cwd: string, env: Record<string, string> = {}) =
 
 test('index, topic and search agree on versions, order and content', () => {
   const index = docsIndex();
-  assert.deepEqual(index.items.map(i => i.topic_id), ['getting-started', 'concepts', 'completion', 'workflows/plans', 'commands/spec-complete']);
-  assert.match(index.orientation, /plans are optional/);
+  assert.deepEqual(index.items.map(i => i.topic_id), [...index.items.map(i => i.topic_id)].sort());
+  for (const id of minimumDocumentationTopics) assert.ok(index.items.some(i => i.topic_id === id), id);
+  assert.match(index.orientation, /Plans are optional/);
   const topic = docsTopic('concepts');
   assert.equal(topic.version, index.version);
   assert.equal(topic.docs_version, index.docs_version);
   assert.deepEqual(topic.related, index.items.find(i => i.topic_id === 'concepts')!.related);
-  assert.ok(topic.source_references.length > 0 && topic.content.length > 0);
+  assert.ok(topic.content.length > 0);
   assert.equal(docsSearch('plan').version, index.version);
-  assert.deepEqual(Object.keys(topic), ['topic_id', 'title', 'version', 'docs_version', 'source_references', 'related', 'content']);
+  assert.deepEqual(Object.keys(topic), ['topic_id', 'title', 'version', 'docs_version', 'related', 'content']);
 });
 
 test('CLI and core output agree, outside Git, without config or network, with no warnings', () => {
@@ -49,13 +50,13 @@ test('CLI and core output agree, outside Git, without config or network, with no
     const idx = runCli(['docs', '--json'], cwd, env);
     assert.equal(idx.status, 0); assert.equal(idx.stderr, '');
     assert.deepEqual(JSON.parse(idx.stdout), docsIndex());
-    const top = runCli(['docs', 'workflows/plans', '--json'], cwd, env);
-    assert.deepEqual(JSON.parse(top.stdout), docsTopic('workflows/plans'));
+    const top = runCli(['docs', 'plans', '--json'], cwd, env);
+    assert.deepEqual(JSON.parse(top.stdout), docsTopic('plans'));
     const found = runCli(['docs', 'search', 'plans', '--json'], cwd, env);
     assert.equal(found.stderr, '');
     assert.deepEqual(JSON.parse(found.stdout), docsSearch('plans'));
     const human = runCli(['docs'], cwd, env);
-    assert.equal(human.status, 0); assert.match(human.stdout, /commands\/spec-complete/); assert.equal(human.stderr, '');
+    assert.equal(human.status, 0); assert.match(human.stdout, /harnesses/); assert.equal(human.stderr, '');
     assert.equal(runCli(['docs', 'concepts'], cwd, env).stdout.startsWith(docsTopic('concepts').content.trimEnd()), true);
     // multi-word query is one literal phrase
     assert.deepEqual(JSON.parse(runCli(['docs', 'search', 'optional', 'plans', '--json'], cwd, env).stdout), docsSearch('optional plans'));
@@ -63,11 +64,11 @@ test('CLI and core output agree, outside Git, without config or network, with no
 });
 
 test('unknown and traversal-like IDs are unknown topics with discovery guidance; search is not a topic', () => {
-  for (const id of ['nope', '../manifest', '..\\x', '/etc/passwd', 'concepts/../completion', 'concepts.md', 'search', 'CONCEPTS', '']) {
+  for (const id of ['nope', '../manifest', '..\\x', '/etc/passwd', 'concepts/../verification', 'concepts.md', 'search', 'CONCEPTS', '']) {
     assert.throws(() => docsTopic(id), (e: unknown) => e instanceof DocsUsageError && e.code === 'DOCS_UNKNOWN_TOPIC' && /specplane docs/.test(e.message), id);
   }
   const cwd = os.tmpdir();
-  for (const id of ['nope', '../manifest', 'concepts/../completion']) {
+  for (const id of ['nope', '../manifest', 'concepts/../verification']) {
     const r = runCli(['docs', id], cwd);
     assert.equal(r.status, 1); assert.equal(r.stdout, ''); assert.match(r.stderr, /Unknown documentation topic/); assert.match(r.stderr, /specplane docs search/);
   }
@@ -83,11 +84,11 @@ test('empty and whitespace-only queries are refused with exit 1', () => {
 
 test('search is case-insensitive and literal, sorted by topic ID, limited to three excerpts, with line numbers', () => withBundle((root, edit) => {
   edit('concepts', '# Concepts\n\nNeedle one\nneedle TWO\n  NEEDLE three  \nneedle four\nregex a.c (x+) chars\n');
-  edit('completion', '# Completion\nOne needle here\n');
+  edit('verification', '# Verification\nOne needle here\n');
   const result = docsSearch('NeEdLe', root);
-  assert.deepEqual(result.items.map(i => i.topic_id), ['completion', 'concepts']);
-  assert.deepEqual(result.items[1].excerpts, [{ line: 3, text: 'Needle one' }, { line: 4, text: 'needle TWO' }, { line: 5, text: 'NEEDLE three' }]);
-  assert.deepEqual(result.items[0].excerpts, [{ line: 2, text: 'One needle here' }]);
+  assert.deepEqual(result.items.map(i => i.topic_id), ['concepts', 'verification']);
+  assert.deepEqual(result.items[0].excerpts, [{ line: 3, text: 'Needle one' }, { line: 4, text: 'needle TWO' }, { line: 5, text: 'NEEDLE three' }]);
+  assert.deepEqual(result.items[1].excerpts, [{ line: 2, text: 'One needle here' }]);
   assert.deepEqual(docsSearch('a.c (x+)', root).items.map(i => i.topic_id), ['concepts']);
   assert.deepEqual(docsSearch('a.c (x+)', root), docsSearch('a.c (x+)', root));
   assert.deepEqual(docsSearch('a.*c', root).items, []);
@@ -103,11 +104,11 @@ test('no results is a successful empty item list, human and JSON', () => {
 });
 
 test('title-only match returns the topic with an empty excerpt list (D7)', () => withBundle((root, edit) => {
-  edit('completion', '# Heading differs\n\nNothing relevant.\n');
+  edit('verification', '# Heading differs\n\nNothing relevant.\n');
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8')) as DocumentationManifest;
-  const title = manifest.topics.find(t => t.id === 'completion')!.title;
+  const title = manifest.topics.find(t => t.id === 'verification')!.title;
   const result = docsSearch(title.toUpperCase(), root);
-  assert.deepEqual(result.items.find(i => i.topic_id === 'completion'), { topic_id: 'completion', title, excerpts: [] });
+  assert.deepEqual(result.items.find(i => i.topic_id === 'verification'), { topic_id: 'verification', title, excerpts: [] });
 }));
 
 test('corrupt or missing bundle bytes fail with package-repair guidance and no repository fallback', () => withBundle(root => {

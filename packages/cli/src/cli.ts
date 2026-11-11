@@ -10,7 +10,7 @@ import { initCommand } from "./commands/init.js";
 import { specListCommand, specShowCommand } from "./commands/spec-read.js";
 import { configGetCommand, configListCommand, configSetCommand, configUnsetCommand, permissionsCommand } from "./commands/config.js";
 import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, migrateStatusHuman, specReopenHuman, syncHuman } from "./commands/spec-human.js";
-import { docsCommand, docsSearchCommand } from "./commands/docs.js";
+import { docsCommand, docsEssentialsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
 import { warningsCommand } from "./commands/warnings.js";
 import { steeringCommand } from "./commands/steering.js";
@@ -126,6 +126,10 @@ const docs = program
   .description("Read the bundled product documentation (offline)")
   .option("--json", "output JSON")
   .action((topic: string | undefined, opts) => docsCommand(topic, opts));
+docs
+  .command("essentials")
+  .description("Print the short essentials file a harness loads into the model's context")
+  .action(() => docsEssentialsCommand());
 docs
   .command("search <text...>")
   .description("Search the bundled documentation")

@@ -1,5 +1,5 @@
 import { DocumentationBundleError } from '../docs/bundle.js';
-import { DocsUsageError, docsIndex, docsSearch, docsTopic, renderIndex, renderSearch, renderTopic } from '../docs/operations.js';
+import { DocsUsageError, docsIndex, docsSearch, docsTopic, loadEssentials, renderIndex, renderSearch, renderTopic } from '../docs/operations.js';
 
 export interface DocsOptions { json?: boolean }
 
@@ -23,3 +23,4 @@ export function docsCommand(topic: string | undefined, opts: DocsOptions): void 
 export function docsSearchCommand(words: string[], opts: DocsOptions): void {
   run(() => { const result = docsSearch(words.join(' ')); return opts.json ? json(result) : renderSearch(result); });
 }
+export function docsEssentialsCommand(): void { run(() => loadEssentials()); }
