@@ -10,11 +10,13 @@ const blocked = [
   "npx specplane validate", "npx -y specplane validate", "bunx specplane x", "npx specplane@latest x", "pnpm dlx specplane x", "npm exec specplane x",
   "./node_modules/.bin/specplane x", "/usr/local/bin/specplane x", "node_modules/.bin/specplane.js x",
   "echo $(specplane x)", "echo `specplane x`", 'echo "$(specplane x)"', "x=$(sh -c 'specplane y')",
+  "cat <<'EOF'\nx\nEOF\nspecplane validate", "cat <<'EOF' | specplane x\nbody\nEOF", "cat <<EOF\n$(specplane x)\nEOF",
   "if true; then specplane x; fi", "xargs specplane x", "git status\nspecplane validate", "time specplane x", "nohup specplane x &",
 ];
 const allowed = [
   "", "ls -la", "echo specplane", "git commit -m 'run specplane validate'", "grep specplane README.md", "cat specplane.md",
   "npx prettier specplane.md", "bunx eslint .", "sh -c 'echo hi'", "bash script.sh specplane", "echo 'a; specplane x'",
+  "git commit -F - <<'EOF'\nroute\n\`specplane mcp\` is run by the adapter\nspecplane validate\nEOF", "cat <<-\"EOF\"\n\tspecplane x\n\tEOF",
   "cd specplane && ls", "make specplane-docs", "node tool.js specplane", "env FOO=bar ls", "npm run build", "echo $(date)",
 ];
 

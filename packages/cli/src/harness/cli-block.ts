@@ -92,9 +92,26 @@ function commandRuns(words: string[], depth: number): boolean {
   return pkg !== undefined && (isSpecplaneWord(pkg) || pkg.startsWith("specplane@"));
 }
 
+/** Remove the bodies of heredocs whose delimiter is quoted: that text is data, never run. */
+function stripQuotedHeredocs(text: string): string {
+  const out: string[] = [];
+  let end: string | undefined;
+  let dash = false;
+  for (const line of text.split("\n")) {
+    if (end !== undefined) {
+      if ((dash ? line.replace(/^\t+/, "") : line) === end) end = undefined;
+      continue;
+    }
+    out.push(line);
+    const m = /<<(-?)[ \t]*(?:'([A-Za-z_0-9]+)'|"([A-Za-z_0-9]+)")/.exec(line);
+    if (m) { dash = m[1] === "-"; end = m[2] ?? m[3]; }
+  }
+  return out.join("\n");
+}
+
 function check(text: string, depth: number): boolean {
   if (depth > MAX_DEPTH) return true; // Too deeply nested to judge; refuse rather than allow.
-  const { commands, nested } = lex(text);
+  const { commands, nested } = lex(stripQuotedHeredocs(text));
   return commands.some((w) => commandRuns(w, depth)) || nested.some((n) => check(n, depth + 1));
 }
 

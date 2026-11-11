@@ -56,6 +56,31 @@ run $cb 0 "cli-block: allows an unrelated command" "$(cj 'ls -la')"
 run $cb 0 "cli-block: allows grep for the word" "$(cj 'grep -rn specplane docs')"
 run $cb 0 "cli-block: allows echo of the word" "$(cj 'echo specplane')"
 run $cb 0 "cli-block: allows node dist/cli.js (not the installed CLI name)" "$(cj 'node packages/cli/dist/cli.js validate')"
+run $cb 0 "cli-block: allows backticked text in a single-quoted commit message" "$(cj "git commit -m 'route: serve \`specplane mcp\` over stdio'")"
+run $cb 0 "cli-block: allows the word at a line start in a double-quoted message" "$(cj 'git commit -m "docs: update
+specplane mcp notes; specplane validate output"')"
+run $cb 0 "cli-block: allows a quoted heredoc body" "$(cj "git commit -F - <<'EOF'
+docs: describe the route
+
+\`specplane mcp\` is started by the adapter.
+specplane validate
+EOF")"
+run $cb 0 "cli-block: allows a quoted heredoc with a dash and tabs" "$(cj "cat <<-'EOF' > notes.md
+	specplane validate
+	EOF")"
+run $cb 0 "cli-block: allows a comment" "$(cj 'ls # specplane validate')"
+run $cb 2 "cli-block: still denies after a quoted heredoc ends" "$(cj "cat <<'EOF'
+text
+EOF
+specplane validate")"
+run $cb 2 "cli-block: denies a command on the heredoc line" "$(cj "cat <<'EOF' | specplane validate
+text
+EOF")"
+run $cb 2 "cli-block: denies a substitution inside double quotes" "$(cj 'echo "x $(specplane validate)"')"
+run $cb 2 "cli-block: denies sh -c with a double-quoted argument" "$(cj 'sh -c "cd x; specplane validate"')"
+run $cb 2 "cli-block: denies a substitution in an unquoted heredoc" "$(cj "cat <<EOF
+\$(specplane validate)
+EOF")"
 PATH="$tmp/nojq" CLAUDE_PROJECT_DIR="$tmp/proj" "$tmp/nojq/sh" "$hooks/$cb" >/dev/null 2>&1 <<EOJ
 $(cj 'specplane validate')
 EOJ
