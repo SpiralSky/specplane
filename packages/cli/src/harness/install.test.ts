@@ -6,7 +6,8 @@ import { test } from "node:test";
 import { PreconditionError, UsageError } from "../errors.js";
 import { runInit } from "../commands/init.js";
 import { makeRepo } from "../test-repo.js";
-import { inspectInstallation, installHarness, splitBlock } from "./install.js";
+import { renderSkill, SKILL_COMMANDS, skillPath } from "./claude-skills.js";
+import { claudeTemplateDir, inspectInstallation, installHarness, mergeSettings, splitBlock } from "./install.js";
 
 function repo(files: Record<string, string> = {}): string {
   const root = makeRepo({ ".specplane/config.yaml": "paths:\n  requirements: docs/requirements\n", ...files });
@@ -62,7 +63,7 @@ test("an owned file gets a version header; an edited or foreign file is kept and
   installHarness(root, "claude");
   const rules = ".claude/rules/specplane.md";
   assert.match(read(root, rules), /^<!-- specplane:file v0\.1\.0 stamp:[0-9a-f]{64} sha:[0-9a-f]{16} -->\n/);
-  assert.deepEqual(installHarness(root, "claude").unchanged, [rules]);
+  assert.ok(installHarness(root, "claude").unchanged.includes(rules));
   fs.appendFileSync(path.join(root, rules), "my edit\n");
   const kept = installHarness(root, "claude");
   assert.deepEqual(kept.kept, [rules]);
@@ -105,9 +106,59 @@ test("init --harness installs, reports capabilities and rejects unknown names", 
   const root = repo();
   const lines = runInit(root, { harness: "claude" });
   assert.ok(lines.includes("Installed .claude/rules/specplane.md"));
-  assert.ok(lines.includes("claude: blocking the Specplane CLI: missing"));
+  assert.ok(lines.includes("claude: blocking the Specplane CLI: supported"));
   assert.ok(lines.includes("claude: instructions on demand: supported"));
   assert.throws(() => runInit(root, { harness: "vim" }), UsageError);
   assert.deepEqual(runInit(root, {}), ["Nothing to do: every remote already fetches the notes."]);
   assert.match(runInit(root, { harness: "codex" }).join("\n"), /codex: viewing specifications: missing/);
+});
+
+test("the Claude install writes skills with the header after the frontmatter, executable hooks and merged settings", () => {
+  const root = repo();
+  const report = installHarness(root, "claude");
+  assert.ok(report.written.includes(".claude/skills/specplane-plan-step/SKILL.md"));
+  const skill = read(root, ".claude/skills/specplane-plan-step/SKILL.md");
+  assert.match(skill, /^---\nname: specplane-plan-step\n[\s\S]*?\n---\n<!-- specplane:file v0\.1\.0 sha:[0-9a-f]{16} -->\n<!-- Specplane command contract/);
+  assert.equal(fs.statSync(path.join(root, ".claude/hooks/specplane-cli-block.sh")).mode & 0o111, 0o111);
+  assert.match(read(root, ".claude/hooks/specplane-cli-block.sh"), /^#!\/bin\/sh\n# specplane:file v0\.1\.0 sha:/);
+  const settings = JSON.parse(read(root, ".claude/settings.json"));
+  assert.deepEqual(settings.permissions, undefined);
+  assert.equal(settings.hooks.SessionStart.length, 2);
+  assert.deepEqual(installHarness(root, "claude").written, []);
+  fs.appendFileSync(path.join(root, ".claude/skills/specplane-plan-step/SKILL.md"), "mine\n");
+  assert.deepEqual(installHarness(root, "claude").kept, [".claude/skills/specplane-plan-step/SKILL.md"]);
+  assert.deepEqual(inspectInstallation(root), []);
+});
+
+test("T2: every committed skill is the rendering of its packaged contract", () => {
+  for (const command of SKILL_COMMANDS) {
+    const committed = fs.readFileSync(path.join(claudeTemplateDir(), skillPath(command)), "utf8");
+    assert.equal(committed, renderSkill(command), `${command}: run scripts/build-claude-skills.mjs`);
+    assert.match(committed, /<!-- Specplane command contract v0\.1\.0;/);
+  }
+  assert.match(renderSkill("approve"), /disable-model-invocation: true/);
+  assert.match(renderSkill("validate"), /disable-model-invocation: false/);
+});
+
+test("settings merge: absent, invalid, registered, partial and an existing statusLine", () => {
+  const tpl = JSON.parse(fs.readFileSync(path.join(claudeTemplateDir(), "settings.json"), "utf8"));
+  assert.equal(JSON.parse(mergeSettings(null, tpl).text!).statusLine.type, "command");
+  assert.match(mergeSettings(null, tpl).text!, /\n$/);
+  const bad = mergeSettings("{nope", tpl);
+  assert.equal(bad.text, null);
+  assert.deepEqual(bad.lines, ["Skipped .claude/settings.json (invalid JSON; add the Specplane registration by hand)"]);
+  const full = mergeSettings(null, tpl).text!;
+  assert.equal(mergeSettings(full, tpl).text, null);
+  const partial = JSON.parse(full);
+  partial.hooks.PreToolUse = partial.hooks.PreToolUse.slice(0, 1);
+  partial.theme = "dark";
+  const merged = mergeSettings(JSON.stringify(partial), tpl);
+  const out = JSON.parse(merged.text!);
+  assert.equal(out.hooks.PreToolUse.length, 2);
+  assert.equal(out.theme, "dark");
+  const own = { statusLine: { type: "command", command: "mine.sh" }, permissions: { allow: ["Bash(ls:*)"] } };
+  const kept = mergeSettings(JSON.stringify(own), tpl);
+  assert.deepEqual(kept.lines, ["Kept existing statusLine"]);
+  assert.deepEqual(JSON.parse(kept.text!).statusLine, own.statusLine);
+  assert.deepEqual(JSON.parse(kept.text!).permissions.allow, ["Bash(ls:*)"]);
 });

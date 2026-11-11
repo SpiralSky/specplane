@@ -1,7 +1,5 @@
 #!/bin/sh
-# Claude Code statusLine command: one-line Specplane plan/step summary, empty outside a plan checkout.
-# Register in .claude/settings.json:
-#   "statusLine": { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/specplane-statusline.sh" }
+# Claude Code statusLine command: one-line Specplane plan/step summary in a plan checkout, empty elsewhere.
 # To combine with your own status line, call this script from it and append its output.
 # Exits 0 whenever it cannot do its job.
 command -v jq >/dev/null 2>&1 || exit 0
@@ -16,27 +14,26 @@ case "$branch" in plan/?*) id=${branch#plan/} ;; *) exit 0 ;; esac
 dir=$(sed -n '/^plans:/,/^[^[:space:]#]/{s/^[[:space:]]*dir:[[:space:]]*//p;}' "$config" | head -n 1 | sed 's/[[:space:]]*#.*$//; s/^["'"'"']//; s/["'"'"'][[:space:]]*$//; s/[[:space:]]*$//')
 [ -n "$dir" ] || dir=plans
 pdir="$root/$dir/$id"
-[ -d "$pdir/steps" ] || exit 0
-total=0; next=; last=
+[ -d "$pdir/steps" ] && [ -f "$pdir/progress.yaml" ] || exit 0
+status=$(sed -n 's/^status:[[:space:]]*//p' "$pdir/progress.yaml" | head -n 1)
+done_list=$(awk '
+  /^done:/ { s=$0; sub(/^done:[[:space:]]*/, "", s); if (s ~ /^\[/) { gsub(/[][,]/, " ", s); print s; exit } inlist=1; next }
+  inlist && /^[[:space:]]*-[[:space:]]*/ { v=$0; sub(/^[[:space:]]*-[[:space:]]*/, "", v); printf "%s ", v; next }
+  inlist { exit }' "$pdir/progress.yaml")
+total=0; done_n=0; next=
 for f in "$pdir"/steps/*.md; do
   [ -f "$f" ] || continue
-  row=$(awk '
-    NR==1 && $0 !~ /^---[[:space:]]*$/ { exit }
-    NR>1 && /^---[[:space:]]*$/ { exit }
-    /^step:/ { s=$0; sub(/^step:[[:space:]]*/, "", s) }
-    /^title:/ { t=$0; sub(/^title:[[:space:]]*/, "", t) }
-    /^status:/ { st=$0; sub(/^status:[[:space:]]*/, "", st) }
-    END { printf "%s|%s|%s\n", s, st, t }' "$f")
+  num=$(basename "$f" | sed -n 's/^\([0-9][0-9]*\).*/\1/p')
+  [ -n "$num" ] || continue
+  num=$(expr "$num" + 0)
   total=$((total+1))
-  last=$row
-  [ -z "$next" ] && [ "$(printf '%s' "$row" | cut -d'|' -f2)" != done ] && next=$row
+  case " $done_list " in
+    *" $num "*) done_n=$((done_n+1)) ;;
+    *) [ -z "$next" ] && next=$num ;;
+  esac
 done
 [ "$total" -gt 0 ] || exit 0
-[ -n "$next" ] || next=$last
-num=$(printf '%s' "$next" | cut -d'|' -f1)
-st=$(printf '%s' "$next" | cut -d'|' -f2)
-title=$(printf '%s' "$next" | cut -d'|' -f3- | cut -c1-30)
-line=$(printf '◆ %s · step %02d/%s %s · %s' "$id" "$num" "$total" "$title" "$st")
-[ "$st" = blocked ] && line="$line ⚠ blocked"
+if [ -n "$next" ]; then line=$(printf '◆ %s · step %02d/%s · %s' "$id" "$next" "$total" "${status:-unknown}")
+else line=$(printf '◆ %s · %s/%s done · %s' "$id" "$done_n" "$total" "${status:-unknown}"); fi
 printf '%s\n' "$line"
 exit 0

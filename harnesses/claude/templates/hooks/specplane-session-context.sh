@@ -1,5 +1,6 @@
 #!/bin/sh
-# SessionStart hook: export agent identity and, in a plan checkout, print the plan/step scope.
+# SessionStart hook: export agent identity and, in a plan checkout (branch plan/<id>), print the plan, its next
+# step and the instruction to work only on that step (architecture/claude-integration §4).
 # Exits 0 whenever it cannot do its job.
 root="${CLAUDE_PROJECT_DIR:-.}"
 config="$root/.specplane/config.yaml"
@@ -22,32 +23,37 @@ dir=$(sed -n '/^plans:/,/^[^[:space:]#]/{s/^[[:space:]]*dir:[[:space:]]*//p;}' "
 [ -n "$dir" ] || dir=plans
 pdir="$root/$dir/$id"
 [ -d "$pdir/steps" ] || exit 0
+[ -f "$pdir/progress.yaml" ] || exit 0
+status=$(sed -n 's/^status:[[:space:]]*//p' "$pdir/progress.yaml" | head -n 1)
+reason=$(sed -n 's/^[[:space:]]*reason:[[:space:]]*//p' "$pdir/progress.yaml" | head -n 1)
+# progress.yaml `done` is a flow list ([1, 2]) or a block list; leave it as space-separated numbers.
+done_list=$(awk '
+  /^done:/ { s=$0; sub(/^done:[[:space:]]*/, "", s); if (s ~ /^\[/) { gsub(/[][,]/, " ", s); print s; exit } inlist=1; next }
+  inlist && /^[[:space:]]*-[[:space:]]*/ { v=$0; sub(/^[[:space:]]*-[[:space:]]*/, "", v); printf "%s ", v; next }
+  inlist { exit }' "$pdir/progress.yaml")
 total=0; done_n=0; next=
 for f in "$pdir"/steps/*.md; do
   [ -f "$f" ] || continue
-  row=$(awk '
-    NR==1 && $0 !~ /^---[[:space:]]*$/ { exit }
-    NR>1 && /^---[[:space:]]*$/ { exit }
-    /^step:/ { s=$0; sub(/^step:[[:space:]]*/, "", s) }
-    /^title:/ { t=$0; sub(/^title:[[:space:]]*/, "", t) }
-    /^status:/ { st=$0; sub(/^status:[[:space:]]*/, "", st) }
-    END { printf "%s|%s|%s\n", s, st, t }' "$f")
+  num=$(basename "$f" | sed -n 's/^\([0-9][0-9]*\).*/\1/p')
+  [ -n "$num" ] || continue
+  num=$(expr "$num" + 0)
   total=$((total+1))
-  status=$(printf '%s' "$row" | cut -d'|' -f2)
-  if [ "$status" = done ]; then done_n=$((done_n+1))
-  elif [ -z "$next" ]; then next=$row; fi
+  case " $done_list " in
+    *" $num "*) done_n=$((done_n+1)) ;;
+    *) if [ -z "$next" ]; then
+         title=$(awk 'NR==1 && $0 !~ /^---[[:space:]]*$/ { exit } NR>1 && /^---[[:space:]]*$/ { exit } /^title:/ { t=$0; sub(/^title:[[:space:]]*/, "", t); print t; exit }' "$f")
+         next="$num|$title"
+       fi ;;
+  esac
 done
 [ "$total" -gt 0 ] || exit 0
-hf="$pdir/HANDOFF.md"
-blockers=0
-[ -f "$hf" ] && blockers=$(grep -Ec '^[[:space:]]*(-[[:space:]]*)?BLOCKED:' "$hf" 2>/dev/null)
+stopnote=
+[ "$status" = stopped ] && stopnote=" The plan is stopped${reason:+ ($reason)}."
 if [ -n "$next" ]; then
-  num=$(printf '%s' "$next" | cut -d'|' -f1)
-  st=$(printf '%s' "$next" | cut -d'|' -f2)
-  title=$(printf '%s' "$next" | cut -d'|' -f3-)
-  msg=$(printf 'Specplane: this checkout is plan %s (branch plan/%s). Steps done: %s/%s. Next step: %02d %s (%s). Run /plan-step to execute it; work on that step only. Open blockers: %s.' "$id" "$id" "$done_n" "$total" "$num" "$title" "$st" "$blockers")
+  n=${next%%|*}; title=${next#*|}
+  msg=$(printf 'Specplane: this checkout is plan %s (branch plan/%s). Steps done: %s/%s. Next step: %02d %s.%s Run the plan-step command to execute it; work on that step only.' "$id" "$id" "$done_n" "$total" "$n" "$title" "$stopnote")
 else
-  msg=$(printf 'Specplane: this checkout is plan %s (branch plan/%s). Steps done: %s/%s. All steps are done; run /plan-finish. Open blockers: %s.' "$id" "$id" "$done_n" "$total" "$blockers")
+  msg=$(printf 'Specplane: this checkout is plan %s (branch plan/%s). Steps done: %s/%s. All steps are done; the final review is next (plan-finish).%s' "$id" "$id" "$done_n" "$total" "$stopnote")
 fi
 jq -n --arg m "$msg" '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$m}}'
 exit 0

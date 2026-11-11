@@ -17,8 +17,9 @@ export async function runMcp(): Promise<void> {
   const server = createMcpServer({
     root,
     id: env("SPECPLANE_SESSION") ?? `mcp-${randomUUID()}`,
-    // Without an adapter that reports compaction, instructions are delivered again when unsure (`reference-cli` §12.3).
-    reportsContext: false,
+    // A session ID given by the adapter is the one its compaction hook reports (`specplane harness compact <session>`), so
+    // delivery can be remembered. Without one, instructions are delivered again when unsure (`reference-cli` §12.3).
+    reportsContext: env("SPECPLANE_SESSION") !== undefined,
     model: env("SPECPLANE_MODEL"),
     delegatedBy: env("SPECPLANE_DELEGATED_BY"),
     ...(measurable ? { measurable } : {}),

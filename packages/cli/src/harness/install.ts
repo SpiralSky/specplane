@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { loadSettings } from "../config.js";
 import { PreconditionError, UsageError } from "../errors.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
+import { SKILL_COMMANDS, skillPath } from "./claude-skills.js";
 import { steeringInputs, steeringStamp } from "./steering.js";
 
 /**
@@ -13,9 +15,11 @@ import { steeringInputs, steeringStamp } from "./steering.js";
  * changes or rewritten; an unbalanced block, a symlinked target or a failed check stops setup before anything changes.
  */
 
-export interface OwnedFile { path: string; content: string }
+export interface OwnedFile { path: string; content: string; mode?: number }
 export interface BlockTarget { file: string; text: string }
-export interface InstallPlan { harness: string; owned: OwnedFile[]; block?: BlockTarget }
+/** A shared JSON settings file: the template is merged into whatever the user already has (`claude-integration` §5). */
+export interface SettingsTarget { path: string; template: Record<string, unknown> }
+export interface InstallPlan { harness: string; owned: OwnedFile[]; block?: BlockTarget; settings?: SettingsTarget }
 export interface InstallReport { written: string[]; unchanged: string[]; kept: string[]; lines: string[] }
 export interface HarnessFinding { severity: "error" | "warning"; message: string; file: string }
 
@@ -46,11 +50,34 @@ function beginMarker(version: string): string {
   return `${BEGIN_PREFIX}v${version} — managed by \`specplane init\`; edits inside this block are overwritten -->`;
 }
 
-/** The files one named harness needs. Host-specific content beyond the standing text arrives with its integration unit. */
+/** Where the Claude Code templates live: next to the compiled CLI when packaged, else the repository's own folder. */
+export function claudeTemplateDir(): string {
+  for (const rel of ["../templates/claude", "../../../../harnesses/claude/templates"]) {
+    const dir = fileURLToPath(new URL(rel, import.meta.url));
+    if (fs.existsSync(path.join(dir, "settings.json"))) return dir;
+  }
+  throw new PreconditionError(["The Claude Code templates were not found next to the Specplane CLI; reinstall Specplane."]);
+}
+
+/** The Claude Code files (`claude-integration` §1): rules, one skill per command contract, hook scripts, settings. */
+function claudePlan(stamp: string): InstallPlan {
+  const dir = claudeTemplateDir();
+  const read = (rel: string): string => fs.readFileSync(path.join(dir, rel), "utf8");
+  const owned: OwnedFile[] = [];
+  // The steering stamp sits after the shared standing text, before the Claude Code part.
+  owned.push({ path: ".claude/rules/specplane.md", content: read("rules/specplane.md").replace("\n\n### Claude Code", `\n\nSteering stamp: ${stamp}\n\n### Claude Code`) });
+  for (const command of SKILL_COMMANDS) owned.push({ path: `.claude/${skillPath(command)}`, content: read(skillPath(command)) });
+  for (const name of fs.readdirSync(path.join(dir, "hooks")).filter((n) => n.endsWith(".sh")).sort()) {
+    owned.push({ path: `.claude/hooks/${name}`, content: read(`hooks/${name}`), mode: 0o755 });
+  }
+  return { harness: "claude", owned, settings: { path: ".claude/settings.json", template: JSON.parse(read("settings.json")) as Record<string, unknown> } };
+}
+
+/** The files one named harness needs. Codex content beyond the standing text arrives with its integration unit. */
 export function planFor(root: string, harness: string): InstallPlan {
   const stamp = steeringStamp(steeringInputs(root));
   const text = standingText(stamp);
-  if (harness === "claude") return { harness, owned: [{ path: ".claude/rules/specplane.md", content: `${text}\n` }] };
+  if (harness === "claude") return claudePlan(stamp);
   if (harness === "codex") return { harness, owned: [], block: { file: "AGENTS.md", text } };
   throw new UsageError(`Unknown harness: ${harness}. Supported: claude, codex.`);
 }
@@ -65,19 +92,26 @@ function headerFor(file: string, body: string, version: string, stamp: string | 
 }
 
 const HEADER = /specplane:file v(\S+)(?: stamp:([0-9a-f]+))?(?: sha:([0-9a-f]+))?/;
-function splitHeader(text: string): { header: RegExpMatchArray | null; body: string; shebang: string } {
-  const lines = text.split("\n");
-  const shebang = lines[0]?.startsWith("#!") ? `${lines.shift()}\n` : "";
-  const m = lines[0]?.match(HEADER) ?? null;
-  if (m) lines.shift();
-  return { header: m, body: lines.join("\n"), shebang };
+/**
+ * Split an owned file into its lead (a shebang or Markdown frontmatter, which must stay first), the header line and the
+ * body. `hashed` is what the body hash covers: frontmatter is part of it, since a user's edit there is a customisation.
+ */
+function splitHeader(text: string): { header: RegExpMatchArray | null; body: string; lead: string; hashed: string } {
+  let lead = "";
+  let rest = text;
+  if (rest.startsWith("#!")) { const i = rest.indexOf("\n") + 1; lead = i ? rest.slice(0, i) : rest; rest = i ? rest.slice(i) : ""; }
+  else if (rest.startsWith("---\n")) { const end = rest.indexOf("\n---\n", 4); if (end !== -1) { lead = rest.slice(0, end + 5); rest = rest.slice(end + 5); } }
+  const nl = rest.indexOf("\n");
+  const m = (nl === -1 ? rest : rest.slice(0, nl)).match(HEADER);
+  if (m) rest = nl === -1 ? "" : rest.slice(nl + 1);
+  return { header: m, body: rest, lead, hashed: lead.startsWith("---") ? lead + rest : rest };
 }
 
 function withHeader(file: string, content: string, version: string): string {
   const stamp = content.match(/Steering stamp: ([0-9a-f]{64})/)?.[1] ?? null;
   const split = splitHeader(content);
-  const header = headerFor(file, split.body, version, stamp);
-  return header ? `${split.shebang}${header}\n${split.body}` : content;
+  const header = headerFor(file, split.hashed, version, stamp);
+  return header ? `${split.lead}${header}\n${split.body}` : content;
 }
 
 /** Refuse a target that is, or sits below, a symlink: setup never writes through one. */
@@ -111,13 +145,55 @@ export function splitBlock(file: string, text: string): BlockParts {
   };
 }
 
-function atomicWrite(file: string, content: string): void {
+function atomicWrite(file: string, content: string, mode?: number): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;
-  try { fs.writeFileSync(tmp, content, { flag: "wx" }); fs.renameSync(tmp, file); } finally { fs.rmSync(tmp, { force: true }); }
+  try { fs.writeFileSync(tmp, content, { flag: "wx" }); if (mode) fs.chmodSync(tmp, mode); fs.renameSync(tmp, file); } finally { fs.rmSync(tmp, { force: true }); }
 }
 
-interface Pending { rel: string; content: string; kind: "owned" | "block" }
+interface Pending { rel: string; content: string; kind: "owned" | "block" | "settings"; mode?: number }
+
+/**
+ * Merge the template settings into the user's file (`claude-integration` §5). Returns the new text, or null when nothing
+ * changes or the file must be left alone; `lines` says why. Unknown keys and their order are kept.
+ */
+export function mergeSettings(existing: string | null, template: Record<string, unknown>): { text: string | null; lines: string[] } {
+  const render = (v: unknown): string => `${JSON.stringify(v, null, 2)}\n`;
+  if (existing === null) return { text: render(template), lines: [] };
+  let current: Record<string, any>;
+  try {
+    const parsed = JSON.parse(existing) as unknown;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new Error("not an object");
+    current = parsed as Record<string, any>;
+  } catch {
+    return { text: null, lines: ["Skipped .claude/settings.json (invalid JSON; add the Specplane registration by hand)"] };
+  }
+  const lines: string[] = [];
+  let changed = false;
+  const tplHooks = (template.hooks ?? {}) as Record<string, any[]>;
+  for (const [event, groups] of Object.entries(tplHooks)) {
+    const hooks = (current.hooks ??= {}) as Record<string, any[]>;
+    const present = (hooks[event] ??= []);
+    const commands = JSON.stringify(present);
+    for (const group of groups) {
+      const names = ((group.hooks ?? []) as { command?: string }[]).map((h) => path.basename(String(h.command ?? "").replace(/["']/g, "")));
+      if (names.some((n) => n && commands.includes(n))) continue;
+      present.push(group);
+      changed = true;
+    }
+  }
+  const allow = ((template.permissions as { allow?: string[] } | undefined)?.allow ?? []);
+  if (allow.length) {
+    const perms = (current.permissions ??= {}) as { allow?: string[] };
+    const have = (perms.allow ??= []);
+    for (const entry of allow) if (!have.includes(entry)) { have.push(entry); changed = true; }
+  }
+  if (template.statusLine !== undefined) {
+    if (current.statusLine === undefined) { current.statusLine = template.statusLine; changed = true; }
+    else if (JSON.stringify(current.statusLine) !== JSON.stringify(template.statusLine)) lines.push("Kept existing statusLine");
+  }
+  return { text: changed ? render(current) : null, lines };
+}
 
 /**
  * Install one harness. Everything is checked first (markers, symlinks, customisation); only then are files written, so a
@@ -133,14 +209,23 @@ export function installHarness(root: string, harness: string): InstallReport {
     refuseSymlinks(root, f.path);
     const abs = path.join(root, f.path);
     const next = withHeader(f.path, f.content, version);
-    if (!fs.existsSync(abs)) { pending.push({ rel: f.path, content: next, kind: "owned" }); continue; }
+    if (!fs.existsSync(abs)) { pending.push({ rel: f.path, content: next, kind: "owned", mode: f.mode }); continue; }
     const current = fs.readFileSync(abs, "utf8");
-    const { header, body } = splitHeader(current);
+    const { header, hashed } = splitHeader(current);
     if (current === next) report.unchanged.push(f.path);
-    else if (!header || (header[3] && header[3] !== sha(body))) {
+    else if (!header || (header[3] && header[3] !== sha(hashed))) {
       report.kept.push(f.path);
       report.lines.push(`Kept ${f.path}: ${header ? "it was edited after Specplane wrote it" : "it was not written by Specplane"}. Remove it and run init again to replace it.`);
-    } else pending.push({ rel: f.path, content: next, kind: "owned" });
+    } else pending.push({ rel: f.path, content: next, kind: "owned", mode: f.mode });
+  }
+
+  if (plan.settings) {
+    refuseSymlinks(root, plan.settings.path);
+    const abs = path.join(root, plan.settings.path);
+    const merged = mergeSettings(fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null, plan.settings.template);
+    report.lines.push(...merged.lines);
+    if (merged.text !== null) pending.push({ rel: plan.settings.path, content: merged.text, kind: "settings" });
+    else if (!merged.lines.some((l) => l.startsWith("Skipped"))) report.unchanged.push(plan.settings.path);
   }
 
   if (plan.block) {
@@ -163,7 +248,7 @@ export function installHarness(root: string, harness: string): InstallReport {
     }
   }
 
-  for (const p of pending) { atomicWrite(path.join(root, p.rel), p.content); report.written.push(p.rel); }
+  for (const p of pending) { atomicWrite(path.join(root, p.rel), p.content, p.mode); report.written.push(p.rel); }
   const files = [...plan.owned.map((f) => f.path), ...(plan.block && report.written.concat(report.unchanged).includes(plan.block.file) ? [plan.block.file] : [])];
   const record = readStoreJson<Record<string, string[]>>(root, RECORD) ?? {};
   writeStoreJson(root, RECORD, { ...record, [harness]: files.filter((f) => !report.kept.includes(f)) });
@@ -178,7 +263,7 @@ export function inspectInstallation(root: string): HarnessFinding[] {
   try { stamp = steeringStamp(steeringInputs(root)); } catch { /* A failed generation is reported by the steering warnings. */ }
   const seen = (file: string, writtenVersion: string, writtenStamp: string | null): void => {
     if (writtenVersion !== version) out.push({ severity: "warning", file, message: `${file} was written by Specplane ${writtenVersion}, not the installed ${version}; run \`specplane init --harness <name>\` again` });
-    else if (stamp && writtenStamp !== stamp) out.push({ severity: "warning", file, message: `${file} has a steering stamp that differs from the current steering; run \`specplane init --harness <name>\` again` });
+    else if (stamp && writtenStamp && writtenStamp !== stamp) out.push({ severity: "warning", file, message: `${file} has a steering stamp that differs from the current steering; run \`specplane init --harness <name>\` again` });
   };
   const recorded = readStoreJson<Record<string, string[]>>(root, RECORD) ?? {};
   for (const files of Object.values(recorded)) {
