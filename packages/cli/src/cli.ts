@@ -108,7 +108,7 @@ spec
   .command("list")
   .description("List specs with effective status, authors, current results and implementation (needs info.retrieve)")
   .option("--status <status>", "filter by effective status")
-  .option("--type <type>", "filter by type (feature or architecture)")
+  .option("--type <type>", "filter by type (requirement, feature or architecture)")
   .option("--json", "output JSON")
   .action((opts: { status?: string; type?: string; json?: boolean }) => runCommand({ command: "spec list", args: [], json: opts.json }, () => specListCommand(opts)));
 spec

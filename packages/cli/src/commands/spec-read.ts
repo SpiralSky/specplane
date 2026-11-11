@@ -42,6 +42,11 @@ function who(v: unknown): string {
 }
 
 function view(ctx: StatusCtx, doc: SpecDoc, working: string | null): SpecView {
+  if (doc.layer === "requirement") {
+    // A requirement file is always approved and has no notes, results or implementation (`file-formats` §1.2).
+    const d = (doc.fm.data ?? {}) as Record<string, unknown>;
+    return { id: doc.id, title: typeof d.title === "string" ? d.title : "", type: doc.layer, file: doc.file, status: "approved", reasons: [], notes: [], authors: Array.isArray(d.authors) ? d.authors.map(who) : [], approver: null, approval_date: null, results: [], implementation: null };
+  }
   const st = computeStatus(ctx.head, doc, ctx, working);
   const d = (doc.fm.data ?? {}) as Record<string, unknown>;
   const applying = ctx.notes.lookup(specSubject(ctx, doc)).applicable;
@@ -76,14 +81,14 @@ function briefReasons(reasons: string[]): string {
 
 const implText = (i: NonNullable<SpecView["implementation"]>) => `${i.status}${i.outdated ? " (the spec changed since it was recorded)" : ""}`;
 
-/** `spec list [--status <s>] [--type <t>]`: every feature and architecture spec at HEAD; requirement files have no status and are not listed. */
+/** `spec list [--status <s>] [--type <t>]`: every requirement file (always approved), feature and architecture spec at HEAD. */
 export function specListCommand(opts: { status?: string; type?: string }): CommandResult {
   const no = refused("Listing specs");
   if (no) return no;
   const root = checkoutRoot();
   const { project, ctx } = headContext(root);
   const src = worktreeSource(root);
-  const views = [...project.specs.values()].filter((d) => d.layer !== "requirement").sort((a, b) => a.id.localeCompare(b.id)).map((doc) => view(ctx, doc, src.read(doc.file)))
+  const views = [...project.specs.values()].sort((a, b) => a.id.localeCompare(b.id)).map((doc) => view(ctx, doc, src.read(doc.file)))
     .filter((v) => (!opts.status || v.status === opts.status) && (!opts.type || v.type === opts.type));
   const w = Math.max(0, ...views.map((v) => v.id.length));
   const lines = views.map((v) => {

@@ -36,14 +36,16 @@ test("spec list shows every spec with effective status, and filters by status an
   const root = repo();
   try {
     const all = JSON.parse(sp(root, "spec", "list", "--json").out);
-    assert.deepEqual(all.data.map((v: { id: string }) => v.id), ["architecture/arch", "feature/alpha", "feature/beta"]);
-    assert.ok(all.data.every((v: { status: string; reasons: string[] }) => v.status === "awaiting-review" && v.reasons[0] === "never-approved"));
+    assert.deepEqual(all.data.map((v: { id: string }) => v.id), ["architecture/arch", "feature/alpha", "feature/beta", "requirement/product-requirements"]);
+    assert.equal(all.data[3].status, "approved");
+    assert.deepEqual(JSON.parse(sp(root, "spec", "list", "--json", "--type", "requirement").out).data.map((v: { status: string }) => v.status), ["approved"]);
+    assert.ok(all.data.slice(0, 3).every((v: { status: string; reasons: string[] }) => v.status === "awaiting-review" && v.reasons[0] === "never-approved"));
     assert.deepEqual(all.data[1].authors, ["human:ann"]);
     assert.equal(all.data[1].implementation, null);
     assert.equal(all.data[0].implementation.status, "unimplemented");
     const arch = JSON.parse(sp(root, "spec", "list", "--json", "--type", "architecture").out);
     assert.equal(arch.data.length, 1);
-    assert.equal(JSON.parse(sp(root, "spec", "list", "--json", "--status", "approved").out).data.length, 0);
+    assert.equal(JSON.parse(sp(root, "spec", "list", "--json", "--status", "approved").out).data.length, 1);
     const text = sp(root, "spec", "list");
     assert.equal(text.code, 0, text.err);
     assert.match(text.out, /feature\/alpha\s+awaiting-review \(never-approved\)/);
