@@ -98,7 +98,7 @@ Test (deterministic): with a plan whose step implements an Awaiting Review speci
 
 ## R29: Plan metadata
 
-A plan carries the same metadata as a specification: identifier, title, status as Awaiting Review or Approved (`R11`), authors, and references. A plan's approval is separate from its execution status below (`plan-execution R27.6`).
+A plan carries the same metadata as a specification: identifier, title, status as Awaiting Review or Approved (`R11`), authors, and references. A plan's approval is separate from its execution status below (`plan-execution R27.6`). A plan's approval is bound to the content of the plan, which is its PLAN.md and its step files, so editing a step returns an approved plan to Awaiting Review. Execution progress, the handoff and the gaps record are not part of that content, so running the plan does not.
 
 Additionally a plan records the specifications it implements or writes from. Each is recorded with the commit of the specification the plan was written against, so what the plan meant stays knowable when the specification later changes. Where a plan was written from a specification, that specification's layer is higher than the plan's implementation steps.
 

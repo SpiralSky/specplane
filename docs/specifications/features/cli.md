@@ -63,7 +63,7 @@ The CLI (`specplane`) is Specplane's own command line tool. It is meant for peop
 
 A person approves a specification with a command that takes one or more specification IDs. The command only takes IDs. Natural language is never interpreted by it, and it never uses an LLM (`R18`).
 
-- **Who approved.** The person running the command is recorded as the approver, along with the commit approved and the other metadata Specplane keeps for approval (`R11.1`). The person cannot choose another name.
+- **Who approved.** The person running the command is recorded as the approver, along with the commit approved and the other metadata Specplane keeps for approval (`R11.1`). The record is attached to git and does not change the spec file or add a commit to the branch (`specifications R11`). The person cannot choose another name.
 - **Committed content only.** Approval applies to the committed content of the specification (`specifications R11`). If the file has uncommitted changes, the command refuses and says so.
 - **Unapproved references.** The command fails if any part of the specification references a specification that is not approved. The failure names the referenced specification and its status.
 - **Missing references.** The command fails while the specification references a part of a specification, or a requirement, that no longer exists (`R11.2`). The failure names the missing part.
@@ -100,7 +100,7 @@ Test (deterministic): run the approval command with the permission set to each o
 
 ## R17: Specification Metadata
 
-A person can read and change all aspects of a specification's metadata from the CLI: its title, status, authors, references, the approver and the commit approved, and recorded test results (`specifications R9`, `specifications R10`, `specifications R11`).
+A person can read and change all aspects of a specification's metadata from the CLI: its title, authors, references and covered requirements as written in the file, and its status, the approver and the commit approved, and recorded test results as Specplane keeps them beside the commits (`specifications R9`, `specifications R10`, `specifications R11`).
 
 - **It is an override.** A change here is made by hand and does not go through the checks Specplane normally applies. For example, setting a status here does not run the approval checks in `R16`.
 - **Visible in the audit log.** Every change is recorded in the audit log with who made it, when, the old and the new value (`R13.1`).
@@ -137,7 +137,7 @@ Three overrides each have their own permission, and general metadata management 
 The rules:
 
 - Only the Administrator has these permissions by default, through having all permissions (`roles-and-permissions R42`). They are not enabled for any role in a default preset (`roles-and-permissions R57`).
-- An override is marked as an override in the specification's metadata and in the audit log, naming who made it. The mark stays until the value is replaced by a normal Specplane action, such as a new approval.
+- An override is marked as an override in the record it creates and in the audit log, naming who made it. The mark stays until the value is replaced by a normal Specplane action, such as a new approval.
 - An override of status never skips later recalculation: when the specification or a part it cites changes, status follows `R11.2` and `specifications R11` again.
 - An override of test results is shown as an override wherever test results are shown, so a reader can tell it from a run.
 

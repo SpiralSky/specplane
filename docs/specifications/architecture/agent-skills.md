@@ -154,7 +154,7 @@ Purpose: create a plan, optionally (`plans R69`). Preconditions: `plan.create` n
 
 1. `[code]` `config.get`; `spec.retrieve` of the specs the user names and those they cite.
 2. `[llm]` Propose goal, acceptance criteria, ordered steps (small enough for one session, `plans §3.2`), the specs each step implements, referenced plans and context cites. Show the proposal to the user as text and adjust.
-3. `[code]` `plan.create` writes the folder from the template: ID from today's date and two to four words, `status: awaiting-review`, empty progress `not-started`, step files (`architecture/reference-cli §11.5`).
+3. `[code]` `plan.create` writes the folder from the template: ID from today's date and two to four words, no status (a plan starts with no approval record), empty progress `not-started`, step files (`architecture/reference-cli §11.5`).
 4. `[code]` `validate` scoped to the plan.
 
 Output: plan ID and path, steps, that nothing runs and that the plan is approved like a spec (`plan-execution R31`). `plan.edit` is the same flow for later changes, refused for a step that has started (`architecture/reference-cli §11.5`).

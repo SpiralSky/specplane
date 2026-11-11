@@ -74,7 +74,7 @@ Feature and architecture specifications are written in one consistent, checkable
 
 A specification file has two parts:
 
-- **Metadata**, at the top: its identifier, title, status (`R11`), authors (`R10`), the specifications and requirements it references (`R9`), and, where the project uses requirements, the requirements it covers.
+- **Metadata**, at the top: its identifier, title, authors (`R10`), the specifications and requirements it references (`R9`), and, where the project uses requirements, the requirements it covers.
 - **Body**: sections as described in `R5`.
 
 The body is checked for the format: metadata present and valid, the identifier matching the file, every cited thing resolving, and every citation appearing in the metadata's references. Problems are reported with the file and section, and do not stop git use.
@@ -152,15 +152,19 @@ Statuses:
 - **Awaiting Review** (the default): a spec nobody has reviewed, a spec whose content has changed, or a spec that references parts of other specs that have changed since its last Approved state.
 - **Approved**: approved by a role with the required permission (`roles-and-permissions R57`).
 
-New specs always start as Awaiting Review. There are no other statuses. A spec that is no longer wanted is deleted, and anything that cited it becomes Awaiting Review (`R11.2`).
+New specs always start as Awaiting Review. There are no other statuses. The status is not written in the spec file: it is calculated from the committed content and from records attached to git commits as metadata (`R40`), so approving a spec does not change the spec file or add a commit to the branch. Because a record is found by the content it applies to, an approval is available on any branch that has the same content and the records. Records are shared by syncing them like other git data, and a host that does not keep them loses them, in which case the spec shows Awaiting Review until approved again. Requirement files have no status: they are always treated as Approved, never need approval and never make a spec that cites them Awaiting Review for being unapproved. A change to a cited requirement part still does (`R11.2`). A spec that is no longer wanted is deleted, and anything that cited it becomes Awaiting Review (`R11.2`).
 
 Scenario: Given an approved spec is rebased onto a newer branch with its content unchanged, When status is shown, Then it is still Approved.
 
 Scenario: Given a spec was never approved, When a spec that cites it is checked, Then the citing spec is Awaiting Review.
 
+Scenario: Given a spec that cites a requirement part and the requirement file has never been approved by anyone, When status is shown, Then the spec is not Awaiting Review for that reason.
+
+Scenario: Given an approved spec, When it is approved or reopened, Then the spec file and the branch's commits are unchanged.
+
 ### R11.1: Spec status records
 
-When a spec is approved, who approved it is recorded with the status.
+When a spec is approved, who approved it is recorded with the status, as metadata attached to the git commit (`R40`) and not in the spec file.
 
 ### R11.2: Outdated specs to Awaiting Review
 

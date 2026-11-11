@@ -87,6 +87,7 @@ State that is not project content lives under the git common directory, in `<git
 
 - The git common directory is the main repository's `.git` (found with `git rev-parse --git-common-dir`), so the main checkout and every plan worktree resolve to the same store.
 - Nothing here is committed or listed by `git status`, because it is inside the git directory. No `.gitignore` entry is needed for it.
+- Approval, status, test and implementation records are not local state and not files: they are git notes under `refs/notes/specplane` in the repository's object store, shared by every worktree and synced by refspec (`architecture/file-formats §13`). They are never in spec files.
 - It is recoverable data. Deleting it loses requests, audit history and local logs, but not the project or any plan record. A missing directory or file is treated as empty and created at the next write.
 - Writes use a temp file in the same directory and a rename, so a reader never sees a partial file (assumption). `audit.jsonl` is append-only except for retention pruning (`architecture/file-formats §10`).
 - Git operations on the main checkout, such as switching branches or `git gc`, do not touch it. Cloning or copying the repository does not carry it (assumption); the project still works, with empty local state.
@@ -120,10 +121,12 @@ Implements `plan-execution R27`, `configuration R25`.
 |------|---------|------------|
 | `<git-common-dir>/specplane/**` | no (inside the git directory) | CLI and harness actions (`§2`) |
 | `<plans.worktree_dir>/**` | no (outside the repository) | plan start and cleanup (`§3`) |
+| `refs/notes/specplane` | no file; a git ref, synced by refspec (`architecture/file-formats §13.4`) | approve, reopen, override, test and implement commands (`architecture/reference-cli §5.5`) |
 | `<paths.test_logs>/*.log` | yes, only with `tests.logs: git` | test runs (`architecture/file-formats §11.4`) |
 | harness block and files | yes | harness setup (`§5`) |
 
 - **Nothing generated is tracked.** Specplane does not commit a generated index or summary. Everything tracked in `.specplane/`, `docs/` and the harness files is either written by a person or by an explicit command the user ran.
+- **Records are not files.** Specplane never writes a tracked file for them and creates no branch commit when it records one.
 - **No `.gitignore` edits.** The first release adds nothing to `.gitignore` or `.gitattributes`, because local state and worktrees are outside the working tree.
 - **Plan folders are normal files.** They are ordinary markdown and YAML, edited by tools and by people alike; they are not generated, so a merge conflict in one is resolved by hand like any other file.
 
@@ -165,7 +168,7 @@ The identifier forms are in `architecture/file-formats §12.1`; this section onl
 Implements `specifications R7`, `plan-execution R27`.
 
 - Paths come only from the configuration or the defaults; no tool hard-codes a location.
-- Every path Specplane writes is inside the repository, inside `plans.worktree_dir`, or inside `<git-common-dir>/specplane/`, with one further exception: the pre-commit hook file at `git rev-parse --git-path hooks/pre-commit`, which may lie outside the working tree when `core.hooksPath` is set (`architecture/reference-cli §14.2`, later release). Temporary checkouts go under `<git-common-dir>/specplane/tmp/`, not a system temp directory. It writes nowhere else.
+- Every path Specplane writes is inside the repository, inside `plans.worktree_dir`, or inside `<git-common-dir>/specplane/`, with two further exceptions, the ref `refs/notes/specplane` and the pre-commit hook file: the hook file at `git rev-parse --git-path hooks/pre-commit`, which may lie outside the working tree when `core.hooksPath` is set (`architecture/reference-cli §14.2`, later release). Temporary checkouts go under `<git-common-dir>/specplane/tmp/`, not a system temp directory. It writes nowhere else.
 - The main checkout's branch and files are unchanged by starting, running or removing a plan.
 - A plan has at most one worktree, and a worktree belongs to exactly one plan; two runs never share one (`plan-execution R27`).
 - Local state is never committed. Tracked files never contain absolute paths, user names or machine-specific values that Specplane wrote (assumption).

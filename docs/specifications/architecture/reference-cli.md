@@ -43,7 +43,9 @@ src/
                project.ts       load the project snapshot (§4.5)
                fingerprint.ts   spec-v3 and sec-v1 (§5.1)
                status.ts        effective status, outdated reasons (§5.2)
-               approve.ts       groups, checks, approval write (§5.3)
+               approve.ts       groups, checks, approval record write (§5.3)
+               notes.ts         notes store: read, lookup by fingerprint, append, sync (§5.5, §5.6)
+               migrate.ts       one-time move of frontmatter records to notes (§5.7)
                metadata.ts      metadata read, write, overrides (§13.2)
   verify/      validate.ts      rule registry and runner (§6.1)
                rules/*.ts       one file per rule family
@@ -100,7 +102,7 @@ Implements `specifications R1`, `specifications R5`, `specifications R7`, `speci
 
 ### §4.1 Frontmatter
 
-`frontmatter.ts` splits a file at the first line `---` and the next line that is exactly `---`. The block is parsed with the `yaml` library in the core schema with unique keys and no custom tags; dates stay strings (`architecture/file-formats` intro). The result is `{data, bodyOffset, raw}`. A file whose first line is not `---`, whose block does not parse, or whose required fields are wrong yields a `FormatFinding` and the spec is marked invalid; it is still listed and never silently skipped (`verification R12`). Field rules are those of `architecture/file-formats §2.1`. `INFO.md` is read as plain markdown and reported only when it has frontmatter (`architecture/file-formats §1.1`).
+`frontmatter.ts` splits a file at the first line `---` and the next line that is exactly `---`. The block is parsed with the `yaml` library in the core schema with unique keys and no custom tags; dates stay strings (`architecture/file-formats` intro). The result is `{data, bodyOffset, raw}`. A file whose first line is not `---`, whose block does not parse, or whose required fields are wrong yields a `FormatFinding` and the spec is marked invalid; it is still listed and never silently skipped (`verification R12`). Field rules are those of `architecture/file-formats §2.1`. The legacy keys `status`, `approval`, `review-reason`, `results` and `implementation` are read only to warn about them and for migration (`§5.7`); they never feed status. `INFO.md` is read as plain markdown and reported only when it has frontmatter (`architecture/file-formats §1.1`).
 
 Editing writes back through the YAML document so untouched lines are byte-identical; only the named keys change. A spec's body is never rewritten by metadata operations. Authors are appended, never reordered (`specifications R10`, `specifications R10.1`).
 
@@ -132,50 +134,73 @@ Implements `specifications R11`, `specifications R11.1`, `specifications R11.2`,
 
 `fingerprint.ts` implements `architecture/file-formats §4.2` and `§4.3`:
 
-- `specFingerprint(text)`: parse frontmatter, drop `status`, `approval`, `authors`, `review-reason`, `results`, `implementation`, `title`, `covers`, `implements`, `references` (metadata, `cli R17`), serialise `{frontmatter, body}` as canonical JSON (keys sorted by code point, no whitespace, literal Unicode), SHA-256, prefix `spec-v3:sha256:`. The body is the text after the closing fence with CRLF and CR turned into LF.
+- `specFingerprint(text)`: parse frontmatter, drop `status`, `approval`, `authors`, `review-reason`, `results`, `implementation` (legacy record keys, kept in the list so legacy files hash the same after migration), `title`, `covers`, `implements`, `references` (metadata, `cli R17`), serialise `{frontmatter, body}` as canonical JSON (keys sorted by code point, no whitespace, literal Unicode), SHA-256, prefix `spec-v3:sha256:`. The body is the text after the closing fence with CRLF and CR turned into LF.
 - `partFingerprint(text)`: LF-normalised part text, trailing blank lines removed, prefix `sec-v1:sha256:`. A whole-spec cite uses `specFingerprint` of the cited file. An unresolved cite has no fingerprint.
-- `planFingerprint(text)`: the same procedure over PLAN.md, keeping those four keys, with the `commit` of every `implements` entry removed as well, prefix `plan-v1:sha256:` (`architecture/file-formats §5.2`).
+- `planFingerprint(plan)`: the same procedure over PLAN.md, keeping those four keys, with the `commit` of every `implements` entry removed as well, plus every step file in step order, prefix `plan-v1:sha256:` (`architecture/file-formats §5.2`). `progress.yaml`, HANDOFF.md and `spec-gaps.md` are not read.
 - Canonical JSON is a small local function (about 30 lines) rather than a library, so the byte output is fixed by this spec and not by a dependency version (assumption). Fingerprint prefixes are versioned; an unknown prefix in a record is reported and treated as changed.
 
 ### §5.2 Effective status
 
-`status.ts` implements the algorithm of `architecture/file-formats §4.5` over `committed(HEAD)` and returns `{status, reasons[], notes[]}`:
+`status.ts` implements the algorithm of `architecture/file-formats §4.5` over `committed(HEAD)` and the notes store (`§5.5`), and returns `{status, reasons[], notes[]}`:
 
-1. Read the spec blob at HEAD. No approval, or stored `awaiting-review`: `awaiting-review` with reason `never-approved`.
-2. Compare `specFingerprint` of the HEAD content with `approval.fingerprint`. Without a stored fingerprint (hand format), read the blob at `approval.commit` instead; a commit that is not in history adds reason `edited` and a note that approval cannot be checked.
-3. For each entry of `approval.cited`, resolve the cite at HEAD and compare part fingerprints; a difference, or no resolution, adds `outdated: <cite>`. A dependency not in `cited` was added after approval and is not compared (metadata, `architecture/file-formats §4.5`). **When `approval.cited` is absent (hand format)**, for each dependency that is in the frontmatter at `approval.commit`, resolve it a second time with `committed(approval.commit)` and compare the part fingerprint there with the one at HEAD; a target that does not resolve at that commit counts as changed. Dependencies added after that commit are not compared. The next `spec approve` of the spec writes `fingerprint` and `cited`, after which this branch is no longer used (`architecture/file-formats §2.3`).
-4. A requirement-file dependency is compared the same way; a requirement file without approval data contributes `unapproved-dependency: <cite>`. Requirement ownership does not imply approval.
-5. Each dependency that resolves to a spec file with no `approval` block at HEAD adds `unapproved-dependency: <cite>` (`specifications R11`). It reads only whether the block exists, so `specifications R11.2` is not affected by unrelated changes in the cited spec.
+1. A requirement file is `approved` with no reasons and no lookup (`architecture/file-formats §1.2`).
+2. Compute `specFingerprint` of the HEAD blob and ask `notes.ts` for the records of the spec with that fingerprint (`§5.5`). None: `awaiting-review` with reason `never-approved`, or `edited` when records of the spec with another fingerprint exist.
+3. The newest applicable `approval`, `override` or `reopen` record decides (`architecture/file-formats §13.2`). `reopen` gives `awaiting-review` with reason `edited`.
+4. For each entry of the decisive record's `cited`, resolve the cite at HEAD and compare part fingerprints; a difference, or no resolution, adds `outdated: <cite>`. A requirement part is compared like any other part. A dependency not in `cited` was added after approval and is not compared (metadata, `architecture/file-formats §4.5`).
+5. Each dependency that resolves to a spec other than a requirement file and has no applicable approval record adds `unapproved-dependency: <cite>` (`specifications R11`). It reads only whether an applicable approval exists, so `specifications R11.2` is not affected by unrelated changes in the cited spec. Requirement files never add this reason.
 6. If the working tree file differs from HEAD, add the note "uncommitted changes are ignored" (`specifications R40`).
-7. An approval with an `override` mark is treated like any other approval: it carries the fingerprints that `override status` wrote from the content at that moment, so a later content or cited-part change returns the spec to `awaiting-review` (`cli R17.2`, `architecture/file-formats §2.4`).
+7. An `override` record is treated like any other approval: it carries the fingerprints that `override status` wrote from the content at that moment, so a later content or cited-part change returns the spec to `awaiting-review` (`cli R17.2`, `architecture/file-formats §2.4`).
 
-**Test (assumption, deterministic):** a fixture spec in the hand format whose cited parts are unchanged since `approval.commit` stays `approved`; changing one cited part gives `outdated: <cite>`; a spec citing a spec with no `approval` block gives `unapproved-dependency: <cite>` and a spec citing a spec that has one does not.
+**Test (assumption, deterministic):** a fixture repository with a notes ref: a spec with an `approval` record whose fingerprint matches stays `approved` after the commit is rebased (notes copied or not); changing one cited part, including a requirement part, gives `outdated: <cite>`; a spec citing a non-requirement spec with no applicable record gives `unapproved-dependency: <cite>`, and a spec citing a requirement file does not.
 
-Statuses of many specs are computed in one pass over the shared snapshot, so listing the project costs one `git cat-file --batch` process. Stored and computed values that differ produce the warning of `architecture/file-formats §2.2`; commands that write approval or review state keep them in step.
+Statuses of many specs are computed in one pass over the shared snapshot and one read of the notes ref, so listing the project costs one `git cat-file --batch` process plus one notes read. A spec file that still has a legacy key produces the warning of `architecture/file-formats §2`.
 
 ### §5.3 Approval
 
-`approve.ts` implements `cli R16`. Inputs: spec IDs (IDs only, never natural language) and options `--yes`, `--no-commit`.
+`approve.ts` implements `cli R16`. Inputs: spec IDs (IDs only, never natural language) and option `--yes`.
 
 1. **Resolve and expand.** Resolve each ID to a spec file. Build the dependency graph among specs and take strongly connected components: the group of a named spec is its component, so a spec that cites a cycle without being cited back is not in it (`cli §2`). The union of the groups of all named IDs is the set to approve.
 2. **Checks, all collected, none stopping the others** (`cli R16`):
    - the role holds `spec.approve` as `allow` for every member (`cli R16.1`); under `request-user` one request is created for the whole set and nothing else runs (`§8`). Pending the requests step: the reference build only refuses under `request-user`, says requests are not available yet, audits `refused` and creates no request;
    - each member's file is committed and unchanged in the working tree;
    - every cite resolves; a missing part is named;
-   - each specification dependency outside the set is effectively `approved` at HEAD, including the owning requirement file of a requirement cite; a requirement file without approval metadata is Awaiting Review and must be approved through the same permission-checked action;
+   - each non-requirement specification dependency outside the set is effectively `approved` at HEAD; requirement files are always approved and are not checked;
    - no member has a current failed test result (`verification R61.1`, `§10.3`);
-   - the stored status of a member that is already effectively approved is left alone. If its approval lacks `fingerprint` or `cited` (hand format), the command re-records them: `fingerprint` and `cited` are computed from the HEAD content and added to the existing block, and `by`, `date`, `commit` and `note` are kept (`architecture/file-formats §2.3`). Approving only members that are approved with both fields does nothing and says so.
+   - a member that is already effectively approved is left alone; approving only such members does nothing and says so.
 3. **Confirm.** When the set has more than one member, print the list and ask; `--yes` skips the prompt. Without a terminal and without `--yes` the command refuses (assumption).
-4. **Write.** If any check failed, nothing is written and every reason is printed. Otherwise, for each member, compute `approval.fingerprint` and `approval.cited` from the HEAD content, find `approval.commit`, and write the block (`architecture/file-formats §2.3`, `§4.4`): `by` from git `user.name` (an LLM approver is `{llm, delegated-by}`), `date` from the clock, `status: approved`, and removal of `review-reason`. Members of one group get the same `by` and `date`.
-5. **Content commit.** `approval.commit` is found by walking `git log --format=%H -- <path>` newest first and taking the last commit whose `specFingerprint` equals the current one before the first that differs.
-6. **Commit.** Assumption (the page does not say that approval commits; rule in `§13.4`): one commit contains exactly the written files, with message `docs(specs): approve <id>` and the trailers of `architecture/file-formats §8`; `--no-commit` leaves the edit staged. The approval counts once it is committed (`specifications R40`).
+4. **Write.** If any check failed, nothing is written and every reason is printed. Otherwise, for each member, compute `fingerprint` and `cited` from the HEAD content and append an `approval` record (`architecture/file-formats §2.3`, `§4.4`, `§13.2`) to the note on the member's content commit: `by` from git `user.name` (an LLM approver is `{llm, delegated-by}`), `date` from the clock. Members of one group get the same `by` and `date`. The spec file is not touched.
+5. **Content commit.** The note target is found by walking `git log --format=%H -- <path>` newest first and taking the last commit whose `specFingerprint` equals the current one before the first that differs.
+6. **Notes commit.** The append is committed on `refs/notes/specplane` only; no commit is made on the branch and the working tree and index are untouched (`architecture/file-formats §13.3`). The approval counts once the notes commit exists (`specifications R40`); it is local until the ref is pushed (`§5.6`). `--no-commit` is not offered; there is nothing to stage.
 7. **Audit.** One entry per member (`§9`).
 
 Approval from the harness is the same function with the LLM role (`§12`); only the guard result differs (`harness R20`, `harness R20.1`).
 
-### §5.4 Review state writes
+### §5.4 Review state
 
-When the CLI or core writes a spec because a content edit made it stale (`specifications R11.3`, `specifications R11.4`), it sets `status: awaiting-review`, removes `approval` and writes `review-reason` from the computed reasons (`architecture/file-formats §2.5`). Plain `git commit` of a hand edit does not do this; the effective status is computed on read, and a stored value that disagrees is a warning (`§6.3`). `spec reopen <id>` (human, guarded by `spec.edit.<type>`, assumption) performs the write without changing content and commits it by the rule of `§13.4`.
+A content edit by the CLI or core (`spec.edit`) writes only the content: the new fingerprint makes the spec `awaiting-review` on read, with reason `edited`, and nothing about status or review reason is written (`specifications R11.3`, `specifications R11.4`, `architecture/file-formats §2.5`). `spec reopen <id>` (human, guarded by `spec.edit.<type>`, assumption) appends a `reopen` record for the current fingerprint to the note on the content commit and commits the notes ref, by the rule of `§13.4`.
+
+### §5.5 Notes store
+
+`notes.ts` implements `architecture/file-formats §13`.
+
+- **Read.** One pass: list the notes of `refs/notes/specplane` (`git notes --ref=specplane list`, then `git cat-file --batch` for the blobs), parse each as a YAML list and build an index `spec -> fingerprint -> records` once per command. Lookup never walks history; notes on commits that are not reachable from HEAD still count (`architecture/file-formats §13.2`). A note that does not parse, or a record without the required fields or with an unknown fingerprint prefix, is skipped and reported as a validation warning, never silently dropped.
+- **Append.** Read the note on the target commit, add records at the end, write it back with `git notes --ref=specplane add -f -F -` style plumbing so the commit is on the notes ref only. A failed ref update because another writer moved the ref is retried from a fresh read.
+- Writes need no clean working tree and never touch the index, working tree or HEAD.
+
+### §5.6 Sync
+
+- `init` adds `+refs/notes/specplane:refs/notes/specplane` to each remote's `remote.<name>.fetch`, unless present (idempotent, assumption), and prints the push command `git push <remote> refs/notes/specplane`. It does not push.
+- Merging notes from another source uses `git notes --ref=specplane merge -s cat_sort_uniq <ref>`; records are append-only, so the union is correct.
+- `validate` warns (`architecture/file-formats §13.4`) when the local notes ref is behind its remote-tracking ref, or no remote-tracking ref exists while local records exist. This is a warning, never an error.
+
+### §5.7 Migration
+
+`specplane migrate status` (`config.change`, assumption; one-time) reads every spec and plan at HEAD with a legacy `approval`, `results` or `implementation` key and for each:
+
+1. Appends an `approval` record to the note on `approval.commit`, with `fingerprint` and `cited` as stored or, for the hand format, computed from the content and cited parts at that commit; when that commit is missing, the note goes on HEAD with the recorded fingerprint, or the HEAD fingerprint when none was recorded. `override` marks become `override` records. Each `results` entry becomes a `test-result` record on its `commit`; `implementation` becomes an `implementation` record.
+2. Deletes `status`, `approval`, `review-reason`, `results` and `implementation` from the file.
+
+The file changes are committed together in one branch commit, `docs(specs): move records to notes`, after the notes commit succeeds; a failed run leaves the files untouched and is safe to rerun, because records are appended only when no equal record exists (assumption). Requirement files get their legacy keys removed with no record. After the commit the fingerprints of the files are unchanged (`architecture/file-formats §4.2`), so every migrated approval still applies. `--dry-run` lists the records and edits.
 
 ## §6 Validation, warnings and coverage
 
@@ -184,7 +209,7 @@ Implements `verification R12`, `verification R24`, `verification R24.1`, `verifi
 ### §6.1 Validation engine
 
 - **Rules.** `verify/rules/` holds one module per family, each exporting `rules: Rule[]` with `{id, severity, source, run(snapshot) -> Finding[]}`. A runner executes every rule on the snapshots it needs and sorts findings by file and line. Families: `spec-format` (`architecture/file-formats §2`), `cites` (`§4.3`), `requirements` (`§4.4`), `plans` (`§11.1`), `status` (`§5.2`), `tests` (`§10`), `config` (`§3.2`), `permissions` (`§7.4`), `harness` (`§12.6`).
-- **Finding** is `{severity: error|warning|note, rule, message, file, line, section, source: committed|worktree}`. Errors are things that make a file unusable: unreadable or invalid frontmatter, ID/path mismatch, unresolved cite, missing reference entry, duplicate or reused requirement ID, plan ID/folder mismatch, plan reference cycle, unreadable step, unreadable result record. Warnings are project-state findings: uncovered items, outdated specs and results, outdated plan references, listed-but-unused references, stale stored status, harness and steering staleness, permissions without documentation, unwritable audit log.
+- **Finding** is `{severity: error|warning|note, rule, message, file, line, section, source: committed|worktree}`. Errors are things that make a file unusable: unreadable or invalid frontmatter, ID/path mismatch, unresolved cite, missing reference entry, duplicate or reused requirement ID, plan ID/folder mismatch, plan reference cycle, unreadable step, unreadable notes record. Warnings are project-state findings: uncovered items, outdated specs and results, outdated plan references, listed-but-unused references, legacy record keys in spec files, local notes behind remote, harness and steering staleness, permissions without documentation, unwritable audit log.
 - **Committed and working tree.** Status, outdated and test-state rules read `committed(HEAD)`. Format rules run on both and a finding says `worktree` when the file differs from HEAD (`verification R12`).
 - **Scope.** The command takes zero or more spec or plan IDs and then checks only those and their cites.
 - **Exit status.** 0 when there are no errors, 1 otherwise; warnings never change it. `--json` prints the findings list and counts (`§13.3`).
@@ -197,7 +222,8 @@ Implements `verification R12`, `verification R24`, `verification R24.1`, `verifi
 - Cites inside plans follow the same resolver; `file:<path>` must exist, and a `context` file that does not exist yet is a warning (`architecture/file-formats §5.3`).
 - A plan reference cycle is found with Tarjan's algorithm over `plan/<id>` edges and reported naming the members.
 - A spec with `covers` on an architecture spec, or `implements` on a feature spec, is an error (`architecture/file-formats §2.1`).
-- `implementation` on a non-architecture spec is an error (`architecture/file-formats §11.3`).
+- A legacy key (`status`, `approval`, `review-reason`, `results`, `implementation`) in a spec or requirement file is a warning pointing at `specplane migrate status` (`architecture/file-formats §2`); an `implementation` record for a non-architecture spec is a warning (`architecture/file-formats §11.3`).
+- Notes store checks: unparseable notes or records and a local ref behind the remote are warnings (`§5.5`, `§5.6`).
 - A summary in a result that matches the credential heuristic (token names such as key, secret, password; strings of 32 or more base64 or hex characters) is a warning, never an error (`verification R61.3`).
 
 ### §6.3 Warnings collector
@@ -310,26 +336,26 @@ The block is part of the section, so editing it is a content edit. A determinist
 
 ### §10.3 Recording
 
-`tests.record` writes one entry into the tested spec's `results` (`architecture/file-formats §11.1`) after the guard returns `allow` for `test.record`:
+`tests.record` appends one `test-result` record to the note on the tested commit (`architecture/file-formats §11.1`, `§13`) after the guard returns `allow` for `test.record`:
 
-- `kind`, `outcome`, `by` (the actor), `date`, `commit` (HEAD tested), `fingerprint` (`specFingerprint` of that spec at that commit), `against` (fingerprints of the specs it was checked against: the specs it `covers` or `implements`), `summary`, optional `log`.
+- `test`, `test-kind`, `outcome`, `by` (the actor), `date`, the note target (HEAD tested), `fingerprint` (`specFingerprint` of that spec at that commit), `against` (fingerprints of the specs it was checked against: the specs it `covers` or `implements`), `summary`, optional `log`.
 - Under `request-user` the test still runs and its outcome is shown; a request is created holding `{spec, test, outcome, summary, commit, fingerprint}`. On accept, the record is written only if HEAD's fingerprints still equal those in the request; otherwise nothing is recorded and the user is told why (`verification R61.2`).
 - Under `deny` the outcome is shown with the note "not recorded".
 - A summary that looks like a credential gives a warning but is recorded (`§6.2`).
-- Recording uses the metadata write path and does not change status. Writing `results` is excluded from the fingerprint, so it is not an edit (`architecture/file-formats §4.2`).
-- Override: `specplane spec override test <id> <test> passed|failed|clear` needs `override.test` and writes `override: {by, date}` into the result (`cli R17.2`, `architecture/file-formats §11.1`).
+- Recording writes a notes commit only and does not change status; the spec file is not touched, so it is not an edit (`architecture/file-formats §13.3`).
+- Override: `specplane spec override test <id> <test> passed|failed|clear` needs `override.test` and appends a result record with `override: {by, date}` (`cli R17.2`, `architecture/file-formats §11.1`).
 
 A result is **current** when its `fingerprint` and every `against` fingerprint equal the ones computed at HEAD now, else **outdated**; the effective result per test is the latest current one (`verification R61.1`, `verification §3`). Approval and mark-implemented use only current results: a current `failed` blocks them and names the test; outdated results count as none.
 
 ### §10.4 Implementation status
 
-`implementation.ts` implements `specplane spec implement <id>` (also a harness action). Only architecture specs carry the field (`architecture/file-formats §11.3`).
+`implementation.ts` implements `specplane spec implement <id>` (also a harness action). Only architecture specs have implementation records (`architecture/file-formats §11.3`).
 
 1. Needs `test.record` with mode `allow` for the actor, and for the `llm` role the setting `architecture.llm_may_mark_implemented` to be on (`verification R36.1`).
 2. Takes `commit = HEAD`, noting when the working tree differs from it, and runs the checks at that commit: all deterministic tests (`§10.2`), plus an intelligent verdict for every section that declares nothing or declares intelligent tests. Intelligent verdicts exist only as current results recorded through `tests.record` by an LLM in a harness; from the CLI they are reported as `needs harness`, and the command ends with the status unchanged (`verification R36.1`).
-3. Writes `implementation: {status: implemented, commit, fingerprint, by, date}` only when every test and section has a current `passed`.
+3. Appends an `implementation` record `{status: implemented, fingerprint, by, date}` to the note on HEAD only when every test and section has a current `passed`.
 4. A current `failed` refuses and names it (`verification R36`).
-5. Reading status: `implemented` only if the block's fingerprint equals the HEAD fingerprint and `commit` is an ancestor of HEAD (`git merge-base --is-ancestor`); otherwise the block is removed by the next writing command and meanwhile shown as unimplemented with the reason (`verification R36.2`).
+5. Reading status: `implemented` only if an `implementation` record's fingerprint equals the HEAD fingerprint and the commit its note is on is an ancestor of HEAD (`git merge-base --is-ancestor`) and no commit after it up to HEAD changed the spec's fingerprint (`git log <commit>..HEAD -- <path>`, each blob's fingerprint compared; this keeps "changed and changed back" unimplemented, `architecture/file-formats §11.3`); otherwise it is shown as unimplemented with the reason and nothing is removed (`verification R36.2`).
 
 ### §10.5 Logs
 
@@ -382,7 +408,7 @@ Implements `harness R14`, `harness R18`, `harness R19`, `harness R19.1`, `harnes
 
 `harness/actions.ts` holds a registry `{id, permissions, input schema, handler}`; each handler calls the same core function as the CLI with `Actor {role: llm}` and returns a result object plus the instruction text the adapter attaches (`§12.3`). The set for the first release: `spec.retrieve`, `spec.list`, `spec.create`, `spec.edit`, `spec.delete`, `spec.approve`, `spec.meta.read`, `spec.review-context`, `spec.implement`, `validate`, `warnings`, `coverage`, `test.run`, `test.record`, `config.get`, `config.set`, `permissions.docs`, `docs.search`, `audit.read`, `request.send`, `plan.create`, `plan.edit`, `plan.list`, `plan.next`, `plan.step-done`, `plan.softstop`, `plan.start`, `plan.resume`, `plan.abandon`, `plan.delete`, `plan.budget`, `plan.review`, `plan.finish`, `plan.merge` (guarded by `plan.complete`, assumption), `warnings.report` (no permission, adds a warning for the current session only, `§6.1`). Read-only actions need `info.retrieve` (viewing, review, validate, warnings, coverage, test runs, audit, docs, `plan.list`; they have no permissions of their own, `harness R26.2`). Spec writes need `spec.create|edit|delete.<type>`; approval `spec.approve`; plan flows `§11`. There is no `request.accept` or `request.decline` and no `role.switch` action (`§8`, `§7.1`). Authorship: `spec.create` and `spec.edit` append the LLM as author with a contribution when `authorship.record_llm` is on, using the model the adapter reports and `unknown` otherwise; they never add a human (`harness R19.1`, `specifications R10`).
 
-`spec.edit` accepts either replacement text of a section or a whole-file replacement, applies it, and when it changes content on an approved spec writes the review-state fields (`§5.4`); under `request-user` it stores a patch (`§8`) and writes nothing. `spec.create` writes frontmatter with `status: awaiting-review`, the chosen ID and cites. The harness never accepts an `approved` status or an `approval` block from the LLM in any write: such keys in supplied text are rejected (`harness R20`, `roles-and-permissions R57`).
+`spec.edit` accepts either replacement text of a section or a whole-file replacement, applies it, and when it changes content on an approved spec writes only the content, the review state following from the new fingerprint (`§5.4`); under `request-user` it stores a patch (`§8`) and writes nothing. `spec.create` writes frontmatter with the chosen ID, title, authors and cites, and no status. The harness never accepts a `status` or `approval` key or any other legacy record key from the LLM in any write: such keys in supplied text are rejected (`harness R20`, `roles-and-permissions R57`).
 
 ### §12.2 User commands
 
@@ -425,14 +451,15 @@ Implements `cli R16`, `cli R16.1`, `cli R17`, `cli R17.1`, `cli R17.2`, `cli R33
 
 | Command | Does | Permission |
 |---------|------|------------|
-| `init --harness <name>` | Create `.specplane/config.yaml` if asked, install the harness files (`§12.6`) | `config.change` for the file |
+| `init --harness <name>` | Create `.specplane/config.yaml` if asked, add the notes fetch refspec (`§5.6`), install the harness files (`§12.6`) | `config.change` for the file |
 | `validate [<id>...] [--json]` | `§6.1` | `info.retrieve` |
 | `warnings [<id>]`, `coverage [--uncovered]` | `§6.3`, `§6.4` | `info.retrieve` |
-| `spec list`, `spec show <id>` | Effective status, authors, results, implementation | `info.retrieve` |
-| `spec approve <id>... [--yes]` | `§5.3` | `spec.approve` |
+| `spec list`, `spec show <id>` | Effective status, authors, results, implementation (from the notes store) | `info.retrieve` |
+| `spec approve <id>... [--yes]` | `§5.3`; writes a record only | `spec.approve` |
 | `spec meta get <id>`, `spec meta set <id> <field> <value>` | `§13.2` | `meta.read`, `meta.write[.piece]` |
 | `spec override status\|approver\|test ...` | `§13.2` | `override.*` |
 | `spec reopen <id>`, `spec implement <id>` | `§5.4`, `§10.4` | `spec.edit.<type>`, `test.record` |
+| `migrate status [--dry-run]` | `§5.7` | `config.change` |
 | `test run [<id>] [--all]` | `§10.2` | `info.retrieve` |
 | `config get [<key>]`, `config set\|unset <key> [<value>]` | `§3.2` | `config.change` for writes |
 | `permissions [<id>]`, `steering <command\|permission>` | `§7.4`, `§12.4` | none |
@@ -447,7 +474,7 @@ The permission column names the permission that guards the command; Standard Use
 
 ### §13.2 Metadata
 
-`metadata.ts` reads and writes any frontmatter field of a spec through the YAML document, with the permission per piece: `title`, `authors`, `references`, `covers` and `approval` date and commit map to `meta.write.<piece>` (`cli R17.1`); `status`, `approval.by` and results map to the three overrides. An override writes the mark of `architecture/file-formats §2.4`, and for `override status approved` computes the fingerprints from the HEAD content so later edits reopen it (`cli R17.2`). All writes record `old` and `new` in the audit log (`cli R17`). Metadata writes do not change body or review state (`specifications R11.3`): `title`, `covers`, `implements` and `references` are outside the fingerprint (`architecture/file-formats §4.2`), so correcting them leaves an approved spec approved and refuse a field that is not one of those in `architecture/file-formats §2.1`. `plan meta` commands use the same code on PLAN.md (later release).
+`metadata.ts` reads and writes the author-written frontmatter fields of a spec through the YAML document (`title`, `authors`, `covers`, `implements`, `references`), with the permission per piece mapped to `meta.write.<piece>` (`cli R17.1`). Status, approver and test results are not frontmatter; they are records, and their overrides map to `override.*` and append `override` or `test-result` records carrying the mark of `architecture/file-formats §2.4`. `override status approved` computes the fingerprints from the HEAD content so later edits reopen it (`cli R17.2`). A `meta get` shows the records' fields (approver, date) read from the store. All writes record `old` and `new` in the audit log (`cli R17`). Metadata writes do not change body or review state (`specifications R11.3`): `title`, `covers`, `implements` and `references` are outside the fingerprint (`architecture/file-formats §4.2`), so correcting them leaves an approved spec approved; a field that is not one of those in `architecture/file-formats §2.1`, including a legacy record key, is refused. `plan meta` commands use the same code on PLAN.md (later release).
 
 ### §13.3 Output and errors
 
@@ -459,8 +486,8 @@ The permission column names the permission that guards the command; Standard Use
 
 Assumption: the page does not say which Specplane writes are committed, but under `specifications R40` an uncommitted change has no effect, so the rule is explicit.
 
-- **Commit by the command**, as a metadata-only commit with the workflow and message of `architecture/file-formats §8`, staged by path and never including other files: `spec approve`, `spec reopen`, `spec override ...`, `spec meta set`, `test record` and `spec implement` (workflow `spec`), and the plan commands of `§11` that already say they commit (`start`, `step-done`, `stop`, `resume`, `budget`, `retarget`, `finish`, `abandon`, `delete`, `plan.create`, `plan.edit`). `--no-commit` leaves the change staged. If the spec file has other uncommitted changes than the keys the command wrote, the command writes the keys but does not commit, and says that nothing takes effect until the file is committed.
-- **Left in the working tree**, because they are the person's or the LLM's own edits: `spec.create`, `spec.edit` (including the review-state keys a content edit writes, `§5.4`) and `config set`. Configuration is read from the working tree (`§3.2`), so it takes effect at once; spec content takes effect when the person commits it. The result text says "written, not committed".
+- **Notes commit by the command**: `spec approve`, `spec reopen`, `spec override ...`, `test record` and `spec implement` append records and commit them on `refs/notes/specplane` only, never on the branch (`architecture/file-formats §13.3`). They need no clean working tree, have no `--no-commit` and use no commit message workflow; the notes commit message is `specplane: <verb> <id>` (assumption). `spec meta set` of an author-written field is a metadata-only branch commit with the workflow and message of `architecture/file-formats §8`, staged by path and never including other files; `--no-commit` leaves it staged. The plan commands of `§11` that already say they commit (`start`, `step-done`, `stop`, `resume`, `budget`, `retarget`, `finish`, `abandon`, `delete`, `plan.create`, `plan.edit`) are branch commits as before. If the spec file has other uncommitted changes than the keys `meta set` wrote, it writes them but does not commit, and says that nothing takes effect until the file is committed. `migrate status` makes one branch commit (`§5.7`).
+- **Left in the working tree**, because they are the person's or the LLM's own edits: `spec.create`, `spec.edit` (a content edit writes only content, `§5.4`) and `config set`. Configuration is read from the working tree (`§3.2`), so it takes effect at once; spec content takes effect when the person commits it. The result text says "written, not committed".
 - A commit under a request is made on accept, by the accepting person's command.
 
 ## §14 Pre-commit and CI checks

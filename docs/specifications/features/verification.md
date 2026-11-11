@@ -157,7 +157,7 @@ Implemented is tied to one commit. It is set only when everything the specificat
 
 - A commit that changes the content of the specification returns it to unimplemented. Commits that do not change its content leave the status as it is; the status shows the commit it was last verified on.
 - If the working tree has uncommitted changes, the run says the check used the commit and not those changes.
-- If the specification is changed and then changed back, it is still unimplemented until verified again; matching an earlier content does not restore earlier evidence.
+- If the specification is changed and then changed back, it is still unimplemented until verified again; matching an earlier content does not restore earlier evidence. The status is kept as metadata attached to git commits and not in the spec file.
 - The status survives rebase and merge as long as the content and the verified commit are still part of the history; if the verified commit is no longer part of the history, the status shows unimplemented.
 
 Scenario: Given an architecture specification verified as implemented on commit A, When commit B changes only code, Then the status still shows implemented, verified on A.
@@ -187,7 +187,7 @@ Each layer can declare tests that show the layer below it complies with it: requ
 
 The result of a test, including who ran it, is recorded in the metadata of the specification being tested (`R17.2`).
 
-- **Whose metadata.** The result belongs to the specification that was checked: the feature specification when it is verified against requirements, the architecture specification when it is verified against feature specifications or its implementation.
+- **Whose metadata.** The result is stored as metadata attached to git commits and not in the spec file (`specifications R11`). It belongs to the specification that was checked: the feature specification when it is verified against requirements, the architecture specification when it is verified against feature specifications or its implementation.
 - **Content.** Passed or failed, who ran it (a person or an LLM role and model), when, the commit it ran on, and the summary (`R61.3`).
 - **Outdated.** A recorded result becomes outdated when either specification changes, that is the one tested or the one it was tested against (`R11.2`). An outdated result is shown as outdated and counts as no result for approval and implementation. It is not deleted.
 - **A failed test does not change status.** A failed test leaves the specification Awaiting Review or Approved as it was. What it does is block: a specification with a failed test cannot be approved (`R16`), and an architecture specification with a failed test cannot be marked implemented (`R36`). A later pass, or an outdated failure, lifts the block.
