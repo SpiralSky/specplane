@@ -282,6 +282,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U18 User and AI documentation
 
+- **Status:** done (`24ad385`, `46fda6c`, `052daa3`). Sources in `docs/user/`; `build-docs`, `build-ai-docs` and `validate-docs` run in `npm run build`; generated `assets/docs/` and `assets/ai-docs/` are git-ignored. Required-topics check in `docs/required.ts` and tests; essentials limit 8192 bytes tested. Delivering the essentials into model context is left to instruction delivery (not wired).
 - **Goal:** move hand-written docs to `docs/user/`; `build-docs` copies to `assets/docs/` with a manifest; required-topics build test (every catalog permission, command, configuration key with default, five mandatory notes, per-harness support table); `build-ai-docs` essentials file under a tested size limit plus searchable remainder; CI recipe documented (`§14.1`).
 - **Specs:** `reference-cli §12.5`, `§14.1`; `steering R22`, `R23`; `repository-layout §1`.
 - **Files:** `docs/user/**`, `packages/cli/scripts/build-docs.mjs`, `build-ai-docs.mjs`, `validate-docs.mjs`, `docs/bundle.ts`, `packages/cli/assets/docs/**` (generated).
