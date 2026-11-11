@@ -1,5 +1,13 @@
 # Session handoff
-Updated 2026-11-10. Start with "Current continuation" below. Working branch `spec-edits-20261106`; `main` is the integration branch. Read `AGENTS.md`, `CLAUDE.md`, the local override and `.specplane/config.yaml` first; check `git status` and recent commits before continuing.
+Updated 2026-11-11. Start with "Session 2026-11-11" below, then "Current continuation".
+
+## Session 2026-11-11 (supersedes conflicting text below)
+
+User decisions: (1) approval, status, test-result and implementation records move out of spec files into git notes (`refs/notes/specplane`); design and reasons in `docs/work-records/2026-11-11-approval-storage.md`. (2) Requirement files are always approved and never block approval. (3) Develop this repo without running Specplane's own workflows on itself (no approvals, no managed plans) for now. (4) Everything below the requirements page is the agent's call; ask the user only when the page itself is flawed or cannot be met. Work is run as chained subagents, one unit each.
+
+Landed: `2aa525f` + `ac97481` specs for the notes store (reviewed by a separate agent; 17 findings fixed); `51e3df2` review items 2-8 (MCP action channel, harness launches plan sessions, strict R18, stable test IDs `T<n>`, LLM approval by permission, config read from HEAD, plan worktree for requests and `approve --ref`); `6e6d2e6` request command integration (answer claims + action-derived permissions); `d7e82e8` budgets. `specplane validate`: 0 errors.
+
+Open: notes-store code (in progress: store + status, record-writing commands + `sync`, `migrate status`), then run migration on this repo; request `checkout` field and accept-in-worktree; live budget enforcement; then the backlog in "Next task" below (verification, MCP action server and steering, session adapters, packaging, legacy removal). Page flaw reported to the user, unanswered: sub-requirement order (`R27.5` before `R27.4`, `R27.1.1` before `R27.2`). Working branch `spec-edits-20261106`; `main` is the integration branch. Read `AGENTS.md`, `CLAUDE.md`, the local override and `.specplane/config.yaml` first; check `git status` and recent commits before continuing.
 
 ## Current continuation (2026-11-10)
 
