@@ -1,44 +1,6 @@
 ---
 id: architecture/repository-layout
 title: Repository layout
-status: approved
-approval:
-  by:
-    llm: claude-sonnet-5-5
-    delegated-by: spiralsky
-  date: 2026-11-09
-  commit: 380a893a01aba93dd6694e9a0aab9e67cef0615f
-  note: approved by the LLM, not a human, under the user's 2026-11-09 delegation (hand-edited because the CLI cannot read this format; see docs/work-records/2026-11-09-spec-format.md)
-  fingerprint: spec-v3:sha256:c61e14edc80cfe585fa85ca11aff3edc27e466d9d25e0fa8ff144c8003e80868
-  cited:
-    specifications R7: sec-v1:sha256:b97cf139a08f8de7a4af660c79a35472f627e128accb361ef4a5453ad230418e
-    plans §2: sec-v1:sha256:0f815d19f4e4ccd6eaf85f3825ada70b8ec20dd6fc9c97a9134bcebe8e2d233d
-    plans R29.2: sec-v1:sha256:bc3c3a58388481e6be01c429b7cc80b1a0459f4dde239072f5308f0c62c139b6
-    plan-execution R27: sec-v1:sha256:16be697fca95202f6580e27147551a2774b7edabed2ca7abceb3656e707507db
-    plan-execution §2: sec-v1:sha256:f69b7d9a2cd0351e08e85905540371ec6138b213a756ff884946dcb50ce78358
-    plan-execution §3: sec-v1:sha256:6eeb56b26fda91768ef4936acc042f652ec5457b1d2c457c3f3472ffa3f3e992
-    configuration R25: sec-v1:sha256:e07f837db35bfe39bbd28e56e36f3bbb1d0afc25bc3b8784f90a92be6d49b071
-    harness §2: sec-v1:sha256:eefbd6e7b229444096ca07b84f193102a1583c6fefa9a2cc93f290f1d92746c2
-    architecture/file-formats §1.1: sec-v1:sha256:52a074161abd76dcdd1f6de11d2bc87d16dc4b3ac28eb3f270108ba8ba4cc1a5
-    architecture/file-formats §1.2: sec-v1:sha256:212cc0a07b47a3988c0d088031bf8728046b3c6254bb742f1e8c0bf0c9e679a4
-    architecture/file-formats §5.1: sec-v1:sha256:fae1466ddf28a62885d7ee92811f30257bfefae1fcc0a0e6e5b826178a681821
-    architecture/file-formats §6: sec-v1:sha256:cbc88aed84ec3893fcedcb07e2e6c7e407be30813b03d06203748e64f17c860b
-    architecture/file-formats §6.1: sec-v1:sha256:b7a8db327e72d6ee8c8cb5b82099422e096c1a8f7fd01acb09a7e1ab86bd68e5
-    architecture/file-formats §9.1: sec-v1:sha256:2123852ca40d41718dca99f00354036836baa2181976df2b43cd0eaf64ff2fc1
-    architecture/file-formats §10: sec-v1:sha256:0c5b7b9da9d011bb4fb9d3b96fdd8d81a9085f4d6f4a6f0f4fbc1f9f570f1688
-    architecture/file-formats §11.4: sec-v1:sha256:7bbea71572f76bac353791a5ff23eb3cf9e451f698ed25c1444461221dfce04e
-    architecture/file-formats §12.1: sec-v1:sha256:2fb5d01b1765f106e61790b2722b550c66be40f637d4352cebb579f26310dbe5
-    architecture/file-formats §12.3: sec-v1:sha256:e67375dc1fe7d972e955d1a1cc9baa2f0c3907774889160707b8ff55a54409da
-    architecture/file-formats §12.4: sec-v1:sha256:f89e302b825759462fbd6dbae3f1a6050d082efe3ad8b981cd4b8051e67c0be9
-    architecture/file-formats §5.4: sec-v1:sha256:af1aaee1b478b0658724280a75836fd63d4931acc621248556bc78fbd1a09e92
-    architecture/file-formats §6.2: sec-v1:sha256:f5b399a6cfe3e2abba557492288674a0a28bc9eca0e026cf1b470af26d8aef38
-    architecture/file-formats §7.4: sec-v1:sha256:8fd5e15388a1f0fba4657bdaee86f92a2bfbff4146d6f403f82ef8bafe9982b9
-    steering R22: sec-v1:sha256:d9f839de1060ffe4c0024af136b6c2e35bf75114240139440381280fb00bfc5a
-    architecture/reference-cli §12.5: sec-v1:sha256:d685fd4430ffe9b00859898b0c6492840233cf8162b92e0127b9b249336610c4
-    architecture/file-formats §9.3: sec-v1:sha256:6f345bb4fb540f23558794af2f4903350dfd3bda94b7949ceb84593ebc25b768
-    architecture/reference-cli §14.2: sec-v1:sha256:7cae1354a944855342781d0f938d7989c38864216529e6bacd328b96573620eb
-    architecture/file-formats: spec-v3:sha256:1305925260c4b6989455012c2ad9c2f654a922141eaa07c4a8fcf89cb56be40d
-    architecture/reference-cli: spec-v3:sha256:6e1ef7c401ba94f9cea19d6a44cf55bac88917fe801fd46325bb7e2b4f900c55
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted

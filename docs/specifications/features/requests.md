@@ -1,36 +1,6 @@
 ---
 id: feature/requests
 title: Requests
-status: approved
-approval:
-  by:
-    llm: claude-sonnet-5-5
-    delegated-by: spiralsky
-  date: 2026-11-09
-  commit: 17593fb2d8b9e511414505bbc75c799d37eb5297
-  note: approved by the LLM, not a human, under the user's 2026-11-09 delegation (hand-edited; see docs/work-records/2026-11-09-spec-format.md)
-  fingerprint: spec-v3:sha256:141a2583a7e3b4baef09af33a4e6b8f89712228d12a649f7b867d5cb65fad0db
-  cited:
-    R52: sec-v1:sha256:e7b41b16ba6c1c06265d8f137afe76ee0defddfecc4cdc1d63ad92e6cdee0d32
-    R52.1: sec-v1:sha256:0a894f4ecc226b5ad80866361c97a4db4c0991ddaaab1e83688fc9f79759b909
-    R52.2: sec-v1:sha256:c88fa9d3aaeda1eb43f1d9c5fc722c6a25d1e55aa15220b3018e688950f7c80b
-    R52.3: sec-v1:sha256:7ccc6a564648284fe8be49fe5baac492b524f44fc81c43b8196cd89354d82de8
-    R52.4: sec-v1:sha256:230a2f7f0579e2e8b5502686dcf17e9e96f894a76b5725f8c3cddc0f7efb376d
-    R52.5: sec-v1:sha256:1eb02be688ace3461558f9963660c8f77bfa3793071cd4ba6b0b0b57832d959a
-    plan-execution R27.1: sec-v1:sha256:eb372e0c9bc8e7d6356a33d6dfcea88ad37c6e2adec2470a2b7fa7464efc6783
-    R18: sec-v1:sha256:f8638c210b1f25a3dcf8a55c5f3919bc18be649f8d396857afafd8c89e8f3e7a
-    R27.5: sec-v1:sha256:836c1757cc94b4868c4b0557ccad75922afbe2139a05ac1904fa10fd92ae540f
-    R27.5.1: sec-v1:sha256:c102ee66bb1aafea4a2e3eec4e38a2ccc629f1e2aac64e1f29429ad21b7c8352
-    R27.5.2: sec-v1:sha256:18f5876b1b4c58dbc8c75ff778b67c4a391c668982cac78ffd471da255dc5ea8
-    R59.1: sec-v1:sha256:4320f30d549eaa3702c1ea3f63e3344881bb71a010317f209e952d875ded4a67
-    plan-execution R27.5: sec-v1:sha256:3a43aca88d2824049cc58660daae61614ab24c1132330cca61f1b2976b622b74
-    plan-execution R27.5.1: sec-v1:sha256:72f8d7d67a253e4d40e858add1322f6df26964732e785a8ce0e2d3c0c597ed0a
-    plan-execution R27.5.2: sec-v1:sha256:560a53b2f020e30bb892a3b85af257f7df553c955f10ef01139d8300be99ccdb
-    roles-and-permissions R50: sec-v1:sha256:6e06bc008e3c498900010a6e4117f60f0626279609ce22d6b0bcb36c4c245ce2
-    roles-and-permissions R57: sec-v1:sha256:1b06f3e6eaf07d7054ecb2cfcd8fb151df181db7d98bba461eae8802dd944f38
-    roles-and-permissions §2: sec-v1:sha256:e14c6ef033b445261b57332bf2eb941691aae0ac6d1c884fa4e9a594470000af
-    steering R59: sec-v1:sha256:7078d03a4c2a8767271e37f7c1b6ed4551ee563aa732399d8e620e759d99deb4
-    configuration R25: sec-v1:sha256:e07f837db35bfe39bbd28e56e36f3bbb1d0afc25bc3b8784f90a92be6d49b071
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted

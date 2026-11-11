@@ -1,8 +1,6 @@
 ---
 id: feature/steering
 title: Steering and Documentation
-status: awaiting-review
-review-reason: edited
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted

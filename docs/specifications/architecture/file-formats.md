@@ -1,8 +1,6 @@
 ---
 id: architecture/file-formats
 title: File formats
-status: awaiting-review
-review-reason: edited
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted

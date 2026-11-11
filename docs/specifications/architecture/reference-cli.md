@@ -1,8 +1,6 @@
 ---
 id: architecture/reference-cli
 title: Reference CLI
-status: awaiting-review
-review-reason: edited
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted

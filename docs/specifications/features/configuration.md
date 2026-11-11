@@ -1,8 +1,6 @@
 ---
 id: feature/configuration
 title: Configuration
-status: awaiting-review
-review-reason: edited
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
