@@ -148,6 +148,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U3 Rule registry, warnings, auto-warn and coverage
 
+- **Status:** done. Rules split into `verify/rules/*` (config, requirements, spec-format, cites, plans, status, notes, permissions); `warnings`, `coverage`, auto-warn line (JSON field is `warning_count`, pending a spec decision on `warnings` vs §13.3); `spec/paths.ts` and `plan/ctx.ts` read `Config.abs`. R62/R63 are cited by feature specs now, so `coverage.requirement_only` stays empty.
 - **Goal:** move `verify/validate.ts` into `verify/rules/*` families with `{id,severity,source,run}`; add the `permissions` family (`§7.4`); add `verify/warnings.ts` (rule warnings plus audit-unwritable, stale steering/harness placeholders), `specplane warnings [<id>]`, auto-warn line / JSON `warnings` field in the U1 runner, `verify/coverage.ts` and `specplane coverage [--uncovered]` with `requirement_only` annotation.
 - **Specs:** `reference-cli §6.1`, `§6.3`, `§6.4`; `verification R24`, `R24.1`, `R64`.
 - **Files:** `verify/validate.ts` → `verify/rules/{spec-format,cites,requirements,status,notes,config,plans,permissions}.ts`, `verify/warnings.ts`, `verify/coverage.ts`, `commands/warnings.ts`, `commands/coverage.ts`, `cli.ts`.

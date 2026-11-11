@@ -82,7 +82,7 @@ test("a read command writes an audit entry, and specplane audit lists it (text a
   const j = JSON.parse(sp(root, "audit", "--json", "--actor", "standard-user").stdout);
   assert.equal(j.ok, true);
   assert.ok(j.data.some((e: { command: string }) => e.command === "permissions"));
-  assert.deepEqual(Object.keys(j), ["ok", "data", "findings", "warnings"]);
+  assert.deepEqual(Object.keys(j), ["ok", "data", "findings", "warnings", "warning_count"]);
 });
 
 test("cli exit codes: usage 2, not a repository 3, refusal 1, success 0", () => {

@@ -13,6 +13,8 @@ import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, spe
 import { searchCommand } from "./commands/search.js";
 import { docsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
+import { warningsCommand } from "./commands/warnings.js";
+import { coverageCommand } from "./commands/coverage.js";
 import { runCommand } from "./commands/runner.js";
 import { auditCommand } from "./commands/audit.js";
 import { workflowListCommand, workflowRecoverCommand } from "./commands/workflow.js";
@@ -164,7 +166,17 @@ program
   .description("Validate the requirements and specs (format, cites, requirement IDs, status)")
   .option("--json", "output JSON")
   .action((ids: string[], opts: { json?: boolean }) => runCommand({ command: "validate", args: ids, json: opts.json }, () => validateCommand(ids)));
-
+program
+  .command("warnings [id]")
+  .description("List the current warnings, or those of one spec or plan (needs info.retrieve)")
+  .option("--json", "output JSON")
+  .action((id: string | undefined, opts: { json?: boolean }) => runCommand({ command: "warnings", args: id ? [id] : [], json: opts.json }, () => warningsCommand(id)));
+program
+  .command("coverage")
+  .description("Show which specs cover each requirement and feature spec (needs info.retrieve)")
+  .option("--uncovered", "only the items nothing covers")
+  .option("--json", "output JSON")
+  .action((opts: { uncovered?: boolean; json?: boolean }) => runCommand({ command: "coverage", args: opts.uncovered ? ["--uncovered"] : [], json: opts.json }, () => coverageCommand(opts)));
 
 // D20 item 6 (spec: A3, R1): operator view and recovery of leases left by an ended host session.
 const workflow = program.command("workflow").description("Inspect and recover workflow leases left by an ended session (list, recover)");

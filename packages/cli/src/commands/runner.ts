@@ -7,6 +7,7 @@ import { formatJson } from "../output/json.js";
 import { formatText } from "../output/text.js";
 import { cliActor } from "../perm/permissions.js";
 import { RequestSent } from "../requests/hold.js";
+import { collectWarnings } from "../verify/warnings.js";
 
 /**
  * The command runner (`architecture/reference-cli` §13.3, §9): every command returns a `CommandResult`; the runner
@@ -21,6 +22,8 @@ export interface CommandResult {
   warnings?: string[];
   /** The human text, one line per entry, printed on stdout. */
   lines?: string[];
+  /** Number of project warnings (auto warn, `reference-cli` §6.3); set by the runner, never by a command. */
+  warningCount?: number | null;
   /** The action was held as a request; exit 0. */
   held?: boolean;
   /** Permission that guarded the command, for the audit entry. */
@@ -32,6 +35,8 @@ export interface RunSpec {
   command: string;
   args?: string[];
   json?: boolean;
+  /** Test hook: replaces the warnings collector the auto-warn line uses. */
+  collect?: (root: string, opts: { auditUnwritable: boolean }) => unknown[];
 }
 
 export type ExitCode = 0 | 1 | 2 | 3 | 4;
@@ -57,6 +62,20 @@ function errorResult(e: unknown): { result: CommandResult; exit: ExitCode } {
 function reasonOf(r: CommandResult): string | null {
   const f = r.findings?.[0];
   return typeof f === "string" ? f.split("\n")[0] : null;
+}
+
+/** The auto-warn count of `reference-cli` §6.3: appended as the last text line, or `warningCount` in JSON. Never changes the status. */
+function autoWarn(root: string, spec: RunSpec, result: CommandResult): CommandResult {
+  let on: boolean;
+  try { on = loadSettings(root).config.autoWarn; } catch { return result; }
+  if (!on) return result;
+  const line = (() => {
+    try {
+      const n = (spec.collect ?? collectWarnings)(root, { auditUnwritable: auditAppendFailed() }).length;
+      return { n, text: `${n} warning${n === 1 ? "" : "s"}${n ? "; run `specplane warnings`" : ""}` };
+    } catch { return { n: null, text: "warnings unavailable" }; }
+  })();
+  return { ...result, warningCount: line.n, lines: [...(result.lines ?? []), line.text] };
 }
 
 /**
@@ -102,6 +121,8 @@ export async function runCommand(spec: RunSpec, fn: () => Promise<CommandResult>
     audit(root, { command: spec.command, args, permission: result.permission ?? null, outcome, reason: outcome === "done" ? null : reasonOf(result), actor: actor! });
   }
   if (root && auditAppendFailed()) result = { ...result, warnings: [...(result.warnings ?? []), "the audit log could not be written; the action went ahead"] };
+
+  if (root && spec.command !== "warnings") result = autoWarn(root, spec, result);
 
   if (spec.json) process.stdout.write(formatJson(result));
   else { const t = formatText(result); process.stdout.write(t.stdout); process.stderr.write(t.stderr); }

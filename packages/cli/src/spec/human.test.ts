@@ -390,7 +390,7 @@ test("CLI: spec approve, role switch and override through the real command line"
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(ok.stdout, /Approved feature\/a as Pat Person/);
   assert.equal(run("spec", "approve", "feature/a").stdout.includes("Already approved"), true);
-  assert.equal(run("role", "show").stdout.trim(), "standard-user");
+  assert.equal(run("role", "show").stdout.trim(), "standard-user\n0 warnings");
   run("role", "switch", "administrator");
   assert.equal(run("spec", "override", "approver", "feature/a", "human:Other").status, 0);
   assert.match(run("spec", "meta", "get", "feature/a").stdout, /approver: .*Other.*override/);
