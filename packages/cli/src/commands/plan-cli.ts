@@ -5,6 +5,7 @@ import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliRole, gitUserName, type Actor } from "../perm/permissions.js";
 import { approvePlan, createPlan } from "../plan/create.js";
 import { guarded, liveRoot, requirePlan, writeRun, type PlanCtx } from "../plan/ctx.js";
+import { checkBudget, type Usage } from "../plan/budget.js";
 import { abandonPlan, deletePlan, finishPlan, formatReview, mergePlan, reviewPlan } from "../plan/finish.js";
 import { resumePlan, retargetPlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
 import { checkSelection, describePlan, listInfos, type PlanInfo } from "../plan/status.js";
@@ -14,7 +15,9 @@ import { checkSelection, describePlan, listInfos, type PlanInfo } from "../plan/
 function context(): PlanCtx {
   const root = checkoutRoot();
   const actor: Actor = { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown" };
-  return { root, actor, preset: activePreset(root) };
+  // A harness adapter names the resources it can measure; without it nothing is refused (`reference-cli` §11.4).
+  const measurable = process.env.SPECPLANE_MEASURABLE_RESOURCES?.split(",").map((x) => x.trim()).filter(Boolean);
+  return { root, actor, preset: activePreset(root), ...(measurable ? { measurable } : {}) };
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -103,6 +106,17 @@ export function registerPlanCommands(program: Command): void {
 
   plan.command("budget <id>").description("Set or remove a budget for a resource (percent of the limit)").requiredOption("--resource <name>").option("--soft <n>", "soft stop", (v) => Number(v)).option("--hard <n>", "hard stop", (v) => Number(v)).option("--remove")
     .action((id: string, o) => run((ctx) => { setBudget(ctx, id, { resource: o.resource, soft: o.soft, hard: o.hard, remove: !!o.remove }); out(`Budget for ${o.resource} ${o.remove ? "removed" : `set to soft ${o.soft}, hard ${o.hard}`}.`); }));
+
+  plan.command("usage <id>").description("Report usage readings (percent per resource) against the plan's budget (for harness adapters)")
+    .requiredOption("--reading <resource=percent>", "a reading (repeatable)", collect).option("--finished", "the LLM wrote its handoff and is ending the session: record the soft stop").option("--json")
+    .action((id: string, o) => run((ctx) => {
+      const usage: Usage = {};
+      for (const r of o.reading as string[]) { const m = /^([^=]+)=(\d+(?:\.\d+)?)$/.exec(r); if (!m) { process.stderr.write(`Bad reading \`${r}\`; use resource=percent.\n`); process.exitCode = 2; return; } usage[m[1]] = Number(m[2]); }
+      const res = checkBudget(ctx, id, usage, { finished: !!o.finished });
+      if (o.json) { json(res); return; }
+      if (res.decision.action === "none") out("Within budget.");
+      else out(`${res.decision.reason}.${res.stopped ? ` The plan is stopped.` : ""}${res.instruction ? `\n${res.instruction}` : ""}`);
+    }));
 
   plan.command("review <id>").description("Open the final review").option("--json")
     .action((id: string, o) => run((ctx) => { const r = reviewPlan(ctx, id); if (o.json) json(r); else out(formatReview(r)); }));

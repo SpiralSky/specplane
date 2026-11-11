@@ -8,7 +8,7 @@ import { committedSource } from "../spec/source.js";
 import { HANDOFF_SECTIONS, findPlan, latestEntry, loadPlans, nextStep, planImplements, planReferences, referencedPlans, type PlanRecord } from "./model.js";
 import { readRequest } from "../requests/store.js";
 import {
-  PlanOpError, branchExists, clearRun, commitPaths, currentBranch, git, gitTry, guarded, guardedWith, isDirty, listWorktreePaths, loadPlanAt, mainRoot,
+  PlanOpError, assertMeasurable, branchExists, clearRun, commitPaths, currentBranch, git, gitTry, guarded, guardedWith, isDirty, listWorktreePaths, loadPlanAt, mainRoot,
   planSlug, plansConfig, plansDir, requirePlan, revParse, setWorktree, worktreeOf, writeProgress, writeRun, type PlanCtx,
 } from "./ctx.js";
 import { planApproval, specApproved } from "./status.js";
@@ -255,6 +255,7 @@ export function setBudget(ctx: PlanCtx, id: string, o: BudgetOpts): { commit: st
     if (pr.status === "completed" || pr.status === "abandoned") throw new PlanOpError(`Plan \`${id}\` is ${pr.status}; its budget cannot change.`);
     const list = (pr.budget ?? []).filter((b) => b.resource !== o.resource);
     if (!o.remove) {
+      assertMeasurable(ctx, o.resource);
       if (!(o.soft! > 0) || !(o.hard! >= o.soft!)) throw new PlanOpError("A budget needs 0 < soft <= hard (percent of the resource).");
       list.push({ resource: o.resource, soft: o.soft!, hard: o.hard! });
     }

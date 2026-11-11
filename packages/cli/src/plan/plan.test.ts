@@ -8,6 +8,7 @@ import { makeRepo } from "../test-repo.js";
 import { DEFAULT_PRESET, PRESETS, mode, type Actor, type Preset } from "../perm/permissions.js";
 import { acceptRequest, declineRequest, sendRequest } from "../requests/ops.js";
 import { listRequests } from "../requests/store.js";
+import { checkBudget, evaluateBudget } from "./budget.js";
 import { validateProject } from "../verify/validate.js";
 import { approvePlan, createPlan } from "./create.js";
 import { abandonPlan, deletePlan, finishPlan, mergePlan, reviewPlan } from "./finish.js";
@@ -434,6 +435,77 @@ test("CLI: create, approve, start, status, next, step-done, review, finish and m
   assert.match(ok("plan", "list"), new RegExp(`${id}  completed \\(archived\\)`));
   const refusedOut = sp("plan", "delete", "no-such-plan");
   assert.equal(refusedOut.status, 1);
+});
+
+/* ------------------------------------------------------------------ budgets enforcement (plan-execution R27.1) */
+
+test("budget: soft stop tells the LLM to finish, then records a soft stop naming the budget", () => {
+  const fx = repo({ config: "  start_conditions: off\n" });
+  createPlan(fx.ctx, { words: ["export", "things"] });
+  startPlan(fx.ctx, ID);
+  setBudget(fx.ctx, ID, { resource: "weekly", soft: 80, hard: 95 });
+  assert.equal(checkBudget(fx.ctx, ID, { weekly: 79 }).decision.action, "none");
+  const c = checkBudget(fx.ctx, ID, { weekly: 80 });
+  assert.equal(c.decision.action, "soft");
+  assert.match(c.instruction!, /commit what is done, write a handoff entry/);
+  assert.equal(c.stopped, false);
+  assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.status, "in-progress", "the LLM is told first; the plan keeps running until it finishes");
+  const done = checkBudget(fx.ctx, ID, { weekly: 82 }, { finished: true });
+  assert.equal(done.stopped, true);
+  const pr = loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!;
+  assert.equal(pr.status, "stopped");
+  assert.equal(pr.stop!.kind, "soft");
+  assert.equal(pr.stop!.reason, "soft stop at 80% of the weekly limit");
+  assert.deepEqual(pr.budget, [{ resource: "weekly", soft: 80, hard: 95 }], "the budget stays with the plan");
+});
+
+test("budget: a hard stop ends the run at once and is recorded as hard; no budget means no check", () => {
+  const fx = repo({ config: "  start_conditions: off\n" });
+  createPlan(fx.ctx, { words: ["export", "things"] });
+  startPlan(fx.ctx, ID);
+  assert.equal(checkBudget(fx.ctx, ID, { weekly: 99 }).decision.action, "none");
+  setBudget(fx.ctx, ID, { resource: "weekly", soft: 80, hard: 95 });
+  setBudget(fx.ctx, ID, { resource: "5h", soft: 70, hard: 90 });
+  const c = checkBudget(fx.ctx, ID, { weekly: 50, "5h": 91 });
+  assert.equal(c.decision.action, "hard");
+  assert.equal(c.stopped, true);
+  const pr = loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!;
+  assert.equal(pr.stop!.kind, "hard");
+  assert.equal(pr.stop!.reason, "hard stop at 90% of the 5h limit");
+  // a stopped plan is not stopped again
+  assert.equal(checkBudget(fx.ctx, ID, { weekly: 99 }).stopped, false);
+  assert.equal(resumePlan(fx.ctx, ID).stopped!.kind, "hard");
+});
+
+test("budget: evaluate picks the hard stop over a soft one and ignores unread resources", () => {
+  const limits = [{ resource: "weekly", soft: 80, hard: 95 }, { resource: "5h", soft: 70, hard: 90 }];
+  assert.equal(evaluateBudget(limits, { weekly: 85, "5h": 95 }).action, "hard");
+  assert.equal(evaluateBudget(limits, { weekly: 85 }).action, "soft");
+  assert.deepEqual(evaluateBudget(limits, { weekly: 10 }), { action: "none", unmeasured: ["5h"] });
+  assert.equal(evaluateBudget(undefined, { weekly: 100 }).action, "none");
+});
+
+test("budget: a resource the harness cannot measure is refused when the budget is set", () => {
+  const fx = repo({ config: "  start_conditions: off\n" });
+  createPlan(fx.ctx, { words: ["export", "things"] });
+  startPlan(fx.ctx, ID);
+  const c = { ...fx.ctx, measurable: ["tokens"] };
+  refused(() => setBudget(c, ID, { resource: "weekly", soft: 80, hard: 95 }), /cannot measure `weekly`/);
+  setBudget(c, ID, { resource: "tokens", soft: 80, hard: 95 });
+  assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.budget![0].resource, "tokens");
+});
+
+test("CLI: plan usage reports the soft and hard stops", () => {
+  const fx = repo({ config: "  start_conditions: off\n" });
+  createPlan(fx.ctx, { words: ["export", "things"] });
+  startPlan(fx.ctx, ID);
+  setBudget(fx.ctx, ID, { resource: "weekly", soft: 80, hard: 95 });
+  const cli = new URL("../cli.js", import.meta.url).pathname;
+  const go = (...a: string[]) => spawnSync("node", [cli, "plan", "usage", ID, ...a], { cwd: fx.root, encoding: "utf8", env: ENV });
+  assert.match(go("--reading", "weekly=10").stdout, /Within budget/);
+  assert.match(go("--reading", "weekly=81").stdout, /soft stop at 80% of the weekly limit\.\nThe soft stop/);
+  assert.match(go("--reading", "weekly=96").stdout, /hard stop at 95%.*The plan is stopped/);
+  assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.stop!.kind, "hard");
 });
 
 /* ------------------------------------------------------------------ requests in plans */

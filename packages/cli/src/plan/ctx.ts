@@ -26,6 +26,8 @@ export interface PlanCtx {
   env?: NodeJS.ProcessEnv;
   /** Request being accepted, recorded in the audit log (`reference-cli` §8). */
   request?: string;
+  /** Resources the harness can measure for budgets; unset when no adapter said (`reference-cli` §11.4). */
+  measurable?: string[];
 }
 
 export class PlanOpError extends SpecplaneError {
@@ -40,6 +42,13 @@ export const nowIso = (ctx: PlanCtx): string => (ctx.now ?? new Date()).toISOStr
 
 export function plansConfig(root: string) { return loadSettings(root).config.plans; }
 export function plansDir(root: string): string { return loadSettings(root).config.plans.dir.replace(/\/+$/, ""); }
+
+/** A budget on a resource the harness cannot measure is refused when it is set (`harness R35.1`). */
+export function assertMeasurable(ctx: PlanCtx, resource: string): void {
+  if (ctx.measurable && !ctx.measurable.includes(resource)) {
+    throw new PlanOpError(`The harness cannot measure \`${resource}\` (it measures: ${ctx.measurable.join(", ") || "nothing"}), so a budget on it would not be enforced and was not set.`);
+  }
+}
 
 /* ------------------------------------------------------------------ guard and audit */
 
