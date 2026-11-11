@@ -71,7 +71,7 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "tests.logs_retention", kind: { t: "days" }, def: 30, doc: "Days local test logs are kept, or forever" },
   { key: "pre_commit.duplicate_requirement_ids", kind: { t: "bool" }, def: false, later: true, doc: "Check that refuses a commit in which two requirements share an identifier" },
   { key: "pre_commit.tests", kind: { t: "bool" }, def: false, later: true, doc: "Check that refuses a commit when the deterministic tests of an architecture specification fail" },
-  { key: "coverage.requirement_only", kind: { t: "reqids" }, def: [], doc: "Requirements the owner keeps requirement-only, which coverage does not report" },
+  { key: "coverage.requirement_only", kind: { t: "reqids" }, def: [], doc: "Requirements annotated as requirement-only; uncovered warnings are still reported" },
   { key: "decisions.enabled", kind: { t: "bool" }, def: false, later: true, doc: "Whether user decision records are stored and retrieved" },
   { key: "subprojects", kind: { t: "list" }, def: [], later: true, doc: "The named locations in the project that are subprojects" },
   { key: "strict_mode.enabled", kind: { t: "bool" }, def: false, later: true, doc: "Strict mode as a whole" },
