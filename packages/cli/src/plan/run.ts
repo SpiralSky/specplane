@@ -127,12 +127,12 @@ function startInner(ctx: PlanCtx, id: string, o: StartOpts): StartResult {
 export interface StepDoneOpts { step: number; outcome: "done" | "partial"; summary?: string; type?: string }
 
 export function stepDone(ctx: PlanCtx, id: string, o: StepDoneOpts): { commit: string; allDone: boolean; next: number | null } {
-  // Recording a step needs `plan.step`, a permission added to the catalog (allow in every default preset); see the step 6 notes.
+  // Recording a step needs no permission of its own (`reference-cli §11.3`); the commit it makes is the plan's own bookkeeping.
   return recordedRun(ctx, "plan step-done", [id, String(o.step), o.outcome], { id, ...o }, () => stepDoneInner(ctx, id, o));
 }
 
 function recordedRun<T>(ctx: PlanCtx, command: string, args: string[], params: Record<string, unknown>, fn: () => T): T {
-  return guardedWith(params, ctx, command, args, ["plan.step"], "Recording a plan step", fn);
+  return guardedWith(params, ctx, command, args, [], "Recording a plan step", fn);
 }
 
 function stepDoneInner(ctx: PlanCtx, id: string, o: StepDoneOpts) {

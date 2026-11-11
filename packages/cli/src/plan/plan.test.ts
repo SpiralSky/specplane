@@ -523,16 +523,14 @@ test("accepting a plan.start request starts the plan once, under the accepter", 
   assert.ok(audit(fx.root).some((e) => e.command === "plan start" && e.outcome === "done" && e.request === req.id && e.actor.role === "standard-user"));
 });
 
-test("step-done needs plan.step, which is allow for the LLM in every default preset", () => {
+test("step-done needs no permission of its own, so it runs for the LLM even when the preset grants nothing", () => {
   const fx = repo({ config: "  start_conditions: off\n" });
   createPlan(fx.ctx, { words: ["export", "things"] });
   const { path: wt } = startPlan(fx.ctx, ID);
   fs.writeFileSync(path.join(wt, "plans", ID, "HANDOFF.md"), `# H\n${entry(1)}`);
   const none: Preset = { ...DEFAULT_PRESET, llm: { modes: {} } };
-  refused(() => stepDone(mk(fx.root, "llm", none), ID, { step: 1, outcome: "done" }), /plan\.step/);
-  for (const p of PRESETS) assert.equal(mode(p, "llm", "plan.step"), "allow", p.id);
-  assert.ok(stepDone(mk(fx.root, "llm"), ID, { step: 1, outcome: "done" }).commit);
-  assert.ok(audit(fx.root).some((e) => e.command === "plan step-done" && e.permission === "plan.step" && e.outcome === "done"));
+  assert.ok(stepDone(mk(fx.root, "llm", none), ID, { step: 1, outcome: "done" }).commit);
+  assert.ok(audit(fx.root).some((e) => e.command === "plan step-done" && e.permission === null && e.outcome === "done"));
 });
 
 test("a blocking request soft stops the plan; answering it names the plan to resume and the answer is in the resume context", async () => {

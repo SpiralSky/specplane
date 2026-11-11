@@ -24,7 +24,7 @@ export const CATALOG: readonly string[] = [
   ...GRANULAR_PIECES.map((p) => `meta.write.${p}`),
   ...PROTECTED, "test.record", "info.retrieve",
   "plan.meta.read", "plan.meta.write", "plan.edit", "plan.create", "plan.delete", "plan.start", "plan.abandon", "plan.complete",
-  "plan.budget", "plan.resume", "plan.softstop", "plan.step", "decision.add", "decision.retrieve", "decision.edit", "decision.delete", "config.change",
+  "plan.budget", "plan.resume", "plan.softstop", "decision.add", "decision.retrieve", "decision.edit", "decision.delete", "config.change",
 ];
 
 export interface Preset {
@@ -46,7 +46,7 @@ function llmModes(req: Mode, feat: Mode, arch: Mode, planEdit: Mode): Record<str
     "meta.read": "allow", "meta.write": "deny",
     "plan.create": planEdit, "plan.edit": planEdit, "plan.start": "request-user", "plan.resume": "request-user",
     "plan.abandon": "request-user", "plan.complete": "request-user", "plan.delete": "request-user", "plan.budget": "request-user",
-    "plan.softstop": "allow", "plan.step": "allow", "decision.retrieve": "allow", "decision.add": "request-user", "decision.edit": "request-user",
+    "plan.softstop": "allow", "decision.retrieve": "allow", "decision.add": "request-user", "decision.edit": "request-user",
     "decision.delete": "request-user",
   };
 }

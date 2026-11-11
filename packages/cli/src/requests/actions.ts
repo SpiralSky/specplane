@@ -5,7 +5,7 @@ import type { Actor, Preset } from "../perm/permissions.js";
 import { approvePlan, createPlan } from "../plan/create.js";
 import type { PlanCtx } from "../plan/ctx.js";
 import { abandonPlan, deletePlan, finishPlan, mergePlan } from "../plan/finish.js";
-import { resumePlan, retargetPlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
+import { resumePlan, retargetPlan, setBudget, startPlan, stopPlan } from "../plan/run.js";
 import { applySpecEdit, patchApplies } from "../spec/edit.js";
 import { approveSpecs, metaSet, overrideSpec, reopenSpec, type OverrideKind } from "../spec/human.js";
 import { loadSpecPaths } from "../spec/paths.js";
@@ -51,7 +51,6 @@ const ACTIONS: Record<string, Action> = {
   "plan merge": (c, p) => { const r = mergePlan(planCtx(c), p.id, { mode: p.mode, force: p.force }); return done(r.message); },
   "plan abandon": (c, p) => { abandonPlan(planCtx(c), p.id, { force: p.force }); return done(`Abandoned ${p.id}.`); },
   "plan delete": (c, p) => { deletePlan(planCtx(c), p.id, { force: p.force }); return done(`Deleted ${p.id}.`); },
-  "plan step-done": (c, p) => { const r = stepDone(planCtx(c), p.id, { step: p.step, outcome: p.outcome, summary: p.summary, type: p.type }); return done(`Recorded step ${p.step} in ${r.commit.slice(0, 12)}.`); },
 };
 
 const done = (line: string): ActionOutcome => ({ ok: true, lines: [line], reasons: [] });

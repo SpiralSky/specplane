@@ -99,11 +99,6 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
     case "plan abandon":
     case "plan delete":
       requireText("id"); bool("force"); return [command === "plan abandon" ? "plan.abandon" : "plan.delete"];
-    case "plan step-done":
-      requireText("id");
-      if (typeof p.step !== "number" || !Number.isSafeInteger(p.step) || p.step <= 0) invalid("`step` must be a positive integer.");
-      oneOf("outcome", ["done", "partial"], true); optional("summary", text); optional("type", text);
-      return ["plan.step"];
     default: return invalid(`\`${command}\` is not an action that can be requested.`);
   }
 }
