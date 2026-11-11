@@ -1,5 +1,7 @@
 # Work log
 
+> Work records are dated historical narratives. They mention commands, files and designs that later units removed (the old operation engine, `generate`, `search`, `decision`, `workflow`, the plans pane); the current behaviour is in `docs/specifications/`, `docs/user/` and `HANDOFF.md`.
+
 Append-only. Add new entries at the end; never edit or delete earlier ones. Correct a mistake with a new entry that references the old one. About five lines per entry: UTC date/time, commits, scope, checks run with exact results (or "not run"), open issues.
 
 ## 2026-11-03 — record cleanup

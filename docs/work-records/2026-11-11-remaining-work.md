@@ -298,3 +298,8 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 ## Order and parallelism
 
 U0 → U1 → (U2, U3, U4 in any order) → U5 → U6 → U7 → U9 → U10 → U11 → U12 → U8 → U13 → U14 → U15 → U16 → U17 → U18 → U19. U4 and U7 can run alongside U3/U5 since they touch different files. U8 waits for U12 because most `js-yaml`/`gray-matter` importers are legacy code that U12 deletes.
+
+## Gap closure pass (after U18)
+
+- Done: `docs.essentials` action, SessionStart delivery and standing-text line (`a972580`); `scripts/build-plugin.mjs` plugin package with an offline run test, `plan.start` opens the session through `SPECPLANE_ADAPTER` (`1fde722`); Codex registration location checked and adapter env added; historical banners on `AUTONOMOUS-CHOICES.md` and `LOG.md`.
+- Recorded as decisions: no plugin plans pane or edit gates (specs require only `/requests`); no push notification or MCP-elicitation dialogue without a live host and a decision on who answers (see `HANDOFF.md`, "Needs live verification").

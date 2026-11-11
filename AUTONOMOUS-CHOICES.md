@@ -1,5 +1,7 @@
 # Autonomous choices report
 
+> Historical (2026-10-29). It describes the pre-rewrite tool: commands such as `generate`, `decision`, `workflow` and `search`, the `PLANS.md` index and the old plan runner were removed in U12. The current behaviour is in `docs/specifications/` and `docs/user/`.
+
 The user asked for the repo to be completed without interruption (2026-10-29). Every judgement call made without user input is listed here so it can be revisited. Per-step detail lives in each plan's `HANDOFF.md` (items prefixed `CHOICE:`).
 
 ## Process
