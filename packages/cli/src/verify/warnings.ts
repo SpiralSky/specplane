@@ -39,9 +39,10 @@ const WHY: Record<string, string> = {
   tests: "Test declarations are well formed and unique per section (§10.1).",
   permissions: "Every permission has a description and steering text (§7.4).",
   config: "Configuration is read from HEAD (§3.2).",
+  harness: "Installed harness files match the installed Specplane and the current steering (§12.6).",
 };
 
-const SUBJECT: Record<string, WarningSubject> = { plans: "plan", permissions: "permission", config: "installation", notes: "installation" };
+const SUBJECT: Record<string, WarningSubject> = { plans: "plan", permissions: "permission", config: "installation", notes: "installation", harness: "installation" };
 
 /** The spec or plan ID a repository-relative file belongs to, or undefined. */
 function refOf(file: string, dirs: { requirements: string; features: string; architecture: string; plans: string }): string | undefined {
@@ -65,7 +66,7 @@ function fromFinding(f: Finding, dirs: Parameters<typeof refOf>[1]): Warning {
 /**
  * Installation checks that are not validation: the harness installation older than the installed Specplane
  * (`§12.6`) and the steering stamp older than the active preset or steering (`§12.4`). Local generation is checked
- * here; delivered-file ownership and installed stamps join when the new harness installer lands.
+ * here; installed harness files are checked by the `harness` validation family (`§12.6`).
  */
 function installationWarnings(root: string): Warning[] {
   return steeringWarnings(root).map((text) => ({ text, subject: "installation", why: "Steering must match active permissions and committed custom steering (§12.4)." }));

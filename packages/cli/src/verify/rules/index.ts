@@ -1,5 +1,6 @@
 import { rules as cites } from "./cites.js";
 import { rules as config } from "./config.js";
+import { rules as harness } from "./harness.js";
 import { rules as notes } from "./notes.js";
 import { rules as permissions } from "./permissions.js";
 import { rules as plans } from "./plans.js";
@@ -11,6 +12,6 @@ import type { Rule } from "./types.js";
 
 /**
  * Every rule, in run order (`architecture/reference-cli` §6.1). `status` runs before `notes`, which reads the store
- * the status rule has loaded. The `harness` family joins when that feature exists.
+ * the status rule has loaded.
  */
-export const RULES: Rule[] = [...config, ...requirements, ...specFormat, ...cites, ...plans, ...status, ...notes, ...tests, ...permissions];
+export const RULES: Rule[] = [...config, ...requirements, ...specFormat, ...cites, ...plans, ...status, ...notes, ...tests, ...permissions, ...harness];
