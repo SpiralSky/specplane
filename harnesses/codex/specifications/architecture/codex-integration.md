@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [codex-integration §2, codex-integration §3, codex-integration §4, codex-integration §5, codex-integration §6]
-references: [root:architecture/agent-skills §1, root:architecture/agent-skills §9, codex-integration §1, root:architecture/repository-layout §5, root:architecture/agent-skills §2, root:architecture/reference-cli §12.6, root:architecture/agent-skills §3, root:architecture/agent-skills §8, root:harness R35.1, root:architecture/reference-cli §12.7, root:architecture/agent-skills §7.1]
+references: [root:architecture/reference-cli §12.1, root:architecture/agent-skills §1, root:architecture/agent-skills §9, codex-integration §1, root:architecture/repository-layout §5, root:architecture/agent-skills §2, root:architecture/reference-cli §12.6, root:architecture/agent-skills §3, root:architecture/agent-skills §8, root:harness R35.1, root:architecture/reference-cli §12.7, root:architecture/agent-skills §7.1]
 ---
 
 # Codex integration implementation
@@ -46,7 +46,7 @@ Implements `codex-integration §3`.
 
 - `SKILL.md` has frontmatter `name: specplane` and a one-sentence `description`, then a table of the workflows and the path of each contract file. It tells Codex to read the matching contract before acting and to follow it in order (`root:architecture/agent-skills §1`).
 - Each contract file is the harness-neutral contract with a version header, filled with its steering and documentation (`root:architecture/agent-skills §3`). It names harness actions, not CLI commands (`root:architecture/agent-skills §8`).
-- Codex reaches the harness actions through the tool channel Specplane provides on the surface. Which channel exists on each surface, and whether a native command can run without a model turn, is a capability the adapter reports (`capabilities()` of `root:architecture/reference-cli §12.6`). Until a surface is verified, the adapter reports no typed commands, and the contracts of commands that need one are not offered there (`codex-integration §3`).
+- Codex reaches the harness actions as tools of the Specplane MCP server (`root:architecture/reference-cli §12.1`), registered in Codex's configuration, with permission checks inside the CLI process. Where a surface cannot use that registration, the tool channel Specplane provides on it is used instead. Which channel exists on each surface, and whether a native command can run without a model turn, is a capability the adapter reports (`capabilities()` of `root:architecture/reference-cli §12.6`). Until a surface is verified, the adapter reports no typed commands, and the contracts of commands that need one are not offered there (`codex-integration §3`).
 - A contract whose capability check fails stops and names the missing capability, as `root:architecture/agent-skills §1` requires. It does not tell the user to run the CLI as a replacement (`root:harness R35.1`).
 
 ## §4 Blocking the CLI
@@ -59,7 +59,7 @@ The adapter installs a pre-tool check that uses core `isSpecplaneCommand` (`root
 
 Implements `codex-integration §5`.
 
-The plan-start contract prints the command that opens Codex in the checkout (assumption: `codex` started with the checkout as its working directory). The plan-step contract begins by checking the branch `plan/<id>` and stops with the checkout path if the session is elsewhere. Background launching is not implemented; the capability is reported as missing.
+The plan-start contract has the integration launch the plan session in the checkout through its session adapter with `codex exec` (`root:harness R35.1`); only when the adapter reports the capability unavailable does it print the command that opens Codex there (assumption: `codex` started with the checkout as its working directory), shown as an error naming why. The plan-step contract begins by checking the branch `plan/<id>` and stops with the checkout path if the session is elsewhere.
 
 ## §6 Model identity
 
@@ -69,7 +69,7 @@ The adapter reports the model identity Codex exposes at the moment of a write, o
 
 ## §7 Testing
 
-- Test (deterministic): setup into a temporary project creates the three paths of `§1`; a second setup changes nothing; an `AGENTS.md` with other text keeps it byte for byte outside the block; a symbolic link in an installation path is refused.
-- Test (deterministic): a begin marker without an end marker stops setup with no change.
-- Test (deterministic): every contract file carries a version header; an older copy is reported as a warning (`root:architecture/agent-skills §9`).
+- Test T1 (deterministic): setup into a temporary project creates the three paths of `§1`; a second setup changes nothing; an `AGENTS.md` with other text keeps it byte for byte outside the block; a symbolic link in an installation path is refused.
+- Test T2 (deterministic): a begin marker without an end marker stops setup with no change.
+- Test T3 (deterministic): every contract file carries a version header; an older copy is reported as a warning (`root:architecture/agent-skills §9`).
 - Fake adapters do not certify Codex's real behaviour. Each surface needs a live check before its capabilities are claimed, with the user's approval.

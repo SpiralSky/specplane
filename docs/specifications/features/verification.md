@@ -48,9 +48,9 @@ Scenario: Given two requirements that both use `R7`, When the project is validat
 
 Scenario: Given a project where the only problem is a feature spec nothing implements, When the project is validated, Then it reports a warning and ends with a success status.
 
-Test (deterministic): validate a project with an unresolved citation, a mismatched identifier and an uncovered requirement; expect two errors, one warning and a failure status, then fix the two errors and expect a success status with the warning left.
+Test T1 (deterministic): validate a project with an unresolved citation, a mismatched identifier and an uncovered requirement; expect two errors, one warning and a failure status, then fix the two errors and expect a success status with the warning left.
 
-Test (deterministic): record the working tree before and after a validation run on a project with errors and expect no file to have changed.
+Test T2 (deterministic): record the working tree before and after a validation run on a project with errors and expect no file to have changed.
 
 ## R13: Auditing
 
@@ -67,7 +67,7 @@ Scenario: Given an LLM asks to approve a specification and its role has deny for
 
 Scenario: Given a person overrides a recorded test result through the command line, When the override is made, Then the log records who did it, the old result and the new one (`R17.2`).
 
-Test (deterministic): run an approval and a refused action on two branches and expect both entries, each with the right branch, and no file of the log to show up in the repository's tracked or untracked files.
+Test T1 (deterministic): run an approval and a refused action on two branches and expect both entries, each with the right branch, and no file of the log to show up in the repository's tracked or untracked files.
 
 ### R13.1: Audit Retention
 
@@ -78,7 +78,7 @@ How long audit entries are kept is configurable (`configuration R25`). Entries o
 
 Scenario: Given the retention is 30 days, When Specplane runs a command and an entry is 31 days old, Then that entry is removed and a single entry records the removal.
 
-Test (deterministic): set the retention to one day, add an entry dated two days ago and run any command; expect the old entry gone and a removal entry present.
+Test T1 (deterministic): set the retention to one day, add an entry dated two days ago and run any command; expect the old entry gone and a removal entry present.
 
 ## R24: Warnings List
 
@@ -91,7 +91,7 @@ Specplane keeps one list of warnings about the project. It is available through 
 
 Scenario: Given a feature spec nothing covers and a plan referencing an old commit of a specification, When the user asks for the warnings, Then both are listed with what they are about.
 
-Test (deterministic): create the two situations above, list the warnings and expect two entries; fix one and expect one.
+Test T1 (deterministic): create the two situations above, list the warnings and expect two entries; fix one and expect one.
 
 ### R24.1: Auto Warn
 
@@ -105,7 +105,7 @@ Scenario: Given the setting is on and two warnings exist, When the user runs `sp
 
 Scenario: Given the setting is off, When the user runs any command, Then no count is shown.
 
-Test (deterministic): run a command with the setting on and off against a project with one warning and compare the last line of the output.
+Test T1 (deterministic): run a command with the setting on and off against a project with one warning and compare the last line of the output.
 
 ## R32: Requirements Testing (later release)
 
@@ -120,7 +120,7 @@ Scenario: Given the option is on and a commit adds a second R14, When the user c
 
 Scenario: Given the repository already has another pre-commit step, When the option is turned off, Then only Specplane's check is removed and the other step still runs.
 
-Test (deterministic): enable the option, try a commit with a duplicate requirement id and expect refusal; disable it and expect the other pre-commit step unchanged and the commit to succeed.
+Test T1 (deterministic): enable the option, try a commit with a duplicate requirement id and expect refusal; disable it and expect the other pre-commit step unchanged and the commit to succeed.
 
 ## R36: Architecture Spec Status
 
@@ -133,7 +133,7 @@ Architecture specifications record whether they are implemented or unimplemented
 
 Scenario: Given an architecture specification with a failed deterministic test, When the user asks to mark it implemented, Then it is refused naming the failed test and the specification stays unimplemented.
 
-Test (deterministic): record a failed result for an architecture spec and run the mark-implemented command; expect refusal and an unchanged status. Record a pass and expect the status to change.
+Test T1 (deterministic): record a failed result for an architecture spec and run the mark-implemented command; expect refusal and an unchanged status. Record a pass and expect the status to change.
 
 ### R36.1: Implementation Tracking
 
@@ -149,7 +149,7 @@ Scenario: Given an architecture specification with one section declaring a deter
 
 Scenario: Given the same specification and only the command line, When the user asks to verify, Then the test runs, the other section is reported as needing a harness, and the status stays unimplemented.
 
-Test (deterministic): verify a specification with a deterministic test and a section declaring nothing without a harness; expect the test result recorded and the status unimplemented, with the second section reported as needing intelligent judgement.
+Test T1 (deterministic): verify a specification with a deterministic test and a section declaring nothing without a harness; expect the test result recorded and the status unimplemented, with the second section reported as needing intelligent judgement.
 
 ### R36.2: Implementation Status Commit
 
@@ -164,7 +164,7 @@ Scenario: Given an architecture specification verified as implemented on commit 
 
 Scenario: Given the same specification, When commit C edits its text, Then it shows unimplemented.
 
-Test (deterministic): mark a specification implemented on a commit, make a commit that edits another file and expect it still implemented, then edit the specification and expect unimplemented.
+Test T1 (deterministic): mark a specification implemented on a commit, make a commit that edits another file and expect it still implemented, then edit the specification and expect unimplemented.
 
 ### R36.3: Test Commit Gate (later release)
 
@@ -177,7 +177,7 @@ An option in the configuration (`configuration R25`) blocks a commit when the de
 
 Scenario: Given the option is on and a change breaks a declared test, When the user commits, Then the commit is refused with the failing test named.
 
-Test (deterministic): enable the gate, make a change that fails a declared test and expect the commit to be refused; disable the gate and expect the commit to go through.
+Test T1 (deterministic): enable the gate, make a change that fails a declared test and expect the commit to be refused; disable the gate and expect the commit to go through.
 
 ## R61: Spec Compliance Verification
 
@@ -199,7 +199,7 @@ Scenario: Given a feature specification with a failed test, When someone tries t
 
 Scenario: Given a failed result that has been overridden to passed by a person, When the specification is shown, Then the pass is marked as an override with who set it, and approval is possible.
 
-Test (deterministic): record a failure, attempt approval and expect refusal; edit the specification and expect the failure to be shown as outdated and approval to be possible.
+Test T1 (deterministic): record a failure, attempt approval and expect refusal; edit the specification and expect the failure to be shown as outdated and approval to be possible.
 
 ### R61.2: Test Result Permissions
 
@@ -215,7 +215,7 @@ Scenario: Given an LLM role with deny for recording test results, When it runs a
 
 Scenario: Given a role with request user, When it runs a test, Then a request to record the result is sent and the result is recorded only after the user accepts.
 
-Test (deterministic): run a test under each of the three modes and expect a recorded result, a pending request, and no recorded result.
+Test T1 (deterministic): run a test under each of the three modes and expect a recorded result, a pending request, and no recorded result.
 
 ### R61.3: Test Records
 
@@ -227,7 +227,7 @@ Each recorded result has a short summary: for deterministic tests what failed, a
 
 Scenario: Given a deterministic test fails with an error message, When the result is recorded, Then the summary names the failed step and the reason, not the whole output.
 
-Test (intelligent): read the records of failed tests and check that each says what failed and why in a few lines, and that none includes private information.
+Test T1 (intelligent): read the records of failed tests and check that each says what failed and why in a few lines, and that none includes private information.
 
 ### R61.4: Test Logs
 
@@ -243,7 +243,7 @@ Scenario: Given log storage is on and local, When a test is run, Then the full o
 
 Scenario: Given logs are set to git, When a test is run, Then the log is written into the repository and retention does not remove it.
 
-Test (deterministic): run a test with logs set to local, git and off, and expect a local file, a file in the repository and no file respectively.
+Test T1 (deterministic): run a test with logs set to local, git and off, and expect a local file, a file in the repository and no file respectively.
 
 ## R64: Specification Coverage
 
@@ -261,7 +261,7 @@ Scenario: Given a requirement that no feature specification references, When the
 
 Scenario: Given a project with feature and architecture specifications only, When coverage is shown, Then feature specifications show which architecture specifications cover them, and nothing is reported about requirements.
 
-Test (deterministic): create a requirement, a covering feature specification and an uncovered feature specification; expect the coverage view to list the covered pair and one warning for the uncovered specification.
+Test T1 (deterministic): create a requirement, a covering feature specification and an uncovered feature specification; expect the coverage view to list the covered pair and one warning for the uncovered specification.
 
 ## §2 How tests are declared and run
 
@@ -269,7 +269,7 @@ Test (deterministic): create a requirement, a covering feature specification and
 
 - **Deterministic tests** are steps whose result does not depend on judgement, for example a command to run and the output or status it must give. They run through the command line and the harness.
 - **Tests checked with intelligence** are checks an LLM carries out by reading and exercising what is described, and reporting what it found. They run only in a harness.
-- In a specification, a section declares a test as `Test (deterministic): <what and how>` or `Test (intelligent): <what and how>` (`specifications R5`). A section that declares none is checked by intelligent judgement, by an LLM in a harness.
+- In a specification, a section declares a test as `Test T<n> (deterministic): <what and how>` or `Test T<n> (intelligent): <what and how>`, where `T<n>` is a label unique within the section and the test is cited as `<section id>#T<n>` (`specifications R5`). A section that declares none inherits what the specification declares, and a specification that declares neither is checked by intelligent judgement, by an LLM in a harness. Intelligent judgement is required only where the declaration, own or inherited, includes it (`R36.1`). A scenario in a feature specification is checked by intelligent judgement unless it names a runnable command.
 
 ### §2.2 Running
 
@@ -280,7 +280,7 @@ Test (deterministic): create a requirement, a covering feature specification and
 
 Scenario: Given a feature specification with one deterministic and one intelligent test, When it is run from the command line, Then the deterministic test runs and is recorded, and the intelligent one is reported as not run because it needs a harness.
 
-Test (deterministic): run a specification's tests from the command line with both kinds declared and expect one recorded result and one not-run entry.
+Test T1 (deterministic): run a specification's tests from the command line with both kinds declared and expect one recorded result and one not-run entry.
 
 ## §3 Edge cases
 

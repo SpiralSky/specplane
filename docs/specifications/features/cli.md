@@ -83,7 +83,7 @@ Scenario: Given `feature/a` cites part `R9` of `feature/b`, and `R9` was deleted
 
 Scenario: Given a specification with uncommitted edits, When the user approves it, Then the command refuses and tells the user to commit first.
 
-Test (deterministic): approve a specification that cites an Awaiting Review specification and expect failure; approve a two-specification cycle and expect both Approved with the same approver; approve a cycle where one member cites a missing part and expect neither is approved.
+Test T1 (deterministic): approve a specification that cites an Awaiting Review specification and expect failure; approve a two-specification cycle and expect both Approved with the same approver; approve a cycle where one member cites a missing part and expect neither is approved.
 
 ### R16.1: Specification Approval Permissions
 
@@ -96,7 +96,7 @@ Approving a specification has a single permission. It controls whether a role ma
 
 Scenario: Given a role with deny for approving specifications, When it runs the approval command, Then nothing is approved and the output names the permission that refused.
 
-Test (deterministic): run the approval command with the permission set to each of the three modes and check that approval happens only for allow and that request user leaves a pending request.
+Test T1 (deterministic): run the approval command with the permission set to each of the three modes and check that approval happens only for allow and that request user leaves a pending request.
 
 ## R17: Specification Metadata
 
@@ -110,7 +110,7 @@ A person can read and change all aspects of a specification's metadata from the 
 
 Scenario: Given a specification with a wrong title in its metadata, When a person with the metadata permission changes the title, Then the title changes, the audit log records the old and new title, and the status is unchanged.
 
-Test (deterministic): change one metadata field through the CLI and check that the field has the new value and that one audit entry names the field, old value, new value and user.
+Test T1 (deterministic): change one metadata field through the CLI and check that the field has the new value and that one audit entry names the field, old value, new value and user.
 
 ### R17.1: Specification Metadata Permissions
 
@@ -124,7 +124,7 @@ A role may write a piece of metadata if it has either the general permission or 
 
 Scenario: Given a role with allow for the authors permission only, When it changes the authors of a specification, Then the change is made; When it changes the title, Then it is refused naming the title permission.
 
-Test (deterministic): with only the granular authors permission set, change authors and expect success, change the title and expect refusal.
+Test T1 (deterministic): with only the granular authors permission set, change authors and expect success, change the title and expect refusal.
 
 ### R17.2: Protected Metadata Overrides
 
@@ -145,7 +145,7 @@ Scenario: Given a Standard User, When they try to set a specification's status t
 
 Scenario: Given an Administrator who sets the approver to another person's name, When the metadata is shown, Then the approver is shown with the mark that it is an override and the audit log names the Administrator.
 
-Test (deterministic): set each protected value as the Administrator and check the override mark in the metadata and one audit entry; repeat as the Standard User and check refusal.
+Test T1 (deterministic): set each protected value as the Administrator and check the override mark in the metadata and one audit entry; repeat as the Standard User and check refusal.
 
 ## R33: Plan Management
 

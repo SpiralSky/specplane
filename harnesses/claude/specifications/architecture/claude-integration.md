@@ -13,7 +13,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [claude-integration §2, claude-integration §3, claude-integration §4, claude-integration §5, claude-integration §6, claude-integration §7, claude-integration §8]
-references: [root:architecture/agent-skills §1, root:architecture/agent-skills §9, root:architecture/repository-layout §5, root:harness R34, root:architecture/reference-cli §12.6, root:architecture/file-formats §6.1, root:architecture/agent-skills §2, root:architecture/file-formats §8, root:architecture/agent-skills §7, root:architecture/agent-skills §3, root:architecture/agent-skills §8, root:harness R18, root:architecture/reference-cli §12.2, root:harness R35.1, root:architecture/agent-skills §5, root:architecture/reference-cli §12.3, root:harness R14, root:architecture/agent-skills §6, root:architecture/reference-cli §12.7, root:architecture/agent-skills §7.5, root:architecture/agent-skills §5.3, root:architecture/repository-layout §3]
+references: [root:architecture/reference-cli §12.1, root:architecture/agent-skills §7.4, root:architecture/agent-skills §1, root:architecture/agent-skills §9, root:architecture/repository-layout §5, root:harness R34, root:architecture/reference-cli §12.6, root:architecture/file-formats §6.1, root:architecture/agent-skills §2, root:architecture/file-formats §8, root:architecture/agent-skills §7, root:architecture/agent-skills §3, root:architecture/agent-skills §8, root:harness R18, root:architecture/reference-cli §12.2, root:harness R35.1, root:architecture/agent-skills §5, root:architecture/reference-cli §12.3, root:harness R14, root:architecture/agent-skills §6, root:architecture/reference-cli §12.7, root:architecture/agent-skills §7.5, root:architecture/agent-skills §5.3, root:architecture/repository-layout §3]
 ---
 
 # Claude Code integration implementation
@@ -107,7 +107,7 @@ When a step runs as a subagent, the `plan-step` skill starts it with the Agent t
 
 Implements `claude-integration §6`.
 
-- `plan-start` prints the exact command that opens Claude Code in the checkout path of `root:architecture/repository-layout §3`; the project's own session is not moved (assumption).
+- `plan-start` launches the plan session in the checkout path of `root:architecture/repository-layout §3` through the session adapter, by the `claude -p` route of its existing design; the project's own session is not moved (assumption). Only when the adapter reports the capability unavailable does it print the exact command that opens Claude Code there, shown as an error naming why (`root:architecture/agent-skills §7.4`, `root:harness R35.1`).
 - A session detects a plan checkout by the branch name `plan/<id>` and the plan record in it; the session-context hook (`§4`) reports it.
 - A cloud session needs the repository checkout, the installed `.claude/` files and the Specplane core. If a hook script or the core is missing there, the contract's capability check names the missing piece and stops (`root:architecture/agent-skills §1`). Whether the hooks run in the cloud is to be verified per surface (assumption).
 - A step in the cloud pushes its commits so later sessions see them (assumption).
@@ -124,6 +124,12 @@ Implements `claude-integration §4`, `claude-integration §3`.
 
 - `harnesses/claude/tests/hooks.test.sh` (POSIX `sh`, exits non-zero on failure) feeds fixture JSON to each hook with a stub `specplane` first on `PATH` and a temporary `CLAUDE_PROJECT_DIR`. Cases: the CLI block denies direct, `env`, `npx`, `sh -c` and path-qualified calls and allows unrelated commands; pre-commit blocks real commits (`git -C d commit`, `(git commit)`) when the stub fails and allows `git commit-tree`, `echo commit`; session context names the next step and exports the two variables; the status line is empty outside a plan checkout; each hook exits 0 when its tool or the config is missing.
 - Settings merge is tested for absent file, invalid JSON, already registered, partial registration and existing `statusLine`.
-- Test (deterministic): `check-sync.sh` fails when an installed copy differs from its template.
-- Test (deterministic): every skill carries a contract comment whose version matches the packaged contract; an older copy is reported as a warning (`root:architecture/agent-skills §9`).
+- Test T1 (deterministic): `check-sync.sh` fails when an installed copy differs from its template.
+- Test T2 (deterministic): every skill carries a contract comment whose version matches the packaged contract; an older copy is reported as a warning (`root:architecture/agent-skills §9`).
 - Live checks in a real Claude Code session are separate and need the user's approval.
+
+## §10 Action channel
+
+Implements `claude-integration §3`.
+
+The harness actions of `root:architecture/reference-cli §12.1` reach Claude Code as tools of the Specplane MCP server, declared by the plugin so that Claude Code starts it with the session. There is one tool per action, and the permission checks run inside the CLI process, not in Claude Code.

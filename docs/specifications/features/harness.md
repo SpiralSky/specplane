@@ -87,7 +87,7 @@ Scenario: Given the LLM already received the instructions for the plan commands 
 
 Scenario: Given the context was compacted after the instructions were sent, When the user runs the command, Then the instructions are sent again.
 
-Test (deterministic): run a command twice in one session on a harness that reports its context, and check the instructions are sent once; simulate compaction and check they are sent again.
+Test T1 (deterministic): run a command twice in one session on a harness that reports its context, and check the instructions are sent once; simulate compaction and check they are sent again.
 
 ## R18: Harness - General commands
 
@@ -140,7 +140,7 @@ Scenario: Given the LLM role has request user for editing feature specifications
 
 Scenario: Given the LLM role has deny for editing requirement specifications, When the user asks the LLM to reword the requirements, Then it refuses and says which permission applies.
 
-Test (deterministic): with each of the three modes set, run an edit through the harness and check it is made, held as a request, or refused.
+Test T1 (deterministic): with each of the three modes set, run an edit through the harness and check it is made, held as a request, or refused.
 
 ## R20: Spec approval
 
@@ -166,7 +166,7 @@ Scenario: Given the LLM role has request user for approval, When the user says "
 
 Scenario: Given the LLM role has allow for approval, When the user says "approve Plan Execution", Then it is approved with no further question, and the documentation warned that this would happen.
 
-Test (deterministic): with each mode set, ask for approval by name and check the outcome is approved, requested or refused.
+Test T1 (deterministic): with each mode set, ask for approval by name and check the outcome is approved, requested or refused.
 
 ## R26: Information Retrieval
 
@@ -191,7 +191,7 @@ Information retrieval has the modes allow, deny and request user.
 
 Scenario: Given a feature spec cites two sections of other specs, When the LLM retrieves it, Then it gets the spec and those two sections only.
 
-Test (deterministic): retrieve a specification with citations and check the result has exactly the cited sections.
+Test T1 (deterministic): retrieve a specification with citations and check the result has exactly the cited sections.
 
 ## R21: Spec Viewing (Optional, per harness)
 

@@ -56,7 +56,7 @@ The model is told not to call the Specplane CLI. Whether Codex can also block a 
 Refines `root:plan-execution R27`, `root:plan-execution R27.6` and `root:plans R28`.
 
 - A plan run is one step at a time, in the plan's own checkout, from the existing Codex session. Codex does not start background sessions for Specplane in this release; asking for one is refused with the reason, and no other harness is used instead (`root:harness R35.1`).
-- The user opens Codex in the checkout; the plan-start command says how. A session that is not in the plan's checkout stops and names it.
+- Plan-start launches Codex in the checkout with `codex exec`; only if launching is unavailable does it say why and give the command that opens Codex there. A session that is not in the plan's checkout stops and names it.
 - A cloud session runs a step only when the checkout, the Specplane files and the shell tools it needs exist there. Otherwise Specplane names what is missing and does not start the step.
 - Gaps, requests and soft stops work as the root specs say. A budget the session cannot measure is reported when it is set, and not claimed to be enforced (`root:harness R35.1`).
 

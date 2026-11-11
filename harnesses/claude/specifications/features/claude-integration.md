@@ -67,7 +67,7 @@ Claude Code offers one slash command per workflow:
 
 Scenario: Given the user types `/plan-status` with no arguments, When it runs, Then the plans are shown and no model turn starts.
 
-Test (deterministic): type a no-argument command and check that no model turn is started.
+Test T1 (deterministic): type a no-argument command and check that no model turn is started.
 
 ## §4 Hooks
 
@@ -84,7 +84,7 @@ A status line in a plan checkout shows the plan, its step progress and what is w
 
 Scenario: Given Claude tries to run `specplane validate` in a shell, When the hook checks it, Then the command is not run and Claude is told to use the `/validate` command.
 
-Test (deterministic): feed the hook shell texts that call the CLI directly, through `env`, `npx` and `sh -c`, and check each is denied; feed an unrelated command and check it is allowed.
+Test T1 (deterministic): feed the hook shell texts that call the CLI directly, through `env`, `npx` and `sh -c`, and check each is denied; feed an unrelated command and check it is allowed.
 
 ## §5 Subagents per step
 
@@ -105,7 +105,7 @@ Refines `root:plan-execution R27`, `root:plan-execution R27.6` and `root:plans R
 - A Claude Code session in the cloud follows the same rules. Plan execution is required on every supported harness (`root:harness R35.1`), so a cloud session must have the checkout, the Specplane files and the hooks it needs; if one is missing, Specplane says which and does not start the step. Files git does not track are absent in the cloud and the step handles that as the root spec says (`root:plan-execution R27`).
 - Each finished step is committed, and a cloud or remote session publishes it so the next session sees it (assumption).
 
-Scenario: Given the user is on `main`, When they run `/plan-start`, Then they stay on `main` and are told which command opens a session in the new checkout.
+Scenario: Given the user is on `main`, When they run `/plan-start`, Then they stay on `main` and the plan's session is launched in the new checkout; only if launching is unavailable are they told why, with the command that opens a session there.
 
 ## §7 Memory
 

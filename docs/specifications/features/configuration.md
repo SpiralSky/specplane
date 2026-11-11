@@ -7,7 +7,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R25, R25.1, R54]
-references: [later-releases R37, R13.1, R22, R24.1, R32, R36.1, R36.3, R42, R47, R51, R52.5, R61.4, harness R14, plan-execution R27, plan-execution R31, requests R52, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, specifications R9, steering R51, steering R59, verification R12, verification R13, verification R61, later-releases R39, plan-execution R31.2, roles-and-permissions R44, roles-and-permissions R44.1, roles-and-permissions R48, roles-and-permissions R55, roles-and-permissions R55.1, roles-and-permissions R58, specifications R4, verification R64]
+references: [specifications R2, later-releases R37, R13.1, R22, R24.1, R32, R36.1, R36.3, R42, R47, R51, R52.5, R61.4, harness R14, plan-execution R27, plan-execution R31, requests R52, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, specifications R9, steering R51, steering R59, verification R12, verification R13, verification R61, later-releases R39, plan-execution R31.2, roles-and-permissions R44, roles-and-permissions R44.1, roles-and-permissions R48, roles-and-permissions R55, roles-and-permissions R55.1, roles-and-permissions R58, specifications R4, verification R64]
 ---
 
 # Configuration
@@ -31,6 +31,12 @@ Every setting can be read and changed both from the CLI and from the harness. A 
 - The names below are what the user sees in commands and documentation. Each setting is described in the user documentation with its default (`R22`).
 
 ### Settings
+
+Paths (`specifications R2`):
+
+| Setting | Meaning | Default |
+|---------|---------|---------|
+| `paths.requirements_index` | File name, inside the requirements folder, of the central requirements file that lists the others (`specifications R2`) | Unset: the only markdown file in the folder, else `index.md`, else `README.md` |
 
 Plans and worktrees (`plan-execution R27`, `plan-execution R31`):
 
@@ -61,6 +67,7 @@ Harness (`harness R14`, `specifications R9`):
 | `harness.separation_check` | Whether the optional instructions that check feature and architecture separation and warn per change or review are used (`specifications R4`, `harness R14`) | `on` (assumption) |
 | `harness.instructions` | A replacement text for the instructions delivered with a command. It changes only the text; limits Specplane checks itself still apply | The command's documentation |
 | `harness.retrieval_include_references` | Whether retrieving a specification also includes the sections it references, when the request does not say | `off` |
+| `harness.install_block` | Whether setup may write the marked Specplane block into a shared instruction file (for example `AGENTS.md`); `off` leaves the project's own files alone | `on` |
 | `authorship.record_llm` | Whether the harness adds the LLM as an author when it writes or changes a specification | `on` |
 
 Verification (`verification R12`, `verification R13`, `verification R61`):
@@ -99,7 +106,7 @@ Validation checks the configuration (`verification R12`).
 - A malformed setting is reported: a value of the wrong kind (for example text where `on` or `off` is expected), a number that is not positive, a folder that cannot be used, or a permission or preset that does not exist.
 - A report names the setting, what is wrong and what is allowed. A bad setting is ignored and its default applies until it is fixed; it never makes Specplane unusable.
 
-Test (deterministic): set a setting that does not exist and set `auto_warn` to a word that is not `on` or `off`; validation reports both by name, and the commands still run with the defaults.
+Test T1 (deterministic): set a setting that does not exist and set `auto_warn` to a word that is not `on` or `off`; validation reports both by name, and the commands still run with the defaults.
 
 Scenario: Given `auto_warn` is `on`, When the user turns it off in the CLI, Then the next command does not report the warning count and the harness shows the same value.
 
@@ -129,7 +136,7 @@ All permissions are documented, and the documentation can be read from both the 
 - The same documentation includes which role the reader currently has, so that the answer to "may I do this" is shown for the reader and not only in general.
 - Permission documentation is information, and reading it never needs a permission.
 
-Test (deterministic): list the permissions in the CLI and the harness for the same preset; expect identical names and modes, and a warning when a permission is added without steering.
+Test T1 (deterministic): list the permissions in the CLI and the harness for the same preset; expect identical names and modes, and a warning when a permission is added without steering.
 
 ## §2 Edge cases
 

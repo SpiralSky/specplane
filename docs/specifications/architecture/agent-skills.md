@@ -72,7 +72,7 @@ The five cases a contract relies on, with their wording fixed in the templates:
 |---|---|
 | `request-user` | send a request naming the one action, do not do it first |
 | `deny` | not do it, not look for another way, tell the user, leave the move to them |
-| user-run command (approval) | ask the user to run it and say what it will do |
+| user-run command (a person's approval) | ask the user to run it and say what it will do; the LLM's own approval follows its `spec.approve` mode (allow, request user, deny) as the rows above |
 | `allow` | act directly unless custom steering says otherwise; steering does not guarantee the LLM asks first |
 | blocked in a plan run | continue unblocked work with a non-blocking request, else soft stop (`§5.3`) |
 
@@ -82,7 +82,7 @@ Further case texts: if a plan points at an older commit of a referenced spec tha
 
 **Stamp and staleness.** Generated text and delivered files carry the stamp of `architecture/reference-cli §12.4`. When roles, presets or custom steering change, the steering and installed files are regenerated; if regeneration fails, delivery is replaced by a notice that the text cannot be trusted and a warning is raised (`steering R59`, `steering §2`). Steering and permission disagreeing is reported, and the permission wins (`steering §2`).
 
-**Test (assumption, deterministic).** For every permission kind in the default presets the generated permission steering is non-empty and contains the no-bypass statement (`steering R51`).
+**Test T1 (assumption, deterministic).** For every permission kind in the default presets the generated permission steering is non-empty and contains the no-bypass statement (`steering R51`).
 
 ## §5 Permissions, requests and soft stop in contracts
 
@@ -166,11 +166,11 @@ Purpose: start a plan in its own worktree and branch (`plan-execution R27`, `pla
 1. `plan.start` with the target (user's, else current branch) and any named dependencies to force, which the handoff records (`architecture/reference-cli §11.3`).
 2. On refusal print each unapproved plan or spec, or the missing permission.
 
-Output: the plan ID, branch `plan/<id>`, the worktree path (`architecture/repository-layout §3`), and the exact command that opens a session there (or, with `session opening`, that the session was opened, assumption). The project directory stays on its branch.
+Output: the plan ID, branch `plan/<id>`, the worktree path (`architecture/repository-layout §3`), and that the harness integration launched the plan's session in the worktree through its session adapter (`plan-execution R27`, `harness R35.1`; Claude Code: the `claude -p` route of the existing session adapter design; Codex: `codex exec`). Only when the adapter reports the capability `session opening` unavailable is the exact command that opens a session there printed instead, shown as an error naming why the session was not launched. The project directory stays on its branch.
 
 ### §7.5 plan-step
 
-Purpose: do the next step, or several, of one plan, in its checkout (`plan-execution R27`, `plan-execution R27.4`). Preconditions: the session is in the plan's worktree on `plan/<id>`, else the command names the checkout and stops (assumption beyond `plan-execution R27`, which has the harness start the session: in the first release the user opens it, using the command `plan-start` prints, and an adapter with the capability `session opening` opens it itself); `plan.next` reports a ready step (a waiting step names the unapproved spec it needs and the run stops with a soft stop, `plans R30.1`); the selection starts at the next step.
+Purpose: do the next step, or several, of one plan, in its checkout (`plan-execution R27`, `plan-execution R27.4`). Preconditions: the session is in the plan's worktree on `plan/<id>`, which the plan session launched by the harness integration (`§7.4`) guarantees; if it is elsewhere the command names the checkout and stops (assumption beyond `plan-execution R27`). Typed with no arguments, the command makes no LLM call (`harness R18`): it shows the plan's next step and how to run it, and a step is run by the launched plan session or by the command with arguments; `plan.next` reports a ready step (a waiting step names the unapproved spec it needs and the run stops with a soft stop, `plans R30.1`); the selection starts at the next step.
 
 1. `[code]` `plan.next` for the selection; a selection starting later is denied naming the step that comes first. If the plan is `stopped`, resume first (`§7.9`).
 2. `[code]` `spec.retrieve` of the step's `context` cites and `implements` specs, and the earlier handoff entries. If a referenced spec changed since the plan's recorded commit, the LLM checks what changed before going on (`§4`).

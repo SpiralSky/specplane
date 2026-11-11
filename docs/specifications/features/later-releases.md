@@ -47,7 +47,7 @@ There are four permissions: add, retrieve, edit and delete decision records. Eac
 - Retrieving with deny means the LLM is not shown any records and does not say whether any exist. Records are shown to it only when the user brings one into the conversation.
 - Steering for each permission is part of its documentation (`steering R59`).
 
-Test (deterministic): with decision records on and add set to deny for the LLM role, an attempt to add a record is refused and nothing is stored; with retrieve set to allow, searching returns the records that match.
+Test T1 (deterministic): with decision records on and add set to deny for the LLM role, an attempt to add a record is refused and nothing is stored; with retrieve set to allow, searching returns the records that match.
 
 ## R39: Subprojects
 
@@ -101,7 +101,7 @@ Later release. A harness command guides the LLM through bringing an existing pro
 
 Scenario: Given a project with specifications in an older format, all approved, When the user runs the migration command, Then the LLM proposes the new specifications, writes them within its permissions, and all of them are Awaiting Review.
 
-Test (intelligent): run the migration command in a project with previously approved specifications under a preset that lets the LLM create specifications; expect every new specification to be Awaiting Review and the old files unchanged.
+Test T1 (intelligent): run the migration command in a project with previously approved specifications under a preset that lets the LLM create specifications; expect every new specification to be Awaiting Review and the old files unchanged.
 
 ## §2 Edge cases
 

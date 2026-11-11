@@ -137,7 +137,7 @@ Scenario: Given an LLM whose role has request user for editing requirement speci
 
 Scenario: Given an LLM whose role has deny for deleting plans, When it is asked to delete a plan, Then the plan stays and the LLM reports the denial without suggesting another way to delete it.
 
-Test (deterministic): for each mode, run an action that needs one permission and expect it to run for allow, to leave a pending request for request user, and to leave no change for deny.
+Test T1 (deterministic): for each mode, run an action that needs one permission and expect it to run for allow, to leave a pending request for request user, and to leave no change for deny.
 
 ### Permission kinds
 
@@ -199,7 +199,7 @@ Scenario: Given the default preset, When the LLM is asked to rewrite a feature s
 
 Scenario: Given the Full Manual Editing preset, When a plan step needs the LLM to write an architecture specification, Then the step cannot do it, and the plan stops with a soft stop (`plan-execution R27.1`) that names the denied permission; deny cannot send a request for that action (`requests R52.3`).
 
-Test (deterministic): for each default preset, check the mode of each permission kind against the table and lists above for the Standard User, LLM and Administrator roles.
+Test T1 (deterministic): for each default preset, check the mode of each permission kind against the table and lists above for the Standard User, LLM and Administrator roles.
 
 ## R56: Permission Presets
 
@@ -228,7 +228,7 @@ A role's management level decides which roles it can change, even if it has mana
 
 Scenario: Given a role at level 10 with management permissions, When it changes the permissions of an LLM role at level 5, Then the change is allowed; When it changes the permissions of another role at level 10, Then it is refused.
 
-Test (deterministic): with roles at levels 5, 10 and 10, expect a level 10 role to change only the level 5 role.
+Test T1 (deterministic): with roles at levels 5, 10 and 10, expect a level 10 role to change only the level 5 role.
 
 ## R44: Applying Custom Users
 

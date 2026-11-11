@@ -80,7 +80,7 @@ Plan management has one permission for each of: editing, creating, deleting, sta
 - Completing a plan means declaring it completed at the final review (`§2`). Deleting an unarchived plan that is in progress needs the deleting permission and also stops its run first (`§3`).
 - Starting a plan checks both this permission and the start conditions (`R27.6`); neither replaces the other.
 
-Test (deterministic): with the starting permission set to deny, ask for a plan to start and expect a refusal and no worktree.
+Test T1 (deterministic): with the starting permission set to deny, ask for a plan to start and expect a refusal and no worktree.
 
 ### R31.2: Parallelism (later release)
 
@@ -115,9 +115,9 @@ Scenario: Given a plan with steps 1 to 4 and step 1 done, When the user asks to 
 
 Scenario: Given the user is working on `main` in the project directory, When the user starts a plan, Then the project directory stays on `main` and the plan works in a new worktree on `plan/<id>`.
 
-Test (deterministic): start a plan and check that the project directory's branch and files are unchanged and that a worktree exists on the plan's branch.
+Test T1 (deterministic): start a plan and check that the project directory's branch and files are unchanged and that a worktree exists on the plan's branch.
 
-Test (deterministic): ask to run a step after an incomplete step and expect a denial.
+Test T2 (deterministic): ask to run a step after an incomplete step and expect a denial.
 
 ### R27.1: Plan budgeting
 
@@ -134,7 +134,7 @@ Scenario: Given a weekly usage budget with a soft stop at 80% and a hard stop at
 
 Scenario: Given the same plan, When the run reaches 95% before the LLM has finished, Then the session is ended by force and the plan is stopped with the reason "hard stop".
 
-Test (deterministic): with a fake usage reading above the soft stop, expect the LLM to be told to write a handoff and the plan to be stopped with the budget as reason.
+Test T1 (deterministic): with a fake usage reading above the soft stop, expect the LLM to be told to write a handoff and the plan to be stopped with the budget as reason.
 
 #### R27.1.1: Plan budget permissions
 
@@ -159,7 +159,7 @@ Scenario: Given a plan stopped by a soft stop at step 3 with a handoff entry, Wh
 
 Scenario: Given a plan hard stopped in the middle of step 3 and no handoff entry for step 3, When the user resumes it, Then the new session reads the earlier steps' handoff and skims the stopped session's log before it re-runs step 3.
 
-Test (deterministic): resume a plan stopped by a soft stop and expect the new session's context to hold the handoff and not the earlier session log; for a hard stop expect both.
+Test T1 (deterministic): resume a plan stopped by a soft stop and expect the new session's context to hold the handoff and not the earlier session log; for a hard stop expect both.
 
 #### R27.2.1: Plan resuming permissions
 
@@ -214,7 +214,7 @@ Scenario: Given a plan in Awaiting Review, When the user starts it, Then the sta
 
 Scenario: Given the plan references `feature/export`, which is Awaiting Review, and will write `feature/import`, When the user starts it, Then it is refused naming `feature/export` only.
 
-Test (deterministic): start a plan that references an Awaiting Review specification with the check on and expect a refusal naming it; with the check off expect the start.
+Test T1 (deterministic): start a plan that references an Awaiting Review specification with the check on and expect a refusal naming it; with the check off expect the start.
 
 ## §2 The final review and finishing
 
@@ -232,7 +232,7 @@ Scenario: Given every step is done and one request is unanswered, When the run e
 
 Scenario: Given a plan was completed and its branch merged, When the user lists plans, Then it appears in the archive as completed and its worktree is gone.
 
-Test (deterministic): finish all steps of a plan and expect the plan to be in progress with a final review waiting, not completed.
+Test T1 (deterministic): finish all steps of a plan and expect the plan to be in progress with a final review waiting, not completed.
 
 ## §3 Abandoning and deleting
 

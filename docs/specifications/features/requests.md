@@ -60,7 +60,7 @@ A requests system exists so that LLMs can send requests to the user to approve. 
 - A request that is declined, or never accepted, leaves everything as it was. The action is not done, in part or in full.
 - Accepting a request does the requested action once, as it was requested. If the situation has changed, for example a specification was edited after the request was sent, the user is shown the request against the current state, and the action is checked again when it is accepted (`R52.2`).
 
-Test (deterministic): set a permission to `request user`, run the action as the LLM role, expect no change and one pending request; accept it as a role with the permission and expect the change; repeat and decline, expect no change.
+Test T1 (deterministic): set a permission to `request user`, run the action as the LLM role, expect no change and one pending request; accept it as a role with the permission and expect the change; repeat and decline, expect no change.
 
 Scenario: Given a permission set to `request user` and no active session, When a background plan step needs that action, Then a request appears in the requests list, and the step continues without the action or the plan stops (`plan-execution R27.5.1`, `plan-execution R27.5.2`); the user accepts it the next day.
 
@@ -82,7 +82,7 @@ To accept a request, the role of the person accepting must have the permission t
 - Accepting never gives the LLM the permission. The action is done once, on the user's authority.
 - Approvals stay with a human: when the requested action is approving a specification, a plan or a decision, accepting needs a role that has the approval permission, and an LLM role cannot accept (`roles-and-permissions R57`).
 
-Test (deterministic): with a role lacking the permission for the requested action, try to accept and expect failure with the request still pending; with a role holding it, expect success.
+Test T1 (deterministic): with a role lacking the permission for the requested action, try to accept and expect failure with the request still pending; with a role holding it, expect success.
 
 ### R52.3: Request Permission Type
 
@@ -93,7 +93,7 @@ Test (deterministic): with a role lacking the permission for the requested actio
 - A role with deny cannot send a request for that action. Deny is final; if the user wants the action, they change the permission or do it themselves.
 - Examples: with the Full Manual Editing preset, editing specifications is denied, so no request to edit a specification can be sent, and a plan step that needs one stops (`roles-and-permissions R57`, `plan-execution R27.1`). In the presets where the LLM role has `request user` for editing a type of specification, the edit is sent as a request.
 
-Test (intelligent): read the default presets and check that every `request user` permission produces a request, that deny never does, and that allow produces one only when steering asks for it.
+Test T1 (intelligent): read the default presets and check that every `request user` permission produces a request, that deny never does, and that allow produces one only when steering asks for it.
 
 ### R52.4: Request Dialogue
 

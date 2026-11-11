@@ -7,7 +7,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4]
-references: [cli R17, plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6]
+references: [architecture/reference-cli §8, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6]
 ---
 
 # File formats
@@ -452,6 +452,7 @@ roles: {llm_rules: []}               # later release; os_user_mapping is local (
 - There is no per-user override file in the first release; the saved file is the single source (`configuration §2`).
 - A configuration change is permission-checked (`§7`) and audited (`§10`); the CLI preserves comments and key order when writing.
 - A change takes effect from the next command.
+- Configuration is read from the committed `.specplane/config.yaml` at HEAD of the checked-out branch, never from the working tree; an uncommitted change is ignored and validation and status show a warning that the file differs from HEAD. This covers every key, including `permissions.preset`.
 - Terms retired with the old model are not read and are reported as unknown: `authorship` (as a policy), `llm_role`, `forbid_architecture`, `leak_guard_allow`, `spec_roots`, `decisions.dir`. Assumption: `authorship.record_llm` is the only `authorship` key.
 
 ## §7 Permissions, roles and presets storage
@@ -546,7 +547,7 @@ roles:
 
 ### §7.3 Active preset
 
-`permissions.preset` in `.specplane/config.yaml` (`§6`) names the active preset; the first release stores nothing else about roles in git. An unknown preset ID is a malformed-setting finding and the default preset is used.
+`permissions.preset` in `.specplane/config.yaml` (`§6`) names the active preset, read from the committed file at HEAD (`§6.2`): an uncommitted change of the preset is ignored with a validate and status warning. The first release stores nothing else about roles in git. An unknown preset ID is a malformed-setting finding and the default preset is used.
 
 ### §7.4 Later release: custom roles, rules and mappings
 
@@ -621,12 +622,14 @@ One JSON file per request, in `requests/`. IDs are `<YYYYMMDDTHHMMSSZ>-<4 hex>`.
   "base": {"branch": "main", "commit": "<hash>"},
   "diff": "<git diff text against the last approved version, when it concerns a spec>",
   "plan": "<plan-id or null>",
+  "checkout": "<plan checkout path or null>",
   "blocking": false,
   "answer": null
 }
 ```
 
 - `state` is `pending`, `accepted`, `declined` or `failed`. `failed` is an assumption beyond `requests §2`, which says only that an action that cannot be done is reported and does nothing: the request is then marked `failed` (accepted, but the plan is gone or the patch no longer applies), counts as answered and is not retried, so the list shows why nothing happened. `answer` is `{by, date, note}` once answered; `failed` adds `error`.
+- `plan` and `checkout` are set when the request was sent from a plan session; accepting runs the action in that plan's worktree, found from the plan record, and is refused naming the worktree if it no longer exists (`architecture/reference-cli §8`).
 - Requests never expire and stay in the list after answering (`requests R52.1`).
 - `permissions` lists every permission the requested action needs (a command may need several, `roles-and-permissions R50`), and the accepting role must hold each with `allow` (`requests R52.2`). `params.patch` is the stored change a spec edit applies on accept. The check is made at accept time against the permissions then in force; a pending record is never rewritten when the preset changes.
 - On accept the action is checked again against the current state (`base` is only context for display); the diff is recomputed for display.
@@ -672,7 +675,7 @@ Implements `verification R61.1`, `verification R61.3`, `verification R61.4`, `ve
 Results are records of kind `test-result` in the notes store (`§13`), attached to the commit the test ran on (`verification R61.1`). They are not in the spec file.
 
 ```json
-{"rid":"<32 hex>","at":"2026-11-09T10:15:00Z","spec":"feature/specifications","kind":"test-result","test":"R11#1","test-kind":"deterministic","outcome":"passed","by":{"human":"spiralsky"},"date":"2026-11-09","fingerprint":"spec-v3:sha256:<hex>","against":{"feature/plans":"spec-v3:sha256:<hex>"},"summary":"<one to a few lines>","log":"<log-id>","override":{"by":{"human":"admin"},"date":"2026-11-10"}}
+{"rid":"<32 hex>","at":"2026-11-09T10:15:00Z","spec":"feature/specifications","kind":"test-result","test":"R11#T1","test-kind":"deterministic","outcome":"passed","by":{"human":"spiralsky"},"date":"2026-11-09","fingerprint":"spec-v3:sha256:<hex>","against":{"feature/plans":"spec-v3:sha256:<hex>"},"summary":"<one to a few lines>","log":"<log-id>","override":{"by":{"human":"admin"},"date":"2026-11-10"}}
 ```
 
 `against` (the specs it was checked against, assumption), `log` (absent when logs are off or elsewhere) and `override` (only when set by override) are optional; `outcome` is `passed` or `failed`; `by` may be `{"llm":"claude-sonnet-5-5"}`. The record is shown here on one line, as stored (`§13.1`).
@@ -687,7 +690,7 @@ Results are records of kind `test-result` in the notes store (`§13`), attached 
 
 ### §11.2 Test identity
 
-A test is declared as a line `Test (deterministic): <what and how>` or `Test (intelligent): <what and how>` in a section. Its ID is `<section id>#<n>`, where `<n>` is the 1-based position of the Test line in that section (so the first test of `R11` is `R11#1`). A section with no Test line is judged by intelligence and its result uses `<section id>#0` with kind `intelligent`. Reordering tests changes IDs and outdates old results, which is a content change anyway.
+A test is declared as a line `Test T<n> (deterministic): <what and how>` or `Test T<n> (intelligent): <what and how>` in a section, where `T<n>` is an explicit label (`T1`, `T2`, ...) chosen by the author. Its ID is `<section id>#T<n>` (so the test labelled `T1` in `R11` is `R11#T1`); the ID follows the label, never the position, so reordering or inserting tests does not change IDs. Two Test lines with the same label in one section are an error reported by validation (`§12.2`). Intelligent judgement of a section has the ID `<section id>#0` with kind `intelligent`; it is required only for a section whose declaration, its own Test lines or, when it has none, the spec's declaration, includes intelligent judgement (`verification R36.1`), and a spec that declares neither uses intelligent judgement. A scenario in a feature spec is checked by intelligent judgement unless it names a runnable command (`verification §2.1`).
 
 ### §11.3 Implementation status (architecture specs)
 
@@ -729,13 +732,13 @@ Implements `specifications R1`, `plans R30`.
 | Gap ID | `G<n>`, counts up per plan | yes | `§5.6` |
 | Request ID | timestamp plus 4 hex | yes | `§9.2` |
 | Log ID | timestamp plus 4 hex | yes | `§11.4` |
-| Test ID | `<section id>#<n>` | follows the spec content | `§11.2` |
+| Test ID | `<section id>#T<n>`, label written in the spec | yes while the label stays | `§11.2` |
 | Permission ID | dotted lower-case | yes | `§7.1` |
 | Preset ID | kebab-case | yes | `§7.2` |
 
 ### §12.2 Collisions
 
-Two specs or plans created on parallel branches with the same ID are an ordinary git conflict (same path). Two requirements with the same number on parallel branches show as duplicates after the merge and are reported by validation (and by the pre-commit check, later release, `verification R32`).
+Two Test lines with the same label in one section are a validation error (`§11.2`). Two specs or plans created on parallel branches with the same ID are an ordinary git conflict (same path). Two requirements with the same number on parallel branches show as duplicates after the merge and are reported by validation (and by the pre-commit check, later release, `verification R32`).
 
 ### §12.3 Shared plan files
 

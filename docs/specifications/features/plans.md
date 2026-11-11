@@ -79,7 +79,7 @@ A plan is written in a format similar to a specification (`R7`): metadata at the
 
 Scenario: Given plan A references plan B and plan B references plan A, When the user validates, Then the cycle is reported naming both.
 
-Test (deterministic): validate a plan whose identifier differs from its folder name and expect a mismatch report naming both.
+Test T1 (deterministic): validate a plan whose identifier differs from its folder name and expect a mismatch report naming both.
 
 ### R30.1: Specification steps
 
@@ -94,7 +94,7 @@ Scenario: Given step 2 writes `feature/export` from a requirement and step 3 imp
 
 Scenario: Given the same plan and the user edits `feature/export` after approving it, When step 3 is about to run, Then it does not run, because the specification is Awaiting Review again.
 
-Test (deterministic): with a plan whose step implements an Awaiting Review specification, ask for the next runnable step and expect that step to be reported as waiting for approval.
+Test T1 (deterministic): with a plan whose step implements an Awaiting Review specification, ask for the next runnable step and expect that step to be reported as waiting for approval.
 
 ## R29: Plan metadata
 
@@ -145,7 +145,7 @@ If a plan references a specification at an older commit than that specification'
 
 Scenario: Given a plan references `feature/export` at an old commit and a later commit on the branch changed it, When the user checks the plan, Then a warning names the plan and the specification.
 
-Test (deterministic): change a referenced specification after the plan was written and expect the outdated-reference warning.
+Test T1 (deterministic): change a referenced specification after the plan was written and expect the outdated-reference warning.
 
 ## R28: Plan branches
 
