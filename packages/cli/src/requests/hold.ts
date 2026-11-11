@@ -51,7 +51,7 @@ export function holdRequest(i: HoldInput): RequestRecord {
     id: newRequestId(now),
     state: "pending",
     created: now.toISOString().replace(/\.\d{3}Z$/, "Z"),
-    from: { role: i.actor.role, model: i.actor.model ?? null, session: env.SPECPLANE_SESSION || null },
+    from: { role: i.actor.role, model: i.actor.model ?? null, session: i.actor.session ?? (env.SPECPLANE_SESSION || null) },
     permissions: [...new Set(i.permissions)],
     action: { command: i.command, params: i.params },
     reason: i.reason,

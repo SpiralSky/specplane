@@ -194,9 +194,9 @@ test("approve: the permission has three modes; only allow approves", async () =>
   assert.equal(effective(root, "a").status, "awaiting-review");
   custom.llm.modes["spec.approve"] = "allow";
   const allowed = await approveSpecs({ ...llm("full-llm-control"), preset: custom }, ["feature/a"], { yes: true });
-  assert.equal(allowed.ok, false, "an LLM actor has no human identity; the CLI never records one");
-  assert.match(allowed.reasons.join(), /user\.name/);
-  assert.equal(audit(root).filter((e) => e.outcome === "refused").length >= 2, true);
+  assert.equal(allowed.ok, true, allowed.reasons.join());
+  assert.deepEqual(records(root, "a").at(-1)?.by, { llm: "unknown", "delegated-by": "unknown" });
+  assert.equal(audit(root).filter((e) => e.outcome === "refused").length, 1);
   assert.equal(audit(root).filter((e) => e.outcome === "request-sent").length, 1);
 });
 

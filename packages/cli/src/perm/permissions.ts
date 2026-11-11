@@ -98,7 +98,7 @@ export function gitUserName(root: string): string | null {
   try { return run("git", ["config", "user.name"], { cwd: root }).trim() || null; } catch { return null; }
 }
 
-export interface Actor { role: RoleId; kind: "human" | "llm"; name: string; model?: string; session?: string }
+export interface Actor { role: RoleId; kind: "human" | "llm"; name: string; model?: string; session?: string; delegatedBy?: string }
 
 /** The actor for a person's CLI call: the CLI role, the git user, and the harness session when `SPECPLANE_SESSION` names one (`reference-cli` §7.1). */
 export function cliActor(root: string): Actor {

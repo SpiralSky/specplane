@@ -1,4 +1,5 @@
 import { recordFromRequest } from "../verify/test-record.js";
+import { writeSpecification, type SpecChange } from "../spec/write.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { configSet, configUnset } from "../config-ops.js";
@@ -29,11 +30,20 @@ const fromResult = (r: { ok: boolean; lines: string[]; reasons: string[] }): Act
 const planCtx = (c: ActionCtx): PlanCtx => c;
 
 const ACTIONS: Record<string, Action> = {
+  "harness read": async (c, p) => {
+    const { acceptedRead } = await import("../harness/actions.js");
+    const data = await acceptedRead(c, p.id, p.input);
+    const result = data as { ok?: boolean; reasons?: string[] } | null;
+    return { ok: result?.ok !== false, lines: [JSON.stringify(data)], reasons: result?.reasons ?? [] };
+  },
+  "spec create": (c, p) => writeSpecification(c, "create", p as SpecChange),
+  "spec delete": (c, p) => writeSpecification(c, "delete", p as SpecChange),
   "test record": (c, p) => recordFromRequest(c, p),
   "spec approve": async (c, p) => fromResult(await approveSpecs(c, p.ids, { yes: true })),
   "spec reopen": (c, p) => fromResult(reopenSpec(c, p.id)),
   "spec meta set": (c, p) => fromResult(metaSet(c, p.id, p.field, p.value)),
   "spec edit": (c, p) => {
+    if ("before" in p || "after" in p) return writeSpecification(c, "edit", p as SpecChange);
     const head = loadProject(committedSource(c.root, "HEAD"), loadSpecPaths(c.root).paths);
     const doc = head.specs.get(p.spec);
     if (!doc) return { ok: false, lines: [], reasons: [`Specification \`${p.spec}\` no longer exists.`] };

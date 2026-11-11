@@ -82,14 +82,17 @@ function briefReasons(reasons: string[]): string {
 const implText = (i: NonNullable<SpecView["implementation"]>) => `${i.status}${i.outdated ? " (the spec changed since it was recorded)" : ""}`;
 
 /** `spec list [--status <s>] [--type <t>]`: every requirement file (always approved), feature and architecture spec at HEAD. */
+export function listSpecViews(root: string, opts: { status?: string; type?: string } = {}): SpecView[] {
+  const { project, ctx } = headContext(root);
+  const src = worktreeSource(root);
+  return [...project.specs.values()].sort((a, b) => a.id.localeCompare(b.id)).map((doc) => view(ctx, doc, src.read(doc.file)))
+    .filter((v) => (!opts.status || v.status === opts.status) && (!opts.type || v.type === opts.type));
+}
+
 export function specListCommand(opts: { status?: string; type?: string }): CommandResult {
   const no = refused("Listing specs");
   if (no) return no;
-  const root = checkoutRoot();
-  const { project, ctx } = headContext(root);
-  const src = worktreeSource(root);
-  const views = [...project.specs.values()].sort((a, b) => a.id.localeCompare(b.id)).map((doc) => view(ctx, doc, src.read(doc.file)))
-    .filter((v) => (!opts.status || v.status === opts.status) && (!opts.type || v.type === opts.type));
+  const views = listSpecViews(checkoutRoot(), opts);
   const w = Math.max(0, ...views.map((v) => v.id.length));
   const lines = views.map((v) => {
     const parts = [`${v.id.padEnd(w)}  ${v.status}${v.reasons.length ? ` (${briefReasons(v.reasons)})` : ""}`];

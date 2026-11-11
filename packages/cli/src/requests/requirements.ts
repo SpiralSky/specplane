@@ -1,4 +1,6 @@
 import { validateEditParams } from "../plan/edit.js";
+import { specLayer as writeLayer, validateSpecChange } from "../spec/write.js";
+import { validateActionInput } from "../harness/actions.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject } from "../spec/project.js";
 import { committedSource } from "../spec/source.js";
@@ -41,6 +43,19 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
   };
 
   switch (command) {
+    case "harness read": {
+      try {
+        const action = validateActionInput(requireText("id"), p.input);
+        if (!action.readOnly) invalid("Only read actions use harness read requests.");
+        return action.permissions(p.input as Record<string, unknown>);
+      } catch (e) { return invalid((e as Error).message); }
+    }
+    case "spec create":
+    case "spec delete": {
+      const op = command === "spec create" ? "create" : "delete";
+      try { validateSpecChange(op, p); } catch (e) { return invalid((e as Error).message); }
+      return [`spec.${op}.${writeLayer(p.spec as string)}`];
+    }
     case "test record":
       for (const key of ["spec", "test", "summary", "commit", "fingerprint"]) requireText(key);
       oneOf("kind", ["deterministic", "intelligent"], true);
@@ -53,6 +68,10 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       return ["spec.approve"];
     case "spec reopen": return [`spec.edit.${specLayer("id")}`];
     case "spec edit":
+      if ("before" in p || "after" in p) {
+        try { validateSpecChange("edit", p); } catch (e) { return invalid((e as Error).message); }
+        return [`spec.edit.${writeLayer(p.spec as string)}`];
+      }
       requireText("patch");
       return [`spec.edit.${specLayer("spec")}`];
     case "spec meta set": {

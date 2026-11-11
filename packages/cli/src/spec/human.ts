@@ -200,7 +200,8 @@ export interface ApproveOptions {
 export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions = {}): Promise<Result> {
   const g = decide(ctx, ["spec.approve"], "Approving specifications", "spec approve", ids, { ids });
   if (g.kind !== "allow") return refusal(g);
-  const name = humanName(ctx);
+  const name = ctx.actor.kind === "llm" ? ctx.actor.model || "unknown" : humanName(ctx);
+  const by = ctx.actor.kind === "llm" ? { llm: name, "delegated-by": ctx.actor.delegatedBy || "unknown" } : { human: name };
   const rev = opts.ref ?? "HEAD";
   if (!revCommit(ctx.root, rev)) return result({ ok: false, reasons: [`\`--ref ${rev}\` is not a branch or commit in this repository.`] });
   const head = loadHead(ctx.root, rev);
@@ -278,12 +279,12 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   const at = ctx.now ?? new Date();
   const records = todo.map((doc) => {
     const { fingerprint, cited } = fingerprintsOf(head, doc);
-    return makeRecord("approval", doc.id, fingerprint, { by: { human: name! }, date: today(ctx), cited }, at);
+    return makeRecord("approval", doc.id, fingerprint, { by, date: today(ctx), cited }, at);
   });
   const commit = writeRecords(ctx, records, rev);
   for (const doc of todo) {
     auditAll(ctx, { command: "spec approve", args: [doc.id], permission: "spec.approve", outcome: "done",
-      old: { effective: effective.get(doc.id)?.status }, new: { status: "approved", by: { human: name } } });
+      old: { effective: effective.get(doc.id)?.status }, new: { status: "approved", by } });
   }
   const skipped = members.filter((m) => !todo.includes(m));
   return result({
