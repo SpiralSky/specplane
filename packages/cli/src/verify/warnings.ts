@@ -39,10 +39,11 @@ const WHY: Record<string, string> = {
   tests: "Test declarations are well formed and unique per section (§10.1).",
   permissions: "Every permission has a description and steering text (§7.4).",
   config: "Configuration is read from HEAD (§3.2).",
+  "pre-commit": "A pre_commit setting that is on needs its hook section installed (§14.2).",
   harness: "Installed harness files match the installed Specplane and the current steering (§12.6).",
 };
 
-const SUBJECT: Record<string, WarningSubject> = { plans: "plan", permissions: "permission", config: "installation", notes: "installation", harness: "installation" };
+const SUBJECT: Record<string, WarningSubject> = { plans: "plan", permissions: "permission", config: "installation", notes: "installation", harness: "installation", "pre-commit": "installation" };
 
 /** The spec or plan ID a repository-relative file belongs to, or undefined. */
 function refOf(file: string, dirs: { requirements: string; features: string; architecture: string; plans: string }): string | undefined {

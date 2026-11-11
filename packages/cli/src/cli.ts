@@ -15,6 +15,7 @@ import { validateCommand } from "./commands/validate.js";
 import { warningsCommand } from "./commands/warnings.js";
 import { steeringCommand } from "./commands/steering.js";
 import { coverageCommand } from "./commands/coverage.js";
+import { checkRequirementIdsCommand, checkTestsCommand } from "./commands/check.js";
 import { testRunCommand } from "./commands/test.js";
 import { runCommand } from "./commands/runner.js";
 import { auditCommand } from "./commands/audit.js";
@@ -161,6 +162,21 @@ testCmd
   .option("--timeout <seconds>", "wall-clock limit per command (default 120)")
   .option("--json", "output JSON")
   .action((target: string | undefined, opts: { all?: boolean; timeout?: string; json?: boolean }) => runCommand({ command: "test run", args: [...(target ? [target] : []), ...(opts.all ? ["--all"] : [])], json: opts.json }, () => testRunCommand(target, opts)));
+
+const checkCmd = program.command("check").description("Pre-commit checks on the staged changes");
+checkCmd
+  .command("requirement-ids")
+  .description("Refuse duplicate requirement IDs in the index; installed by pre_commit.duplicate_requirement_ids")
+  .option("--staged", "check the index (required)")
+  .option("--json", "output JSON")
+  .action((opts: { staged?: boolean; json?: boolean }) => runCommand({ command: "check requirement-ids", args: opts.staged ? ["--staged"] : [], json: opts.json }, () => checkRequirementIdsCommand(opts)));
+checkCmd
+  .command("tests")
+  .description("Run the deterministic tests of staged architecture specs on the index; installed by pre_commit.tests")
+  .option("--staged", "check the index (required)")
+  .option("--timeout <seconds>", "wall-clock limit per command (default 120)")
+  .option("--json", "output JSON")
+  .action((opts: { staged?: boolean; timeout?: string; json?: boolean }) => runCommand({ command: "check tests", args: opts.staged ? ["--staged"] : [], json: opts.json }, () => checkTestsCommand(opts)));
 
 program
   .command("init")

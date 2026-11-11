@@ -1,9 +1,10 @@
 /**
  * Side effects of a setting change (`architecture/reference-cli` §3.2): turning `pre_commit.*` on or off installs or
  * removes the hook section (`§14.2`, U19); preset/custom changes regenerate currently committed steering.
- * Hook integration may register its handler here; until then its effect is reported as pending.
+ * Other handlers may be registered here; the built-in effects run when none is registered for the key.
  */
 
+import { HOOK_SETTINGS, hookFile, installHookSection, removeHookSection } from "./git/hooks.js";
 import { steeringConfigEffect } from "./harness/steering.js";
 
 export type EffectHandler = (root: string, key: string, old: unknown, next: unknown) => string[];
@@ -15,9 +16,13 @@ export function registerEffect(keyOrPrefix: string, handler: EffectHandler): voi
 
 export function clearEffects(): void { handlers.clear(); }
 
-const PENDING: Array<[string, string]> = [
-  ["pre_commit.", "The pre-commit hook section is installed or removed once pre-commit checks are available."],
-];
+/** Install or remove the hook section of a `pre_commit.*` setting (`§14.2`). */
+function preCommitEffect(root: string, key: string, next: unknown): string[] {
+  const check = HOOK_SETTINGS[key];
+  if (!check) return [];
+  if (next === true) return [installHookSection(root, check) === "installed" ? `Installed the ${check} check in ${hookFile(root)}.` : `The ${check} check is already in the pre-commit hook.`];
+  return [removeHookSection(root, check) === "removed" ? `Removed the ${check} check from the pre-commit hook.` : `The ${check} check was not in the pre-commit hook.`];
+}
 
 /** Run the registered effect for `key`; the lines to print. */
 export function applyEffects(root: string, key: string, old: unknown, next: unknown): string[] {
@@ -31,6 +36,6 @@ export function applyEffects(root: string, key: string, old: unknown, next: unkn
     out.push(...steeringConfigEffect(root));
     handled = true;
   }
-  if (!handled) for (const [k, note] of PENDING) if (key === k || (k.endsWith(".") && key.startsWith(k))) out.push(note);
+  if (!handled && key.startsWith("pre_commit.")) out.push(...preCommitEffect(root, key, next));
   return out;
 }

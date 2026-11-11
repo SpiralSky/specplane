@@ -3,6 +3,7 @@ import { rules as config } from "./config.js";
 import { rules as harness } from "./harness.js";
 import { rules as notes } from "./notes.js";
 import { rules as permissions } from "./permissions.js";
+import { rules as preCommit } from "./pre-commit.js";
 import { rules as plans } from "./plans.js";
 import { rules as requirements } from "./requirements.js";
 import { rules as specFormat } from "./spec-format.js";
@@ -14,4 +15,4 @@ import type { Rule } from "./types.js";
  * Every rule, in run order (`architecture/reference-cli` §6.1). `status` runs before `notes`, which reads the store
  * the status rule has loaded.
  */
-export const RULES: Rule[] = [...config, ...requirements, ...specFormat, ...cites, ...plans, ...status, ...notes, ...tests, ...permissions, ...harness];
+export const RULES: Rule[] = [...config, ...requirements, ...specFormat, ...cites, ...plans, ...status, ...notes, ...tests, ...permissions, ...harness, ...preCommit];

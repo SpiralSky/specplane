@@ -55,8 +55,8 @@ Settings marked later release are read and validated but do nothing yet.
 | `architecture.llm_may_mark_implemented` | `on` | Whether an LLM may mark an architecture specification implemented once its checks pass |
 | `tests.logs` | `local` | Where full test logs are kept |
 | `tests.logs_retention` | `30` | Days local test logs are kept, or forever |
-| `pre_commit.duplicate_requirement_ids` | `off` | (later release) Check that refuses a commit in which two requirements share an identifier |
-| `pre_commit.tests` | `off` | (later release) Check that refuses a commit when the deterministic tests of an architecture specification fail |
+| `pre_commit.duplicate_requirement_ids` | `off` | Check that refuses a commit in which two requirements share an identifier |
+| `pre_commit.tests` | `off` | Check that refuses a commit when the deterministic tests of an architecture specification fail |
 | `coverage.requirement_only` | `[]` | Requirements annotated as requirement-only; uncovered warnings are still reported |
 | `decisions.enabled` | `off` | (later release) Whether user decision records are stored and retrieved |
 | `subprojects` | `[]` | (later release) The named locations in the project that are subprojects |

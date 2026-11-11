@@ -328,6 +328,18 @@ Show which specs cover each requirement and feature spec (needs info.retrieve)
 
 Run deterministic tests on the committed content at HEAD: <spec>[#<section>] or --all (needs info.retrieve)
 
+### `check requirement-ids`
+
+`specplane check requirement-ids --staged [--json]`
+
+Refuse duplicate requirement IDs in the staged requirement files (reads the index, checks nothing else). The pre-commit hook runs it when `pre_commit.duplicate_requirement_ids` is on; exit 1 names both places of each duplicate.
+
+### `check tests`
+
+`specplane check tests --staged [--timeout <seconds>] [--json]`
+
+Run the deterministic tests of the architecture specs whose files are staged, on a copy of the index. Intelligent tests never run and nothing is recorded. The pre-commit hook runs it when `pre_commit.tests` is on; exit 1 names the spec and the failing test.
+
 ### `init`
 
 `specplane init [options]`

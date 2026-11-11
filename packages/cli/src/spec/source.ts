@@ -77,3 +77,29 @@ export function commitExists(root: string, rev: string): boolean {
 export function headCommit(root: string): string | null {
   try { return run("git", ["rev-parse", "--verify", "HEAD"], { cwd: root }).trim(); } catch { return null; }
 }
+
+/** The index (what `git commit` would record), read with `git show :<path>` (`architecture/reference-cli` §14.2). */
+export function indexSource(root: string): Source {
+  const git = (args: string[]): string | null => {
+    try { return run("git", args, { cwd: root }); } catch (e) { if (e instanceof GitError) return null; throw e; }
+  };
+  const files = (dir: string): string[] => (git(["ls-files", "-z", "--", `${norm(dir)}/`]) ?? "").split("\0").filter(Boolean);
+  return {
+    kind: "worktree",
+    read(file) { return git(["show", `:${norm(file)}`]); },
+    list(dir) {
+      const d = norm(dir);
+      return files(d).map((p) => p.slice(d.length + 1)).filter((n) => !n.includes("/")).sort();
+    },
+    exists(file) { const f = norm(file); return files(f).length > 0 || git(["ls-files", "--error-unmatch", "--", f]) !== null; },
+    listDirs(dir) {
+      const d = norm(dir);
+      return [...new Set(files(d).map((p) => p.slice(d.length + 1)).filter((n) => n.includes("/")).map((n) => n.split("/")[0]))].sort();
+    },
+  };
+}
+
+/** Repository-relative paths staged for the next commit (added, copied, modified, renamed). */
+export function stagedFiles(root: string): string[] {
+  return run("git", ["diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR"], { cwd: root }).split("\0").filter(Boolean);
+}

@@ -26,7 +26,7 @@ export interface TestRunResult {
 }
 
 /** What to run: every spec, one spec, one section of it (`#<section>`), or one preamble test (`#T<n>`). */
-export interface Selection { spec?: string; section?: string; label?: string }
+export interface Selection { spec?: string; /** Several specs at once; used by the staged check. */ specs?: string[]; section?: string; label?: string }
 
 export interface RunOptions {
   root: string;
@@ -38,6 +38,8 @@ export interface RunOptions {
   /** Who runs, for the log header. */
   actor: string;
   commit: string;
+  /** Test the index instead of `commit`: the checkout is `git checkout-index` into the temporary directory (`§14.2`). */
+  staged?: boolean;
   /** Test hook: environment variables added to the clean environment. */
   extraEnv?: Record<string, string>;
 }
@@ -50,7 +52,7 @@ const DIFF_LINES = 5;
 export function selectTests(project: Project, sel: Selection): TestDef[] {
   const out: TestDef[] = [];
   for (const doc of [...project.specs.values()].sort((a, b) => a.id.localeCompare(b.id))) {
-    if (doc.layer === "requirement" || (sel.spec && doc.id !== sel.spec)) continue;
+    if (doc.layer === "requirement" || (sel.spec && doc.id !== sel.spec) || (sel.specs && !sel.specs.includes(doc.id))) continue;
     let tests = allTests(declarations(doc));
     if (sel.label) tests = tests.filter((t) => t.sectionId === null && t.label === sel.label);
     else if (sel.section) tests = tests.filter((t) => t.sectionId === sel.section);
@@ -134,7 +136,10 @@ export async function runTests(opts: RunOptions): Promise<RunReport> {
     const cleanup = (): void => removeCheckout(opts.root, tmp);
     process.on("exit", cleanup);
     try {
-      run("git", ["worktree", "add", "--detach", tmp, opts.commit], { cwd: opts.root });
+      if (opts.staged) {
+        fs.mkdirSync(tmp, { recursive: true });
+        run("git", ["checkout-index", "-a", "-f", `--prefix=${tmp}/`], { cwd: opts.root });
+      } else run("git", ["worktree", "add", "--detach", tmp, opts.commit], { cwd: opts.root });
       for (const t of runnable) {
         const def = t.def!;
         const dir = path.join(tmp, def.cwd);
