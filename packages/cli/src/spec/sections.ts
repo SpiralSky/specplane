@@ -31,8 +31,26 @@ export function fencedLines(lines: string[]): boolean[] {
   return flags;
 }
 
+/** A labelled `Test T<n> (deterministic|intelligent): ...` line (`architecture/reference-cli` §4.2, `architecture/file-formats` §11.2). */
+export interface TestLine {
+  /** Citable section the line is in; null for the spec's preamble (a line outside every citable section). */
+  sectionId: string | null;
+  /** `T1`, `T2`, ... */
+  label: string;
+  kind: "deterministic" | "intelligent";
+  /** What and how, from the line. */
+  text: string;
+  /** 1-based file line. */
+  line: number;
+  /** The `specplane-test` fenced block that follows the line (`architecture/reference-cli` §10.1), unparsed. */
+  block?: { text: string; line: number };
+}
+
 export interface SectionIndex {
   sections: Section[];
+  tests: TestLine[];
+  /** Two Test lines with one label in one section (or both in the preamble). */
+  duplicateTests: { sectionId: string | null; label: string; first: number; second: number }[];
   /** Citable sections by id (first occurrence). */
   byId: Map<string, Section>;
   duplicates: { id: string; first: number; second: number }[];
@@ -83,7 +101,60 @@ export function indexSections(lines: string[], bodyStartLine: number): SectionIn
     }
     stack.push(h);
   }
-  return { sections: heads, byId, duplicates, wrongParent };
+  const { tests, duplicateTests } = collectTests(lines, fenced, heads, bodyStartLine);
+  return { sections: heads, tests, duplicateTests, byId, duplicates, wrongParent };
+}
+
+const TEST_LINE = /^\s*(?:[-*]\s+)?Test (T\d+) \((deterministic|intelligent)\):\s*(.*)$/;
+const BLOCK_OPEN = /^ {0,3}(`{3,}|~{3,})\s*specplane-test\s*$/;
+
+/**
+ * The Test lines outside fenced code, each with its owning citable section. A runnable block belongs to a Test line
+ * when it comes after the line's paragraph with only blank lines between (assumption for `§10.1`: "before the next
+ * blank-line-separated paragraph" is read as "no other paragraph in between").
+ */
+function collectTests(lines: string[], fenced: boolean[], heads: Section[], bodyStartLine: number): Pick<SectionIndex, "tests" | "duplicateTests"> {
+  const tests: TestLine[] = [];
+  const duplicateTests: SectionIndex["duplicateTests"] = [];
+  const stack: Section[] = [];
+  const headAt = new Map(heads.map((h) => [h.startLine, h]));
+  const seen = new Map<string, number>();
+  for (let i = bodyStartLine; i < lines.length; i++) {
+    if (fenced[i]) continue;
+    const head = headAt.get(i + 1);
+    if (head) {
+      while (stack.length && stack[stack.length - 1].level >= head.level) stack.pop();
+      stack.push(head);
+      continue;
+    }
+    const m = TEST_LINE.exec(lines[i].replace(/\r$/, ""));
+    if (!m) continue;
+    const owner = [...stack].reverse().find((h) => h.id)?.id ?? null;
+    const t: TestLine = { sectionId: owner, label: m[1], kind: m[2] as TestLine["kind"], text: m[3].trim(), line: i + 1 };
+    const key = `${owner ?? ""}\0${t.label}`;
+    const prior = seen.get(key);
+    if (prior !== undefined) duplicateTests.push({ sectionId: owner, label: t.label, first: prior, second: t.line });
+    else seen.set(key, t.line);
+    t.block = findBlock(lines, i);
+    if (!t.block) delete t.block;
+    tests.push(t);
+  }
+  return { tests, duplicateTests };
+}
+
+function findBlock(lines: string[], testIndex: number): TestLine["block"] | undefined {
+  let j = testIndex + 1;
+  while (j < lines.length && lines[j].trim() !== "" && !BLOCK_OPEN.test(lines[j]) && !HEADING.test(lines[j]) && !TEST_LINE.test(lines[j])) j++;
+  while (j < lines.length && lines[j].trim() === "") j++;
+  const open = j < lines.length ? BLOCK_OPEN.exec(lines[j].replace(/\r$/, "")) : null;
+  if (!open) return undefined;
+  const body: string[] = [];
+  for (let k = j + 1; k < lines.length; k++) {
+    const m = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(lines[k].replace(/\r$/, ""));
+    if (m && m[1][0] === open[1][0] && m[1].length >= open[1].length) return { text: body.join("\n"), line: j + 1 };
+    body.push(lines[k].replace(/\r$/, ""));
+  }
+  return { text: body.join("\n"), line: j + 1 };
 }
 
 /** The innermost section containing a 1-based line, or undefined. */

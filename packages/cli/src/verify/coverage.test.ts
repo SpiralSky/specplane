@@ -91,7 +91,7 @@ test("warnings include uncovered items, narrow by ID and carry subject and why",
 
 test("the registry has one rule per family, status before notes", () => {
   const ids = RULES.map((r) => r.id);
-  assert.deepEqual(ids, ["config", "requirements", "spec-format", "cites", "plans", "status", "notes", "permissions"]);
+  assert.deepEqual(ids, ["config", "requirements", "spec-format", "cites", "plans", "status", "notes", "tests", "permissions"]);
   assert.ok(RULES.every((r) => typeof r.run === "function" && r.severity && r.source));
 });
 

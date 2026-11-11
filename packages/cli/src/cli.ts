@@ -15,6 +15,7 @@ import { docsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
 import { warningsCommand } from "./commands/warnings.js";
 import { coverageCommand } from "./commands/coverage.js";
+import { testRunCommand } from "./commands/test.js";
 import { runCommand } from "./commands/runner.js";
 import { auditCommand } from "./commands/audit.js";
 import { workflowListCommand, workflowRecoverCommand } from "./commands/workflow.js";
@@ -162,6 +163,14 @@ program
   .option("--uncovered", "only the items nothing covers")
   .option("--json", "output JSON")
   .action((opts: { uncovered?: boolean; json?: boolean }) => runCommand({ command: "coverage", args: opts.uncovered ? ["--uncovered"] : [], json: opts.json }, () => coverageCommand(opts)));
+const testCmd = program.command("test").description("Run the tests the specs declare");
+testCmd
+  .command("run [target]")
+  .description("Run deterministic tests on the committed content at HEAD: <spec>[#<section>] or --all (needs info.retrieve)")
+  .option("--all", "run every declared test")
+  .option("--timeout <seconds>", "wall-clock limit per command (default 120)")
+  .option("--json", "output JSON")
+  .action((target: string | undefined, opts: { all?: boolean; timeout?: string; json?: boolean }) => runCommand({ command: "test run", args: [...(target ? [target] : []), ...(opts.all ? ["--all"] : [])], json: opts.json }, () => testRunCommand(target, opts)));
 
 // D20 item 6 (spec: A3, R1): operator view and recovery of leases left by an ended host session.
 const workflow = program.command("workflow").description("Inspect and recover workflow leases left by an ended session (list, recover)");

@@ -35,6 +35,7 @@ const WHY: Record<string, string> = {
   status: "A spec or result is outdated against what it depends on (§5.2).",
   notes: "The local notes store has a problem or is behind its remote (§5.5, §5.6).",
   plans: "Plan records and their references are checked (§11.1).",
+  tests: "Test declarations are well formed and unique per section (§10.1).",
   permissions: "Every permission has a description and steering text (§7.4).",
   config: "Configuration is read from HEAD (§3.2).",
 };

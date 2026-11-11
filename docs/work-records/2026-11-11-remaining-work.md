@@ -166,6 +166,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U5 Test declarations and runner
 
+- **Status:** done. Test lines collected in `spec/sections.ts`; `verify/tests.ts` (declarations, block parser), `test-run.ts` (temp worktree runner), `logs.ts` (logs and retention), `rules/tests.ts`, `specplane test run`. Choices: clean env is PATH/HOME/LANG/TMPDIR plus `SPECPLANE_TEST=1`; a timeout is `failed`; `exit` defaults to 0; any failed test exits 1; `test run` needs a spec or `--all`. Deferred: recording (U6).
 - **Goal:** collect `Test T<n> (deterministic|intelligent):` lines per section and preamble (duplicate label is an error); parse `specplane-test` blocks; effective declaration with inheritance; `specplane test run [<id>[#section]] [--all] [--timeout]` in a temporary detached worktree under `<store>/tmp/`, argv without shell, clean env plus `SPECPLANE_TEST=1`, `expect` keys; logs per `tests.logs` with retention; `tests` validation family.
 - **Specs:** `reference-cli §4.2` (Test lines), `§10.1`, `§10.2`, `§10.5`, `§14.1`; `file-formats §11.2`, `§11.4`; `verification R36.1`, `R36.2`, `R61.4`.
 - **Files:** `spec/sections.ts`, new `verify/tests.ts`, `verify/logs.ts`, `verify/rules/tests.ts`, `commands/test.ts`.

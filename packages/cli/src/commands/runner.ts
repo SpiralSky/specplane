@@ -7,6 +7,7 @@ import { formatJson } from "../output/json.js";
 import { formatText } from "../output/text.js";
 import { cliActor } from "../perm/permissions.js";
 import { RequestSent } from "../requests/hold.js";
+import { pruneLogs } from "../verify/logs.js";
 import { collectWarnings } from "../verify/warnings.js";
 
 /**
@@ -91,6 +92,7 @@ export async function runCommand(spec: RunSpec, fn: () => Promise<CommandResult>
 
   if (root && !spec.command.startsWith("audit")) {
     try { pruneAudit(root, loadSettings(root).config.auditRetention, { actor: actor! }); } catch { /* retention never stops a command */ }
+    try { pruneLogs(root, loadSettings(root).config.values["tests.logs_retention"] as number | "forever", actor!); } catch { /* retention never stops a command */ }
   }
 
   let interrupted = false;
