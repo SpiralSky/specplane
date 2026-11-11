@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as yaml from "js-yaml";
+import { dumpYaml } from "../yaml.js";
 import { parseCite } from "../spec/cites.js";
 import { appendRecords, makeRecord, notesTip } from "../spec/notes.js";
 import { loadSpecPaths } from "../spec/paths.js";
@@ -55,7 +55,7 @@ function createInner(ctx: PlanCtx, o: CreateOpts): { id: string; files: string[]
   const fm: Record<string, unknown> = { id: `plan/${id}`, title, authors: [planAuthor(ctx)] };
   if (impls.length) fm.implements = impls;
   if (o.references?.length) fm.references = o.references;
-  const dump = (v: unknown) => yaml.dump(v, { schema: yaml.JSON_SCHEMA, lineWidth: -1, noRefs: true, flowLevel: -1 });
+  const dump = (v: unknown) => dumpYaml(v);
   const planText = `---\n${dump(fm)}---\n# ${title}\n\n## Goal\n\nDescribe what this plan changes and why.\n\n## Scope\n\n- In: \n- Out: \n\n## Specifications\n\nName the specifications this plan implements or writes.\n\n## Acceptance criteria\n\n- Describe a condition that confirms the plan is complete.\n\n## Risks\n\nNone known.\n\n## Steps\n\n01 First step: describe the first piece of work\n`;
   const stepText = `---\n${dump({ plan: id, step: 1, title: "First step" })}---\n## Goal\n\nOne paragraph, small enough for one session.\n\n## Acceptance criteria\n\n- A condition checked before the step is committed.\n\n## Tasks\n\n1. An imperative action.\n`;
   const progress = `status: not-started\ndone: []\n`;

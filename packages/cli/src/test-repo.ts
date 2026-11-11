@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as yaml from "js-yaml";
+import { parseYaml } from "./yaml.js";
 
 /**
  * Create a temporary repository tree from a map of relative path -> content.
@@ -22,7 +22,7 @@ export function makeRepo(files: Record<string, string>, opts: { createSpecRoots?
     const text = files[".specplane/config.yaml"];
     if (text) {
       try {
-        const parsed = yaml.load(text, { schema: yaml.JSON_SCHEMA }) as { spec_roots?: { path?: unknown }[] } | undefined;
+        const parsed = parseYaml(text) as { spec_roots?: { path?: unknown }[] } | undefined;
         if (Array.isArray(parsed?.spec_roots)) roots = parsed.spec_roots;
       } catch {
         // malformed config: leave the default root

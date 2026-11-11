@@ -1,4 +1,4 @@
-import * as yaml from "js-yaml";
+import { dumpYaml, parseYaml } from "./yaml.js";
 
 /**
  * Textual edit of nested keys in `.specplane/config.yaml`: comments, other keys and key order stay byte for byte
@@ -10,10 +10,9 @@ const KEY = /^( *)([A-Za-z0-9_-]+):(.*)$/;
 
 function render(key: string, value: unknown, indent: number): string[] {
   const flat = Array.isArray(value) && value.every((x) => x === null || typeof x !== "object");
-  const text = yaml.dump({ [key]: value }, { schema: yaml.JSON_SCHEMA, lineWidth: -1, noRefs: true, flowLevel: flat ? 1 : -1, sortKeys: false });
+  const text = dumpYaml({ [key]: value }, { flowScalarLists: flat });
   const pad = " ".repeat(indent);
-  // js-yaml quotes the words on and off; the configuration writes them bare (`file-formats` §6).
-  return text.replace(/\n$/, "").split("\n").map((l) => pad + l.replace(/^(\s*[A-Za-z0-9_-]+: )'(on|off)'$/, "$1$2"));
+  return text.replace(/\n$/, "").split("\n").map((l) => pad + l);
 }
 
 const indentOf = (l: string) => l.length - l.trimStart().length;
@@ -63,7 +62,7 @@ function edit(lines: string[], lo: number, hi: number, indent: number, segs: str
   }
   // Inline or empty value: re-render the entry from its parsed content.
   let current: unknown = {};
-  try { current = (yaml.load(lines.slice(hit.start, hit.end).join("\n").replace(/^ +/, ""), { schema: yaml.JSON_SCHEMA }) as Record<string, unknown>)[segs[0]] ?? {}; } catch { current = {}; }
+  try { current = (parseYaml(lines.slice(hit.start, hit.end).join("\n").replace(/^ +/, "")) as Record<string, unknown>)[segs[0]] ?? {}; } catch { current = {}; }
   if (!isMap(current)) current = {};
   const obj = current as Record<string, unknown>;
   let cur = obj;

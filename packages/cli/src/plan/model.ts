@@ -1,4 +1,4 @@
-import * as yaml from "js-yaml";
+import { parseYaml } from "../yaml.js";
 import { splitFrontmatter, type FrontmatterResult } from "../spec/frontmatter.js";
 import type { Source } from "../spec/source.js";
 
@@ -80,7 +80,7 @@ export interface PlanRecord {
 
 export function parseProgress(text: string): { progress: Progress | null; error: string | null } {
   let data: unknown;
-  try { data = yaml.load(text, { schema: yaml.JSON_SCHEMA }); } catch (e) { return { progress: null, error: `invalid YAML: ${(e as Error).message.split("\n")[0]}` }; }
+  try { data = parseYaml(text); } catch (e) { return { progress: null, error: `invalid YAML: ${(e as Error).message.split("\n")[0]}` }; }
   if (data === null || data === undefined) data = {};
   if (typeof data !== "object" || Array.isArray(data)) return { progress: null, error: "progress.yaml is not a mapping" };
   const d = data as Record<string, unknown>;

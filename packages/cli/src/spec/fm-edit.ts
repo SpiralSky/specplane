@@ -1,4 +1,4 @@
-import * as yaml from "js-yaml";
+import { dumpYaml } from "../yaml.js";
 import { splitFrontmatter } from "./frontmatter.js";
 
 /**
@@ -12,9 +12,7 @@ const FLOW_KEYS = new Set(["covers", "implements", "references"]);
 
 /** Render `key: value` as YAML lines (lists of cites in flow style, everything else in block style). */
 export function renderKey(key: string, value: unknown): string[] {
-  const text = yaml.dump({ [key]: value }, {
-    schema: yaml.JSON_SCHEMA, lineWidth: -1, noRefs: true, flowLevel: FLOW_KEYS.has(key) ? 1 : -1, sortKeys: false,
-  });
+  const text = dumpYaml({ [key]: value }, { flowScalarLists: FLOW_KEYS.has(key) });
   return text.replace(/\n$/, "").split("\n");
 }
 

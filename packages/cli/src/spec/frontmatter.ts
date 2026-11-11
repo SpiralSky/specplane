@@ -1,4 +1,4 @@
-import * as yaml from "js-yaml";
+import { parseYaml } from "../yaml.js";
 
 /** Result of splitting a spec file at its frontmatter fences (`architecture/reference-cli` §4.1). */
 export interface FrontmatterResult {
@@ -12,25 +12,6 @@ export interface FrontmatterResult {
   error?: string;
   /** True when the file does not start with a `---` line at all. */
   missing?: boolean;
-}
-
-function parseYamlStrict(source: string): unknown {
-  const stack: { children: unknown[] }[] = [];
-  return yaml.load(source, {
-    schema: yaml.JSON_SCHEMA,
-    listener: (event, state) => {
-      if (event === "open") stack.push({ children: [] });
-      else {
-        const node = stack.pop()!;
-        if (state.kind === "mapping" && !(node.children.length === 1 && node.children[0] === state.result)) {
-          for (let i = 0; i < node.children.length; i += 2) {
-            if (typeof node.children[i] !== "string") throw new Error("mapping keys must be strings");
-          }
-        }
-        stack.at(-1)?.children.push(state.result);
-      }
-    },
-  });
 }
 
 /**
@@ -52,7 +33,7 @@ export function splitFrontmatter(text: string): FrontmatterResult {
   const base = { body, bodyStartLine: close + 1 };
   let data: unknown;
   try {
-    data = parseYamlStrict(lines.slice(1, close).join("\n"));
+    data = parseYaml(lines.slice(1, close).map(stripCr).join("\n"));
   } catch (e) {
     return { data: null, ...base, error: `invalid YAML frontmatter: ${(e as Error).message.split("\n")[0]}` };
   }

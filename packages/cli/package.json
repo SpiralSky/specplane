@@ -46,11 +46,9 @@
     "ajv": "^8",
     "ajv-formats": "^3",
     "commander": "^12",
-    "gray-matter": "^4",
-    "js-yaml": "^4"
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4",
     "@types/node": "^22",
     "typescript": "^5"
   }

@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import * as yaml from "js-yaml";
+import { parseYaml } from "./yaml.js";
 import { configDiffersFromHead, readCommittedConfig } from "./config-source.js";
 import { CATALOG, PRESETS } from "./perm/permissions.js";
 
@@ -286,7 +286,7 @@ export function parseConfig(text: string | null): LoadResult {
   const set = new Set<string>();
   if (text === null) return { config: build(values, set), findings };
   let raw: unknown;
-  try { raw = yaml.load(text, { schema: yaml.JSON_SCHEMA }); } catch (e) {
+  try { raw = parseYaml(text); } catch (e) {
     findings.push({ severity: "error", key: CONFIG_PATH, message: `${CONFIG_PATH} is not valid YAML: ${(e as Error).message.split("\n")[0]}; using the defaults` });
     return { config: build(values, set), findings };
   }

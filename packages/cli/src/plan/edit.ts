@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as yaml from "js-yaml";
+import { dumpYaml } from "../yaml.js";
 import { splitFrontmatter } from "../spec/frontmatter.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject } from "../spec/project.js";
@@ -85,7 +85,7 @@ export function editPlan(ctx: PlanCtx, id: string, o: EditPlanOpts): { commit: s
     const author = planAuthor({ ...ctx, root });
     if (!(fm.data.authors as unknown[]).some((a) => JSON.stringify(a) === JSON.stringify(author))) {
       (fm.data.authors as unknown[]).push(author);
-      edits.set(rec.planFile, `---\n${yaml.dump(fm.data, { schema: yaml.JSON_SCHEMA, lineWidth: -1, noRefs: true })}---\n${fm.body}`);
+      edits.set(rec.planFile, `---\n${dumpYaml(fm.data)}---\n${fm.body}`);
     }
     const projected: Source = {
       ...source,

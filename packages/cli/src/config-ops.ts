@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as yaml from "js-yaml";
+import { parseYaml } from "./yaml.js";
 import { audit } from "./audit/log.js";
 import { applyEffects } from "./config-effects.js";
 import { readWorkingConfig } from "./config-source.js";
@@ -66,7 +66,7 @@ function parseArg(kind: Kind, arg: string): unknown {
     case "text": case "path": case "filename": case "enum": case "preset": return arg;
     case "bool": return arg.trim();
     default:
-      try { return yaml.load(arg, { schema: yaml.JSON_SCHEMA }); } catch { return arg; }
+      try { return parseYaml(arg); } catch { return arg; }
   }
 }
 

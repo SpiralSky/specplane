@@ -1,4 +1,4 @@
-import * as yaml from "js-yaml";
+import { parseYaml } from "../yaml.js";
 import * as path from "node:path";
 import type { SpecDoc } from "../spec/project.js";
 import type { TestLine } from "../spec/sections.js";
@@ -66,7 +66,7 @@ const isArgv = (v: unknown): v is string[] => isStrings(v) && v.length > 0 && v.
 /** Parse the YAML of a `specplane-test` block (`§10.1`). Returns the definition or the first problem. */
 export function parseBlock(text: string): { def: RunDef } | { error: string } {
   let raw: unknown;
-  try { raw = yaml.load(text, { schema: yaml.JSON_SCHEMA }); } catch (e) { return { error: `specplane-test block is not valid YAML: ${(e as Error).message.split("\n")[0]}` }; }
+  try { raw = parseYaml(text); } catch (e) { return { error: `specplane-test block is not valid YAML: ${(e as Error).message.split("\n")[0]}` }; }
   if (!isMap(raw)) return { error: "specplane-test block must be a mapping with `run`" };
   for (const k of Object.keys(raw)) if (!["run", "cwd", "setup", "expect"].includes(k)) return { error: `specplane-test block has unknown key \`${k}\`` };
   if (!isArgv(raw.run)) return { error: "`run` must be a non-empty list of strings (an argv array, no shell)" };

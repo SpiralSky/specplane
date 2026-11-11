@@ -1,4 +1,4 @@
-import * as yaml from "js-yaml";
+import { parseYaml } from "../yaml.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
 import { readCommittedConfig } from "../config-source.js";
 import { run } from "../git/exec.js";
@@ -73,7 +73,7 @@ export function activePreset(root: string): Preset {
   try {
     const text = readCommittedConfig(root);
     if (text === null) return DEFAULT_PRESET;
-    const doc = yaml.load(text, { schema: yaml.JSON_SCHEMA }) as { permissions?: { preset?: unknown } } | null;
+    const doc = parseYaml(text) as { permissions?: { preset?: unknown } } | null;
     const id = doc?.permissions?.preset;
     return PRESETS.find((p) => p.id === id) ?? DEFAULT_PRESET;
   } catch { return DEFAULT_PRESET; }

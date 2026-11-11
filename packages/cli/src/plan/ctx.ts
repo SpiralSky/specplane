@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as yaml from "js-yaml";
+import { dumpYaml } from "../yaml.js";
 import { audit } from "../audit/log.js";
 import { loadSettings } from "../config.js";
 import { SpecplaneError } from "../errors.js";
@@ -189,7 +189,7 @@ export function renderProgress(p: Progress): string {
   const ordered: Record<string, unknown> = {};
   for (const k of PROGRESS_ORDER) if (p[k] !== undefined && p[k] !== null) ordered[k] = p[k];
   for (const k of Object.keys(p)) if (!(k in ordered) && p[k] !== undefined) ordered[k] = p[k];
-  return yaml.dump(ordered, { schema: yaml.JSON_SCHEMA, lineWidth: -1, noRefs: true, flowLevel: -1 });
+  return dumpYaml(ordered);
 }
 
 export function writeProgress(root: string, rec: PlanRecord, p: Progress): void {
