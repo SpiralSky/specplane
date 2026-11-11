@@ -61,7 +61,7 @@ export const specMetaSetHuman = (id: string, field: string, value: string, opts:
 
 export const specOverrideHuman = (kind: OverrideKind, id: string, args: string[], opts: Common & { summary?: string }) => guarded(() => {
   const c = context();
-  print(withCheckoutLease(c.root, "spec-override", false, () => overrideSpec(c, kind, id, args, { noCommit: opts.commit === false, summary: opts.summary })), opts.json);
+  print(withCheckoutLease(c.root, "spec-override", false, () => overrideSpec(c, kind, id, args, { summary: opts.summary })), opts.json);
 });
 
 export const roleShowHuman = () => guarded(() => { process.stdout.write(`${cliRole(checkoutRoot())}\n`); });

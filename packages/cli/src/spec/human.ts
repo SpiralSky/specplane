@@ -420,7 +420,7 @@ function parseApprover(raw: string): Record<string, string> {
   return { llm: m[2].trim(), "delegated-by": m[3].trim() };
 }
 
-export function overrideSpec(ctx: Ctx, kind: OverrideKind, id: string, args: string[], opts: { noCommit?: boolean; summary?: string } = {}): Result {
+export function overrideSpec(ctx: Ctx, kind: OverrideKind, id: string, args: string[], opts: { summary?: string } = {}): Result {
   const perm = `override.${kind}`;
   const cmd = `spec override ${kind}`;
   const head = loadHead(ctx.root);

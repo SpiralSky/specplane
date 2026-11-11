@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -17,7 +18,10 @@ test("validate on the specs-framework repository reports no format or requiremen
   let out: string;
   try { out = sp("validate", "--json"); } catch (e) { out = (e as { stdout: string }).stdout; }
   const report = JSON.parse(out) as { findings: { severity: string; rule: string; message: string }[]; checked: string[] };
-  assert.equal(report.checked.length, 15, "4 architecture and 11 feature specs");
+  // Every spec file and requirement file in the repository is checked; INFO.md is not a spec.
+  const specFiles = ["docs/specifications/architecture", "docs/specifications/features", "docs/requirements"]
+    .flatMap((dir) => fs.readdirSync(path.join(repoRoot, dir)).filter((n) => n.endsWith(".md") && n !== "INFO.md"));
+  assert.equal(report.checked.length, specFiles.length, "one entry per spec or requirement file");
   const errors = report.findings.filter((f) => f.severity === "error");
   assert.deepEqual(errors.filter((f) => f.rule !== "cites"), []);
   for (const f of errors) {
