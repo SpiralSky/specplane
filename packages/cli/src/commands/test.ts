@@ -38,7 +38,7 @@ export async function testRunCommand(target: string | undefined, opts: { all?: b
   const actor = cliActor(root);
   const report = await runTests({
     root, project, selection, timeoutSec, commit,
-    logMode: settings.values["tests.logs"] as "local" | "git" | "off", gitLogDir: settings.paths.testLogs,
+    logMode: settings.values["tests.logs"] as "local" | "git" | "off", gitLogDir: settings.abs.testLogs,
     actor: `${actor.kind === "llm" ? "llm" : "human"}:${actor.name}`,
   });
   const failed = report.results.filter((r) => r.outcome === "failed");

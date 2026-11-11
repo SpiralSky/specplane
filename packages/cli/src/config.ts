@@ -88,7 +88,7 @@ export interface ConfigFinding { severity: "error" | "warning"; key: string; mes
 export interface ResolvedSetting { key: string; value: unknown; source: "default" | "set"; def: unknown }
 
 /** Absolute folders for the path settings, checked once at load time. */
-export interface ResolvedPaths { requirements: string; features: string; architecture: string; plans: string }
+export interface ResolvedPaths { requirements: string; features: string; architecture: string; plans: string; testLogs: string }
 
 export interface Config {
   /** Absolute checked folders; set by `loadSettings` (empty strings for `parseConfig` alone and the defaults). */
@@ -267,7 +267,7 @@ function build(values: Record<string, unknown>, set: Set<string>): Config {
   collectDynamics(values, set);
   const v = values as Record<string, any>;
   return {
-    values, set, abs: { requirements: "", features: "", architecture: "", plans: "" },
+    values, set, abs: { requirements: "", features: "", architecture: "", plans: "", testLogs: "" },
     paths: { requirements: v["paths.requirements"], requirementsIndex: v["paths.requirements_index"], features: v["paths.features"], architecture: v["paths.architecture"], testLogs: v["paths.test_logs"] },
     plans: { dir: v["plans.dir"], worktreeDir: v["plans.worktree_dir"], setupCommand: v["plans.setup_command"], startConditions: v["plans.start_conditions"], parallelism: v["plans.parallelism"] },
     permissionsPreset: v["permissions.preset"],
@@ -363,6 +363,7 @@ function resolvePaths(root: string, config: Config, findings: ConfigFinding[]): 
     features: one("paths.features", config.paths.features),
     architecture: one("paths.architecture", config.paths.architecture),
     plans: one("plans.dir", config.plans.dir),
+    testLogs: one("paths.test_logs", config.paths.testLogs),
   };
 }
 

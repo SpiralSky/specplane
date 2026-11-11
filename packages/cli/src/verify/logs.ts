@@ -16,22 +16,14 @@ export function newLogId(now: Date = clock.now()): string {
   return `${now.toISOString().replace(/\.\d{3}Z$/, "Z").replace(/[-:]/g, "")}-${randomHex(4)}`;
 }
 
-/** The folder for `git` logs: `paths.test_logs` inside the checkout, or null when it points outside it. */
-export function gitLogDir(root: string, rel: string): string | null {
-  const abs = path.resolve(root, rel);
-  const within = path.relative(path.resolve(root), abs);
-  return within === "" || within.startsWith("..") || path.isAbsolute(within) ? null : abs;
-}
-
 export const GIT_LOG_WARNING = "tests.logs is git: test logs are committed with the project, so make sure they hold no private information";
 
 export interface LogWrite { id: string; file: string; warning?: string }
 
-/** Write one log. Returns null when logs are off, or when the folder could not be used (the caller warns). */
+/** Write one log; `gitDir` is `Config.abs.testLogs`, already checked to lie inside the checkout. Returns null when logs are off, or when the folder could not be used (the caller warns). */
 export function writeLog(root: string, mode: LogMode, gitDir: string, text: string, now: Date = clock.now()): LogWrite | { error: string } | null {
   if (mode === "off") return null;
-  const dir = mode === "local" ? path.join(storeDir(root), "logs") : gitLogDir(root, gitDir);
-  if (dir === null) return { error: `paths.test_logs \`${gitDir}\` is outside the repository; the log was not written` };
+  const dir = mode === "local" ? path.join(storeDir(root), "logs") : gitDir;
   try {
     fs.mkdirSync(dir, { recursive: true });
     const id = newLogId(now);
