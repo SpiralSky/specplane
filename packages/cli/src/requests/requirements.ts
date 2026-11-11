@@ -57,6 +57,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
     }
     case "spec override status":
     case "spec override approver":
+    case "spec override approval-commit":
     case "spec override test":
       specLayer("id");
       if (!strings(p.args) || !p.args.length) invalid(`\`${command}\` needs a non-empty list of arguments.`);

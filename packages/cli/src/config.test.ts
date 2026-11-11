@@ -262,7 +262,7 @@ test("default presets state the modes of roles-and-permissions R57 for the Stand
     assert.equal(mode(p, "llm", "plan.edit"), plan);
     assert.equal(mode(p, "llm", "config.change"), "request-user");
     assert.equal(mode(p, "standard-user", "config.change"), "allow");
-    for (const o of ["override.status", "override.approver", "override.test"]) assert.equal(mode(p, "standard-user", o), "deny");
+    for (const o of ["override.status", "override.approver", "override.approval-commit", "override.test"]) assert.equal(mode(p, "standard-user", o), "deny");
     for (const perm of CATALOG.filter((c) => !c.startsWith("override."))) assert.equal(mode(p, "standard-user", perm), "allow", `${id} ${perm}`);
     assert.equal(mode(p, "administrator", "override.status"), "allow");
   }

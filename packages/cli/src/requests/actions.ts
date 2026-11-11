@@ -66,4 +66,4 @@ export function actionFor(command: string): Action | null {
   return null;
 }
 
-export const REQUESTABLE_COMMANDS: readonly string[] = [...Object.keys(ACTIONS), "spec override status", "spec override approver", "spec override test"];
+export const REQUESTABLE_COMMANDS: readonly string[] = [...Object.keys(ACTIONS), "spec override status", "spec override approver", "spec override approval-commit", "spec override test"];

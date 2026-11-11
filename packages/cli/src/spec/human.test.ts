@@ -153,11 +153,11 @@ test("approve: already approved does nothing and says so", async () => {
 
 test("approve: a current failed test result blocks approval; an outdated one does not", async () => {
   const root = repo({ a: fm("a") });
-  const set = overrideSpec(ctx(root, "administrator"), "test", "feature/a", ["R9#1", "failed"]);
+  const set = overrideSpec(ctx(root, "administrator"), "test", "feature/a", ["R9#T1", "failed"]);
   assert.ok(set.ok, set.reasons.join());
   const blocked = await approveSpecs(ctx(root), ["feature/a"]);
   assert.equal(blocked.ok, false);
-  assert.match(blocked.reasons.join(), /failed test result \(R9#1\)/);
+  assert.match(blocked.reasons.join(), /failed test result \(R9#T1\)/);
   // A content edit makes the result outdated (counts as no result).
   fs.appendFileSync(path.join(root, F, "a.md"), "changed content\n");
   sh(root, "commit", "-q", "-am", "edit");
@@ -283,13 +283,13 @@ test("granular permissions: only authors allowed means authors change, title is 
 test("protected overrides: refused for the Standard User, allowed for the Administrator, marked, audited", async () => {
   const root = repo({ a: fm("a") });
   const before = read(root, "a");
-  for (const [kind, args] of [["status", ["approved"]], ["approver", ["human:X"]], ["test", ["R9#1", "passed"]]] as const) {
+  for (const [kind, args] of [["status", ["approved"]], ["approver", ["human:X"]], ["approval-commit", ["HEAD"]], ["test", ["R9#T1", "passed"]]] as const) {
     const r = overrideSpec(ctx(root), kind, "feature/a", [...args]);
     assert.equal(r.ok, false);
     assert.match(r.reasons.join(), new RegExp(`override\\.${kind}`));
   }
   assert.equal(read(root, "a"), before);
-  assert.equal(audit(root).filter((e) => e.outcome === "refused").length, 3);
+  assert.equal(audit(root).filter((e) => e.outcome === "refused").length, 4);
 
   const admin = ctx(root, "administrator");
   const s = overrideSpec(admin, "status", "feature/a", ["approved"]);
@@ -304,13 +304,16 @@ test("protected overrides: refused for the Standard User, allowed for the Admini
   sh(root, "commit", "-q", "-am", "edit");
   assert.equal(effective(root, "a").status, "awaiting-review");
 
-  const t = overrideSpec(admin, "test", "feature/a", ["R9#1", "passed"]);
+  const t = overrideSpec(admin, "test", "feature/a", ["R9#T1", "passed"]);
   assert.ok(t.ok, t.reasons.join());
-  assert.match(read(root, "a"), /results:/);
-  assert.match(metaGet(admin, "feature/a").lines.join("\n"), /result R9#1: passed \[override/);
-  const cleared = overrideSpec(admin, "test", "feature/a", ["R9#1", "clear"]);
+  assert.equal(read(root, "a").includes("results:"), false, "no file edit");
+  const tr = records(root, "a").filter((r) => r.kind === "test-result").at(-1)!;
+  assert.deepEqual([tr.test, tr["test-kind"], tr.outcome, (tr.override as { by: unknown }).by], ["R9#T1", "deterministic", "passed", { human: "Pat Person" }]);
+  assert.match(metaGet(admin, "feature/a").lines.join("\n"), /result R9#T1: passed \[override/);
+  const cleared = overrideSpec(ctx(root, "administrator"), "test", "feature/a", ["R9#T1", "clear"]);
   assert.ok(cleared.ok);
-  assert.match(read(root, "a"), /results: \[\]/);
+  assert.equal(records(root, "a").filter((r) => r.kind === "test-result").at(-1)!.outcome, "cleared");
+  assert.doesNotMatch(metaGet(admin, "feature/a").lines.join("\n"), /result R9#T1/);
   const ov = audit(root).filter((e) => e.command.startsWith("spec override") && e.outcome === "done");
   assert.equal(ov.length, 3);
   assert.equal(ov[0].actor.role, "administrator");
@@ -336,10 +339,27 @@ test("override approver changes only what is shown, not the status", async () =>
   assert.equal(effective(root, "a").status, "approved");
 });
 
+test("override approval-commit changes only what is shown, not the status", async () => {
+  const root = repo({ a: fm("a") });
+  assert.equal(overrideSpec(ctx(root, "administrator"), "approval-commit", "feature/a", ["HEAD"]).ok, false, "nothing approved yet");
+  await approveSpecs(ctx(root), ["feature/a"]);
+  const first = sh(root, "rev-parse", "HEAD").trim();
+  fs.writeFileSync(path.join(root, "other.txt"), "x");
+  sh(root, "add", "other.txt");
+  sh(root, "commit", "-q", "-m", "other");
+  assert.equal(overrideSpec(ctx(root, "administrator"), "approval-commit", "feature/a", ["deadbeef"]).ok, false, "unknown commit");
+  const ok = overrideSpec(ctx(root, "administrator"), "approval-commit", "feature/a", [first.slice(0, 10)]);
+  assert.ok(ok.ok, ok.reasons.join());
+  assert.equal(effective(root, "a").status, "approved");
+  assert.match(metaGet(ctx(root, "administrator"), "feature/a").lines.join("\n"), new RegExp(`approval.commit: ${first}.*override`));
+  const rec = records(root, "a").filter((r) => r.kind === "override").at(-1)!;
+  assert.deepEqual([rec.target, rec.value], ["approval-commit", first]);
+});
+
 test("presets: Standard User holds everything except the three overrides; Administrator holds all; defaults deny", () => {
   for (const p of PRESETS) {
     assert.equal(mode(p, "standard-user", "spec.approve"), "allow");
-    for (const o of ["override.status", "override.approver", "override.test"]) {
+    for (const o of ["override.status", "override.approver", "override.approval-commit", "override.test"]) {
       assert.equal(mode(p, "standard-user", o), "deny");
       assert.equal(mode(p, "llm", o), "deny");
       assert.equal(mode(p, "administrator", o), "allow");

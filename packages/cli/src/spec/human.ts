@@ -10,10 +10,10 @@ import type { RequestRecord } from "../requests/store.js";
 import { parseCite } from "./cites.js";
 import { editKeys } from "./fm-edit.js";
 import { specFingerprint } from "./fingerprint.js";
-import { appendRecords, makeRecord, notesTip, type NoteRecord } from "./notes.js";
+import { appendRecords, isApproving, makeRecord, notesTip, type NoteRecord } from "./notes.js";
 import { loadSpecPaths } from "./paths.js";
 import { loadProject, resolveCite, targetFingerprint, type Project, type SpecDoc } from "./project.js";
-import { failedTests } from "./results.js";
+import { currentResults, failedTests } from "./results.js";
 import { commitExists, committedSource, headCommit, worktreeSource } from "./source.js";
 import { computeStatus, dependencyCites, specSubject, StatusCtx } from "./status.js";
 
@@ -246,7 +246,7 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
         if (st.status !== "approved") reasons.push(`\`${doc.id}\` references \`${dep}\` (via \`${raw}\`), which is ${st.status}${st.reasons.length ? ` (${st.reasons.join("; ")})` : ""}. Approve \`${dep}\` first.`);
       }
     }
-    const failed = failedTests(doc, head);
+    const failed = failedTests(commits, doc);
     if (failed.length) reasons.push(`\`${doc.id}\` has a failed test result (${failed.join(", ")}) and cannot be approved.`);
   }
   if (reasons.length) {
@@ -400,14 +400,14 @@ export function metaGet(ctx: Ctx, id: string): Result & { data?: Record<string, 
     lines.push(`approver: ${JSON.stringify(approverOverride?.rec.value ?? approval.rec.by)}${mark(approverOverride?.rec)}`, `approval.date: ${approval.rec.date}`,
       `approval.commit: ${commitOverride?.rec.value ?? approval.commit}${mark(commitOverride?.rec)}`);
   }
-  if (Array.isArray(d.results)) for (const r of d.results) if (isMap(r)) lines.push(`result ${r.test}: ${r.outcome}${isMap(r.override) ? ` [override by ${JSON.stringify(r.override.by)} on ${r.override.date}]` : ""}`);
+  for (const [test, r] of currentResults(sctx, doc)) if (r.outcome !== "cleared") lines.push(`result ${test}: ${r.outcome}${isMap(r.override) ? ` [override by ${JSON.stringify(r.override.by)} on ${r.override.date}]` : ""}`);
   auditAll(ctx, { command: "spec meta get", args: [id], permission: "meta.read", outcome: "done" });
   return { ...result({ ok: true, lines }), data: { id: doc.id, stored: d, effective: st } };
 }
 
 /* ---------------------------------------------------------------- overrides */
 
-export type OverrideKind = "status" | "approver" | "test";
+export type OverrideKind = "status" | "approver" | "approval-commit" | "test";
 
 function parseApprover(raw: string): Record<string, string> {
   const m = /^(human|llm):([^@]+)(?:@(.+))?$/.exec(raw.trim());
@@ -432,10 +432,9 @@ export function overrideSpec(ctx: Ctx, kind: OverrideKind, id: string, args: str
   if (!name) return result({ ok: false, reasons: ["Cannot tell who is making the override: set git `user.name`."] });
   const fail = (m: string) => { auditAll(ctx, { command: cmd, args: [id, ...args], permission: perm, outcome: "failed", reason: m }); return result({ ok: false, reasons: [m] }); };
   const mark = { by: { human: name }, date: today(ctx) };
-  const data = doc.fm.data ?? {};
-  if (kind !== "test" && doc.layer === "requirement") return fail(`\`${id}\` is a requirement file; it is always approved and has no status records to override.`);
+  if (doc.layer === "requirement") return fail(`\`${id}\` is a requirement file; it is always approved and has no records to override.`);
   const sctx = new StatusCtx(ctx.root, head);
-  const before = kind === "test" ? null : computeStatus(head, doc, sctx);
+  const before = kind === "test" || kind === "approval-commit" ? null : computeStatus(head, doc, sctx);
   let record: NoteRecord | null = null;
   let old: unknown, nw: unknown;
 
@@ -457,28 +456,27 @@ export function overrideSpec(ctx: Ctx, kind: OverrideKind, id: string, args: str
     if (!approving) return fail(`\`${id}\` has no applicable approval, so there is no approver to override.`);
     record = makeRecord("override", id, specFingerprint(doc.text)!, { ...mark, target: "approver", value: by }, ctx.now);
     old = { by: approving.rec.by }; nw = { by, override: mark };
+  } else if (kind === "approval-commit") {
+    const target = args[0] ?? "";
+    if (!/^[0-9a-f]{7,40}$/i.test(target) || !commitExists(ctx.root, target)) return fail(`\`${target}\` is not a commit in this repository`);
+    const approving = sctx.notes.lookup(specSubject(sctx, doc)).applicable.filter((x) => isApproving(x)).at(-1);
+    if (!approving) return fail(`\`${id}\` has no applicable approval, so there is no approved commit to override.`);
+    const full = revCommit(ctx.root, target)!;
+    record = makeRecord("override", id, specFingerprint(doc.text)!, { ...mark, target: "approval-commit", value: full }, ctx.now);
+    old = { commit: approving.commit }; nw = { commit: full, override: mark };
   } else {
-    // Test results are still frontmatter until their records are implemented (`file-formats` §11.1).
+    // A test result is a `test-result` record on HEAD (`file-formats` §11.1); a clear is a record with outcome `cleared`.
     const [testId, outcome] = args;
-    if (!testId || !/^.+#\d+$/.test(testId)) return fail("test must be a test ID such as `R11#1`");
+    if (!testId || !/^.+#(T\d+|0)$/.test(testId)) return fail("test must be a test ID such as `R11#T1` (or `R11#0` for the intelligent judgement)");
     if (!["passed", "failed", "clear"].includes(outcome ?? "")) return fail("result must be `passed`, `failed` or `clear`");
-    const results = Array.isArray(data.results) ? data.results : [];
-    let edits: Record<string, unknown>;
-    if (outcome === "clear") {
-      edits = { results: results.filter((r) => !(isMap(r) && r.test === testId)) };
-      old = { test: testId, results: results.filter((r) => isMap(r) && r.test === testId) }; nw = { test: testId, cleared: true, override: mark };
-    } else {
-      if (isDirty(ctx.root, doc.file)) return fail(`\`${id}\` has uncommitted changes. Commit ${doc.file} first; a result is recorded against committed content.`);
-      const entry = {
-        test: testId, kind: Number(testId.split("#")[1]) > 0 ? "deterministic" : "intelligent", outcome, by: { human: name }, date: today(ctx),
-        commit: headCommit(ctx.root), fingerprint: specFingerprint(doc.text), against: {}, summary: opts.summary ?? "set by override", override: mark,
-      };
-      edits = { results: [...results, entry] };
-      old = { test: testId }; nw = { test: testId, outcome, override: mark };
-    }
-    const { commit, notes } = writeAndCommit(g.token, ctx, [{ doc, edits }], "spec", `override ${kind} of ${id}`, "", !!opts.noCommit);
-    auditAll(ctx, { command: cmd, args: [id, ...args], permission: perm, outcome: "done", old, new: nw });
-    return result({ ok: true, commit, written: [id], lines: [`Override of ${kind} recorded for \`${id}\` by ${name}.${commit ? ` Commit ${commit.slice(0, 7)}.` : ""}`, ...notes] });
+    if (isDirty(ctx.root, doc.file)) return fail(`\`${id}\` has uncommitted changes. Commit ${doc.file} first; a result is recorded against committed content.`);
+    const prior = currentResults(sctx, doc).get(testId);
+    const cleared = outcome === "clear";
+    record = makeRecord("test-result", id, specFingerprint(doc.text)!, {
+      test: testId, "test-kind": testId.endsWith("#0") ? "intelligent" : "deterministic", outcome: cleared ? "cleared" : outcome,
+      by: { human: name }, date: today(ctx), against: {}, summary: opts.summary ?? (cleared ? "cleared by override" : "set by override"), override: mark,
+    }, ctx.now);
+    old = { test: testId, outcome: prior?.outcome ?? null }; nw = cleared ? { test: testId, cleared: true, override: mark } : { test: testId, outcome, override: mark };
   }
   const commit = writeRecords(ctx, [record!]);
   auditAll(ctx, { command: cmd, args: [id, ...args], permission: perm, outcome: "done", old, new: nw });

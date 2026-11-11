@@ -12,7 +12,7 @@ import { run } from "../git/exec.js";
 export type Mode = "allow" | "request-user" | "deny";
 export type RoleId = "standard-user" | "administrator" | "llm";
 
-export const PROTECTED = ["override.status", "override.approver", "override.test"] as const;
+export const PROTECTED = ["override.status", "override.approver", "override.approval-commit", "override.test"] as const;
 export const GRANULAR_PIECES = ["title", "authors", "references", "covers", "approval"] as const;
 export type Piece = (typeof GRANULAR_PIECES)[number];
 
@@ -52,7 +52,7 @@ function llmModes(req: Mode, feat: Mode, arch: Mode, planEdit: Mode): Record<str
   };
 }
 
-const standard = { defaultMode: "allow" as Mode, modes: { "override.status": "deny", "override.approver": "deny", "override.test": "deny" } as Record<string, Mode> };
+const standard = { defaultMode: "allow" as Mode, modes: { "override.status": "deny", "override.approver": "deny", "override.approval-commit": "deny", "override.test": "deny" } as Record<string, Mode> };
 
 export const PRESETS: Preset[] = [
   { id: "architecture-level-llm-control", number: 1, defaultMode: "deny", standardUser: standard, llm: { modes: llmModes("request-user", "request-user", "allow", "allow") } },

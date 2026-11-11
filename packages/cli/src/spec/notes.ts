@@ -112,6 +112,8 @@ export function notesTip(root: string, ref: string = NOTES_REF): string | null {
 }
 
 const DECIDING = new Set(["approval", "reopen", "override"]);
+export const KIND_TEST_RESULT: ReadonlySet<string> = new Set(["test-result"]);
+export const KIND_IMPLEMENTATION: ReadonlySet<string> = new Set(["implementation"]);
 
 /** The subject of a lookup: a spec or a plan, how to find its history, and its fingerprint now. */
 export interface Subject {
@@ -127,7 +129,7 @@ export interface Subject {
 export interface Lookup {
   /** Records that apply (`file-formats` §13.2), oldest first. */
   applicable: Stored[];
-  /** Approval, reopen and override records of the subject that do not apply. */
+  /** Records of the asked kinds (default approval, reopen, override) of the subject that do not apply. */
   other: Stored[];
 }
 
@@ -166,10 +168,10 @@ export class NotesView {
     return v;
   }
 
-  lookup(s: Subject): Lookup {
+  lookup(s: Subject, kinds: ReadonlySet<string> = DECIDING): Lookup {
     const applicable: Stored[] = [], other: Stored[] = [];
     for (const st of this.records(s.id)) {
-      if (!DECIDING.has(st.rec.kind)) continue;
+      if (!kinds.has(st.rec.kind)) continue;
       if (s.fingerprint !== null && st.rec.fingerprint === s.fingerprint && this.holds(s, st)) applicable.push(st); else other.push(st);
     }
     return { applicable: applicable.sort(byAtRid), other };

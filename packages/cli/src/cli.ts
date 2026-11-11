@@ -67,6 +67,8 @@ override.command("status <id> <status>").description("Set status by hand: approv
   .action((id: string, status: string, opts) => specOverrideHuman("status", id, [status], opts));
 override.command("approver <id> <approver>").description("Set the approver: human:<name> or llm:<model>@<human>").option("--json")
   .action((id: string, approver: string, opts) => specOverrideHuman("approver", id, [approver], opts));
+override.command("approval-commit <id> <commit>").description("Set the commit shown as the approved one (display only)").option("--json")
+  .action((id: string, commit: string, opts) => specOverrideHuman("approval-commit", id, [commit], opts));
 override.command("test <id> <test> <result>").description("Set a test result (passed, failed) or clear it").option("--summary <text>").option("--no-commit").option("--json")
   .action((id: string, test: string, result: string, opts) => specOverrideHuman("test", id, [test, result], opts));
 program.command("sync [remote]").description("Fetch, merge and push the notes store (approval records) with a remote").option("--json").action((remote: string | undefined, opts) => syncHuman(remote, opts));

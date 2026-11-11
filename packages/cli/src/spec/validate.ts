@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { assessContent, completionSnapshot } from "./completion.js";
+import { implementationAssessor } from "./completion.js";
 import * as path from "node:path";
 import { FrontmatterError, FrontmatterMissingError, SpecplaneError } from "../errors.js";
 import { readFrontmatter } from "../frontmatter.js";
@@ -240,13 +240,13 @@ export function validateSpecs(config: Config, root: string): ValidationReport {
   const out: Finding[] = [...findings];
   const byFile = new Map(specs.map((s) => [s.file, s]));
   const implementations: NonNullable<ValidationReport["implementations"]> = [];
-  const snapshot = completionSnapshot(config, root, contents);
+  const assess = implementationAssessor(root);
 
   for (const s of specs) {
     const r = validateSpec(s, config, root);
     out.push(...r.errors, ...r.warnings);
     try {
-      const assessment = assessContent(s.id, s.root.name, s.content!, snapshot);
+      const assessment = assess(s.id);
       implementations.push({ id: s.id, root: s.root.name, path: s.rel, ...assessment });
       if (assessment.assessment_status === "reassessment_needed" || assessment.assessment_status === "unverifiable") {
         out.push(finding("warning", assessment.assessment_status === "unverifiable" ? "implementation-unverifiable" : "implementation-reassessment", s.rel, `Implementation assessment ${assessment.assessment_status}: ${assessment.assessment_reasons.map(reason => reason.message).join(" ")}`, { spec: s.id }));

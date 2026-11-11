@@ -469,7 +469,7 @@ Each standard permission has a stable lower-case dotted ID used in presets, stee
 | `spec.approve` | Approve specifications |
 | `meta.read`, `meta.write` | Read, write specification metadata |
 | `meta.write.title`, `.authors`, `.references`, `.covers`, `.approval` | Granular metadata writes (`.approval` covers date and commit) |
-| `override.status`, `override.approver`, `override.test` | Protected overrides |
+| `override.status`, `override.approver`, `override.approval-commit`, `override.test` | Protected overrides |
 | `test.record` | Record a test result |
 | `info.retrieve` | Information retrieval (viewing, review, validation, listing, coverage, test runs, audit reading) |
 | `plan.meta.read`, `plan.meta.write`, `plan.meta.write.<piece>` | Plan metadata (later release) |
@@ -498,7 +498,7 @@ id: architecture-level-llm-control
 title: Architecture-Level LLM Control
 default_mode: deny                    # R56.1
 roles:
-  standard-user: {default_mode: allow, modes: {override.status: deny, override.approver: deny, override.test: deny}}
+  standard-user: {default_mode: allow, modes: {override.status: deny, override.approver: deny, override.approval-commit: deny, override.test: deny}}
   llm:
     modes:
       spec.create.requirement: request-user

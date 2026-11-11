@@ -80,7 +80,7 @@ test("every supported command derives its own permission", () => {
     ["plan delete", { id: "p" }, ["plan.delete"]],
     ["plan step-done", { id: "p", step: 1, outcome: "partial" }, ["plan.step"]],
   ];
-  for (const kind of ["status", "approver", "test"]) cases.push([
+  for (const kind of ["status", "approver", "approval-commit", "test"]) cases.push([
     `spec override ${kind}`, { id: "feature/a", args: ["value"], kind: "misleading" }, [`override.${kind}`],
   ]);
   for (const field of ["title", "authors", "references", "covers", "approval.date", "approval.commit"]) cases.push([

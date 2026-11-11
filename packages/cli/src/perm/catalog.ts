@@ -34,6 +34,7 @@ function docs(): PermDoc[] {
   }
   add("override.status", "Set a specification status by hand.", "It is never covered by `meta.write`.", ["spec override status"]);
   add("override.approver", "Set the recorded approver by hand.", "It is never covered by `meta.write`.", ["spec override approver"]);
+  add("override.approval-commit", "Set the commit shown as the one approved, by hand.", "It changes only what is shown, not the status, and is never covered by `meta.write`.", ["spec override approval-commit"]);
   add("override.test", "Set or clear a test result by hand.", "It is never covered by `meta.write`.", ["spec override test"]);
   add("test.record", "Record a test result.", "Marking a result by hand (that is `override.test`).", ["test run"]);
   add("info.retrieve", "Read information: viewing, review, validation, listing, coverage, test runs and the audit log.", "Changing anything.", ["validate", "warnings", "coverage", "spec list", "spec show", "test run", "audit"]);

@@ -6,7 +6,7 @@ export type HostRow = { workflow: string; deterministic: 'tested' | 'not-deliver
 /** Suites are paths relative to src/ without extension; `title` is a distinctive substring of a test title in that file. */
 export const CRITERIA: Criterion[] = [
   { id: 'cli-core-agreement', text: 'CLI/core paths agree for exact staging, coordination, confirmations, receipts and provenance', state: 'met', suites: [
-    { file: 'core/completion-writer', title: 'core and CLI preserve evidence and body' },
+    { file: 'core/completion-writer', title: 'core and CLI write the implementation record in the notes store' },
     { file: 'commands/coordination', title: 'stateful spec and ADR commands refuse while another writer holds the checkout' },
     { file: 'core/confirmed-operations', title: 'approval adapters invoke real spec, reopen, plan-index and ADR operations' },
     { file: 'core/confirmed-operations', title: 'plan batches preview each successive prospective index' },

@@ -148,7 +148,7 @@ These are the standard permissions. The section named in the last column defines
 | Create, edit and delete specifications | Three separate permissions for each type of specification: requirement, feature and architecture | `R19.2` |
 | Approve specifications | A single permission; an LLM uses it when asked to approve | `R16.1`, `R20.1` |
 | Read and write specification metadata | A permission for reading, one for general writing, and granular ones for individual metadata | `R17.1` |
-| Override status, override approver, override test results | Three separate protected permissions; general metadata writing does not include them | `R17.2` |
+| Override status, override approver, override approval commit, override test results | Four separate protected permissions; general metadata writing does not include them | `R17.2` |
 | Record a test result | Recording the result of a specification test | `R61.2`, `verification R61` |
 | Information retrieval | Reading specifications and other project information; viewing and review use it and have no permission of their own | `R26.2`, `R21`, `R38.1` |
 | Read and write plan metadata | Plan metadata through the CLI; a later release | `R33.1` |
@@ -173,7 +173,7 @@ Specplane ships four presets. Exactly one is active for the project. It sets the
 
 All four presets have these in common:
 
-- **Users.** The Standard User has every standard permission, except the three protected overrides of `R17.2`. Those are not enabled for any role in a preset, so they belong to the Administrator only.
+- **Users.** The Standard User has every standard permission, except the four protected overrides of `R17.2` (status, approver, approval commit and test results). Those are not enabled for any role in a preset, so they belong to the Administrator only.
 - **Default mode.** Every permission that a preset does not state is deny (`R56.1`).
 - **Approval.** Approving specifications is request user for the LLM role.
 - **Configuration.** Changing configuration is request user for the LLM role.
