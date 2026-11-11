@@ -237,6 +237,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U13 User-command runner and CLI block
 
+- **Status:** done (`800e9d2`). Runner, `isSpecplaneCommand` table tests, adapter interface with `capabilities(root?)`, minimal Claude/Codex declarations, `specplane mcp` route.
 - **Goal:** `specplane harness run <command> [args]` (allow-list of harness commands, `standard-user` or switched role, no model call; no-argument `plan-step` shows next step); `isSpecplaneCommand(shellText)` in core with the shell forms of `§12.7`; adapter interface with `capabilities()`.
 - **Specs:** `reference-cli §12.2`, `§12.6` (capabilities), `§12.7`; `harness R18`, `R35.1`, `R47`.
 - **Files:** `harness/run.ts`, `harness/cli-block.ts`, `harness/adapter.ts`, `commands/harness.ts`.
@@ -245,6 +246,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U14 Harness installer and `init`
 
+- **Status:** done (`74409ef`). Installer, `init --harness`, `harness` validation family. Deferred: Claude skills/hooks/settings (U15), Codex MCP registration (U17); old files named under Deletes were already removed in U12.
 - **Goal:** `harness/install.ts`: owned files with version header, marked block (unbalanced → error, no change), `harness.install_block: off`, customised-file kept and reported, symlink refusal; `init --harness <name>` creates config on request, sets notes refspecs, installs; `harness` validation family and staleness warnings (version header, stamp).
 - **Specs:** `reference-cli §12.6`, `§13.1` (init); `repository-layout §5`; `agent-skills §2`, `§9`.
 - **Files:** `harness/install.ts`, `commands/init.ts` (rewrite), `verify/rules/harness.ts`, `verify/warnings.ts`.

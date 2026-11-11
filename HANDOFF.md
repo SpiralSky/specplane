@@ -11,15 +11,18 @@ Notes store landed: `aa52451`, `eac8f55`, `ce1c397`, `0c08bfd`, `c81f74a`, `beed
 
 **Next: work the ordered backlog in `docs/work-records/2026-11-11-remaining-work.md` (U0–U19), one subagent per unit, in order.** It supersedes the "Next task" lists below. U0 decisions (agent's call): config is read at HEAD (`§13.4` aligns to `§3.2`, R40); a plan record has no `status` field, execution status lives in `progress.yaml`; docs/steering/permission views need no permission (`§7.3` aligns to `§13.1`); Codex setup does register the MCP server in Codex config (`codex-integration §1` aligns to `§3`); slash-command lists go in the harness-specific block; `R62`/`R63` stay requirement-only (scope and non-goals). Page flaw reported to the user, unanswered: sub-requirement order (`R27.5` before `R27.4`, `R27.1.1` before `R27.2`). Working branch `spec-edits-20261106`; `main` is the integration branch. Read `AGENTS.md`, `CLAUDE.md`, the local override and `.specplane/config.yaml` first; check `git status` and recent commits before continuing.
 
-## Current state (2026-11-11, U12 and U8 complete; next U13 + U14)
+## Current state (2026-11-11, U13 and U14 complete; next U15 + U16)
 
 Unit status (backlog in `docs/work-records/2026-11-11-remaining-work.md`):
 
-- U0-U11: done (see the work record; U11 is the 35-action registry and stdio MCP server `harness/mcp-main.ts`).
-- U12: done (`3f89d82`). Legacy engine, plan system, generator, old installer, `workflow`/`search`/`decision`/`generate` routes removed. `plan approve` kept; `init` is notes-refspecs only (no `--harness` until U14); no `specplane mcp` route; plugin manifest points at `mcp-main.js`, plugin hooks and Codex scripts keep old tool names until U15/U17.
-- U8: done (`252806a`). `yaml` replaces `js-yaml`/`gray-matter` via `src/yaml.ts`; fingerprints of all specs and plans unchanged; byte-exact edit tests.
-- **Next: U13 + U14.** U13-U17 (user-command runner, installer/`init`, Claude templates and plugin, Claude session adapter, Codex integration): not started; each needs U12 and the `harness/adapter.ts`, `run.ts`, `install.ts` replacements, and the `Harness` interface still has no `capabilities()`.
-- U18 (user and AI documentation pipeline): blocked by U12-U17. U19 (pre-commit checks): later release.
+- U0-U11: done (see the work record; U11 is the 35-action registry and stdio MCP server).
+- U12, U8: done (`3f89d82`, `252806a`): legacy engine removed; `yaml` library.
+- U13: done (`800e9d2`). `harness run <command> [args]` (`harness/run.ts`, 12-command allow-list, role of the person, no model call; no-argument `plan-step` shows next steps), `isSpecplaneCommand` (`harness/cli-block.ts`), adapter interface with `capabilities(root?)` (`harness/adapter.ts`, declarations in `adapters.ts`: Claude claims command blocking only when `.claude/hooks/specplane-cli-block.sh` exists; Codex claims nothing until live checks), `specplane mcp` route (`harness/mcp-run.ts`).
+- U14: done (`74409ef`). `harness/install.ts` (owned files with version/stamp/body-hash header, marked block, `harness.install_block: off`, kept customised files, symlink refusal, atomic all-or-nothing), `init --harness claude|codex` reports capabilities (reference-cli §12.6, R35.1), `harness` validation family (missing, older version, stamp mismatch, marker errors).
+- **Next: U15 + U16** (Claude templates/hooks/plugin; Claude session adapter). Gaps left for them: the installer writes only the standing text (Claude `.claude/rules/specplane.md`, Codex block in `AGENTS.md`); skills, hooks, settings merge and plugin wiring come with U15; Codex MCP registration entry is U17 (init prints that it is not written yet). The plugin hook handlers and Codex scripts still use old tool names. Because the AGENTS.md block here is the old `v2` form, validate reports one extra `harness` warning until `init --harness codex` is rerun, which this repo does not do (own workflows are not run on itself).
+- U17 (Codex), U18 (documentation pipeline), U19 (pre-commit checks): not started.
+
+Verification at U13/U14: `npm run build` passes; `scripts/test.sh` (Bun) **470 pass, 0 fail** across 42 files; hooks 98 pass; check-sync OK; validate 0 errors, 31 warnings (one new: the old `v2` AGENTS.md block).
 
 Verification at U12/U8: `npm run build` passes; `scripts/test.sh` (Bun) **451 pass, 0 fail** across 38 files; hooks 98 pass; check-sync OK; validate 0 errors, 30 warnings.
 
