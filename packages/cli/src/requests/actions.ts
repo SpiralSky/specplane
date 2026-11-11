@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { configSet, configUnset } from "../config-ops.js";
 import type { Actor, Preset } from "../perm/permissions.js";
 import { approvePlan, createPlan } from "../plan/create.js";
+import { editPlan } from "../plan/edit.js";
 import type { PlanCtx } from "../plan/ctx.js";
 import { abandonPlan, deletePlan, finishPlan, mergePlan } from "../plan/finish.js";
 import { resumePlan, retargetPlan, setBudget, startPlan, stopPlan } from "../plan/run.js";
@@ -43,6 +44,7 @@ const ACTIONS: Record<string, Action> = {
   "config set": (c, p) => fromResult(configSet(c, p.key, p.arg ?? String(p.new))),
   "config unset": (c, p) => fromResult(configUnset(c, p.key)),
   "plan create": (c, p) => { const r = createPlan(planCtx(c), { words: p.words, title: p.title, implements: p.implements, writes: p.writes, references: p.references }); return done(`Created plan ${r.id}.`); },
+  "plan edit": (c, p) => { editPlan(planCtx(c), p.id, { changes: p.changes }); return done(`Edited plan ${p.id}.`); },
   "plan approve": (c, p) => { approvePlan(planCtx(c), p.id); return done(`Approved plan ${p.id}.`); },
   "plan start": (c, p) => { const r = startPlan(planCtx(c), p.id, { target: p.target, forceDeps: p.forceDeps }); return done(`Started ${p.id} on ${r.branch} (target ${r.target}).`); },
   "plan stop": (c, p) => { stopPlan(planCtx(c), p.id, { kind: p.kind, reason: p.reason, needs: p.needs }); return done(`Stopped ${p.id}.`); },

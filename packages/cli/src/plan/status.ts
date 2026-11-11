@@ -3,7 +3,7 @@ import type { Subject } from "../spec/notes.js";
 import type { Project } from "../spec/project.js";
 import { computeStatus, recordState, StatusCtx } from "../spec/status.js";
 import { committedSource, headCommit, worktreeSource } from "../spec/source.js";
-import { runIsLive, committedProject, loadPlanAt, plansDir, type PlanCtx } from "./ctx.js";
+import { commitPaths, gitTry, writeProgress, recoveredStop, runIsLive, committedProject, loadPlanAt, plansDir, type PlanCtx } from "./ctx.js";
 import { findPlan, loadPlans, stepNumbers, stepTitle, type ExecStatus, type PlanRecord } from "./model.js";
 
 /** Effective plan status and the next step (`architecture/reference-cli` §11.2). */
@@ -92,7 +92,13 @@ export function describePlan(ctx: PlanCtx, root: string, rec: PlanRecord): PlanI
   const reviewPending = status === "in-progress" && next === null && steps.length > 0;
   if (status === "in-progress" && next !== null && !runIsLive(ctx.root, rec.id, ctx.now)) {
     status = "stopped";
-    stop = { kind: "failure", reason: "session ended unexpectedly", needs: "resume the plan" };
+    stop = recoveredStop(ctx, rec.id, pr?.session);
+    // Persist recovered hard stops only from pristine execution metadata; unrelated staging is kept intact.
+    // Ordinary unexpected ends remain computed status. A dirty progress file also remains untouched.
+    if (stop.kind === "hard" && !(gitTry(root, ["status", "--porcelain", "--", rec.progressFile]) ?? "dirty").trim()) {
+      writeProgress(root, rec, { ...pr!, status: "stopped", stop });
+      commitPaths(ctx, root, [rec.progressFile], { type: "chore", scope: "specplane", summary: `stop ${rec.id}`, workflow: "stop", planId: rec.id });
+    }
   }
   const approval = project ? planApproval(root, project, rec).status : "awaiting-review";
   const title = typeof rec.fm?.data?.title === "string" ? (rec.fm.data.title as string) : rec.id;

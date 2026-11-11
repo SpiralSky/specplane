@@ -9,7 +9,7 @@ import { run } from "../git/exec.js";
 import { mainRoot } from "../git/repo.js";
 import { guard, type Actor, type Authorized, type Preset } from "../perm/permissions.js";
 import { holdRequest, RequestSent, sentMessage } from "../requests/hold.js";
-import { storeDir } from "../repo/store.js";
+import { readStoreJson, writeStoreJson, removeStoreJson } from "../repo/store.js";
 import { loadProject } from "../spec/project.js";
 import { committedSource, worktreeSource } from "../spec/source.js";
 import { loadSpecPaths, relativeTo } from "../spec/paths.js";
@@ -92,19 +92,9 @@ export function guardedWith<T>(params: Record<string, unknown>, ctx: PlanCtx, co
 
 /* ------------------------------------------------------------------ local store (worktrees, runs, reviews) */
 
-function storeFile(root: string, rel: string): string { return path.join(storeDir(root), rel); }
-
-export function readStore<T>(root: string, rel: string): T | null {
-  try { return JSON.parse(fs.readFileSync(storeFile(root, rel), "utf8")) as T; } catch { return null; }
-}
-export function writeStore(root: string, rel: string, value: unknown): void {
-  const abs = storeFile(root, rel);
-  fs.mkdirSync(path.dirname(abs), { recursive: true });
-  const tmp = `${abs}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(value) + "\n");
-  fs.renameSync(tmp, abs);
-}
-export function removeStore(root: string, rel: string): void { try { fs.rmSync(storeFile(root, rel), { force: true }); } catch { /* absent */ } }
+export const readStore = readStoreJson;
+export const writeStore = writeStoreJson;
+export const removeStore = removeStoreJson;
 
 export function listWorktreePaths(root: string): Map<string, string> {
   const out = new Map<string, string>();
@@ -135,9 +125,10 @@ export function setWorktree(root: string, id: string, p: string | null): void {
   else writeStore(root, "worktrees.json", { ...map, [id]: p });
 }
 
-export interface RunMarker { session: string | null; pid: number | null; heartbeat: string }
-export function writeRun(ctx: PlanCtx, id: string, session: string | null, pid: number | null = null): void {
-  writeStore(ctx.root, `runs/${id}.json`, { session, pid, heartbeat: nowIso(ctx) } satisfies RunMarker);
+export interface RunMarker { session: string | null; pid: number | null; heartbeat: string; hardStop?: { session: string; reason: string } }
+export function writeRun(ctx: PlanCtx, id: string, session: string | null, pid: number | null = null, fresh = false): void {
+  const previous = fresh ? null : readStore<RunMarker>(ctx.root, `runs/${id}.json`);
+  writeStore(ctx.root, `runs/${id}.json`, { session, pid, heartbeat: nowIso(ctx), ...(session && previous?.hardStop?.session === session ? { hardStop: previous.hardStop } : {}) } satisfies RunMarker);
 }
 export function clearRun(root: string, id: string): void { removeStore(root, `runs/${id}.json`); }
 
@@ -148,6 +139,21 @@ export function runIsLive(root: string, id: string, now: Date = new Date()): boo
   if (now.getTime() - new Date(m.heartbeat).getTime() > 5 * 60_000) return false;
   if (typeof m.pid === "number") { try { process.kill(m.pid, 0); } catch { return false; } }
   return true;
+}
+
+/** Recovery context is durable before the stop commit, since a forced end can interrupt that commit. */
+export function logBudgetHardStop(ctx: PlanCtx, id: string, reason: string, resource: string): void {
+  const marker = readStore<RunMarker>(ctx.root, `runs/${id}.json`);
+  if (marker?.session) writeStore(ctx.root, `runs/${id}.json`, { ...marker, hardStop: { session: marker.session, reason } });
+  audit(ctx.root, { command: "plan budget-hard-stop", args: [id, resource], permission: null, outcome: "done", reason,
+    actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name, ...(marker?.session ? { session: marker.session } : {}) } }, ctx.now);
+}
+
+export function recoveredStop(ctx: PlanCtx, id: string, session: string | undefined): { kind: string; reason: string; needs: string } {
+  const marker = readStore<RunMarker>(ctx.root, `runs/${id}.json`);
+  const hard = session && marker?.session === session && marker.hardStop?.session === session && !runIsLive(ctx.root, id, ctx.now) ? marker.hardStop : null;
+  return hard ? { kind: "hard", reason: hard.reason, needs: "resume the plan; check the stopped session log for partial work" }
+    : { kind: "failure", reason: "session ended unexpectedly", needs: "resume the plan" };
 }
 
 /* ------------------------------------------------------------------ locating plans */

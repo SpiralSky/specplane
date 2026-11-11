@@ -11,9 +11,10 @@ import { acceptRequest, declineRequest, sendRequest } from "../requests/ops.js";
 import { listRequests } from "../requests/store.js";
 import { checkBudget, evaluateBudget } from "./budget.js";
 import { validateProject } from "../verify/validate.js";
+import { editPlan } from "./edit.js";
 import { approvePlan, createPlan } from "./create.js";
 import { abandonPlan, deletePlan, finishPlan, mergePlan, reviewPlan } from "./finish.js";
-import { PlanOpError, loadPlanAt, readStore, worktreeOf, writeStore, type PlanCtx } from "./ctx.js";
+import { PlanOpError, loadPlanAt, logBudgetHardStop, writeRun, readStore, worktreeOf, writeStore, type PlanCtx } from "./ctx.js";
 import { RequestSent } from "../requests/hold.js";
 import { parseGaps, parseHandoff } from "./model.js";
 import { resumePlan, retargetPlan, setBudget, startPlan, stepDone, stopPlan } from "./run.js";
@@ -555,4 +556,156 @@ test("a blocking request soft stops the plan; answering it names the plan to res
   const nb = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve"], reason: "later", plan: ID });
   assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.status, "in-progress");
   assert.deepEqual(reviewPlan(fx.ctx, ID).pendingRequests, [nb.request!.id]);
+});
+
+
+test("plan edit protects started/completed steps and validates every change before mutation", () => {
+  const fx = repo(); approvedPlan(fx);
+  const { path: wt } = startPlan(fx.ctx, ID);
+  const rec = loadPlanAt(wt, ID)!;
+  const first = rec.steps[0];
+  const plan = rec.planText!;
+  const head = sh(wt, "rev-parse", "HEAD");
+  for (const changes of [
+    [{ path: "PLAN.md", before: plan, after: plan + "\nchanged\n" }, { path: `steps/${first.name}`, before: first.text, after: first.text + "changed" }],
+    [{ path: `steps/${first.name}`, before: first.text, after: null }],
+    [{ path: "progress.yaml", before: null, after: "status: completed" }],
+    [{ path: "../escape.md", before: null, after: "escape" }],
+    [{ path: "PLAN.md", before: plan, after: plan.replace(`plan/${ID}`, "plan/renamed-plan") }],
+    [{ path: "PLAN.md", before: plan, after: plan.replace("title:", "status: approved\ntitle:") }],
+  ]) assert.throws(() => editPlan(fx.ctx, ID, { changes }));
+  assert.equal(sh(wt, "rev-parse", "HEAD"), head);
+  assert.equal(loadPlanAt(wt, ID)!.planText, plan);
+  assert.equal(sh(wt, "status", "--porcelain"), "");
+  fs.writeFileSync(path.join(wt, rec.handoffFile), entry(1));
+  stepDone(fx.ctx, ID, { step: 1, outcome: "done" });
+  const after = loadPlanAt(wt, ID)!;
+  assert.equal(after.progress!.current_step, 2);
+  assert.equal(after.handoff.some((e) => e.step === 2), false);
+  // The next step may already be running without a handoff: keep the conservative current-step boundary.
+  assert.throws(() => editPlan(fx.ctx, ID, { changes: [{ path: `steps/${after.steps[1].name}`, before: after.steps[1].text, after: step2 + "change" }] }), /has started/);
+  assert.throws(() => editPlan(fx.ctx, ID, { changes: [{ path: `steps/${first.name}`, before: first.text, after: null }] }), /has started/);
+  const committed = sh(wt, "rev-parse", "HEAD");
+  const progressFile = path.join(wt, after.progressFile);
+  const progressText = fs.readFileSync(progressFile, "utf8");
+  const reset = progressText.replace("status: in-progress", "status: not-started");
+  fs.writeFileSync(progressFile, reset);
+  assert.throws(() => editPlan(fx.ctx, ID, { changes: [{ path: `steps/${after.steps[1].name}`, before: after.steps[1].text, after: step2 + "change" }] }), /progress.yaml.*uncommitted changes/);
+  assert.equal(fs.readFileSync(progressFile, "utf8"), reset);
+  assert.equal(loadPlanAt(wt, ID)!.steps[1].text, step2);
+  fs.writeFileSync(progressFile, progressText);
+  fs.unlinkSync(path.join(wt, after.handoffFile));
+  assert.throws(() => editPlan(fx.ctx, ID, { changes: [{ path: "PLAN.md", before: plan, after: plan + "\nchanged\n" }] }), /HANDOFF.md.*uncommitted changes/);
+  assert.equal(fs.existsSync(path.join(wt, after.handoffFile)), false);
+  assert.equal(loadPlanAt(wt, ID)!.planText, plan);
+  assert.equal(sh(wt, "rev-parse", "HEAD"), committed);
+});
+
+test("plan edit commits only later step paths, invalidates approval, and preserves dirty/staged unrelated content", () => {
+  const fx = repo(); approvedPlan(fx);
+  const { path: wt } = startPlan(fx.ctx, ID);
+  const rec = loadPlanAt(wt, ID)!;
+  fs.writeFileSync(path.join(wt, "outside.txt"), "staged outside");
+  sh(wt, "add", "outside.txt");
+  fs.writeFileSync(path.join(wt, "outside.txt"), "unstaged outside");
+  const c = { path: "steps/02-second-step.md", before: step2, after: step2 + "\nBetter acceptance.\n" };
+  const r = editPlan(fx.ctx, ID, { changes: [c] });
+  assert.deepEqual(r.files, [`${rec.dir}/${c.path}`]);
+  assert.equal(sh(wt, "log", "-1", "--format=%s"), "docs(export-things): edit plan");
+  assert.equal(sh(wt, "show", "--format=", "--name-only", "HEAD"), `${rec.dir}/${c.path}`);
+  assert.match(sh(wt, "log", "-1", "--format=%B"), /Specplane-Workflow: plan-edit/);
+  assert.equal(sh(wt, "show", ":outside.txt"), "staged outside");
+  assert.equal(fs.readFileSync(path.join(wt, "outside.txt"), "utf8"), "unstaged outside");
+  assert.equal(describePlan(fx.ctx, wt, loadPlanAt(wt, ID)!).approval, "awaiting-review");
+  assert.throws(() => editPlan(fx.ctx, ID, { changes: [c] }), /before text/);
+  fs.appendFileSync(path.join(wt, rec.planFile), "dirty");
+  assert.throws(() => editPlan(fx.ctx, ID, { changes: [{ ...c, before: c.after, after: step2 }] }), /uncommitted changes/);
+});
+
+test("plan edit supports adding/removing later files and refuses symlink paths before writes", () => {
+  const fx = repo(); approvedPlan(fx);
+  const c = { path: "steps/03-third-step.md", before: null, after: step2.replace("step: 2", "step: 3") };
+  editPlan(fx.ctx, ID, { changes: [c] });
+  assert.equal(loadPlanAt(fx.root, ID)!.steps.length, 3);
+  editPlan(fx.ctx, ID, { changes: [{ ...c, before: c.after, after: null }] });
+  assert.equal(loadPlanAt(fx.root, ID)!.steps.length, 2);
+  const file = path.join(fx.root, `plans/${ID}/steps/02-second-step.md`);
+  fs.unlinkSync(file);
+  fs.symlinkSync(path.join(fx.root, `plans/${ID}/PLAN.md`), file);
+  assert.throws(() => editPlan(fx.ctx, ID, { changes: [{ path: "steps/02-second-step.md", before: step2, after: step2 + "changed" }] }), /uncommitted|symlink/);
+});
+
+test("plan edit request-user defers changes, acceptance validates before text and permission, deny never queues", async () => {
+  const fx = repo(); approvedPlan(fx);
+  const llm = mk(fx.root, "llm");
+  const requesting: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "deny", modes: { "plan.edit": "request-user" } } };
+  llm.preset = requesting;
+  const change = { path: "steps/02-second-step.md", before: step2, after: step2 + "\nEdited.\n" };
+  assert.throws(() => editPlan(llm, ID, { changes: [change] }), RequestSent);
+  const pending = listRequests(fx.root).find((r) => r.action.command === "plan edit")!;
+  assert.equal(loadPlanAt(fx.root, ID)!.steps[1].text, step2);
+  assert.deepEqual(pending.permissions, ["plan.edit"]);
+  const deniedHuman = { ...fx.ctx, preset: { ...DEFAULT_PRESET, standardUser: { defaultMode: "allow" as const, modes: { "plan.edit": "deny" as const } } } };
+  assert.equal((await acceptRequest(deniedHuman, pending.id)).ok, false);
+  assert.equal(listRequests(fx.root)[0].state, "pending");
+  assert.equal((await acceptRequest(fx.ctx, pending.id)).ok, true);
+  assert.equal(loadPlanAt(fx.root, ID)!.steps[1].text, change.after);
+  const before = listRequests(fx.root).length;
+  llm.preset = { ...DEFAULT_PRESET, llm: { defaultMode: "deny", modes: {} } };
+  assert.throws(() => editPlan(llm, ID, { changes: [{ ...change, before: change.after, after: step2 }] }), /Refused/);
+  assert.equal(listRequests(fx.root).length, before);
+  assert.equal(sendRequest(llm, { command: "plan edit", params: { id: ID, changes: [{ ...change, path: "HANDOFF.md" }] }, reason: "bad" }).ok, false);
+});
+
+test("budget hard-stop context survives failed stop commit, recovers only its own stale session, and resumes with the log", () => {
+  const fx = repo(); approvedPlan(fx);
+  const c = { ...fx.ctx, actor: { ...fx.ctx.actor, session: "old-session" }, env: {} };
+  const { path: wt } = startPlan(c, ID);
+  setBudget(c, ID, { resource: "weekly", soft: 80, hard: 95 });
+  // Interrupt the stop commit after the budget decision was logged, as a forced session end can do.
+  const gitDir = sh(wt, "rev-parse", "--absolute-git-dir");
+  fs.writeFileSync(path.join(gitDir, "index.lock"), "locked");
+  assert.throws(() => checkBudget(c, ID, { weekly: 96 }));
+  fs.unlinkSync(path.join(gitDir, "index.lock"));
+  sh(wt, "restore", "plans/" + ID + "/progress.yaml");
+  const later = { ...c, now: new Date("2026-11-10T12:10:00Z") };
+  const info = describePlan(later, wt, loadPlanAt(wt, ID)!);
+  assert.equal(info.stop!.kind, "hard");
+  assert.equal(info.stop!.reason, "hard stop at 95% of the weekly limit");
+  assert.equal(loadPlanAt(wt, ID)!.progress!.stop!.kind, "hard");
+  const event = audit(fx.root).find((e) => e.command === "plan budget-hard-stop")!;
+  assert.equal(event.actor.session, "old-session");
+  assert.deepEqual(event.args, [ID, "weekly"]);
+  const newCtx = { ...later, actor: { ...later.actor, session: "new-session" }, env: {} };
+  const resumed = resumePlan(newCtx, ID);
+  assert.equal(resumed.sessionLog, "old-session");
+  assert.equal(readStore<any>(fx.root, `runs/${ID}.json`).hardStop, undefined);
+  // Even if an older context is left on a marker, it must not contaminate a newer session.
+  writeStore(fx.root, `runs/${ID}.json`, { session: "new-session", heartbeat: "2026-11-10T12:00:00Z", pid: null, hardStop: { session: "old-session", reason: "old budget" } });
+  assert.equal(describePlan(later, wt, loadPlanAt(wt, ID)!).stop!.kind, "failure");
+  assert.equal(loadPlanAt(wt, ID)!.progress!.status, "in-progress");
+});
+
+test("hard-stop status recovery preserves dirty progress and unrelated staging", () => {
+  const fx = repo(); approvedPlan(fx);
+  const c = { ...fx.ctx, env: { SPECPLANE_SESSION: "session" } };
+  const { path: wt } = startPlan(c, ID);
+  logBudgetHardStop(c, ID, "hard stop at 95% of the weekly limit", "weekly");
+  const later = { ...c, now: new Date("2026-11-10T12:10:00Z") };
+  const file = loadPlanAt(wt, ID)!.progressFile;
+  fs.appendFileSync(path.join(wt, file), "# local edit\n");
+  const head = sh(wt, "rev-parse", "HEAD");
+  assert.equal(describePlan(later, wt, loadPlanAt(wt, ID)!).stop!.kind, "hard");
+  assert.equal(sh(wt, "rev-parse", "HEAD"), head);
+  assert.match(fs.readFileSync(path.join(wt, file), "utf8"), /local edit/);
+  sh(wt, "restore", file);
+  fs.writeFileSync(path.join(wt, "outside.txt"), "outside"); sh(wt, "add", "outside.txt");
+  assert.equal(describePlan(later, wt, loadPlanAt(wt, ID)!).stop!.kind, "hard");
+  assert.equal(sh(wt, "diff", "--cached", "--name-only"), "outside.txt");
+  assert.equal(sh(wt, "show", "--format=", "--name-only", "HEAD"), file);
+  // A same-session heartbeat preserves pending recovery context; a fresh run clears it.
+  writeRun(c, ID, "session");
+  assert.ok(readStore<any>(fx.root, `runs/${ID}.json`).hardStop);
+  writeRun(c, ID, "session", null, true);
+  assert.equal(readStore<any>(fx.root, `runs/${ID}.json`).hardStop, undefined);
 });

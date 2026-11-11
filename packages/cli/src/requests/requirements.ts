@@ -1,3 +1,4 @@
+import { validateEditParams } from "../plan/edit.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject } from "../spec/project.js";
 import { committedSource } from "../spec/source.js";
@@ -84,6 +85,9 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       for (const key of ["implements", "writes", "references"]) optional(key, strings);
       return ["plan.create"];
     }
+    case "plan edit":
+      try { validateEditParams(p.id, p.changes); } catch (e) { return invalid((e as Error).message); }
+      return ["plan.edit"];
     case "plan approve": requireText("id"); return ["spec.approve"];
     case "plan start":
       requireText("id"); optional("target", text); bool("forceDeps"); return ["plan.start"];

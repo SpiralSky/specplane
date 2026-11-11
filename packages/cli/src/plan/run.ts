@@ -9,7 +9,7 @@ import { HANDOFF_SECTIONS, findPlan, latestEntry, loadPlans, nextStep, planImple
 import { readRequest } from "../requests/store.js";
 import {
   PlanOpError, assertMeasurable, branchExists, clearRun, commitPaths, currentBranch, git, gitTry, guarded, guardedWith, isDirty, listWorktreePaths, loadPlanAt, mainRoot,
-  planSlug, plansConfig, plansDir, requirePlan, revParse, setWorktree, worktreeOf, writeProgress, writeRun, type PlanCtx,
+  recoveredStop, planSlug, plansConfig, plansDir, requirePlan, revParse, setWorktree, worktreeOf, writeProgress, writeRun, type PlanCtx,
 } from "./ctx.js";
 import { planApproval, specApproved } from "./status.js";
 import { planCycles } from "./validate.js";
@@ -17,7 +17,7 @@ import { planCycles } from "./validate.js";
 /** Start, step recording, stop, resume, budget and retarget (`architecture/reference-cli` §11.3, §11.4). */
 
 const env = (ctx: PlanCtx) => ctx.env ?? process.env;
-const session = (ctx: PlanCtx): string | null => env(ctx).SPECPLANE_SESSION || null;
+const session = (ctx: PlanCtx): string | null => (ctx.actor.session ?? env(ctx).SPECPLANE_SESSION) || null;
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** Where plan worktrees go: `<worktree_dir>/<project-folder>/<plan-id>`, outside the project (`repository-layout` §3). */
@@ -118,7 +118,7 @@ function startInner(ctx: PlanCtx, id: string, o: StartOpts): StartResult {
     }
     commitPaths(ctx, wt, files, { type: "chore", scope: "specplane", summary: `start ${id}`, workflow: "start", planId: id });
   } catch (e) { undo(); throw e; }
-  writeRun(ctx, id, session(ctx));
+  writeRun(ctx, id, session(ctx), null, true);
   return { path: wt, branch, target, startCommit: targetCommit, forced };
 }
 
@@ -217,11 +217,11 @@ export function resumePlan(ctx: PlanCtx, id: string): ResumeResult {
     const rec = loadPlanAt(wt, id)!;
     const pr = rec.progress!;
     const unexpected = pr.status === "in-progress";
-    const stop = pr.stop ?? (unexpected ? { kind: "failure", reason: "session ended unexpectedly" } : null);
+    const stop = pr.stop ?? (unexpected ? recoveredStop(ctx, id, pr.session) : null);
     const { stop: _s, ...rest } = pr;
     writeProgress(wt, rec, { ...rest, status: "in-progress", ...(session(ctx) ? { session: session(ctx)! } : {}) });
     if (isDirtyProgress(wt, rec)) commitPaths(ctx, wt, [rec.progressFile], { type: "chore", scope: "specplane", summary: `resume ${id}`, workflow: "resume", planId: id });
-    writeRun(ctx, id, session(ctx));
+    writeRun(ctx, id, session(ctx), null, true);
     const n = nextStep(rec);
     const step = n === null ? null : rec.steps.find((s) => s.number === n)!;
     const hard = stop?.kind === "hard" || stop?.kind === "failure";

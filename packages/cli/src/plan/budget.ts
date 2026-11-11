@@ -1,4 +1,4 @@
-import { requirePlan, type PlanCtx } from "./ctx.js";
+import { logBudgetHardStop, requirePlan, type PlanCtx } from "./ctx.js";
 import { stopPlan } from "./run.js";
 
 /**
@@ -49,6 +49,7 @@ export function checkBudget(ctx: PlanCtx, id: string, usage: Usage, o: { finishe
   const decision = evaluateBudget(pr.budget, usage);
   if (decision.action === "none" || pr.status !== "in-progress") return { decision: pr.status === "in-progress" ? decision : { action: "none", unmeasured: decision.unmeasured }, instruction: null, stopped: false };
   if (decision.action === "hard") {
+    logBudgetHardStop(ctx, id, decision.reason, decision.resource);
     stopPlan(ctx, id, { kind: "hard", reason: decision.reason, needs: "resume the plan; the session was ended by force, so check the last commit and the handoff for partial work" });
     return { decision, instruction: null, stopped: true };
   }
