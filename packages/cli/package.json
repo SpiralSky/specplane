@@ -53,11 +53,5 @@
     "@types/js-yaml": "^4",
     "@types/node": "^22",
     "typescript": "^5"
-  },
-  "exports": {
-    "./core": {
-      "types": "./dist/core/index.d.ts",
-      "import": "./dist/core/index.js"
-    }
   }
 }

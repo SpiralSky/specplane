@@ -58,3 +58,34 @@ export function appendStoreLine(root: string, name: string, line: string): void 
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.appendFileSync(file, line + "\n");
 }
+
+function takeLock(root: string, name: string): () => void {
+  const lock = storePath(root, `${name}.lock`);
+  fs.mkdirSync(path.dirname(lock), { recursive: true });
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const fd = fs.openSync(lock, "wx");
+      fs.writeSync(fd, String(process.pid));
+      fs.closeSync(fd);
+      return () => fs.rmSync(lock, { force: true });
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+      const holder = Number(fs.readFileSync(lock, "utf8").trim());
+      let alive = Number.isInteger(holder) && holder > 0;
+      if (alive) { try { process.kill(holder, 0); } catch (k) { alive = (k as NodeJS.ErrnoException).code === "EPERM"; } }
+      if (alive || attempt > 0) throw new Error(`Another Specplane command is changing this checkout (lock ${lock}).`);
+      fs.rmSync(lock, { force: true });
+    }
+  }
+}
+
+/** Run a state-changing command under a per-checkout lock; a lock left by a dead process is cleared, a live one refuses. */
+export function withStoreLock<T>(root: string, name: string, fn: () => T): T {
+  const release = takeLock(root, name);
+  try { return fn(); } finally { release(); }
+}
+
+export async function withStoreLockAsync<T>(root: string, name: string, fn: () => Promise<T>): Promise<T> {
+  const release = takeLock(root, name);
+  try { return await fn(); } finally { release(); }
+}

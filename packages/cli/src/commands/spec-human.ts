@@ -1,5 +1,5 @@
 import * as readline from "node:readline";
-import { withCheckoutLease, withCheckoutLeaseAsync } from "../core/checkout-coordination.js";
+import { withStoreLock, withStoreLockAsync } from "../repo/store.js";
 import { audit } from "../audit/log.js";
 import { UsageError } from "../errors.js";
 import type { CommandResult } from "./runner.js";
@@ -31,12 +31,12 @@ interface Common { commit?: boolean }
 
 export const specApproveHuman = async (ids: string[], opts: Common & { yes?: boolean; ref?: string }): Promise<CommandResult> => {
   const c = context();
-  return result(await withCheckoutLeaseAsync(c.root, "spec-approve", false, () => approveSpecs(c, ids, { yes: opts.yes, ref: opts.ref, interactive: !!process.stdin.isTTY && !!process.stdout.isTTY, ask: askYesNo })));
+  return result(await withStoreLockAsync(c.root, "commands", () => approveSpecs(c, ids, { yes: opts.yes, ref: opts.ref, interactive: !!process.stdin.isTTY && !!process.stdout.isTTY, ask: askYesNo })));
 };
 
 export const specReopenHuman = (id: string): CommandResult => {
   const c = context();
-  return result(withCheckoutLease(c.root, "spec-reopen", false, () => reopenSpec(c, id)));
+  return result(withStoreLock(c.root, "commands", () => reopenSpec(c, id)));
 };
 
 export const specMetaGetHuman = (id: string): CommandResult => {
@@ -46,12 +46,12 @@ export const specMetaGetHuman = (id: string): CommandResult => {
 
 export const specMetaSetHuman = (id: string, field: string, value: string, opts: Common): CommandResult => {
   const c = context();
-  return result(withCheckoutLease(c.root, "spec-meta", false, () => metaSet(c, id, field, value, { noCommit: opts.commit === false })));
+  return result(withStoreLock(c.root, "commands", () => metaSet(c, id, field, value, { noCommit: opts.commit === false })));
 };
 
 export const specOverrideHuman = (kind: OverrideKind, id: string, args: string[], opts: { summary?: string }): CommandResult => {
   const c = context();
-  return result(withCheckoutLease(c.root, "spec-override", false, () => overrideSpec(c, kind, id, args, { summary: opts.summary })));
+  return result(withStoreLock(c.root, "commands", () => overrideSpec(c, kind, id, args, { summary: opts.summary })));
 };
 
 export const roleShowHuman = (): CommandResult => ({ ok: true, data: { role: cliRole(checkoutRoot()) }, lines: [cliRole(checkoutRoot())] });
@@ -81,7 +81,7 @@ export const migrateStatusHuman = (opts: { dryRun?: boolean }): CommandResult =>
   const c = context();
   const g = guard(c.preset, c.actor, ["config.change"], "Migrating status records");
   if (g.kind !== "allow") return result({ ok: false, lines: [], ...none, reasons: [g.kind === "deny" ? g.message : "Migrating needs approval from the user."] });
-  const r = withCheckoutLease(c.root, "migrate-status", false, () => migrateStatus(c.root, { dryRun: opts.dryRun }));
+  const r = withStoreLock(c.root, "commands", () => migrateStatus(c.root, { dryRun: opts.dryRun }));
   if (!opts.dryRun) audit(c.root, { command: "migrate status", args: [], permission: "config.change", outcome: "done", actor: { role: c.actor.role, kind: c.actor.kind, name: c.actor.name }, new: { records: r.items.length, files: r.files } });
   return result({ ok: true, lines: formatMigration(r), reasons: [], commit: r.commit, warnings: r.warnings, written: r.files });
 };

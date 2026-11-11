@@ -1,7 +1,7 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createAjv } from "../schemas.js";
+import { createAjv } from "../ajv.js";
 import { storeDir } from "../repo/store.js";
 
 /** Request records in the local store (`architecture/file-formats` §9.2, `architecture/reference-cli` §8). */

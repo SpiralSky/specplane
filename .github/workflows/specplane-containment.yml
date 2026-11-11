@@ -32,4 +32,4 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Check portable file containment
-        run: node --test dist/core/contained-files.test.js
+        run: node --test dist/docs/contained-files.test.js

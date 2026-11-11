@@ -1,11 +1,10 @@
 import { ForgeError, GitError } from "../errors.js";
-import type { Config } from "../types.js";
 import { run } from "./exec.js";
 
 /** Where a forge call runs: the checkout and the configured `plans.forge` mode. */
 export interface ForgeOpts {
   cwd: string;
-  forge: Config["plans"]["forge"];
+  forge: "auto" | "github" | "none";
   base?: string;
 }
 

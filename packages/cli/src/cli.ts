@@ -5,12 +5,10 @@ import { specImplementCommand } from "./commands/spec-implement.js";
 import { reportError } from "./errors.js";
 import { requestsAccept, requestsDecline, requestsList, requestsShow } from "./commands/requests.js";
 import { registerPlanCommands } from "./commands/plan-cli.js";
-import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specShowCommand } from "./commands/spec-read.js";
 import { configGetCommand, configListCommand, configSetCommand, configUnsetCommand, permissionsCommand } from "./commands/config.js";
 import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, migrateStatusHuman, specReopenHuman, syncHuman } from "./commands/spec-human.js";
-import { searchCommand } from "./commands/search.js";
 import { docsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
 import { warningsCommand } from "./commands/warnings.js";
@@ -19,7 +17,6 @@ import { coverageCommand } from "./commands/coverage.js";
 import { testRunCommand } from "./commands/test.js";
 import { runCommand } from "./commands/runner.js";
 import { auditCommand } from "./commands/audit.js";
-import { workflowListCommand, workflowRecoverCommand } from "./commands/workflow.js";
 
 const pkg = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -122,23 +119,6 @@ spec
   .option("--json", "output JSON")
   .action((id: string, opts: { json?: boolean }) => runCommand({ command: "spec show", args: [id], json: opts.json }, () => specShowCommand(id)));
 
-const decision = program.command("decision").description("Work with decision records (new, accept)");
-decision.command("new <title>").description("Create a proposed decision record").action((title: string) => decisionNewCommand(title));
-decision
-  .command("accept <ids...>")
-  .description("Accept decision records and commit the status change")
-  .option("--dry-run", "report the planned changes and commits")
-  .action((ids: string[], opts: { dryRun?: boolean }) => decisionAcceptCommand(ids, opts));
-
-program
-  .command("search <text>")
-  .description("Search specs and plans")
-  .option("--kind <kind>", "restrict to spec or plan files")
-  .option("--status <status>", "filter by status")
-  .option("--root <name>", "restrict to a spec root")
-  .option("--json", "output JSON")
-  .action((text: string, opts) => searchCommand(text, opts));
-
 const docs = program
   .command("docs [topic]")
   .description("Read the bundled product documentation (offline)")
@@ -175,16 +155,6 @@ testCmd
   .option("--timeout <seconds>", "wall-clock limit per command (default 120)")
   .option("--json", "output JSON")
   .action((target: string | undefined, opts: { all?: boolean; timeout?: string; json?: boolean }) => runCommand({ command: "test run", args: [...(target ? [target] : []), ...(opts.all ? ["--all"] : [])], json: opts.json }, () => testRunCommand(target, opts)));
-
-// D20 item 6 (spec: A3, R1): operator view and recovery of leases left by an ended host session.
-const workflow = program.command("workflow").description("Inspect and recover workflow leases left by an ended session (list, recover)");
-workflow.command("list").description("List leases retained with host-worker evidence (read-only)").option("--json", "output JSON").action((opts: { json?: boolean }) => workflowListCommand(opts));
-workflow
-  .command("recover <request-id>")
-  .description("Release a lease left by an ended session; confirmed by typing the request id on a terminal")
-  .option("--dry-run", "run every check without confirming or changing anything")
-  .option("--json", "output JSON")
-  .action((requestId: string, opts: { dryRun?: boolean; json?: boolean }) => workflowRecoverCommand(requestId, opts));
 
 program
   .command("init")

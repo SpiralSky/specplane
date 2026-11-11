@@ -4,7 +4,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
-import { DEFAULT_CONFIG } from "../legacy-config.js";
 import { GitError, RebaseConflictError } from "../errors.js";
 import { branchExists, createBranch, deleteBranch, rebaseOnto } from "./branch.js";
 import { createWorktree, listWorktrees, removeWorktree, worktreePath } from "./worktree.js";
@@ -80,7 +79,7 @@ test("rebaseOnto rethrows GitError when no rebase started", () => {
 
 test("createWorktree adds and reuses; removeWorktree refuses dirty unless forced", () => {
   const { tmp, repo } = makeRepo();
-  const config = { ...DEFAULT_CONFIG, execution: { ...DEFAULT_CONFIG.execution, worktree_dir: "../wt" } };
+  const config = { execution: { worktree_dir: "../wt" } };
   createBranch("plan/p1", "main", repo);
   const { path: p, created } = createWorktree("p1", "plan/p1", config, repo);
   assert.equal(created, true);
@@ -99,7 +98,7 @@ test("createWorktree adds and reuses; removeWorktree refuses dirty unless forced
 
 test("removeWorktree removes a clean worktree", () => {
   const { tmp, repo } = makeRepo();
-  const config = { ...DEFAULT_CONFIG, execution: { ...DEFAULT_CONFIG.execution, worktree_dir: "../wt" } };
+  const config = { execution: { worktree_dir: "../wt" } };
   createBranch("plan/p2", "main", repo);
   const { path: p } = createWorktree("p2", "plan/p2", config, repo);
   removeWorktree("p2", config, {}, repo);

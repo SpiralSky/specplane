@@ -2,7 +2,7 @@ import type { CommandResult } from "./runner.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, type Actor } from "../perm/permissions.js";
 import { acceptRequest, declineRequest, formatRequest, list, show, type RequestCtx, type RequestResult } from "../requests/ops.js";
-import { withCheckoutLeaseAsync } from "../core/checkout-coordination.js";
+import { withStoreLockAsync } from "../repo/store.js";
 
 /** `specplane requests [list|show|accept|decline]` (`architecture/reference-cli` §8, §13.1). */
 
@@ -29,7 +29,7 @@ function result(r: RequestResult): CommandResult {
 
 export const requestsAccept = async (id: string, note?: string): Promise<CommandResult> => {
   const c = ctx();
-  return result(await withCheckoutLeaseAsync(c.root, "requests-accept", false, () => acceptRequest(c, id, note)));
+  return result(await withStoreLockAsync(c.root, "commands", () => acceptRequest(c, id, note)));
 };
 
 export const requestsDecline = async (id: string, note?: string): Promise<CommandResult> => {

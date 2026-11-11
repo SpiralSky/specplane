@@ -1,5 +1,6 @@
 import * as path from "node:path";
-import type { Config } from "../types.js";
+/** The slice of configuration a worktree path needs. */
+export interface WorktreeConfig { execution: { worktree_dir: string } }
 import { run } from "./exec.js";
 import { mainRoot } from "./repo.js";
 
@@ -38,7 +39,7 @@ export function listWorktrees(cwd: string = process.cwd()): WorktreeInfo[] {
 }
 
 /** Where the worktree for `planId` lives (architecture/reference-cli § `worktree.ts`). */
-export function worktreePath(planId: string, config: Config, cwd: string = process.cwd()): string {
+export function worktreePath(planId: string, config: WorktreeConfig, cwd: string = process.cwd()): string {
   const main = mainRoot(cwd);
   return path.resolve(main, config.execution.worktree_dir, path.basename(main), planId);
 }
@@ -47,7 +48,7 @@ export function worktreePath(planId: string, config: Config, cwd: string = proce
 export function createWorktree(
   planId: string,
   branch: string,
-  config: Config,
+  config: WorktreeConfig,
   cwd: string = process.cwd(),
   opts: { noCheckout?: boolean } = {},
 ): { path: string; created: boolean } {
@@ -64,7 +65,7 @@ export function createWorktree(
  */
 export function removeWorktree(
   planId: string,
-  config: Config,
+  config: WorktreeConfig,
   opts: { force?: boolean } = {},
   cwd: string = process.cwd(),
 ): void {

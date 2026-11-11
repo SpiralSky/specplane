@@ -1,4 +1,4 @@
-import { withCheckoutLease } from "../core/checkout-coordination.js";
+import { withStoreLock } from "../repo/store.js";
 import { configGet, configList, configSet, configUnset, type ConfigCtx, type ConfigResult } from "../config-ops.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, cliRole } from "../perm/permissions.js";
@@ -20,11 +20,11 @@ export const configGetCommand = (key: string | undefined): CommandResult => resu
 export const configListCommand = (): CommandResult => result(configList(checkoutRoot()));
 export const configSetCommand = (key: string, value: string): CommandResult => {
   const c = ctx();
-  return result(withCheckoutLease(c.root, "config", false, () => configSet(c, key, value)));
+  return result(withStoreLock(c.root, "commands", () => configSet(c, key, value)));
 };
 export const configUnsetCommand = (key: string): CommandResult => {
   const c = ctx();
-  return result(withCheckoutLease(c.root, "config", false, () => configUnset(c, key)));
+  return result(withStoreLock(c.root, "commands", () => configUnset(c, key)));
 };
 
 export const permissionsCommand = (id: string | undefined): CommandResult => {

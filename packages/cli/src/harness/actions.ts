@@ -1,4 +1,4 @@
-import { createAjv } from "../schemas.js";
+import { createAjv } from "../ajv.js";
 import { activePreset, guard, type Actor } from "../perm/permissions.js";
 import { listPermissions, describePermission } from "../perm/docs.js";
 import { approveSpecs, metaGet, type Ctx } from "../spec/human.js";

@@ -8,7 +8,6 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { DocumentationBundleError, type DocumentationManifest } from './bundle.js';
 import { DocsUsageError, docsIndex, docsSearch, docsTopic } from './operations.js';
-import * as core from '../core/index.js';
 
 const assetRoot = fileURLToPath(new URL('../../assets/docs/', import.meta.url));
 const cli = fileURLToPath(new URL('../cli.js', import.meta.url));
@@ -41,7 +40,6 @@ test('index, topic and search agree on versions, order and content', () => {
   assert.ok(topic.source_references.length > 0 && topic.content.length > 0);
   assert.equal(docsSearch('plan').version, index.version);
   assert.deepEqual(Object.keys(topic), ['topic_id', 'title', 'version', 'docs_version', 'source_references', 'related', 'content']);
-  assert.equal(core.docsTopic, docsTopic);
 });
 
 test('CLI and core output agree, outside Git, without config or network, with no warnings', () => {

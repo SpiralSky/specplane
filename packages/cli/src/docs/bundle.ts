@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { TextDecoder } from 'node:util';
-import { readContainedFile } from '../core/contained-files.js';
+import { readContainedFile } from './contained-files.js';
 
 export const minimumDocumentationTopics = ['getting-started', 'concepts', 'completion', 'workflows/plans', 'commands/spec-complete'] as const;
 export type DocumentationSource = { id: string; anchor?: string; path: string; sha256: string };

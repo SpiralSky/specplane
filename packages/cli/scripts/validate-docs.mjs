@@ -1,4 +1,4 @@
-import { coreInfo } from '../dist/core/build-info.js';
+import { coreInfo } from '../dist/build-info.js';
 import { loadDocumentationBundle } from '../dist/docs/bundle.js';
 
 // Release assets must be usable without the source repository or a network.

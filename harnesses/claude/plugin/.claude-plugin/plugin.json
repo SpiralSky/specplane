@@ -8,7 +8,7 @@
     "specplane": {
       "command": "node",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/core/dist/harness/claude-mcp-main.js"
+        "${CLAUDE_PLUGIN_ROOT}/core/dist/harness/mcp-main.js"
       ]
     }
   }
