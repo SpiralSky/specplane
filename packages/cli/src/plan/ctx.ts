@@ -8,6 +8,7 @@ import { cliTrailers, formatMessage } from "../git/commit.js";
 import { run } from "../git/exec.js";
 import { mainRoot } from "../git/repo.js";
 import { guard, type Actor, type Authorized, type Preset } from "../perm/permissions.js";
+import { holdRequest, RequestSent, sentMessage } from "../requests/hold.js";
 import { storeDir } from "../repo/store.js";
 import { loadProject } from "../spec/project.js";
 import { committedSource, worktreeSource } from "../spec/source.js";
@@ -23,6 +24,8 @@ export interface PlanCtx {
   preset: Preset;
   now?: Date;
   env?: NodeJS.ProcessEnv;
+  /** Request being accepted, recorded in the audit log (`reference-cli` §8). */
+  request?: string;
 }
 
 export class PlanOpError extends SpecplaneError {
@@ -40,28 +43,41 @@ export function plansDir(root: string): string { return loadSettings(root).confi
 
 /* ------------------------------------------------------------------ guard and audit */
 
-/** Run the guard for a command; audit and throw when it does not allow (`request-user` is refused for now). */
-export function authorize(ctx: PlanCtx, needs: (string | string[])[], describe: string, command: string, args: string[]): Authorized {
+/**
+ * Run the guard for a command. Deny audits and throws `PlanOpError`; `request user` stores a request and throws
+ * `RequestSent`, so no part of the action runs. `params` are what accepting the request runs again.
+ */
+export function authorize(ctx: PlanCtx, needs: (string | string[])[], describe: string, command: string, args: string[], params: Record<string, unknown> = {}): Authorized {
   const g = guard(ctx.preset, ctx.actor, needs, describe);
   if (g.kind === "allow") return g.token;
-  audit(ctx.root, { command, args, permission: g.permission, outcome: "refused", reason: g.message, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name } }, ctx.now);
+  if (g.kind === "request") {
+    const planId = typeof params.id === "string" ? params.id : null;
+    const rec = holdRequest({ root: ctx.root, actor: ctx.actor, permissions: g.permissions, decidedBy: g.permission, command, params, reason: `${describe} (\`${command} ${args.join(" ")}\`).`, plan: planId, now: ctx.now, env: ctx.env });
+    throw new RequestSent(rec, sentMessage(rec));
+  }
+  audit(ctx.root, { command, args, permission: g.permission, outcome: "refused", reason: g.message, request: ctx.request, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name } }, ctx.now);
   throw new PlanOpError(g.message);
 }
 
 export function auditDone(ctx: PlanCtx, command: string, args: string[], permission: string | null, extra: { old?: unknown; new?: unknown } = {}): void {
-  audit(ctx.root, { command, args, permission, outcome: "done", actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name }, ...extra }, ctx.now);
+  audit(ctx.root, { command, args, permission, outcome: "done", request: ctx.request, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name }, ...extra }, ctx.now);
 }
 
 /** Guard, run, audit `done` or `failed`. */
 export function guarded<T>(ctx: PlanCtx, command: string, args: string[], needs: (string | string[])[], describe: string, fn: (token: Authorized) => T): T {
-  const token = authorize(ctx, needs, describe, command, args);
+  return guardedWith({ id: args[0] }, ctx, command, args, needs, describe, fn);
+}
+
+/** `guarded` with the parameters accepting a request would run the command again with. */
+export function guardedWith<T>(params: Record<string, unknown>, ctx: PlanCtx, command: string, args: string[], needs: (string | string[])[], describe: string, fn: (token: Authorized) => T): T {
+  const token = authorize(ctx, needs, describe, command, args, params);
   const perm = token.permissions[0] ?? null;
   try {
     const out = fn(token);
     auditDone(ctx, command, args, perm);
     return out;
   } catch (e) {
-    audit(ctx.root, { command, args, permission: perm, outcome: "failed", reason: (e as Error).message.split("\n")[0], actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name } }, ctx.now);
+    audit(ctx.root, { command, args, permission: perm, outcome: "failed", reason: (e as Error).message.split("\n")[0], request: ctx.request, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name } }, ctx.now);
     throw e;
   }
 }

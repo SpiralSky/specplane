@@ -5,6 +5,8 @@ import { GitError } from "../errors.js";
 import { cliTrailers, formatMessage } from "../git/commit.js";
 import { run } from "../git/exec.js";
 import { Authorized, guard, gitUserName, type Actor, type GuardResult, type Preset } from "../perm/permissions.js";
+import { holdRequest, sentMessage } from "../requests/hold.js";
+import type { RequestRecord } from "../requests/store.js";
 import { parseCite } from "./cites.js";
 import { editKeys } from "./fm-edit.js";
 import { specFingerprint } from "./fingerprint.js";
@@ -24,6 +26,8 @@ export interface Ctx {
   actor: Actor;
   preset: Preset;
   now?: Date;
+  /** Request being accepted, recorded in the audit log (`reference-cli` §8). */
+  request?: string;
 }
 
 export interface Result {
@@ -37,6 +41,8 @@ export interface Result {
   warnings: string[];
   /** Specs written. */
   written: string[];
+  /** Id of the request sent instead of acting (`request user`); the action was not done. */
+  request?: string;
 }
 
 const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -53,19 +59,27 @@ function loadHead(root: string): Project {
 }
 
 function auditAll(ctx: Ctx, base: Omit<AuditEntry, "actor">, extra: Partial<AuditEntry> = {}): void {
-  audit(ctx.root, { ...base, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name }, ...extra }, ctx.now);
+  audit(ctx.root, { request: ctx.request, ...base, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name }, ...extra }, ctx.now);
 }
 
-/** Run the guard and audit a refusal. */
-function decide(ctx: Ctx, needs: (string | string[])[], describe: string, command: string, args: string[]): GuardResult {
+type Held = { kind: "held"; request: RequestRecord };
+
+/**
+ * Run the guard. A refusal is audited; `request user` stores a request (which audits `request-sent`) and the action
+ * does not run. `params` are what accepting the request runs again (`requests/actions.ts`).
+ */
+function decide(ctx: Ctx, needs: (string | string[])[], describe: string, command: string, args: string[], params: Record<string, unknown> = {}): GuardResult | Held {
   const g = guard(ctx.preset, ctx.actor, needs, describe);
-  if (g.kind !== "allow") {
-    auditAll(ctx, { command, args, permission: g.permission, outcome: "refused", reason: g.message });
+  if (g.kind === "deny") auditAll(ctx, { command, args, permission: g.permission, outcome: "refused", reason: g.message });
+  if (g.kind === "request") {
+    const request = holdRequest({ root: ctx.root, actor: ctx.actor, permissions: g.permissions, decidedBy: g.permission, command, params, reason: `${describe} (\`${command} ${args.join(" ")}\`).`, now: ctx.now });
+    return { kind: "held", request };
   }
   return g;
 }
 
-const refusal = (g: Exclude<GuardResult, { kind: "allow" }>): Result => result({ ok: false, reasons: [g.message] });
+const refusal = (g: Exclude<GuardResult, { kind: "allow" }> | Held): Result =>
+  g.kind === "held" ? result({ ok: true, request: g.request.id, lines: [sentMessage(g.request)] }) : result({ ok: false, reasons: [g.message] });
 
 /** Identity of the person running the command: git `user.name`; never invented (`cli R16`). */
 function humanName(ctx: Ctx): string | null {
@@ -195,7 +209,7 @@ export interface ApproveOptions {
 }
 
 export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions = {}): Promise<Result> {
-  const g = decide(ctx, ["spec.approve"], "Approving specifications", "spec approve", ids);
+  const g = decide(ctx, ["spec.approve"], "Approving specifications", "spec approve", ids, { ids });
   if (g.kind !== "allow") return refusal(g);
   const name = humanName(ctx);
   const head = loadHead(ctx.root);
@@ -306,7 +320,7 @@ export function reopenSpec(ctx: Ctx, id: string, opts: { noCommit?: boolean } = 
   const head = loadHead(ctx.root);
   const doc = findSpec(head, id);
   if (!doc) return result({ ok: false, reasons: [notFound(id, head)] });
-  const g = decide(ctx, [`spec.edit.${doc.layer}`], "Reopening a specification", "spec reopen", [id]);
+  const g = decide(ctx, [`spec.edit.${doc.layer}`], "Reopening a specification", "spec reopen", [id], { id });
   if (g.kind !== "allow") return refusal(g);
   const eff = computeStatus(head, doc, new CommitProjects(ctx.root, head));
   if (doc.fm.data?.status !== "approved" && eff.status === "awaiting-review") {
@@ -361,7 +375,7 @@ export function metaSet(ctx: Ctx, id: string, field: string, raw: string, opts: 
   if (!doc) return result({ ok: false, reasons: [notFound(id, head)] });
   const settable = (SETTABLE as readonly string[]).includes(field);
   const needs: (string | string[])[] = [settable ? [`meta.write.${pieceOf(field)}`, "meta.write"] : "meta.write"];
-  const g = decide(ctx, needs, `Changing \`${field}\``, "spec meta set", [id, field]);
+  const g = decide(ctx, needs, `Changing \`${field}\``, "spec meta set", [id, field], { id, field, value: raw });
   if (g.kind !== "allow") return refusal(g);
   let value: unknown;
   try { value = parseValue(ctx, field, raw); } catch (e) {
@@ -391,7 +405,7 @@ export function metaSet(ctx: Ctx, id: string, field: string, raw: string, opts: 
 
 /** Current metadata of a spec, with overrides marked (`cli R17`). */
 export function metaGet(ctx: Ctx, id: string): Result & { data?: Record<string, unknown> } {
-  const g = decide(ctx, ["meta.read"], "Reading metadata", "spec meta get", [id]);
+  const g = decide(ctx, ["meta.read"], "Reading metadata", "spec meta get", [id], { id });
   if (g.kind !== "allow") return refusal(g);
   const head = loadHead(ctx.root);
   const doc = findSpec(head, id);
@@ -436,7 +450,7 @@ export function overrideSpec(ctx: Ctx, kind: OverrideKind, id: string, args: str
   const head = loadHead(ctx.root);
   const doc = findSpec(head, id);
   if (!doc) return result({ ok: false, reasons: [notFound(id, head)] });
-  const g = decide(ctx, [perm], `Overriding the ${kind}`, cmd, [id, ...args]);
+  const g = decide(ctx, [perm], `Overriding the ${kind}`, cmd, [id, ...args], { kind, id, args });
   if (g.kind !== "allow") return refusal(g);
   const name = humanName(ctx);
   if (!name) return result({ ok: false, reasons: ["Cannot tell who is making the override: set git `user.name`."] });

@@ -9,7 +9,7 @@ import { run } from "../git/exec.js";
 import { storeDir } from "../repo/store.js";
 import { latestEntry, readPlan, planImplements, planReferences, stepNumbers, stepTitle, type PlanRecord } from "./model.js";
 import {
-  PlanOpError, branchExists, clearRun, commitPaths, currentBranch, git, gitTry, guarded, humanName, isDirty, loadPlanAt, nowIso,
+  PlanOpError, branchExists, clearRun, commitPaths, currentBranch, git, gitTry, guarded, guardedWith, humanName, isDirty, loadPlanAt, nowIso,
   plansDir, readStore, removeStore, requirePlan, revParse, setWorktree, worktreeOf, writeProgress, writeStore, type PlanCtx,
 } from "./ctx.js";
 import { specApproved } from "./status.js";
@@ -123,7 +123,7 @@ export function formatReview(r: PlanReview): string {
 /* ------------------------------------------------------------------ finish */
 
 export function finishPlan(ctx: PlanCtx, id: string, o: { complete?: boolean; back?: string }): { decision: "completed" | "back-in-progress"; commit: string; unrun: number[] } {
-  return guarded(ctx, "plan finish", [id, o.complete ? "--complete" : "--back"], ["plan.complete"], "Declaring the final review decision", () => {
+  return guardedWith({ id, ...o }, ctx, "plan finish", [id, o.complete ? "--complete" : "--back"], ["plan.complete"], "Declaring the final review decision", () => {
     if (!!o.complete === !!o.back) throw new PlanOpError("Give exactly one of --complete or --back <reason>.");
     const { root, rec } = requirePlan(ctx, id);
     const pr = rec.progress!;
@@ -168,7 +168,7 @@ function removePlanWorktree(ctx: PlanCtx, id: string, force: boolean): void {
 }
 
 export function mergePlan(ctx: PlanCtx, id: string, o: MergeOpts): MergeResult {
-  return guarded(ctx, "plan merge", [id, o.mode === "pr" ? "--pr" : "--local"], ["plan.complete"], "Merging a plan", () => {
+  return guardedWith({ id, ...o }, ctx, "plan merge", [id, o.mode === "pr" ? "--pr" : "--local"], ["plan.complete"], "Merging a plan", () => {
     const branch = `plan/${id}`;
     if (!branchExists(ctx.root, branch)) throw new PlanOpError(`Branch \`${branch}\` does not exist.`);
     const wt = worktreeOf(ctx.root, id);
@@ -215,7 +215,7 @@ function readFromBranch(root: string, branch: string, id: string): PlanRecord | 
 /* ------------------------------------------------------------------ abandon and delete */
 
 export function abandonPlan(ctx: PlanCtx, id: string, o: { force?: boolean } = {}): { commit: string; kept: string | null } {
-  return guarded(ctx, "plan abandon", [id], ["plan.abandon"], "Abandoning a plan", () => {
+  return guardedWith({ id, ...o }, ctx, "plan abandon", [id], ["plan.abandon"], "Abandoning a plan", () => {
     const dir = plansDir(ctx.root);
     const rec = loadPlanAt(ctx.root, id);
     if (!rec) throw new PlanOpError(`Plan \`${id}\` not found in ${dir}.`);
@@ -245,7 +245,7 @@ export function abandonPlan(ctx: PlanCtx, id: string, o: { force?: boolean } = {
 }
 
 export function deletePlan(ctx: PlanCtx, id: string, o: { force?: boolean } = {}): { commit: string } {
-  return guarded(ctx, "plan delete", [id], ["plan.delete"], "Deleting a plan", () => {
+  return guardedWith({ id, ...o }, ctx, "plan delete", [id], ["plan.delete"], "Deleting a plan", () => {
     const rec = loadPlanAt(ctx.root, id);
     if (!rec) throw new PlanOpError(`Plan \`${id}\` not found.`);
     if ((gitTry(ctx.root, ["status", "--porcelain", "--", rec.dir]) ?? "").trim()) throw new PlanOpError(`${rec.dir} has uncommitted changes; commit or stash them first.`);

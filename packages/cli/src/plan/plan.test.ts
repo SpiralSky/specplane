@@ -5,11 +5,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
 import { makeRepo } from "../test-repo.js";
-import { DEFAULT_PRESET, PRESETS, type Actor } from "../perm/permissions.js";
+import { DEFAULT_PRESET, PRESETS, mode, type Actor, type Preset } from "../perm/permissions.js";
+import { acceptRequest, declineRequest, sendRequest } from "../requests/ops.js";
+import { listRequests } from "../requests/store.js";
 import { validateProject } from "../verify/validate.js";
 import { approvePlan, createPlan } from "./create.js";
 import { abandonPlan, deletePlan, finishPlan, mergePlan, reviewPlan } from "./finish.js";
 import { PlanOpError, loadPlanAt, readStore, worktreeOf, writeStore, type PlanCtx } from "./ctx.js";
+import { RequestSent } from "../requests/hold.js";
 import { parseGaps, parseHandoff } from "./model.js";
 import { resumePlan, retargetPlan, setBudget, startPlan, stepDone, stopPlan } from "./run.js";
 import { checkSelection, describePlan, listInfos } from "./status.js";
@@ -56,6 +59,7 @@ const audit = (root: string): Record<string, any>[] => {
   const dir = sh(root, "rev-parse", "--path-format=absolute", "--git-common-dir");
   return fs.readFileSync(path.join(dir, "specplane", "audit.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
 };
+const held = (fn: () => unknown, re: RegExp) => assert.throws(fn, (e: unknown) => e instanceof RequestSent && re.test(e.request.permissions.join(",")), String(re));
 const refused = (fn: () => unknown, re: RegExp) => assert.throws(fn, (e: unknown) => e instanceof PlanOpError && re.test(e.message), String(re));
 
 test("scaffolded plan validates clean and a project without plans reports nothing", () => {
@@ -367,26 +371,27 @@ test("delete removes the plan folder and the worktree; references to it are repo
   assert.match(msgs, /plan 2026-11-10-export-things does not exist|referenced plan 2026-11-10-export-things does not exist/);
 });
 
-test("permissions: request-user is refused for now, deny is refused, nothing runs, and refusals are audited", () => {
+test("permissions: request-user sends a request, deny is refused, nothing runs, and decisions are audited", () => {
   const fx = repo({ config: "  start_conditions: off\n" });
   createPlan(fx.ctx, { words: ["export", "things"] });
   const llm = mk(fx.root, "llm");
-  refused(() => startPlan(llm, ID), /needs the `plan.start` permission as a request to the user; requests are not available yet/);
+  held(() => startPlan(llm, ID), /plan.start/);
   assert.equal(fs.readdirSync(fx.wt).length, 0, "no worktree after a refusal");
   assert.equal(sh(fx.root, "branch", "--list", `plan/${ID}`), "");
   const full = PRESETS.find((p) => p.id === "full-manual-editing")!;
-  refused(() => createPlan(mk(fx.root, "llm", full), { words: ["another", "plan"] }), /plan.create/);
+  held(() => createPlan(mk(fx.root, "llm", full), { words: ["another", "plan"] }), /plan.create/);
   // allowed for the LLM in the default preset: creating a plan; never completing or approving it
   const made = createPlan(mk(fx.root, "llm"), { words: ["llm", "made"] });
   assert.match(fs.readFileSync(path.join(fx.root, "plans", made.id, "PLAN.md"), "utf8"), /authors:\n {2}- llm: claude-sonnet-5-5/);
-  refused(() => approvePlan(mk(fx.root, "llm"), made.id), /spec.approve/);
-  refused(() => finishPlan(llm, ID, { complete: true }), /plan.complete/);
-  refused(() => abandonPlan(llm, ID), /plan.abandon/);
-  refused(() => deletePlan(llm, ID), /plan.delete/);
-  refused(() => setBudget(llm, ID, { resource: "weekly", soft: 1, hard: 2 }), /plan.budget/);
+  held(() => approvePlan(mk(fx.root, "llm"), made.id), /spec.approve/);
+  held(() => finishPlan(llm, ID, { complete: true }), /plan.complete/);
+  held(() => abandonPlan(llm, ID), /plan.abandon/);
+  held(() => deletePlan(llm, ID), /plan.delete/);
+  held(() => setBudget(llm, ID, { resource: "weekly", soft: 1, hard: 2 }), /plan.budget/);
   const log = audit(fx.root);
-  const r = log.find((e) => e.command === "plan start" && e.outcome === "refused")!;
+  const r = log.find((e) => e.command === "plan start" && e.outcome === "request-sent")!;
   assert.equal(r.permission, "plan.start");
+  assert.ok(r.request);
   assert.equal(r.actor.role, "llm");
   assert.ok(log.some((e) => e.command === "plan create" && e.outcome === "done" && e.actor.role === "llm"));
   // the soft stop is allowed to the LLM in every preset (checked on a started plan)
@@ -429,4 +434,53 @@ test("CLI: create, approve, start, status, next, step-done, review, finish and m
   assert.match(ok("plan", "list"), new RegExp(`${id}  completed \\(archived\\)`));
   const refusedOut = sp("plan", "delete", "no-such-plan");
   assert.equal(refusedOut.status, 1);
+});
+
+/* ------------------------------------------------------------------ requests in plans */
+
+test("accepting a plan.start request starts the plan once, under the accepter", async () => {
+  const fx = repo({ config: "  start_conditions: off\n" });
+  createPlan(fx.ctx, { words: ["export", "things"] });
+  try { startPlan(mk(fx.root, "llm"), ID); assert.fail("expected a request"); } catch (e) { assert.ok(e instanceof RequestSent); }
+  assert.equal(fs.readdirSync(fx.wt).length, 0);
+  const [req] = listRequests(fx.root);
+  assert.equal(req.plan, ID);
+  const res = await acceptRequest({ root: fx.root, actor: actor(), preset: DEFAULT_PRESET, now: fx.ctx.now }, req.id);
+  assert.ok(res.ok, res.reasons.join());
+  assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.status, "in-progress");
+  assert.ok(audit(fx.root).some((e) => e.command === "plan start" && e.outcome === "done" && e.request === req.id && e.actor.role === "standard-user"));
+});
+
+test("step-done needs plan.step, which is allow for the LLM in every default preset", () => {
+  const fx = repo({ config: "  start_conditions: off\n" });
+  createPlan(fx.ctx, { words: ["export", "things"] });
+  const { path: wt } = startPlan(fx.ctx, ID);
+  fs.writeFileSync(path.join(wt, "plans", ID, "HANDOFF.md"), `# H\n${entry(1)}`);
+  const none: Preset = { ...DEFAULT_PRESET, llm: { modes: {} } };
+  refused(() => stepDone(mk(fx.root, "llm", none), ID, { step: 1, outcome: "done" }), /plan\.step/);
+  for (const p of PRESETS) assert.equal(mode(p, "llm", "plan.step"), "allow", p.id);
+  assert.ok(stepDone(mk(fx.root, "llm"), ID, { step: 1, outcome: "done" }).commit);
+  assert.ok(audit(fx.root).some((e) => e.command === "plan step-done" && e.permission === "plan.step" && e.outcome === "done"));
+});
+
+test("a blocking request soft stops the plan; answering it names the plan to resume and the answer is in the resume context", async () => {
+  const fx = repo({ config: "  start_conditions: off\n" });
+  createPlan(fx.ctx, { words: ["export", "things"] });
+  startPlan(fx.ctx, ID);
+  const llm = mk(fx.root, "llm");
+  const sent = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve"], reason: "approve export", plan: ID, blocking: true });
+  assert.ok(sent.ok);
+  const pr = loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!;
+  assert.equal(pr.status, "stopped");
+  assert.equal(pr.stop!.reason, `waiting for request ${sent.request!.id}`);
+  const dec = await declineRequest({ root: fx.root, actor: actor(), preset: DEFAULT_PRESET, now: fx.ctx.now }, sent.request!.id, "no thanks");
+  assert.equal(dec.resume, ID);
+  const res = resumePlan(fx.ctx, ID);
+  assert.equal(res.answers.length, 1);
+  assert.equal(res.answers[0].state, "declined");
+  assert.equal(res.answers[0].note, "no thanks");
+  // a non-blocking request does not stop the plan and is listed in the final review
+  const nb = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve"], reason: "later", plan: ID });
+  assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.status, "in-progress");
+  assert.deepEqual(reviewPlan(fx.ctx, ID).pendingRequests, [nb.request!.id]);
 });

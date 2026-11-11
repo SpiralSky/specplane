@@ -6,8 +6,9 @@ import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject, resolveCite } from "../spec/project.js";
 import { committedSource } from "../spec/source.js";
 import { HANDOFF_SECTIONS, findPlan, latestEntry, loadPlans, nextStep, planImplements, planReferences, referencedPlans, type PlanRecord } from "./model.js";
+import { readRequest } from "../requests/store.js";
 import {
-  PlanOpError, branchExists, clearRun, commitPaths, currentBranch, git, gitTry, guarded, isDirty, listWorktreePaths, loadPlanAt, mainRoot,
+  PlanOpError, branchExists, clearRun, commitPaths, currentBranch, git, gitTry, guarded, guardedWith, isDirty, listWorktreePaths, loadPlanAt, mainRoot,
   planSlug, plansConfig, plansDir, requirePlan, revParse, setWorktree, worktreeOf, writeProgress, writeRun, type PlanCtx,
 } from "./ctx.js";
 import { planApproval, specApproved } from "./status.js";
@@ -36,7 +37,7 @@ export interface StartOpts { target?: string; forceDeps?: string[] }
 export interface StartResult { path: string; branch: string; target: string; startCommit: string; forced: string[] }
 
 export function startPlan(ctx: PlanCtx, id: string, o: StartOpts = {}): StartResult {
-  return guarded(ctx, "plan start", [id], ["plan.start"], "Starting a plan", () => startInner(ctx, id, o));
+  return guardedWith({ id, ...o }, ctx, "plan start", [id], ["plan.start"], "Starting a plan", () => startInner(ctx, id, o));
 }
 
 function startInner(ctx: PlanCtx, id: string, o: StartOpts): StartResult {
@@ -126,12 +127,12 @@ function startInner(ctx: PlanCtx, id: string, o: StartOpts): StartResult {
 export interface StepDoneOpts { step: number; outcome: "done" | "partial"; summary?: string; type?: string }
 
 export function stepDone(ctx: PlanCtx, id: string, o: StepDoneOpts): { commit: string; allDone: boolean; next: number | null } {
-  // Recording a step is part of the run itself; no separate permission exists in the catalog (`file-formats` §7.1).
-  return recordedRun(ctx, "plan step-done", [id, String(o.step), o.outcome], () => stepDoneInner(ctx, id, o));
+  // Recording a step needs `plan.step`, a permission added to the catalog (allow in every default preset); see the step 6 notes.
+  return recordedRun(ctx, "plan step-done", [id, String(o.step), o.outcome], { id, ...o }, () => stepDoneInner(ctx, id, o));
 }
 
-function recordedRun<T>(ctx: PlanCtx, command: string, args: string[], fn: () => T): T {
-  return guarded(ctx, command, args, [], "Recording a plan step", fn);
+function recordedRun<T>(ctx: PlanCtx, command: string, args: string[], params: Record<string, unknown>, fn: () => T): T {
+  return guardedWith(params, ctx, command, args, ["plan.step"], "Recording a plan step", fn);
 }
 
 function stepDoneInner(ctx: PlanCtx, id: string, o: StepDoneOpts) {
@@ -164,7 +165,7 @@ function stepDoneInner(ctx: PlanCtx, id: string, o: StepDoneOpts) {
 export interface StopOpts { kind?: "soft" | "user" | "hard" | "failure"; reason?: string; needs?: string }
 
 export function stopPlan(ctx: PlanCtx, id: string, o: StopOpts = {}): { commit: string } {
-  return guarded(ctx, "plan stop", [id, o.kind ?? "user"], ["plan.softstop"], "Stopping a plan", () => {
+  return guardedWith({ id, ...o }, ctx, "plan stop", [id, o.kind ?? "user"], ["plan.softstop"], "Stopping a plan", () => {
     const { root, rec } = requirePlan(ctx, id);
     const pr = rec.progress!;
     if (pr.status !== "in-progress" && !(pr.status === "stopped")) throw new PlanOpError(`Plan \`${id}\` is ${pr.status}; only a plan in progress can be stopped.`);
@@ -185,6 +186,8 @@ export interface ResumeResult {
   /** Session whose log a new session skims after a hard stop, a failure or an unexpected end; absent after a soft stop. */
   sessionLog: string | null;
   recreatedWorktree: boolean;
+  /** Answers to the request that stopped the plan (`plan-execution R27.5.1`); empty when none did. */
+  answers: { request: string; state: string; action: string; reason: string; note: string | null; error?: string }[];
 }
 
 export function resumePlan(ctx: PlanCtx, id: string): ResumeResult {
@@ -226,8 +229,15 @@ export function resumePlan(ctx: PlanCtx, id: string): ResumeResult {
       plan: id, path: wt, stopped: stop ?? null,
       next: step ? { number: n!, title: typeof step.fm.data?.title === "string" ? (step.fm.data.title as string) : step.name, file: step.file } : null,
       handoff: rec.handoffText ?? "", sessionLog: hard ? pr.session ?? null : null, recreatedWorktree: recreated,
+      answers: requestAnswers(ctx.root, stop?.reason),
     };
   });
+}
+
+function requestAnswers(root: string, reason: string | undefined): ResumeResult["answers"] {
+  const m = /waiting for request (\S+)/.exec(reason ?? "");
+  const r = m ? readRequest(root, m[1]) : null;
+  return r && r.answer ? [{ request: r.id, state: r.state, action: r.action.command, reason: r.reason, note: r.answer.note ?? null, ...(r.answer.error ? { error: r.answer.error } : {}) }] : [];
 }
 
 function isDirtyProgress(root: string, rec: PlanRecord): boolean {
@@ -239,7 +249,7 @@ function isDirtyProgress(root: string, rec: PlanRecord): boolean {
 export interface BudgetOpts { resource: string; soft?: number; hard?: number; remove?: boolean }
 
 export function setBudget(ctx: PlanCtx, id: string, o: BudgetOpts): { commit: string } {
-  return guarded(ctx, "plan budget", [id, o.resource], ["plan.budget"], "Setting a plan budget", () => {
+  return guardedWith({ id, ...o }, ctx, "plan budget", [id, o.resource], ["plan.budget"], "Setting a plan budget", () => {
     const { root, rec } = requirePlan(ctx, id);
     const pr = rec.progress!;
     if (pr.status === "completed" || pr.status === "abandoned") throw new PlanOpError(`Plan \`${id}\` is ${pr.status}; its budget cannot change.`);
@@ -256,7 +266,7 @@ export function setBudget(ctx: PlanCtx, id: string, o: BudgetOpts): { commit: st
 }
 
 export function retargetPlan(ctx: PlanCtx, id: string, target: string): { commit: string } {
-  return guarded(ctx, "plan retarget", [id, target], ["plan.resume"], "Changing a plan's target branch", () => {
+  return guardedWith({ id, target }, ctx, "plan retarget", [id, target], ["plan.resume"], "Changing a plan's target branch", () => {
     const { root, rec } = requirePlan(ctx, id);
     const pr = rec.progress!;
     if (!["in-progress", "stopped"].includes(pr.status)) throw new PlanOpError(`Plan \`${id}\` is ${pr.status}; only a started plan has a target.`);

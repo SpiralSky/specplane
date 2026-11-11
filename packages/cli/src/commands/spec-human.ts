@@ -1,5 +1,6 @@
 import * as readline from "node:readline";
 import { withCheckoutLease, withCheckoutLeaseAsync } from "../core/checkout-coordination.js";
+import { audit } from "../audit/log.js";
 import { reportError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliRole, gitUserName, switchRole, type Actor } from "../perm/permissions.js";
@@ -64,6 +65,9 @@ export const specOverrideHuman = (kind: OverrideKind, id: string, args: string[]
 export const roleShowHuman = () => guarded(() => { process.stdout.write(`${cliRole(checkoutRoot())}\n`); });
 export const roleSwitchHuman = (role: string) => guarded(() => {
   if (role !== "administrator" && role !== "standard-user") { process.stderr.write("role must be `administrator` or `standard-user`\n"); process.exitCode = 2; return; }
-  switchRole(checkoutRoot(), role);
+  const root = checkoutRoot();
+  const actor: Actor = { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown" };
+  switchRole(root, role, actor);
+  audit(root, { command: "role switch", args: [role], permission: null, outcome: "done", actor: { role: actor.role, kind: actor.kind, name: actor.name }, new: { role } });
   process.stdout.write(`CLI calls on this machine now run as ${role}.\n`);
 });

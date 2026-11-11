@@ -5,13 +5,14 @@ import { audit } from "./audit/log.js";
 import { CONFIG_PATH, checkValue, describeDefault, formatValue, listSettings, loadSettings, lookup, parseConfig, type Config, type Kind } from "./config.js";
 import { editConfig } from "./config-edit.js";
 import { guard, type Actor, type Preset } from "./perm/permissions.js";
+import { holdRequest, sentMessage } from "./requests/hold.js";
 
 /**
  * `config get|set|unset|list` (`feature/configuration` R25, R25.1; `architecture/reference-cli` §3.2).
  * Reading needs no permission; every write goes through the guard with `config.change` and is audited with old and new.
  */
 
-export interface ConfigCtx { root: string; actor: Actor; preset: Preset; now?: Date }
+export interface ConfigCtx { root: string; actor: Actor; preset: Preset; now?: Date; request?: string }
 
 export interface ConfigResult {
   ok: boolean;
@@ -20,6 +21,8 @@ export interface ConfigResult {
   data?: unknown;
   /** True when the file was written (never committed: configuration is a working-tree edit). */
   written: boolean;
+  /** Id of the request sent instead of changing the setting (`request user`). */
+  request?: string;
 }
 
 const fail = (reasons: string[]): ConfigResult => ({ ok: false, lines: [], reasons, written: false });
@@ -75,7 +78,7 @@ function writeAtomic(file: string, text: string): void {
 function change(ctx: ConfigCtx, key: string, value: unknown | undefined, command: string, args: string[]): ConfigResult {
   const hit = lookup(key);
   if (!hit) return fail([`unknown setting \`${key}\`; \`specplane config list\` shows every setting`]);
-  const entry = { command, args, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name } };
+  const entry = { command, args, request: ctx.request, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name } };
   const before = loadSettings(ctx.root).config;
   const old = before.values[key] ?? null;
   let candidate: unknown;
@@ -86,6 +89,10 @@ function change(ctx: ConfigCtx, key: string, value: unknown | undefined, command
     if (hit.kind.t === "bool" && typeof value === "string") candidate = value in { on: 1, off: 1 } ? value : candidate;
   }
   const g = guard(ctx.preset, ctx.actor, ["config.change"], `changing \`${key}\``);
+  if (g.kind === "request") {
+    const rec = holdRequest({ root: ctx.root, actor: ctx.actor, permissions: g.permissions, decidedBy: g.permission, command, params: { key, old, new: candidate ?? null, op: command === "config set" ? "set" : "unset", arg: args[1] ?? null }, reason: `Changing setting \`${key}\` from ${formatValue(old)} to ${value === undefined ? "its default" : formatValue(candidate)}.`, now: ctx.now });
+    return { ok: true, lines: [sentMessage(rec)], reasons: [], written: false, request: rec.id };
+  }
   if (g.kind !== "allow") {
     audit(ctx.root, { ...entry, permission: g.permission, outcome: "refused", reason: g.message, old, new: candidate ?? null }, ctx.now);
     return fail([g.message]);

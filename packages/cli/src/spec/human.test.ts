@@ -208,8 +208,9 @@ test("approve: the permission has three modes; only allow approves", async () =>
   const root = repo({ a: fm("a") });
   const llm = (r: string): Ctx => ({ ...ctx(root), actor: { role: "llm", kind: "llm", name: "m" }, preset: PRESETS.find((p) => p.id === r)! });
   const asked = await approveSpecs(llm("architecture-level-llm-control"), ["feature/a"], { yes: true });
-  assert.equal(asked.ok, false);
-  assert.match(asked.reasons.join(), /spec\.approve/);
+  assert.equal(asked.ok, true, "request user sends a request instead of refusing");
+  assert.ok(asked.request);
+  assert.match(read(root, "a"), /status: awaiting-review/);
   const custom = structuredClone(DEFAULT_PRESET);
   custom.llm.modes["spec.approve"] = "deny";
   const denied = await approveSpecs({ ...llm("full-llm-control"), preset: custom }, ["feature/a"], { yes: true });
@@ -221,6 +222,7 @@ test("approve: the permission has three modes; only allow approves", async () =>
   assert.equal(allowed.ok, false, "an LLM actor has no human identity; the CLI never records one");
   assert.match(allowed.reasons.join(), /user\.name/);
   assert.equal(audit(root).filter((e) => e.outcome === "refused").length >= 2, true);
+  assert.equal(audit(root).filter((e) => e.outcome === "request-sent").length, 1);
 });
 
 test("reopen: sets awaiting-review with a review reason, removes approval, audits", async () => {

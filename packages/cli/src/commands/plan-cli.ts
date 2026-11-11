@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { RequestSent } from "../requests/hold.js";
 import { reportError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliRole, gitUserName, type Actor } from "../perm/permissions.js";
@@ -21,7 +22,11 @@ const out = (s: string) => process.stdout.write(s.endsWith("\n") ? s : `${s}\n`)
 const json = (v: unknown) => out(JSON.stringify(v, null, 2));
 
 function run(fn: (ctx: PlanCtx) => void): void {
-  try { fn(context()); } catch (e) { if (!reportError(e)) throw e; }
+  try { fn(context()); } catch (e) {
+    // A held action: the request was stored and nothing was done (exit status 0, `reference-cli` §13.3).
+    if (e instanceof RequestSent) { out(e.message); return; }
+    if (!reportError(e)) throw e;
+  }
 }
 
 function line(i: PlanInfo): string {

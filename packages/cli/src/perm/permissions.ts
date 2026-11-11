@@ -25,7 +25,7 @@ export const CATALOG: readonly string[] = [
   ...GRANULAR_PIECES.map((p) => `meta.write.${p}`),
   ...PROTECTED, "test.record", "info.retrieve",
   "plan.meta.read", "plan.meta.write", "plan.edit", "plan.create", "plan.delete", "plan.start", "plan.abandon", "plan.complete",
-  "plan.budget", "plan.resume", "plan.softstop", "decision.add", "decision.retrieve", "decision.edit", "decision.delete", "config.change",
+  "plan.budget", "plan.resume", "plan.softstop", "plan.step", "decision.add", "decision.retrieve", "decision.edit", "decision.delete", "config.change",
 ];
 
 export interface Preset {
@@ -47,7 +47,7 @@ function llmModes(req: Mode, feat: Mode, arch: Mode, planEdit: Mode): Record<str
     "meta.read": "allow", "meta.write": "deny",
     "plan.create": planEdit, "plan.edit": planEdit, "plan.start": "request-user", "plan.resume": "request-user",
     "plan.abandon": "request-user", "plan.complete": "request-user", "plan.delete": "request-user", "plan.budget": "request-user",
-    "plan.softstop": "allow", "decision.retrieve": "allow", "decision.add": "request-user", "decision.edit": "request-user",
+    "plan.softstop": "allow", "plan.step": "allow", "decision.retrieve": "allow", "decision.add": "request-user", "decision.edit": "request-user",
     "decision.delete": "request-user",
   };
 }
@@ -83,7 +83,12 @@ export function cliRole(root: string): RoleId {
   return readStoreJson<{ role?: string }>(root, "role.json")?.role === "administrator" ? "administrator" : "standard-user";
 }
 
-export function switchRole(root: string, role: "standard-user" | "administrator"): void {
+/**
+ * Switch the role CLI calls run as (`roles-and-permissions` R44). Only a person can switch: an LLM actor is refused,
+ * whatever its mode table says. Switching back to the Standard User needs no permission.
+ */
+export function switchRole(root: string, role: "standard-user" | "administrator", actor?: Actor): void {
+  if (actor && actor.kind === "llm") throw new Error("Refused: an LLM cannot switch roles (`roles-and-permissions` R44).");
   writeStoreJson(root, "role.json", { role });
 }
 
@@ -105,7 +110,7 @@ export class Authorized {
 
 export type GuardResult =
   | { kind: "allow"; token: Authorized; permissions: string[] }
-  | { kind: "request"; permission: string; message: string }
+  | { kind: "request"; permission: string; permissions: string[]; message: string }
   | { kind: "deny"; permission: string; message: string };
 
 const RANK: Record<Mode, number> = { allow: 2, "request-user": 1, deny: 0 };
@@ -130,6 +135,6 @@ export function guard(preset: Preset, actor: Actor, needs: (string | string[])[]
     if (best.m === "request-user" && !request) request = best.p;
     used.push(best.p);
   }
-  if (request) return { kind: "request", permission: request, message: `${describe} needs the \`${request}\` permission as a request to the user; requests are not available yet, so nothing was done.` };
+  if (request) return { kind: "request", permission: request, permissions: used, message: `${describe} needs the \`${request}\` permission, which is set to request user, so a request was sent and nothing was done yet.` };
   return { kind: "allow", token: Authorized.create(used, actor), permissions: used };
 }

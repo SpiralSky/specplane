@@ -9,7 +9,7 @@ import { loadProject, resolveCite, targetFingerprint } from "../spec/project.js"
 import { committedSource, worktreeSource } from "../spec/source.js";
 import { AlreadyExistsError } from "../errors.js";
 import { MAX_PLAN_ID, PLAN_ID_RE, findPlan, planReferences } from "./model.js";
-import { PlanOpError, commitPaths, gitTry, guarded, humanName, isDirty, plansDir, planSlug, today, type PlanCtx } from "./ctx.js";
+import { PlanOpError, commitPaths, gitTry, guarded, guardedWith, humanName, isDirty, plansDir, planSlug, today, type PlanCtx } from "./ctx.js";
 import { planApproval } from "./status.js";
 import { committedProject } from "./ctx.js";
 
@@ -25,7 +25,7 @@ export function planAuthor(ctx: PlanCtx): Record<string, string> {
 }
 
 export function createPlan(ctx: PlanCtx, o: CreateOpts): { id: string; files: string[]; commit: string } {
-  return guarded(ctx, "plan create", [o.words.join("-")], ["plan.create"], "Creating a plan", () => createInner(ctx, o));
+  return guardedWith({ ...o }, ctx, "plan create", [o.words.join("-")], ["plan.create"], "Creating a plan", () => createInner(ctx, o));
 }
 
 function createInner(ctx: PlanCtx, o: CreateOpts): { id: string; files: string[]; commit: string } {

@@ -48,6 +48,7 @@ function docs(): PermDoc[] {
   add("plan.budget", "Set the budget of a plan.", "Anything else about the plan.", ["plan budget"]);
   add("plan.resume", "Resume a stopped plan.", "Starting a plan that never ran.", ["plan resume"]);
   add("plan.softstop", "Stop a running plan after the current work.", "Abandoning it.", ["plan stop"]);
+  add("plan.step", "Record a finished plan step: mark it done and commit its handoff entry.", "Starting, resuming or completing the plan.", ["plan step-done"]);
   add("decision.add", "Add a decision record (later release).", "Editing or deleting one.", ["decision add"]);
   add("decision.retrieve", "Read decision records (later release).", "Changing them.", ["decision show"]);
   add("decision.edit", "Edit a decision record (later release).", "Adding or deleting one.", ["decision edit"]);

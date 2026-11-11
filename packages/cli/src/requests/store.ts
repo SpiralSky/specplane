@@ -139,22 +139,3 @@ export function claimAnswer(root: string, id: string): AnswerClaim {
     throw e;
   }
 }
-
-/**
- * Take the lock for a pending request while an action runs, so a concurrent accept fails fast. Returns a release
- * function, or throws when the request is not pending.
- * @deprecated Acceptance-only lock retained for the pending command integration. Use claimAnswer to serialize
- * acceptance with decline and finalize through the returned claim.
- */
-export function claimRequest(root: string, id: string): () => void {
-  fs.mkdirSync(dir(root), { recursive: true });
-  const lock = `${file(root, id)}.claim`;
-  let fd: number;
-  try { fd = fs.openSync(lock, "wx"); } catch { throw new RequestStateError(`Request \`${id}\` is being answered by another command.`); }
-  const rec = readRequest(root, id);
-  if (!rec || rec.state !== "pending") {
-    fs.closeSync(fd); fs.rmSync(lock, { force: true });
-    throw new RequestStateError(rec ? `Request \`${id}\` is already ${rec.state}.` : `Request \`${id}\` not found.`);
-  }
-  return () => { fs.closeSync(fd); fs.rmSync(lock, { force: true }); };
-}

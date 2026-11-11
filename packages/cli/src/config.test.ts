@@ -200,14 +200,13 @@ test("config set creates the file, validates before writing and refuses unknown 
   assert.equal(loadSettings(root).findings.length, 0);
 });
 
-test("an LLM role needs the user's agreement: nothing changes and the refusal is audited", () => {
+test("an LLM role needs the user's agreement: nothing changes and a request is sent and audited", () => {
   const root = repo("auto_warn: on\n");
   const r = configSet(ctxFor(root, "llm"), "auto_warn", "off");
-  assert.ok(!r.ok);
-  assert.match(r.reasons[0], /config\.change/);
+  assert.ok(r.ok && r.request && !r.written);
   assert.equal(fs.readFileSync(file(root), "utf8"), "auto_warn: on\n");
   const last = auditLines(root).at(-1)!;
-  assert.deepEqual([last.outcome, last.permission, last.actor.role], ["refused", "config.change", "llm"]);
+  assert.deepEqual([last.outcome, last.permission, last.actor.role, last.request], ["request-sent", "config.change", "llm", r.request]);
 });
 
 test("a role whose configuration permission is deny cannot change the preset", () => {
