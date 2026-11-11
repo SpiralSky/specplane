@@ -5,6 +5,7 @@ import { checkRequirementIds } from "../spec/requirements.js";
 import { LEGACY_RECORD_KEYS } from "../spec/fingerprint.js";
 import { computeStatus, dependencyCites, StatusCtx } from "../spec/status.js";
 import { committedSource, headCommit, worktreeSource } from "../spec/source.js";
+import { notesSyncWarnings } from "../spec/sync.js";
 import { loadPlans } from "../plan/model.js";
 import { validatePlanRecords } from "../plan/validate.js";
 
@@ -178,6 +179,7 @@ export function validateProject(root: string, opts: ValidateOptions = {}): Repor
       for (const n of st.notes) emit("note", "status", n, doc.file);
     }
     for (const w of commits.notes.notes.warnings) emit("warning", "notes", w, ".");
+    for (const w of notesSyncWarnings(root)) emit("warning", "notes", w, ".");
   } else emit("note", "status", "the repository has no commits; effective status is not computed", ".");
 
   findings.sort((a, b) => (a.file === b.file ? (a.line ?? 0) - (b.line ?? 0) : a.file < b.file ? -1 : 1));

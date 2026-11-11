@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { ensureNotesRefspecs } from "../spec/sync.js";
 import { upsertBlock } from "../agents/standing.js";
 import { refreshGuidance } from "../docs/freshness.js";
 import { CONFIG_PATH, configuredFraming, loadConfig } from "../legacy-config.js";
@@ -86,7 +87,8 @@ export function runInit(
   try {
     const lines = [...tx.notes, ...scaffold(root, opts, tx)];
     tx.commit();
-    return lines;
+    // The notes store needs a fetch refspec per remote; `git config` is idempotent and outside the file transaction.
+    return [...lines, ...ensureNotesRefspecs(root)];
   } finally { tx.release(); }
 }
 

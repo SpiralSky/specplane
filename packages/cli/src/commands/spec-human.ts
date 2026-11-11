@@ -3,7 +3,8 @@ import { withCheckoutLease, withCheckoutLeaseAsync } from "../core/checkout-coor
 import { audit } from "../audit/log.js";
 import { reportError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
-import { activePreset, cliRole, gitUserName, switchRole, type Actor } from "../perm/permissions.js";
+import { activePreset, cliRole, gitUserName, guard, switchRole, type Actor } from "../perm/permissions.js";
+import { syncNotes } from "../spec/sync.js";
 import { approveSpecs, metaGet, metaSet, overrideSpec, reopenSpec, type Ctx, type OverrideKind, type Result } from "../spec/human.js";
 
 /** Human CLI commands: approval, reopen, metadata and overrides (`architecture/reference-cli` §13). */
@@ -37,9 +38,9 @@ function askYesNo(members: string[]): Promise<boolean> {
 
 interface Common { json?: boolean; commit?: boolean }
 
-export const specApproveHuman = (ids: string[], opts: Common & { yes?: boolean }) => guarded(async () => {
+export const specApproveHuman = (ids: string[], opts: Common & { yes?: boolean; ref?: string }) => guarded(async () => {
   const c = context();
-  print(await withCheckoutLeaseAsync(c.root, "spec-approve", false, () => approveSpecs(c, ids, { yes: opts.yes, interactive: !!process.stdin.isTTY && !!process.stdout.isTTY, ask: askYesNo })), opts.json);
+  print(await withCheckoutLeaseAsync(c.root, "spec-approve", false, () => approveSpecs(c, ids, { yes: opts.yes, ref: opts.ref, interactive: !!process.stdin.isTTY && !!process.stdout.isTTY, ask: askYesNo })), opts.json);
 });
 
 export const specReopenHuman = (id: string, opts: Common) => guarded(() => {
@@ -70,4 +71,14 @@ export const roleSwitchHuman = (role: string) => guarded(() => {
   switchRole(root, role, actor);
   audit(root, { command: "role switch", args: [role], permission: null, outcome: "done", actor: { role: actor.role, kind: actor.kind, name: actor.name }, new: { role } });
   process.stdout.write(`CLI calls on this machine now run as ${role}.\n`);
+});
+
+/** `specplane sync [<remote>]`: fetch, merge, push the notes ref, guarded by `info.retrieve` (`reference-cli` §5.6). */
+export const syncHuman = (remote: string | undefined, opts: { json?: boolean }) => guarded(() => {
+  const c = context();
+  const g = guard(c.preset, c.actor, ["info.retrieve"], "Syncing the notes store");
+  if (g.kind !== "allow") { print({ ok: false, lines: [], reasons: [g.kind === "deny" ? g.message : "Syncing needs approval from the user."], commit: null, warnings: [], written: [] }, opts.json); return; }
+  const lines = syncNotes(c.root, remote);
+  audit(c.root, { command: "sync", args: remote ? [remote] : [], permission: "info.retrieve", outcome: "done", actor: { role: c.actor.role, kind: c.actor.kind, name: c.actor.name } });
+  print({ ok: true, lines, reasons: [], commit: null, warnings: [], written: [] }, opts.json, { lines });
 });

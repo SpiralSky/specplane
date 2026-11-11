@@ -49,14 +49,15 @@ export interface Result {
 const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const today = (ctx: Ctx) => (ctx.now ?? new Date()).toISOString().slice(0, 10);
 const git = (root: string, args: string[]) => run("git", args, { cwd: root });
+const revCommit = (root: string, rev: string): string | null => { try { return git(root, ["rev-parse", "--verify", "--quiet", `${rev}^{commit}`]).trim() || null; } catch { return null; } };
 
 function result(partial: Partial<Result> & { ok: boolean }): Result {
   return { lines: [], reasons: [], commit: null, warnings: [], written: [], ...partial };
 }
 
-function loadHead(root: string): Project {
+function loadHead(root: string, rev = "HEAD"): Project {
   if (!headCommit(root)) throw new GitError("git rev-parse HEAD", "the repository has no commits");
-  return loadProject(committedSource(root, "HEAD"), loadSpecPaths(root).paths);
+  return loadProject(committedSource(root, rev), loadSpecPaths(root).paths);
 }
 
 function auditAll(ctx: Ctx, base: Omit<AuditEntry, "actor">, extra: Partial<AuditEntry> = {}): void {
@@ -138,9 +139,9 @@ function fingerprintsOf(head: Project, doc: SpecDoc): { fingerprint: string; cit
 }
 
 /** Append records to the note on HEAD in one notes commit; the branch, index and working tree are untouched (`file-formats` §13.3). */
-function writeRecords(ctx: Ctx, records: NoteRecord[]): string | null {
-  const head = headCommit(ctx.root);
-  if (!head) throw new GitError("git rev-parse HEAD", "the repository has no commits");
+function writeRecords(ctx: Ctx, records: NoteRecord[], rev = "HEAD"): string | null {
+  const head = revCommit(ctx.root, rev);
+  if (!head) throw new GitError(`git rev-parse ${rev}`, `\`${rev}\` is not a commit in this repository`);
   appendRecords(ctx.root, head, records);
   return notesTip(ctx.root);
 }
@@ -189,6 +190,8 @@ const notFound = (id: string, head: Project) =>
 export interface ApproveOptions {
   /** Confirms a group in advance (`--yes`). */
   yes?: boolean;
+  /** Approve the specs as written on this branch or commit instead of the current one (`--ref`); default HEAD. */
+  ref?: string;
   /** Whether a person can be asked. */
   interactive?: boolean;
   ask?: (members: string[]) => Promise<boolean>;
@@ -198,8 +201,12 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   const g = decide(ctx, ["spec.approve"], "Approving specifications", "spec approve", ids, { ids });
   if (g.kind !== "allow") return refusal(g);
   const name = humanName(ctx);
-  const head = loadHead(ctx.root);
+  const rev = opts.ref ?? "HEAD";
+  if (!revCommit(ctx.root, rev)) return result({ ok: false, reasons: [`\`--ref ${rev}\` is not a branch or commit in this repository.`] });
+  const head = loadHead(ctx.root, rev);
   const reasons: string[] = [];
+  // Another branch has no working tree here: its committed files are what is approved (`reference-cli` §5.3).
+  const onHead = rev === "HEAD" || revCommit(ctx.root, rev) === revCommit(ctx.root, "HEAD");
   if (!name) reasons.push("Cannot tell who is approving: set git `user.name`. The approver is never invented.");
 
   const named: SpecDoc[] = [];
@@ -218,11 +225,11 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
     return result({ ok: true, lines: [`${named.map((d) => d.id).join(", ")}: a requirement file is always approved and has no record. Nothing changed.`] });
   }
 
-  const commits = new StatusCtx(ctx.root, head);
+  const commits = new StatusCtx(ctx.root, head, rev);
   const effective = new Map<string, ReturnType<typeof computeStatus>>();
   for (const doc of members) {
     if (!doc.fm.data) { reasons.push(`\`${doc.id}\` has unreadable frontmatter: ${doc.fm.error}`); continue; }
-    if (isDirty(ctx.root, doc.file)) reasons.push(`\`${doc.id}\` has uncommitted changes. Commit ${doc.file} first; approval applies to committed content.`);
+    if (onHead && isDirty(ctx.root, doc.file)) reasons.push(`\`${doc.id}\` has uncommitted changes. Commit ${doc.file} first; approval applies to committed content.`);
     effective.set(doc.id, computeStatus(head, doc, commits));
     for (const raw of dependencyCites(doc.fm.data)) {
       const cite = parseCite(raw);
@@ -273,7 +280,7 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
     const { fingerprint, cited } = fingerprintsOf(head, doc);
     return makeRecord("approval", doc.id, fingerprint, { by: { human: name! }, date: today(ctx), cited }, at);
   });
-  const commit = writeRecords(ctx, records);
+  const commit = writeRecords(ctx, records, rev);
   for (const doc of todo) {
     auditAll(ctx, { command: "spec approve", args: [doc.id], permission: "spec.approve", outcome: "done",
       old: { effective: effective.get(doc.id)?.status }, new: { status: "approved", by: { human: name } } });
