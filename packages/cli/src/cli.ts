@@ -14,6 +14,7 @@ import { searchCommand } from "./commands/search.js";
 import { docsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
 import { warningsCommand } from "./commands/warnings.js";
+import { steeringCommand } from "./commands/steering.js";
 import { coverageCommand } from "./commands/coverage.js";
 import { testRunCommand } from "./commands/test.js";
 import { runCommand } from "./commands/runner.js";
@@ -38,6 +39,16 @@ program.on("command:*", (args: string[]) => {
 });
 // Usage errors (unknown option, missing argument) exit 2; help and version exit 0 (`reference-cli` §13.3).
 registerPlanCommands(program);
+program.command("steering <target>").description("Show complete generated LLM steering for a command, permission, or role")
+  .option("--spec-type <type>", "scope to requirement, feature, or architecture")
+  .option("--plan-id <id>", "scope to a plan")
+  .option("--json")
+  .action((target: string, opts) => {
+    if (opts.specType && !["requirement", "feature", "architecture"].includes(opts.specType)) {
+      return runCommand({ command: "steering", args: [target], json: opts.json }, () => ({ ok: false, findings: ["Unknown spec type"] }));
+    }
+    return runCommand({ command: "steering", args: [target], json: opts.json }, () => steeringCommand(target, { specType: opts.specType, planId: opts.planId }));
+  });
 
 const spec = program.command("spec").description("Work with specs (list, show, approve, reopen, meta, override)");
 spec.command("implement <id>").description("Verify committed architecture content and mark implemented when every check passes")

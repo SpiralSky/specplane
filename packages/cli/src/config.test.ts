@@ -358,10 +358,10 @@ test("configuration paths are resolved once to absolute folders inside the check
   assert.equal(c.abs.plans, path.join(root, "docs/plans"));
 });
 
-test("a setting change reports its pending side effect and runs a registered handler", () => {
+test("a setting change regenerates committed steering and runs a registered handler", () => {
   const root = repo("auto_warn: on\n");
   const r = configSet(ctxFor(root), "permissions.preset", "full-llm-control");
-  assert.ok(r.lines.some((l) => /steering is regenerated/.test(l)));
+  assert.ok(r.lines.some((l) => /Steering regenerated from committed configuration/.test(l)));
   const seen: string[] = [];
   registerEffect("pre_commit.", (_r, key, old, next) => { seen.push(`${key}:${old}->${next}`); return ["hook section updated"]; });
   try {

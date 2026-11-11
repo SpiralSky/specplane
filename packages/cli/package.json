@@ -30,6 +30,7 @@
     "!dist/plan/*-fixture.*",
     "README.md",
     "assets/docs",
+    "assets/steering",
     "core-release.json",
     "scripts/build-core-info.mjs",
     "scripts/validate-docs.mjs"

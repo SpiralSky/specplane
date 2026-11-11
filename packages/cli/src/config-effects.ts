@@ -1,8 +1,10 @@
 /**
  * Side effects of a setting change (`architecture/reference-cli` §3.2): turning `pre_commit.*` on or off installs or
- * removes the hook section (`§14.2`, U19); changing `permissions.preset` regenerates steering (`§12.4`, U9). Those
- * units register their handler here; until then a change only reports the effect that is still to come.
+ * removes the hook section (`§14.2`, U19); preset/custom changes regenerate currently committed steering.
+ * Hook integration may register its handler here; until then its effect is reported as pending.
  */
+
+import { steeringConfigEffect } from "./harness/steering.js";
 
 export type EffectHandler = (root: string, key: string, old: unknown, next: unknown) => string[];
 
@@ -14,7 +16,6 @@ export function registerEffect(keyOrPrefix: string, handler: EffectHandler): voi
 export function clearEffects(): void { handlers.clear(); }
 
 const PENDING: Array<[string, string]> = [
-  ["permissions.preset", "The active preset changed; steering is regenerated once steering generation is available."],
   ["pre_commit.", "The pre-commit hook section is installed or removed once pre-commit checks are available."],
 ];
 
@@ -25,6 +26,10 @@ export function applyEffects(root: string, key: string, old: unknown, next: unkn
   let handled = false;
   for (const [k, h] of handlers) {
     if (key === k || (k.endsWith(".") && key.startsWith(k))) { out.push(...h(root, key, old, next)); handled = true; }
+  }
+  if (!handled && (key === "permissions.preset" || key === "steering.custom")) {
+    out.push(...steeringConfigEffect(root));
+    handled = true;
   }
   if (!handled) for (const [k, note] of PENDING) if (key === k || (k.endsWith(".") && key.startsWith(k))) out.push(note);
   return out;

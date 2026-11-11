@@ -1,6 +1,7 @@
 import { loadSettings } from "../config.js";
 import { PERMISSION_DOCS, permissionDoc, type PermDoc } from "./catalog.js";
 import { CATALOG, PRESETS, mode, type Mode, type RoleId } from "./permissions.js";
+import { inspectSteering } from "../harness/steering.js";
 
 /** Permission documentation (`feature/configuration` R54, `architecture/reference-cli` §7.4). Reading needs no permission. */
 
@@ -55,8 +56,8 @@ export function describePermission(root: string, id: string, reader: RoleId): Pe
     `Mode per default preset (standard-user / llm):`,
     ...presets.map((p) => `  ${p.preset}${p.preset === active.id ? " (active)" : ""}: ${p.modes["standard-user"]} / ${p.modes.llm}`),
     `You are ${reader}: ${readerMode} under the active preset.`,
-    `Steering: ${doc.steeringKey} (generated steering is delivered by the harness)`,
-    ...custom.map((c) => `Custom steering (${c.scope}): ${c.text}`),
+    `Steering for the LLM role:`,
+    inspectSteering(root, id).text,
   ];
   return { doc, presets, reader, readerMode, activePreset: active.id, customSteering: custom, lines };
 }

@@ -47,7 +47,7 @@ When an action is not simply allowed, the LLM needs to know which of three thing
 - **Permission is deny.** Do not do it and do not look for another way. Tell the user it was refused, and if the user's wishes depend on it, say so and leave the next move to them.
 - **The action is one the user runs through a command** (for example approval by a person, `R16`). Ask the user to run the command and say what it will do. Do not try to run it. LLM approval is not this case: when the user asks the LLM to approve, it follows its own `spec.approve` permission mode: allow approves, request user sends a request, deny refuses (`roles-and-permissions R57`).
 - **Permission is allow.** Act directly, unless custom steering says to send a request or to ask the user to run a command first (`R59.1`, `R52.3`, `requests R52`). A role with allow that acts directly is not a failure of steering: steering is a guide and does not guarantee the LLM asks first.
-- **Blocked in a plan.** When a plan run meets a block, such as a restriction in its environment, the LLM decides whether to go on with work that is not blocked or to soft stop. By default: if other steps do not depend on the blocked one, send a non-blocking request and continue; if nothing useful is left to do without the block, or the block affects the whole plan, soft stop. A soft stop is allowed for LLM roles in all default presets (`R27.1`, `plan-execution R27.1`).
+- **Blocked in a plan.** When a plan run meets a block, such as a restriction in its environment, the LLM decides whether to go on with work that is not blocked or to soft stop. By default: if useful work within the current step does not depend on the blocked action, send a non-blocking request and continue without skipping an unfinished step; if nothing useful is left to do without the block, or the block affects the whole plan, soft stop. A soft stop is allowed for LLM roles in all default presets (`R27.1`, `plan-execution R27.1`).
 
 ### Blocking and non-blocking requests
 
@@ -64,7 +64,7 @@ Test T1 (intelligent): read the default steering for each of the five cases abov
 
 - **Given** a role whose approval permission is request user, **when** the LLM wants a specification approved, **then** it sends a request and does not approve.
 - **Given** a role with allow for approval, **when** the user said "approve the spec", **then** the LLM may approve without asking again, and the user documentation warns that steering does not guarantee it asks first (`R22`).
-- **Given** a plan run where one step needs a tool the environment forbids and the other steps do not need it, **when** the LLM reaches it, **then** by default it sends a non-blocking request and either continues with work that does not need the tool or stops the plan with a soft stop.
+- **Given** a plan run where part of the current step needs a tool the environment forbids, **when** the LLM reaches it, **then** by default it sends a non-blocking request and either continues independent work within that step or stops the plan with a soft stop; it never skips the unfinished step.
 - **Given** a plan that references a specification changed since the plan was written, **when** the run continues, **then** the LLM is told to check what changed first.
 
 ## R59.1: Custom Steering

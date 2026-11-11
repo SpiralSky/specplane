@@ -1,4 +1,5 @@
 import { loadSettings } from "../config.js";
+import { steeringWarnings } from "../harness/steering.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject } from "../spec/project.js";
 import { worktreeSource } from "../spec/source.js";
@@ -63,11 +64,11 @@ function fromFinding(f: Finding, dirs: Parameters<typeof refOf>[1]): Warning {
 
 /**
  * Installation checks that are not validation: the harness installation older than the installed Specplane
- * (`§12.6`) and the steering stamp older than the active preset or steering (`§12.4`). Neither feature exists yet,
- * so this reports nothing until steering generation and the harness installer land.
+ * (`§12.6`) and the steering stamp older than the active preset or steering (`§12.4`). Local generation is checked
+ * here; delivered-file ownership and installed stamps join when the new harness installer lands.
  */
-function installationWarnings(_root: string): Warning[] {
-  return [];
+function installationWarnings(root: string): Warning[] {
+  return steeringWarnings(root).map((text) => ({ text, subject: "installation", why: "Steering must match active permissions and committed custom steering (§12.4)." }));
 }
 
 /** Collect every warning. Throws when the repository cannot be read; the caller decides what that means. */

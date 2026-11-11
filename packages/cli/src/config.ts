@@ -57,7 +57,7 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "plans.parallelism", kind: { t: "posint" }, def: 1, later: true, doc: "Greatest number of tasks in a plan step run at once" },
   { key: "notifications.push", kind: { t: "bool" }, def: false, doc: "Whether requests are sent as push notifications, in a harness that supports them" },
   { key: "notifications.push_permissions", kind: { t: "permissions" }, def: ["all"], doc: "Permissions whose requests are pushed when notifications.push is on" },
-  { key: "steering.custom", kind: { t: "steering" }, def: [], doc: "Custom steering added to a permission or command: items {permission|command, scope, text}" },
+  { key: "steering.custom", kind: { t: "steering" }, def: [], doc: "Custom steering added to a permission or command: items {permission|command, scope, text}; command '*' applies overall; scope is all, a spec type, or a plan id" },
   { key: "permissions.preset", kind: { t: "preset" }, def: DEFAULT_PRESET_ID, doc: "The active preset, one of the four default presets" },
   { key: "harness.install_block", kind: { t: "bool" }, def: true, doc: "off stops setup writing the marked block into shared instruction files" },
   { key: "harness.separation_check", kind: { t: "bool" }, def: true, doc: "Whether the optional feature and architecture separation instructions are used" },
