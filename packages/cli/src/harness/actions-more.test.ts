@@ -11,6 +11,7 @@ import { acceptRequest } from "../requests/ops.js";
 import { listRequests, readRequest } from "../requests/store.js";
 import { approvePlan } from "../plan/create.js";
 import { loadPlanAt } from "../plan/ctx.js";
+import { PreconditionError } from "../errors.js";
 import { createActionRuntime, listActions } from "./actions.js";
 
 const arch = "docs/specifications/architecture/arch.md";
@@ -146,5 +147,30 @@ test("docs.essentials returns the packaged essentials and needs no permission", 
     const text = (r.data as { essentials: string }).essentials;
     assert.ok(text.length > 100 && Buffer.byteLength(text) <= 8192);
     assert.ok(text.includes("docs.search"));
+  } finally { DEFAULT_PRESET.llm.modes = prior; }
+});
+
+test("plan.start opens the plan's session through the adapter, and reports a refusal as an error after the plan started", async () => {
+  const opened: { sessionId: string; resume: boolean }[] = [];
+  const launcher = { name: "fake", newSessionId: () => "fake-session-1", open: (_c: unknown, _id: string, o: { sessionId: string; resume: boolean }) => { opened.push(o); return ["Opened fake-session-1."]; } };
+  const refusing = { ...launcher, newSessionId: () => "fake-session-2", open: () => { throw new PreconditionError(["No host here; open it yourself."]); } };
+  const prior = DEFAULT_PRESET.llm.modes;
+  DEFAULT_PRESET.llm.modes = { ...prior, "plan.create": "allow", "plan.start": "allow" };
+  try {
+    const root = repo();
+    await runtime(root).call("plan.create", { words: ["some", "plan"] });
+    approvePlan({ ...human(root) }, PLAN);
+    const r = await runtime(root, { launcher }).call("plan.start", { id: PLAN });
+    assert.equal(r.ok, true, r.findings.join());
+    assert.deepEqual(opened, [{ sessionId: "fake-session-1", resume: false }]);
+    assert.equal((r.data as { session: string }).session, "fake-session-1");
+
+    const root2 = repo();
+    await runtime(root2).call("plan.create", { words: ["some", "plan"] });
+    approvePlan({ ...human(root2) }, PLAN);
+    const failed = await runtime(root2, { launcher: refusing }).call("plan.start", { id: PLAN });
+    assert.equal(failed.ok, false);
+    assert.match(failed.findings.join(), /open it yourself/);
+    assert.match(String(run("git", ["branch", "--list", `plan/${PLAN}`], { cwd: root2 })), new RegExp(`plan/${PLAN}`), "the plan itself started before the launch was refused");
   } finally { DEFAULT_PRESET.llm.modes = prior; }
 });

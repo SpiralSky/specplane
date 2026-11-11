@@ -1,4 +1,5 @@
 import type { Ctx } from "../spec/human.js";
+import type { SessionLauncher } from "./run.js";
 import type { Warning } from "../verify/warnings.js";
 
 /** Shared shapes of the harness action registry (`architecture/reference-cli` §12.1). */
@@ -8,6 +9,8 @@ export interface ActionContext extends Ctx {
   sessionWarnings: Warning[];
   /** Resources the adapter can measure for plan budgets; unset when it did not say (`harness R35.1`). */
   measurable?: string[];
+  /** The host adapter's session opener; unset when no adapter is named (`agent-skills` §7.4). */
+  launcher?: SessionLauncher;
 }
 export interface HarnessAction {
   id: string; inputSchema: Schema;

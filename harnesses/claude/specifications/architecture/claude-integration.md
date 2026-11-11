@@ -124,4 +124,12 @@ Implements `claude-integration §4`, `claude-integration §3`.
 
 Implements `claude-integration §3`.
 
-The harness actions of `root:architecture/reference-cli §12.1` reach Claude Code as tools of the Specplane MCP server, declared by the plugin so that Claude Code starts it with the session. There is one tool per action, and the permission checks run inside the CLI process, not in Claude Code.
+The harness actions of `root:architecture/reference-cli §12.1` reach Claude Code as tools of the Specplane MCP server, declared by the plugin so that Claude Code starts it with the session. There is one tool per action, and the permission checks run inside the CLI process, not in Claude Code. The manifest sets `SPECPLANE_ADAPTER=claude` for the server, so the `plan.start` action opens the plan session through the Claude session adapter of `§7`, exactly as the typed `/plan-start` does.
+
+## §11 Plugin package
+
+Implements `claude-integration §3`.
+
+The plugin of `§10` is built, not hand-assembled. `packages/cli/scripts/build-plugin.mjs` runs at the end of the package build and writes `dist/plugin/`: the plugin sources of `harnesses/claude/plugin/` (`.claude-plugin/plugin.json`, `hooks/`, `LICENSE`) and, under `core/`, a self-contained copy of the compiled core (`dist/` without test files, `assets/`, `package.json`, `core-release.json` and the production dependencies from `node_modules/`). The manifest starts `core/dist/harness/mcp-main.js` and the slash-command handler runs `core/dist/cli.js`; neither needs an install step or the repository, only Node. The script fails when the manifest names a file the package lacks. `dist/plugin` is excluded from the npm tarball, because npm drops nested `node_modules`; the plugin folder itself is what Claude Code loads (how it reaches users, for example through a marketplace, is a later release).
+- Test T1 (deterministic): `plugin-package.test.ts` builds the plugin into a temporary folder, starts the manifest's server from it with no repository, lists its tools over stdio and runs `core/dist/cli.js docs essentials`.
+- Not checked offline: that Claude Code loads the folder as a plugin (assumption; a live check needs the user's approval).

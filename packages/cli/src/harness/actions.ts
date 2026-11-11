@@ -84,7 +84,7 @@ export interface ActionReply {
   ok: boolean; data?: unknown; findings: string[]; instructions: InstructionDelivery[];
   request?: string; warningCount?: number | null;
 }
-export interface ActionSession extends InstructionSession { measurable?: string[]; model?: string; delegatedBy?: string; command?: string; now?: Date }
+export interface ActionSession extends InstructionSession { measurable?: string[]; launcher?: ActionContext["launcher"]; model?: string; delegatedBy?: string; command?: string; now?: Date }
 
 /** A runtime belongs to exactly one adapter session. Actor identity never comes from tool input. */
 export function createActionRuntime(session: ActionSession) {
@@ -97,7 +97,7 @@ export function createActionRuntime(session: ActionSession) {
       try {
         const action = validateActionInput(id, input);
         const p = input as Input;
-        const ctx: ActionContext = { root: session.root, actor, preset: activePreset(session.root), now: session.now, sessionWarnings, ...(session.measurable ? { measurable: session.measurable } : {}) };
+        const ctx: ActionContext = { root: session.root, actor, preset: activePreset(session.root), now: session.now, sessionWarnings, ...(session.measurable ? { measurable: session.measurable } : {}), ...(session.launcher ? { launcher: session.launcher } : {}) };
         permissions = action.permissions(p);
         try { pruneAudit(ctx.root, loadSettings(ctx.root).config.auditRetention, { actor }); } catch { /* audit is best effort */ }
         reply.instructions = [...(session.command ? [session.command] : []), ...permissions].map((key) => deliver(session, key));

@@ -35,8 +35,17 @@ export function registerPlanActions(add: Adder): void {
   // The LLM can only soft stop; user, hard and failure stops belong to the person and the adapter (`§11.3`).
   add("plan.softstop", { ...id, reason: str, needs: str }, ["id"], ["plan.softstop"], false,
     (c, p) => ({ ok: true, ...stopPlan(pc(c), p.id, { kind: "soft", reason: p.reason, needs: p.needs }) }));
-  add("plan.start", { ...id, target: str, force_deps: strings }, ["id"], ["plan.start"], false,
-    (c, p) => ({ ok: true, ...startPlan(pc(c), p.id, { target: p.target, forceDeps: p.force_deps }) }));
+  // Like the typed `plan-start`, the action opens the plan's session through the adapter when the server was started
+  // with one (`agent-skills` §7.4); without an adapter it only starts the plan and says so.
+  add("plan.start", { ...id, target: str, force_deps: strings }, ["id"], ["plan.start"], false, (c, p) => {
+    if (!c.launcher) return { ok: true, ...startPlan(pc(c), p.id, { target: p.target, forceDeps: p.force_deps }), session: null, note: "No harness adapter opens the plan's session here; open one in the worktree and use plan-step." };
+    // The session ID is chosen first so the plan record, the run marker and the host session all name the same one.
+    const sessionId = c.launcher.newSessionId();
+    const ctx: PlanCtx = { ...pc(c), actor: { ...c.actor, session: sessionId }, env: { ...process.env, SPECPLANE_SESSION: sessionId } };
+    const started = startPlan(ctx, p.id, { target: p.target, forceDeps: p.force_deps });
+    try { return { ok: true, ...started, session: sessionId, opened: c.launcher.open(ctx, p.id, { sessionId, resume: false }) }; }
+    catch (e) { return { ok: false, reasons: e instanceof PreconditionError ? e.reasons : [(e as Error).message], ...started, session: null }; }
+  });
   add("plan.resume", id, ["id"], ["plan.resume"], false, (c, p) => ({ ok: true, ...resumePlan(pc(c), p.id) }));
   add("plan.abandon", { ...id, force: bool }, ["id"], ["plan.abandon"], false, (c, p) => ({ ok: true, ...abandonPlan(pc(c), p.id, { force: p.force }) }));
   add("plan.delete", { ...id, force: bool }, ["id"], ["plan.delete"], false, (c, p) => ({ ok: true, ...deletePlan(pc(c), p.id, { force: p.force }) }));
