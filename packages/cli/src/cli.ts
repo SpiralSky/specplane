@@ -9,7 +9,7 @@ import { decisionAcceptCommand, decisionNewCommand } from "./commands/decision.j
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specNewCommand, specShowCommand, specValidateCommand } from "./commands/spec.js";
 import { configGetCommand, configListCommand, configSetCommand, configUnsetCommand, permissionsCommand } from "./commands/config.js";
-import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, specReopenHuman, syncHuman } from "./commands/spec-human.js";
+import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, migrateStatusHuman, specReopenHuman, syncHuman } from "./commands/spec-human.js";
 import { searchCommand } from "./commands/search.js";
 import { docsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
@@ -70,6 +70,8 @@ override.command("approver <id> <approver>").description("Set the approver: huma
 override.command("test <id> <test> <result>").description("Set a test result (passed, failed) or clear it").option("--summary <text>").option("--no-commit").option("--json")
   .action((id: string, test: string, result: string, opts) => specOverrideHuman("test", id, [test, result], opts));
 program.command("sync [remote]").description("Fetch, merge and push the notes store (approval records) with a remote").option("--json").action((remote: string | undefined, opts) => syncHuman(remote, opts));
+const migrate = program.command("migrate").description("One-time moves of older data");
+migrate.command("status").description("Move frontmatter status, approval, results and implementation records into the notes store").option("--dry-run", "list the records and edits without writing").option("--json").action((opts) => migrateStatusHuman(opts));
 const configCmd = program.command("config").description("Read or change settings (feature/configuration)");
 configCmd.command("get [key]").description("Show a setting, its source and default; all settings without a key").option("--json").action((key: string | undefined, opts) => configGetCommand(key, opts));
 configCmd.command("list").description("Show every setting").option("--json").action((opts) => configListCommand(opts));

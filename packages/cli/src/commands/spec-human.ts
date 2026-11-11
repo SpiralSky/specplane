@@ -4,6 +4,7 @@ import { audit } from "../audit/log.js";
 import { reportError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliRole, gitUserName, guard, switchRole, type Actor } from "../perm/permissions.js";
+import { formatMigration, migrateStatus } from "../spec/migrate.js";
 import { syncNotes } from "../spec/sync.js";
 import { approveSpecs, metaGet, metaSet, overrideSpec, reopenSpec, type Ctx, type OverrideKind, type Result } from "../spec/human.js";
 
@@ -81,4 +82,14 @@ export const syncHuman = (remote: string | undefined, opts: { json?: boolean }) 
   const lines = syncNotes(c.root, remote);
   audit(c.root, { command: "sync", args: remote ? [remote] : [], permission: "info.retrieve", outcome: "done", actor: { role: c.actor.role, kind: c.actor.kind, name: c.actor.name } });
   print({ ok: true, lines, reasons: [], commit: null, warnings: [], written: [] }, opts.json, { lines });
+});
+
+/** `specplane migrate status [--dry-run]`: move frontmatter records to the notes store (`reference-cli` §5.7). */
+export const migrateStatusHuman = (opts: { dryRun?: boolean; json?: boolean }) => guarded(() => {
+  const c = context();
+  const g = guard(c.preset, c.actor, ["config.change"], "Migrating status records");
+  if (g.kind !== "allow") { print({ ok: false, lines: [], reasons: [g.kind === "deny" ? g.message : "Migrating needs approval from the user."], commit: null, warnings: [], written: [] }, opts.json); return; }
+  const r = withCheckoutLease(c.root, "migrate-status", false, () => migrateStatus(c.root, { dryRun: opts.dryRun }));
+  if (!opts.dryRun) audit(c.root, { command: "migrate status", args: [], permission: "config.change", outcome: "done", actor: { role: c.actor.role, kind: c.actor.kind, name: c.actor.name }, new: { records: r.items.length, files: r.files } });
+  print({ ok: true, lines: formatMigration(r), reasons: [], commit: r.commit, warnings: r.warnings, written: r.files }, opts.json);
 });
