@@ -2,8 +2,9 @@ import { loadSettings } from "../config.js";
 import { PreconditionError, SpecNotFoundError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, guard } from "../perm/permissions.js";
-import { headContext } from "../spec/implementation.js";
+import { headContext } from "../verify/implementation.js";
 import { headCommit } from "../spec/source.js";
+import { recordResults } from "../verify/test-record.js";
 import { DEFAULT_TIMEOUT_SEC, runTests, selectTests, type Selection } from "../verify/test-run.js";
 import type { CommandResult } from "./runner.js";
 
@@ -18,7 +19,7 @@ function parseTarget(ids: string[], arg: string): Selection {
 
 /**
  * `specplane test run [<spec>[#<section>]] [--all] [--timeout <seconds>]` (`architecture/reference-cli` §10.2). Needs
- * `info.retrieve`. Tests run on the committed content at HEAD; nothing is recorded (`§10.3` is the recording step).
+ * `info.retrieve`. Tests run on HEAD; recording separately follows `test.record` (`§10.3`).
  */
 export async function testRunCommand(target: string | undefined, opts: { all?: boolean; timeout?: string }): Promise<CommandResult> {
   const root = checkoutRoot();
@@ -41,11 +42,15 @@ export async function testRunCommand(target: string | undefined, opts: { all?: b
     logMode: settings.values["tests.logs"] as "local" | "git" | "off", gitLogDir: settings.abs.testLogs,
     actor: `${actor.kind === "llm" ? "llm" : "human"}:${actor.name}`,
   });
+  const recording = recordResults({ root, actor, preset: activePreset(root) }, commit,
+    report.results.filter((r): r is typeof r & { outcome: "passed" | "failed" } => r.outcome === "passed" || r.outcome === "failed"));
   const failed = report.results.filter((r) => r.outcome === "failed");
   const count = (o: string) => report.results.filter((r) => r.outcome === o).length;
   const lines = report.results.map((r) => `${r.test}  ${r.outcome}${r.outcome === "passed" ? "" : `: ${r.summary.split("\n").join("\n    ")}`}${r.log ? `  (log ${r.log})` : ""}`);
+  if (recording.notRecorded) lines.push(`not recorded: ${recording.notRecorded}`);
+  for (const held of recording.held) lines.push(`${held.test}: not recorded; request ${held.request} sent`);
   if (!report.results.length) lines.push(`No tests declared${selectTests(project, selection).length ? "" : " in the selection"}.`);
   else lines.push(`${count("passed")} passed, ${count("failed")} failed, ${count("not-run")} not run`);
   if (report.dirty) lines.push(`note: the working tree has uncommitted changes; the committed state (${commit.slice(0, 8)}) was tested`);
-  return { ok: failed.length === 0, data: { commit, dirty: report.dirty, results: report.results }, lines, warnings: report.warnings, findings: failed.map((r) => `${r.test} failed`), permission: "info.retrieve" };
+  return { ok: failed.length === 0, data: { commit, dirty: report.dirty, results: report.results, recording }, lines, warnings: [...report.warnings, ...recording.warnings], findings: failed.map((r) => `${r.test} failed`), permission: "info.retrieve" };
 }

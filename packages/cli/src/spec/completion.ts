@@ -1,5 +1,5 @@
 import type { ImplementationAssessment } from "../core/completion.js";
-import { headContext, implementationState } from "./implementation.js";
+import { headContext, implementationState } from "../verify/implementation.js";
 
 /**
  * Implementation assessment per spec from the notes store (`architecture/file-formats` §11.3): `current` when an

@@ -126,6 +126,7 @@ export function declarations(doc: SpecDoc): SpecDecl {
     const lines = effective === "own" ? own : preamble;
     sections.push({ id, own, effective, needsVerdict: effective === "none" || lines.some((t) => t.kind === "intelligent"), verdictId: `${id}#0` });
   }
+  if (!sections.length) sections.push({ id: doc.id, own: [], effective: preamble.length ? "spec" : "none", needsVerdict: !preamble.length || preamble.some((t) => t.kind === "intelligent"), verdictId: `${doc.id}#0` });
   return { spec: doc.id, preamble, sections };
 }
 

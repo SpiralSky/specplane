@@ -50,3 +50,20 @@ test('closed receipt and confirmation schemas reject inconsistent or extra field
   assert.equal(response({ challengeId: 'c', decision: 'confirm', interactionId: 'i' }), true);
   assert.equal(response({ challengeId: 'c', decision: 'confirm', interactionId: 'i', extra: true }), false);
 });
+
+
+test('removed completion declarations cannot bypass verified implementation', async () => {
+  const { executeOperation } = await import('./index.js');
+  const checkout = mkdtempSync(path.join(tmpdir(), 'retired-completion-'));
+  const ctx = { extensionId: 'manual', checkout };
+  const requests = [
+    { operation: 'spec.complete', arguments: { id: 'architecture/a' } },
+    ...(['incomplete', 'partial', 'complete'] as const).map(status => ({ operation: 'spec.implementation', arguments: { id: 'architecture/a', status } })),
+  ];
+  for (const request of requests) {
+    const result = executeOperation(request as Parameters<typeof executeOperation>[0], ctx);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.error.code, 'UNSUPPORTED_CAPABILITY');
+    assert.deepEqual(readdirSync(checkout), [], 'a retired declaration must not write files or metadata');
+  }
+});

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
-import { executeOperation } from "./core/index.js";
+import { specImplementCommand } from "./commands/spec-implement.js";
 import { reportError } from "./errors.js";
 import { requestsAccept, requestsDecline, requestsList, requestsShow } from "./commands/requests.js";
 import { registerPlanCommands } from "./commands/plan-cli.js";
@@ -40,16 +40,9 @@ program.on("command:*", (args: string[]) => {
 registerPlanCommands(program);
 
 const spec = program.command("spec").description("Work with specs (list, show, approve, reopen, meta, override)");
-function completionCommand(id: string, opts: { root?: string; dryRun?: boolean; json?: boolean; status?: string }, alias: boolean): void {
-  const common = { id, ...(opts.root !== undefined ? { root: opts.root } : {}), ...(opts.dryRun ? { dryRun: true } : {}) };
-  const request = alias ? { operation: "spec.complete" as const, arguments: common } : { operation: "spec.implementation" as const, arguments: { ...common, status: opts.status as "incomplete" | "partial" | "complete" } };
-  const result = executeOperation(request, { extensionId: "cli" });
-  if (!result.ok) { process.stderr.write(`${result.error.message}\n`); process.exitCode = 1; return; }
-  if (opts.json) process.stdout.write(`${JSON.stringify(result.value)}\n`);
-  else process.stdout.write(`${result.value.id}: implementation ${result.value.implementation_status}; assessment ${result.value.assessment_status}${result.value.changed ? (result.value.dry_run ? " (dry run)" : " (updated)") : " (unchanged)"}\n`);
-}
-spec.command("complete <id>").description("Declare implementation complete").option("--root <name>").option("--dry-run").option("--json").action((id, opts) => completionCommand(id, opts, true));
-spec.command("implementation <id>").description("Declare implementation status").requiredOption("--status <status>").option("--root <name>").option("--dry-run").option("--json").action((id, opts) => completionCommand(id, opts, false));
+spec.command("implement <id>").description("Verify committed architecture content and mark implemented when every check passes")
+  .option("--json", "output JSON")
+  .action((id: string, opts) => runCommand({ command: "spec implement", args: [id], json: opts.json }, () => specImplementCommand(id)));
 spec
   .command("approve <ids...>")
   .description("Approve specs by ID (committed content only; a group is approved together)")

@@ -1,12 +1,12 @@
-# Implementation declarations and freshness
+# Implementation verification and freshness
 
-Implementation status is `incomplete`, `partial` or `complete`. Review status is independent. Declaring completion records an assessment of requirement content; it does not itself verify executable behavior.
+Only architecture specifications have implementation status: `implemented` or `unimplemented`. Review approval is independent. Verification runs every declared deterministic check against the committed content at HEAD, ignoring uncommitted changes.
 
 ```sh
-specplane spec complete feature/example --dry-run --json
-specplane spec implementation feature/example --status partial --dry-run --json
+specplane test run architecture/example --json
+specplane spec implement architecture/example --json
 ```
 
-Replace `feature/example` with an existing specification ID. Preview first, inspect the result, then explicitly invoke the command without `--dry-run` to write metadata. These commands preserve the body and do not commit, stage, push, run tests or approve the specification.
+Replace `architecture/example` with an existing architecture specification ID. Running tests shows their outcomes; recording follows the separate `test.record` permission. Marking implemented requires that permission with mode allow, passing deterministic checks from this run, and current harness verdicts for every section requiring intelligent judgement. Missing verdicts are reported as needing a harness. Every current failed result blocks implementation.
 
-A current assessment matches the recorded requirement fingerprints. Changes to a requirement or its dependency closure can make an earlier completion declaration stale. Inspect declaration and assessment separately; a stale declaration must not be presented as fresh evidence. Unrecorded implementation-revision evidence does not prove code verification.
+Implementation evidence is stored in git notes on the verified commit without changing the specification body or approving it. Code-only commits preserve implementation status; changing the specification content makes it unimplemented, even when the original text is later restored. Passing checks provide evidence, not a guarantee of correctness.

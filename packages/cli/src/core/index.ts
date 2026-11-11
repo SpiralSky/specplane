@@ -1,6 +1,5 @@
 /** Import-safe library entry point. The CLI is deliberately not imported here. */
 import { lazyValidator } from '../lazy-validator.js';
-import { writeImplementation, type CompletionReceipt } from './completion-writer.js';
 import { transitionFromCheckout, type ShelveReceipt } from '../legacy-plan/shelve.js';
 import { retargetPlan, type RetargetReceipt } from '../legacy-plan/retarget.js';
 import { LeaseRefused } from './writer-leases.js';
@@ -24,19 +23,16 @@ function checked(operation: string, valid: boolean): Result<never> {
   return valid ? unavailable(operation) : { protocol: 1, ok: false, error: { code: 'INVALID_EVIDENCE', message: `Invalid ${operation} input`, retryable: false, details: null }, notices: [] };
 }
 export const inspectRepository = (_request: { checkout: string }): Result<never> => unavailable('inspectRepository');
-export function executeOperation(request: Extract<MechanicalRequest, { operation: 'spec.complete' | 'spec.implementation' }>, context: CoreContext): Result<CompletionReceipt>;
 export function executeOperation(request: Extract<MechanicalRequest, { operation: 'plan.retarget' }>, context: CoreContext): Result<RetargetReceipt>;
 export function executeOperation(request: Extract<MechanicalRequest, { operation: 'plan.shelve' | 'plan.resume' }>, context: CoreContext): Result<ShelveReceipt>;
-export function executeOperation(request: MechanicalRequest, context: CoreContext): Result<CompletionReceipt | RetargetReceipt | ShelveReceipt>;
-export function executeOperation(request: MechanicalRequest, context: CoreContext): Result<CompletionReceipt | RetargetReceipt | ShelveReceipt> {
+export function executeOperation(request: MechanicalRequest, context: CoreContext): Result<RetargetReceipt | ShelveReceipt>;
+export function executeOperation(request: MechanicalRequest, context: CoreContext): Result<RetargetReceipt | ShelveReceipt> {
   if (!validate.operation(request)) return checked('executeOperation', false);
-  if (request.operation !== 'spec.complete' && request.operation !== 'spec.implementation' && request.operation !== 'plan.retarget' && request.operation !== 'plan.shelve' && request.operation !== 'plan.resume') return unavailable('executeOperation');
+  if (request.operation !== 'plan.retarget' && request.operation !== 'plan.shelve' && request.operation !== 'plan.resume') return unavailable('executeOperation');
   try {
     if (request.operation === 'plan.shelve' || request.operation === 'plan.resume') return { protocol: 1, ok: true, value: transitionFromCheckout(request.arguments.id, request.operation === 'plan.shelve' ? 'shelve' : 'resume', context.checkout ?? process.cwd(), { dryRun: request.arguments.dryRun }), notices: [] };
     if (request.operation === 'plan.retarget') return { protocol: 1, ok: true, value: retargetPlan(request.arguments, context.checkout ?? process.cwd(), { signal: context.signal }), notices: [] };
-    const args = request.arguments;
-    const status = request.operation === 'spec.complete' ? 'complete' : request.arguments.status;
-    return { protocol: 1, ok: true, value: writeImplementation({ ...args, status }, context.checkout ?? process.cwd(), { signal: context.signal }), notices: [] };
+    return unavailable('executeOperation');
   } catch (error) {
     return { protocol: 1, ok: false, error: { code: error instanceof LeaseRefused ? error.code : context.signal?.aborted ? 'CANCELLED' : 'OPERATION_FAILED', message: error instanceof Error ? error.message : String(error), retryable: error instanceof LeaseRefused && error.code === 'LOCKED', details: null }, notices: [] };
   }
@@ -58,7 +54,6 @@ export { captureContribution, captureProposedContribution, readContributions } f
 
 export * from "./completion.js";
 
-export type { CompletionReceipt } from './completion-writer.js';
 export type { RetargetReceipt } from '../legacy-plan/retarget.js';
 
 export { recoverWorkflowRecording } from './recording-recovery.js';

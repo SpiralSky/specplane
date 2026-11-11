@@ -6,7 +6,8 @@ export type HostRow = { workflow: string; deterministic: 'tested' | 'not-deliver
 /** Suites are paths relative to src/ without extension; `title` is a distinctive substring of a test title in that file. */
 export const CRITERIA: Criterion[] = [
   { id: 'cli-core-agreement', text: 'CLI/core paths agree for exact staging, coordination, confirmations, receipts and provenance', state: 'met', suites: [
-    { file: 'core/completion-writer', title: 'core and CLI write the implementation record in the notes store' },
+    { file: 'verify/implementation', title: 'core and CLI verify implementation checks and write evidence to the notes store' },
+    { file: 'core/index', title: 'removed completion declarations cannot bypass verified implementation' },
     { file: 'commands/coordination', title: 'stateful spec and ADR commands refuse while another writer holds the checkout' },
     { file: 'core/confirmed-operations', title: 'approval adapters invoke real spec, reopen, plan-index and ADR operations' },
     { file: 'core/confirmed-operations', title: 'plan batches preview each successive prospective index' },
@@ -32,7 +33,7 @@ export const EXPORT_SUITES: Record<string, string> = {
   contributionEventSchema: 'harness/conformance', contributionProposalSchema: 'harness/conformance', contributionQuerySchema: 'harness/conformance', contributionTrailer: 'core/contributions',
   carryContributions: 'core/contributions', deduplicateContributions: 'core/contributions', validateContribution: 'harness/conformance',
   captureContribution: 'core/contribution-capture', captureProposedContribution: 'core/proposed-contributions', readContributions: 'core/contribution-capture',
-  coreInfo: 'core/index', executeOperation: 'core/completion-writer', inspectRepository: 'harness/conformance', executeWorkflowTest: 'core/workflow-execution',
+  coreInfo: 'core/index', executeOperation: 'core/index', inspectRepository: 'harness/conformance', executeWorkflowTest: 'core/workflow-execution',
   prepareWorkflow: 'core/workflow-preparation', preparedVerification: 'core/workflow-verification', recordWorkflow: 'core/workflow-recording', validateWorkflowResult: 'core/workflow-recording',
   prepareConfirmation: 'core/confirmed-operations', confirmOperation: 'core/confirmed-operations', confirmOperationAsync: 'legacy-plan/finish-trusted',
   cancelWorkflow: 'core/workflow-lifecycle', inspectWorkflow: 'core/workflow-lifecycle', runConductor: 'legacy-plan/neutral-startup',

@@ -1,7 +1,7 @@
 import { SpecNotFoundError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, guard } from "../perm/permissions.js";
-import { implementationState, headContext } from "../spec/implementation.js";
+import { implementationState, headContext } from "../verify/implementation.js";
 import type { NoteRecord } from "../spec/notes.js";
 import type { SpecDoc } from "../spec/project.js";
 import { currentResults } from "../spec/results.js";

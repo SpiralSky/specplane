@@ -337,7 +337,7 @@ The block is part of the section, so editing it is a content edit. A determinist
 `tests.record` appends one `test-result` record to the note on HEAD, the tested commit (`architecture/file-formats §11.1`, `§13`) after the guard returns `allow` for `test.record`:
 
 - `test`, `test-kind`, `outcome`, `by` (the actor), `date`, `rid`, `at`, `fingerprint` (`specFingerprint` of that spec at that commit), `against` (fingerprints of the specs it was checked against: the specs it `covers` or `implements`), `summary`, optional `log`.
-- Under `request-user` the test still runs and its outcome is shown; a request is created holding `{spec, test, outcome, summary, commit, fingerprint}`. On accept, the record is written only if HEAD's fingerprints still equal those in the request; otherwise nothing is recorded and the user is told why (`verification R61.2`).
+- Under `request-user` the test still runs and its outcome is shown; a request is created holding `{spec, test, outcome, summary, commit, fingerprint}`. On accept, the record is written only if HEAD is still the tested commit and its fingerprints still equal those in the request; otherwise nothing is recorded and the user is told why (`verification R61.2`).
 - Under `deny` the outcome is shown with the note "not recorded".
 - A summary that looks like a credential gives a warning but is recorded (`§6.2`).
 - Recording writes a notes commit only and does not change status; the spec file is not touched, so it is not an edit (`architecture/file-formats §13.3`).

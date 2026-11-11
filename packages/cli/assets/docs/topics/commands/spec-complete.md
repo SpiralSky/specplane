@@ -1,13 +1,11 @@
-# Declare a specification complete
+# Verify an architecture specification is implemented
 
-`spec complete` aliases `spec implementation --status complete` for an existing specification. The command changes implementation metadata, preserving body text and review state.
+`spec implement` verifies an existing architecture specification on HEAD and records it as implemented only when all its checks pass. No plan is required.
 
 ```sh
-specplane spec complete feature/example --dry-run --json
+specplane spec implement architecture/example --json
 ```
 
-Use `--root` to select a configured root when necessary. Replace the example identifier with your specification. Dry-run computes the proposed record without changing files. JSON reports implementation status, assessment status and reasons, fingerprint, changed file, changed and dry-run fields.
+Replace the example identifier with an architecture specification ID or a unique slug. The command runs deterministic tests against committed content and ignores uncommitted changes. Intelligent judgement comes from current results recorded by an LLM in a harness; the CLI reports missing verdicts as `needs harness` and leaves implementation status unchanged. A current failed result also refuses implementation.
 
-An unchanged repeated declaration is a no-op. Invalid metadata, unresolved requirements, ambiguous IDs and unsafe shared YAML anchors refuse before replacement. Review the reported assessment rather than treating a complete declaration as test execution evidence.
-
-To record partial work use `spec implementation` with `--status partial`. Explicit completion writes remain uncommitted until you choose to commit them through your ordinary Git or selected managed workflow.
+Recording implementation needs `test.record` with mode allow. An LLM additionally needs `architecture.llm_may_mark_implemented` enabled. JSON reports the tested commit, outcomes, missing checks, harness requirements and whether implementation was recorded. Evidence goes into git notes without changing the spec body or its approval. The former `spec complete` and `spec implementation` declaration commands have been removed.

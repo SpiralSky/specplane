@@ -1,6 +1,6 @@
 # Specplane release orientation
 
-Requirements live in specifications; plans are optional. Ordinary implementation can use any branch. Review approval, implementation declaration, assessment freshness, test evidence and plan completion are separate decisions or observations.
+Requirements live in specifications; plans are optional. Ordinary implementation can use any branch. Review approval, implementation verification, evidence freshness, test evidence and plan completion are separate decisions or observations.
 
 Read `getting-started` first, then `concepts`. Use `completion` and `commands/spec-complete` to interpret implementation metadata, and `workflows/plans` for managed execution boundaries. Follow your configured authorship policy and ask a human to make lifecycle approval decisions.
 

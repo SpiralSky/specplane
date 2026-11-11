@@ -40,6 +40,13 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
   };
 
   switch (command) {
+    case "test record":
+      for (const key of ["spec", "test", "summary", "commit", "fingerprint"]) requireText(key);
+      oneOf("kind", ["deterministic", "intelligent"], true);
+      oneOf("outcome", ["passed", "failed"], true);
+      if (!p.against || typeof p.against !== "object" || Array.isArray(p.against) || !Object.values(p.against).every(text)) invalid("`test record` needs an against fingerprint map.");
+      if (!p.by || typeof p.by !== "object" || Array.isArray(p.by) || !Object.values(p.by).every(text)) invalid("`test record` needs the originating actor.");
+      return ["test.record"];
     case "spec approve":
       if (!strings(p.ids) || !p.ids.length) invalid("`spec approve` needs a non-empty list of specification IDs.");
       return ["spec.approve"];

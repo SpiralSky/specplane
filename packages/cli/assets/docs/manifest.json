@@ -5,7 +5,7 @@
   "contract_version": 1,
   "orientation": {
     "path": "orientation.md",
-    "sha256": "01a49f7fb4a4544d65d33674c3bed9ae5129ed98ddc27fcedfeed8c3acdf134d"
+    "sha256": "9fa5dc11b7925a1b7a2eba3d4239b4d8aa811b3a1913c4f183716083184ab999"
   },
   "topics": [
     {
@@ -34,7 +34,7 @@
       "id": "concepts",
       "title": "Specifications, decisions and optional plans",
       "path": "topics/concepts.md",
-      "sha256": "db1095aafa3009c199b8653cfbb5895ef165ad7ac76137067b2302f798592983",
+      "sha256": "4afa66a0aa4f5c52319f4c88647bb2dc1fa5b5a9b7563d9839e4f40b75aff87c",
       "related": [
         "getting-started",
         "completion",
@@ -60,9 +60,9 @@
     },
     {
       "id": "completion",
-      "title": "Implementation declarations and freshness",
+      "title": "Implementation verification and freshness",
       "path": "topics/completion.md",
-      "sha256": "972ed9899a3f9687b90494fa5b615cc563b543963a5cb22fc27b1c23dbd05e3f",
+      "sha256": "92b0a48bc14a280fafbddfe76c86de6f727a2807a6865b3c8f2eb0c9841cbebf",
       "related": [
         "concepts",
         "commands/spec-complete"
@@ -109,9 +109,9 @@
     },
     {
       "id": "commands/spec-complete",
-      "title": "Declare a specification complete",
+      "title": "Verify an architecture specification is implemented",
       "path": "topics/commands/spec-complete.md",
-      "sha256": "5310479edb62281b8a2dbd18da0e06ba93c677e09ad5ecf4b0c8d8ed55e8836f",
+      "sha256": "3058aac73495de17227980def44441c12b1785ec54ca370eb81e92a58b16c0a6",
       "related": [
         "completion",
         "concepts"

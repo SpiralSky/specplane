@@ -1,3 +1,4 @@
+import { recordFromRequest } from "../verify/test-record.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { configSet, configUnset } from "../config-ops.js";
@@ -27,6 +28,7 @@ const fromResult = (r: { ok: boolean; lines: string[]; reasons: string[] }): Act
 const planCtx = (c: ActionCtx): PlanCtx => c;
 
 const ACTIONS: Record<string, Action> = {
+  "test record": (c, p) => recordFromRequest(c, p),
   "spec approve": async (c, p) => fromResult(await approveSpecs(c, p.ids, { yes: true })),
   "spec reopen": (c, p) => fromResult(reopenSpec(c, p.id)),
   "spec meta set": (c, p) => fromResult(metaSet(c, p.id, p.field, p.value)),
