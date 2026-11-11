@@ -255,6 +255,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U15 Claude Code templates, hooks and plugin
 
+- **Status:** done (`22868cc`). The plugin pane and modes were removed rather than ported; the `plan.start` action does not launch a session (U16 gap).
 - **Goal:** templates per `claude-integration §1`–`§5`, `§8`–`§10`: new rules text with version and stamp; `skills/specplane-<command>/SKILL.md` generated from the contracts with the `disable-model-invocation` table; hooks `specplane-cli-block.sh`, `specplane-compact.sh`, rewritten `specplane-session-context.sh`, `specplane-pre-commit.sh` (core validation), `specplane-statusline.sh`; settings merge rules; plugin declares the new MCP server and its slash-command handler calls `specplane harness run`; copy to `.claude/`.
 - **Specs:** `claude-integration §1`–`§5`, `§8`–`§10`; `agent-skills §2`, `§8`.
 - **Files:** `harnesses/claude/templates/**`, `harnesses/claude/plugin/**`, `.claude/**`, `harnesses/claude/tests/hooks.test.sh`, `check-sync.sh`, `package.json` build copy step.
@@ -263,6 +264,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U16 Claude session adapter
 
+- **Status:** done (`6d4c21e`). The live check of the streaming session route was not run (needs the user's approval); no push or dialogue capability is claimed.
 - **Goal:** adapter for Claude Code: `plan.start` launches the plan session via `claude -p` in the worktree (else prints the command as an error); keeps the run marker heartbeat and clears it on clean end; measures usage and calls budget `evaluate` (soft instruction, hard stop with `stop.kind: hard`); compaction epoch from the hook; `notify` and request dialogue where the host allows; resume after a blocking request is answered while a session is active; subagent step execution per `§6`.
 - **Specs:** `claude-integration §6`, `§7`; `reference-cli §8` (notifications, dialogue, resume), `§11.3`, `§11.4`, `§12.3`; `plan-execution R27.1`, `R27.5`.
 - **Files:** `harnesses/claude/plugin/hooks/session-adapter.ts`, `register.tsx`, `harness/adapter-claude.ts`.
