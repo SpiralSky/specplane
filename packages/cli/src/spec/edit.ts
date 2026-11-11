@@ -6,7 +6,7 @@ import { run } from "../git/exec.js";
 import { holdRequest, sentMessage } from "../requests/hold.js";
 import { guard } from "../perm/permissions.js";
 import { audit } from "../audit/log.js";
-import { editKeys } from "./fm-edit.js";
+import { lastApprovalCommit } from "./notes.js";
 import { loadSpecPaths } from "./paths.js";
 import { loadProject } from "./project.js";
 import { committedSource, headCommit } from "./source.js";
@@ -40,18 +40,6 @@ export function applyPatch(root: string, patch: string): void {
 
 export function patchApplies(root: string, patch: string): boolean {
   try { run("git", ["apply", "--check", "-p2", "--whitespace=nowarn"], { cwd: root, input: patch }); return true; } catch { return false; }
-}
-
-/** Mark a spec stale after its body changed (`reference-cli` §5.4). */
-export function markStale(root: string, rel: string): boolean {
-  const abs = path.join(root, rel);
-  const text = fs.readFileSync(abs, "utf8");
-  const m = /^status:\s*(\S+)/m.exec(text);
-  if (!m || m[1] !== "awaiting-review") {
-    fs.writeFileSync(abs, editKeys(text, { status: "awaiting-review", approval: undefined, "review-reason": "edited" }));
-    return true;
-  }
-  return false;
 }
 
 export interface SpecEditParams { spec: string; patch: string }
@@ -98,9 +86,8 @@ export function applySpecEdit(ctx: Ctx, specId: string, file: string, patch: str
     audit(ctx.root, { command: "spec edit", args: [specId], permission: null, outcome: "failed", reason: "the change no longer applies", actor, request: ctx.request }, ctx.now);
     return result({ ok: false, reasons: [`The change to \`${specId}\` no longer applies to the current text: ${(e as Error).message.split("\n")[0]}`] });
   }
-  const stale = markStale(ctx.root, file);
   audit(ctx.root, { command: "spec edit", args: [specId], permission: `spec.edit.${layer}`, outcome: "done", actor, request: ctx.request }, ctx.now);
-  return result({ ok: true, written: [specId], lines: [`Edited \`${specId}\`${stale ? ", now awaiting review" : ""}. Written, not committed.`] });
+  return result({ ok: true, written: [specId], lines: [`Edited \`${specId}\`. Written, not committed; the new content is awaiting review once committed.`] });
 }
 
 /**
@@ -119,7 +106,7 @@ export function specDiffText(root: string, specId: string, patch: string): strin
       fs.writeFileSync(path.join(tmp, "new", rel), fs.readFileSync(path.join(root, rel), "utf8"));
       run("git", ["apply", "-p2", "--whitespace=nowarn"], { cwd: path.join(tmp, "new"), input: patch });
       const proposed = fs.readFileSync(path.join(tmp, "new", rel), "utf8");
-      const commit = (doc.fm.data?.approval as { commit?: string } | undefined)?.commit;
+      const commit = lastApprovalCommit(root, doc.id);
       let approved = "";
       if (commit) { try { approved = run("git", ["show", `${commit}:${rel}`], { cwd: root }); } catch { approved = ""; } }
       return makePatch(rel, approved, proposed);

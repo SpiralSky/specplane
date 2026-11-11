@@ -5,13 +5,16 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
 import { validateProject, type Report } from "./validate.js";
-import { specFingerprint } from "../spec/fingerprint.js";
+import { DEFAULT_PRESET } from "../perm/permissions.js";
+import { approveSpecs, reopenSpec } from "../spec/human.js";
 
 const git = (root: string, ...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } }).trim();
 
 function repo(files: Record<string, string>): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-validate-"));
   git(root, "init", "-q", "-b", "main");
+  git(root, "config", "user.name", "t");
+  git(root, "config", "user.email", "t@t");
   write(root, files);
   return root;
 }
@@ -24,12 +27,10 @@ function commit(root: string, msg = "c"): string {
   return git(root, "rev-parse", "HEAD");
 }
 const REQ_BODY = "**R1: One**\nText\n\n**R2: Two**\nMore\n\n*R2.1: Sub*\nSub\n\nRetired IDs: `R9`.\n";
-const spec = (o: { id: string; status?: string; approval?: string; covers?: string; implements?: string; references?: string; body?: string; extra?: string }) =>
-  `---\nid: ${o.id}\ntitle: T\nstatus: ${o.status ?? "awaiting-review"}\n${o.approval ?? ""}authors: []\n${o.covers ? `covers: ${o.covers}\n` : ""}${o.implements ? `implements: ${o.implements}\n` : ""}references: ${o.references ?? "[]"}\n${o.extra ?? ""}---\n\n${o.body ?? "## R1: One\n\nText.\n"}`;
-// These status tests require an approved dependency; plain files are tested separately.
-const reqDraft = spec({ id: "requirement/product-requirements", body: REQ_BODY });
-const REQ = spec({ id: "requirement/product-requirements", body: REQ_BODY, status: "approved",
-  approval: `approval:\n  by: {human: p}\n  date: 2026-11-09\n  commit: ${"a".repeat(40)}\n  fingerprint: ${specFingerprint(reqDraft)}\n  cited: {}\n` });
+const spec = (o: { id: string; covers?: string; implements?: string; references?: string; body?: string; extra?: string }) =>
+  `---\nid: ${o.id}\ntitle: T\nauthors: []\n${o.covers ? `covers: ${o.covers}\n` : ""}${o.implements ? `implements: ${o.implements}\n` : ""}references: ${o.references ?? "[]"}\n${o.extra ?? ""}---\n\n${o.body ?? "## R1: One\n\nText.\n"}`;
+// A requirement file is always approved, with or without frontmatter (`file-formats` §1.2).
+const REQ = spec({ id: "requirement/product-requirements", body: REQ_BODY });
 const rules = (r: Report, severity?: string) => r.findings.filter((f) => !severity || f.severity === severity).map((f) => `${f.rule}:${f.message}`);
 
 test("a clean repository with requirements and specs has no errors", () => {
@@ -46,7 +47,7 @@ test("a clean repository with requirements and specs has no errors", () => {
 test("format errors: id mismatch, bad status, wrong-layer field, unknown field, missing frontmatter", () => {
   const root = repo({
     "docs/requirements/product-requirements.md": REQ,
-    "docs/specifications/features/alpha.md": spec({ id: "feature/other", status: "draft", implements: "[beta R1]", extra: "mystery: 1\n" }),
+    "docs/specifications/features/alpha.md": spec({ id: "feature/other", implements: "[beta R1]", extra: "mystery: 1\nstatus: draft\n" }),
     "docs/specifications/features/beta.md": "# no frontmatter\n",
     "docs/specifications/architecture/gamma.md": spec({ id: "architecture/gamma", covers: "[R1]" }),
     "docs/specifications/features/INFO.md": "---\nid: feature/info\n---\n",
@@ -55,7 +56,7 @@ test("format errors: id mismatch, bad status, wrong-layer field, unknown field, 
   const m = rules(validateProject(root));
   const has = (s: RegExp) => assert.ok(m.some((x) => s.test(x)), `expected ${s} in ${m.join("\n")}`);
   has(/id is "feature\/other" but the path gives feature\/alpha/);
-  has(/status must be `awaiting-review` or `approved`/);
+  has(/legacy record key `status` is ignored/);
   has(/`implements` is only for architecture specs/);
   has(/`covers` is only for feature specs/);
   has(/unknown frontmatter field `mystery`/);
@@ -94,18 +95,19 @@ test("requirement ID rules surface through validate", () => {
   assert.match(e, /R4.2 has no parent R4/);
 });
 
-test("hand-format approval: stays approved until a cited part changes; edits and unapproved dependencies reopen", () => {
-  const dep = (text: string) => spec({ id: "feature/dep", covers: "[R2]", body: `## R2: Two\n\n${text}\n\n## §1 Other\n\nOther.\n`, status: "approved", approval: "approval:\n  by: {llm: m, delegated-by: u}\n  date: 2026-11-09\n  commit: COMMIT\n" });
-  const root = repo({ "docs/requirements/product-requirements.md": REQ, "docs/specifications/features/dep.md": dep("Original.").replace("COMMIT", "0".repeat(40)) });
-  const first = commit(root, "dep content");
-  // The hand-written approvals name the commit that holds the approved content.
-  const approve = (id: string, body: string, refs: string, c: string) => spec({ id: `feature/${id}`, covers: "[R1]", references: refs, body, status: "approved", approval: `approval:\n  by: {llm: m, delegated-by: u}\n  date: 2026-11-09\n  commit: ${c}\n` });
+const approveAs = async (root: string, ids: string[], n: number) => {
+  const r = await approveSpecs({ root, actor: { role: "standard-user", kind: "human", name: "p" }, preset: DEFAULT_PRESET, now: new Date(Date.parse("2026-11-09T00:00:00Z") + n * 1000) }, ids, { yes: true });
+  assert.ok(r.ok, r.reasons.join());
+};
+
+test("approval by record: stays approved until a cited part changes; edits and unapproved dependencies reopen", async () => {
+  const dep = (text: string) => spec({ id: "feature/dep", covers: "[R2]", body: `## R2: Two\n\n${text}\n\n## §1 Other\n\nOther.\n` });
+  const root = repo({ "docs/requirements/product-requirements.md": REQ, "docs/specifications/features/dep.md": dep("Original.") });
   const specBody = "## R1: One\n\nCites `dep R2`.\n";
-  write(root, { "docs/specifications/features/user.md": approve("user", specBody, "[dep R2]", "COMMIT") });
-  const userFirst = commit(root, "user content");
-  write(root, { "docs/specifications/features/user.md": approve("user", specBody, "[dep R2]", userFirst) });
-  write(root, { "docs/specifications/features/dep.md": dep("Original.").replace("COMMIT", first) });
-  commit(root, "approve by hand");
+  write(root, { "docs/specifications/features/user.md": spec({ id: "feature/user", covers: "[R1]", references: "[dep R2]", body: specBody }) });
+  commit(root, "content");
+  await approveAs(root, ["feature/dep"], 1);
+  await approveAs(root, ["feature/user"], 2);
   let r = validateProject(root);
   const st = (id: string) => r.statuses.find((s) => s.id === id)!;
   assert.deepEqual(rules(r, "error"), []);
@@ -113,56 +115,64 @@ test("hand-format approval: stays approved until a cited part changes; edits and
   assert.equal(st("feature/dep").effective, "approved");
 
   // A change elsewhere in the cited spec does not matter (R11.2).
-  write(root, { "docs/specifications/features/dep.md": dep("Original.").replace("COMMIT", first).replace("Other.", "Changed elsewhere.") });
+  write(root, { "docs/specifications/features/dep.md": dep("Original.").replace("Other.", "Changed elsewhere.") });
   commit(root, "elsewhere");
   r = validateProject(root);
   assert.equal(st("feature/user").effective, "approved");
   assert.equal(st("feature/dep").effective, "awaiting-review", "its own content changed");
   assert.deepEqual(st("feature/dep").reasons, ["edited"]);
-  assert.ok(rules(r, "warning").some((x) => /stored status is approved but the effective status is awaiting-review/.test(x)));
 
   // A change inside the cited part marks the citing spec outdated.
-  write(root, { "docs/specifications/features/dep.md": dep("Changed in cited part.").replace("COMMIT", first) });
+  write(root, { "docs/specifications/features/dep.md": dep("Changed in cited part.") });
   commit(root, "cited part");
   r = validateProject(root);
   assert.deepEqual(st("feature/user").reasons, ["outdated: dep R2"]);
 
-  // A cited spec without an approval block gives unapproved-dependency.
-  write(root, { "docs/specifications/features/dep.md": spec({ id: "feature/dep", covers: "[R2]", body: "## R2: Two\n\nOriginal.\n\n## §1 Other\n\nOther.\n" }) });
-  commit(root, "dep reopened");
+  // A cited spec that was never approved gives unapproved-dependency (the approval below is by record, as an override leaves it).
+  const fresh = spec({ id: "feature/fresh", covers: "[R1]", body: "## §1 Fresh\n\nText.\n" });
+  const late = spec({ id: "feature/late", covers: "[R1]", references: "[fresh §1]", body: "## R1: One\n\nCites `fresh §1`.\n" });
+  write(root, { "docs/specifications/features/fresh.md": fresh, "docs/specifications/features/late.md": late });
+  commit(root, "late");
+  const { specFingerprint } = await import("../spec/fingerprint.js");
+  const { appendRecords, makeRecord } = await import("../spec/notes.js");
+  appendRecords(root, "HEAD", [makeRecord("approval", "feature/late", specFingerprint(late)!, { by: { human: "p" }, date: "2026-11-09", cited: {} })]);
   r = validateProject(root);
-  assert.ok(st("feature/user").reasons.includes("unapproved-dependency: dep R2"));
+  assert.deepEqual(st("feature/late").reasons, ["unapproved-dependency: fresh §1"]);
+
+  // A reopened dependency does too.
+  const ctxOf = (n: number) => ({ root, actor: { role: "standard-user" as const, kind: "human" as const, name: "p" }, preset: DEFAULT_PRESET, now: new Date(Date.parse("2026-11-09T02:00:00Z") + n * 1000) });
+  await approveSpecs(ctxOf(1), ["feature/fresh"], { yes: true });
+  r = validateProject(root);
+  assert.deepEqual(st("feature/late").reasons, []);
+  assert.ok(reopenSpec(ctxOf(2), "feature/fresh").ok);
+  r = validateProject(root);
+  assert.deepEqual(st("feature/late").reasons, ["unapproved-dependency: fresh §1"]);
 });
 
-test("approval with a stored fingerprint and cited map does not need its commit", () => {
+test("legacy frontmatter status and approval are ignored with a warning", () => {
+  const root = repo({
+    "docs/requirements/product-requirements.md": REQ,
+    "docs/specifications/features/solo.md": spec({ id: "feature/solo", covers: "[R1]", extra: "status: approved\napproval:\n  by: {human: p}\n  date: 2026-11-09\n  commit: " + "f".repeat(40) + "\nreview-reason: edited\n" }),
+  });
+  commit(root);
+  const r = validateProject(root);
+  assert.deepEqual(r.statuses.find((s) => s.id === "feature/solo")!.reasons, ["never-approved"]);
+  for (const k of ["status", "approval", "review-reason"]) assert.ok(rules(r, "warning").some((x) => x.includes(`legacy record key \`${k}\` is ignored`)), k);
+});
+
+test("a record with a fingerprint and cited map applies without its commit being reachable; a cited requirement change outdates it", async () => {
   const root = repo({ "docs/requirements/product-requirements.md": REQ });
   const text = spec({ id: "feature/solo", covers: "[R1]", body: "## R1: One\n\nText.\n" });
   write(root, { "docs/specifications/features/solo.md": text });
   commit(root);
-  // Compute the fingerprints the way approval would.
-  return import("../spec/fingerprint.js").then(({ specFingerprint, partFingerprint }) => {
-    const fp = specFingerprint(text)!;
-    const req = partFingerprint("**R1: One**\nText");
-    const approved = spec({ id: "feature/solo", covers: "[R1]", body: "## R1: One\n\nText.\n", status: "approved", approval: `approval:\n  by: {human: p}\n  date: 2026-11-09\n  commit: ${"1".repeat(40)}\n  fingerprint: ${fp}\n  cited: {"R1": "${req}"}\n` });
-    write(root, { "docs/specifications/features/solo.md": approved });
-    commit(root, "approve");
-    const r = validateProject(root);
-    assert.equal(r.statuses[0].effective, "approved", JSON.stringify(r.statuses));
-    write(root, { "docs/requirements/product-requirements.md": REQ.replace("Text\n", "Changed\n") });
-    commit(root, "requirement changed");
-    assert.deepEqual(validateProject(root).statuses[0].reasons, ["outdated: R1"]);
-  });
-});
-
-test("approval whose commit is unreachable cannot be checked: awaiting-review with a warning", () => {
-  const root = repo({
-    "docs/requirements/product-requirements.md": REQ,
-    "docs/specifications/features/solo.md": spec({ id: "feature/solo", covers: "[R1]", status: "approved", approval: `approval:\n  by: {human: p}\n  date: 2026-11-09\n  commit: ${"f".repeat(40)}\n` }),
-  });
-  commit(root);
-  const r = validateProject(root);
-  assert.deepEqual(r.statuses[0].reasons, ["edited"]);
-  assert.ok(rules(r, "warning").some((x) => /approval cannot be checked/.test(x)));
+  const { specFingerprint, partFingerprint } = await import("../spec/fingerprint.js");
+  const { appendRecords, makeRecord } = await import("../spec/notes.js");
+  appendRecords(root, "HEAD", [makeRecord("approval", "feature/solo", specFingerprint(text)!, { by: { human: "p" }, date: "2026-11-09", cited: { R1: partFingerprint("**R1: One**\nText") } })]);
+  git(root, "commit", "-q", "--amend", "-m", "amended");
+  assert.equal(validateProject(root).statuses.find((s) => s.id === "feature/solo")!.effective, "approved");
+  write(root, { "docs/requirements/product-requirements.md": REQ.replace("Text\n", "Changed\n") });
+  commit(root, "requirement changed");
+  assert.deepEqual(validateProject(root).statuses.find((s) => s.id === "feature/solo")!.reasons, ["outdated: R1"]);
 });
 
 test("uncommitted edits are ignored by status and reported as a note; scope limits the specs checked", () => {

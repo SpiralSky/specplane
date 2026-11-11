@@ -61,7 +61,7 @@ function startInner(ctx: PlanCtx, id: string, o: StartOpts): StartResult {
   // Start conditions (`plan-execution R27.6`).
   const issues: string[] = [];
   if (plansConfig(root).startConditions) {
-    const ap = planApproval(project, rec);
+    const ap = planApproval(root, project, rec);
     if (ap.status !== "approved") issues.push(`the plan itself must be Approved first (${ap.reasons.join(", ")})`);
     const seen = new Set<string>();
     const needSpec = (specId: string) => { if (!seen.has(specId)) { seen.add(specId); if (!specApproved(root, project, specId)) issues.push(`${specId} is not Approved`); } };

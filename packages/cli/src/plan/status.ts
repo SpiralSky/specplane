@@ -1,33 +1,39 @@
-import { parseCite } from "../spec/cites.js";
 import { planFingerprint } from "../spec/fingerprint.js";
-import { resolveCite, targetFingerprint, type Project } from "../spec/project.js";
-import { CommitProjects, computeStatus } from "../spec/status.js";
-import { headCommit, worktreeSource } from "../spec/source.js";
+import type { Subject } from "../spec/notes.js";
+import type { Project } from "../spec/project.js";
+import { computeStatus, recordState, StatusCtx } from "../spec/status.js";
+import { committedSource, headCommit, worktreeSource } from "../spec/source.js";
 import { runIsLive, committedProject, loadPlanAt, plansDir, type PlanCtx } from "./ctx.js";
-import { loadPlans, planReferences, stepNumbers, stepTitle, type ExecStatus, type PlanRecord } from "./model.js";
+import { findPlan, loadPlans, stepNumbers, stepTitle, type ExecStatus, type PlanRecord } from "./model.js";
 
 /** Effective plan status and the next step (`architecture/reference-cli` §11.2). */
 
-const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-
 export interface PlanApproval { status: "approved" | "awaiting-review"; reasons: string[] }
 
-/** Effective approval of a plan, from committed content: stored approved, same `plan-v1` content, cited parts unchanged. */
-export function planApproval(project: Project, rec: PlanRecord): PlanApproval {
-  const d = rec.fm?.data;
-  if (!d || d.status !== "approved" || !isMap(d.approval)) return { status: "awaiting-review", reasons: ["never-approved"] };
-  const a = d.approval;
-  const reasons: string[] = [];
-  if (rec.planText && typeof a.fingerprint === "string" && planFingerprint(rec.planText) !== a.fingerprint) reasons.push("edited");
-  const cited = isMap(a.cited) ? a.cited : {};
-  for (const raw of planReferences(rec.fm)) {
-    const cite = parseCite(raw);
-    if (!cite) continue;
-    const res = resolveCite(project, cite);
-    if (!res.ok) continue;
-    const exp = cited[raw];
-    if (typeof exp === "string" && exp !== targetFingerprint(res.target)) reasons.push(`outdated: ${raw}`);
-  }
+/** `plan-v1` fingerprint of a plan record: PLAN.md plus its step files (`architecture/file-formats` §5.2). */
+export function planRecordFingerprint(rec: PlanRecord): string | null {
+  if (!rec.planText) return null;
+  return planFingerprint(rec.planText, rec.steps.map((s) => ({ path: s.file.slice(rec.dir.length + 1), content: s.text })));
+}
+
+/** Lookup subject of a plan: its record is found by `plan-v1` content like a spec's (`file-formats` §13.2). */
+export function planSubject(root: string, rec: PlanRecord): Subject {
+  const base = rec.archived ? rec.dir.replace(/\/archive\/[^/]+$/, "") : rec.dir.replace(/\/[^/]+$/, "");
+  const places = [`${base}/${rec.id}`, `${base}/archive/${rec.id}`];
+  return {
+    id: `plan/${rec.id}`,
+    paths: places.flatMap((d) => [`${d}/PLAN.md`, `${d}/steps`]),
+    fingerprint: planRecordFingerprint(rec),
+    fingerprintAt(rev) {
+      const r = findPlan(committedSource(root, rev), base, rec.id);
+      return r ? planRecordFingerprint(r) : null;
+    },
+  };
+}
+
+/** Effective approval of a plan, from committed content and the notes store: `file-formats` §4.5 steps 2 to 4. */
+export function planApproval(root: string, project: Project, rec: PlanRecord): PlanApproval {
+  const { reasons } = recordState(new StatusCtx(root, project), planSubject(root, rec));
   return { status: reasons.length ? "awaiting-review" : "approved", reasons };
 }
 
@@ -35,7 +41,7 @@ export function planApproval(project: Project, rec: PlanRecord): PlanApproval {
 export function specApproved(root: string, project: Project, id: string): boolean {
   const doc = project.specs.get(id);
   if (!doc || !doc.fm.data) return false;
-  return computeStatus(project, doc, new CommitProjects(root, project)).status === "approved";
+  return computeStatus(project, doc, new StatusCtx(root, project)).status === "approved";
 }
 
 export interface StepInfo { number: number; title: string; done: boolean; waiting: string | null }
@@ -88,7 +94,7 @@ export function describePlan(ctx: PlanCtx, root: string, rec: PlanRecord): PlanI
     status = "stopped";
     stop = { kind: "failure", reason: "session ended unexpectedly", needs: "resume the plan" };
   }
-  const approval = project ? planApproval(project, rec).status : "awaiting-review";
+  const approval = project ? planApproval(root, project, rec).status : "awaiting-review";
   const title = typeof rec.fm?.data?.title === "string" ? (rec.fm.data.title as string) : rec.id;
   return {
     id: rec.id, title, archived: rec.archived, legacy: rec.legacy, approval, stored: pr?.status ?? "", status, stop,

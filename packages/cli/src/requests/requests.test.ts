@@ -1,3 +1,8 @@
+import { readNotes } from "../spec/notes.js";
+import { loadSpecPaths } from "../spec/paths.js";
+import { loadProject } from "../spec/project.js";
+import { committedSource } from "../spec/source.js";
+import { computeStatus, StatusCtx } from "../spec/status.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -43,6 +48,10 @@ const auditLog = (root: string): Record<string, any>[] => {
   return fs.readFileSync(path.join(dir, "specplane", "audit.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
 };
 const read = (root: string, id: string) => fs.readFileSync(path.join(root, F, `${id}.md`), "utf8");
+const effective = (root: string, id: string): string => {
+  const head = loadProject(committedSource(root, "HEAD"), loadSpecPaths(root).paths);
+  return computeStatus(head, head.specs.get(`feature/${id}`)!, new StatusCtx(root, head)).status;
+};
 const preset = (id: string) => PRESETS.find((p) => p.id === id)!;
 
 test("request user: the action is not done, one request is stored and audited; accept does it once as the accepter", async () => {
@@ -51,7 +60,7 @@ test("request user: the action is not done, one request is stored and audited; a
   const r = await approveSpecs(sctx(root), ["feature/a"]);
   assert.ok(r.ok && r.request, "a request id is returned");
   assert.equal(sh(root, "rev-parse", "HEAD"), head, "no commit");
-  assert.match(read(root, "a"), /status: awaiting-review/);
+  assert.equal(effective(root, "a"), "awaiting-review");
   const all = list(root);
   assert.equal(all.length, 1);
   assert.equal(all[0].state, "pending");
@@ -64,8 +73,8 @@ test("request user: the action is not done, one request is stored and audited; a
 
   const acc = await acceptRequest(user(root), all[0].id, "ok");
   assert.ok(acc.ok, acc.reasons.join());
-  assert.match(read(root, "a"), /status: approved/);
-  assert.match(read(root, "a"), /human: Pat Person/, "approved by the person who accepted");
+  assert.equal(effective(root, "a"), "approved");
+  assert.deepEqual(readNotes(root).bySpec.get("feature/a")![0].rec.by, { human: "Pat Person" }, "approved by the person who accepted");
   assert.equal(readRequest(root, all[0].id)!.state, "accepted");
   assert.equal(readRequest(root, all[0].id)!.answer!.by, "Pat Person");
   assert.ok(auditLog(root).some((e) => e.command === "spec approve" && e.outcome === "done" && e.request === all[0].id), "the action's audit entry names the request");
@@ -139,7 +148,7 @@ test("spec edit under request user stores the patch, shows a diff against the la
   const root = repo();
   await approveSpecs(user(root) as unknown as Ctx, ["feature/a"]);
   const approved = read(root, "a");
-  assert.match(approved, /status: approved/);
+  assert.equal(effective(root, "a"), "approved");
   const before = sh(root, "rev-parse", "HEAD");
   const edited = approved.replace("Text.", "New text.");
   const r = editSpec(sctx(root), "feature/a", edited);
@@ -154,8 +163,9 @@ test("spec edit under request user stores the patch, shows a diff against the la
   const acc = await acceptRequest(user(root), r.request!);
   assert.ok(acc.ok, acc.reasons.join());
   assert.match(read(root, "a"), /New text\./);
-  assert.match(read(root, "a"), /status: awaiting-review/, "a content edit makes the spec Awaiting Review");
   assert.equal(sh(root, "rev-parse", "HEAD"), before, "left in the working tree, not committed");
+  sh(root, "commit", "-q", "-am", "edit");
+  assert.equal(effective(root, "a"), "awaiting-review", "a content edit makes the spec Awaiting Review");
   // a never-approved spec shows the whole text as additions
   const r2 = editSpec(sctx(root), "feature/b", spec("b", "Other."));
   const d2 = show(root, r2.request!)!.diff!;
@@ -223,10 +233,10 @@ test("CLI: list, show, accept and decline work from the terminal", () => {
   assert.match(run("show", a.id).stdout, /Reason: approve a/);
   const acc = run("accept", a.id);
   assert.equal(acc.status, 0, acc.stderr);
-  assert.match(read(root, "a"), /status: approved/);
+  assert.equal(effective(root, "a"), "approved");
   const dec = run("decline", b.id);
   assert.equal(dec.status, 0, dec.stderr);
-  assert.match(read(root, "b"), /status: awaiting-review/);
+  assert.equal(effective(root, "b"), "awaiting-review");
   assert.equal(run("accept", a.id).status, 1);
   assert.equal(JSON.parse(run("list", "--json").stdout).data.length, 2);
 });

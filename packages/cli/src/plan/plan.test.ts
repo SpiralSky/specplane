@@ -1,3 +1,4 @@
+import { approveSpecs } from "../spec/human.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -120,14 +121,13 @@ test("parsers read handoff entries and gap entries", () => {
   assert.deepEqual(g[0].missing, ["Case", "Resolution", "Target spec", "State"]);
 });
 
-test("start refuses an unapproved plan and an unapproved referenced spec, then starts when approved; main is untouched", () => {
+test("start refuses an unapproved plan and an unapproved referenced spec, then starts when approved; main is untouched", async () => {
   const fx = repo({ specs: { other: spec("other") } });
   createPlan(fx.ctx, { words: ["export", "things"], implements: ["feature/export"] });
   refused(() => startPlan(fx.ctx, ID), /plan itself must be Approved first[\s\S]*feature\/export is not Approved/);
   assert.equal(fs.readdirSync(fx.wt).length, 0, "no worktree was created");
-  // Approve the spec through its own file (hand approval is enough for this test): status approved + approval block.
-  fs.writeFileSync(path.join(fx.root, F, "export.md"), spec("export").replace("status: awaiting-review", "status: approved").replace("authors:", "approval:\n  by:\n    human: Pat\n  date: 2026-11-10\n  commit: " + sh(fx.root, "rev-parse", "HEAD") + "\nauthors:"));
-  sh(fx.root, "add", "-A"); sh(fx.root, "commit", "-q", "-m", "approve spec by hand");
+  const approved = await approveSpecs({ root: fx.root, actor: actor(), preset: DEFAULT_PRESET, now: new Date("2026-11-10T11:00:00Z") }, ["feature/export"]);
+  assert.ok(approved.ok, approved.reasons.join());
   approvePlan(fx.ctx, ID);
   const mainHead = sh(fx.root, "rev-parse", "HEAD");
   const r = startPlan(fx.ctx, ID);

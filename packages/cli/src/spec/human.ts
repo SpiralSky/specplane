@@ -10,11 +10,12 @@ import type { RequestRecord } from "../requests/store.js";
 import { parseCite } from "./cites.js";
 import { editKeys } from "./fm-edit.js";
 import { specFingerprint } from "./fingerprint.js";
+import { appendRecords, makeRecord, notesTip, type NoteRecord } from "./notes.js";
 import { loadSpecPaths } from "./paths.js";
 import { loadProject, resolveCite, targetFingerprint, type Project, type SpecDoc } from "./project.js";
 import { failedTests } from "./results.js";
 import { commitExists, committedSource, headCommit, worktreeSource } from "./source.js";
-import { CommitProjects, computeStatus, dependencyCites } from "./status.js";
+import { computeStatus, dependencyCites, specSubject, StatusCtx } from "./status.js";
 
 /**
  * Human approval, reopen, metadata and override commands (`architecture/reference-cli` §5.3, §5.4, §13.2, §13.4;
@@ -90,19 +91,6 @@ function isDirty(root: string, file: string): boolean {
   return git(root, ["status", "--porcelain", "--", file]).trim() !== "";
 }
 
-/** Last commit that changed the content to its current fingerprint (`reference-cli` §5.3 step 5). */
-function contentCommit(root: string, doc: SpecDoc): string | null {
-  const fp = specFingerprint(doc.text);
-  const hashes = git(root, ["log", "--format=%H", "--", doc.file]).split("\n").filter(Boolean);
-  let found: string | null = null;
-  for (const h of hashes) {
-    let text: string;
-    try { text = git(root, ["show", `${h}:${doc.file}`]); } catch { break; }
-    if (specFingerprint(text) === fp) found = h; else break;
-  }
-  return found;
-}
-
 /** Tarjan strongly connected components over resolved spec-to-spec dependencies. */
 function components(head: Project): Map<string, string[]> {
   const edges = new Map<string, string[]>();
@@ -149,13 +137,12 @@ function fingerprintsOf(head: Project, doc: SpecDoc): { fingerprint: string; cit
   return { fingerprint: specFingerprint(doc.text)!, cited };
 }
 
-function approvalBlock(ctx: Ctx, head: Project, doc: SpecDoc, name: string, override = false): Record<string, unknown> {
-  const { fingerprint, cited } = fingerprintsOf(head, doc);
-  const block: Record<string, unknown> = {
-    by: { human: name }, date: today(ctx), commit: contentCommit(ctx.root, doc), fingerprint, cited,
-  };
-  if (override) block.override = { by: { human: name }, date: today(ctx) };
-  return block;
+/** Append records to the note on HEAD in one notes commit; the branch, index and working tree are untouched (`file-formats` §13.3). */
+function writeRecords(ctx: Ctx, records: NoteRecord[]): string | null {
+  const head = headCommit(ctx.root);
+  if (!head) throw new GitError("git rev-parse HEAD", "the repository has no commits");
+  appendRecords(ctx.root, head, records);
+  return notesTip(ctx.root);
 }
 
 function atomicWrite(abs: string, text: string): void {
@@ -202,7 +189,6 @@ const notFound = (id: string, head: Project) =>
 export interface ApproveOptions {
   /** Confirms a group in advance (`--yes`). */
   yes?: boolean;
-  noCommit?: boolean;
   /** Whether a person can be asked. */
   interactive?: boolean;
   ask?: (members: string[]) => Promise<boolean>;
@@ -224,9 +210,15 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   const comp = components(head);
   const memberIds = new Set<string>();
   for (const d of named) for (const m of comp.get(d.id) ?? [d.id]) memberIds.add(m);
+  // A requirement file is always approved and never needs a record, so it is not a member (`file-formats` §1.2).
+  for (const m of [...memberIds]) if (head.specs.get(m)?.layer === "requirement") memberIds.delete(m);
   const members = [...memberIds].sort().map((m) => head.specs.get(m)!);
+  if (reasons.length === 0 && members.length === 0 && named.length) {
+    for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "done", reason: "requirement file is always approved" });
+    return result({ ok: true, lines: [`${named.map((d) => d.id).join(", ")}: a requirement file is always approved and has no record. Nothing changed.`] });
+  }
 
-  const commits = new CommitProjects(ctx.root, head);
+  const commits = new StatusCtx(ctx.root, head);
   const effective = new Map<string, ReturnType<typeof computeStatus>>();
   for (const doc of members) {
     if (!doc.fm.data) { reasons.push(`\`${doc.id}\` has unreadable frontmatter: ${doc.fm.error}`); continue; }
@@ -256,10 +248,7 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   }
 
   const todo = members.filter((d) => effective.get(d.id)?.status !== "approved");
-  // An approved spec whose approval was written by hand lacks `fingerprint`/`cited`: re-record them (`file-formats` §2.3).
-  const rerecord = members.filter((d) => effective.get(d.id)?.status === "approved" && d.fm.data?.status === "approved"
-    && isMap(d.fm.data.approval) && (d.fm.data.approval.fingerprint === undefined || d.fm.data.approval.cited === undefined));
-  if (todo.length === 0 && rerecord.length === 0) {
+  if (todo.length === 0) {
     for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "done", reason: "already approved" });
     return result({ ok: true, lines: [`Already approved: ${members.map((m) => m.id).join(", ")}. Nothing changed.`] });
   }
@@ -278,66 +267,53 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
     }
   }
 
-  const auth = (g as Extract<GuardResult, { kind: "allow" }>).token;
-  const ops: WriteOp[] = todo.map((doc) => ({
-    doc, edits: { status: "approved", "review-reason": undefined, approval: approvalBlock(ctx, head, doc, name!) },
-  }));
-  // Re-recording keeps who approved, when, the commit and the note; it only adds the two fields.
-  for (const doc of rerecord) {
-    ops.push({ doc, edits: { approval: { ...(doc.fm.data!.approval as Record<string, unknown>), ...fingerprintsOf(head, doc) } } });
-  }
-  const all = [...todo, ...rerecord];
-  const body = all.length > 1 ? `Approved together as a group: ${all.map((d) => d.id).join(", ")}.` : "";
-  const verb = todo.length === 0 ? "record approval of" : "approve";
-  const subject = `${verb} ${all.map((d) => d.id).join(" ")}`;
-  const summary = `docs(specs): ${subject}`.length <= 72 ? subject : `${verb} ${all.length} specs`;
-  const { commit, notes } = writeAndCommit(auth, ctx, ops, "approve", summary, body || all.map((d) => d.id).join("\n"), !!opts.noCommit);
+  // Members of one group share `by` and `date`; every record goes into one notes commit (`file-formats` §2.3, §13.3).
+  const at = ctx.now ?? new Date();
+  const records = todo.map((doc) => {
+    const { fingerprint, cited } = fingerprintsOf(head, doc);
+    return makeRecord("approval", doc.id, fingerprint, { by: { human: name! }, date: today(ctx), cited }, at);
+  });
+  const commit = writeRecords(ctx, records);
   for (const doc of todo) {
     auditAll(ctx, { command: "spec approve", args: [doc.id], permission: "spec.approve", outcome: "done",
-      old: { status: doc.fm.data?.status ?? null, effective: effective.get(doc.id)?.status }, new: { status: "approved", by: { human: name } } });
+      old: { effective: effective.get(doc.id)?.status }, new: { status: "approved", by: { human: name } } });
   }
-  for (const doc of rerecord) {
-    auditAll(ctx, { command: "spec approve", args: [doc.id], permission: "spec.approve", outcome: "done", reason: "re-recorded fingerprint and cited",
-      old: { status: "approved", fingerprint: null }, new: { status: "approved", fingerprint: "recorded" } });
-  }
-  const skipped = members.filter((m) => !all.includes(m));
-  const cm = commit ? ` (commit ${commit.slice(0, 7)})` : "";
+  const skipped = members.filter((m) => !todo.includes(m));
   return result({
-    ok: true, commit, written: all.map((d) => d.id),
-    lines: [...(todo.length ? [`Approved ${todo.map((d) => d.id).join(", ")} as ${name}${cm}.`] : []),
-      ...(rerecord.length ? [`Re-recorded fingerprint and cited parts of ${rerecord.map((d) => d.id).join(", ")}; status and approver unchanged${todo.length ? "" : cm}.`] : []),
-      ...(skipped.length ? [`Already approved, left alone: ${skipped.map((s) => s.id).join(", ")}.`] : []), ...notes],
+    ok: true, commit, written: todo.map((d) => d.id),
+    lines: [`Approved ${todo.map((d) => d.id).join(", ")} as ${name}${commit ? ` (notes commit ${commit.slice(0, 7)})` : ""}.`,
+      ...(skipped.length ? [`Already approved, left alone: ${skipped.map((s) => s.id).join(", ")}.`] : [])],
   });
 }
 
 /* ------------------------------------------------------------------ reopen */
 
-function reopenEdits(): Record<string, unknown> {
-  return { status: "awaiting-review", approval: undefined, "review-reason": "edited" };
-}
-
-export function reopenSpec(ctx: Ctx, id: string, opts: { noCommit?: boolean } = {}): Result {
+export function reopenSpec(ctx: Ctx, id: string): Result {
   const head = loadHead(ctx.root);
   const doc = findSpec(head, id);
   if (!doc) return result({ ok: false, reasons: [notFound(id, head)] });
   const g = decide(ctx, [`spec.edit.${doc.layer}`], "Reopening a specification", "spec reopen", [id], { id });
   if (g.kind !== "allow") return refusal(g);
-  const eff = computeStatus(head, doc, new CommitProjects(ctx.root, head));
-  if (doc.fm.data?.status !== "approved" && eff.status === "awaiting-review") {
+  if (doc.layer === "requirement") return result({ ok: false, reasons: [`\`${id}\` is a requirement file; it is always approved and has no records to reopen.`] });
+  const eff = computeStatus(head, doc, new StatusCtx(ctx.root, head));
+  if (eff.status === "awaiting-review") {
     auditAll(ctx, { command: "spec reopen", args: [id], permission: `spec.edit.${doc.layer}`, outcome: "done", reason: "already awaiting review" });
     return result({ ok: true, lines: [`\`${id}\` is already awaiting review. Nothing changed.`] });
   }
-  const { commit, notes } = writeAndCommit(g.token, ctx, [{ doc, edits: reopenEdits() }], "spec", `reopen ${id}`, "", !!opts.noCommit);
+  const name = humanName(ctx);
+  if (!name) return result({ ok: false, reasons: ["Cannot tell who is reopening: set git `user.name`."] });
+  const commit = writeRecords(ctx, [makeRecord("reopen", id, specFingerprint(doc.text)!, { by: { human: name }, date: today(ctx) }, ctx.now)]);
   auditAll(ctx, { command: "spec reopen", args: [id], permission: `spec.edit.${doc.layer}`, outcome: "done",
-    old: { status: doc.fm.data?.status ?? null }, new: { status: "awaiting-review", "review-reason": "edited" } });
-  return result({ ok: true, commit, written: [id], lines: [`Reopened \`${id}\`: awaiting review (edited).${commit ? ` Commit ${commit.slice(0, 7)}.` : ""}`, ...notes] });
+    old: { status: eff.status }, new: { status: "awaiting-review", "review-reason": "edited" } });
+  return result({ ok: true, commit, written: [id], lines: [`Reopened \`${id}\`: awaiting review (edited).${commit ? ` Notes commit ${commit.slice(0, 7)}.` : ""}`] });
 }
 
 /* ----------------------------------------------------------------- metadata */
 
-export const SETTABLE = ["title", "authors", "references", "covers", "approval.date", "approval.commit"] as const;
+/** Author-written fields (`file-formats` §2.1); status, approver and results are records and have their own override commands. */
+export const SETTABLE = ["title", "authors", "references", "covers", "implements"] as const;
 
-const pieceOf = (field: string) => (field.startsWith("approval.") ? "approval" : field);
+const pieceOf = (field: string) => field;
 
 function parseAuthor(item: string): Record<string, string> {
   const m = /^(human|llm):([^|]+)(?:\|(.+))?$/.exec(item.trim());
@@ -354,17 +330,12 @@ function parseValue(ctx: Ctx, field: string, raw: string): unknown {
       return raw.trim();
     case "authors": return raw.trim() === "" ? [] : raw.split(",").map(parseAuthor);
     case "references":
+    case "implements":
     case "covers": {
       const items = raw.trim() === "" ? [] : raw.split(",").map((s) => s.trim());
       for (const c of items) if (!parseCite(c)) throw new Error(`\`${c}\` is not a valid cite`);
       return items;
     }
-    case "approval.date":
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error("approval.date must be YYYY-MM-DD");
-      return raw;
-    case "approval.commit":
-      if (!/^[0-9a-f]{40}$/.test(raw) || !commitExists(ctx.root, raw)) throw new Error("approval.commit must be the 40-hex hash of a commit in this repository");
-      return raw;
     default: throw new Error(`\`${field}\` cannot be set here. Settable fields: ${SETTABLE.join(", ")}.`);
   }
 }
@@ -385,17 +356,8 @@ export function metaSet(ctx: Ctx, id: string, field: string, raw: string, opts: 
   // The worktree file is what is edited; its current values are the old values.
   const work = loadProject(worktreeSource(ctx.root), head.paths).specs.get(id) ?? doc;
   const data = work.fm.data ?? {};
-  let edits: Record<string, unknown>;
-  let old: unknown;
-  if (field.startsWith("approval.")) {
-    if (!isMap(data.approval)) return result({ ok: false, reasons: [`\`${id}\` has no approval block, so \`${field}\` cannot be set.`] });
-    const key = field.slice("approval.".length);
-    old = data.approval[key] ?? null;
-    edits = { approval: { ...data.approval, [key]: value } };
-  } else {
-    old = data[field] ?? null;
-    edits = { [field]: value };
-  }
+  const old: unknown = data[field] ?? null;
+  const edits: Record<string, unknown> = { [field]: value };
   const { commit, notes } = writeAndCommit(g.token, ctx, [{ doc, edits }], "spec", `set ${field} of ${id}`, "", !!opts.noCommit);
   auditAll(ctx, { command: "spec meta set", args: [id, field], permission: g.permissions[0], outcome: "done", old: { [field]: old }, new: { [field]: value } });
   const lines = [`Set \`${field}\` of \`${id}\`.${commit ? ` Commit ${commit.slice(0, 7)}.` : ""}`, ...notes];
@@ -411,20 +373,27 @@ export function metaGet(ctx: Ctx, id: string): Result & { data?: Record<string, 
   const doc = findSpec(head, id);
   if (!doc) return result({ ok: false, reasons: [notFound(id, head)] });
   const d = doc.fm.data ?? {};
-  const st = computeStatus(head, doc, new CommitProjects(ctx.root, head));
-  const ov = (m: unknown) => (isMap(m) && isMap(m.override) ? ` [override by ${JSON.stringify(m.override.by)} on ${m.override.date}]` : "");
+  const sctx = new StatusCtx(ctx.root, head);
+  const st = computeStatus(head, doc, sctx);
+  const dec = sctx.decisiveOf(doc);
+  const mark = (r: NoteRecord | undefined) => (r?.kind === "override" ? ` [override by ${JSON.stringify(r.by)} on ${r.date}]` : "");
   const lines = [
     `id: ${doc.id}`, `title: ${d.title}`,
-    `status: ${st.status} (stored: ${d.status})${st.reasons.length ? ` reasons: ${st.reasons.join("; ")}` : ""}${ov(d.approval)}`,
+    `status: ${st.status}${st.reasons.length ? ` reasons: ${st.reasons.join("; ")}` : ""}${mark(dec?.rec)}`,
     `authors: ${JSON.stringify(d.authors ?? [])}`, `covers: ${JSON.stringify(d.covers ?? [])}`,
   ];
   if (d.implements !== undefined) lines.push(`implements: ${JSON.stringify(d.implements)}`);
   lines.push(`references: ${JSON.stringify(d.references ?? [])}`);
-  if (isMap(d.approval)) {
-    const a = d.approval;
-    lines.push(`approver: ${JSON.stringify(a.by)}${ov(a)}`, `approval.date: ${a.date}`, `approval.commit: ${a.commit}`);
+  // Approver and date come from the newest approval or approver override that applies (`file-formats` §2.3, §2.4).
+  const applying = sctx.notes.lookup(specSubject(sctx, doc)).applicable;
+  const approval = applying.filter((x) => x.rec.kind === "approval" || (x.rec.kind === "override" && x.rec.target === "status" && x.rec.value === "approved")).at(-1);
+  const approverOverride = applying.filter((x) => x.rec.kind === "override" && x.rec.target === "approver").at(-1);
+  const commitOverride = applying.filter((x) => x.rec.kind === "override" && x.rec.target === "approval-commit").at(-1);
+  if (approval) {
+    lines.push(`approver: ${JSON.stringify(approverOverride?.rec.value ?? approval.rec.by)}${mark(approverOverride?.rec)}`, `approval.date: ${approval.rec.date}`,
+      `approval.commit: ${commitOverride?.rec.value ?? approval.commit}${mark(commitOverride?.rec)}`);
   }
-  if (Array.isArray(d.results)) for (const r of d.results) if (isMap(r)) lines.push(`result ${r.test}: ${r.outcome}${ov(r)}`);
+  if (Array.isArray(d.results)) for (const r of d.results) if (isMap(r)) lines.push(`result ${r.test}: ${r.outcome}${isMap(r.override) ? ` [override by ${JSON.stringify(r.override.by)} on ${r.override.date}]` : ""}`);
   auditAll(ctx, { command: "spec meta get", args: [id], permission: "meta.read", outcome: "done" });
   return { ...result({ ok: true, lines }), data: { id: doc.id, stored: d, effective: st } };
 }
@@ -457,33 +426,37 @@ export function overrideSpec(ctx: Ctx, kind: OverrideKind, id: string, args: str
   const fail = (m: string) => { auditAll(ctx, { command: cmd, args: [id, ...args], permission: perm, outcome: "failed", reason: m }); return result({ ok: false, reasons: [m] }); };
   const mark = { by: { human: name }, date: today(ctx) };
   const data = doc.fm.data ?? {};
-  let edits: Record<string, unknown>;
+  if (kind !== "test" && doc.layer === "requirement") return fail(`\`${id}\` is a requirement file; it is always approved and has no status records to override.`);
+  const sctx = new StatusCtx(ctx.root, head);
+  const before = kind === "test" ? null : computeStatus(head, doc, sctx);
+  let record: NoteRecord | null = null;
   let old: unknown, nw: unknown;
 
   if (kind === "status") {
     const value = args[0];
+    if (value !== "approved" && value !== "awaiting-review") return fail("status must be `approved` or `awaiting-review`");
     if (value === "approved") {
       if (isDirty(ctx.root, doc.file)) return fail(`\`${id}\` has uncommitted changes. Commit ${doc.file} first; the override records the committed content.`);
-      const block = approvalBlock(ctx, head, doc, name, true);
-      edits = { status: "approved", "review-reason": undefined, approval: block };
-      old = { status: data.status ?? null, approval: data.approval ?? null };
-      nw = { status: "approved", override: mark };
-    } else if (value === "awaiting-review") {
-      edits = reopenEdits();
-      old = { status: data.status ?? null };
-      nw = { status: "awaiting-review", override: mark };
-    } else return fail("status must be `approved` or `awaiting-review`");
+      // An override to approved is checked like an approval: it carries the fingerprints of the content now (`file-formats` §2.4).
+      const { fingerprint, cited } = fingerprintsOf(head, doc);
+      record = makeRecord("override", id, fingerprint, { ...mark, target: "status", value, cited }, ctx.now);
+    } else record = makeRecord("override", id, specFingerprint(doc.text)!, { ...mark, target: "status", value }, ctx.now);
+    old = { status: before!.status, reasons: before!.reasons };
+    nw = { status: value, override: mark };
   } else if (kind === "approver") {
-    let by: Record<string, string>;
-    try { by = parseApprover(args[0] ?? ""); } catch (e) { return fail((e as Error).message); }
-    if (!isMap(data.approval)) return fail(`\`${id}\` has no approval block, so there is no approver to override.`);
-    edits = { approval: { ...data.approval, by, override: mark } };
-    old = { by: data.approval.by }; nw = { by, override: mark };
+    const by = (() => { try { return parseApprover(args[0] ?? ""); } catch (e) { return (e as Error).message; } })();
+    if (typeof by === "string") return fail(by);
+    const approving = sctx.notes.lookup(specSubject(sctx, doc)).applicable.filter((x) => x.rec.kind === "approval" || (x.rec.kind === "override" && x.rec.value === "approved")).at(-1);
+    if (!approving) return fail(`\`${id}\` has no applicable approval, so there is no approver to override.`);
+    record = makeRecord("override", id, specFingerprint(doc.text)!, { ...mark, target: "approver", value: by }, ctx.now);
+    old = { by: approving.rec.by }; nw = { by, override: mark };
   } else {
+    // Test results are still frontmatter until their records are implemented (`file-formats` §11.1).
     const [testId, outcome] = args;
     if (!testId || !/^.+#\d+$/.test(testId)) return fail("test must be a test ID such as `R11#1`");
     if (!["passed", "failed", "clear"].includes(outcome ?? "")) return fail("result must be `passed`, `failed` or `clear`");
     const results = Array.isArray(data.results) ? data.results : [];
+    let edits: Record<string, unknown>;
     if (outcome === "clear") {
       edits = { results: results.filter((r) => !(isMap(r) && r.test === testId)) };
       old = { test: testId, results: results.filter((r) => isMap(r) && r.test === testId) }; nw = { test: testId, cleared: true, override: mark };
@@ -496,8 +469,11 @@ export function overrideSpec(ctx: Ctx, kind: OverrideKind, id: string, args: str
       edits = { results: [...results, entry] };
       old = { test: testId }; nw = { test: testId, outcome, override: mark };
     }
+    const { commit, notes } = writeAndCommit(g.token, ctx, [{ doc, edits }], "spec", `override ${kind} of ${id}`, "", !!opts.noCommit);
+    auditAll(ctx, { command: cmd, args: [id, ...args], permission: perm, outcome: "done", old, new: nw });
+    return result({ ok: true, commit, written: [id], lines: [`Override of ${kind} recorded for \`${id}\` by ${name}.${commit ? ` Commit ${commit.slice(0, 7)}.` : ""}`, ...notes] });
   }
-  const { commit, notes } = writeAndCommit(g.token, ctx, [{ doc, edits }], "spec", `override ${kind} of ${id}`, "", !!opts.noCommit);
+  const commit = writeRecords(ctx, [record!]);
   auditAll(ctx, { command: cmd, args: [id, ...args], permission: perm, outcome: "done", old, new: nw });
-  return result({ ok: true, commit, written: [id], lines: [`Override of ${kind} recorded for \`${id}\` by ${name}.${commit ? ` Commit ${commit.slice(0, 7)}.` : ""}`, ...notes] });
+  return result({ ok: true, commit, written: [id], lines: [`Override of ${kind} recorded for \`${id}\` by ${name}.${commit ? ` Notes commit ${commit.slice(0, 7)}.` : ""}`] });
 }

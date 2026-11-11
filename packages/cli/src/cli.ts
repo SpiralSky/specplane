@@ -46,27 +46,25 @@ spec
   .command("approve <ids...>")
   .description("Approve specs by ID (committed content only; a group is approved together)")
   .option("--yes", "confirm group approval in advance")
-  .option("--no-commit", "stage the approval instead of committing it")
   .option("--json", "output JSON")
   .action((ids: string[], opts) => specApproveHuman(ids, opts));
 spec
   .command("reopen <id>")
   .description("Set a spec back to awaiting review")
-  .option("--no-commit", "stage instead of committing")
   .option("--json", "output JSON")
   .action((id: string, opts) => specReopenHuman(id, opts));
 const meta = spec.command("meta").description("Read or correct spec metadata");
 meta.command("get <id>").description("Show metadata, with overrides marked").option("--json").action((id: string, opts) => specMetaGetHuman(id, opts));
 meta
   .command("set <id> <field> <value>")
-  .description("Set title, authors, references, covers, approval.date or approval.commit (lists are comma separated; authors are human:<name> or llm:<model>)")
+  .description("Set title, authors, covers, implements or references (lists are comma separated; authors are human:<name> or llm:<model>)")
   .option("--no-commit", "stage instead of committing")
   .option("--json")
   .action((id: string, field: string, value: string, opts) => specMetaSetHuman(id, field, value, opts));
 const override = spec.command("override").description("Protected overrides (Administrator by default)");
-override.command("status <id> <status>").description("Set status by hand: approved or awaiting-review").option("--no-commit").option("--json")
+override.command("status <id> <status>").description("Set status by hand: approved or awaiting-review").option("--json")
   .action((id: string, status: string, opts) => specOverrideHuman("status", id, [status], opts));
-override.command("approver <id> <approver>").description("Set the approver: human:<name> or llm:<model>@<human>").option("--no-commit").option("--json")
+override.command("approver <id> <approver>").description("Set the approver: human:<name> or llm:<model>@<human>").option("--json")
   .action((id: string, approver: string, opts) => specOverrideHuman("approver", id, [approver], opts));
 override.command("test <id> <test> <result>").description("Set a test result (passed, failed) or clear it").option("--summary <text>").option("--no-commit").option("--json")
   .action((id: string, test: string, result: string, opts) => specOverrideHuman("test", id, [test, result], opts));

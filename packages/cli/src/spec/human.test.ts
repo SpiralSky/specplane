@@ -10,7 +10,8 @@ import { editKeys } from "./fm-edit.js";
 import { approveSpecs, metaGet, metaSet, overrideSpec, reopenSpec, type Ctx } from "./human.js";
 import { loadSpecPaths } from "./paths.js";
 import { loadProject } from "./project.js";
-import { CommitProjects, computeStatus } from "./status.js";
+import { readNotes } from "./notes.js";
+import { computeStatus, StatusCtx } from "./status.js";
 import { committedSource } from "./source.js";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "cli.js");
@@ -22,8 +23,8 @@ const sh = (cwd: string, ...a: string[]): string => {
 };
 
 const F = "docs/specifications/features";
-const fm = (id: string, extra = "", status = "awaiting-review", title = id) =>
-  `---\nid: feature/${id}\ntitle: ${title}\nstatus: ${status}\nauthors:\n  - human: someone\ncovers: []\n${extra}---\n\n# ${title}\n\n## R9: Part\n\nText of ${id}.\n`;
+const fm = (id: string, extra = "", title = id) =>
+  `---\nid: feature/${id}\ntitle: ${title}\nauthors:\n  - human: someone\ncovers: []\n${extra}---\n\n# ${title}\n\n## R9: Part\n\nText of ${id}.\n`;
 const refs = (...r: string[]) => `references: [${r.join(", ")}]\n`;
 
 /** Temp git repository with the given specs committed. */
@@ -38,7 +39,10 @@ function repo(specs: Record<string, string>): string {
   sh(root, "commit", "-q", "-m", "init");
   return root;
 }
-const ctx = (root: string, role: Actor["role"] = "standard-user", preset = DEFAULT_PRESET): Ctx => ({ root, actor: { role, kind: "human", name: "Pat Person" }, preset, now: new Date("2026-11-10T12:00:00Z") });
+// A clock that moves on at every command, so records of one spec are ordered by `at` (`file-formats` §13.2).
+let tick = 0;
+const ctx = (root: string, role: Actor["role"] = "standard-user", preset = DEFAULT_PRESET): Ctx => ({ root, actor: { role, kind: "human", name: "Pat Person" }, preset, now: new Date(Date.parse("2026-11-10T12:00:00Z") + 1000 * tick++) });
+const records = (root: string, id: string) => (readNotes(root).bySpec.get(`feature/${id}`) ?? []).map((s) => s.rec);
 const read = (root: string, id: string) => fs.readFileSync(path.join(root, F, `${id}.md`), "utf8");
 const audit = (root: string): Record<string, any>[] => {
   const dir = sh(root, "rev-parse", "--path-format=absolute", "--git-common-dir");
@@ -46,30 +50,30 @@ const audit = (root: string): Record<string, any>[] => {
 };
 const effective = (root: string, id: string) => {
   const head = loadProject(committedSource(root, "HEAD"), loadSpecPaths(root).paths);
-  return computeStatus(head, head.specs.get(`feature/${id}`)!, new CommitProjects(root, head));
+  return computeStatus(head, head.specs.get(`feature/${id}`)!, new StatusCtx(root, head));
 };
 const count = (root: string) => Number(sh(root, "rev-list", "--count", "HEAD"));
 
-test("approve: records approver, fingerprint and cited map, commits only the spec", async () => {
+test("approve: records approver, fingerprint and cited map in the notes store; no branch commit, no file edit", async () => {
   const root = repo({ b: fm("b"), a: fm("a", refs("b R9")) });
   fs.writeFileSync(path.join(root, "unrelated.txt"), "x");
+  const before = count(root);
   const r1 = await approveSpecs(ctx(root), ["feature/b"]);
   assert.ok(r1.ok, r1.reasons.join());
   const r2 = await approveSpecs(ctx(root), ["feature/a"]);
   assert.ok(r2.ok, r2.reasons.join());
-  const text = read(root, "a");
-  assert.match(text, /status: approved/);
-  assert.match(text, /by:\n {4}human: Pat Person/);
-  assert.match(text, /date: 2026-11-10/);
-  assert.match(text, /fingerprint: spec-v3:sha256:[0-9a-f]{64}/);
-  assert.match(text, /b R9: sec-v1:sha256:[0-9a-f]{64}/);
-  assert.match(text, /commit: [0-9a-f]{40}/);
+  assert.equal(read(root, "a"), fm("a", refs("b R9")), "spec file untouched");
+  assert.equal(count(root), before, "no commit on the branch");
+  const [rec] = records(root, "a");
+  assert.equal(rec.kind, "approval");
+  assert.deepEqual(rec.by, { human: "Pat Person" });
+  assert.equal(rec.date, "2026-11-10");
+  assert.match(rec.fingerprint, /^spec-v3:sha256:[0-9a-f]{64}$/);
+  assert.match(rec.cited!["b R9"], /^sec-v1:sha256:[0-9a-f]{64}$/);
+  assert.match(rec.rid, /^[0-9a-f]{32}$/);
+  assert.equal(readNotes(root).bySpec.get("feature/a")![0].commit, sh(root, "rev-parse", "HEAD"), "attached to HEAD");
   assert.equal(effective(root, "a").status, "approved");
-  assert.equal(sh(root, "show", "--stat", "--format=%s", "HEAD").split("\n").filter((l) => l.includes("|")).length, 1);
   assert.ok(sh(root, "status", "--porcelain").includes("unrelated.txt"), "unrelated file stays untouched");
-  const approval = text.match(/commit: ([0-9a-f]{40})/)![1];
-  assert.equal(sh(root, "rev-parse", approval), approval);
-  assert.notEqual(approval, sh(root, "rev-parse", "HEAD"), "commit is the content commit, not the approval commit");
   const entries = audit(root).filter((e) => e.outcome === "done");
   assert.deepEqual(entries.map((e) => e.args), [["feature/b"], ["feature/a"]]);
   assert.equal(entries[0].actor.name, "Pat Person");
@@ -83,7 +87,7 @@ test("approve: an unapproved reference fails and names it with its status", asyn
   assert.equal(r.ok, false);
   assert.match(r.reasons.join("\n"), /feature\/b.*awaiting-review/);
   assert.equal(count(root), before);
-  assert.match(read(root, "a"), /status: awaiting-review/);
+  assert.equal(effective(root, "a").status, "awaiting-review");
   assert.equal(audit(root).at(-1)!.outcome, "refused");
 });
 
@@ -101,9 +105,10 @@ test("approve: a two-spec cycle is approved together with the same approver, aft
   assert.deepEqual(asked, ["feature/a", "feature/b"], "c cites the cycle but is not in the group");
   assert.deepEqual(r.written, ["feature/a", "feature/b"]);
   for (const id of ["a", "b"]) assert.equal(effective(root, id).status, "approved");
-  assert.match(read(root, "c"), /status: awaiting-review/);
-  assert.equal(read(root, "a").match(/date: .*/)![0], read(root, "b").match(/date: .*/)![0]);
-  assert.equal(sh(root, "log", "-1", "--format=%s"), "docs(specs): approve feature/a feature/b");
+  assert.equal(effective(root, "c").status, "awaiting-review");
+  const [ra, rb] = [records(root, "a")[0], records(root, "b")[0]];
+  assert.deepEqual([ra.by, ra.date], [rb.by, rb.date], "same approver and date");
+  assert.equal(sh(root, "log", "--format=%H", "refs/notes/specplane").split("\n").length, 1, "one notes commit for the group");
 });
 
 test("approve: a cycle where one member cites a missing part approves neither", async () => {
@@ -113,7 +118,7 @@ test("approve: a cycle where one member cites a missing part approves neither", 
   assert.equal(r.ok, false);
   assert.match(r.reasons.join("\n"), /R99/);
   assert.equal(count(root), before);
-  for (const id of ["a", "b"]) assert.match(read(root, id), /status: awaiting-review/);
+  for (const id of ["a", "b"]) assert.equal(effective(root, id).status, "awaiting-review");
 });
 
 test("approve: every reason is listed, not only the first", async () => {
@@ -146,27 +151,6 @@ test("approve: already approved does nothing and says so", async () => {
   assert.equal(count(root), before);
 });
 
-test("approve: an approved spec with a hand-format approval is re-recorded, status and approver unchanged", async () => {
-  const root = repo({ a: fm("a") });
-  await approveSpecs(ctx(root), ["feature/a"]);
-  const p = path.join(root, F, "a.md");
-  const stripped = fs.readFileSync(p, "utf8").replace(/^ {2}fingerprint: .*\n/m, "").replace(/^ {2}cited: \{\}\n/m, "");
-  assert.doesNotMatch(stripped, /fingerprint/);
-  fs.writeFileSync(p, stripped);
-  sh(root, "add", p); sh(root, "commit", "-qm", "hand approval");
-  assert.equal(effective(root, "a").status, "approved");
-  const r = await approveSpecs(ctx(root), ["feature/a"]);
-  assert.ok(r.ok, r.reasons.join());
-  assert.match(r.lines.join("\n"), /Re-recorded/);
-  const text = read(root, "a");
-  assert.match(text, /fingerprint: spec-v3:sha256:[0-9a-f]{64}/);
-  assert.match(text, /status: approved/);
-  assert.match(text, /human: Pat Person/);
-  assert.equal(effective(root, "a").status, "approved");
-  const again = await approveSpecs(ctx(root), ["feature/a"]);
-  assert.match(again.lines[0], /Already approved/);
-});
-
 test("approve: a current failed test result blocks approval; an outdated one does not", async () => {
   const root = repo({ a: fm("a") });
   const set = overrideSpec(ctx(root, "administrator"), "test", "feature/a", ["R9#1", "failed"]);
@@ -195,28 +179,19 @@ test("approve: no git user.name means no approval (the approver is never invente
   } finally { process.env = saved; }
 });
 
-test("approve: --no-commit stages the change", async () => {
-  const root = repo({ a: fm("a") });
-  const before = count(root);
-  const r = await approveSpecs(ctx(root), ["feature/a"], { noCommit: true });
-  assert.ok(r.ok);
-  assert.equal(count(root), before);
-  assert.match(sh(root, "diff", "--cached", "--name-only"), /a\.md/);
-});
-
 test("approve: the permission has three modes; only allow approves", async () => {
   const root = repo({ a: fm("a") });
   const llm = (r: string): Ctx => ({ ...ctx(root), actor: { role: "llm", kind: "llm", name: "m" }, preset: PRESETS.find((p) => p.id === r)! });
   const asked = await approveSpecs(llm("architecture-level-llm-control"), ["feature/a"], { yes: true });
   assert.equal(asked.ok, true, "request user sends a request instead of refusing");
   assert.ok(asked.request);
-  assert.match(read(root, "a"), /status: awaiting-review/);
+  assert.equal(effective(root, "a").status, "awaiting-review");
   const custom = structuredClone(DEFAULT_PRESET);
   custom.llm.modes["spec.approve"] = "deny";
   const denied = await approveSpecs({ ...llm("full-llm-control"), preset: custom }, ["feature/a"], { yes: true });
   assert.equal(denied.ok, false);
   assert.match(denied.reasons.join(), /Refused.*`spec\.approve`/);
-  assert.match(read(root, "a"), /status: awaiting-review/);
+  assert.equal(effective(root, "a").status, "awaiting-review");
   custom.llm.modes["spec.approve"] = "allow";
   const allowed = await approveSpecs({ ...llm("full-llm-control"), preset: custom }, ["feature/a"], { yes: true });
   assert.equal(allowed.ok, false, "an LLM actor has no human identity; the CLI never records one");
@@ -225,20 +200,24 @@ test("approve: the permission has three modes; only allow approves", async () =>
   assert.equal(audit(root).filter((e) => e.outcome === "request-sent").length, 1);
 });
 
-test("reopen: sets awaiting-review with a review reason, removes approval, audits", async () => {
+test("reopen: appends a reopen record, writes no commit or file edit, audits; re-approving the same content approves again", async () => {
   const root = repo({ a: fm("a") });
   await approveSpecs(ctx(root), ["feature/a"]);
+  const before = count(root);
   const r = reopenSpec(ctx(root), "feature/a");
   assert.ok(r.ok, r.reasons.join());
-  const text = read(root, "a");
-  assert.match(text, /status: awaiting-review/);
-  assert.match(text, /review-reason: edited/);
-  assert.doesNotMatch(text, /approval:/);
-  assert.equal(effective(root, "a").status, "awaiting-review");
+  assert.equal(read(root, "a"), fm("a"));
+  assert.equal(count(root), before);
+  assert.deepEqual(records(root, "a").map((x) => x.kind), ["approval", "reopen"]);
+  const st = effective(root, "a");
+  assert.deepEqual([st.status, st.reasons], ["awaiting-review", ["edited"]]);
   const e = audit(root).at(-1)!;
   assert.equal(e.command, "spec reopen");
   assert.equal(e.permission, "spec.edit.feature");
   assert.equal(reopenSpec(ctx(root), "feature/a").lines[0].includes("already awaiting review"), true);
+  const again = await approveSpecs(ctx(root), ["feature/a"]);
+  assert.ok(again.ok, again.reasons.join());
+  assert.equal(effective(root, "a").status, "approved", "a newer approval of the same content decides");
 });
 
 test("meta set title: one audit entry with field, old value, new value and user; status unchanged", async () => {
@@ -255,7 +234,6 @@ test("meta set title: one audit entry with field, old value, new value and user;
   assert.equal(effective(root, "a").status, "approved", "title is metadata (cli R17)");
   const e = audit(root).at(-1)!;
   assert.deepEqual([e.command, e.old, e.new, e.actor.name, e.permission], ["spec meta set", { title: "a" }, { title: "Better title" }, "Pat Person", "meta.write.title"]);
-  assert.match(read(root, "a"), /status: approved/, "stored status is untouched by metadata");
   assert.ok(metaSet(ctx(root), "feature/a", "covers", "R9, R10").ok);
   assert.equal(effective(root, "a").status, "approved", "covers is metadata (cli R17)");
 });
@@ -263,7 +241,7 @@ test("meta set title: one audit entry with field, old value, new value and user;
 test("meta set: refuses unknown fields and bad values, never touches the body", async () => {
   const root = repo({ a: fm("a") });
   const before = read(root, "a");
-  for (const [f, v] of [["status", "approved"], ["id", "x"], ["approval.date", "2026-11-10"], ["covers", "not a cite!"], ["title", ""]] as const) {
+  for (const [f, v] of [["status", "approved"], ["id", "x"], ["approval.date", "2026-11-10"], ["approval", "x"], ["covers", "not a cite!"], ["title", ""]] as const) {
     const r = metaSet(ctx(root), "feature/a", f, v);
     assert.equal(r.ok, false, f);
   }
@@ -316,7 +294,10 @@ test("protected overrides: refused for the Standard User, allowed for the Admini
   const admin = ctx(root, "administrator");
   const s = overrideSpec(admin, "status", "feature/a", ["approved"]);
   assert.ok(s.ok, s.reasons.join());
-  assert.match(read(root, "a"), /override:\n {4}by:\n {6}human: Pat Person\n {4}date: 2026-11-10/);
+  const [first] = records(root, "a");
+  assert.deepEqual([first.kind, first.target, first.value, first.by, first.date], ["override", "status", "approved", { human: "Pat Person" }, "2026-11-10"]);
+  assert.ok(first.cited && first.fingerprint, "checked like an approval");
+  assert.equal(read(root, "a"), before, "no file edit");
   assert.equal(effective(root, "a").status, "approved");
   // The overridden approval is checked like any other: a content edit reopens it.
   fs.appendFileSync(path.join(root, F, "a.md"), "edit\n");
@@ -336,15 +317,23 @@ test("protected overrides: refused for the Standard User, allowed for the Admini
   assert.equal(ov[0].permission, "override.status");
 });
 
-test("override status awaiting-review and a new approval replaces the override mark", async () => {
+test("override status awaiting-review and a newer approval decide in order of time", async () => {
   const root = repo({ a: fm("a") });
-  const admin = ctx(root, "administrator");
-  overrideSpec(admin, "status", "feature/a", ["approved"]);
-  assert.match(read(root, "a"), /override:/);
-  overrideSpec(admin, "status", "feature/a", ["awaiting-review"]);
-  assert.match(read(root, "a"), /status: awaiting-review/);
+  overrideSpec(ctx(root, "administrator"), "status", "feature/a", ["approved"]);
+  assert.equal(effective(root, "a").status, "approved");
+  overrideSpec(ctx(root, "administrator"), "status", "feature/a", ["awaiting-review"]);
+  assert.equal(effective(root, "a").status, "awaiting-review");
   await approveSpecs(ctx(root), ["feature/a"]);
-  assert.doesNotMatch(read(root, "a"), /override:/);
+  assert.equal(effective(root, "a").status, "approved");
+  assert.deepEqual(records(root, "a").map((x) => x.kind), ["override", "override", "approval"]);
+});
+
+test("override approver changes only what is shown, not the status", async () => {
+  const root = repo({ a: fm("a") });
+  assert.equal(overrideSpec(ctx(root, "administrator"), "approver", "feature/a", ["human:X"]).ok, false, "nothing approved yet");
+  await approveSpecs(ctx(root), ["feature/a"]);
+  assert.ok(overrideSpec(ctx(root, "administrator"), "approver", "feature/a", ["human:X"]).ok);
+  assert.equal(effective(root, "a").status, "approved");
 });
 
 test("presets: Standard User holds everything except the three overrides; Administrator holds all; defaults deny", () => {

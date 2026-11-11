@@ -2,15 +2,14 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import { parseCite } from "../spec/cites.js";
-import { planFingerprint } from "../spec/fingerprint.js";
-import { editKeys } from "../spec/fm-edit.js";
+import { appendRecords, makeRecord, notesTip } from "../spec/notes.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject, resolveCite, targetFingerprint } from "../spec/project.js";
 import { committedSource, worktreeSource } from "../spec/source.js";
 import { AlreadyExistsError } from "../errors.js";
 import { MAX_PLAN_ID, PLAN_ID_RE, findPlan, planReferences } from "./model.js";
-import { PlanOpError, commitPaths, gitTry, guarded, guardedWith, humanName, isDirty, plansDir, planSlug, today, type PlanCtx } from "./ctx.js";
-import { planApproval } from "./status.js";
+import { PlanOpError, commitPaths, gitTry, guarded, guardedWith, humanName, plansDir, planSlug, today, type PlanCtx } from "./ctx.js";
+import { planApproval, planRecordFingerprint } from "./status.js";
 import { committedProject } from "./ctx.js";
 
 /** Create (scaffold) and approve plans (`plan-execution R31`, `architecture/reference-cli` §11.5). */
@@ -53,7 +52,7 @@ function createInner(ctx: PlanCtx, o: CreateOpts): { id: string; files: string[]
     if (!r.ok && r.code === "error") throw new PlanOpError(`Reference \`${raw}\` does not resolve: ${r.reason}`);
   }
   const title = o.title?.trim() || titleCase(words);
-  const fm: Record<string, unknown> = { id: `plan/${id}`, title, status: "awaiting-review", authors: [planAuthor(ctx)] };
+  const fm: Record<string, unknown> = { id: `plan/${id}`, title, authors: [planAuthor(ctx)] };
   if (impls.length) fm.implements = impls;
   if (o.references?.length) fm.references = o.references;
   const dump = (v: unknown) => yaml.dump(v, { schema: yaml.JSON_SCHEMA, lineWidth: -1, noRefs: true, flowLevel: -1 });
@@ -70,18 +69,7 @@ function createInner(ctx: PlanCtx, o: CreateOpts): { id: string; files: string[]
   return { id, files, commit };
 }
 
-/** Last commit that changed PLAN.md to its current `plan-v1` content. */
-function contentCommit(root: string, file: string, fp: string): string | null {
-  const hashes = (gitTry(root, ["log", "--format=%H", "--", file]) ?? "").split("\n").filter(Boolean);
-  let found: string | null = null;
-  for (const h of hashes) {
-    const t = gitTry(root, ["show", `${h}:${file}`]);
-    if (t !== null && planFingerprint(t) === fp) found = h; else break;
-  }
-  return found;
-}
-
-/** Approve a plan: the spec approval flow applied to PLAN.md (`file-formats` §5.2). Only a person can. */
+/** Approve a plan: an `approval` record in the notes store for its `plan-v1` content (`file-formats` §5.2, §13). Only a person can. */
 export function approvePlan(ctx: PlanCtx, id: string): { commit: string | null; already: boolean } {
   return guarded(ctx, "plan approve", [id], ["spec.approve"], "Approving a plan", () => approveInner(ctx, id));
 }
@@ -95,18 +83,17 @@ function approveInner(ctx: PlanCtx, id: string): { commit: string | null; alread
   const rec = findPlan(committedSource(ctx.root, "HEAD"), dir, id);
   if (!rec || !rec.planText || !rec.fm?.data) throw new PlanOpError(`Plan \`${id}\` is not committed; commit it before approving.`);
   if (rec.archived) throw new PlanOpError(`Plan \`${id}\` is archived and cannot be approved.`);
-  if (isDirty(ctx.root) && (gitTry(ctx.root, ["status", "--porcelain", "--", file]) ?? "").trim()) throw new PlanOpError(`${file} has uncommitted changes; approval is of committed content.`);
-  if (planApproval(project, rec).status === "approved") return { commit: null, already: true };
-  const fp = planFingerprint(rec.planText)!;
+  if ((gitTry(ctx.root, ["status", "--porcelain", "--", file, `${dir}/${id}/steps`]) ?? "").trim()) throw new PlanOpError(`${file} or its step files have uncommitted changes; approval is of committed content.`);
+  if (planApproval(ctx.root, project, rec).status === "approved") return { commit: null, already: true };
+  const fp = planRecordFingerprint(rec)!;
   const cited: Record<string, string> = {};
   for (const raw of planReferences(rec.fm)) {
     const c = parseCite(raw);
     const r = c ? resolveCite(project, c) : null;
     if (r?.ok) cited[raw] = targetFingerprint(r.target);
   }
-  const block = { by: { human: name }, date: today(ctx), commit: contentCommit(ctx.root, file, fp), fingerprint: fp, cited };
-  const abs = path.join(ctx.root, file);
-  fs.writeFileSync(abs, editKeys(fs.readFileSync(abs, "utf8"), { status: "approved", approval: block, "review-reason": undefined }));
-  const commit = commitPaths(ctx, ctx.root, [file], { type: "docs", scope: id, summary: "approve plan", workflow: "approve", planId: id });
+  const head = gitTry(ctx.root, ["rev-parse", "HEAD"])!.trim();
+  appendRecords(ctx.root, head, [makeRecord("approval", `plan/${id}`, fp, { by: { human: name }, date: today(ctx), cited }, ctx.now)]);
+  const commit = notesTip(ctx.root);
   return { commit, already: false };
 }

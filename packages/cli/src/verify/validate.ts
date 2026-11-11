@@ -2,7 +2,8 @@ import { citeKey, extractBodyCites, parseCite, type Layer } from "../spec/cites.
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject, resolveCite, type Project, type SpecDoc } from "../spec/project.js";
 import { checkRequirementIds } from "../spec/requirements.js";
-import { CommitProjects, computeStatus, dependencyCites } from "../spec/status.js";
+import { LEGACY_RECORD_KEYS } from "../spec/fingerprint.js";
+import { computeStatus, dependencyCites, StatusCtx } from "../spec/status.js";
 import { committedSource, headCommit, worktreeSource } from "../spec/source.js";
 import { loadPlans } from "../plan/model.js";
 import { validatePlanRecords } from "../plan/validate.js";
@@ -33,7 +34,7 @@ export interface Report {
   statuses: { id: string; stored: string | null; effective: string; reasons: string[] }[];
 }
 
-const KNOWN_KEYS = new Set(["id", "title", "status", "approval", "review-reason", "authors", "covers", "implements", "references", "results", "implementation"]);
+const KNOWN_KEYS = new Set(["id", "title", "authors", "covers", "implements", "references"]);
 const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -57,14 +58,15 @@ function checkAuthorItem(v: unknown, where: string, allowDelegated: boolean): st
 function checkSpecFormat(doc: SpecDoc, emit: Emit): void {
   const f = doc.file;
   const err = (m: string) => emit("error", "spec-format", m, f, 1);
-  // Plain requirement files are valid, but have no approval until metadata is supplied.
-  if (doc.layer === "requirement" && doc.fm.missing) return;
+  // A requirement file always has status Approved; its frontmatter is optional and every key in it is optional (`file-formats` §1.2).
+  const isReq = doc.layer === "requirement";
+  if (isReq && doc.fm.missing) return;
   if (doc.fm.error || !doc.fm.data) { err(doc.fm.error ?? "frontmatter is missing"); return; }
   const d = doc.fm.data;
-  if (d.id !== doc.id) err(`id is ${JSON.stringify(d.id)} but the path gives ${doc.id}`);
-  if (typeof d.title !== "string" || !d.title.trim() || d.title.includes("\n")) err("title must be a non-empty single line");
-  if (d.status !== "awaiting-review" && d.status !== "approved") err(`status must be \`awaiting-review\` or \`approved\`, not ${JSON.stringify(d.status)}`);
-  if (!Array.isArray(d.authors)) err("authors is required and must be a list (it may be empty)");
+  if (isReq ? d.id !== undefined && d.id !== doc.id : d.id !== doc.id) err(`id is ${JSON.stringify(d.id)} but the path gives ${doc.id}`);
+  if (isReq ? d.title !== undefined && (typeof d.title !== "string" || !d.title.trim() || d.title.includes("\n")) : typeof d.title !== "string" || !d.title.trim() || d.title.includes("\n")) err("title must be a non-empty single line");
+  if (d.authors === undefined && isReq) { /* optional on requirement files */ }
+  else if (!Array.isArray(d.authors)) err("authors is required and must be a list (it may be empty)");
   else d.authors.forEach((a, i) => { const m = checkAuthorItem(a, `authors[${i}]`, false); if (m) err(m); });
   for (const k of ["covers", "implements", "references"] as const) {
     const v = d[k];
@@ -74,29 +76,9 @@ function checkSpecFormat(doc: SpecDoc, emit: Emit): void {
   }
   if (doc.layer === "architecture" && d.covers !== undefined) err("`covers` is only for feature specs; an architecture spec uses `implements`");
   if (doc.layer === "feature" && d.implements !== undefined) err("`implements` is only for architecture specs; a feature spec uses `covers`");
-  if (doc.layer !== "architecture" && d.implementation !== undefined) err("`implementation` is only valid on an architecture spec");
-  for (const k of Object.keys(d)) if (!KNOWN_KEYS.has(k)) emit("warning", "spec-format", `unknown frontmatter field \`${k}\` (it counts as content)`, f, 1);
-  const status = d.status;
-  if (status === "approved") {
-    const a = d.approval;
-    if (!isMap(a)) err("status is approved but `approval` is missing or not a mapping");
-    else {
-      const m = checkAuthorItem(a.by, "approval.by", true);
-      if (m) err(m);
-      if (typeof a.date !== "string" || !DATE.test(a.date)) err("approval.date must be YYYY-MM-DD");
-      if (typeof a.commit !== "string" || !/^[0-9a-f]{40}$/.test(a.commit)) err("approval.commit must be a 40-character commit hash");
-      if (a.fingerprint !== undefined && (typeof a.fingerprint !== "string" || !/^spec-v3:sha256:[0-9a-f]{64}$/.test(a.fingerprint))) err("approval.fingerprint must look like spec-v3:sha256:<hex>");
-      if (a.cited !== undefined) {
-        if (!isMap(a.cited) || Object.values(a.cited).some((x) => typeof x !== "string")) err("approval.cited must map cite strings to part fingerprints");
-      }
-      if (a.note !== undefined && typeof a.note !== "string") err("approval.note must be a string");
-      for (const k of Object.keys(a)) if (!["by", "date", "commit", "fingerprint", "cited", "note", "override"].includes(k)) emit("warning", "spec-format", `unknown approval field \`${k}\``, f, 1);
-    }
-    if (d["review-reason"] !== undefined) emit("warning", "spec-format", "review-reason is present on an approved spec", f, 1);
-  } else if (status === "awaiting-review") {
-    if (d.approval !== undefined) err("`approval` is present but status is awaiting-review");
-    const rr = d["review-reason"];
-    if (rr !== undefined && !(typeof rr === "string" || (Array.isArray(rr) && rr.every((x) => typeof x === "string")))) err("review-reason must be a string or a list of strings");
+  for (const k of Object.keys(d)) {
+    if ((LEGACY_RECORD_KEYS as readonly string[]).includes(k)) emit("warning", "spec-format", `legacy record key \`${k}\` is ignored; run \`specplane migrate status\` (architecture/file-formats §2)`, f, 1);
+    else if (!KNOWN_KEYS.has(k)) emit("warning", "spec-format", `unknown frontmatter field \`${k}\` (it counts as content)`, f, 1);
   }
   for (const s of doc.index.duplicates) emit("error", "spec-format", `duplicate section ${s.id} (first at line ${s.first})`, f, s.second, s.id);
   for (const s of doc.index.wrongParent) emit("error", "spec-format", `section ${s.id} is nested under ${s.foundUnder}, not its parent ${s.parentId}`, f, s.line, s.id);
@@ -186,18 +168,16 @@ export function validateProject(root: string, opts: ValidateOptions = {}): Repor
   // Status from committed content.
   const statuses: Report["statuses"] = [];
   if (headProject) {
-    const commits = new CommitProjects(root, headProject);
+    const commits = new StatusCtx(root, headProject);
     for (const doc of headProject.specs.values()) {
       if (wanted && !wanted.has(doc.id)) continue;
       if (!doc.fm.data && !(doc.layer === "requirement" && doc.fm.missing)) continue;
       const st = computeStatus(headProject, doc, commits, wt.source.read(doc.file));
-      const stored = typeof doc.fm.data?.status === "string" ? doc.fm.data.status : null;
-      statuses.push({ id: doc.id, stored, effective: st.status, reasons: st.reasons });
+      statuses.push({ id: doc.id, stored: null, effective: st.status, reasons: st.reasons });
       for (const w of st.warnings) emit("warning", "status", w, doc.file, 1);
       for (const n of st.notes) emit("note", "status", n, doc.file);
-      if (st.status === "awaiting-review" && stored === "approved") emit("warning", "status", `stored status is approved but the effective status is awaiting-review (${st.reasons.join("; ")})`, doc.file, 1);
-      else if (st.status === "approved" && stored !== "approved") emit("warning", "status", "stored status disagrees with the effective status approved", doc.file, 1);
     }
+    for (const w of commits.notes.notes.warnings) emit("warning", "notes", w, ".");
   } else emit("note", "status", "the repository has no commits; effective status is not computed", ".");
 
   findings.sort((a, b) => (a.file === b.file ? (a.line ?? 0) - (b.line ?? 0) : a.file < b.file ? -1 : 1));

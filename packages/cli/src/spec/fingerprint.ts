@@ -21,6 +21,9 @@ export function canonicalJson(value: unknown): string {
 const sha = (s: string): string => createHash("sha256").update(s, "utf8").digest("hex");
 const lf = (s: string): string => s.replace(/\r\n?/g, "\n");
 
+/** Keys that were record state in a spec file before the notes store (`architecture/file-formats` §2): ignored, never fingerprinted. */
+export const LEGACY_RECORD_KEYS = ["status", "approval", "review-reason", "results", "implementation"] as const;
+
 export const SPEC_EXCLUDED = ["status", "approval", "authors", "review-reason", "results", "implementation"] as const;
 
 /** Metadata a spec fingerprint leaves out: a change to metadata alone is not an edit (`cli R17`, `specifications R11.3`). */
@@ -42,8 +45,14 @@ export function partFingerprint(text: string): string {
   return `sec-v1:sha256:${sha(lines.join("\n"))}`;
 }
 
-/** `plan-v1` fingerprint of a PLAN.md: like `spec-v3` (but with title, covers, implements and references kept) without the `commit` of each `implements` entry. */
-export function planFingerprint(text: string): string | null {
+/** A step file of a plan as the fingerprint sees it: path relative to the plan folder and full content. */
+export interface PlanStepContent { path: string; content: string }
+
+/**
+ * `plan-v1` fingerprint of a plan: PLAN.md like `spec-v3` (but with title, covers, implements and references kept and
+ * without the `commit` of each `implements` entry) plus every step file in path order (`architecture/file-formats` §5.2).
+ */
+export function planFingerprint(text: string, steps: PlanStepContent[] = []): string | null {
   const fm = splitFrontmatter(text);
   if (!fm.data) return null;
   const frontmatter: Record<string, unknown> = {};
@@ -54,5 +63,6 @@ export function planFingerprint(text: string): string | null {
       return e;
     });
   }
-  return `plan-v1:sha256:${sha(canonicalJson({ frontmatter, body: lf(fm.body) }))}`;
+  const ordered = [...steps].sort((a, b) => cmp(a.path, b.path)).map((s) => ({ path: s.path, content: lf(s.content) }));
+  return `plan-v1:sha256:${sha(canonicalJson({ frontmatter, body: lf(fm.body), steps: ordered }))}`;
 }

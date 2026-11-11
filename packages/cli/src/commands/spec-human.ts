@@ -39,12 +39,12 @@ interface Common { json?: boolean; commit?: boolean }
 
 export const specApproveHuman = (ids: string[], opts: Common & { yes?: boolean }) => guarded(async () => {
   const c = context();
-  print(await withCheckoutLeaseAsync(c.root, "spec-approve", false, () => approveSpecs(c, ids, { yes: opts.yes, noCommit: opts.commit === false, interactive: !!process.stdin.isTTY && !!process.stdout.isTTY, ask: askYesNo })), opts.json);
+  print(await withCheckoutLeaseAsync(c.root, "spec-approve", false, () => approveSpecs(c, ids, { yes: opts.yes, interactive: !!process.stdin.isTTY && !!process.stdout.isTTY, ask: askYesNo })), opts.json);
 });
 
 export const specReopenHuman = (id: string, opts: Common) => guarded(() => {
   const c = context();
-  print(withCheckoutLease(c.root, "spec-reopen", false, () => reopenSpec(c, id, { noCommit: opts.commit === false })), opts.json);
+  print(withCheckoutLease(c.root, "spec-reopen", false, () => reopenSpec(c, id)), opts.json);
 });
 
 export const specMetaGetHuman = (id: string, opts: Common) => guarded(() => {

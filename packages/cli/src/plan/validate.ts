@@ -1,5 +1,6 @@
 import { run } from "../git/exec.js";
 import { citeKey, extractBodyCites, parseCite, type Layer } from "../spec/cites.js";
+import { LEGACY_RECORD_KEYS as LEGACY_KEYS } from "../spec/fingerprint.js";
 import { indexSections } from "../spec/sections.js";
 import { resolveCite, type Project } from "../spec/project.js";
 import { EXEC_STATUSES, GAP_FIELDS, HANDOFF_SECTIONS, MAX_PLAN_ID, PLAN_ID_RE, latestEntry, planImplements, planReferences, referencedPlans, stepNumbers, type PlanRecord } from "./model.js";
@@ -47,8 +48,7 @@ function checkOne(p: PlanRecord, project: Project, root: string | null, emit: Pl
     const d = fm.data;
     if (d.id !== `plan/${p.id}`) err(`PLAN.md id is ${JSON.stringify(d.id)} but the folder gives plan/${p.id}`, p.planFile, 1);
     if (typeof d.title !== "string" || !d.title.trim()) err("title must be a non-empty string", p.planFile, 1);
-    if (d.status !== "awaiting-review" && d.status !== "approved") err(`status must be awaiting-review or approved, not ${JSON.stringify(d.status)}`, p.planFile, 1);
-    if (d.status === "approved" && !isMap(d.approval)) err("status is approved but `approval` is missing", p.planFile, 1);
+    for (const k of LEGACY_KEYS) if (d[k] !== undefined) warn(`legacy record key \`${k}\` is ignored; run \`specplane migrate status\` (architecture/file-formats §2)`, p.planFile, 1);
     if (!Array.isArray(d.authors)) err("authors is required and must be a list", p.planFile, 1);
     if (d.implements !== undefined && !Array.isArray(d.implements)) err("implements must be a list", p.planFile, 1);
     if (d.references !== undefined && (!Array.isArray(d.references) || d.references.some((x) => typeof x !== "string"))) err("references must be a list of cite strings", p.planFile, 1);
