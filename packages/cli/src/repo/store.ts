@@ -43,6 +43,15 @@ export function removeStoreJson(root: string, name: string): void {
   fs.rmSync(storePath(root, name), { force: true });
 }
 
+/** Serialize read/modify/write across processes. Contention fails rather than losing an update. */
+export function updateStoreJson<T>(root: string, name: string, update: (previous: T | null) => T): void {
+  const lock = storePath(root, `${name}.lock`);
+  fs.mkdirSync(path.dirname(lock), { recursive: true });
+  const fd = fs.openSync(lock, "wx");
+  try { writeStoreJson(root, name, update(readStoreJson<T>(root, name))); }
+  finally { fs.closeSync(fd); fs.rmSync(lock, { force: true }); }
+}
+
 /** Append one complete line with a single write. */
 export function appendStoreLine(root: string, name: string, line: string): void {
   const file = storePath(root, name);

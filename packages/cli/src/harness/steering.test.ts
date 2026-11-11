@@ -163,7 +163,7 @@ test("regeneration failure replaces output with an untrusted notice and produces
 
 test("published tarball includes steering assets and generator resolves them from installed layout", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "steering-package-"));
-  const packed = capture("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", dir], packageDir, { ...process.env, npm_config_cache: path.join(dir, "npm-cache") });
+  const packed = capture("npm", ["pack", "--offline", "--ignore-scripts", "--json", "--pack-destination", dir], packageDir, { ...process.env, npm_config_cache: path.join(dir, "npm-cache") });
   assert.equal(packed.status, 0, packed.stderr);
   const pack = JSON.parse(packed.stdout)[0];
   for (const name of ["role", "permission", "cases"]) assert.ok(pack.files.some((f: { path: string }) => f.path === `assets/steering/${name}.md`));
@@ -174,4 +174,9 @@ test("published tarball includes steering assets and generator resolves them fro
   const generated = installed.generateCommandSteering(steeringInputs(repo()), "approve");
   assert.match(generated, /Command: approve/);
   assert.match(generated, /Do not bypass/);
+  const instructions = await import(pathToFileURL(path.join(dir, "package/dist/harness/instructions.js")).href);
+  for (const command of instructions.COMMANDS) {
+    assert.ok(pack.files.some((f: { path: string }) => f.path === `assets/commands/${command}.md`));
+    assert.ok(instructions.assembleInstructions(repo(), command).text.includes(instructions.commandDocumentation(command)));
+  }
 });

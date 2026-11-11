@@ -19,7 +19,7 @@ export type Kind =
   | { t: "filename" }
   | { t: "posint" }
   | { t: "days" }
-  | { t: "text" }
+  | { t: "text"; allowEmpty?: boolean }
   | { t: "preset" }
   | { t: "permissions" }
   | { t: "reqids" }
@@ -181,7 +181,7 @@ export function checkValue(kind: Kind, v: unknown): { ok: true; value: unknown }
       if (v === "forever") return good(v);
       return typeof v === "number" && Number.isInteger(v) && v > 0 ? good(v) : bad(`${JSON.stringify(v)} is not a whole number of days above 0 or forever`);
     case "text":
-      return typeof v === "string" && v.trim() !== "" ? good(v) : bad("must be non-empty text");
+      return typeof v === "string" && (kind.allowEmpty || v.trim() !== "") ? good(v) : bad(kind.allowEmpty ? "must be text" : "must be non-empty text");
     case "preset":
       return typeof v === "string" && PRESET_IDS.includes(v) ? good(v) : bad(`preset ${JSON.stringify(v)} does not exist`);
     case "permissions": {
@@ -228,7 +228,7 @@ export function lookup(key: string): { def: SettingDef; kind: Kind; entry: boole
   const d = defFor(key);
   if (d) return { def: d, kind: d.kind, entry: false };
   const p = dynamicParent(key);
-  if (p) return { def: p, kind: p.kind.t === "strmap" ? { t: "text" } : { t: "bool" }, entry: true };
+  if (p) return { def: p, kind: p.kind.t === "strmap" ? { t: "text", allowEmpty: p.key === "harness.instructions" } : { t: "bool" }, entry: true };
   return undefined;
 }
 

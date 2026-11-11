@@ -4,13 +4,25 @@ import * as path from "node:path";
 import { test } from "node:test";
 import { makeRepo } from "../test-repo.js";
 import { run } from "../git/exec.js";
-import { appendStoreLine, readStoreJson, removeStoreJson, storeDir, writeStoreJson } from "./store.js";
+import { appendStoreLine, readStoreJson, removeStoreJson, storeDir, updateStoreJson, writeStoreJson } from "./store.js";
 
 function repo(): string {
   const root = makeRepo({});
   run("git", ["init", "-q"], { cwd: root });
   return root;
 }
+
+test("store updates serialize, reject contention and clean up locks on failure", () => {
+  const root = repo();
+  updateStoreJson<number>(root, "counter.json", (v) => (v ?? 0) + 1);
+  updateStoreJson<number>(root, "counter.json", (v) => {
+    assert.throws(() => updateStoreJson(root, "counter.json", () => 99), /EEXIST/);
+    return v! + 1;
+  });
+  assert.throws(() => updateStoreJson(root, "counter.json", () => { throw new Error("failed"); }), /failed/);
+  assert.equal(readStoreJson(root, "counter.json"), 2);
+  assert.deepEqual(fs.readdirSync(storeDir(root)), ["counter.json"]);
+});
 
 test("nested local store writes are atomic and support read/remove/append", () => {
   const root = repo();

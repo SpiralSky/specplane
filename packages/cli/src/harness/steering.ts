@@ -7,13 +7,13 @@ import { readStoreJson, writeStoreJson } from "../repo/store.js";
 
 /** U9 generation only; U10 assembles delivery and U14 owns installed files. */
 export const STEERING_COMMANDS: Readonly<Record<string, readonly string[]>> = {
-  "spec-assist": ["spec.create.feature", "spec.edit.feature", "spec.create.architecture", "spec.edit.architecture"],
-  "spec-draft-architecture": ["spec.create.feature", "spec.create.architecture"],
-  "plan-create": ["plan.create"], "plan-start": ["plan.start"],
-  "plan-step": ["info.retrieve", "spec.edit.feature", "spec.edit.architecture", "test.record", "plan.softstop"],
-  "plan-finish": ["plan.complete"], "plan-status": ["info.retrieve"],
+  "spec-assist": ["info.retrieve", "spec.create.feature", "spec.edit.feature", "spec.create.architecture", "spec.edit.architecture"],
+  "spec-draft-architecture": ["info.retrieve", "spec.create.feature", "spec.create.architecture"],
+  "plan-create": ["info.retrieve", "plan.create", "plan.edit"], "plan-start": ["plan.start"],
+  "plan-step": ["info.retrieve", "spec.edit.requirement", "spec.edit.feature", "spec.edit.architecture", "test.record", "plan.softstop", "plan.resume", "plan.budget"],
+  "plan-finish": ["info.retrieve", "plan.complete", "plan.edit"], "plan-status": ["info.retrieve"],
   validate: ["info.retrieve"], verify: ["info.retrieve", "test.record"],
-  approve: ["spec.approve"], requests: [], "plan-abandon": ["plan.abandon"],
+  approve: ["info.retrieve", "spec.approve"], requests: [], "plan-abandon": ["info.retrieve", "plan.abandon", "plan.delete"],
 };
 export interface CustomSteering { permission?: string; command?: string; scope?: string; text: string }
 export interface SteeringContext { specType?: "requirement" | "feature" | "architecture"; planId?: string }
