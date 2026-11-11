@@ -476,7 +476,7 @@ Each standard permission has a stable lower-case dotted ID used in presets, stee
 | `decision.add`, `decision.retrieve`, `decision.edit`, `decision.delete` | Later release |
 | `config.change` | Change configuration, including `permissions.preset` |
 
-`plan.complete` also guards `plan merge` (assumption: the page has no separate merge permission). Sending a request and accepting one have no permission of their own (`roles-and-permissions R50`). Management and system permissions (`mgmt.*`, `system.*`) are later-release and not part of a preset.
+There is no permission to run a plan step: a step needs only the permissions of the actions it performs, and the page names no separate one (`plan-execution R27.1`, `plan-execution R31.1`), so `plan step-done` has none and the code carries no `plan.step`. `plan.complete` also guards `plan merge` (assumption: the page has no separate merge permission). Sending a request and accepting one have no permission of their own (`roles-and-permissions R50`). Management and system permissions (`mgmt.*`, `system.*`) are later-release and not part of a preset.
 
 ### §7.2 Default presets
 

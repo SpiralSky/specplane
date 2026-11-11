@@ -23,7 +23,7 @@ Implements `codex-integration §2`, `codex-integration §3`.
 | `.agents/skills/specplane/contracts/` | `harnesses/codex/templates/contracts/` | Contract text for each command (`§3`) |
 
 - Installed only when the user names Codex at setup. Setup follows `root:architecture/repository-layout §5`: owned files carry a version header and are replaced on refresh; a customised file is kept and reported with its path.
-- Setup never writes Codex configuration, sandbox or approval settings, credentials, or global files. It inspects each path component before writing and refuses a symbolic link in an installation path, naming it.
+- Setup writes exactly one entry into Codex configuration: the registration of the Specplane MCP server (`§3`). It never writes any other Codex configuration, sandbox or approval settings, credentials, or other global files. It inspects each path component before writing and refuses a symbolic link in an installation path, naming it.
 - Skill discovery is by directory: Codex scans `.agents/skills` from the working directory up to the repository root, and duplicate skill names are not merged (assumption). A plugin copy of the same skill and the repository copy must not both be installed; setup refuses the second and says which exists.
 
 ## §2 Standing instructions
@@ -38,7 +38,7 @@ Implements `codex-integration §3`.
 
 - `SKILL.md` has frontmatter `name: specplane` and a one-sentence `description`, then a table of the workflows and the path of each contract file. It tells Codex to read the matching contract before acting and to follow it in order (`root:architecture/agent-skills §1`).
 - Each contract file is the harness-neutral contract with a version header, filled with its steering and documentation (`root:architecture/agent-skills §3`). It names harness actions, not CLI commands (`root:architecture/agent-skills §8`).
-- Codex reaches the harness actions as tools of the Specplane MCP server (`root:architecture/reference-cli §12.1`), registered in Codex's configuration, with permission checks inside the CLI process. Where a surface cannot use that registration, the tool channel Specplane provides on it is used instead. Which channel exists on each surface, and whether a native command can run without a model turn, is a capability the adapter reports (`capabilities()` of `root:architecture/reference-cli §12.6`). Until a surface is verified, the adapter reports no typed commands, and the contracts of commands that need one are not offered there (`codex-integration §3`).
+- Codex reaches the harness actions as tools of the Specplane MCP server (`root:architecture/reference-cli §12.1`), registered in Codex's configuration by setup (`§1`), with permission checks inside the CLI process. Where a surface cannot use that registration, the tool channel Specplane provides on it is used instead. Which channel exists on each surface, and whether a native command can run without a model turn, is a capability the adapter reports (`capabilities()` of `root:architecture/reference-cli §12.6`). Until a surface is verified, the adapter reports no typed commands, and the contracts of commands that need one are not offered there (`codex-integration §3`).
 - A contract whose capability check fails stops and names the missing capability, as `root:architecture/agent-skills §1` requires. It does not tell the user to run the CLI as a replacement (`root:harness R35.1`).
 
 ## §4 Blocking the CLI

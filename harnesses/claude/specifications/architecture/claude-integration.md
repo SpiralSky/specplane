@@ -32,7 +32,7 @@ Implements `claude-integration §2`, `claude-integration §3`, `claude-integrati
 
 Implements `claude-integration §2`.
 
-`.claude/rules/specplane.md` holds the fixed standing text of `root:architecture/agent-skills §2`: Specplane is in use, read `.specplane/config.yaml` first and resolve paths from it, look up steering for the role, do not call the CLI, and the commit trailers of `root:architecture/file-formats §8` (`Specplane-Agent: $SPECPLANE_AGENT`, `Specplane-Session: $SPECPLANE_SESSION` when set). It lists the slash commands of `§3`. It also carries the Specplane version and the steering stamp so that staleness is detected (`root:architecture/reference-cli §12.6`). It contains no permission modes, steering or procedures. Claude Code loads every file under `.claude/rules/` in each session, so no marker block is needed.
+`.claude/rules/specplane.md` holds the fixed standing text of `root:architecture/agent-skills §2`: Specplane is in use, read `.specplane/config.yaml` first and resolve paths from it, look up steering for the role, do not call the CLI, and the commit trailers of `root:architecture/file-formats §8` (`Specplane-Agent: $SPECPLANE_AGENT`, `Specplane-Session: $SPECPLANE_SESSION` when set). Its harness-specific part, after the shared text, lists the slash commands of `§3` (invocation detail, not standing instruction). It also carries the Specplane version and the steering stamp so that staleness is detected (`root:architecture/reference-cli §12.6`). It contains no permission modes, steering or procedures. Claude Code loads every file under `.claude/rules/` in each session, so no marker block is needed.
 
 ## §3 Command skills
 

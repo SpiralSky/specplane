@@ -123,6 +123,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U0 Spec corrections
 
+- **Status:** done. Contradictions 1-7 fixed in the specs. Decisions: 3 `plan.step` is dropped (no page or feature spec justifies a separate step permission; code must remove it); 6 setup writes exactly the one MCP registration entry into Codex config. R62 and R63 stay requirement-only (scope and non-goals), so no feature spec covers them; the unit that touches `.specplane/config.yaml` should list them in `coverage.requirement_only` if coverage warns.
 - **Goal:** fix contradictions 1–5 and 7 in the specs, and record the R62/R63 decision (cover in feature specs or add to `coverage.requirement_only`). Contradiction 6 is settled here too (recommended: setup prints the one-line MCP registration and `capabilities()` reports the channel missing until it is present; setup still writes no Codex config).
 - **Specs:** `reference-cli §3.2`, `§5.3`, `§7.3`, `§11.3`, `§11.5`, `§13.4`; `file-formats §7.1`, `§7.2`; `codex-integration §1`, `§3`; `agent-skills §2`; possibly `.specplane/config.yaml`.
 - **Depends:** none. **Accept:** `validate` 0 errors; one separate-agent review of the change set (`spec-review-policy`). **Deletes:** none.
