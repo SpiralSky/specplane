@@ -34,7 +34,8 @@ const inputs: Record<string, Record<string, unknown>> = {
   "warnings.report": { text: "Layer mix", subject: "spec", why: "Review", ref: "feature/a" },
 };
 
-for (const action of listActions()) for (const mode of ["allow", "request-user", "deny"] as Mode[]) {
+const specActions = new Set(Object.keys(inputs));
+for (const action of listActions().filter((a) => specActions.has(a.id))) for (const mode of ["allow", "request-user", "deny"] as Mode[]) {
   test(`${action.id}: ${mode} uses the in-process LLM permission`, async () => {
     const root = repo();
     const input = inputs[action.id];

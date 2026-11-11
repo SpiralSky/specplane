@@ -15,30 +15,21 @@ import { audit } from "../audit/log.js";
 import { pruneAudit } from "../audit/retention.js";
 import { RequestSent, holdRequest } from "../requests/hold.js";
 import { retrieveSpecs, reviewContext } from "./retrieve.js";
+import type { ActionContext, HarnessAction } from "./action-types.js";
+import { bool, str, strings, type Input, type Schema, type Adder } from "./action-types.js";
+import { registerOperationActions } from "./actions-ops.js";
+import { registerPlanActions } from "./actions-plan.js";
 import { deliver, type InstructionDelivery, type InstructionSession } from "./instructions.js";
 
-type Input = Record<string, any>;
-type Schema = Record<string, unknown>;
-interface ActionContext extends Ctx { sessionWarnings: Warning[] }
-export interface HarnessAction {
-  id: string; inputSchema: Schema;
-  permissions: (input: Input) => string[];
-  /** Read actions can be safely replayed by the human request runner. */
-  readOnly: boolean;
-  handler: (ctx: ActionContext, input: Input) => unknown | Promise<unknown>;
-}
-const str = { type: "string", minLength: 1 };
-const bool = { type: "boolean" };
-const strings = { type: "array", items: str, minItems: 1, uniqueItems: true };
 const object = (properties: Schema, required: string[] = []): Schema => ({ type: "object", properties, required, additionalProperties: false });
 const registry = new Map<string, HarnessAction>();
 const ajv = createAjv();
 const validators = new Map<string, ReturnType<typeof ajv.compile>>();
-function add(id: string, properties: Schema, required: string[], permissions: string[] | HarnessAction["permissions"], readOnly: boolean, handler: HarnessAction["handler"]): void {
+const add: Adder = (id, properties, required, permissions, readOnly, handler) => {
   const inputSchema = object(properties, required);
   registry.set(id, { id, inputSchema, permissions: typeof permissions === "function" ? permissions : () => permissions, readOnly, handler });
   validators.set(id, ajv.compile(inputSchema));
-}
+};
 const info = ["info.retrieve"];
 const retrieval = { ids: strings, include_references: bool };
 add("spec.retrieve", retrieval, ["ids"], info, true, (c, p) => retrieveSpecs(c.root, p.ids, p.include_references));
@@ -67,6 +58,10 @@ add("warnings.report", { text: str, subject: { enum: ["spec", "plan", "permissio
   return { reported: true };
 });
 
+registerOperationActions(add);
+registerPlanActions(add);
+
+export type { HarnessAction };
 export function listActions(): readonly HarnessAction[] { return [...registry.values()]; }
 export function validateActionInput(id: string, input: unknown): HarnessAction {
   const action = registry.get(id);
@@ -89,7 +84,7 @@ export interface ActionReply {
   ok: boolean; data?: unknown; findings: string[]; instructions: InstructionDelivery[];
   request?: string; warningCount?: number | null;
 }
-export interface ActionSession extends InstructionSession { model?: string; delegatedBy?: string; command?: string; now?: Date }
+export interface ActionSession extends InstructionSession { measurable?: string[]; model?: string; delegatedBy?: string; command?: string; now?: Date }
 
 /** A runtime belongs to exactly one adapter session. Actor identity never comes from tool input. */
 export function createActionRuntime(session: ActionSession) {
@@ -102,7 +97,7 @@ export function createActionRuntime(session: ActionSession) {
       try {
         const action = validateActionInput(id, input);
         const p = input as Input;
-        const ctx: ActionContext = { root: session.root, actor, preset: activePreset(session.root), now: session.now, sessionWarnings };
+        const ctx: ActionContext = { root: session.root, actor, preset: activePreset(session.root), now: session.now, sessionWarnings, ...(session.measurable ? { measurable: session.measurable } : {}) };
         permissions = action.permissions(p);
         try { pruneAudit(ctx.root, loadSettings(ctx.root).config.auditRetention, { actor }); } catch { /* audit is best effort */ }
         reply.instructions = [...(session.command ? [session.command] : []), ...permissions].map((key) => deliver(session, key));
