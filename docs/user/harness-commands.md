@@ -1,3 +1,9 @@
+---
+title: Harness commands
+summary: The typed commands of a harness and what each reports back.
+related: [harnesses, commands, permissions]
+---
+
 # Harness commands
 
 These descriptions are packaged as the default command documentation. Custom instructions replace this documentation only; action checks and command procedures remain. Commands without arguments do not start a model turn. Typed approval by ID and the requests pane are user-only operations.
