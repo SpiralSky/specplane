@@ -273,6 +273,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U17 Codex integration
 
+- **Status:** done (`48306f2`). The MCP entry goes into project `.codex/config.toml`; every capability is reported missing; the Codex launcher refuses with the manual command; no live check was run.
 - **Goal:** `AGENTS.md` block with standing text; `.agents/skills/specplane/SKILL.md` table plus `contracts/` generated from U10; MCP channel per the U0 decision; `capabilities()` reports no typed commands and no command blocking until verified; `codex exec` launch with fallback; model identity.
 - **Specs:** `codex-integration §1`–`§7`.
 - **Files:** `harnesses/codex/templates/**`, `harness/adapter-codex.ts`, tests.
