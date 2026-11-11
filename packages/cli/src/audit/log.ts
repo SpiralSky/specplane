@@ -1,3 +1,4 @@
+import { clock } from "../clock.js";
 import { run } from "../git/exec.js";
 import { appendStoreLine } from "../repo/store.js";
 
@@ -19,7 +20,17 @@ export interface AuditEntry {
   request?: string | null;
 }
 
-function branchOf(root: string): string {
+let appendFailed = false;
+const written: string[] = [];
+
+/** True when an append failed in this process; the runner warns once at the end of the command. */
+export function auditAppendFailed(): boolean { return appendFailed; }
+/** Commands that already have an entry from this process (guard, operation or request code); the runner merges into them. */
+export function auditedCommands(): readonly string[] { return written; }
+/** Reset the per-process state (the runner at the start of a command; tests). */
+export function resetAuditState(): void { appendFailed = false; written.length = 0; }
+
+export function branchOf(root: string): string {
   try {
     const b = run("git", ["branch", "--show-current"], { cwd: root }).trim();
     if (b) return b;
@@ -28,7 +39,7 @@ function branchOf(root: string): string {
 }
 
 /** Append an entry. A failed append never stops the action; it returns false so the caller can warn once. */
-export function audit(root: string, e: AuditEntry, now: Date = new Date()): boolean {
+export function audit(root: string, e: AuditEntry, now: Date = clock.now()): boolean {
   try {
     const line = {
       ts: now.toISOString().replace(/\.\d{3}Z$/, "Z"), branch: branchOf(root), actor: e.actor, model: e.model ?? null,
@@ -36,6 +47,7 @@ export function audit(root: string, e: AuditEntry, now: Date = new Date()): bool
       old: e.old ?? null, new: e.new ?? null, request: e.request ?? null,
     };
     appendStoreLine(root, "audit.jsonl", JSON.stringify(line));
+    written.push(e.command);
     return true;
-  } catch { return false; }
+  } catch { appendFailed = true; return false; }
 }

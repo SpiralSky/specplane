@@ -10,6 +10,7 @@ import { configuredFraming } from "../legacy-config.js";
 import { finding, makeReport } from "../report.js";
 import { formatReport, validateProject } from "../verify/validate.js";
 import type { Config, ValidationReport } from "../types.js";
+import type { CommandResult } from "./runner.js";
 
 const STANDING_MSG = (file: string, detail = "") =>
   `Specplane standing instructions in ${file} are missing or out of date; run specplane init.${detail}`;
@@ -86,9 +87,7 @@ export function checkPlansMd(config: Config | undefined, root: string, selected?
   }
 }
 
-export function validateCommand(ids: string[], opts: { json?: boolean }): void {
+export function validateCommand(ids: string[]): CommandResult {
   const report = validateProject(checkoutRoot(), { ids });
-  if (opts.json) process.stdout.write(JSON.stringify(report, null, 2) + "\n");
-  else process.stderr.write(formatReport(report));
-  process.exitCode = report.counts.errors === 0 ? 0 : 1;
+  return { ok: report.counts.errors === 0, data: report, findings: [], lines: formatReport(report).replace(/\n$/, "").split("\n"), permission: "info.retrieve" };
 }

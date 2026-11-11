@@ -28,3 +28,8 @@ export function formatHuman(report: ValidationReport): string {
   lines.push(`Summary: ${plural(bySubject.size, "file")} checked, ${plural(report.errors.length, "error")}, ${plural(report.warnings.length, "warning")}`);
   return lines.join("\n") + "\n";
 }
+
+/** Legacy JSON validation output: `{ valid, errors, warnings }`. Goes with this file in U12; new commands use `output/json.ts`. */
+export function formatJson(report: ValidationReport): string {
+  return JSON.stringify({ valid: report.valid, errors: report.errors, warnings: report.warnings, implementations: report.implementations ?? [] }, null, 2) + "\n";
+}

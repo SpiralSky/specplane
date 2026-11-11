@@ -98,7 +98,7 @@ test("forge: auto returns null for non-GitHub remote, no remote, or missing gh",
   assert.equal(withPath(null, () => getOpenPR("b", { cwd: repo(GH), forge: "auto" })), null);
 });
 
-test("forge: github mode throws ForgeError (exit 2) when unavailable", () => {
+test("forge: github mode throws ForgeError (exit 3, an environment error) when unavailable", () => {
   const { dir } = stubGh("x");
   assert.throws(() => withPath(dir, () => createPR("b", "main", "t", "b", { cwd: repo("https://gitlab.com/o/r"), forge: "github" })), ForgeError);
   try {
@@ -106,7 +106,7 @@ test("forge: github mode throws ForgeError (exit 2) when unavailable", () => {
     assert.fail("expected ForgeError");
   } catch (e) {
     assert.ok(e instanceof ForgeError);
-    assert.equal(e.exitCode, 2);
+    assert.equal(e.exitCode, 3);
   }
 });
 

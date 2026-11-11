@@ -13,6 +13,8 @@ import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, spe
 import { searchCommand } from "./commands/search.js";
 import { docsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
+import { runCommand } from "./commands/runner.js";
+import { auditCommand } from "./commands/audit.js";
 import { workflowListCommand, workflowRecoverCommand } from "./commands/workflow.js";
 
 const pkg = JSON.parse(
@@ -23,12 +25,15 @@ const program = new Command();
 program
   .name("specplane")
   .description("Specplane reference CLI")
-  .version(pkg.version);
+  .version(pkg.version)
+  .exitOverride();
 
 program.on("command:*", (args: string[]) => {
-  if (args[0] === "generate") { process.stderr.write("The generate command was removed.\n"); process.exitCode = 1; }
-  else { process.stderr.write(`Unknown command: ${args[0]}\n`); process.exitCode = 1; }
+  if (args[0] === "generate") process.stderr.write("The generate command was removed.\n");
+  else process.stderr.write(`Unknown command: ${args[0]}\n`);
+  process.exitCode = 2;
 });
+// Usage errors (unknown option, missing argument) exit 2; help and version exit 0 (`reference-cli` §13.3).
 registerPlanCommands(program);
 
 const spec = program.command("spec").description("Work with specs (new, list, show, validate, approve, reopen, meta, override)");
@@ -48,46 +53,54 @@ spec
   .option("--yes", "confirm group approval in advance")
   .option("--ref <branch>", "approve the specs as written on this branch (default: the current branch)")
   .option("--json", "output JSON")
-  .action((ids: string[], opts) => specApproveHuman(ids, opts));
+  .action((ids: string[], opts) => runCommand({ command: "spec approve", args: ids, json: opts.json }, () => specApproveHuman(ids, opts)));
 spec
   .command("reopen <id>")
   .description("Set a spec back to awaiting review")
   .option("--json", "output JSON")
-  .action((id: string, opts) => specReopenHuman(id, opts));
+  .action((id: string, opts) => runCommand({ command: "spec reopen", args: [id], json: opts.json }, () => specReopenHuman(id)));
 const meta = spec.command("meta").description("Read or correct spec metadata");
-meta.command("get <id>").description("Show metadata, with overrides marked").option("--json").action((id: string, opts) => specMetaGetHuman(id, opts));
+meta.command("get <id>").description("Show metadata, with overrides marked").option("--json").action((id: string, opts) => runCommand({ command: "spec meta get", args: [id], json: opts.json }, () => specMetaGetHuman(id)));
 meta
   .command("set <id> <field> <value>")
   .description("Set title, authors, covers, implements or references (lists are comma separated; authors are human:<name> or llm:<model>)")
   .option("--no-commit", "stage instead of committing")
   .option("--json")
-  .action((id: string, field: string, value: string, opts) => specMetaSetHuman(id, field, value, opts));
+  .action((id: string, field: string, value: string, opts) => runCommand({ command: "spec meta set", args: [id, field], json: opts.json }, () => specMetaSetHuman(id, field, value, opts)));
 const override = spec.command("override").description("Protected overrides (Administrator by default)");
 override.command("status <id> <status>").description("Set status by hand: approved or awaiting-review").option("--json")
-  .action((id: string, status: string, opts) => specOverrideHuman("status", id, [status], opts));
+  .action((id: string, status: string, opts) => runCommand({ command: "spec override status", args: [id, status], json: opts.json }, () => specOverrideHuman("status", id, [status], opts)));
 override.command("approver <id> <approver>").description("Set the approver: human:<name> or llm:<model>@<human>").option("--json")
-  .action((id: string, approver: string, opts) => specOverrideHuman("approver", id, [approver], opts));
+  .action((id: string, approver: string, opts) => runCommand({ command: "spec override approver", args: [id, approver], json: opts.json }, () => specOverrideHuman("approver", id, [approver], opts)));
 override.command("approval-commit <id> <commit>").description("Set the commit shown as the approved one (display only)").option("--json")
-  .action((id: string, commit: string, opts) => specOverrideHuman("approval-commit", id, [commit], opts));
+  .action((id: string, commit: string, opts) => runCommand({ command: "spec override approval-commit", args: [id, commit], json: opts.json }, () => specOverrideHuman("approval-commit", id, [commit], opts)));
 override.command("test <id> <test> <result>").description("Set a test result (passed, failed) or clear it").option("--summary <text>").option("--json")
-  .action((id: string, test: string, result: string, opts) => specOverrideHuman("test", id, [test, result], opts));
-program.command("sync [remote]").description("Fetch, merge and push the notes store (approval records) with a remote").option("--json").action((remote: string | undefined, opts) => syncHuman(remote, opts));
+  .action((id: string, test: string, result: string, opts) => runCommand({ command: "spec override test", args: [id, test, result], json: opts.json }, () => specOverrideHuman("test", id, [test, result], opts)));
+program.command("sync [remote]").description("Fetch, merge and push the notes store (approval records) with a remote").option("--json").action((remote: string | undefined, opts) => runCommand({ command: "sync", args: remote ? [remote] : [], json: opts.json }, () => syncHuman(remote)));
 const migrate = program.command("migrate").description("One-time moves of older data");
-migrate.command("status").description("Move frontmatter status, approval, results and implementation records into the notes store").option("--dry-run", "list the records and edits without writing").option("--json").action((opts) => migrateStatusHuman(opts));
+migrate.command("status").description("Move frontmatter status, approval, results and implementation records into the notes store").option("--dry-run", "list the records and edits without writing").option("--json").action((opts) => runCommand({ command: "migrate status", json: opts.json }, () => migrateStatusHuman(opts)));
 const configCmd = program.command("config").description("Read or change settings (feature/configuration)");
-configCmd.command("get [key]").description("Show a setting, its source and default; all settings without a key").option("--json").action((key: string | undefined, opts) => configGetCommand(key, opts));
-configCmd.command("list").description("Show every setting").option("--json").action((opts) => configListCommand(opts));
-configCmd.command("set <key> <value>").description("Set a setting (needs the config.change permission)").option("--json").action((k: string, v: string, opts) => configSetCommand(k, v, opts));
-configCmd.command("unset <key>").description("Remove a setting so its default applies").option("--json").action((k: string, opts) => configUnsetCommand(k, opts));
-program.command("permissions [id]").description("Show which role holds which permission, or the documentation of one permission").option("--json").action((id: string | undefined, opts) => permissionsCommand(id, opts));
+configCmd.command("get [key]").description("Show a setting, its source and default; all settings without a key").option("--json").action((key: string | undefined, opts) => runCommand({ command: "config get", args: key ? [key] : [], json: opts.json }, () => configGetCommand(key)));
+configCmd.command("list").description("Show every setting").option("--json").action((opts) => runCommand({ command: "config list", json: opts.json }, () => configListCommand()));
+configCmd.command("set <key> <value>").description("Set a setting (needs the config.change permission)").option("--json").action((k: string, v: string, opts) => runCommand({ command: "config set", args: [k, v], json: opts.json }, () => configSetCommand(k, v)));
+configCmd.command("unset <key>").description("Remove a setting so its default applies").option("--json").action((k: string, opts) => runCommand({ command: "config unset", args: [k], json: opts.json }, () => configUnsetCommand(k)));
+program.command("permissions [id]").description("Show which role holds which permission, or the documentation of one permission").option("--json").action((id: string | undefined, opts) => runCommand({ command: "permissions", args: id ? [id] : [], json: opts.json }, () => permissionsCommand(id)));
+program
+  .command("audit")
+  .description("Read the audit log (needs info.retrieve)")
+  .option("--since <date>", "only entries on or after this date")
+  .option("--branch <name>", "only entries made on this branch")
+  .option("--actor <role>", "only entries by this role")
+  .option("--json")
+  .action((opts) => runCommand({ command: "audit", json: opts.json }, () => auditCommand(opts)));
 const requests = program.command("requests").description("The requests list: what an LLM asked you to approve (feature/requests)");
-requests.command("list", { isDefault: true }).description("List requests, pending first").option("--json").action((opts) => requestsList(opts));
-requests.command("show <id>").description("Show one request in full, with the change as a diff").option("--json").action((id: string, opts) => requestsShow(id, opts));
-requests.command("accept <id>").description("Accept a request: the action is done once, under your permission").option("--note <text>").option("--json").action((id: string, opts) => requestsAccept(id, opts));
-requests.command("decline <id>").description("Decline a request: nothing changes").option("--note <text>").option("--json").action((id: string, opts) => requestsDecline(id, opts));
+requests.command("list", { isDefault: true }).description("List requests, pending first").option("--json").action((opts) => runCommand({ command: "requests list", json: opts.json }, () => requestsList()));
+requests.command("show <id>").description("Show one request in full, with the change as a diff").option("--json").action((id: string, opts) => runCommand({ command: "requests show", args: [id], json: opts.json }, () => requestsShow(id)));
+requests.command("accept <id>").description("Accept a request: the action is done once, under your permission").option("--note <text>").option("--json").action((id: string, opts) => runCommand({ command: "requests accept", args: [id], json: opts.json }, () => requestsAccept(id, opts.note)));
+requests.command("decline <id>").description("Decline a request: nothing changes").option("--note <text>").option("--json").action((id: string, opts) => runCommand({ command: "requests decline", args: [id], json: opts.json }, () => requestsDecline(id, opts.note)));
 const role = program.command("role").description("Show or switch the CLI role");
-role.command("show").action(() => roleShowHuman());
-role.command("switch <role>").description("administrator or standard-user").action((r: string) => roleSwitchHuman(r));
+role.command("show").option("--json").action((opts) => runCommand({ command: "role show", json: opts.json }, () => roleShowHuman()));
+role.command("switch <role>").description("administrator or standard-user").option("--json").action((r: string, opts) => runCommand({ command: "role switch", args: [r], json: opts.json }, () => roleSwitchHuman(r)));
 
 spec
   .command("new <type> <slug>")
@@ -150,7 +163,7 @@ program
   .command("validate [ids...]")
   .description("Validate the requirements and specs (format, cites, requirement IDs, status)")
   .option("--json", "output JSON")
-  .action((ids: string[], opts: { json?: boolean }) => validateCommand(ids, opts));
+  .action((ids: string[], opts: { json?: boolean }) => runCommand({ command: "validate", args: ids, json: opts.json }, () => validateCommand(ids)));
 
 
 // D20 item 6 (spec: A3, R1): operator view and recovery of leases left by an ended host session.
@@ -172,5 +185,12 @@ program
 try {
   await program.parseAsync(process.argv);
 } catch (e) {
-  if (!reportError(e)) throw e;
+  const code = (e as { code?: string; exitCode?: number }).code;
+  if (typeof code === "string" && code.startsWith("commander.")) {
+    // help and version are successes; every other commander error is a usage error (its message is already printed)
+    process.exitCode = ["commander.helpDisplayed", "commander.help", "commander.version"].includes(code) ? 0 : 2;
+  } else if (!reportError(e)) {
+    process.stderr.write(`Internal error: ${(e as Error).message}\n`);
+    process.exitCode = 4;
+  }
 }

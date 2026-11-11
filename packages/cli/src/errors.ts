@@ -1,6 +1,6 @@
 /** Typed error classes (architecture/reference-cli § Error classes). */
 export abstract class SpecplaneError extends Error {
-  abstract readonly exitCode: 1 | 2;
+  abstract readonly exitCode: 1 | 2 | 3 | 4;
   constructor(message: string) {
     super(message);
     this.name = new.target.name;
@@ -129,19 +129,19 @@ export class RebaseConflictError extends SpecplaneError {
   }
 }
 export class ForgeError extends SpecplaneError {
-  readonly exitCode = 2;
+  readonly exitCode = 3;
   constructor(reason: string) {
     super(`Forge operation failed: ${reason}`);
   }
 }
 export class GitError extends SpecplaneError {
-  readonly exitCode = 2;
+  readonly exitCode = 3;
   constructor(cmd: string, stderr: string) {
     super(`Git command failed: \`${cmd}\`: ${stderr}`);
   }
 }
 export class NotARepoError extends SpecplaneError {
-  readonly exitCode = 1;
+  readonly exitCode = 3;
   constructor() {
     super("Not in a git repository");
   }
@@ -159,4 +159,34 @@ export class CommitFormatError extends SpecplaneError {
   constructor(reason: string) {
     super(`Invalid commit message: ${reason}`);
   }
+}
+
+/** A command used wrongly: bad arguments or options. Exit status 2 (`architecture/reference-cli` §13.3). */
+export class UsageError extends SpecplaneError {
+  readonly exitCode = 2;
+}
+/** Content that fails its format; carries the findings. Exit status 1. */
+export class FormatError extends SpecplaneError {
+  readonly exitCode = 1;
+  constructor(message: string, public readonly findings: string[] = []) {
+    super(message);
+  }
+}
+/** A refused action; names the permission. Exit status 1. */
+export class PermissionError extends SpecplaneError {
+  readonly exitCode = 1;
+  constructor(public readonly permission: string, message: string) {
+    super(message);
+  }
+}
+/** An action whose preconditions fail; lists every reason. Exit status 1. */
+export class PreconditionError extends SpecplaneError {
+  readonly exitCode = 1;
+  constructor(public readonly reasons: string[]) {
+    super(reasons.join("\n"));
+  }
+}
+/** A request that is not in a state the action needs. Exit status 1. */
+export class RequestStateError extends SpecplaneError {
+  readonly exitCode = 1;
 }

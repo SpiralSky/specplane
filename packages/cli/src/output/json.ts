@@ -1,6 +1,6 @@
-import type { ValidationReport } from "../types.js";
+import type { CommandResult } from "../commands/runner.js";
 
-/** JSON validation output: `{ valid, errors, warnings }`. */
-export function formatJson(report: ValidationReport): string {
-  return JSON.stringify({ valid: report.valid, errors: report.errors, warnings: report.warnings, implementations: report.implementations ?? [] }, null, 2) + "\n";
+/** The JSON form of a command result: `{ok, data, findings, warnings}` (`architecture/reference-cli` §13.3). */
+export function formatJson(r: CommandResult): string {
+  return JSON.stringify({ ok: r.ok, data: r.data ?? null, findings: r.findings ?? [], warnings: r.warnings ?? [] }) + "\n";
 }

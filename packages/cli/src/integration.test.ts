@@ -17,7 +17,7 @@ const KNOWN_EXAMPLE_CITES = new Set(["file:docs/x.md", "architecture/cli R16", "
 test("validate on the specs-framework repository reports no format or requirement errors and only the known example-cite errors", () => {
   let out: string;
   try { out = sp("validate", "--json"); } catch (e) { out = (e as { stdout: string }).stdout; }
-  const report = JSON.parse(out) as { findings: { severity: string; rule: string; message: string }[]; checked: string[] };
+  const report = (JSON.parse(out) as { data: { findings: { severity: string; rule: string; message: string }[]; checked: string[] } }).data;
   // Every spec file and requirement file in the repository is checked; INFO.md is not a spec.
   const specFiles = ["docs/specifications/architecture", "docs/specifications/features", "docs/requirements"]
     .flatMap((dir) => fs.readdirSync(path.join(repoRoot, dir)).filter((n) => n.endsWith(".md") && n !== "INFO.md"));
