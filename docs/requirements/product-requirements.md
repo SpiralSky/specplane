@@ -409,6 +409,9 @@ There should be a permission to resume a plan with modes allow, request user or 
 *R27.3: Blocking in case of failure*
 If a plan hits a block mid-attempt, such as restrictions within the environment, the LLM decides whether to continue or stop the plan, guided by steering (see `R59.1`). The LLM should be able to stop the plan through a soft stop (see `R27.1`), which is allowed for LLM roles in all default presets. As plan metadata should record the current progress of the plan and a reference to the session (see `R29.1`), it can then be resumed with changes in the environment via the resuming commands (see `R27.2`).
 
+*R27.4: Plan sub-commits*
+The policy for committing changes when implementing steps is up to the user. However, at least one commit must be made per step.
+
 *R27.5: Requests During Execution*
 A request sent during plan execution is added to the requests list (see `R52`) and is either blocking or non-blocking. The LLM decides which, guided by steering (see `R59.1`).
 
@@ -417,9 +420,6 @@ The plan soft stops (see `R27.1`) and can be resumed with the answer (see `R27.2
 
 *R27.5.2: Non-Blocking Requests*
 The plan continues with work that does not depend on the answer, without performing the requested action. Unanswered requests are shown at the plan's final review (see `R28`).
-
-*R27.4: Plan sub-commits*
-The policy for committing changes when implementing steps is up to the user. However, at least one commit must be made per step.
 
 *R27.6: Plan Start Conditions*
 A plan can only start when it and the specifications it already references are Approved. Specifications the plan will write do not count. This should be configurable (on/off) and enabled by default.
