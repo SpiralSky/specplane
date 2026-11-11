@@ -12,7 +12,7 @@ import { holdRequest, RequestSent, sentMessage } from "../requests/hold.js";
 import { storeDir } from "../repo/store.js";
 import { loadProject } from "../spec/project.js";
 import { committedSource, worktreeSource } from "../spec/source.js";
-import { loadSpecPaths } from "../spec/paths.js";
+import { loadSpecPaths, relativeTo } from "../spec/paths.js";
 import { findPlan, type PlanRecord, type Progress } from "./model.js";
 
 /** Shared context, guard, audit, store and git helpers of the plan operations (`architecture/reference-cli` §11). */
@@ -41,7 +41,7 @@ export const today = (ctx: PlanCtx): string => (ctx.now ?? new Date()).toISOStri
 export const nowIso = (ctx: PlanCtx): string => (ctx.now ?? new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 export function plansConfig(root: string) { return loadSettings(root).config.plans; }
-export function plansDir(root: string): string { return loadSettings(root).config.plans.dir.replace(/\/+$/, ""); }
+export function plansDir(root: string): string { return relativeTo(root, loadSettings(root).config.abs.plans); }
 
 /** A budget on a resource the harness cannot measure is refused when it is set (`harness R35.1`). */
 export function assertMeasurable(ctx: PlanCtx, resource: string): void {

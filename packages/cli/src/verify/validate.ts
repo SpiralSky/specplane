@@ -1,30 +1,13 @@
-import { citeKey, extractBodyCites, parseCite, type Layer } from "../spec/cites.js";
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject, resolveCite, type Project, type SpecDoc } from "../spec/project.js";
-import { checkRequirementIds } from "../spec/requirements.js";
-import { LEGACY_RECORD_KEYS } from "../spec/fingerprint.js";
-import { computeStatus, dependencyCites, StatusCtx } from "../spec/status.js";
+import { loadProject } from "../spec/project.js";
 import { committedSource, headCommit, worktreeSource } from "../spec/source.js";
-import { notesSyncWarnings } from "../spec/sync.js";
-import { loadPlans } from "../plan/model.js";
-import { validatePlanRecords } from "../plan/validate.js";
+import { StatusCtx } from "../spec/status.js";
+import { RULES } from "./rules/index.js";
+import type { Finding, Severity, StatusRow } from "./rules/types.js";
 
-/** Validation rules over the project snapshot (`architecture/reference-cli` §6). Read-only. */
+/** The validation runner over the rule registry (`architecture/reference-cli` §6.1). Read-only. */
 
-export type Severity = "error" | "warning" | "note";
-
-export interface Finding {
-  severity: Severity;
-  /** Rule family: `config`, `requirements`, `spec-format`, `cites`, `status`. */
-  rule: string;
-  message: string;
-  file: string;
-  line?: number;
-  /** Section ID the finding is in, when known. */
-  section?: string;
-  /** `worktree` when the file differs from HEAD (or is not committed), else `committed`. */
-  source: "committed" | "worktree";
-}
+export type { Finding, Severity };
 
 export interface Report {
   findings: Finding[];
@@ -32,108 +15,14 @@ export interface Report {
   /** IDs of the specs that were checked. */
   checked: string[];
   /** Effective status of each checked spec, computed from HEAD. */
-  statuses: { id: string; stored: string | null; effective: string; reasons: string[] }[];
-}
-
-const KNOWN_KEYS = new Set(["id", "title", "authors", "covers", "implements", "references"]);
-const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-type Emit = (severity: Severity, rule: string, message: string, file: string, line?: number, section?: string) => void;
-
-function checkAuthorItem(v: unknown, where: string, allowDelegated: boolean): string | null {
-  if (!isMap(v)) return `${where} must be a mapping with \`human\` or \`llm\``;
-  const keys = Object.keys(v);
-  const who = ["human", "llm"].filter((k) => k in v);
-  if (who.length !== 1) return `${where} needs exactly one of \`human\` or \`llm\``;
-  if (typeof v[who[0]] !== "string" || !(v[who[0]] as string).trim()) return `${where}.${who[0]} must be a non-empty string`;
-  const extra = keys.filter((k) => k !== who[0] && k !== "contribution" && !(allowDelegated && k === "delegated-by"));
-  if (extra.length) return `${where} has unknown field \`${extra[0]}\``;
-  if ("contribution" in v && typeof v.contribution !== "string") return `${where}.contribution must be a string`;
-  if ("delegated-by" in v && (typeof v["delegated-by"] !== "string" || !v["delegated-by"])) return `${where}.delegated-by must be a non-empty string`;
-  if ("delegated-by" in v && !("llm" in v)) return `${where}.delegated-by is only valid on an LLM approver`;
-  return null;
-}
-
-/** Frontmatter and heading rules for one spec (`architecture/file-formats` §2.1). */
-function checkSpecFormat(doc: SpecDoc, emit: Emit): void {
-  const f = doc.file;
-  const err = (m: string) => emit("error", "spec-format", m, f, 1);
-  // A requirement file always has status Approved; its frontmatter is optional and every key in it is optional (`file-formats` §1.2).
-  const isReq = doc.layer === "requirement";
-  if (isReq && doc.fm.missing) return;
-  if (doc.fm.error || !doc.fm.data) { err(doc.fm.error ?? "frontmatter is missing"); return; }
-  const d = doc.fm.data;
-  if (isReq ? d.id !== undefined && d.id !== doc.id : d.id !== doc.id) err(`id is ${JSON.stringify(d.id)} but the path gives ${doc.id}`);
-  if (isReq ? d.title !== undefined && (typeof d.title !== "string" || !d.title.trim() || d.title.includes("\n")) : typeof d.title !== "string" || !d.title.trim() || d.title.includes("\n")) err("title must be a non-empty single line");
-  if (d.authors === undefined && isReq) { /* optional on requirement files */ }
-  else if (!Array.isArray(d.authors)) err("authors is required and must be a list (it may be empty)");
-  else d.authors.forEach((a, i) => { const m = checkAuthorItem(a, `authors[${i}]`, false); if (m) err(m); });
-  for (const k of ["covers", "implements", "references"] as const) {
-    const v = d[k];
-    if (v === undefined) continue;
-    if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) { err(`${k} must be a list of cite strings`); continue; }
-    for (const item of v as string[]) if (!parseCite(item)) err(`${k} item ${JSON.stringify(item)} is not a valid cite`);
-  }
-  if (doc.layer === "architecture" && d.covers !== undefined) err("`covers` is only for feature specs; an architecture spec uses `implements`");
-  if (doc.layer === "feature" && d.implements !== undefined) err("`implements` is only for architecture specs; a feature spec uses `covers`");
-  for (const k of Object.keys(d)) {
-    if ((LEGACY_RECORD_KEYS as readonly string[]).includes(k)) emit("warning", "spec-format", `legacy record key \`${k}\` is ignored; run \`specplane migrate status\` (architecture/file-formats §2)`, f, 1);
-    else if (!KNOWN_KEYS.has(k)) emit("warning", "spec-format", `unknown frontmatter field \`${k}\` (it counts as content)`, f, 1);
-  }
-  for (const s of doc.index.duplicates) emit("error", "spec-format", `duplicate section ${s.id} (first at line ${s.first})`, f, s.second, s.id);
-  for (const s of doc.index.wrongParent) emit("error", "spec-format", `section ${s.id} is nested under ${s.foundUnder}, not its parent ${s.parentId}`, f, s.line, s.id);
-}
-
-/** Cite rules for one spec (`architecture/reference-cli` §4.3). */
-function checkSpecCites(project: Project, doc: SpecDoc, emit: Emit): void {
-  if (!doc.fm.data) return;
-  const f = doc.file;
-  const isKnown = (layer: Layer, slug: string) => project.specs.has(`${layer}/${slug}`);
-  const body = extractBodyCites(doc.lines, doc.fm.bodyStartLine, doc.index, { layer: doc.layer, slug: doc.slug }, isKnown);
-  const listed = new Set(dependencyCites(doc.fm.data).map(citeKey));
-  const used = new Set<string>();
-  const resolveAndReport = (raw: string, line: number | undefined, where: string) => {
-    const cite = parseCite(raw);
-    if (!cite) return;
-    const r = resolveCite(project, cite);
-    if (r.ok) return;
-    if (r.code === "later-release") emit("warning", "cites", `${where} \`${raw}\`: ${r.reason}`, f, line);
-    else emit("error", "cites", `unresolved cite \`${raw}\` in ${where}: ${r.reason}`, f, line);
-  };
-  const seen = new Set<string>();
-  for (const b of body) {
-    if (doc.layer === "requirement") {
-      // Retired declarations and references within this requirements file are not dependencies on another spec.
-      if (/^Retired IDs:/.test(doc.lines[b.line - 1])) continue;
-      const resolved = resolveCite(project, b.cite);
-      if (resolved.ok && resolved.target.file === doc.file) continue;
-    }
-    const key = citeKey(b.raw);
-    used.add(key);
-    // A subproject cite cannot be resolved yet (later release), so listing it is not enforced either.
-    const subproject = "project" in b.cite && b.cite.project !== null && b.cite.project !== "root";
-    if (!listed.has(key) && !seen.has(key) && !subproject) {
-      seen.add(key);
-      if (b.cite.kind === "spec") emit("warning", "cites", `whole-spec cite \`${b.raw}\` in the body is not listed in references; cite a section or list it`, f, b.line);
-      else emit("error", "cites", `cite \`${b.raw}\` is used in the body but missing from references, covers and implements`, f, b.line);
-    }
-    const bodyKey = `${key}@body`;
-    if (!seen.has(bodyKey)) { seen.add(bodyKey); resolveAndReport(b.raw, b.line, "the body"); }
-  }
-  const ownKeys = new Set(["covers", "implements"].flatMap((k) => (Array.isArray(doc.fm.data![k]) ? (doc.fm.data![k] as unknown[]) : []).filter((x): x is string => typeof x === "string").map(citeKey)));
-  for (const raw of listed) {
-    resolveAndReport(raw, 1, "the frontmatter");
-    if (!used.has(raw) && !ownKeys.has(raw)) emit("warning", "cites", `references lists \`${raw}\`, which the body never cites`, f, 1);
-  }
+  statuses: StatusRow[];
 }
 
 export interface ValidateOptions { ids?: string[] }
 
 /** Run every rule and return the report. `root` is the checkout root. */
 export function validateProject(root: string, opts: ValidateOptions = {}): Report {
-  const findings: Finding[] = [];
-  const { paths, findings: cfg } = loadSpecPaths(root);
+  const { paths, findings: config } = loadSpecPaths(root);
   const head = headCommit(root);
   const wt = loadProject(worktreeSource(root), paths);
   const headProject = head ? loadProject(committedSource(root, head), paths) : null;
@@ -141,51 +30,16 @@ export function validateProject(root: string, opts: ValidateOptions = {}): Repor
     const then = headProject?.source.read(file) ?? null;
     return then !== null && then === wt.source.read(file) ? "committed" : "worktree";
   };
-  const emit: Emit = (severity, rule, message, file, line, section) => {
-    findings.push({ severity, rule, message, file, ...(line !== undefined ? { line } : {}), ...(section ? { section } : {}), source: sourceOf(file) });
-  };
-  for (const c of cfg) emit(c.severity, "config", c.message, ".specplane/config.yaml");
-
-  // Requirements.
-  const req = wt.requirements;
-  for (const p of req.problems) emit("error", "requirements", p.message, p.file);
-  for (const u of req.unlisted) emit("warning", "requirements", `${u} is not listed in the central requirements file`, `${paths.requirements}/${u}`);
-  for (const p of checkRequirementIds(req.files, req.central)) emit("error", "requirements", p.message, p.file, p.line);
-
-  // Specs.
   const wanted = opts.ids?.length ? new Set(opts.ids) : null;
-  for (const s of wt.strayFiles) emit("error", "spec-format", s.reason, s.file);
-  const checked: string[] = [];
-  for (const doc of wt.specs.values()) {
-    if (wanted && !wanted.has(doc.id)) continue;
-    checked.push(doc.id);
-    checkSpecFormat(doc, emit);
-    checkSpecCites(wt, doc, emit);
-  }
-
-  // Plans (`reference-cli` §11.1). A project without plans reports nothing (`plans R69`).
-  validatePlanRecords(loadPlans(wt.source, paths.plansDir), wt, root, (sev, rule, m, f, l) => emit(sev, rule, m, f, l), wanted);
-
-  // Status from committed content.
-  const statuses: Report["statuses"] = [];
-  if (headProject) {
-    const commits = new StatusCtx(root, headProject);
-    for (const doc of headProject.specs.values()) {
-      if (wanted && !wanted.has(doc.id)) continue;
-      if (!doc.fm.data && !(doc.layer === "requirement" && doc.fm.missing)) continue;
-      const st = computeStatus(headProject, doc, commits, wt.source.read(doc.file));
-      statuses.push({ id: doc.id, stored: null, effective: st.status, reasons: st.reasons });
-      for (const w of st.warnings) emit("warning", "status", w, doc.file, 1);
-      for (const n of st.notes) emit("note", "status", n, doc.file);
-    }
-    for (const w of commits.notes.notes.warnings) emit("warning", "notes", w, ".");
-    for (const w of notesSyncWarnings(root)) emit("warning", "notes", w, ".");
-  } else emit("note", "status", "the repository has no commits; effective status is not computed", ".");
+  const ctx = { root, paths, config, wt, head: headProject, wanted, status: headProject ? new StatusCtx(root, headProject) : null, statuses: [] as StatusRow[] };
+  const findings: Finding[] = [];
+  for (const rule of RULES) for (const f of rule.run(ctx)) findings.push({ ...f, source: sourceOf(f.file) });
+  const checked = [...wt.specs.values()].filter((d) => !wanted || wanted.has(d.id)).map((d) => d.id);
 
   findings.sort((a, b) => (a.file === b.file ? (a.line ?? 0) - (b.line ?? 0) : a.file < b.file ? -1 : 1));
   const counts = { errors: 0, warnings: 0, notes: 0 };
   for (const f of findings) counts[f.severity === "error" ? "errors" : f.severity === "warning" ? "warnings" : "notes"]++;
-  return { findings, counts, checked, statuses };
+  return { findings, counts, checked, statuses: ctx.statuses };
 }
 
 /** Plain-text report: one line per finding and a summary. */

@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import { loadSettings } from "../config.js";
 
 /** The configuration values the spec reader needs; they come from `config.ts` (`architecture/file-formats` §6). */
@@ -19,11 +20,17 @@ export const DEFAULT_PATHS: SpecPaths = {
   plansDir: "docs/plans",
 };
 
-/** Read the paths from the configuration; a bad key is dropped with a finding and its default used (`reference-cli` §3.2). */
+/** A checked absolute folder as the repository-relative POSIX path the snapshot sources read (`Config.abs`). */
+export function relativeTo(root: string, abs: string): string {
+  return path.relative(path.resolve(root), abs).split(path.sep).join("/");
+}
+
+/** Read the paths from the configuration's checked absolute folders; a bad key was already replaced by its default with a finding (`reference-cli` §3.2). */
 export function loadSpecPaths(root: string): { paths: SpecPaths; findings: ConfigFinding[] } {
   const { config, findings } = loadSettings(root);
+  const rel = (abs: string): string => relativeTo(root, abs);
   return {
-    paths: { requirements: config.paths.requirements, requirementsIndex: config.paths.requirementsIndex, features: config.paths.features, architecture: config.paths.architecture, plansDir: config.plans.dir },
+    paths: { requirements: rel(config.abs.requirements), requirementsIndex: config.paths.requirementsIndex, features: rel(config.abs.features), architecture: rel(config.abs.architecture), plansDir: rel(config.abs.plans) },
     findings: findings.map((f) => ({ severity: f.severity, message: f.message })),
   };
 }
