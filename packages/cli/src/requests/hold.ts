@@ -1,3 +1,4 @@
+import { requestContext } from "./checkout.js";
 import { audit } from "../audit/log.js";
 import { loadSettings } from "../config.js";
 import { run } from "../git/exec.js";
@@ -45,6 +46,7 @@ export function sentMessage(rec: RequestRecord): string {
 export function holdRequest(i: HoldInput): RequestRecord {
   const now = i.now ?? new Date();
   const env = i.env ?? process.env;
+  const context = requestContext(i.root, i.plan);
   const rec: RequestRecord = {
     id: newRequestId(now),
     state: "pending",
@@ -55,7 +57,7 @@ export function holdRequest(i: HoldInput): RequestRecord {
     reason: i.reason,
     base: { branch: git(i.root, ["branch", "--show-current"]), commit: git(i.root, ["rev-parse", "HEAD"]) },
     diff: i.diff ?? null,
-    plan: i.plan ?? null,
+    ...context,
     blocking: !!i.blocking,
     answer: null,
   };

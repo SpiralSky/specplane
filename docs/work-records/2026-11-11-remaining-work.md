@@ -185,6 +185,8 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U7 Requests in plan worktrees and plan edit
 
+- **Status:** request checkout routing and Ajv record validation done. Execution context is distinct from action targets; acceptance and pending diffs use the live plan worktree, with destination committed permissions and missing-worktree refusal. Answered history remains visible; legacy records use conservative compatibility rules. Build passed; focused Bun 1.4.4 **59 pass, 0 fail, 4 files**; full suite **1026 pass, 0 fail, 108 files** (34.64 s), outside sandbox. Remaining: plan edit, stale-marker hard-stop recovery, and routing plan store writes through `repo/store.ts`.
+
 - **Goal:** request records carry the plan checkout; `accept` runs in the plan's worktree from any checkout and refuses (stays pending) when the worktree is gone; `plan.edit` operation that refuses edits to started steps and commits `docs(<slug>): edit plan`; stale-marker hard stop after a logged budget hard stop; route plan store writes through `repo/store.ts`; `ajv` schema for request records.
 - **Specs:** `reference-cli §8`, `§11.3`, `§11.5`, `§3.3`; `file-formats §9.2`.
 - **Files:** `requests/store.ts`, `requests/ops.ts`, `requests/hold.ts`, `plan/create.ts`, `plan/run.ts`, `plan/ctx.ts`, `repo/store.ts`, `commands/plan-cli.ts`.

@@ -516,7 +516,9 @@ test("accepting a plan.start request starts the plan once, under the accepter", 
   try { startPlan(mk(fx.root, "llm"), ID); assert.fail("expected a request"); } catch (e) { assert.ok(e instanceof RequestSent); }
   assert.equal(fs.readdirSync(fx.wt).length, 0);
   const [req] = listRequests(fx.root);
-  assert.equal(req.plan, ID);
+  assert.equal(req.plan, null, "the action target is not a plan execution context");
+  assert.equal(req.checkout, null);
+  assert.equal(req.action.params.id, ID);
   const res = await acceptRequest({ root: fx.root, actor: actor(), preset: DEFAULT_PRESET, now: fx.ctx.now }, req.id);
   assert.ok(res.ok, res.reasons.join());
   assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.status, "in-progress");

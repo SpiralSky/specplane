@@ -346,3 +346,129 @@ test("failure cleanup: a failed action marks the request failed and leaves no cl
   assert.equal(fs.existsSync(lockFile(root, rec.id)), false);
   assert.ok((await acceptRequest(user(root), rec.id)).ok);
 });
+
+const PLAN = "2026-11-10-request-routing";
+function planCheckout(root: string): string {
+  const wt = `${root}-plan`;
+  sh(root, "worktree", "add", "-q", "-b", `plan/${PLAN}`, wt);
+  const dir = path.join(wt, "docs/plans", PLAN);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "PLAN.md"), `---\nid: plan/${PLAN}\ntitle: Routing\n---\n`);
+  fs.writeFileSync(path.join(dir, "progress.yaml"), "status: in-progress\ndone: []\n");
+  sh(wt, "add", "docs/plans");
+  sh(wt, "commit", "-qm", "plan context");
+  return wt;
+}
+
+test("guard-created spec edit follows plan worktree from main and shows its current proposed text", async () => {
+  const root = repo(), wt = planCheckout(root);
+  const original = read(wt, "a") + "\n" + Array.from({ length: 10 }, (_, n) => `Unchanged line ${n}.`).join("\n") + "\n";
+  fs.writeFileSync(path.join(wt, F, "a.md"), original);
+  // A main-only edit would make the stored patch inapplicable if main were used.
+  fs.writeFileSync(path.join(root, F, "a.md"), original.replace("Text.", "Main only."));
+  const held = editSpec(sctx(wt), "feature/a", original.replace("Text.", "Plan proposal."));
+  assert.ok(held.request);
+  const rec = readRequest(root, held.request!)!;
+  assert.equal(rec.plan, PLAN);
+  assert.equal(rec.checkout, wt);
+  fs.appendFileSync(path.join(wt, F, "a.md"), "\nPlan current tail.\n");
+  const shown = show(root, rec.id)!;
+  assert.match(shown.diff!, /Plan proposal/);
+  assert.match(shown.diff!, /Plan current tail/);
+  assert.doesNotMatch(shown.diff!, /Main only/);
+  const mainHead = sh(root, "rev-parse", "HEAD"), planHead = sh(wt, "rev-parse", "HEAD");
+  const accepted = await acceptRequest(user(root), rec.id);
+  assert.ok(accepted.ok, accepted.reasons.join());
+  assert.match(read(wt, "a"), /Plan proposal/);
+  assert.match(read(root, "a"), /Main only/);
+  assert.equal(sh(root, "rev-parse", "HEAD"), mainHead);
+  assert.equal(sh(wt, "rev-parse", "HEAD"), planHead);
+  assert.equal((await acceptRequest(user(root), rec.id)).ok, false);
+});
+
+test("explicit send resolves destination HEAD and committed preset before permission lookup", async () => {
+  const root = repo(), wt = planCheckout(root);
+  fs.writeFileSync(path.join(wt, F, "only.md"), spec("only"));
+  sh(wt, "add", `${F}/only.md`);
+  sh(wt, "commit", "-qm", "branch only spec");
+  const text = fs.readFileSync(path.join(wt, F, "only.md"), "utf8");
+  const patch = makePatch(`${F}/only.md`, text, text.replace("Text.", "Destination."));
+  const sent = sendRequest(sctx(root), { command: "spec edit", params: { spec: "feature/only", patch }, reason: "edit branch only", plan: PLAN });
+  assert.ok(sent.ok, sent.reasons.join());
+  assert.equal(sent.request!.base.commit, sh(wt, "rev-parse", "HEAD"));
+  assert.ok((await acceptRequest(user(root), sent.request!.id)).ok);
+  assert.match(fs.readFileSync(path.join(wt, F, "only.md"), "utf8"), /Destination/);
+  // A human with the LLM permission table must use the destination's preset, not the injected permissive one.
+  fs.writeFileSync(path.join(wt, ".specplane/config.yaml"), `paths:\n  features: ${F}\npermissions:\n  preset: full-manual-editing\n`);
+  sh(wt, "add", ".specplane/config.yaml");
+  sh(wt, "commit", "-qm", "destination permissions");
+  const held = holdRequest({ root: wt, actor: actor("llm"), permissions: ["spec.edit.feature"], decidedBy: "spec.edit.feature", command: "spec edit", params: { spec: "feature/a", patch: makePatch(`${F}/a.md`, read(wt, "a"), read(wt, "a").replace("Text.", "Denied.")) }, reason: "held" });
+  const denied = await acceptRequest({ root, actor: actor("llm", "human"), preset: PRESETS[3] }, held.id);
+  assert.equal(denied.ok, false);
+  assert.match(denied.reasons.join(), /spec.edit.feature/);
+  assert.equal(readRequest(root, held.id)!.state, "pending");
+  assert.equal(sendRequest(sctx(root, "llm", PRESETS[3]), { command: "spec edit", params: held.action.params, reason: "denied send", plan: PLAN }).ok, false);
+});
+
+test("missing, substituted, and moved worktrees are checked against git registration", async () => {
+  const root = repo(), wt = planCheckout(root);
+  const held = editSpec(sctx(wt), "feature/a", read(wt, "a").replace("Text.", "Plan."));
+  const rec = readRequest(root, held.request!)!;
+  const moved = `${wt}-moved`;
+  sh(root, "worktree", "move", wt, moved);
+  assert.match(show(root, rec.id)!.diff!, /Plan/);
+  sh(root, "worktree", "remove", moved);
+  assert.match(show(root, rec.id)!.warning!, /worktree.*missing/);
+  assert.equal(show(root, rec.id)!.diff, null);
+  const missing = await acceptRequest(user(root), rec.id);
+  assert.equal(missing.ok, false);
+  assert.match(missing.reasons.join(), new RegExp(wt));
+  assert.equal(readRequest(root, rec.id)!.state, "pending");
+  fs.mkdirSync(wt);
+  sh(wt, "init", "-q", "-b", `plan/${PLAN}`);
+  assert.equal((await acceptRequest(user(root), rec.id)).ok, false, "unrelated repository at the recorded path cannot substitute");
+  sh(root, "worktree", "add", "-q", `${wt}-replacement`, `plan/${PLAN}`);
+  sh(`${wt}-replacement`, "switch", "-q", "-c", "substitute");
+  assert.equal((await acceptRequest(user(root), rec.id)).ok, false, "wrong branch cannot substitute");
+});
+
+test("guard-created config and test-result requests infer plan execution context", () => {
+  const root = repo(), wt = planCheckout(root);
+  const config = configSet(sctx(wt), "audit.retention", "30");
+  assert.equal(readRequest(root, config.request!)!.checkout, wt);
+  const held = holdRequest({ root: wt, actor: actor("llm"), permissions: ["test.record"], decidedBy: "test.record", command: "test record", params: {}, reason: "test result" });
+  assert.equal(held.plan, PLAN);
+  assert.equal(held.checkout, wt);
+});
+
+
+test("answered requests remain readable after the plan worktree is removed", async () => {
+  const root = repo(), wt = planCheckout(root);
+  const held = editSpec(sctx(wt), "feature/a", read(wt, "a").replace("Text.", "Historical."));
+  await declineRequest(user(root), held.request!);
+  sh(root, "worktree", "remove", wt);
+  assert.equal(show(root, held.request!)!.state, "declined");
+  assert.match(formatRequest(show(root, held.request!)!), /Historical/);
+});
+
+
+test("legacy records remain visible, route verified plan context, and refuse ambiguous context", async () => {
+  const root = repo(), wt = planCheckout(root);
+  const held = editSpec(sctx(wt), "feature/a", read(wt, "a").replace("Text.", "Legacy."));
+  const file = path.join(storeDir(root), "requests", `${held.request!}.json`);
+  const legacy = JSON.parse(fs.readFileSync(file, "utf8"));
+  delete legacy.checkout;
+  fs.writeFileSync(file, JSON.stringify(legacy));
+  assert.equal(list(root).length, 1);
+  assert.ok((await acceptRequest(user(root), held.request!)).ok);
+  assert.match(read(wt, "a"), /Legacy/);
+  const ambiguous = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve"], decidedBy: "spec.approve", command: "spec approve", params: { ids: ["feature/a"] }, reason: "old" });
+  const ambiguousFile = path.join(storeDir(root), "requests", `${ambiguous.id}.json`);
+  const old = { ...ambiguous, plan: PLAN, checkout: undefined };
+  fs.writeFileSync(ambiguousFile, JSON.stringify(old));
+  const refused = await acceptRequest(user(root), ambiguous.id);
+  assert.equal(refused.ok, false);
+  assert.match(refused.reasons.join(), /Decline and resend/);
+  assert.equal(readRequest(root, ambiguous.id)!.state, "pending");
+  assert.ok((await declineRequest(user(root), ambiguous.id)).ok);
+});

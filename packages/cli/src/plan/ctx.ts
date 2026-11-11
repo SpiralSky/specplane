@@ -60,8 +60,7 @@ export function authorize(ctx: PlanCtx, needs: (string | string[])[], describe: 
   const g = guard(ctx.preset, ctx.actor, needs, describe);
   if (g.kind === "allow") return g.token;
   if (g.kind === "request") {
-    const planId = typeof params.id === "string" ? params.id : null;
-    const rec = holdRequest({ root: ctx.root, actor: ctx.actor, permissions: g.permissions, decidedBy: g.permission, command, params, reason: `${describe} (\`${command} ${args.join(" ")}\`).`, plan: planId, now: ctx.now, env: ctx.env });
+    const rec = holdRequest({ root: ctx.root, actor: ctx.actor, permissions: g.permissions, decidedBy: g.permission, command, params, reason: `${describe} (\`${command} ${args.join(" ")}\`).`, now: ctx.now, env: ctx.env });
     throw new RequestSent(rec, sentMessage(rec));
   }
   audit(ctx.root, { command, args, permission: g.permission, outcome: "refused", reason: g.message, request: ctx.request, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name } }, ctx.now);

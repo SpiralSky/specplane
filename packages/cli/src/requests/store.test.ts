@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { test } from "node:test";
 import { run } from "../git/exec.js";
 import { storeDir } from "../repo/store.js";
-import { answerRequest, claimAnswer, listRequests, newRequestId, readRequest, saveNew, type RequestRecord } from "./store.js";
+import { answerRequest, claimAnswer, listRequests, newRequestId, readRequest, saveNew, validateRecord, type RequestRecord } from "./store.js";
 
 const answer = { by: "Pat Person", date: "2026-11-10T12:00:00Z" };
 
@@ -16,7 +16,7 @@ function request(): { root: string; id: string; lock: string } {
   const rec: RequestRecord = {
     id, state: "pending", created: answer.date, from: { role: "llm" },
     permissions: ["config.change"], action: { command: "config set", params: { key: "plans.dir", new: "work" } },
-    reason: "Move plans", base: { branch: null, commit: null }, diff: null, plan: null, blocking: false, answer: null,
+    reason: "Move plans", base: { branch: null, commit: null }, diff: null, plan: null, checkout: null, blocking: false, answer: null,
   };
   saveNew(root, rec);
   return { root, id, lock: path.join(storeDir(root), "requests", `${id}.json.lock`) };
@@ -117,4 +117,25 @@ test("requests persist their context and list pending before answered", () => {
   answerRequest(root, id, "declined", answer);
   assert.deepEqual(listRequests(root).map((r) => r.id), [later.id, id]);
   assert.deepEqual(readRequest(root, later.id), later);
+});
+
+
+test("Ajv rejects malformed nested fields and inconsistent answer/context records", () => {
+  const { root, id } = request();
+  const rec = readRequest(root, id)!;
+  for (const malformed of [
+    null, [], { ...rec, created: "yesterday" }, { ...rec, from: { role: "llm", model: false } },
+    { ...rec, permissions: [true] }, { ...rec, action: { command: "config set", params: [] } },
+    { ...rec, base: null }, { ...rec, base: [] }, { ...rec, base: { branch: true, commit: null } },
+    { ...rec, base: { branch: "main", commit: "bad" } }, { ...rec, diff: false },
+    { ...rec, plan: "../outside" }, { ...rec, plan: [] }, { ...rec, checkout: "relative" },
+    { ...rec, blocking: "false" }, { ...rec, blocking: true },
+    { ...rec, answer: { by: "person", date: "bad" } }, { ...rec, answer: [] },
+    { ...rec, state: "accepted" }, { ...rec, state: "accepted", answer: { by: false, date: answer.date } },
+    { ...rec, state: "failed", answer }, { ...rec, extra: true },
+  ]) assert.ok(validateRecord(malformed).length, JSON.stringify(malformed));
+  assert.deepEqual(validateRecord({ ...rec, state: "accepted", answer }), []);
+  const file = path.join(storeDir(root), "requests", `${id}.json`);
+  fs.writeFileSync(file, JSON.stringify({ ...rec, id: newRequestId() }));
+  assert.equal(readRequest(root, id), null, "record cannot substitute a different filename ID");
 });

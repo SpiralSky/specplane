@@ -1,6 +1,7 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createAjv } from "../schemas.js";
 import { storeDir } from "../repo/store.js";
 
 /** Request records in the local store (`architecture/file-formats` §9.2, `architecture/reference-cli` §8). */
@@ -21,6 +22,8 @@ export interface RequestRecord {
   base: { branch: string | null; commit: string | null };
   diff: string | null;
   plan: string | null;
+  /** Execution context; absent only in legacy records. */
+  checkout?: string | null;
   blocking: boolean;
   answer: RequestAnswer | null;
 }
@@ -37,20 +40,38 @@ export function newRequestId(now: Date = new Date()): string {
   return `${now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}-${crypto.randomBytes(2).toString("hex")}`;
 }
 
-/** Structural validation of a record read from disk; returns the problems found. */
+const text = { type: "string", minLength: 1 };
+const nullableText = { anyOf: [text, { type: "null" }] };
+const date = { anyOf: [{ type: "string", format: "date-time" }, { type: "string", format: "date" }] };
+const object = (properties: Record<string, unknown>, required = Object.keys(properties)) => ({ type: "object", properties, required, additionalProperties: false });
+const schema = object({
+  id: { type: "string", pattern: ID_RE.source },
+  state: { enum: ["pending", "accepted", "declined", "failed"] },
+  created: { type: "string", format: "date-time" },
+  from: object({ role: text, model: nullableText, session: nullableText }, ["role"]),
+  permissions: { type: "array", items: text, uniqueItems: true },
+  action: object({ command: text, params: { type: "object" } }),
+  reason: text,
+  base: object({ branch: nullableText, commit: { anyOf: [{ type: "string", pattern: "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" }, { type: "null" }] } }),
+  diff: { type: ["string", "null"] },
+  plan: { anyOf: [{ type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9]+(?:-[a-z0-9]+){1,3}$", maxLength: 64 }, { type: "null" }] },
+  checkout: { anyOf: [{ type: "string", format: "absolute-path" }, { type: "null" }] },
+  blocking: { type: "boolean" },
+  answer: { anyOf: [object({ by: text, date, note: { type: ["string", "null"] }, error: text }, ["by", "date"]), { type: "null" }] },
+}, ["id", "state", "created", "from", "permissions", "action", "reason", "base", "diff", "plan", "blocking", "answer"]);
+const ajv = createAjv();
+ajv.addFormat("absolute-path", (v: string) => !v.includes("\u0000") && (path.isAbsolute(v) || path.win32.isAbsolute(v)));
+const validate = ajv.compile({ ...schema, allOf: [
+  { if: { properties: { state: { const: "pending" } } }, then: { properties: { answer: { type: "null" } } }, else: { properties: { answer: { type: "object" } } } },
+  { if: { properties: { state: { const: "failed" } } }, then: { properties: { answer: { type: "object", required: ["error"], properties: { error: text } } } } },
+  { if: { properties: { blocking: { const: true } } }, then: { properties: { plan: { type: "string" } } } },
+  { if: { properties: { checkout: { type: "string" } }, required: ["checkout"] }, then: { properties: { plan: { type: "string" } } } },
+] });
+
+/** Legacy records without checkout stay visible; plan context is resolved conservatively on acceptance. */
 export function validateRecord(v: unknown): string[] {
-  const bad: string[] = [];
-  const r = v as Partial<RequestRecord> | null;
-  if (!r || typeof r !== "object") return ["not an object"];
-  if (typeof r.id !== "string" || !ID_RE.test(r.id)) bad.push("id");
-  if (!["pending", "accepted", "declined", "failed"].includes(r.state as string)) bad.push("state");
-  if (typeof r.created !== "string") bad.push("created");
-  if (!r.from || typeof r.from.role !== "string") bad.push("from");
-  if (!Array.isArray(r.permissions) || r.permissions.some((p) => typeof p !== "string")) bad.push("permissions");
-  if (!r.action || typeof r.action.command !== "string" || typeof r.action.params !== "object" || r.action.params === null) bad.push("action");
-  if (typeof r.reason !== "string") bad.push("reason");
-  if (typeof r.blocking !== "boolean") bad.push("blocking");
-  return bad;
+  if (validate(v)) return [];
+  return [...new Set((validate.errors ?? []).map((e) => e.instancePath.split("/")[1] || (e.params.missingProperty as string) || "record"))];
 }
 
 function writeFile(root: string, rec: RequestRecord): void {
@@ -68,9 +89,10 @@ export function saveNew(root: string, rec: RequestRecord): void {
 }
 
 export function readRequest(root: string, id: string): RequestRecord | null {
+  if (!ID_RE.test(id)) return null;
   try {
     const rec = JSON.parse(fs.readFileSync(file(root, id), "utf8")) as RequestRecord;
-    return validateRecord(rec).length ? null : rec;
+    return validateRecord(rec).length || rec.id !== id ? null : rec;
   } catch { return null; }
 }
 
@@ -128,6 +150,8 @@ export function claimAnswer(root: string, id: string): AnswerClaim {
         if (released) throw new RequestStateError(`Request \`${id}\` answer claim was released.`);
         if (answered) throw new RequestStateError(`Request \`${id}\` was already answered by this claim.`);
         const next = { ...rec, state, answer };
+        const bad = validateRecord(next);
+        if (bad.length) throw new RequestStateError(`invalid request answer: ${bad.join(", ")}`);
         writeFile(root, next);
         answered = true;
         return next;

@@ -1,8 +1,9 @@
 import { audit } from "../audit/log.js";
-import { guard, type Actor, type Preset } from "../perm/permissions.js";
+import { activePreset, guard, type Actor, type Preset } from "../perm/permissions.js";
 import { requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { stopPlan } from "../plan/run.js";
 import { specDiffText } from "../spec/edit.js";
+import { requestContext, requestRoot } from "./checkout.js";
 import { actionFor } from "./actions.js";
 import { holdRequest, sentMessage } from "./hold.js";
 import { actionNeeds, InvalidRequestAction } from "./requirements.js";
@@ -44,23 +45,29 @@ export interface SendInput {
  */
 export function sendRequest(ctx: RequestCtx, i: SendInput): RequestResult {
   let needs;
-  try { needs = actionNeeds(ctx.root, i.command, i.params); }
+  let destination: RequestCtx;
+  let context: { plan: string | null; checkout: string | null };
+  try {
+    context = requestContext(ctx.root, i.plan);
+    destination = destinationCtx(ctx, context.checkout ?? ctx.root);
+    needs = actionNeeds(destination.root, i.command, i.params);
+  }
   catch (e) {
-    if (e instanceof InvalidRequestAction) return { ok: false, lines: [], reasons: [e.message] };
+    if (e instanceof InvalidRequestAction || e instanceof RequestStateError) return { ok: false, lines: [], reasons: [e.message] };
     throw e;
   }
-  const g = guard(ctx.preset, ctx.actor, needs, "The requested action");
+  const g = guard(destination.preset, ctx.actor, needs, "The requested action");
   if (g.kind === "deny") {
     const msg = `Refused: \`${g.permission}\` is denied for the ${ctx.actor.role} role, so no request can be sent for it. Do not look for another way (steering R51).`;
     audit(ctx.root, { command: i.command, args: [], permission: g.permission, outcome: "refused", reason: msg, actor: auditActor(ctx.actor) }, ctx.now);
     return { ok: false, lines: [], reasons: [msg] };
   }
-  const rec = holdRequest({ root: ctx.root, actor: ctx.actor, permissions: g.permissions, decidedBy: g.permissions[0] ?? "request.send", command: i.command, params: i.params, reason: i.reason, plan: i.plan ?? null, blocking: !!i.blocking && !!i.plan, now: ctx.now, env: ctx.env });
+  const rec = holdRequest({ root: destination.root, actor: ctx.actor, permissions: g.permissions, decidedBy: g.permissions[0] ?? "request.send", command: i.command, params: i.params, reason: i.reason, plan: context.plan, blocking: !!i.blocking && !!context.plan, now: ctx.now, env: ctx.env });
   const lines = [sentMessage(rec)];
-  if (i.blocking && i.plan) {
+  if (i.blocking && context.plan) {
     try {
-      stopPlan(ctx as PlanCtx, i.plan, { kind: "soft", reason: `waiting for request ${rec.id}`, needs: `the user answers request ${rec.id}` });
-      lines.push(`The plan ${i.plan} is soft stopped until the request is answered.`);
+      stopPlan(destination as PlanCtx, context.plan, { kind: "soft", reason: `waiting for request ${rec.id}`, needs: `the user answers request ${rec.id}` });
+      lines.push(`The plan ${context.plan} is soft stopped until the request is answered.`);
     } catch (e) { lines.push(`The plan could not be stopped: ${(e as Error).message.split("\n")[0]}`); }
   }
   return { ok: true, lines, reasons: [], request: rec };
@@ -71,15 +78,22 @@ export function sendRequest(ctx: RequestCtx, i: SendInput): RequestResult {
 export function list(root: string): RequestRecord[] { return listRequests(root); }
 
 /** The request with its diff recomputed against the current state (`requests R52.4`). */
-export function show(root: string, id: string): RequestRecord | null {
+export function show(root: string, id: string): (RequestRecord & { warning?: string }) | null {
   const rec = readRequest(root, id);
   if (!rec) return null;
+  if (rec.state !== "pending" || rec.action.command !== "spec edit") return rec;
+  let destination: string;
+  try { destination = requestRoot(root, rec); }
+  catch (e) { return { ...rec, diff: null, warning: `Current diff unavailable: ${(e as Error).message}` }; }
   const p = rec.action.params as { spec?: string; patch?: string };
-  if (rec.action.command === "spec edit" && p.spec && p.patch) return { ...rec, diff: specDiffText(root, p.spec, p.patch) ?? rec.diff };
+  if (p.spec && p.patch) {
+    const diff = specDiffText(destination, p.spec, p.patch);
+    return { ...rec, diff, ...(diff === null ? { warning: "Current diff unavailable: the proposed patch no longer applies to the destination text." } : {}) };
+  }
   return rec;
 }
 
-export function formatRequest(rec: RequestRecord, color = false): string {
+export function formatRequest(rec: RequestRecord & { warning?: string }, color = false): string {
   const c = (code: number, t: string) => (color ? `\u001b[${code}m${t}\u001b[0m` : t);
   const lines = [
     `${rec.id}  ${rec.state}${rec.blocking ? " (blocking)" : ""}`,
@@ -89,6 +103,8 @@ export function formatRequest(rec: RequestRecord, color = false): string {
     `Needs: ${rec.permissions.join(", ")}`,
   ];
   if (rec.plan) lines.push(`Plan: ${rec.plan}`);
+  if (rec.checkout) lines.push(`Checkout: ${rec.checkout}`);
+  if (rec.warning) lines.push(rec.warning);
   if (rec.answer) lines.push(`Answered by ${rec.answer.by} on ${rec.answer.date}${rec.answer.note ? `: ${rec.answer.note}` : ""}${rec.answer.error ? ` (failed: ${rec.answer.error})` : ""}`);
   if (rec.diff) {
     lines.push("");
@@ -98,6 +114,11 @@ export function formatRequest(rec: RequestRecord, color = false): string {
 }
 
 /* ------------------------------------------------------------------ accept, decline */
+
+/** Direct callers may inject a preset locally; another destination loads its own committed configuration. */
+function destinationCtx(ctx: RequestCtx, root: string): RequestCtx {
+  return { ...ctx, root, preset: root === ctx.root ? ctx.preset : activePreset(root) };
+}
 
 async function resumeHint(ctx: RequestCtx, rec: RequestRecord): Promise<string | undefined> {
   if (!rec.plan || !rec.blocking) return undefined;
@@ -128,12 +149,16 @@ export async function acceptRequest(ctx: RequestCtx, id: string, note?: string):
   try {
     // The stored permission list is informational; what accepting needs is derived from the action, now.
     let needs;
-    try { needs = actionNeeds(ctx.root, claim.record.action.command, claim.record.action.params); }
+    let destination: RequestCtx;
+    try {
+      destination = destinationCtx(ctx, requestRoot(ctx.root, claim.record));
+      needs = actionNeeds(destination.root, claim.record.action.command, claim.record.action.params);
+    }
     catch (e) {
-      if (e instanceof InvalidRequestAction) return refuse(ctx, rec, id, "requests accept", null, `Cannot accept: ${e.message} The request stays pending.`);
+      if (e instanceof InvalidRequestAction || e instanceof RequestStateError) return refuse(ctx, rec, id, "requests accept", null, `Cannot accept: ${e.message} The request stays pending.`);
       throw e;
     }
-    const g = guard(ctx.preset, ctx.actor, needs, "Accepting the request");
+    const g = guard(destination.preset, ctx.actor, needs, "Accepting the request");
     if (g.kind !== "allow") {
       const permission = g.permission;
       return refuse(ctx, rec, id, "requests accept", permission, `Cannot accept: the ${ctx.actor.role} role needs the \`${permission}\` permission with mode allow to do this, and does not have it. The request stays pending.`);
@@ -141,7 +166,7 @@ export async function acceptRequest(ctx: RequestCtx, id: string, note?: string):
     const run = actionFor(claim.record.action.command);
     if (!run) return refuse(ctx, rec, id, "requests accept", null, `Cannot accept: \`${claim.record.action.command}\` is not an action this version can run.`);
     let outcome: { ok: boolean; lines: string[]; reasons: string[] };
-    try { outcome = await run({ ...ctx, request: id }, claim.record.action.params); }
+    try { outcome = await run({ ...destination, request: id }, claim.record.action.params); }
     catch (e) { outcome = { ok: false, lines: [], reasons: [(e as Error).message.split("\n")[0]] }; }
     const by = ctx.actor.name;
     const permission = g.permissions[0] ?? null;
