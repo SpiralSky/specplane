@@ -1,7 +1,7 @@
 import { configSet } from "../config-ops.js";
 import { loadSettings } from "../config.js";
 import { PreconditionError } from "../errors.js";
-import { docsSearch } from "../docs/operations.js";
+import { docsSearch, loadEssentials } from "../docs/operations.js";
 import { REQUESTABLE_COMMANDS } from "../requests/actions.js";
 import { sendRequest } from "../requests/ops.js";
 import { headCommit } from "../spec/source.js";
@@ -45,6 +45,9 @@ export function registerOperationActions(add: Adder): void {
   add("config.set", { key: str, value: { type: "string" } }, ["key", "value"], ["config.change"], false, (c, p) => configSet(base(c), p.key, p.value));
   // Documentation needs no permission (U0, `reference-cli` §7.3 and §13.1), like `permissions.docs`.
   add("docs.search", { query: str }, ["query"], [], true, (_c, p) => docsSearch(p.query));
+  // The always-loaded essentials (`steering R23`): what the session-start delivery of an adapter sends, for a harness or
+  // a session that did not receive it.
+  add("docs.essentials", {}, [], [], true, () => ({ ok: true, essentials: loadEssentials() }));
   add("request.send", { command: { enum: [...REQUESTABLE_COMMANDS] }, params: { type: "object" }, reason: str, plan: str, blocking: bool }, ["command", "params", "reason"], [], false, (c, p) => {
     const r = sendRequest(base(c), { command: p.command, params: p.params, reason: p.reason, plan: p.plan, blocking: p.blocking });
     return { ok: r.ok, reasons: r.reasons, lines: r.lines, request: r.request?.id };

@@ -42,7 +42,7 @@ const added = listActions().filter((a) => a.id in inputs);
 
 test("the remaining 20 actions are registered with strict schemas", () => {
   assert.equal(added.length, 20);
-  assert.equal(listActions().length, 35);
+  assert.equal(listActions().length, 36);
   assert.equal(added.filter((a) => a.id.startsWith("plan.")).length, 14);
   for (const a of listActions()) assert.equal((a.inputSchema as { additionalProperties: boolean }).additionalProperties, false, a.id);
 });
@@ -133,5 +133,18 @@ test("test.record intelligent verdicts record the LLM identity; unknown tests ar
     assert.equal(ok.ok, true, ok.findings.join());
     assert.equal((await runtime(root).call("test.record", { results: [{ ...passed, test: "R9#T1" }] })).ok, false);
     assert.equal((await runtime(root).call("test.record", { results: [{ ...passed, status: "approved" }] })).ok, false, "unknown fields are rejected");
+  } finally { DEFAULT_PRESET.llm.modes = prior; }
+});
+
+test("docs.essentials returns the packaged essentials and needs no permission", async () => {
+  const root = repo();
+  const prior = DEFAULT_PRESET.llm.modes;
+  DEFAULT_PRESET.llm.modes = { ...prior, "info.retrieve": "deny" };
+  try {
+    const r = await runtime(root).call("docs.essentials", {});
+    assert.equal(r.ok, true, r.findings.join());
+    const text = (r.data as { essentials: string }).essentials;
+    assert.ok(text.length > 100 && Buffer.byteLength(text) <= 8192);
+    assert.ok(text.includes("docs.search"));
   } finally { DEFAULT_PRESET.llm.modes = prior; }
 });

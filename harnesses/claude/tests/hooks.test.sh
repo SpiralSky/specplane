@@ -140,7 +140,7 @@ printf 'status: in-progress\nbranch: plan/x\ndone: [1]\n' > "$sc_repo/plans/x/pr
 (cd "$sc_repo" && git init -q . && git config user.name t && git config user.email t@example.com \
   && git config commit.gpgsign false && git add -A && git commit -q -m init && git checkout -q -b plan/x) >/dev/null 2>&1
 sc() { # env-file json -> prints additionalContext
-  (cd "$sc_repo" && PATH="$ORIG_PATH" CLAUDE_PROJECT_DIR="$sc_repo" CLAUDE_ENV_FILE="$1" sh "$hooks/specplane-session-context.sh" 2>/dev/null <<EOJ
+  (cd "$sc_repo" && PATH="$tmp/nospec" CLAUDE_PROJECT_DIR="$sc_repo" CLAUDE_ENV_FILE="$1" sh "$hooks/specplane-session-context.sh" 2>/dev/null <<EOJ
 $2
 EOJ
 ) | "$JQ" -r '.hookSpecificOutput.additionalContext // empty'
@@ -168,6 +168,22 @@ out=$(printf '{"session_id":"s"}' | PATH="$ORIG_PATH" CLAUDE_PROJECT_DIR="$tmp/n
 [ -z "$out" ] && [ ! -f "$tmp/env5" ] && report "session: no-op without config" 1 || report "session: no-op without config" 0
 out=$(printf '{}' | PATH="$tmp/nojq" CLAUDE_PROJECT_DIR="$sc_repo" "$tmp/nojq/sh" "$hooks/specplane-session-context.sh" 2>/dev/null)
 [ -z "$out" ] && report "session: exits quietly without jq" 1 || report "session: exits quietly without jq" 0
+
+# essentials: delivered at session start (and after compaction, which runs this hook again) from `specplane docs essentials`
+sce() { # json -> additionalContext, with a stub specplane that prints the essentials
+  (cd "$sc_repo" && PATH="$tmp/stubbin:$tmp/nospec" STUB_OUT="ESSENTIALS TEXT" STUB_LOG="$tmp/log-ess" CLAUDE_PROJECT_DIR="$sc_repo" sh "$hooks/specplane-session-context.sh" 2>/dev/null <<EOJ
+$1
+EOJ
+) | "$JQ" -r '.hookSpecificOutput.additionalContext // empty'
+}
+rm -f "$tmp/log-ess"
+out=$(sce '{"session_id":"e1"}')
+[ "$out" = "ESSENTIALS TEXT" ] && grep -Fxq 'docs essentials' "$tmp/log-ess" && report "session: essentials delivered off a plan branch" 1 || report "session: essentials delivered off a plan branch ($out)" 0
+(cd "$sc_repo" && git checkout -q plan/x) >/dev/null 2>&1
+out=$(sce '{"session_id":"e2"}')
+case "$out" in "ESSENTIALS TEXT"*"Next step: 02 Second thing."*) report "session: essentials then plan context" 1 ;; *) report "session: essentials then plan context ($out)" 0 ;; esac
+out=$(printf '{"session_id":"e3"}' | PATH="$tmp/stubbin:$tmp/nospec" STUB_OUT=x STUB_EXIT=1 CLAUDE_PROJECT_DIR="$tmp/noconf" sh "$hooks/specplane-session-context.sh" 2>/dev/null)
+[ -z "$out" ] && report "session: no essentials without the config" 1 || report "session: no essentials without the config" 0
 
 echo "passed: $pass, failed: $fail"
 [ "$fail" = 0 ]

@@ -3,6 +3,7 @@
 
 This repository uses Specplane. Before acting on specs or plans, read `.specplane/config.yaml` through the harness and resolve every path from it; never assume one.
 Look up your steering for your role and follow it. Use the Specplane harness actions, never the Specplane CLI.
+Load the documentation essentials with `docs.essentials` at the start of a session; when you lack information, search the rest with `docs.search` instead of guessing.
 If the project has no Specplane configuration, do not apply Specplane rules.
 
 Steering stamp: 7a5aebfbc41f5308f7ffe97948af900512d6e5337ce4d7978dfa5a1b9711ef73
