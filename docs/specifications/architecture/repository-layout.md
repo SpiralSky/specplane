@@ -43,7 +43,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [specifications R7, plans §2, plans R29.2, plan-execution R27, plan-execution §2, plan-execution §3, configuration R25, harness §2]
-references: [architecture/file-formats §1.1, architecture/file-formats §1.2, architecture/file-formats §5.1, architecture/file-formats §6, architecture/file-formats §6.1, architecture/file-formats §9.1, architecture/file-formats §10, architecture/file-formats §11.4, architecture/file-formats §12.1, architecture/file-formats §12.3, architecture/file-formats §12.4, architecture/file-formats §5.4, architecture/file-formats §6.2, architecture/file-formats §7.4, steering R22, architecture/reference-cli §12.5, architecture/file-formats §9.3, architecture/reference-cli §14.2, architecture/file-formats, architecture/reference-cli]
+references: [architecture/file-formats §1.1, architecture/file-formats §1.2, architecture/file-formats §5.1, architecture/file-formats §6, architecture/file-formats §6.1, architecture/file-formats §9.1, architecture/file-formats §10, architecture/file-formats §11.4, architecture/file-formats §12.1, architecture/file-formats §12.3, architecture/file-formats §12.4, architecture/file-formats §5.4, architecture/file-formats §6.2, architecture/file-formats §7.4, steering R22, architecture/reference-cli §12.5, architecture/file-formats §9.3, architecture/reference-cli §14.2, architecture/file-formats, architecture/reference-cli, architecture/file-formats §13, architecture/file-formats §13.4, architecture/reference-cli §5.5]
 ---
 
 # Repository layout
@@ -87,7 +87,7 @@ State that is not project content lives under the git common directory, in `<git
 
 - The git common directory is the main repository's `.git` (found with `git rev-parse --git-common-dir`), so the main checkout and every plan worktree resolve to the same store.
 - Nothing here is committed or listed by `git status`, because it is inside the git directory. No `.gitignore` entry is needed for it.
-- Approval, status, test and implementation records are not local state and not files: they are git notes under `refs/notes/specplane` in the repository's object store, shared by every worktree and synced by refspec (`architecture/file-formats §13`). They are never in spec files.
+- Approval, status, test and implementation records are not local state and not files: they are git notes under `refs/notes/specplane` in the repository's object store, shared by every worktree and synced by `specplane sync` (`architecture/file-formats §13`). They are never in spec files.
 - It is recoverable data. Deleting it loses requests, audit history and local logs, but not the project or any plan record. A missing directory or file is treated as empty and created at the next write.
 - Writes use a temp file in the same directory and a rename, so a reader never sees a partial file (assumption). `audit.jsonl` is append-only except for retention pruning (`architecture/file-formats §10`).
 - Git operations on the main checkout, such as switching branches or `git gc`, do not touch it. Cloning or copying the repository does not carry it (assumption); the project still works, with empty local state.
@@ -121,7 +121,7 @@ Implements `plan-execution R27`, `configuration R25`.
 |------|---------|------------|
 | `<git-common-dir>/specplane/**` | no (inside the git directory) | CLI and harness actions (`§2`) |
 | `<plans.worktree_dir>/**` | no (outside the repository) | plan start and cleanup (`§3`) |
-| `refs/notes/specplane` | no file; a git ref, synced by refspec (`architecture/file-formats §13.4`) | approve, reopen, override, test and implement commands (`architecture/reference-cli §5.5`) |
+| `refs/notes/specplane` | no file; a git ref, synced by `specplane sync` (`architecture/file-formats §13.4`) | approve, reopen, override, test and implement commands (`architecture/reference-cli §5.5`) |
 | `<paths.test_logs>/*.log` | yes, only with `tests.logs: git` | test runs (`architecture/file-formats §11.4`) |
 | harness block and files | yes | harness setup (`§5`) |
 
