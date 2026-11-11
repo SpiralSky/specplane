@@ -5,8 +5,7 @@ import { runCommand } from "./runner.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, type Actor } from "../perm/permissions.js";
 import { approvePlan, createPlan } from "../plan/create.js";
-import { guarded, liveRoot, requirePlan, writeRun, type PlanCtx } from "../plan/ctx.js";
-import { checkBudget, type Usage } from "../plan/budget.js";
+import { guarded, liveRoot, requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { abandonPlan, deletePlan, finishPlan, formatReview, mergePlan, reviewPlan } from "../plan/finish.js";
 import { resumePlan, retargetPlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
 import { checkSelection, describePlan, listInfos, type PlanInfo } from "../plan/status.js";
@@ -111,24 +110,11 @@ export function registerPlanCommands(program: Command): void {
       if (r.sessionLog) out(`Skim the log of session ${r.sessionLog}; trust the files and the last commit over it.`);
     }));
 
-  plan.command("heartbeat <id>").description("Refresh the plan's run marker (for harness adapters)").action((id: string) => run("heartbeat", [id], undefined, (ctx) => { writeRun(ctx, id, process.env.SPECPLANE_SESSION || null); }));
-
   plan.command("retarget <id>").description("Choose a new target branch for a started plan").requiredOption("--target <branch>")
     .action((id: string, o) => run("retarget", [id], o, (ctx) => { retargetPlan(ctx, id, o.target); out(`Target of ${id} is now ${o.target}.`); }));
 
   plan.command("budget <id>").description("Set or remove a budget for a resource (percent of the limit)").requiredOption("--resource <name>").option("--soft <n>", "soft stop", (v) => Number(v)).option("--hard <n>", "hard stop", (v) => Number(v)).option("--remove")
     .action((id: string, o) => run("budget", [id], o, (ctx) => { setBudget(ctx, id, { resource: o.resource, soft: o.soft, hard: o.hard, remove: !!o.remove }); out(`Budget for ${o.resource} ${o.remove ? "removed" : `set to soft ${o.soft}, hard ${o.hard}`}.`); }));
-
-  plan.command("usage <id>").description("Report usage readings (percent per resource) against the plan's budget (for harness adapters)")
-    .requiredOption("--reading <resource=percent>", "a reading (repeatable)", collect).option("--finished", "the LLM wrote its handoff and is ending the session: record the soft stop").option("--json")
-    .action((id: string, o) => run("usage", [id], o, (ctx) => {
-      const usage: Usage = {};
-      for (const r of o.reading as string[]) { const m = /^([^=]+)=(\d+(?:\.\d+)?)$/.exec(r); if (!m) throw new UsageError(`Bad reading \`${r}\`; use resource=percent.`); usage[m[1]] = Number(m[2]); }
-      const res = checkBudget(ctx, id, usage, { finished: !!o.finished });
-      if (o.json) { json(res); return; }
-      if (res.decision.action === "none") out("Within budget.");
-      else out(`${res.decision.reason}.${res.stopped ? ` The plan is stopped.` : ""}${res.instruction ? `\n${res.instruction}` : ""}`);
-    }));
 
   plan.command("review <id>").description("Open the final review").option("--json")
     .action((id: string, o) => run("review", [id], o, (ctx) => { const r = reviewPlan(ctx, id); if (o.json) json(r); else out(formatReview(r)); }));

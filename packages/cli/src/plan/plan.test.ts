@@ -496,19 +496,6 @@ test("budget: a resource the harness cannot measure is refused when the budget i
   assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.budget![0].resource, "tokens");
 });
 
-test("CLI: plan usage reports the soft and hard stops", () => {
-  const fx = repo({ config: "  start_conditions: off\n" });
-  createPlan(fx.ctx, { words: ["export", "things"] });
-  startPlan(fx.ctx, ID);
-  setBudget(fx.ctx, ID, { resource: "weekly", soft: 80, hard: 95 });
-  const cli = new URL("../cli.js", import.meta.url).pathname;
-  const go = (...a: string[]) => spawnSync("node", [cli, "plan", "usage", ID, ...a], { cwd: fx.root, encoding: "utf8", env: ENV });
-  assert.match(go("--reading", "weekly=10").stdout, /Within budget/);
-  assert.match(go("--reading", "weekly=81").stdout, /soft stop at 80% of the weekly limit\.\nThe soft stop/);
-  assert.match(go("--reading", "weekly=96").stdout, /hard stop at 95%.*The plan is stopped/);
-  assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.stop!.kind, "hard");
-});
-
 /* ------------------------------------------------------------------ requests in plans */
 
 test("accepting a plan.start request starts the plan once, under the accepter", async () => {

@@ -64,7 +64,7 @@ export async function dispatch(cmd: SlashCommand, rawArgs: string, core: CorePor
     return { output: { text: `/${cmd.name}: handing your arguments to the assistant.` }, prompt: skillPrompt(cmd.name, args) }
   }
   let r: CliResult
-  try { r = await core.run(['harness', 'run', cmd.name, ...args], signal) } catch (e) {
+  try { r = await core.run(['harness', 'run', '--adapter', 'claude', cmd.name, ...args], signal) } catch (e) {
     return { output: { text: `/${cmd.name} could not run the Specplane core: ${e instanceof Error ? e.message : String(e)}`, exitCode: 1 } }
   }
   const text = [r.stdout.trim(), r.stderr.trim()].filter(Boolean).join('\n') || `/${cmd.name}: done.`

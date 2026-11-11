@@ -1,5 +1,7 @@
 import type { Command } from "commander";
+import { UsageError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
+import { activePreset, cliActor } from "../perm/permissions.js";
 import { runHarnessCommand } from "../harness/run.js";
 import { runCommand } from "./runner.js";
 
@@ -11,8 +13,24 @@ export function registerHarnessCommands(program: Command): void {
     .description("Run a harness command as the person who typed it, with no model call (refuses anything outside the harness command list)")
     .allowUnknownOption()
     .option("--json")
-    .action((command: string, args: string[], opts: { json?: boolean }) =>
-      runCommand({ command: "harness run", args: [command, ...args], json: opts.json }, () => runHarnessCommand(command, args, checkoutRoot())));
+    .option("--adapter <name>", "the host adapter that opens plan sessions (claude)")
+    .action(async (command: string, args: string[], opts: { json?: boolean; adapter?: string }) => {
+      if (opts.adapter !== undefined && opts.adapter !== "claude") throw new UsageError(`Unknown adapter: ${opts.adapter}. Supported: claude.`);
+      const launcher = opts.adapter === "claude" ? (await import("../harness/adapter-claude.js")).claudeLauncher : undefined;
+      await runCommand({ command: "harness run", args: [command, ...args], json: opts.json }, () => runHarnessCommand(command, args, checkoutRoot(), { launcher }));
+    });
+  harness
+    .command("session <plan>", { hidden: true })
+    .description("Monitor a plan's Claude Code session: run it, keep the run marker, enforce budgets (started by plan-start, not by hand)")
+    .requiredOption("--session <id>", "the session ID the plan record names")
+    .option("--resume", "resume the session after a blocking request was answered")
+    .action(async (planId: string, opts: { session: string; resume?: boolean }) => {
+      const adapter = await import("../harness/adapter-claude.js");
+      const root = checkoutRoot();
+      const ctx = { root, actor: cliActor(root), preset: activePreset(root) };
+      const r = await adapter.runPlanSession(ctx, planId, { spawn: adapter.nodeSpawnPort }, { sessionId: opts.session, resume: opts.resume });
+      process.stdout.write(`${r.outcome} (session ${r.session}, exit ${r.exitCode})\n${r.notes.map((n) => `${n}\n`).join("")}`);
+    });
   harness
     .command("compact <session>")
     .description("Record that a harness session's context was compacted so its instructions are delivered again (called by the harness compaction hook)")

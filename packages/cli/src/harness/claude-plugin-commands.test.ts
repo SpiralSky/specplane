@@ -45,7 +45,7 @@ test("a command without arguments runs through the user-command runner with no p
     assert.equal(out.prompt, undefined);
     assert.equal(out.output.text, "No plans.");
   }
-  assert.deepEqual(calls[0], ["harness", "run", "spec-assist"]);
+  assert.deepEqual(calls[0], ["harness", "run", "--adapter", "claude", "spec-assist"]);
 });
 
 test("a failing core and a refused command report their exit code and text", opts, async () => {

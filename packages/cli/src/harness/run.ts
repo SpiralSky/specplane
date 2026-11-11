@@ -2,11 +2,11 @@ import { requestsAccept, requestsDecline, requestsList, requestsShow } from "../
 import type { CommandResult } from "../commands/runner.js";
 import { specApproveHuman } from "../commands/spec-human.js";
 import { validateCommand } from "../commands/validate.js";
-import { UsageError } from "../errors.js";
+import { PreconditionError, UsageError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor } from "../perm/permissions.js";
 import { guarded, liveRoot, type PlanCtx } from "../plan/ctx.js";
-import { startPlan } from "../plan/run.js";
+import { resumePlan, startPlan } from "../plan/run.js";
 import { listInfos, type PlanInfo } from "../plan/status.js";
 import { COMMANDS } from "./instructions.js";
 
@@ -20,11 +20,31 @@ import { COMMANDS } from "./instructions.js";
 
 export interface PassToLlm { command: string; args: string[]; instructionKey: string }
 
+/**
+ * What a host adapter does to open a plan's session (`architecture/reference-cli` §11.3). It throws a `PreconditionError`
+ * naming why and the exact command to run by hand when the host cannot do it; the runner reports that as an error and
+ * never substitutes another route (`harness R35.1`).
+ */
+export interface SessionLauncher {
+  readonly name: string;
+  newSessionId(): string;
+  open(ctx: PlanCtx, planId: string, o: { sessionId: string; resume: boolean }): string[];
+}
+export interface RunOptions { launcher?: SessionLauncher }
+
 
 const pad = (n: number): string => String(n).padStart(2, "0");
 
-function planCtx(root: string): PlanCtx {
-  return { root, actor: cliActor(root), preset: activePreset(root) };
+function planCtx(root: string, sessionId?: string): PlanCtx {
+  // The opened session is the plan's session, not the one the person typed the command in.
+  const actor = cliActor(root);
+  return { root, actor: sessionId ? { ...actor, session: sessionId } : actor, preset: activePreset(root), ...(sessionId ? { env: { ...process.env, SPECPLANE_SESSION: sessionId } } : {}) };
+}
+
+/** Open the session through the adapter; a refusal is an error result that still reports what already happened. */
+function openSession(ctx: PlanCtx, launcher: SessionLauncher, planId: string, sessionId: string, resume: boolean, done: string[]): CommandResult {
+  try { return { ok: true, lines: [...done, ...launcher.open(ctx, planId, { sessionId, resume })] }; }
+  catch (e) { return { ok: false, lines: done, findings: e instanceof PreconditionError ? e.reasons : [(e as Error).message] }; }
 }
 
 function describe(i: PlanInfo): string {
@@ -77,12 +97,17 @@ function noArgs(root: string, command: string): CommandResult | Promise<CommandR
   }
 }
 
-async function withArgs(root: string, command: string, args: string[]): Promise<CommandResult> {
+async function withArgs(root: string, command: string, args: string[], o: RunOptions): Promise<CommandResult> {
   switch (command) {
     case "approve": return specApproveHuman(args, {});
     case "plan-start": {
-      const r = startPlan(planCtx(root), args[0]);
-      return { ok: true, lines: [`Started ${args[0]} on ${r.branch} (target ${r.target}).`, `Worktree: ${r.path}`] };
+      // The session ID is chosen first so the plan record, the run marker and the host session all name the same one.
+      const sessionId = o.launcher?.newSessionId();
+      const ctx = planCtx(root, sessionId);
+      const r = startPlan(ctx, args[0]);
+      const started = [`Started ${args[0]} on ${r.branch} (target ${r.target}).`, `Worktree: ${r.path}`];
+      return o.launcher ? openSession(ctx, o.launcher, args[0], sessionId!, false, started)
+        : { ok: true, lines: [...started, "No harness adapter opens the plan's session here; open one in the worktree and use plan-step."] };
     }
     case "plan-status": {
       const infos = plans(root, args[0]);
@@ -93,8 +118,17 @@ async function withArgs(root: string, command: string, args: string[]): Promise<
       if (sub === "list") return requestsList();
       if (!id) throw new UsageError("requests takes list, show <id>, accept <id> or decline <id>.");
       if (sub === "show") return requestsShow(id);
-      if (sub === "accept") return requestsAccept(id, note.join(" ") || undefined);
-      if (sub === "decline") return requestsDecline(id, note.join(" ") || undefined);
+      if (sub === "accept" || sub === "decline") {
+        const answered = await (sub === "accept" ? requestsAccept : requestsDecline)(id, note.join(" ") || undefined);
+        // A blocking request answered while a session is active resumes the plan it stopped (`plan-execution R27.5`).
+        const planId = (answered.data as { resume?: string | null } | null | undefined)?.resume;
+        if (!o.launcher || !planId) return answered;
+        const sessionId = o.launcher.newSessionId();
+        const ctx = planCtx(root, sessionId);
+        try { resumePlan(ctx, planId); } catch (e) { return { ...answered, ok: false, findings: [...(answered.findings ?? []), `Could not resume ${planId}: ${(e as Error).message}`] }; }
+        const reopened = openSession(ctx, o.launcher, planId, sessionId, true, [...(answered.lines ?? []), `Resumed ${planId}.`]);
+        return { ...answered, ok: answered.ok && reopened.ok, lines: reopened.lines, findings: [...(answered.findings ?? []), ...(reopened.findings ?? [])] };
+      }
       throw new UsageError("requests takes list, show <id>, accept <id> or decline <id>.");
     }
     default: {
@@ -105,9 +139,9 @@ async function withArgs(root: string, command: string, args: string[]): Promise<
 }
 
 /** Run one harness command as the person who typed it. Refuses anything outside the harness command list. */
-export async function runHarnessCommand(command: string, args: string[], root: string = checkoutRoot()): Promise<CommandResult> {
+export async function runHarnessCommand(command: string, args: string[], root: string = checkoutRoot(), o: RunOptions = {}): Promise<CommandResult> {
   if (!COMMANDS.includes(command)) throw new UsageError(`Not a harness command: ${command}. The harness commands are: ${COMMANDS.join(", ")}.`);
-  const result = args.length === 0 ? await noArgs(root, command) : await withArgs(root, command, args);
+  const result = args.length === 0 ? await noArgs(root, command) : await withArgs(root, command, args, o);
   return { ...result, permission: result.permission ?? null };
 }
 
