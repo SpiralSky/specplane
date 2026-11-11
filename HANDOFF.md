@@ -1,5 +1,19 @@
 # Session handoff
-Updated 2026-11-11. Read "Session 2026-11-11" and "Current state" first; older continuation sections are historical.
+Updated 2026-11-11. Read "Next session: start here" first, then "Current state"; older continuation sections are historical.
+
+## Next session: start here (written 2026-11-11, end of session)
+
+State: first release built. U0-U18 and the gap-closure pass are committed on `spec-edits-20261106` (head `d0225e6`); nothing pushed, not merged to `main`. `npm test` 476 pass / 0 fail; hooks 52 pass; check-sync OK; validate 0 errors, 30 warnings. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` belong to the user; leave them.
+
+Remaining, in this order:
+
+1. **U19 pre-commit checks** (backlog entry in `docs/work-records/2026-11-11-remaining-work.md`): `check requirement-ids --staged`, `check tests --staged`, `git/hooks.ts` install/remove driven by `config set pre_commit.*`, validation warning when on and the hook is missing. Specs: `reference-cli §14.2`, `verification R32`, `R36.3`. Run it as one Sonnet 5.5 subagent (user wants chained subagents, grouped by related work).
+2. **Requirements coverage review (not yet done):** validate passing does not prove every requirement on `docs/requirements/product-requirements.md` is met. Have a separate agent walk the requirements against code and report gaps one or two at a time. Do not edit the page.
+3. **Live verification by the user** (list below, "Needs live verification"). Items the agent cannot run: the plugin loading, the `claude -p` route, Codex config trust.
+4. **Open design decision, push notification and request dialogue:** not implemented; the adapter reports `push` as missing. Needs a live check of what Claude Code offers (push route, MCP elicitation) and the user's decision on who answers an elicitation prompt. Ask the user in product terms (what changes for people using it, tradeoff, recommendation: wait for the live pass).
+5. Merge/push only when the user asks.
+
+Notes: use `node packages/cli/dist/cli.js` in this repo, not bare `specplane` (CLI-block hook; its quoting false positives were fixed in `fe7621e`). The page's sub-requirement order was fixed by moving `R27.4` before `R27.5` (pure rearrangement, no text change); `R27.1.1` before `R27.2` is correct nesting, so no change.
 
 ## Session 2026-11-11 (supersedes conflicting text below)
 
@@ -9,7 +23,7 @@ Landed: `2aa525f` + `ac97481` specs for the notes store (reviewed by a separate 
 
 Notes store landed: `aa52451`, `eac8f55`, `ce1c397`, `0c08bfd`, `c81f74a`, `beed5c9`; this repo's legacy status frontmatter stripped in `b50b635` (old approvals intentionally not migrated). Full suite 981 pass, 0 fail; hooks 98 pass; check-sync OK; validate 0 errors.
 
-**Next: work the ordered backlog in `docs/work-records/2026-11-11-remaining-work.md` (U0–U19), one subagent per unit, in order.** It supersedes the "Next task" lists below. U0 decisions (agent's call): config is read at HEAD (`§13.4` aligns to `§3.2`, R40); a plan record has no `status` field, execution status lives in `progress.yaml`; docs/steering/permission views need no permission (`§7.3` aligns to `§13.1`); Codex setup does register the MCP server in Codex config (`codex-integration §1` aligns to `§3`); slash-command lists go in the harness-specific block; `R62`/`R63` stay requirement-only (scope and non-goals). Page flaw reported to the user, unanswered: sub-requirement order (`R27.5` before `R27.4`, `R27.1.1` before `R27.2`). Working branch `spec-edits-20261106`; `main` is the integration branch. Read `AGENTS.md`, `CLAUDE.md`, the local override and `.specplane/config.yaml` first; check `git status` and recent commits before continuing.
+**Next: work the ordered backlog in `docs/work-records/2026-11-11-remaining-work.md` (U0–U19), one subagent per unit, in order.** It supersedes the "Next task" lists below. U0 decisions (agent's call): config is read at HEAD (`§13.4` aligns to `§3.2`, R40); a plan record has no `status` field, execution status lives in `progress.yaml`; docs/steering/permission views need no permission (`§7.3` aligns to `§13.1`); Codex setup does register the MCP server in Codex config (`codex-integration §1` aligns to `§3`); slash-command lists go in the harness-specific block; `R62`/`R63` stay requirement-only (scope and non-goals). Page flaw (sub-requirement order) resolved: `R27.4` moved before `R27.5`. Working branch `spec-edits-20261106`; `main` is the integration branch. Read `AGENTS.md`, `CLAUDE.md`, the local override and `.specplane/config.yaml` first; check `git status` and recent commits before continuing.
 
 ## Current state (2026-11-11, U0-U18 complete; U19 is later-release work)
 
