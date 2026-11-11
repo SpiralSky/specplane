@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { codexAdapter } from "./adapter-codex.js";
 import { noCapabilities, registerAdapter, type Capabilities, type HarnessAdapter } from "./adapter.js";
 
 /**
@@ -22,10 +23,6 @@ export const claudeAdapter: HarnessAdapter = {
   },
 };
 
-export const codexAdapter: HarnessAdapter = {
-  name: "codex",
-  capabilities: () => noCapabilities(),
-};
-
+export { codexAdapter };
 registerAdapter(claudeAdapter);
 registerAdapter(codexAdapter);

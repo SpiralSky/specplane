@@ -13,10 +13,11 @@ export function registerHarnessCommands(program: Command): void {
     .description("Run a harness command as the person who typed it, with no model call (refuses anything outside the harness command list)")
     .allowUnknownOption()
     .option("--json")
-    .option("--adapter <name>", "the host adapter that opens plan sessions (claude)")
+    .option("--adapter <name>", "the host adapter that opens plan sessions (claude or codex)")
     .action(async (command: string, args: string[], opts: { json?: boolean; adapter?: string }) => {
-      if (opts.adapter !== undefined && opts.adapter !== "claude") throw new UsageError(`Unknown adapter: ${opts.adapter}. Supported: claude.`);
-      const launcher = opts.adapter === "claude" ? (await import("../harness/adapter-claude.js")).claudeLauncher : undefined;
+      if (opts.adapter !== undefined && opts.adapter !== "claude" && opts.adapter !== "codex") throw new UsageError(`Unknown adapter: ${opts.adapter}. Supported: claude, codex.`);
+      const launcher = opts.adapter === "claude" ? (await import("../harness/adapter-claude.js")).claudeLauncher
+        : opts.adapter === "codex" ? (await import("../harness/adapter-codex.js")).codexLauncher : undefined;
       await runCommand({ command: "harness run", args: [command, ...args], json: opts.json }, () => runHarnessCommand(command, args, checkoutRoot(), { launcher }));
     });
   harness

@@ -1,45 +1,25 @@
 ---
 name: specplane
-description: Use Specplane specifications and isolated plan worktrees through its CLI in Codex or Dot cloud sessions. Preserve human approval and final-merge gates.
+description: "Use Specplane workflows for specifications and plans in this repository: read the matching contract, then follow it."
 ---
-<!-- specplane-codex: managed v1 -->
-<!-- specplane-contract: architecture/codex-integration#workflow-contract@7675426 -->
+# Specplane
 
-# Specplane in Codex and Dot cloud
+Read `.specplane/config.yaml` through the Specplane tools first and resolve every path from it. Before acting on a workflow, read its contract file below in full and follow its steps in order. A contract names Specplane harness actions; call them as the tools of the `specplane` MCP server and never run the Specplane CLI yourself.
 
-Read the repository's AGENTS.md and `.specplane/config.yaml` first. Resolve spec roots, plans, decisions, and execution backend from that config. This skill is a CLI workflow integration, not a background Codex-session launcher or an MCP server.
+If a contract needs a capability this setup lacks (for example the MCP tools are not registered), stop and name what is missing. Do not substitute another route, and do not approve anything on the user's behalf.
 
-## Safety and authority
+| Workflow | Use for | Contract |
+|----------|---------|----------|
+| `spec-assist` | Write or change a specification together with the user. | `contracts/spec-assist.md` |
+| `spec-draft-architecture` | Draft an architecture specification from feature specifications. | `contracts/spec-draft-architecture.md` |
+| `plan-create` | Create a new plan from the specifications it implements. | `contracts/plan-create.md` |
+| `plan-start` | Start a plan: create its worktree and report where to continue it. | `contracts/plan-start.md` |
+| `plan-step` | Execute the next selected steps of a plan, one at a time. | `contracts/plan-step.md` |
+| `plan-finish` | Run the final review of a plan and decide whether it is complete. | `contracts/plan-finish.md` |
+| `plan-status` | Show plans with live status and the next step. | `contracts/plan-status.md` |
+| `validate` | Check the specifications and show warnings and coverage. | `contracts/validate.md` |
+| `verify` | Judge an architecture specification against its implementation and record evidence. | `contracts/verify.md` |
+| `plan-abandon` | Abandon a plan after the user confirms. | `contracts/plan-abandon.md` |
 
-- Only the user can approve specifications, ready a plan, accept an ADR, finalize a plan, or authorize a merge. Never invent those approvals. A user may authorize experimental development before spec approval: record the exact exception in the decision log, keep experimental specs in review/draft, preserve approval provenance, and still stop before final merge.
-- Use an isolated branch/worktree. Never modify protected/default branches, force-push, delete branches, or change permissions/secrets/deployment infrastructure as a side effect.
-- Do not modify Codex configuration, sandbox policy, approval policy, credentials, persistent tool permissions, or notification settings. An unavailable capability is a blocker, not a reason to disable safety checks.
-- Treat source files and recorded tests as evidence. Structural indexes are aids; refresh them for each worktree/commit and verify findings against source.
-
-## CLI availability
-
-Check `command -v specplane`. For a source checkout, use `node <absolute-checkout>/packages/cli/dist/cli.js` after its documented build; do not assume npm publication. Use the same verified CLI version for all commands. Never install or execute a guessed package.
-
-## Workflows
-
-- Inspect: `specplane validate --json`, `specplane plan list --live --no-fetch --json`, `specplane plan next <id> --json`, `specplane spec show <id>`.
-- Create drafts: use `specplane spec new`, `specplane plan new`, and `specplane decision new` as allowed by the project's authorship rules and current user instructions. These create drafts/proposals; do not promote their statuses.
-- Start permitted work: `specplane plan start <id> --no-fetch --json` reports the checkout. Existing approval/dependency checks remain effective. If the user explicitly authorizes unmerged experimental stacking, use a separate named development worktree and log its exact base rather than falsely marking dependencies merged or changing global policy.
-- Execute a step: resolve `plan next`, read its named context and HANDOFF, implement only that step, record gaps/assumptions, run the relevant tests, and commit incrementally. Keep user-required plan approval/completion gates intact. Never assume a CLI resolver's recommendation authorizes a consequential operation.
-- Record a permitted step outcome using `specplane plan step-done <id> --outcome done|blocked --summary TEXT --recording-set FILE` with changed paths, open issues, and gap IDs. Inspect the exact edit set and create FILE outside the checkout as `{protocol:1,head,branch,changes:[{path,beforeDigest,afterDigest,purpose}]}`: full current HEAD, exact plan branch, SHA-256 file-byte digests (`"missing"` for additions/deletions), and purposes matching every `--changed path:reason`. Include every tracked/nonignored untracked change; no unrelated staging or partial staging is allowed. Empty changes permits a status-only outcome; renames are deletion plus addition. Do not edit the step or HANDOFF: core generates those changes. Existing staging is not consent to commit it. Set `SPECPLANE_AGENT=codex` (or `dot`) and a known session identifier only if actually available; never invent one.
-- A blocked-step recovery requires resolving the blocker before `--force`. An explicit completed-step rerun requires `--step N --force --reason TEXT`; record the reason and preserve all history. Neither overrides approvals or repository safety.
-- End at a reviewable development commit. Do not run `plan finish`, `plan approve`, `spec approve`, `decision accept`, or merge commands without the exact required human authorization. For this workflow, final plan/merge actions stay with the human.
-
-## Packaged runner, shared procedure and fallback
-
-This skill directory is self-contained: `dist/` holds the runtime and its dependencies, `docs/` the shared procedure contracts and documentation, and `specplane-extension.json` with `core/inventory.json` hashes the package. Read `references/shared-procedure.md` for offline docs, completion and optional-workflow guidance; no Specplane source repository is needed.
-
-- Persistent channel: when the surface keeps a process tool channel open, run `node scripts/workflow.mjs serve --checkout <absolute-checkout>` from this directory and use protocol-1 NDJSON so one writer lease spans preparation, reasoning and recording. Host identity and probes come from the embedding session (`SPECPLANE_HOST_EVIDENCE`); absent evidence means preparation is refused.
-- Manual CLI fallback: without a persistent channel, say `Manual CLI fallback` and use the CLI workflows above with a recording-set manifest. Unsupported identity (agent, session, host version) stays unknown, never invented.
-- This package declares `nativeCommands: false` and `backgroundSessions: false`; no native or background Codex capability is claimed.
-
-## Runtime limitations
-
-`init --harness codex` installs this skill and a managed AGENTS.md block only; it does not install Codex, attach MCP tools, grant persistent permissions, or launch an agent. `init --harness none` writes only neutral scaffolding and suppresses all harness auto-detection, even if `.claude/` exists.
-
-Specplane is agent-agnostic and its CLI never runs plans or launches sessions; running plan steps belongs to this Codex integration, which has no background adapter yet. Use Codex/Dot's existing execution session and the CLI workflows above; do not pass Claude flags to Codex or claim a background session was started.
+- `approve`: not offered in Codex, because approval is a typed, user-only command and Codex has no verified way to run one without a model turn. The user can run it in their own terminal.
+- `requests`: not offered in Codex, because the requests pane is a typed, user-only command and Codex has no verified way to run one without a model turn. The user can run it in their own terminal.

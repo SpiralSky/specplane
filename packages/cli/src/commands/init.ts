@@ -2,7 +2,8 @@ import { SpecplaneError, UsageError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { adapterNames, getAdapter, reportCapabilities } from "../harness/adapter.js";
 import "../harness/adapters.js";
-import { installHarness } from "../harness/install.js";
+import { CODEX_WITHHELD } from "../harness/codex-skills.js";
+import { CODEX_CONFIG, installHarness } from "../harness/install.js";
 import { ensureNotesRefspecs } from "../spec/sync.js";
 
 /**
@@ -20,7 +21,10 @@ export function runInit(root: string, opts: { harness?: string } = {}): string[]
     for (const f of r.written) lines.push(`Installed ${f}`);
     for (const f of r.unchanged) lines.push(`Unchanged ${f}`);
     lines.push(...r.lines, ...reportCapabilities(adapter, root));
-    if (name === "codex") lines.push("codex: the Specplane MCP server is not registered in Codex configuration by this release; the Codex integration adds that entry.");
+    if (name === "codex") {
+      lines.push(`codex: the Specplane MCP server is registered in ${CODEX_CONFIG} (project configuration, which Codex reads only for a trusted project); whether this Codex surface loads it is not verified.`);
+      lines.push(`codex: not offered, because Codex has no verified typed commands: ${CODEX_WITHHELD.join(", ")}. Run them in your own terminal.`);
+    }
   }
   return lines.length ? lines : ["Nothing to do: every remote already fetches the notes."];
 }

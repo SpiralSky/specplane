@@ -7,6 +7,7 @@ import { loadSettings } from "../config.js";
 import { PreconditionError, UsageError } from "../errors.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
 import { SKILL_COMMANDS, skillPath } from "./claude-skills.js";
+import { CODEX_CONTRACTS, contractPath, SKILL_FILE as CODEX_SKILL_FILE } from "./codex-skills.js";
 import { steeringInputs, steeringStamp } from "./steering.js";
 
 /**
@@ -19,7 +20,9 @@ export interface OwnedFile { path: string; content: string; mode?: number }
 export interface BlockTarget { file: string; text: string }
 /** A shared JSON settings file: the template is merged into whatever the user already has (`claude-integration` §5). */
 export interface SettingsTarget { path: string; template: Record<string, unknown> }
-export interface InstallPlan { harness: string; owned: OwnedFile[]; block?: BlockTarget; settings?: SettingsTarget }
+/** One table in a shared TOML file (Codex `config.toml`): added only when absent, never rewritten (`codex-integration` §1). */
+export interface TomlEntryTarget { path: string; table: string; lines: string[] }
+export interface InstallPlan { harness: string; owned: OwnedFile[]; block?: BlockTarget; settings?: SettingsTarget; toml?: TomlEntryTarget }
 export interface InstallReport { written: string[]; unchanged: string[]; kept: string[]; lines: string[] }
 export interface HarnessFinding { severity: "error" | "warning"; message: string; file: string }
 
@@ -73,12 +76,39 @@ function claudePlan(stamp: string): InstallPlan {
   return { harness: "claude", owned, settings: { path: ".claude/settings.json", template: JSON.parse(read("settings.json")) as Record<string, unknown> } };
 }
 
-/** The files one named harness needs. Codex content beyond the standing text arrives with its integration unit. */
+/** Where the Codex templates live: next to the compiled CLI when packaged, else the repository's own folder. */
+export function codexTemplateDir(): string {
+  for (const rel of ["../templates/codex", "../../../../harnesses/codex/templates"]) {
+    const dir = fileURLToPath(new URL(rel, import.meta.url));
+    if (fs.existsSync(path.join(dir, CODEX_SKILL_FILE))) return dir;
+  }
+  throw new PreconditionError(["The Codex templates were not found next to the Specplane CLI; reinstall Specplane."]);
+}
+
+/**
+ * The Codex files (`codex-integration` §1): the entry skill with one contract per offered command, the marked block in
+ * `AGENTS.md`, and the one MCP registration entry in the project's Codex configuration. The server is started by the
+ * installed CLI name so the file holds no machine-specific path.
+ */
+function codexPlan(text: string): InstallPlan {
+  const dir = codexTemplateDir();
+  const read = (rel: string): string => fs.readFileSync(path.join(dir, rel), "utf8");
+  const owned: OwnedFile[] = [{ path: `.agents/${CODEX_SKILL_FILE}`, content: read(CODEX_SKILL_FILE) }];
+  for (const command of CODEX_CONTRACTS) owned.push({ path: `.agents/skills/specplane/${contractPath(command)}`, content: read(contractPath(command)) });
+  return {
+    harness: "codex", owned, block: { file: "AGENTS.md", text },
+    toml: { path: CODEX_CONFIG, table: "mcp_servers.specplane", lines: ['command = "specplane"', 'args = ["mcp"]'] },
+  };
+}
+
+export const CODEX_CONFIG = ".codex/config.toml";
+
+/** The files one named harness needs. */
 export function planFor(root: string, harness: string): InstallPlan {
   const stamp = steeringStamp(steeringInputs(root));
   const text = standingText(stamp);
   if (harness === "claude") return claudePlan(stamp);
-  if (harness === "codex") return { harness, owned: [], block: { file: "AGENTS.md", text } };
+  if (harness === "codex") return codexPlan(text);
   throw new UsageError(`Unknown harness: ${harness}. Supported: claude, codex.`);
 }
 
@@ -151,7 +181,20 @@ function atomicWrite(file: string, content: string, mode?: number): void {
   try { fs.writeFileSync(tmp, content, { flag: "wx" }); if (mode) fs.chmodSync(tmp, mode); fs.renameSync(tmp, file); } finally { fs.rmSync(tmp, { force: true }); }
 }
 
-interface Pending { rel: string; content: string; kind: "owned" | "block" | "settings"; mode?: number }
+interface Pending { rel: string; content: string; kind: "owned" | "block" | "settings" | "toml"; mode?: number }
+
+/**
+ * Add the one table of `target` to a Codex TOML file. An existing table of that name is left alone (the user may have
+ * changed it); the text elsewhere is never read for changes or rewritten.
+ */
+export function mergeTomlEntry(existing: string | null, target: TomlEntryTarget): { text: string | null; lines: string[] } {
+  const body = [`[${target.table}]`, ...target.lines].join("\n");
+  if (existing === null) return { text: `# Registered by specplane init; delete this table to remove the Specplane tools.\n${body}\n`, lines: [] };
+  const header = new RegExp(`^\\s*\\[\\s*${target.table.replace(/\./g, "\\s*\\.\\s*")}\\s*\\]\\s*(#.*)?$`, "m");
+  if (header.test(existing)) return { text: null, lines: [] };
+  const sep = existing === "" || existing.endsWith("\n\n") ? "" : existing.endsWith("\n") ? "\n" : "\n\n";
+  return { text: `${existing}${sep}# Registered by specplane init; delete this table to remove the Specplane tools.\n${body}\n`, lines: [] };
+}
 
 /**
  * Merge the template settings into the user's file (`claude-integration` §5). Returns the new text, or null when nothing
@@ -228,6 +271,14 @@ export function installHarness(root: string, harness: string): InstallReport {
     else if (!merged.lines.some((l) => l.startsWith("Skipped"))) report.unchanged.push(plan.settings.path);
   }
 
+  if (plan.toml) {
+    refuseSymlinks(root, plan.toml.path);
+    const abs = path.join(root, plan.toml.path);
+    const merged = mergeTomlEntry(fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null, plan.toml);
+    if (merged.text !== null) pending.push({ rel: plan.toml.path, content: merged.text, kind: "toml" });
+    else report.unchanged.push(plan.toml.path);
+  }
+
   if (plan.block) {
     if (!loadSettings(root).config.values["harness.install_block"]) {
       report.lines.push(`Skipped the Specplane block in ${plan.block.file}: harness.install_block is off, so the standing instructions are not installed for ${harness}.`);
@@ -249,7 +300,7 @@ export function installHarness(root: string, harness: string): InstallReport {
   }
 
   for (const p of pending) { atomicWrite(path.join(root, p.rel), p.content, p.mode); report.written.push(p.rel); }
-  const files = [...plan.owned.map((f) => f.path), ...(plan.block && report.written.concat(report.unchanged).includes(plan.block.file) ? [plan.block.file] : [])];
+  const files = [...plan.owned.map((f) => f.path), ...(plan.toml ? [plan.toml.path] : []), ...(plan.block && report.written.concat(report.unchanged).includes(plan.block.file) ? [plan.block.file] : [])];
   const record = readStoreJson<Record<string, string[]>>(root, RECORD) ?? {};
   writeStoreJson(root, RECORD, { ...record, [harness]: files.filter((f) => !report.kept.includes(f)) });
   return report;

@@ -22,13 +22,13 @@ test("installing twice changes nothing and text outside the block is byte-identi
   const mine = "# Team rules\n\nBe kind.  \n\n\nTrailing text without newline";
   const root = repo({ "AGENTS.md": mine });
   const first = installHarness(root, "codex");
-  assert.deepEqual(first.written, ["AGENTS.md"]);
+  assert.ok(first.written.includes("AGENTS.md"));
   const afterFirst = read(root, "AGENTS.md");
   assert.ok(afterFirst.startsWith(mine));
   assert.match(afterFirst, /<!-- specplane:begin v0\.1\.0 /);
   const second = installHarness(root, "codex");
   assert.deepEqual(second.written, []);
-  assert.deepEqual(second.unchanged, ["AGENTS.md"]);
+  assert.ok(second.unchanged.includes("AGENTS.md"));
   assert.equal(read(root, "AGENTS.md"), afterFirst);
 });
 
