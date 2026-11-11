@@ -1,6 +1,6 @@
-import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
+import { configDiffersFromHead, readCommittedConfig } from "./config-source.js";
 import { CATALOG, PRESETS } from "./perm/permissions.js";
 
 /**
@@ -87,7 +87,12 @@ export interface ConfigFinding { severity: "error" | "warning"; key: string; mes
 
 export interface ResolvedSetting { key: string; value: unknown; source: "default" | "set"; def: unknown }
 
+/** Absolute folders for the path settings, checked once at load time. */
+export interface ResolvedPaths { requirements: string; features: string; architecture: string; plans: string }
+
 export interface Config {
+  /** Absolute checked folders; set by `loadSettings` (empty strings for `parseConfig` alone and the defaults). */
+  abs: ResolvedPaths;
   /** Resolved values by dotted key (`strict_mode.x`, `harness.instructions.x` included). */
   values: Record<string, unknown>;
   /** Dotted keys explicitly written in the file. */
@@ -262,7 +267,7 @@ function build(values: Record<string, unknown>, set: Set<string>): Config {
   collectDynamics(values, set);
   const v = values as Record<string, any>;
   return {
-    values, set,
+    values, set, abs: { requirements: "", features: "", architecture: "", plans: "" },
     paths: { requirements: v["paths.requirements"], requirementsIndex: v["paths.requirements_index"], features: v["paths.features"], architecture: v["paths.architecture"], testLogs: v["paths.test_logs"] },
     plans: { dir: v["plans.dir"], worktreeDir: v["plans.worktree_dir"], setupCommand: v["plans.setup_command"], startConditions: v["plans.start_conditions"], parallelism: v["plans.parallelism"] },
     permissionsPreset: v["permissions.preset"],
@@ -327,11 +332,38 @@ export function parseConfig(text: string | null): LoadResult {
   return { config: build(values, set), findings };
 }
 
-/** Read `<root>/.specplane/config.yaml` (root = checkout root). A missing file means all defaults. */
+/**
+ * Read the configuration committed at HEAD of the checkout at `root` (`architecture/reference-cli` §3.2). A missing
+ * file means all defaults; a working-tree file that differs from HEAD is ignored with a warning finding. The paths are
+ * resolved and checked here, once, and the result is the one `Config` the command passes down.
+ */
 export function loadSettings(root: string): LoadResult {
-  let text: string | null = null;
-  try { text = fs.readFileSync(path.join(root, CONFIG_PATH), "utf8"); } catch { text = null; }
-  return parseConfig(text);
+  const result = parseConfig(readCommittedConfig(root));
+  if (configDiffersFromHead(root)) {
+    result.findings.push({ severity: "warning", key: CONFIG_PATH, message: `${CONFIG_PATH} differs from HEAD; the uncommitted change is ignored until it is committed` });
+  }
+  result.config.abs = resolvePaths(root, result.config, result.findings);
+  return result;
+}
+
+/** Absolute, checked locations for the folder settings: inside the checkout, no symbolic link out of it. */
+function resolvePaths(root: string, config: Config, findings: ConfigFinding[]): ResolvedPaths {
+  const base = path.resolve(root);
+  const one = (key: string, rel: string): string => {
+    const abs = path.resolve(base, rel);
+    const within = path.relative(base, abs);
+    if (within.startsWith("..") || path.isAbsolute(within)) {
+      findings.push({ severity: "error", key, message: `setting \`${key}\` is malformed: \`${rel}\` resolves outside the repository; allowed: a path inside the repository` });
+      return path.resolve(base, String(defFor(key)!.def));
+    }
+    return abs;
+  };
+  return {
+    requirements: one("paths.requirements", config.paths.requirements),
+    features: one("paths.features", config.paths.features),
+    architecture: one("paths.architecture", config.paths.architecture),
+    plans: one("plans.dir", config.plans.dir),
+  };
 }
 
 /** Every setting with its value, source and default (`configuration R25`), dynamic map entries included. */

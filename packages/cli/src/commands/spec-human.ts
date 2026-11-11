@@ -4,7 +4,7 @@ import { audit } from "../audit/log.js";
 import { UsageError } from "../errors.js";
 import type { CommandResult } from "./runner.js";
 import { checkoutRoot } from "../git/repo.js";
-import { activePreset, cliRole, gitUserName, guard, switchRole, type Actor } from "../perm/permissions.js";
+import { activePreset, cliActor, cliRole, guard, switchRole, type Actor } from "../perm/permissions.js";
 import { formatMigration, migrateStatus } from "../spec/migrate.js";
 import { syncNotes } from "../spec/sync.js";
 import { approveSpecs, metaGet, metaSet, overrideSpec, reopenSpec, type Ctx, type OverrideKind, type Result } from "../spec/human.js";
@@ -13,7 +13,7 @@ import { approveSpecs, metaGet, metaSet, overrideSpec, reopenSpec, type Ctx, typ
 
 function context(): Ctx {
   const root = checkoutRoot();
-  const actor: Actor = { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown" };
+  const actor: Actor = cliActor(root);
   return { root, actor, preset: activePreset(root) };
 }
 
@@ -58,7 +58,7 @@ export const roleShowHuman = (): CommandResult => ({ ok: true, data: { role: cli
 export const roleSwitchHuman = (role: string): CommandResult => {
   if (role !== "administrator" && role !== "standard-user") throw new UsageError("role must be `administrator` or `standard-user`");
   const root = checkoutRoot();
-  const actor: Actor = { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown" };
+  const actor: Actor = cliActor(root);
   switchRole(root, role, actor);
   audit(root, { command: "role switch", args: [role], permission: null, outcome: "done", actor: { role: actor.role, kind: actor.kind, name: actor.name }, new: { role } });
   return { ok: true, data: { role }, lines: [`CLI calls on this machine now run as ${role}.`] };

@@ -139,6 +139,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U2 Configuration from HEAD and roots
 
+- **Status:** done. Config read from `HEAD` (`config-source.ts`, `loadSettings`, `activePreset`) with a differs-from-HEAD warning; `Config.abs` holds checked absolute folders; `Actor.session` and `cliActor`; `config set` effects go through `config-effects.ts` (stubs until U9/U19). Deferred: core readers still use the relative `paths.*` strings rather than `abs`.
 - **Goal:** load config from `git show HEAD:.specplane/config.yaml`; warn when the working tree differs; resolve and check `paths.*`/`plans.dir` once; pass one `Config` down; `config set` side effects call hooks (stub until U17/U9 provide them); `Actor.session`; `NotARepoError` → exit 3; `docs`/`--help` work outside a repo.
 - **Specs:** `reference-cli §3.1`, `§3.2`, `§7.1`; `file-formats §6.2`, `§7.3`.
 - **Files:** `config.ts`, `config-ops.ts`, `spec/paths.ts`, `perm/permissions.ts`, `verify/validate.ts`.

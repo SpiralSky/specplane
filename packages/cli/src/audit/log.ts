@@ -4,7 +4,7 @@ import { appendStoreLine } from "../repo/store.js";
 
 /** Audit log entries (`architecture/file-formats` §10, `architecture/reference-cli` §9). */
 
-export interface AuditActor { role: string; kind: "human" | "llm"; name: string }
+export interface AuditActor { role: string; kind: "human" | "llm"; name: string; session?: string }
 export type AuditOutcome = "done" | "refused" | "request-sent" | "cancelled" | "failed";
 
 export interface AuditEntry {

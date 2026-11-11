@@ -21,7 +21,7 @@ export interface RequestResult {
   resume?: string;
 }
 
-const auditActor = (a: Actor) => ({ role: a.role, kind: a.kind, name: a.name });
+const auditActor = (a: Actor) => ({ role: a.role, kind: a.kind, name: a.name, ...(a.session ? { session: a.session } : {}) });
 const stamp = (c: RequestCtx) => (c.now ?? new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 /* ------------------------------------------------------------------ send */

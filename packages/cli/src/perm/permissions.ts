@@ -1,7 +1,6 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
 import * as yaml from "js-yaml";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
+import { readCommittedConfig } from "../config-source.js";
 import { run } from "../git/exec.js";
 
 /**
@@ -72,7 +71,9 @@ export function mode(preset: Preset, role: RoleId, permission: string): Mode {
 /** The preset named by `permissions.preset`; an unknown or missing ID gives the default preset. */
 export function activePreset(root: string): Preset {
   try {
-    const doc = yaml.load(fs.readFileSync(path.join(root, ".specplane/config.yaml"), "utf8"), { schema: yaml.JSON_SCHEMA }) as { permissions?: { preset?: unknown } } | null;
+    const text = readCommittedConfig(root);
+    if (text === null) return DEFAULT_PRESET;
+    const doc = yaml.load(text, { schema: yaml.JSON_SCHEMA }) as { permissions?: { preset?: unknown } } | null;
     const id = doc?.permissions?.preset;
     return PRESETS.find((p) => p.id === id) ?? DEFAULT_PRESET;
   } catch { return DEFAULT_PRESET; }
@@ -97,7 +98,13 @@ export function gitUserName(root: string): string | null {
   try { return run("git", ["config", "user.name"], { cwd: root }).trim() || null; } catch { return null; }
 }
 
-export interface Actor { role: RoleId; kind: "human" | "llm"; name: string; model?: string }
+export interface Actor { role: RoleId; kind: "human" | "llm"; name: string; model?: string; session?: string }
+
+/** The actor for a person's CLI call: the CLI role, the git user, and the harness session when `SPECPLANE_SESSION` names one (`reference-cli` §7.1). */
+export function cliActor(root: string): Actor {
+  const session = process.env.SPECPLANE_SESSION?.trim();
+  return { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown", ...(session ? { session } : {}) };
+}
 
 declare const authorizedBrand: unique symbol;
 /** Opaque proof that the guard allowed these permissions for this actor. Only `guard` creates one. */

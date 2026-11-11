@@ -2,6 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import { audit } from "./audit/log.js";
+import { applyEffects } from "./config-effects.js";
+import { readWorkingConfig } from "./config-source.js";
 import { CONFIG_PATH, checkValue, describeDefault, formatValue, listSettings, loadSettings, lookup, parseConfig, type Config, type Kind } from "./config.js";
 import { editConfig } from "./config-edit.js";
 import { guard, type Actor, type Preset } from "./perm/permissions.js";
@@ -78,8 +80,9 @@ function writeAtomic(file: string, text: string): void {
 function change(ctx: ConfigCtx, key: string, value: unknown | undefined, command: string, args: string[]): ConfigResult {
   const hit = lookup(key);
   if (!hit) return fail([`unknown setting \`${key}\`; \`specplane config list\` shows every setting`]);
-  const entry = { command, args, request: ctx.request, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name } };
-  const before = loadSettings(ctx.root).config;
+  const entry = { command, args, request: ctx.request, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name, ...(ctx.actor.session ? { session: ctx.actor.session } : {}) } };
+  // The edit replaces the working-tree value, so that is the old value; the committed one is what is active.
+  const before = parseConfig(readWorkingConfig(ctx.root)).config;
   const old = before.values[key] ?? null;
   let candidate: unknown;
   if (value !== undefined) {
@@ -109,9 +112,9 @@ function change(ctx: ConfigCtx, key: string, value: unknown | undefined, command
   if (next !== text) writeAtomic(file, next);
   const after = check.config.values[key] ?? null;
   audit(ctx.root, { ...entry, permission: "config.change", outcome: "done", old, new: after }, ctx.now);
-  const lines = [value === undefined ? `Removed \`${key}\`; the default (${formatValue(hit.def.def)}) applies.` : `Set \`${key}\` to ${formatValue(candidate)} (was ${formatValue(old)}).`, `Written to ${CONFIG_PATH}, not committed. It applies from the next command.`];
+  const lines = [value === undefined ? `Removed \`${key}\`; the default (${formatValue(hit.def.def)}) applies.` : `Set \`${key}\` to ${formatValue(candidate)} (was ${formatValue(old)}).`, `Written to ${CONFIG_PATH}, not committed. It applies from the next command after it is committed; until then it is ignored.`];
   if (hit.def.later) lines.push("This setting belongs to a later release and has no effect yet.");
-  if (key === "permissions.preset") lines.push("The active preset changed; steering is regenerated when steering is available.");
+  lines.push(...applyEffects(ctx.root, key, old, after));
   return { ok: true, lines, reasons: [], data: { key, old, new: after }, written: true };
 }
 

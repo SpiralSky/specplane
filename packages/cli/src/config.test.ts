@@ -6,10 +6,11 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_SETTINGS, SETTINGS, parseConfig, loadSettings } from "./config.js";
 import { editConfig } from "./config-edit.js";
+import { clearEffects, registerEffect } from "./config-effects.js";
 import { configGet, configList, configSet, configUnset, type ConfigCtx } from "./config-ops.js";
 import { PERMISSION_DOCS, undocumentedPermissions } from "./perm/catalog.js";
 import { describePermission, listPermissions } from "./perm/docs.js";
-import { CATALOG, DEFAULT_PRESET, PRESETS, mode } from "./perm/permissions.js";
+import { CATALOG, DEFAULT_PRESET, activePreset, cliActor, PRESETS, mode } from "./perm/permissions.js";
 import { loadSpecPaths } from "./spec/paths.js";
 import { makeRepo } from "./test-repo.js";
 
@@ -22,6 +23,9 @@ function repo(config?: string): string {
     assert.equal(spawnSync("git", a, { cwd: root }).status, 0);
   }
   return root;
+}
+function commitAll(root: string, msg = "config"): void {
+  for (const a of [["add", "-A"], ["commit", "-q", "--allow-empty", "-m", msg]]) assert.equal(spawnSync("git", a, { cwd: root }).status, 0);
 }
 const ctxFor = (root: string, role: "standard-user" | "llm" | "administrator" = "standard-user"): ConfigCtx => ({
   root, actor: { role, kind: role === "llm" ? "llm" : "human", name: "Pat Person" }, preset: DEFAULT_PRESET, now: new Date("2026-11-10T12:00:00Z"),
@@ -172,12 +176,15 @@ test("config set and unset: the Standard User changes a setting, audited with ol
   const r = configSet(ctxFor(root), "auto_warn", "off");
   assert.ok(r.ok && r.written, r.reasons.join());
   assert.equal(fs.readFileSync(file(root), "utf8"), "# mine\nauto_warn: off\n");
+  assert.equal(loadSettings(root).config.autoWarn, true, "the uncommitted change is ignored");
+  commitAll(root);
   assert.equal(loadSettings(root).config.autoWarn, false);
   const last = auditLines(root).at(-1)!;
   assert.deepEqual([last.command, last.permission, last.outcome, last.old, last.new, last.actor.role], ["config set", "config.change", "done", true, false, "standard-user"]);
   const u = configUnset(ctxFor(root), "auto_warn");
   assert.ok(u.ok);
   assert.equal(fs.readFileSync(file(root), "utf8"), "# mine\n");
+  commitAll(root);
   assert.equal(loadSettings(root).config.autoWarn, true);
   assert.equal(auditLines(root).at(-1)!.command, "config unset");
 });
@@ -197,6 +204,7 @@ test("config set creates the file, validates before writing and refuses unknown 
   assert.ok(configSet(ctxFor(root), "permissions.preset", "full-llm-control").ok);
   assert.ok(configSet(ctxFor(root), "steering.custom", '[{permission: spec.approve, scope: all, text: "Ask first"}]').ok);
   assert.ok(configSet(ctxFor(root), "strict_mode.git", "on").ok);
+  commitAll(root);
   assert.equal(loadSettings(root).findings.length, 0);
 });
 
@@ -298,6 +306,8 @@ test("CLI: config set/get/list and permissions work end to end", () => {
   const run = (...a: string[]) => spawnSync("node", [cli, ...a], { cwd: root, encoding: "utf8", env: { ...process.env, SPECPLANE_AGENT: "", SPECPLANE_SESSION: "" } });
   const set = run("config", "set", "auto_warn", "off");
   assert.equal(set.status, 0, set.stderr);
+  assert.match(run("config", "get", "auto_warn").stdout, /auto_warn = on \(set; default on\)/);
+  commitAll(root);
   assert.match(run("config", "get", "auto_warn").stdout, /auto_warn = off \(set; default on\)/);
   const json = JSON.parse(run("config", "list", "--json").stdout);
   assert.equal(json.ok, true);
@@ -310,4 +320,75 @@ test("CLI: config set/get/list and permissions work end to end", () => {
   assert.match(perms.stdout, /Active preset: architecture-level-llm-control\. You are: standard-user\./);
   assert.match(run("permissions", "config.change").stdout, /Allows: Change a setting/);
   assert.equal(run("permissions", "bogus").status, 1);
+});
+
+test("configuration is read from HEAD: an uncommitted change is ignored with a warning, a committed one applies", () => {
+  const root = repo("permissions:\n  preset: full-llm-control\n");
+  assert.equal(loadSettings(root).config.permissionsPreset, "full-llm-control");
+  assert.equal(loadSettings(root).findings.length, 0);
+  fs.writeFileSync(file(root), "permissions:\n  preset: feature-level-llm-control\n");
+  const l = loadSettings(root);
+  assert.equal(l.config.permissionsPreset, "full-llm-control");
+  assert.ok(l.findings.some((f) => f.severity === "warning" && /differs from HEAD/.test(f.message)));
+  assert.equal(activePreset(root).id, "full-llm-control");
+  assert.ok(loadSpecPaths(root).findings.some((f) => /differs from HEAD/.test(f.message)));
+  commitAll(root);
+  assert.equal(loadSettings(root).config.permissionsPreset, "feature-level-llm-control");
+  assert.equal(activePreset(root).id, "feature-level-llm-control");
+  assert.equal(loadSettings(root).findings.length, 0);
+});
+
+test("configuration: a file missing at HEAD gives defaults, even when the working tree has one", () => {
+  const root = repo();
+  assert.deepEqual(loadSettings(root).config.values, DEFAULT_SETTINGS.values);
+  assert.equal(loadSettings(root).findings.length, 0);
+  fs.mkdirSync(path.dirname(file(root)), { recursive: true });
+  fs.writeFileSync(file(root), "auto_warn: off\n");
+  const l = loadSettings(root);
+  assert.equal(l.config.autoWarn, true);
+  assert.equal(l.findings.length, 1);
+  const empty = makeRepo({ "README.md": "x\n" });
+  assert.deepEqual(loadSettings(empty).config.values, DEFAULT_SETTINGS.values);
+});
+
+test("configuration paths are resolved once to absolute folders inside the checkout", () => {
+  const root = repo("paths:\n  features: specs/f\n");
+  const c = loadSettings(root).config;
+  assert.equal(c.abs.features, path.join(root, "specs/f"));
+  assert.equal(c.abs.plans, path.join(root, "docs/plans"));
+});
+
+test("a setting change reports its pending side effect and runs a registered handler", () => {
+  const root = repo("auto_warn: on\n");
+  const r = configSet(ctxFor(root), "permissions.preset", "full-llm-control");
+  assert.ok(r.lines.some((l) => /steering is regenerated/.test(l)));
+  const seen: string[] = [];
+  registerEffect("pre_commit.", (_r, key, old, next) => { seen.push(`${key}:${old}->${next}`); return ["hook section updated"]; });
+  try {
+    const p = configSet(ctxFor(root), "pre_commit.tests", "on");
+    assert.deepEqual(seen, ["pre_commit.tests:false->true"]);
+    assert.ok(p.lines.includes("hook section updated"));
+  } finally { clearEffects(); }
+});
+
+test("the actor carries the harness session from SPECPLANE_SESSION", () => {
+  const root = repo();
+  const prev = process.env.SPECPLANE_SESSION;
+  try {
+    process.env.SPECPLANE_SESSION = "sess-1";
+    assert.equal(cliActor(root).session, "sess-1");
+    delete process.env.SPECPLANE_SESSION;
+    assert.equal("session" in cliActor(root), false);
+  } finally { if (prev === undefined) delete process.env.SPECPLANE_SESSION; else process.env.SPECPLANE_SESSION = prev; }
+});
+
+test("CLI: outside a repository docs and help work and other commands exit 3", () => {
+  const dir = fs.mkdtempSync(path.join(path.dirname(makeRepo({})), "norepo-"));
+  const run = (...a: string[]) => spawnSync("node", [cli, ...a], { cwd: dir, encoding: "utf8" });
+  assert.equal(run("--help").status, 0);
+  assert.equal(run("docs").status, 0);
+  const v = run("validate");
+  assert.equal(v.status, 3);
+  assert.match(v.stderr, /Not in a git repository/);
+  assert.equal(run("config", "list").status, 3);
 });

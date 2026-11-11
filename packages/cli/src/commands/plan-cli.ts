@@ -3,7 +3,7 @@ import { RequestSent } from "../requests/hold.js";
 import { UsageError } from "../errors.js";
 import { runCommand } from "./runner.js";
 import { checkoutRoot } from "../git/repo.js";
-import { activePreset, cliRole, gitUserName, type Actor } from "../perm/permissions.js";
+import { activePreset, cliActor, type Actor } from "../perm/permissions.js";
 import { approvePlan, createPlan } from "../plan/create.js";
 import { guarded, liveRoot, requirePlan, writeRun, type PlanCtx } from "../plan/ctx.js";
 import { checkBudget, type Usage } from "../plan/budget.js";
@@ -15,7 +15,7 @@ import { checkSelection, describePlan, listInfos, type PlanInfo } from "../plan/
 
 function context(): PlanCtx {
   const root = checkoutRoot();
-  const actor: Actor = { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown" };
+  const actor: Actor = cliActor(root);
   // A harness adapter names the resources it can measure; without it nothing is refused (`reference-cli` §11.4).
   const measurable = process.env.SPECPLANE_MEASURABLE_RESOURCES?.split(",").map((x) => x.trim()).filter(Boolean);
   return { root, actor, preset: activePreset(root), ...(measurable ? { measurable } : {}) };

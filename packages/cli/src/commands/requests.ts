@@ -1,6 +1,6 @@
 import type { CommandResult } from "./runner.js";
 import { checkoutRoot } from "../git/repo.js";
-import { activePreset, cliRole, gitUserName, type Actor } from "../perm/permissions.js";
+import { activePreset, cliActor, type Actor } from "../perm/permissions.js";
 import { acceptRequest, declineRequest, formatRequest, list, show, type RequestCtx, type RequestResult } from "../requests/ops.js";
 import { withCheckoutLeaseAsync } from "../core/checkout-coordination.js";
 
@@ -8,7 +8,7 @@ import { withCheckoutLeaseAsync } from "../core/checkout-coordination.js";
 
 function ctx(): RequestCtx {
   const root = checkoutRoot();
-  const actor: Actor = { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown" };
+  const actor: Actor = cliActor(root);
   return { root, actor, preset: activePreset(root) };
 }
 

@@ -5,7 +5,7 @@ import { FormatError, NotARepoError, PreconditionError, SpecplaneError } from ".
 import { checkoutRoot } from "../git/repo.js";
 import { formatJson } from "../output/json.js";
 import { formatText } from "../output/text.js";
-import { cliRole, gitUserName } from "../perm/permissions.js";
+import { cliActor } from "../perm/permissions.js";
 import { RequestSent } from "../requests/hold.js";
 
 /**
@@ -40,7 +40,7 @@ export type ExitCode = 0 | 1 | 2 | 3 | 4;
 export const INTERRUPTED = 130;
 
 function actorOf(root: string): AuditActor {
-  try { return { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown" }; } catch { return { role: "standard-user", kind: "human", name: "unknown" }; }
+  try { return cliActor(root); } catch { return { role: "standard-user", kind: "human", name: "unknown" }; }
 }
 
 function errorResult(e: unknown): { result: CommandResult; exit: ExitCode } {

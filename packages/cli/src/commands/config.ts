@@ -1,7 +1,7 @@
 import { withCheckoutLease } from "../core/checkout-coordination.js";
 import { configGet, configList, configSet, configUnset, type ConfigCtx, type ConfigResult } from "../config-ops.js";
 import { checkoutRoot } from "../git/repo.js";
-import { activePreset, cliRole, gitUserName } from "../perm/permissions.js";
+import { activePreset, cliActor, cliRole } from "../perm/permissions.js";
 import type { CommandResult } from "./runner.js";
 import { describePermission, listPermissions } from "../perm/docs.js";
 
@@ -9,7 +9,7 @@ import { describePermission, listPermissions } from "../perm/docs.js";
 
 function ctx(): ConfigCtx {
   const root = checkoutRoot();
-  return { root, actor: { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown" }, preset: activePreset(root) };
+  return { root, actor: cliActor(root), preset: activePreset(root) };
 }
 
 function result(r: ConfigResult): CommandResult {

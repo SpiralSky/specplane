@@ -1,7 +1,7 @@
 import { readAudit, type AuditLine } from "../audit/read.js";
 import { UsageError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
-import { activePreset, cliRole, gitUserName, guard, type Actor } from "../perm/permissions.js";
+import { activePreset, cliActor, guard, type Actor } from "../perm/permissions.js";
 import type { CommandResult } from "./runner.js";
 
 /** `specplane audit [--since <date>] [--branch <name>] [--actor <role>] [--json]` (`architecture/reference-cli` §9). */
@@ -21,7 +21,7 @@ export function auditCommand(opts: AuditOptions): CommandResult {
     if (Number.isNaN(since.getTime())) throw new UsageError(`\`--since ${opts.since}\` is not a date; use YYYY-MM-DD or a full timestamp.`);
   }
   const root = checkoutRoot();
-  const actor: Actor = { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown" };
+  const actor: Actor = cliActor(root);
   const g = guard(activePreset(root), actor, ["info.retrieve"], "Reading the audit log");
   if (g.kind !== "allow") return { ok: false, findings: [g.kind === "deny" ? g.message : "Reading the audit log needs approval from the user."], permission: "info.retrieve" };
   const { entries, skipped } = readAudit(root, { since, branch: opts.branch, actor: opts.actor });
