@@ -130,6 +130,7 @@ Each unit is sized for one subagent session and under about 1,000 changed lines 
 
 ### U1 Command runner, output and audit
 
+- **Status:** done. One commit (runner, audit reader and retention, clock, exit codes, `audit`). Deferred: old `output/human.ts` stays for legacy callers until U12; auto-warn line and `Actor.session` belong to U4/U2; legacy commands (`spec list`, `search`, `decision`, ...) are not on the runner yet.
 - **Goal:** one command runner that returns `{ok,data,findings,warnings}`, prints text or JSON, maps errors to exit codes 0–4, writes the runner audit entry for every command (reads included, `cancelled` on SIGINT), runs audit retention at start with the `audit prune` entry and lock file, and adds `specplane audit [--since] [--branch] [--actor] [--json]`. Introduce `clock.ts` (injectable time and random).
 - **Specs:** `reference-cli §1` (clock, output), `§9`, `§13.3`; `file-formats §10`.
 - **Files:** new `output/text.ts`, `output/json.ts` (rewrite), `commands/runner.ts`, `audit/retention.ts`, `commands/audit.ts`, `clock.ts`; edit `audit/log.ts`, `errors.ts`, `cli.ts`, the new command files (`commands/config.ts`, `requests.ts`, `spec-human.ts`, `plan-cli.ts`, `validate.ts`) to return results.
