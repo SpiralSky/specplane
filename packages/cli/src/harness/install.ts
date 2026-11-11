@@ -98,7 +98,7 @@ function codexPlan(text: string): InstallPlan {
   for (const command of CODEX_CONTRACTS) owned.push({ path: `.agents/skills/specplane/${contractPath(command)}`, content: read(contractPath(command)) });
   return {
     harness: "codex", owned, block: { file: "AGENTS.md", text },
-    toml: { path: CODEX_CONFIG, table: "mcp_servers.specplane", lines: ['command = "specplane"', 'args = ["mcp"]'] },
+    toml: { path: CODEX_CONFIG, table: "mcp_servers.specplane", lines: ['command = "specplane"', 'args = ["mcp"]', 'env = { SPECPLANE_ADAPTER = "codex" }'] },
   };
 }
 
