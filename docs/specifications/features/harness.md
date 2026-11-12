@@ -29,7 +29,7 @@ Commands carry instructions, and sometimes optional content, that Specplane give
 - **Use what the harness does better.** If the harness can load instructions on demand (skills loaded when needed, for example), Specplane uses that instead of sending the text itself. The behaviour the user sees is the same.
 - **Customisable.** The user can change the instructions for a command. By default they are the command's documentation (`R22`). A customisation changes only the text; it cannot remove a limit that Specplane checks itself (`roles-and-permissions R50`). Where the configuration option lives is described in `configuration R25`.
 - **Optional separation check.** Where the harness helps write specifications, optional instructions can ask the LLM to verify that feature and architecture content is separated and to warn the user per change or per review (`R4`). They are configurable and can be turned off.
-- **Migration prompt.** The prompt used by the project migration command is one of these instructions and is configurable the same way (`R66`, `later-releases R66`, a later release).
+- **Migration prompt.** The prompt used by the project migration command is one of these instructions and is configurable the same way (`R66`, `later-releases R66`; the `migrate` command, `harness.instructions.migrate`).
 - **Cannot deliver.** If a harness cannot deliver instructions at the point a command runs, Specplane delivers them at the nearest earlier point it can, for example the start of the session, and tells the user. It does not pretend they were delivered (`R35.1`).
 
 Scenario: Given the LLM already received the instructions for the plan commands in this conversation, When the user runs a plan command again, Then the instructions are not sent again.

@@ -80,6 +80,12 @@ Store a decision you made, with its context, as a decision record, optionally wr
 
 Say which record was stored or which request is pending, and that you approve a record by its ID before it counts as confirmed. Needs `decisions.enabled`.
 
+## migrate
+
+Guide the assistant through bringing an existing project, including one in an older Specplane format, into Specplane (`later-releases R66`).
+
+List what was migrated, what was left and what was uncertain, name any pending request, and state that every new specification is Awaiting Review and the old files are unchanged.
+
 ## requests
 
 Open the requests pane for the user, with no model turn (`requests R52.1`, `R52.2`, `R52.4`).

@@ -91,12 +91,13 @@ The root project's requirements outrank a subproject's requirements. Within a su
 
 ## R66: Project Migration
 
-Later release. A harness command guides the LLM through bringing an existing project into Specplane, including a project that uses an older Specplane format. Migration without an LLM is not a goal (`R62.3`).
+A harness command guides the LLM through bringing an existing project into Specplane, including a project that uses an older Specplane format. Migration without an LLM is not a goal (`R62.3`).
 
 - The LLM uses the project's existing specifications, documents and code as sources. It writes specifications for the project, each tracing to requirements where the project has requirements (`R68`), and shows the user what it found and what it proposes to write before it writes.
 - The prompt the LLM receives is configurable like any other command instructions (`R14`, `harness R14`). The default prompt tells the LLM to prefer asking the user over guessing, and to leave out what it cannot find evidence for.
 - The LLM follows the permissions of its role. Where it may not create a specification, it requests it or tells the user what to create (`roles-and-permissions R50`, `requests R52`).
 - Every specification that results from migration starts as Awaiting Review, even if the source had been approved in an older format, because approval in the old format says nothing about the new content (`specifications R11`).
+- The command is `migrate` (`/migrate` in Claude Code); it is separate from `specplane migrate status`, which only moves approval records of an older frontmatter format into the notes store (reference-cli section 5.7). It reads the sources the user names, with the LLM role's `info.retrieve`, and writes through `spec.create.requirement`, `spec.create.feature` and `spec.create.architecture` under their modes (allow, request user, deny).
 - Migration never deletes or rewrites the old files unless the user asks for it, and it can be stopped and resumed: a later run recognises what it has already written and carries on.
 - At the end, the LLM lists what it migrated, what it left, and what it was unsure about, so the user can review it.
 - The old architecture records, overlay roots and per-type LLM role settings of earlier versions are inputs to migration: records may become decision records when those are on and the user chooses; overlays may become subprojects (`R39`) only after their inheritance semantics are accounted for and the user accepts the mapping; the old role settings are replaced by a permission preset the user chooses. Unmapped records and overlays are retained and reported, not silently discarded.
