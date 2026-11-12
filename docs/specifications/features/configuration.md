@@ -90,8 +90,8 @@ Later releases:
 | `plans.parallelism` | The greatest number of tasks in a plan step run at once (`plan-execution R31.2`). Later release | 1 |
 | `strict_mode.enabled` and `strict_mode.<measure>` | Strict mode as a whole, and each of its measures (blocking direct file edits in the harness, git safeguards, operating system safeguards) on its own (`roles-and-permissions R55.1`). Later release | `off` |
 | `bypass_guards.<measure>` | Each guardrail against permission bypass by headless sessions or the CLI inside an LLM session, on its own (`roles-and-permissions R58`). Later release | `on` (assumption) |
-| `roles.os_user_mapping` | The optional mapping from operating system users to roles, kept locally per machine, not in git (`roles-and-permissions R44`). Later release | No mapping |
-| `roles.llm_rules` | Rules that give a role to an LLM by subagent, agent type or provider (`roles-and-permissions R44.1`); custom roles and these rules are kept in git (`roles-and-permissions R48`). Later release | The default LLM role |
+| `roles.os_user_mapping` | The optional mapping from operating system users to roles, kept locally per machine, not in git (`roles-and-permissions R44`). Managed with `role map`, not set in the configuration file | No mapping |
+| `roles.llm_rules` | Rules that give a role to an LLM by subagent, agent type or provider (`roles-and-permissions R44.1`); custom roles and these rules are files in git (`roles-and-permissions R48`) managed with `role` and `role rule`, not set in the configuration file | The default LLM role |
 
 - Choosing `git` for `tests.logs` makes Specplane tell the user that logs in git can expose private information and are not removed by retention (`verification R61`).
 - Turning on a pre-commit setting installs the check and turning it off removes it, the same way for both (`verification R12`).

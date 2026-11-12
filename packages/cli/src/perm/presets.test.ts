@@ -115,7 +115,7 @@ test("an LLM-role actor stays refused when a preset gives it config.change as al
   const open = { ...PRESETS[0], standardUser: { defaultMode: "allow" as const, modes: { "config.change": "request-user" as const } }, llm: { modes: { "config.change": "allow" as const } } };
   const r = presetCreate(ctx(root, llm, open), "p", { defaultMode: "deny" });
   assert.equal(r.ok, false);
-  assert.match(r.reasons[0], /management level/);
+  assert.match(r.reasons[0], /role\.manage/);
   const q = presetCreate(ctx(root, person, open), "p", { defaultMode: "deny" });
   assert.equal(q.ok, false);
   assert.match(q.reasons[0], /cannot be sent as a request/);

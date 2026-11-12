@@ -38,7 +38,7 @@ const auditLines = (root: string): Record<string, any>[] => {
 
 test("every setting named in configuration R25 is defined, and nothing else is", () => {
   const table = [...SPEC.matchAll(/^\| `([^`]+)`(?: and `([^`]+)`)? \|/gm)].flatMap((m) => [m[1], m[2]]).filter(Boolean) as string[];
-  const named = new Set(table.filter((k) => k !== "Setting" && k !== "roles.os_user_mapping")); // os_user_mapping is kept locally (file-formats §7.4)
+  const named = new Set(table.filter((k) => k !== "Setting" && k !== "roles.os_user_mapping" && k !== "roles.llm_rules")); // not settings: a local mapping and rule files (file-formats §7.4)
   const defined = new Set(SETTINGS.map((s) => s.key));
   for (const k of named) {
     const base = k.replace(/\.<[^>]+>$/, "");
@@ -117,12 +117,13 @@ test("overlapping folders are malformed and the later key falls back", () => {
 });
 
 test("later-release settings are accepted without being unknown; dynamic entries are kept", () => {
-  const { findings, config } = parseConfig("strict_mode:\n  enabled: on\n  git: off\nbypass_guards:\n  headless: on\nharness:\n  instructions:\n    plan-step: use this text\nsubprojects:\n  - {name: a, path: sub/a}\n  - {name: b, path: sub/b}\nroles:\n  llm_rules: []\n");
+  const { findings, config } = parseConfig("strict_mode:\n  enabled: on\n  git: off\nbypass_guards:\n  headless: on\nharness:\n  instructions:\n    plan-step: use this text\nsubprojects:\n  - {name: a, path: sub/a}\n  - {name: b, path: sub/b}\n");
   assert.deepEqual(findings, []);
   assert.equal(config.values["strict_mode.enabled"], true);
   assert.deepEqual(config.values["strict_mode"], { git: false });
   assert.deepEqual(config.values["harness.instructions"], { "plan-step": "use this text" });
   assert.equal(parseConfig("roles:\n  os_user_mapping: {a: b}\n").findings.length, 1);
+  assert.match(parseConfig("roles:\n  llm_rules: []\n").findings[0].message, /files under \.specplane\/roles\/rules/);
 });
 
 test("malformed YAML gives defaults and one error", () => {
@@ -271,7 +272,7 @@ test("default presets state the modes of roles-and-permissions R57 for the Stand
     assert.equal(mode(p, "llm", "config.change"), "request-user");
     assert.equal(mode(p, "standard-user", "config.change"), "allow");
     for (const o of ["override.status", "override.approver", "override.approval-commit", "override.test"]) assert.equal(mode(p, "standard-user", o), "deny");
-    for (const perm of CATALOG.filter((c) => !c.startsWith("override."))) assert.equal(mode(p, "standard-user", perm), "allow", `${id} ${perm}`);
+    for (const perm of CATALOG.filter((c) => !c.startsWith("override.") && c !== "role.map")) assert.equal(mode(p, "standard-user", perm), "allow", `${id} ${perm}`);
     assert.equal(mode(p, "administrator", "override.status"), "allow");
   }
   assert.equal(PRESETS.filter((p) => p.id === "feature-level-llm-control").length, 1);

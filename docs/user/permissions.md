@@ -14,6 +14,16 @@ Every action that changes something needs a permission. Each role has a mode for
 - **Standard User**: `allow` for every permission except the four protected overrides, which are `deny`. The default CLI role.
 - **LLM**: the role an agent in a harness has. Its modes come from the active preset.
 
+## Custom roles and management
+
+Besides the three default roles you can define custom roles, each with its own permissions and a management level, and decide who gets which role.
+
+- **Roles are files in git**: `.specplane/roles/roles/<id>.yaml` holds `management_level` (1 to 99), a required `default_mode` and a `modes` map. Create one with `role create <id> --level 7 --default-mode deny --set spec.edit.feature=request-user`, commit the file, then `role approve <id>`. A change to a role is pending until approved; the last approved version keeps applying, and a role never approved does not apply. `validate` reports pending changes. `role list` and `role show <id>` show the state.
+- **Management levels**: the Standard User is 10, the LLM 5, the Administrator above every level a custom role can have. A role can change, approve and map only roles with a lower level than its own, never its own role, and can never hand out a permission mode more permissive than its own. This holds even for a role with the management permission.
+- **Management and system permissions**: `role.manage` (create, edit, delete and approve roles and rules, and manage presets) and `role.map` (map users and LLMs to roles). Presets and default modes never grant them, nor the protected overrides: a custom role has them only if its file lists them. The Standard User has `role.manage`; only the Administrator has `role.map` by default. They are `allow` or `deny` in practice: `request-user` does not stand in, because a request would let a lower role change what applies to a higher one.
+- **Mapping users to roles**: `role map <os-user> <role>` stores the mapping in the local store of this machine, never in git (`role mappings` lists it, `role unmap` removes one). Without any mapping everyone is the Standard User and anyone can run `role switch administrator`. Once a mapping exists, an unmapped user is the Standard User and only a user mapped with `--allow-admin-switch` (Administrator only) can switch to the Administrator.
+- **LLM role rules**: `.specplane/roles/rules/<id>.yaml` gives an LLM a role when its factors match: `subagent`, `agent_type`, `provider`, `model`, `delegated`. Create with `role rule create <id> --role reviewer --match subagent=code-reviewer`, commit, then `role rule approve <id>`. A rule that gives a role above the default LLM role must also be trusted on your machine with `role rule trust <id>`. Without a matching rule an LLM has the default LLM role. The harness tells Specplane the provider and model; whether it can name a subagent depends on the harness.
+
 `role show` prints the current CLI role; `permissions` prints every permission with its mode per role in the active preset; `permissions <id>` prints the full documentation of one permission, including its steering text.
 
 <!-- note: llm-allow-approves -->
@@ -394,3 +404,19 @@ Does not allow: Reading settings, which needs no permission.
 
 Commands: `config set`, `config unset`, `init`
 
+
+### `role.manage`
+
+Allows: Management permission: create, edit, delete and approve custom roles, and change what a preset or a role allows, for roles whose management level is below the actor's. The actor may not give a mode more permissive than its own.
+
+Does not allow: Changing the actor's own role, or any role at an equal or higher level. It is never set by a preset, and a default mode never grants it. Request user does not apply: a role that has it only as request user is refused.
+
+Commands: `role create`, `role edit`, `role delete`, `role approve`, `preset create`, `preset edit`, `preset delete`
+
+### `role.map`
+
+Allows: System permission: map operating system users and LLMs to roles (`role map`, `role rule ...`), for roles whose management level is below the actor's. The Administrator may also map users to the Administrator role.
+
+Does not allow: Mapping anyone to a role at an equal or higher level than the actor's (the Administrator is exempt for operating system users only), or approving a change. It is never set by a preset, and a default mode never grants it. Request user does not apply.
+
+Commands: `role map`, `role unmap`, `role rule create`, `role rule edit`, `role rule delete`

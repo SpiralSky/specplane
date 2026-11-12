@@ -70,7 +70,7 @@ test("guard: granular metadata permission or meta.write, the more permissive win
 
 test("the Standard User holds everything but the protected overrides; the Administrator holds everything", () => {
   for (const p of PRESETS) for (const id of CATALOG) {
-    assert.equal(guard(p, person, [id], "x").kind, PROTECTED.includes(id as never) ? "deny" : "allow", `${p.id} ${id}`);
+    assert.equal(guard(p, person, [id], "x").kind, PROTECTED.includes(id as never) || id === "role.map" ? "deny" : "allow", `${p.id} ${id}`);
     assert.equal(guard(p, admin, [id], "x").kind, "allow");
   }
 });

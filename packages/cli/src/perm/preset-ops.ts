@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { audit } from "../audit/log.js";
 import { readWorkingConfig } from "../config-source.js";
 import { loadSettings, parseConfig } from "../config.js";
-import { CATALOG, PRESETS, allPresets, findPreset, guard, mode, type Actor, type Mode, type Preset, type RoleId } from "./permissions.js";
+import { CATALOG, PRESETS, STANDARD_CATALOG, allPresets, findPreset, guard, levelOf, mode, type Actor, type Mode, type Preset } from "./permissions.js";
 import { MODES, PRESET_ID, PRESET_ROLES, presetFile, readCustomPresets, serializePreset } from "./presets.js";
 
 /**
@@ -16,9 +16,6 @@ export interface PresetCtx { root: string; actor: Actor; preset: Preset; now?: D
 export interface PresetResult { ok: boolean; lines: string[]; reasons: string[]; data?: unknown; written: boolean }
 
 const fail = (reasons: string[]): PresetResult => ({ ok: false, lines: [], reasons, written: false });
-
-/** Management levels (`R42.2`). The Administrator is above every assignable level. */
-export const LEVELS: Record<RoleId, number> = { "standard-user": 10, llm: 5, administrator: Number.POSITIVE_INFINITY };
 
 export interface Edits { title?: string; defaultMode?: string; sets?: string[]; unsets?: string[]; from?: string }
 
@@ -51,11 +48,11 @@ export function presetShow(root: string, id: string): PresetResult {
 
 /** The refusal for an actor that may not manage presets, else `null`. */
 function mayManage(ctx: PresetCtx, describe: string): string | null {
-  const g = guard(ctx.preset, ctx.actor, ["config.change"], describe);
+  const g = guard(ctx.preset, ctx.actor, ["config.change", "role.manage"], describe);
   if (g.kind === "deny") return g.message;
   if (g.kind === "request") return `Refused: ${describe} needs \`config.change\`, which is request user for this role; preset changes cannot be sent as a request. Ask a role that has it.`;
-  const own = LEVELS[ctx.actor.role];
-  const above = PRESET_ROLES.filter((r) => r !== ctx.actor.role && LEVELS[r] >= own);
+  const own = levelOf(ctx.preset, ctx.actor.role);
+  const above = PRESET_ROLES.filter((r) => r !== ctx.actor.role && levelOf(ctx.preset, r) >= own);
   if (above.length) return `Refused: ${describe} applies to ${above.join(", ")}, whose management level is not below the ${ctx.actor.role} level (${own}) (R56, R43).`;
   return null;
 }
@@ -72,7 +69,7 @@ function applyEdits(p: { standardUser: RoleBody; llm: RoleBody; defaultMode: Mod
   const target = (spec: string): { role: string; perm: string } | null => {
     const m = /^([a-z-]+):(.+)$/.exec(spec);
     if (!m || !(PRESET_ROLES as readonly string[]).includes(m[1])) { problems.push(`\`${spec}\`: expected <role>:<permission>, with the role standard-user or llm`); return null; }
-    if (m[2] !== "*" && !CATALOG.includes(m[2])) { problems.push(`\`${spec}\`: permission \`${m[2]}\` does not exist`); return null; }
+    if (m[2] !== "*" && !STANDARD_CATALOG.includes(m[2])) { problems.push(`\`${spec}\`: permission \`${m[2]}\` does not exist`); return null; }
     return { role: m[1], perm: m[2] };
   };
   for (const s of e.sets ?? []) {
@@ -131,7 +128,7 @@ export function presetEdit(ctx: PresetCtx, id: string, e: Edits): PresetResult {
   if (PRESETS.some((p) => p.id === id)) return fail([`preset \`${id}\` is a default preset and cannot be edited; \`specplane preset create <id> --from ${id}\` makes an editable copy`]);
   const refused = mayManage(ctx, `editing preset \`${id}\``);
   if (refused) { record(ctx, "preset edit", args, "refused", null, null, refused); return fail([refused]); }
-  const found = readCustomPresets(ctx.root, "work", CATALOG, PRESETS.map((p) => p.id)).presets.find((p) => p.id === id);
+  const found = readCustomPresets(ctx.root, "work", STANDARD_CATALOG, PRESETS.map((p) => p.id)).presets.find((p) => p.id === id);
   if (!found) return fail([`preset \`${id}\` does not exist; \`specplane preset list\` shows the presets`]);
   const draft = { standardUser: clone(found.standardUser), llm: clone(found.llm), defaultMode: found.defaultMode, title: found.title };
   const problems = applyEdits(draft, e);

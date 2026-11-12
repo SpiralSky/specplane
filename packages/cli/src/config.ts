@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import { parseYaml } from "./yaml.js";
 import { configDiffersFromHead, readCommittedConfig } from "./config-source.js";
-import { CATALOG, PRESETS, allPresets, customPresetFindings } from "./perm/permissions.js";
+import { CATALOG, PRESETS, allPresets, customPresetFindings, customRoleFindings } from "./perm/permissions.js";
 
 /**
  * The project's configuration (`feature/configuration` R25, `architecture/file-formats` §6,
@@ -78,7 +78,6 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "strict_mode.enabled", kind: { t: "bool" }, def: false, later: true, doc: "Strict mode as a whole" },
   { key: "strict_mode", kind: { t: "boolmap" }, def: {}, later: true, dynamic: true, doc: "Each strict mode measure on its own: strict_mode.<measure>" },
   { key: "bypass_guards", kind: { t: "boolmap" }, def: {}, later: true, dynamic: true, doc: "Each guardrail against permission bypass on its own (default on): bypass_guards.<measure>" },
-  { key: "roles.llm_rules", kind: { t: "list" }, def: [], later: true, doc: "Rules that give a role to an LLM by subagent, agent type or provider" },
 ];
 
 /** Terms of the old model; reported as unknown with a hint (`file-formats` §6.2). */
@@ -324,7 +323,8 @@ export function parseConfig(text: string | null): LoadResult {
     if (!hit) {
       const top = key.split(".")[0];
       const retired = RETIRED.includes(top) || RETIRED.includes(key) || RETIRED.includes(key.split(".").pop() ?? "");
-      if (key === "roles.os_user_mapping") findings.push({ severity: "warning", key, message: `\`${key}\` is kept locally on each machine, not in the project's configuration; ignored` });
+      if (key === "roles.os_user_mapping") findings.push({ severity: "warning", key, message: `\`${key}\` is kept locally on each machine, not in the project's configuration; ignored (\`specplane role map\`)` });
+      else if (key.startsWith("roles.llm_rules")) findings.push({ severity: "warning", key, message: `LLM role rules are files under .specplane/roles/rules/, not a setting; ignored (\`specplane role rule create\`)` });
       else findings.push({ severity: "warning", key, message: `unknown setting \`${key}\`${retired ? " (a term of the retired model, not read)" : ""}; ignored` });
       continue;
     }
@@ -368,6 +368,7 @@ export function loadSettings(root: string): LoadResult {
   }
   result.config.abs = resolvePaths(root, result.config, result.findings);
   for (const f of customPresetFindings(root)) result.findings.push({ severity: "error", key: f.file, message: f.message });
+  for (const f of customRoleFindings(root)) result.findings.push({ severity: f.severity, key: f.file, message: f.message });
   // A preset ID that names no default or custom preset is malformed, and the default preset applies (`file-formats` §7.3).
   const id = result.config.permissionsPreset;
   if (!allPresets(root).some((p) => p.id === id)) {

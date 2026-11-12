@@ -63,7 +63,6 @@ Settings marked later release are read and validated but do nothing yet.
 | `strict_mode.enabled` | `off` | (later release) Strict mode as a whole |
 | `strict_mode` | `{}` | (later release) Each strict mode measure on its own: strict_mode.<measure> |
 | `bypass_guards` | `{}` | (later release) Each guardrail against permission bypass on its own (default on): bypass_guards.<measure> |
-| `roles.llm_rules` | `[]` | (later release) Rules that give a role to an LLM by subagent, agent type or provider |
 
 ## Reading the notes
 

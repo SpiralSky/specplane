@@ -2,7 +2,9 @@ import { parseYaml } from "../yaml.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
 import { readCommittedConfig } from "../config-source.js";
 import { run } from "../git/exec.js";
+import * as os from "node:os";
 import { readCustomPresets, type PresetFinding } from "./presets.js";
+import { identityOf, loadRoleSet, readMappings, type RoleFinding } from "./roles.js";
 
 /**
  * Minimal permission engine: catalog IDs, the four default presets, mode resolution and the guard
@@ -10,7 +12,13 @@ import { readCustomPresets, type PresetFinding } from "./presets.js";
  */
 
 export type Mode = "allow" | "request-user" | "deny";
-export type RoleId = "standard-user" | "administrator" | "llm";
+/** A default role (`standard-user`, `llm`, `administrator`) or the ID of a custom role (`R48`). */
+export type RoleId = string;
+export const BUILTIN_ROLES = ["standard-user", "llm", "administrator"] as const;
+/** Management permission (`R43`) and system permission (`R60`): never set by a preset, never granted by a default mode. */
+export const MANAGEMENT_PERMISSIONS = ["role.manage"] as const;
+export const SYSTEM_PERMISSIONS = ["role.map"] as const;
+export const ROLE_PERMISSIONS: readonly string[] = [...MANAGEMENT_PERMISSIONS, ...SYSTEM_PERMISSIONS];
 
 export const PROTECTED = ["override.status", "override.approver", "override.approval-commit", "override.test"] as const;
 export const GRANULAR_PIECES = ["title", "authors", "references", "covers", "approval"] as const;
@@ -27,7 +35,15 @@ export const CATALOG: readonly string[] = [
   ...PROTECTED, "test.record", "info.retrieve",
   "plan.meta.read", "plan.meta.write", ...PLAN_PIECES.map((p) => `plan.meta.write.${p}`), "plan.edit", "plan.create", "plan.delete", "plan.start", "plan.abandon", "plan.complete",
   "plan.budget", "plan.resume", "plan.softstop", "decision.add", "decision.retrieve", "decision.edit", "decision.delete", "config.change",
+  ...ROLE_PERMISSIONS,
 ];
+/** The standard permissions: what a preset or a custom role's default mode can set. */
+export const STANDARD_CATALOG: readonly string[] = CATALOG.filter((p) => !ROLE_PERMISSIONS.includes(p));
+/** Permissions a custom role has only when its file states them: a default mode never grants them. */
+const EXPLICIT_ONLY: readonly string[] = [...PROTECTED, ...ROLE_PERMISSIONS];
+
+/** A custom role's resolved permissions (`R48`): read from git and applied only once approved. */
+export interface CustomRoleDef { id: string; title: string; level: number; defaultMode: Mode; modes: Record<string, Mode> }
 
 export interface Preset {
   id: string;
@@ -38,6 +54,8 @@ export interface Preset {
   defaultMode: Mode;
   standardUser: { defaultMode?: Mode; modes: Record<string, Mode> };
   llm: { defaultMode?: Mode; modes: Record<string, Mode> };
+  /** Applied custom roles, filled by `activePreset` (`R48`); a preset does not state them. */
+  customRoles?: Record<string, CustomRoleDef>;
 }
 
 function llmModes(req: Mode, feat: Mode, arch: Mode, planEdit: Mode): Record<string, Mode> {
@@ -69,18 +87,31 @@ export const DEFAULT_PRESET = PRESETS[0];
 /** Role entry, else role default, else preset default, else deny (`file-formats` §7.2). The Administrator has everything. */
 export function mode(preset: Preset, role: RoleId, permission: string): Mode {
   if (role === "administrator") return "allow";
+  if (ROLE_PERMISSIONS.includes(permission) && (role === "standard-user" || role === "llm")) return role === "standard-user" && permission === "role.manage" ? "allow" : "deny";
+  if (role !== "standard-user" && role !== "llm") {
+    const c = preset.customRoles?.[role];
+    if (!c) return "deny";
+    return c.modes[permission] ?? (EXPLICIT_ONLY.includes(permission) ? "deny" : c.defaultMode);
+  }
   const r = role === "llm" ? preset.llm : preset.standardUser;
   return r.modes[permission] ?? r.defaultMode ?? preset.defaultMode ?? "deny";
 }
 
+/** Management levels of the default roles (`R42.2`). The Administrator is above every level a role can be given. */
+export const LEVELS: Record<string, number> = { "standard-user": 10, llm: 5, administrator: Number.POSITIVE_INFINITY };
+/** Management level of a role (`R49`); an unknown role has none and is below all. */
+export function levelOf(preset: Preset, role: RoleId): number {
+  return LEVELS[role] ?? preset.customRoles?.[role]?.level ?? 0;
+}
+
 /** The four default presets and the custom ones at HEAD (or in the working tree, for a command that edits them). */
 export function allPresets(root: string, source: "head" | "work" = "head"): Preset[] {
-  return [...PRESETS, ...readCustomPresets(root, source, CATALOG, PRESETS.map((p) => p.id)).presets];
+  return [...PRESETS, ...readCustomPresets(root, source, STANDARD_CATALOG, PRESETS.map((p) => p.id)).presets];
 }
 
 /** Findings for malformed custom preset files at HEAD. */
 export function customPresetFindings(root: string): PresetFinding[] {
-  return readCustomPresets(root, "head", CATALOG, PRESETS.map((p) => p.id)).findings;
+  return readCustomPresets(root, "head", STANDARD_CATALOG, PRESETS.map((p) => p.id)).findings;
 }
 
 /** The preset with this ID, default or custom; `undefined` when none. */
@@ -88,19 +119,49 @@ export function findPreset(root: string, id: unknown, source: "head" | "work" = 
   return PRESETS.find((p) => p.id === id) ?? allPresets(root, source).find((p) => p.id === id);
 }
 
-/** The preset named by `permissions.preset`; an unknown or missing ID gives the default preset. */
-export function activePreset(root: string): Preset {
-  try {
-    const text = readCommittedConfig(root);
-    if (text === null) return DEFAULT_PRESET;
-    const doc = parseYaml(text) as { permissions?: { preset?: unknown } } | null;
-    return findPreset(root, doc?.permissions?.preset) ?? DEFAULT_PRESET;
-  } catch { return DEFAULT_PRESET; }
+/** The custom roles that apply at HEAD (approved ones, `R48`); none when the repository has none or cannot be read. */
+export function appliedRoles(root: string): Record<string, CustomRoleDef> {
+  try { return Object.fromEntries([...loadRoleSet(root, CATALOG, BUILTIN_ROLES).roles].map(([id, r]) => [id, r.def])); } catch { return {}; }
 }
 
-/** The role CLI calls run as: `standard-user`, or `administrator` after `role switch` (`reference-cli` §7.1). */
+/** Findings for malformed custom role and rule files, and for changes still pending approval. */
+export function customRoleFindings(root: string): RoleFinding[] {
+  try { return loadRoleSet(root, CATALOG, BUILTIN_ROLES).findings; } catch { return []; }
+}
+
+/** The preset named by `permissions.preset`, with the custom roles that apply; an unknown or missing ID gives the default preset. */
+export function activePreset(root: string): Preset {
+  let preset = DEFAULT_PRESET;
+  try {
+    const text = readCommittedConfig(root);
+    const doc = text === null ? null : parseYaml(text) as { permissions?: { preset?: unknown } } | null;
+    preset = findPreset(root, doc?.permissions?.preset) ?? DEFAULT_PRESET;
+  } catch { preset = DEFAULT_PRESET; }
+  const customRoles = appliedRoles(root);
+  return Object.keys(customRoles).length ? { ...preset, customRoles } : preset;
+}
+
+/** The name of the operating system user running this process; the source of the `os:` identity (`R44`). */
+export function osUserName(): string {
+  try { return os.userInfo().username; } catch { return process.env.USER ?? process.env.USERNAME ?? "unknown"; }
+}
+
+/**
+ * The role CLI calls run as (`reference-cli` §7.1, `R44`). Without a mapping: `standard-user`, or `administrator` after
+ * `role switch`. With a mapping: the user's mapped role (an unmapped user, or a role that does not apply, is the Standard
+ * User); the Administrator only through a mapping that allows the switch, or a mapping to the Administrator itself.
+ */
 export function cliRole(root: string): RoleId {
-  return readStoreJson<{ role?: string }>(root, "role.json")?.role === "administrator" ? "administrator" : "standard-user";
+  const stored = readStoreJson<{ role?: string; user?: string }>(root, "role.json");
+  const user = osUserName();
+  const switched = stored?.role === "administrator" && (!stored.user || stored.user === user);
+  const mappings = readMappings(root);
+  if (Object.keys(mappings).length === 0) return switched ? "administrator" : "standard-user";
+  const entry = mappings[identityOf(user)];
+  if (!entry) return "standard-user";
+  if (switched && entry.admin_switch) return "administrator";
+  if ((BUILTIN_ROLES as readonly string[]).includes(entry.role)) return entry.role;
+  return appliedRoles(root)[entry.role] ? entry.role : "standard-user";
 }
 
 /**
@@ -109,7 +170,14 @@ export function cliRole(root: string): RoleId {
  */
 export function switchRole(root: string, role: "standard-user" | "administrator", actor?: Actor): void {
   if (actor && actor.kind === "llm") throw new Error("Refused: an LLM cannot switch roles (`roles-and-permissions` R44).");
-  writeStoreJson(root, "role.json", { role });
+  if (role === "administrator" && !mayBecomeAdministrator(root)) throw new Error("Refused: a role mapping is configured and it does not let this operating system user switch to the Administrator (`roles-and-permissions` R44, R60).");
+  writeStoreJson(root, "role.json", { role, user: osUserName() });
+}
+
+/** Without a mapping anyone may switch; with one, only a user whose mapping allows it (`R44`). */
+export function mayBecomeAdministrator(root: string): boolean {
+  const mappings = readMappings(root);
+  return Object.keys(mappings).length === 0 || mappings[identityOf(osUserName())]?.admin_switch === true;
 }
 
 /** Git `user.name`; never invented. */
@@ -139,7 +207,7 @@ export type GuardResult =
   | { kind: "request"; permission: string; permissions: string[]; message: string }
   | { kind: "deny"; permission: string; message: string };
 
-const RANK: Record<Mode, number> = { allow: 2, "request-user": 1, deny: 0 };
+export const RANK: Record<Mode, number> = { allow: 2, "request-user": 1, deny: 0 };
 
 /**
  * Decide a command that needs all of `needs`. Each entry is one permission, or a list of alternatives (granular first,

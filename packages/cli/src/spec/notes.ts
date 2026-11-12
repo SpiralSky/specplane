@@ -30,7 +30,7 @@ export interface NoteRecord {
 /** A record with the commit its note is attached to. */
 export interface Stored { commit: string; rec: NoteRecord }
 
-const FP = /^(spec-v3|plan-v1|decision-v1):sha256:[0-9a-f]{64}$/;
+const FP = /^(spec-v3|plan-v1|decision-v1|role-v1):sha256:[0-9a-f]{64}$/;
 const gitTry = (root: string, args: string[], input?: string): string | null => {
   try { return run("git", args, { cwd: root, ...(input === undefined ? {} : { input }) }); } catch (e) { if (e instanceof GitError) return null; throw e; }
 };
