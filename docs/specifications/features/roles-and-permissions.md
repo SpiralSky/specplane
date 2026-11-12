@@ -269,15 +269,27 @@ Strict mode is an optional mode that locks roles down more tightly. It includes 
 
 ## R58: Role Permission Bypass
 
-*Later release.*
-
 Specplane has guardrails against getting round a role by starting a headless session, such as `claude -p`, or by running the Specplane CLI from inside an LLM session (`R47`).
 
-- More than one measure is used. One example is an environment variable that marks a session as an LLM's. Each measure is documented and can be turned on or off on its own.
-- The harness can recognise the LLMs and subagents that are running and gives each its own role, so that LLM role rules apply (`R44.1`).
-- A session that Specplane recognises as started by an LLM runs with an LLM role, not with the role of the person who owns the machine.
+- More than one measure is used. Each measure is documented (`R54`) and can be turned on or off on its own with the setting `bypass_guards.<measure>`; every measure is on by default. `validate` warns for each measure that is off and for a setting that names no measure, and warns when the installed harness lacks the hook a measure needs.
+- The measures are:
+  - `llm_marker`: a Specplane command that runs in a process marked as an LLM's, by the environment variable `SPECPLANE_ACTOR=llm`, runs as an LLM with the role the LLM role rules give (the LLM role by default). It never runs as the Standard User or the Administrator, whatever the Administrator switch or the operating system user mapping say, and it cannot switch roles.
+  - `marker_export`: the harness puts the marker, the provider and the model into every shell command of an LLM session and into the environment of any headless session that Specplane itself starts, so that a headless session, or the CLI run from inside an LLM session, is recognised.
+  - `marker_protect`: the harness blocks a shell command that sets or unsets the marker or the identity variables, or clears the environment, which would hide the LLM.
+  - `headless_block`: the harness blocks a shell command that starts a headless LLM session (`claude -p`, `claude --print`, `codex exec`).
+  - `store_protect`: the harness blocks direct writes to the local store files that hold the Administrator switch, the operating system user mapping and the rule trust, and to the approvals notes ref, whether by a shell command or by a file tool.
+  - `hook_protect`: the harness blocks direct writes to its own installed hooks and settings, which would switch the other measures off.
+- The harness recognises the LLM and, where the host tells it, the subagent that is running, and each gets the role the LLM role rules give it (`R44.1`). Where a host does not tell the harness which subagent is running, rules on the subagent or the agent type match only when the environment states them.
+- A harness that cannot enforce a measure says so when it is set up and in `validate` and does not claim it (as the harness requires). Like all of roles, the measures are not airtight (`R55`): they close the common routes and do not stop a determined process that can run arbitrary code.
+- A person using the CLI in their own terminal is not affected: their processes carry no marker.
 
 Scenario: Given an LLM that starts a headless Claude session and runs a Specplane command in it, When the command runs, Then it runs with an LLM role and not as the Standard User.
+
+Scenario: Given an LLM session on a harness with the measures on, When the LLM tries to run `claude -p`, to unset the marker, or to write the Administrator switch file, Then the shell call is refused and nothing runs.
+
+Test T1 (deterministic): given a process whose environment carries the marker, when a CLI command resolves its actor, then the actor is an LLM with the role the rules give, also after the Administrator switch and with an operating system user mapping; with `bypass_guards.llm_marker` off the actor is the person.
+
+Test T2 (deterministic): for each hook measure, a command or file write it must block is refused and a harmless one is allowed, and each measure turned off allows what it blocked.
 
 ## §2 Edge cases
 

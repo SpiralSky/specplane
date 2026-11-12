@@ -58,7 +58,7 @@ The Specplane CLI is not directly callable by an LLM inside a harness. The CLI i
 - Inside a supported harness, Specplane blocks the LLM from running the Specplane CLI, using what the harness offers for that. A harness that cannot block it says so (`R35.1`).
 - Steering tells the LLM not to call the CLI and to ask the user to run a command instead where needed (`steering R59`). Steering guides; the block above is the enforcement.
 - What the LLM needs from Specplane is provided as harness actions, each checked against the LLM's role. Nothing an LLM needs requires the CLI.
-- A person using the CLI in their own terminal is not affected. The stronger guardrails against running the CLI through a side route (such as a headless session) are described in `roles-and-permissions` and are a later release.
+- A person using the CLI in their own terminal is not affected. The stronger guardrails against running the CLI through a side route (such as a headless session) are described in `roles-and-permissions` (R58); a harness that cannot enforce one says so (`R35.1`).
 
 Scenario: Given an LLM in the harness tries to run a Specplane CLI command, When the harness checks it, Then the command is not run and the LLM is told to use the harness actions or ask the user.
 

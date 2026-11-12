@@ -29,6 +29,21 @@ Besides the three default roles you can define custom roles, each with its own p
 <!-- note: llm-allow-approves -->
 **An LLM role with `allow` approves without confirmation.** If the active preset gives the LLM `allow` on `spec.approve`, an LLM approves specifications without asking you. Steering text asks an LLM to confirm first, but steering does not guarantee that it will. Use `request-user` wherever you need to confirm each approval; that is the default.
 
+## Bypass guards
+
+A role is only as strong as the ways round it are closed. An LLM that can run a shell could start a headless session (`claude -p`, `codex exec`), run the Specplane CLI as the person who owns the machine, or edit the local files that hold the Administrator switch and approvals. Specplane uses several measures against this; each is on by default and is turned off on its own under `bypass_guards.<measure>` in `.specplane/config.yaml` (`validate` warns for each measure that is off and for a name that matches no measure).
+
+| Measure | What it does | Needs |
+|---------|--------------|-------|
+| `llm_marker` | A Specplane command in a process marked as an LLM's (`SPECPLANE_ACTOR=llm`) runs as an LLM with the role the LLM role rules give (the LLM role by default), never the Standard User or the Administrator, and cannot switch roles. `role.json` and the OS user mapping are not consulted. | The core (every harness, any process that carries the marker) |
+| `marker_export` | The harness puts the marker, the provider and the model into every shell command of an LLM session, and into the environment of a headless session it starts itself (`plan-start`), so a headless session or the CLI run from inside it is recognised. | Claude Code session-start hook |
+| `marker_protect` | Blocks a shell command that sets or unsets the marker variables, or clears the environment (`env -i`, `env -u`). | Claude Code hook |
+| `headless_block` | Blocks a shell command that starts a headless LLM session: `claude -p`, `claude --print`, `codex exec`. | Claude Code hook |
+| `store_protect` | Blocks direct writes, by shell or by a file tool, to the local store (`role.json`, `os-users.json`, `trusted-rules.json`) and to the approvals notes ref. | Claude Code hook |
+| `hook_protect` | Blocks direct writes to the installed Specplane hooks and to `.claude/settings.json`, which would switch the others off. | Claude Code hook |
+
+The hook measures are best effort: they read the command text, so an obfuscated command can get past them, and they read the configuration file in the working tree, not the committed one. A person who runs the same commands in their own terminal is not affected. The subagent an LLM runs as is not told apart from its parent in a shared session, so LLM role rules that match on a subagent or an agent type apply only where the environment states them (`SPECPLANE_SUBAGENT`, `SPECPLANE_AGENT_TYPE`). Codex has none of the hook measures (see `harnesses`).
+
 ## Presets
 
 Choose a preset with `config set permissions.preset <id>`. The four defaults are built in and cannot be edited or deleted. You can create your own with `preset create`, change it with `preset edit` and remove it with `preset delete` (see `commands`).

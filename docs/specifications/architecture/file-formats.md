@@ -420,7 +420,7 @@ coverage:
 decisions: {enabled: off}            # later release
 subprojects: []                      # items {name, path}; a subproject folder holds requirements/, features/, architecture/ (§12.4)
 strict_mode: {enabled: off}          # later release
-bypass_guards: {}                    # later release
+bypass_guards: {}                    # measure: on|off; each measure is on unless stated (roles-and-permissions R58)
 ```
 
 ### §6.1 Value types and defaults

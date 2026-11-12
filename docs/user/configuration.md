@@ -62,7 +62,7 @@ Settings marked later release are read and validated but do nothing yet.
 | `subprojects` | `[]` | The named locations in the project that are subprojects: items `{name, path}`; the folder holds `requirements/`, `features/` and `architecture/` |
 | `strict_mode.enabled` | `off` | (later release) Strict mode as a whole |
 | `strict_mode` | `{}` | (later release) Each strict mode measure on its own: strict_mode.<measure> |
-| `bypass_guards` | `{}` | (later release) Each guardrail against permission bypass on its own (default on): bypass_guards.<measure> |
+| `bypass_guards` | `{}` | Each guardrail against permission bypass on its own (default on): bypass_guards.<measure> |
 
 ## Reading the notes
 

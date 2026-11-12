@@ -28,7 +28,7 @@ Plans come first so that an agent can carry out the remaining work, including wr
 - Decision records: `R37`
 - Subprojects: `R39`
 - Custom roles and role management: `R43`, `R48`, `R49`, `R56`, `R60`, and role mappings in `R44` and `R44.1`, built after the first release was assembled
-- Stronger enforcement: `R55.1`, `R58`, `R36.3`, `R32`
+- Stronger enforcement: `R55.1`, `R36.3`, `R32` (`R58`, permission bypass guards, is built)
 - Plan parallelism: `R31.2`
 - CLI plan management: `R33`
 - Project migration: `R66`
