@@ -80,6 +80,12 @@ Store a decision you made, with its context, as a decision record, optionally wr
 
 Say which record was stored or which request is pending, and that you approve a record by its ID before it counts as confirmed. Needs `decisions.enabled`.
 
+## spec-review
+
+Review specifications and discuss the result, read-only (`harness R38`, `R38.1`).
+
+Point out problems and possible gaps in feature and architecture specifications, ask the user questions about requirement files, and report grammar mistakes, poor wording and unclear instructions in any specification. Reviewing changes no file: say so, and say that a change that follows is a separate `spec-assist` action. Review reads through `info.retrieve` and has no permission of its own, so a role that cannot edit a specification can still review it. When decision records are on, a decision the user states may be stored.
+
 ## migrate
 
 Guide the assistant through bringing an existing project, including one in an older Specplane format, into Specplane (`later-releases R66`).

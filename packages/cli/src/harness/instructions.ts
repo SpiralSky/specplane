@@ -40,6 +40,9 @@ export function assembleInstructions(root: string, key: string, options: Instruc
     }
   }
   parts.push(steering.text);
+  if (steering.trusted && key === "spec-review" && config.values["harness.separation_check"]) {
+    parts.push("## Separation check\n\nFor each specification reviewed, verify that feature content describes behaviour and architecture content describes implementation. Report mixing of the layers as a finding; change nothing.");
+  }
   if (steering.trusted && WRITES_SPECS.has(key) && config.values["harness.separation_check"]) {
     parts.push("## Separation check\n\nFor each specification change, verify that feature content describes behaviour and architecture content describes implementation. Warn the user about mixing the layers; do not silently rewrite a higher layer.");
   }

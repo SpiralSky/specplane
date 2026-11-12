@@ -27,6 +27,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   { name: 'approve', description: 'Approve specs, plans or decision records by ID', argumentHint: '<id>...', modelWithArgs: false },
   { name: 'spec-view', description: 'View a spec and what changed since its last approval', argumentHint: '[spec id]', modelWithArgs: false },
   { name: 'decision-new', description: 'Record a decision you made as a decision record', argumentHint: '[what was decided]', modelWithArgs: true },
+  { name: 'spec-review', description: 'Review specs read-only and discuss problems, gaps and wording', argumentHint: '[spec id... | all]', modelWithArgs: true },
   { name: 'migrate', description: 'Bring an existing project into Specplane', argumentHint: '[what to migrate from]', modelWithArgs: true },
   { name: 'requests', description: 'Show the requests waiting for you', argumentHint: '[list | show <id> | accept <id> | decline <id>]', modelWithArgs: false },
 ]

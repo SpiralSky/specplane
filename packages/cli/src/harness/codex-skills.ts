@@ -24,6 +24,7 @@ const SUMMARY: Readonly<Record<string, string>> = {
   "spec-draft-architecture": "Draft an architecture specification from feature specifications.",
   "spec-assist": "Write or change a specification together with the user.",
   "decision-new": "Record a decision the user made, with its context, as a decision record.",
+  "spec-review": "Review specifications read-only and discuss problems, gaps and wording with the user.",
   migrate: "Bring an existing project into Specplane from its specifications, documents and code.",
   validate: "Check the specifications and show warnings and coverage.",
   verify: "Judge an architecture specification against its implementation and record evidence.",

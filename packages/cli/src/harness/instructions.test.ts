@@ -20,9 +20,9 @@ function commit(root: string): void {
 }
 function session(root = repo()): InstructionSession { return { root, id: "test-session", reportsContext: true }; }
 
-test("all fifteen packaged contracts have versioned, ordered parts and action-only mechanical steps", () => {
+test("all sixteen packaged contracts have versioned, ordered parts and action-only mechanical steps", () => {
   const version = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
-  assert.equal(COMMANDS.length, 15);
+  assert.equal(COMMANDS.length, 16);
   for (const key of COMMANDS) {
     const contract = readContract(key);
     assert.ok(contract.startsWith(`<!-- Specplane command contract v${version};`), key);
@@ -67,6 +67,15 @@ test("the migrate prompt is configurable and its steering covers reading and cre
   assert.doesNotMatch(text, /Permission: spec.approve/);
   assert.match(text, /## Separation check/);
   assert.match(readContract("migrate"), /Awaiting Review/);
+});
+
+test("the spec-review steering is read-only: retrieval and decisions, no spec writes or approval, review separation check", () => {
+  const root = repo();
+  const text = assembleInstructions(root, "spec-review").text;
+  assert.match(text, /Permission: info.retrieve/);
+  assert.doesNotMatch(text, /Permission: spec\.(create|edit|delete|approve)/);
+  assert.match(text, /Report mixing of the layers as a finding/);
+  assert.match(readContract("spec-review"), /changes no file/);
 });
 
 test("permission keys carry their limits, role mode, custom steering and no-bypass text", () => {

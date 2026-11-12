@@ -92,6 +92,7 @@ function noArgs(root: string, command: string): CommandResult | Promise<CommandR
       const infos = plans(root);
       return { ok: true, lines: [...(infos.length ? infos.map(describe) : ["No plans."]), `Name a plan to use ${command}.`] };
     }
+    case "spec-review": return needsArgs(command, "the spec IDs to review, or `all`; review changes no file");
     case "migrate": return needsArgs(command, "what to migrate from: the folders, documents or code the assistant should read");
     case "decision-new": return needsArgs(command, "what was decided; the assistant writes the record from your description");
     case "spec-assist": return needsArgs(command, "the spec to write or change");

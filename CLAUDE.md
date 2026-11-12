@@ -21,6 +21,7 @@ This is the maintainers' own file; Specplane never writes or ships a `CLAUDE.md`
 | `/plan-finish` | Run the finish flow for the current plan |
 | `/validate` | Run `specplane validate` and summarise results |
 | `/approve` | Approve specs, plans, or decision records by ID; `--reopen` reopens a spec. User-invoked only |
+| `/spec-review` | Review specs read-only: problems, gaps, wording, questions for you |
 | `/plan-start` | Start a plan and report where to continue it |
 | `/decision-new` | Create a decision record, optionally written from your description |
 | `/plan-status` | Show plans with live status and the next step |

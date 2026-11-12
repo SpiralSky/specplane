@@ -20,6 +20,7 @@ If a contract needs a capability this setup lacks (for example the MCP tools are
 | `validate` | Check the specifications and show warnings and coverage. | `contracts/validate.md` |
 | `verify` | Judge an architecture specification against its implementation and record evidence. | `contracts/verify.md` |
 | `decision-new` | Record a decision the user made, with its context, as a decision record. | `contracts/decision-new.md` |
+| `spec-review` | Review specifications read-only and discuss problems, gaps and wording with the user. | `contracts/spec-review.md` |
 | `migrate` | Bring an existing project into Specplane from its specifications, documents and code. | `contracts/migrate.md` |
 | `plan-abandon` | Abandon a plan after the user confirms. | `contracts/plan-abandon.md` |
 

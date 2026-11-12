@@ -12,6 +12,7 @@ interface SkillMeta { description: string; argumentHint: string; modelInvocable:
 const META: Readonly<Record<string, SkillMeta>> = {
   approve: { description: "Approve specifications, plans or decision records by ID. Only the user runs this command.", argumentHint: "<id>...", modelInvocable: false },
   "decision-new": { description: "Record a decision the user made, with its context, as a decision record. Use when the user states a decision to keep.", argumentHint: "[what was decided]", modelInvocable: true },
+  "spec-review": { description: "Review specifications read-only: problems, gaps, wording and questions for the user. Use when the user asks to review or discuss a spec.", argumentHint: "[spec id... | all]", modelInvocable: true },
   migrate: { description: "Bring an existing project, including one in an older Specplane format, into Specplane. Use when the user asks to migrate a project.", argumentHint: "[what to migrate from]", modelInvocable: true },
   requests: { description: "Open the requests pane. Only the user runs this command.", argumentHint: "[list | show <id> | accept <id> | decline <id>]", modelInvocable: false },
   "spec-view": { description: "Show one specification with its status and what changed since its last approval. Only the user runs this command.", argumentHint: "[spec id]", modelInvocable: false },
