@@ -7,13 +7,23 @@ import { run } from "./exec.js";
  * `# specplane:begin <check>` and `# specplane:end <check>`; nothing else in the file is touched.
  */
 
-export type HookCheck = "requirement-ids" | "tests";
+export type HookCheck = "requirement-ids" | "tests" | "strict";
 
 /** The setting that turns each check on. */
 export const HOOK_SETTINGS: Record<string, HookCheck> = {
   "pre_commit.duplicate_requirement_ids": "requirement-ids",
   "pre_commit.tests": "tests",
 };
+
+/** The check that strict mode installs (`strict_mode.git_commit_guard`); it is not a `pre_commit.*` setting. */
+export const STRICT_CHECK: HookCheck = "strict";
+
+/** Write the hook file even when strict mode made it read-only (`strict_mode.os_permissions`), keeping its mode. */
+function writeHook(file: string, text: string): void {
+  let m: number | undefined;
+  try { m = fs.statSync(file).mode & 0o777; if (!(m & 0o200)) fs.chmodSync(file, m | 0o200); else m = undefined; } catch { m = undefined; }
+  try { fs.writeFileSync(file, text); } finally { if (m !== undefined) fs.chmodSync(file, m); }
+}
 
 /** Absolute path of the pre-commit hook file, honouring `core.hooksPath` and linked checkouts. */
 export function hookFile(root: string): string {
@@ -59,7 +69,7 @@ export function installHookSection(root: string, check: HookCheck): "installed" 
   }
   const at = lines[0]?.startsWith("#!") ? 1 : 0;
   lines.splice(at, 0, ...section(check));
-  fs.writeFileSync(file, lines.join("\n"));
+  writeHook(file, lines.join("\n"));
   return "installed";
 }
 
@@ -74,6 +84,6 @@ export function removeHookSection(root: string, check: HookCheck): "removed" | "
   lines.splice(from, to - from + 1);
   const rest = lines.filter((l, i) => l.trim() !== "" && !(i === 0 && l.startsWith("#!")));
   if (rest.length === 0) fs.rmSync(file, { force: true });
-  else fs.writeFileSync(file, lines.join("\n"));
+  else writeHook(file, lines.join("\n"));
   return "removed";
 }

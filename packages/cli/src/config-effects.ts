@@ -4,7 +4,9 @@
  * Other handlers may be registered here; the built-in effects run when none is registered for the key.
  */
 
-import { HOOK_SETTINGS, hookFile, installHookSection, removeHookSection } from "./git/hooks.js";
+import { HOOK_SETTINGS, STRICT_CHECK, hookFile, installHookSection, removeHookSection } from "./git/hooks.js";
+import { strictMeasureInWorkingTree } from "./perm/strict.js";
+import { applyOsSafeguards, relaxOsSafeguards } from "./perm/strict-os.js";
 import { steeringConfigEffect } from "./harness/steering.js";
 
 export type EffectHandler = (root: string, key: string, old: unknown, next: unknown) => string[];
@@ -24,6 +26,20 @@ function preCommitEffect(root: string, key: string, next: unknown): string[] {
   return [removeHookSection(root, check) === "removed" ? `Removed the ${check} check from the pre-commit hook.` : `The ${check} check was not in the pre-commit hook.`];
 }
 
+/**
+ * A `strict_mode.*` change (`roles-and-permissions R55.1`): the commit guard section and the file permissions follow the
+ * setting as it stands in the working-tree file, which the change just wrote.
+ */
+function strictEffect(root: string): string[] {
+  const out: string[] = [];
+  if (strictMeasureInWorkingTree(root, "git_commit_guard")) {
+    out.push(installHookSection(root, STRICT_CHECK) === "installed" ? `Installed the strict commit guard in ${hookFile(root)}.` : "The strict commit guard is already in the pre-commit hook.");
+  } else if (removeHookSection(root, STRICT_CHECK) === "removed") out.push("Removed the strict commit guard from the pre-commit hook.");
+  if (strictMeasureInWorkingTree(root, "os_permissions")) out.push(...applyOsSafeguards(root));
+  else out.push(...relaxOsSafeguards(root));
+  return out;
+}
+
 /** Run the registered effect for `key`; the lines to print. */
 export function applyEffects(root: string, key: string, old: unknown, next: unknown): string[] {
   if (JSON.stringify(old) === JSON.stringify(next)) return [];
@@ -37,5 +53,6 @@ export function applyEffects(root: string, key: string, old: unknown, next: unkn
     handled = true;
   }
   if (!handled && key.startsWith("pre_commit.")) out.push(...preCommitEffect(root, key, next));
+  if (!handled && key.startsWith("strict_mode")) out.push(...strictEffect(root));
   return out;
 }

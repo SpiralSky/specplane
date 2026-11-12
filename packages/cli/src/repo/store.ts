@@ -31,10 +31,11 @@ export function readStoreJson<T>(root: string, name: string): T | null {
 
 export function writeStoreJson(root: string, name: string, value: unknown): void {
   const file = storePath(root, name);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;
   try {
-    fs.writeFileSync(tmp, JSON.stringify(value) + "\n", { flag: "wx" });
+    // The store holds the role switch and trust records: private to its owner (`strict_mode.os_permissions` keeps it so).
+    fs.writeFileSync(tmp, JSON.stringify(value) + "\n", { flag: "wx", mode: 0o600 });
     fs.renameSync(tmp, file);
   } finally { fs.rmSync(tmp, { force: true }); }
 }

@@ -33,7 +33,7 @@ function describeLine(c: Config, key: string): string {
   const hit = lookup(key)!;
   const value = c.values[key] ?? (hit.entry ? undefined : hit.def.def);
   const set = hit.entry ? value !== undefined : c.set.has(key);
-  const def = hit.entry ? (hit.kind.t === "bool" && hit.def.key === "bypass_guards" ? "on" : "none") : describeDefault(hit.def);
+  const def = hit.entry ? (hit.kind.t === "bool" && hit.def.key === "bypass_guards" ? "on" : hit.def.key === "strict_mode" ? "on while strict mode is on" : "none") : describeDefault(hit.def);
   return `${key} = ${formatValue(value ?? (hit.entry ? (hit.def.key === "bypass_guards" ? true : null) : null))} (${set ? "set" : "default"}; default ${def})${hit.def.later ? " [later release: no effect yet]" : ""}`;
 }
 

@@ -18,7 +18,7 @@ import { validateCommand } from "./commands/validate.js";
 import { warningsCommand } from "./commands/warnings.js";
 import { steeringCommand } from "./commands/steering.js";
 import { coverageCommand } from "./commands/coverage.js";
-import { checkRequirementIdsCommand, checkTestsCommand } from "./commands/check.js";
+import { checkRequirementIdsCommand, checkStrictCommand, checkTestsCommand } from "./commands/check.js";
 import { testRunCommand } from "./commands/test.js";
 import { runCommand } from "./commands/runner.js";
 import { auditCommand } from "./commands/audit.js";
@@ -225,6 +225,13 @@ checkCmd
   .option("--timeout <seconds>", "wall-clock limit per command (default 120)")
   .option("--json", "output JSON")
   .action((opts: { staged?: boolean; timeout?: string; json?: boolean }) => runCommand({ command: "check tests", args: opts.staged ? ["--staged"] : [], json: opts.json }, () => checkTestsCommand(opts)));
+
+checkCmd
+  .command("strict")
+  .description("Refuse a commit by an LLM process that stages changes its role may not make directly; installed by strict_mode.git_commit_guard")
+  .option("--staged", "check the index (required)")
+  .option("--json", "output JSON")
+  .action((opts: { staged?: boolean; json?: boolean }) => runCommand({ command: "check strict", args: opts.staged ? ["--staged"] : [], json: opts.json }, () => checkStrictCommand(opts)));
 
 program
   .command("init")

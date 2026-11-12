@@ -9,6 +9,8 @@ import { readStoreJson, writeStoreJson } from "../repo/store.js";
 import { SKILL_COMMANDS, skillPath } from "./claude-skills.js";
 import { CODEX_CONTRACTS, contractPath, SKILL_FILE as CODEX_SKILL_FILE } from "./codex-skills.js";
 import { bypassGuardOn } from "../perm/bypass.js";
+import { strictMeasureOn } from "../perm/strict.js";
+import { applyOsSafeguards } from "../perm/strict-os.js";
 import { steeringInputs, steeringStamp } from "./steering.js";
 
 /**
@@ -305,6 +307,8 @@ export function installHarness(root: string, harness: string): InstallReport {
   const files = [...plan.owned.map((f) => f.path), ...(plan.toml ? [plan.toml.path] : []), ...(plan.block && report.written.concat(report.unchanged).includes(plan.block.file) ? [plan.block.file] : [])];
   const record = readStoreJson<Record<string, string[]>>(root, RECORD) ?? {};
   writeStoreJson(root, RECORD, { ...record, [harness]: files.filter((f) => !report.kept.includes(f)) });
+  // Rewritten hooks and settings are writable again; strict mode keeps them read-only (`roles-and-permissions R55.1`).
+  if (report.written.length && strictMeasureOn(root, "os_permissions")) applyOsSafeguards(root);
   return report;
 }
 

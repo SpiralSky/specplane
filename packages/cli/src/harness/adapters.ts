@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { codexAdapter } from "./adapter-codex.js";
+import { guardHookHasStrict } from "../perm/strict.js";
 import { noCapabilities, registerAdapter, type Capabilities, type HarnessAdapter } from "./adapter.js";
 
 /**
@@ -22,6 +23,8 @@ export const claudeAdapter: HarnessAdapter = {
     caps["command-blocking"] = !!root && fs.existsSync(path.join(root, ".claude/hooks/specplane-cli-block.sh"));
     // The marker, headless-session and store guards live in one installed hook (`roles-and-permissions` R58).
     caps["bypass-guards"] = !!root && fs.existsSync(path.join(root, ".claude/hooks/specplane-bypass-guard.sh"));
+    // Strict mode's edit block lives in the same hook, so an installed copy that predates it does not count.
+    caps["strict-mode"] = !!root && guardHookHasStrict(root);
     return caps;
   },
 };

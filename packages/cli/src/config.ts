@@ -3,6 +3,7 @@ import { parseYaml } from "./yaml.js";
 import { configDiffersFromHead, readCommittedConfig } from "./config-source.js";
 import { CATALOG, PRESETS, allPresets, customPresetFindings, customRoleFindings } from "./perm/permissions.js";
 import { bypassFindings } from "./perm/bypass.js";
+import { strictFindings } from "./perm/strict.js";
 
 /**
  * The project's configuration (`feature/configuration` R25, `architecture/file-formats` §6,
@@ -76,8 +77,8 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "coverage.requirement_only", kind: { t: "reqids" }, def: [], doc: "Requirements annotated as requirement-only; uncovered warnings are still reported" },
   { key: "decisions.enabled", kind: { t: "bool" }, def: false, doc: "Whether user decision records are stored and retrieved" },
   { key: "subprojects", kind: { t: "subprojects" }, def: [], doc: "The named locations in the project that are subprojects: items {name, path}; the folder holds requirements/, features/ and architecture/" },
-  { key: "strict_mode.enabled", kind: { t: "bool" }, def: false, later: true, doc: "Strict mode as a whole" },
-  { key: "strict_mode", kind: { t: "boolmap" }, def: {}, later: true, dynamic: true, doc: "Each strict mode measure on its own: strict_mode.<measure>" },
+  { key: "strict_mode.enabled", kind: { t: "bool" }, def: false, doc: "Strict mode as a whole: the optional tighter lock-down of roles (off by default)" },
+  { key: "strict_mode", kind: { t: "boolmap" }, def: {}, dynamic: true, doc: "Each strict mode measure on its own (default on while strict mode is on): strict_mode.<measure>" },
   { key: "bypass_guards", kind: { t: "boolmap" }, def: {}, dynamic: true, doc: "Each guardrail against permission bypass on its own (default on): bypass_guards.<measure>" },
 ];
 
@@ -370,6 +371,7 @@ export function loadSettings(root: string): LoadResult {
   result.config.abs = resolvePaths(root, result.config, result.findings);
   for (const f of customPresetFindings(root)) result.findings.push({ severity: "error", key: f.file, message: f.message });
   for (const f of bypassFindings(result.config.values["bypass_guards"] as Record<string, boolean> | undefined)) result.findings.push({ severity: "warning", key: "bypass_guards", message: f });
+  for (const f of strictFindings(result.config.values["strict_mode.enabled"] === true, result.config.values["strict_mode"] as Record<string, boolean> | undefined)) result.findings.push({ severity: "warning", key: "strict_mode", message: f });
   for (const f of customRoleFindings(root)) result.findings.push({ severity: f.severity, key: f.file, message: f.message });
   // A preset ID that names no default or custom preset is malformed, and the default preset applies (`file-formats` §7.3).
   const id = result.config.permissionsPreset;

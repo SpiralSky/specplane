@@ -116,7 +116,7 @@ test("overlapping folders are malformed and the later key falls back", () => {
   assert.equal(config.paths.features, "docs/specifications/features");
 });
 
-test("later-release settings are accepted without being unknown; dynamic entries are kept", () => {
+test("settings with entries are accepted without being unknown; dynamic entries are kept", () => {
   const { findings, config } = parseConfig("strict_mode:\n  enabled: on\n  git: off\nbypass_guards:\n  headless_block: on\nharness:\n  instructions:\n    plan-step: use this text\nsubprojects:\n  - {name: a, path: sub/a}\n  - {name: b, path: sub/b}\n");
   assert.deepEqual(findings, []);
   assert.equal(config.values["strict_mode.enabled"], true);
@@ -205,7 +205,8 @@ test("config set creates the file, validates before writing and refuses unknown 
   assert.equal(fs.readFileSync(file(root), "utf8"), before);
   assert.ok(configSet(ctxFor(root), "permissions.preset", "full-llm-control").ok);
   assert.ok(configSet(ctxFor(root), "steering.custom", '[{permission: spec.approve, scope: all, text: "Ask first"}]').ok);
-  assert.ok(configSet(ctxFor(root), "strict_mode.git", "on").ok);
+  assert.ok(configSet(ctxFor(root), "strict_mode.enabled", "on").ok);
+  assert.ok(configSet(ctxFor(root), "strict_mode.edit_block", "off").ok);
   commitAll(root);
   assert.equal(loadSettings(root).findings.length, 0);
 });
@@ -240,7 +241,8 @@ test("config get and list show value, source and default, and mark later release
   assert.match(g.lines[0], /^audit\.retention = 7 \(set; default 30\)/);
   assert.match(configGet(root, "auto_warn").lines[0], /auto_warn = on \(default; default on\)/);
   assert.match(configGet(root, "plans.worktree_dir").lines[0], /default; default a folder next to the project/);
-  assert.match(configGet(root, "strict_mode.enabled").lines[0], /later release/);
+  assert.match(configGet(root, "plans.parallelism").lines[0], /later release/);
+  assert.doesNotMatch(configGet(root, "strict_mode.enabled").lines[0], /later release/);
   assert.ok(!configGet(root, "nope").ok);
   const all = configList(root);
   assert.equal((all.data as unknown[]).length, SETTINGS.length);
