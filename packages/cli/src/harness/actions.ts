@@ -1,5 +1,7 @@
 import { createAjv } from "../ajv.js";
 import { activePreset, guard, type Actor } from "../perm/permissions.js";
+import { resolveLlmRole } from "../perm/llm-rules.js";
+import { roleList, roleShow, ruleList } from "../perm/role-ops.js";
 import { listPermissions, describePermission } from "../perm/docs.js";
 import { approveSpecs, metaGet, type Ctx } from "../spec/human.js";
 import { prepareDecision, retrieveDecisions, writeDecision } from "../decisions/decisions.js";
@@ -48,6 +50,9 @@ add("decision.add", decisionFields, ["title", "decision", "context"], ["decision
 add("decision.retrieve", { id: str, query: str, concerns: str }, [], ["decision.retrieve"], true, (c, p) => retrieveDecisions(c, p));
 add("decision.edit", { id: str, ...decisionFields }, ["id"], ["decision.edit"], false, (c, p) => writeDecision(c, "edit", prepareDecision(c, "edit", p)));
 add("decision.delete", { id: str }, ["id"], ["decision.delete"], false, (c, p) => writeDecision(c, "delete", prepareDecision(c, "delete", p)));
+// Roles and LLM role rules are readable by the LLM (`R44.1`, `R54`); changing them is for people, through the CLI.
+add("role.list", {}, [], info, true, (c) => ({ roles: roleList(c.root), rules: ruleList(c.root) }));
+add("role.show", { id: str }, ["id"], info, true, (c, p) => roleShow(c.root, p.id));
 add("spec.approve", { ids: strings }, ["ids"], ["spec.approve"], false, (c, p) => approveSpecs(c, p.ids, { yes: true }));
 add("validate", { ids: strings }, [], info, true, (c, p) => { const r = validateProject(c.root, p); return { ...r, ok: r.counts.errors === 0 }; });
 add("warnings", { id: str }, [], info, true, (c, p) => { const all = [...collectWarnings(c.root), ...c.sessionWarnings]; return p.id ? narrowWarnings(all, p.id) : all; });
@@ -91,15 +96,18 @@ export interface ActionReply {
   ok: boolean; data?: unknown; findings: string[]; instructions: InstructionDelivery[];
   request?: string; warningCount?: number | null;
 }
-export interface ActionSession extends InstructionSession { measurable?: string[]; launcher?: ActionContext["launcher"]; model?: string; delegatedBy?: string; command?: string; now?: Date }
+export interface ActionSession extends InstructionSession { measurable?: string[]; launcher?: ActionContext["launcher"]; model?: string; delegatedBy?: string; provider?: string; agentType?: string; subagent?: string; command?: string; now?: Date }
 
 /** A runtime belongs to exactly one adapter session. Actor identity never comes from tool input. */
 export function createActionRuntime(session: ActionSession) {
   const sessionWarnings: Warning[] = [];
-  const actor: Actor = { role: "llm", kind: "llm", name: session.model || "unknown", model: session.model || "unknown", session: session.id, delegatedBy: session.delegatedBy };
+  const base: Actor = { role: "llm", kind: "llm", name: session.model || "unknown", model: session.model || "unknown", session: session.id, delegatedBy: session.delegatedBy };
+  // What the harness knows about this LLM, matched by the LLM role rules (`R44.1`); never taken from tool input.
+  const factors = { ...(session.subagent ? { subagent: session.subagent } : {}), ...(session.agentType ? { agent_type: session.agentType } : {}), ...(session.provider ? { provider: session.provider } : {}), ...(session.model ? { model: session.model } : {}), delegated: !!session.delegatedBy };
   return {
     async call(id: string, input: unknown): Promise<ActionReply> {
       const reply: ActionReply = { ok: false, findings: [], instructions: [] };
+      const actor: Actor = { ...base, role: resolveLlmRole(session.root, factors) };
       let permissions: string[] = [];
       try {
         const action = validateActionInput(id, input);

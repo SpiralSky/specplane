@@ -1,6 +1,6 @@
 // The Specplane MCP server entry (`architecture/reference-cli` §12.1): the checkout is SPECPLANE_CHECKOUT, else the working
 // directory. Identity comes only from the adapter's environment, never from tool input: SPECPLANE_SESSION,
-// SPECPLANE_MODEL, SPECPLANE_DELEGATED_BY, SPECPLANE_ADAPTER (claude or codex) and SPECPLANE_MEASURABLE_RESOURCES (comma separated).
+// SPECPLANE_MODEL, SPECPLANE_DELEGATED_BY, SPECPLANE_PROVIDER, SPECPLANE_AGENT_TYPE, SPECPLANE_SUBAGENT, SPECPLANE_ADAPTER (claude or codex) and SPECPLANE_MEASURABLE_RESOURCES (comma separated).
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createMcpServer } from "./mcp.js";
@@ -26,6 +26,10 @@ export async function runMcp(): Promise<void> {
     reportsContext: env("SPECPLANE_SESSION") !== undefined,
     model: env("SPECPLANE_MODEL"),
     delegatedBy: env("SPECPLANE_DELEGATED_BY"),
+    // Factors of the LLM role rules (`roles-and-permissions R44.1`): the provider defaults from the adapter.
+    provider: env("SPECPLANE_PROVIDER") ?? (adapter === "claude" ? "anthropic" : adapter === "codex" ? "openai" : undefined),
+    agentType: env("SPECPLANE_AGENT_TYPE"),
+    subagent: env("SPECPLANE_SUBAGENT"),
     ...(measurable ? { measurable } : {}),
     ...(launcher ? { launcher } : {}),
   });

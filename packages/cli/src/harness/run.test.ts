@@ -31,6 +31,16 @@ test("a command typed without arguments shows its own result and never passes to
   }
 });
 
+// Root cause of the old "a command typed without arguments..." flake: `validate` and `requests` ignored the given root and ran
+// on the process working directory, so the test validated the real repository: slow under parallel load (over the test
+// timeout) and failing whenever that repository had a validation error.
+test("validate and requests through the runner use the given root, not the working directory", async () => {
+  const root = repo();
+  const v = await runHarnessCommand("validate", [], root);
+  assert.ok(!(v.lines ?? []).join("\n").includes("roles-and-permissions"), "validated the repository the test runs in");
+  assert.deepEqual((await runHarnessCommand("requests", [], root)).lines, ["No requests."]);
+});
+
 test("plan-step with no argument shows the next step state", async () => {
   const r = await runHarnessCommand("plan-step", [], repo());
   assert.deepEqual(r.lines, ["No plan has a next step."]);

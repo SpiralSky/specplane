@@ -12,13 +12,13 @@ function ctx(): RequestCtx {
   return { root, actor, preset: activePreset(root) };
 }
 
-export const requestsList = (): CommandResult => {
-  const all = list(checkoutRoot());
+export const requestsList = (root: string = checkoutRoot()): CommandResult => {
+  const all = list(root);
   return { ok: true, data: all, lines: all.length ? all.map((r) => `${r.id}  ${r.state.padEnd(8)}  ${r.from.role}  ${r.action.command}  ${r.reason}`) : ["No requests."] };
 };
 
-export const requestsShow = (id: string): CommandResult => {
-  const rec = show(checkoutRoot(), id);
+export const requestsShow = (id: string, root: string = checkoutRoot()): CommandResult => {
+  const rec = show(root, id);
   if (!rec) return { ok: false, findings: [`Request \`${id}\` not found.`] };
   return { ok: true, data: rec, lines: [formatRequest(rec, !!process.stdout.isTTY).replace(/\n$/, "")] };
 };

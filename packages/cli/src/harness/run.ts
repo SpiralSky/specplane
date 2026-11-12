@@ -67,8 +67,8 @@ const needsArgs = (command: string, what: string): CommandResult => ({
 
 function noArgs(root: string, command: string): CommandResult | Promise<CommandResult> {
   switch (command) {
-    case "validate": return validateCommand([]);
-    case "requests": return requestsList();
+    case "validate": return validateCommand([], root);
+    case "requests": return requestsList(root);
     case "spec-view": return specViewIndex(root);
     case "plan-status": {
       const infos = plans(root);
@@ -121,9 +121,9 @@ async function withArgs(root: string, command: string, args: string[], o: RunOpt
     }
     case "requests": {
       const [sub, id, ...note] = args;
-      if (sub === "list") return requestsList();
+      if (sub === "list") return requestsList(root);
       if (!id) throw new UsageError("requests takes list, show <id>, accept <id> or decline <id>.");
-      if (sub === "show") return requestsShow(id);
+      if (sub === "show") return requestsShow(id, root);
       if (sub === "accept" || sub === "decline") {
         const answered = await (sub === "accept" ? requestsAccept : requestsDecline)(id, note.join(" ") || undefined);
         // A blocking request answered while a session is active resumes the plan it stopped (`plan-execution R27.5`).
