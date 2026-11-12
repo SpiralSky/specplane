@@ -57,6 +57,16 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       try { validateSpecChange(op, p); } catch (e) { return invalid((e as Error).message); }
       return [`spec.${op}.${writeLayer(p.spec as string)}`];
     }
+    case "decision add":
+    case "decision edit":
+    case "decision delete": {
+      const op = command.slice("decision ".length);
+      requireText("id");
+      if (!/^D[1-9][0-9]*$/.test(p.id as string)) invalid("A decision record ID looks like D1.");
+      if (!(p.before === null || typeof p.before === "string") || !(p.after === null || typeof p.after === "string")) invalid("A decision change needs exact before and after text.");
+      if (op === "add" ? p.before !== null || p.after === null : op === "delete" ? p.before === null || p.after !== null : p.before === null || p.after === null) invalid(`Invalid ${op} change.`);
+      return [`decision.${op}`];
+    }
     case "test record":
       for (const key of ["spec", "test", "summary", "commit", "fingerprint"]) requireText(key);
       oneOf("kind", ["deterministic", "intelligent"], true);

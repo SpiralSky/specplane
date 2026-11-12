@@ -26,7 +26,7 @@ function docs(): PermDoc[] {
     add(`spec.edit.${t}`, `Change the body of a ${t} specification, which makes it Awaiting Review again.`, `Creating or deleting one, writing metadata, or approving it.`, ["harness spec edit", "spec reopen"]);
     add(`spec.delete.${t}`, `Delete a ${t} specification file.`, `Creating or editing one.`, ["harness spec delete"]);
   }
-  add("spec.approve", "Approve specifications that are Awaiting Review.", "Editing a specification, or setting a status by hand (that is `override.status`).", ["spec approve"]);
+  add("spec.approve", "Approve specifications that are Awaiting Review.", "Editing a specification, or setting a status by hand (that is `override.status`). It also approves decision records, by ID.", ["spec approve", "decision approve"]);
   add("meta.read", "Read specification metadata.", "Writing any metadata.", ["spec meta get"]);
   add("meta.write", "Write any metadata piece that has a granular permission, other than the protected overrides.", "Status, approver and test results (the protected overrides) and the specification body.", ["spec meta set"]);
   for (const [p, label] of Object.entries(PIECES)) {
@@ -52,10 +52,10 @@ function docs(): PermDoc[] {
   add("plan.budget", "Set the budget of a plan.", "Anything else about the plan.", ["plan budget"]);
   add("plan.resume", "Resume a stopped plan.", "Starting a plan that never ran.", ["plan resume"]);
   add("plan.softstop", "Stop a running plan after the current work.", "Abandoning it.", ["plan stop"]);
-  add("decision.add", "Add a decision record (later release).", "Editing or deleting one.", ["decision add"]);
-  add("decision.retrieve", "Read decision records (later release).", "Changing them.", ["decision show"]);
-  add("decision.edit", "Edit a decision record (later release).", "Adding or deleting one.", ["decision edit"]);
-  add("decision.delete", "Delete a decision record (later release).", "Adding or editing one.", ["decision delete"]);
+  add("decision.add", "Add a decision record the user made.", "Editing or deleting one.", ["decision add"]);
+  add("decision.retrieve", "Read decision records: list, search and show.", "Changing them.", ["decision list", "decision show"]);
+  add("decision.edit", "Edit a decision record.", "Adding or deleting one.", ["decision edit"]);
+  add("decision.delete", "Delete a decision record.", "Adding or editing one.", ["decision delete"]);
   add("config.change", "Change a setting, including the active preset (`permissions.preset`).", "Reading settings, which needs no permission.", ["config set", "config unset", "init"]);
   return out;
 }

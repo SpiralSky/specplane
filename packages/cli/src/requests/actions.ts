@@ -1,4 +1,5 @@
 import { recordFromRequest } from "../verify/test-record.js";
+import { writeDecision, type DecisionChange } from "../decisions/decisions.js";
 import { writeSpecification, type SpecChange } from "../spec/write.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -39,6 +40,9 @@ const ACTIONS: Record<string, Action> = {
   },
   "spec create": (c, p) => writeSpecification(c, "create", p as SpecChange),
   "spec delete": (c, p) => writeSpecification(c, "delete", p as SpecChange),
+  "decision add": (c, p) => writeDecision(c, "add", p as DecisionChange),
+  "decision edit": (c, p) => writeDecision(c, "edit", p as DecisionChange),
+  "decision delete": (c, p) => writeDecision(c, "delete", p as DecisionChange),
   "test record": (c, p) => recordFromRequest(c, p),
   "spec approve": async (c, p) => fromResult(await approveSpecs(c, p.ids, { yes: true })),
   "spec reopen": (c, p) => fromResult(reopenSpec(c, p.id)),

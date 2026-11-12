@@ -73,7 +73,7 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "pre_commit.duplicate_requirement_ids", kind: { t: "bool" }, def: false, doc: "Check that refuses a commit in which two requirements share an identifier" },
   { key: "pre_commit.tests", kind: { t: "bool" }, def: false, doc: "Check that refuses a commit when the deterministic tests of an architecture specification fail" },
   { key: "coverage.requirement_only", kind: { t: "reqids" }, def: [], doc: "Requirements annotated as requirement-only; uncovered warnings are still reported" },
-  { key: "decisions.enabled", kind: { t: "bool" }, def: false, later: true, doc: "Whether user decision records are stored and retrieved" },
+  { key: "decisions.enabled", kind: { t: "bool" }, def: false, doc: "Whether user decision records are stored and retrieved" },
   { key: "subprojects", kind: { t: "subprojects" }, def: [], doc: "The named locations in the project that are subprojects: items {name, path}; the folder holds requirements/, features/ and architecture/" },
   { key: "strict_mode.enabled", kind: { t: "bool" }, def: false, later: true, doc: "Strict mode as a whole" },
   { key: "strict_mode", kind: { t: "boolmap" }, def: {}, later: true, dynamic: true, doc: "Each strict mode measure on its own: strict_mode.<measure>" },

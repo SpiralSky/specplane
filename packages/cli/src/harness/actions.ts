@@ -2,6 +2,7 @@ import { createAjv } from "../ajv.js";
 import { activePreset, guard, type Actor } from "../perm/permissions.js";
 import { listPermissions, describePermission } from "../perm/docs.js";
 import { approveSpecs, metaGet, type Ctx } from "../spec/human.js";
+import { prepareDecision, retrieveDecisions, writeDecision } from "../decisions/decisions.js";
 import { prepareSpecChange, specLayer, writeSpecification } from "../spec/write.js";
 import { headContext } from "../verify/implementation.js";
 import { computeCoverage } from "../verify/coverage.js";
@@ -41,6 +42,12 @@ for (const operation of ["create", "edit", "delete"] as const) {
   add(`spec.${operation}`, props, operation === "delete" ? ["spec"] : ["spec", "text"], (p) => [`spec.${operation}.${specLayer(p.spec)}`], false,
     (c, p) => writeSpecification(c, operation, prepareSpecChange(c, operation, p as { spec: string })));
 }
+const decisionFields = { title: str, decision: str, context: str, reasons: { type: "string" }, concerns: { type: "array", items: str, uniqueItems: true }, date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, contribution: str };
+// Decision records (`later-releases R37`): the LLM stores one only after the user decided in the conversation; steering says so.
+add("decision.add", decisionFields, ["title", "decision", "context"], ["decision.add"], false, (c, p) => writeDecision(c, "add", prepareDecision(c, "add", p)));
+add("decision.retrieve", { id: str, query: str, concerns: str }, [], ["decision.retrieve"], true, (c, p) => retrieveDecisions(c, p));
+add("decision.edit", { id: str, ...decisionFields }, ["id"], ["decision.edit"], false, (c, p) => writeDecision(c, "edit", prepareDecision(c, "edit", p)));
+add("decision.delete", { id: str }, ["id"], ["decision.delete"], false, (c, p) => writeDecision(c, "delete", prepareDecision(c, "delete", p)));
 add("spec.approve", { ids: strings }, ["ids"], ["spec.approve"], false, (c, p) => approveSpecs(c, p.ids, { yes: true }));
 add("validate", { ids: strings }, [], info, true, (c, p) => { const r = validateProject(c.root, p); return { ...r, ok: r.counts.errors === 0 }; });
 add("warnings", { id: str }, [], info, true, (c, p) => { const all = [...collectWarnings(c.root), ...c.sessionWarnings]; return p.id ? narrowWarnings(all, p.id) : all; });

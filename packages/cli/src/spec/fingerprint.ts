@@ -66,3 +66,15 @@ export function planFingerprint(text: string, steps: PlanStepContent[] = []): st
   const ordered = [...steps].sort((a, b) => cmp(a.path, b.path)).map((s) => ({ path: s.path, content: lf(s.content) }));
   return `plan-v1:sha256:${sha(canonicalJson({ frontmatter, body: lf(fm.body), steps: ordered }))}`;
 }
+
+/**
+ * `decision-v1` fingerprint of a decision record: the frontmatter without `authors` plus the body (`architecture/file-formats` §14).
+ * Authorship is metadata like a spec's; every other change, including the title, concerns and date, is an edit.
+ */
+export function decisionFingerprint(text: string): string | null {
+  const fm = splitFrontmatter(text);
+  if (!fm.data) return null;
+  const frontmatter: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fm.data)) if (k !== "authors") frontmatter[k] = v;
+  return `decision-v1:sha256:${sha(canonicalJson({ frontmatter, body: lf(fm.body) }))}`;
+}

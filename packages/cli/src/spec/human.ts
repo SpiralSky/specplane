@@ -15,6 +15,7 @@ import { loadSpecPaths } from "./paths.js";
 import { loadProject, resolveCite, targetFingerprint, type Project, type SpecDoc, allSpecs, findDoc, projectOf } from "./project.js";
 import { currentResults, failedTests } from "./results.js";
 import { commitExists, committedSource, headCommit, worktreeSource } from "./source.js";
+import { approveDecisions, isDecisionId } from "../decisions/decisions.js";
 import { computeStatus, dependencyCites, specSubject, StatusCtx } from "./status.js";
 
 /**
@@ -202,6 +203,12 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   if (g.kind !== "allow") return refusal(g);
   const name = ctx.actor.kind === "llm" ? ctx.actor.model || "unknown" : humanName(ctx);
   const by = ctx.actor.kind === "llm" ? { llm: name, "delegated-by": ctx.actor.delegatedBy || "unknown" } : { human: name };
+  const decisionIds = ids.filter(isDecisionId);
+  if (decisionIds.length) {
+    // Decision records are approved by ID like specs, in a command of their own (`later-releases R37`).
+    if (decisionIds.length !== ids.length) return result({ ok: false, reasons: ["Name decision records and specifications in separate approve commands."] });
+    return approveDecisions(ctx, decisionIds, { name, by });
+  }
   const rev = opts.ref ?? "HEAD";
   if (!revCommit(ctx.root, rev)) return result({ ok: false, reasons: [`\`--ref ${rev}\` is not a branch or commit in this repository.`] });
   const head = loadHead(ctx.root, rev);

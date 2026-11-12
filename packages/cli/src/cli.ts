@@ -4,6 +4,7 @@ import { Command } from "commander";
 import { specImplementCommand } from "./commands/spec-implement.js";
 import { reportError } from "./errors.js";
 import { requestsAccept, requestsDecline, requestsList, requestsShow } from "./commands/requests.js";
+import { registerDecisionCommands } from "./commands/decision-cli.js";
 import { registerPlanCommands } from "./commands/plan-cli.js";
 import { registerHarnessCommands } from "./commands/harness.js";
 import { initCommand } from "./commands/init.js";
@@ -39,6 +40,7 @@ program.on("command:*", (args: string[]) => {
 });
 // Usage errors (unknown option, missing argument) exit 2; help and version exit 0 (`reference-cli` §13.3).
 registerPlanCommands(program);
+registerDecisionCommands(program);
 registerHarnessCommands(program);
 program.command("steering <target>").description("Show complete generated LLM steering for a command, permission, or role")
   .option("--spec-type <type>", "scope to requirement, feature, or architecture")
