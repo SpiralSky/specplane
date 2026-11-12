@@ -5,12 +5,12 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R42, R42.1, R42.2, R43, R44, R44.1, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R57, R58, R60]
-references: [R16.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, requests R52.3, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64, architecture/file-formats §13]
+references: [R16.1, R32, harness R35.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, requests R52.3, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64, architecture/file-formats §13]
 ---
 
 # Roles and Permissions
 
-Specplane decides what a person or an LLM may do with roles. A role holds permissions, and every command, in the CLI or in the harness, is checked against the permissions of the role that runs it. This spec describes the default roles, the kinds of permission, the default permission presets, how roles are assigned, how roles are managed, and how far enforcement goes. Custom roles, role management, role mappings and LLM role rules are described here too; strict mode and the bypass guards (`R55.1`, `R58`) are still later releases and are marked as such.
+Specplane decides what a person or an LLM may do with roles. A role holds permissions, and every command, in the CLI or in the harness, is checked against the permissions of the role that runs it. This spec describes the default roles, the kinds of permission, the default permission presets, how roles are assigned, how roles are managed, and how far enforcement goes. Custom roles, role management, role mappings and LLM role rules are described here too; strict mode (`R55.1`) and the bypass guards (`R58`) are described here too.
 
 ## §1 Terms
 
@@ -263,9 +263,24 @@ Roles are not strict, airtight enforcement (`R63` is a goal that these measures 
 
 ### R55.1: Strict Mode
 
-*Later release.*
+Strict mode is an optional mode that locks roles down more tightly than `R55` does. It combines measures at three levels: blocking file edits in the harness that would change specifications directly, safeguards in git, and safeguards at the operating system level; in general, as many strong measures as are possible. Strict mode is off by default.
 
-Strict mode is an optional mode that locks roles down more tightly. It includes blocking file edits in the harness that would change specifications directly, safeguards in git, and safeguards at the operating system level; in general, as many strong measures as are possible. Each measure of strict mode can be turned on or off on its own. Strict mode is off by default.
+- `strict_mode.enabled` turns strict mode on as a whole. While it is on, every measure is on unless it is turned off on its own with `strict_mode.<measure>`. A measure set on while `strict_mode.enabled` is off does nothing, and `validate` warns about it and about a name that matches no measure.
+- The measures are:
+  - `edit_block`: the harness blocks writes to the specification folders (including subprojects), decision records and role files by a file tool or by a shell command, so a specification is changed only through Specplane's actions, which check the role (`R50`). Reading is not blocked.
+  - `git_commit_guard`: a pre-commit check, installed in the managed pre-commit hook as the other checks are (`R32`) and removed when the measure is turned off, refuses a commit made by a process marked as an LLM's (`R58`) that stages a specification, decision record, role file or configuration change which the LLM's role may not make directly, meaning that the permission it would have needed is not `allow`. A person's commit is never refused by it. The harness also blocks a commit that skips hooks (`--no-verify`), a change to `core.hooksPath` and edits of the git hooks.
+  - `os_permissions`: Specplane makes its installed hooks, the harness settings that register them and the pre-commit hook read-only, keeps its local store private to the user that owns it, and the harness blocks changing the permissions of those files. The permissions are applied when the measure is turned on and again after the harness is set up again, and removed when it is turned off. For a stronger separation, an LLM can be run as a different operating system user than the person (`R44`).
+- A harness that cannot enforce a measure says so when it is set up and in `validate` and does not claim it (`harness R35.1`). Codex has no hook that runs before its tools, so it cannot enforce `edit_block`; it reports this, and the measures that do not depend on the harness still apply. Like all of roles the measures are not airtight (`R55`): they close common routes and do not stop a process that can run arbitrary code, and the file permissions do not stop the owner of the files or the administrator of the machine.
+
+Scenario: Given strict mode on in an LLM session on a harness that supports it, When the LLM tries to write a specification file with a file tool or a shell command, Then the call is refused and it is told to use the Specplane actions.
+
+Scenario: Given strict mode on and an LLM whose role may only request changes to feature specifications, When its process runs `git commit` with a changed feature specification staged, Then the commit is refused, while the same commit made by a person succeeds.
+
+Test T1 (deterministic): strict mode off or a measure off allows what that measure blocks, and each measure on blocks what it should (the hook: a write to a specification folder by file tool and by shell, `--no-verify`, `chmod` of a hook; allowed: reading a specification, a write elsewhere).
+
+Test T2 (deterministic): the commit check refuses a staged change that the marked LLM's role may only request or is denied, allows one it may make, and never refuses an unmarked process.
+
+Test T3 (deterministic): turning `os_permissions` on makes the guarded files read-only and the store private, turning it off makes the hooks writable again, and `validate` reports guarded files left open.
 
 ## R58: Role Permission Bypass
 

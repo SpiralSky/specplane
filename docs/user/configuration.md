@@ -60,8 +60,8 @@ Settings marked later release are read and validated but do nothing yet.
 | `coverage.requirement_only` | `[]` | Requirements annotated as requirement-only; uncovered warnings are still reported |
 | `decisions.enabled` | `off` | Whether user decision records are stored and retrieved |
 | `subprojects` | `[]` | The named locations in the project that are subprojects: items `{name, path}`; the folder holds `requirements/`, `features/` and `architecture/` |
-| `strict_mode.enabled` | `off` | (later release) Strict mode as a whole |
-| `strict_mode` | `{}` | (later release) Each strict mode measure on its own: strict_mode.<measure> |
+| `strict_mode.enabled` | `off` | Strict mode as a whole: the optional tighter lock-down of roles (off by default) |
+| `strict_mode` | `{}` | Each strict mode measure on its own (default on while strict mode is on): strict_mode.<measure> |
 | `bypass_guards` | `{}` | Each guardrail against permission bypass on its own (default on): bypass_guards.<measure> |
 
 ## Reading the notes

@@ -419,7 +419,7 @@ coverage:
   requirement_only: []               # requirement ids
 decisions: {enabled: off}            # later release
 subprojects: []                      # items {name, path}; a subproject folder holds requirements/, features/, architecture/ (§12.4)
-strict_mode: {enabled: off}          # later release
+strict_mode: {enabled: off}          # measure: on|off; on unless stated while enabled (roles-and-permissions R55.1)
 bypass_guards: {}                    # measure: on|off; each measure is on unless stated (roles-and-permissions R58)
 ```
 

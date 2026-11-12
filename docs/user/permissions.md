@@ -44,6 +44,18 @@ A role is only as strong as the ways round it are closed. An LLM that can run a 
 
 The hook measures are best effort: they read the command text, so an obfuscated command can get past them, and they read the configuration file in the working tree, not the committed one. A person who runs the same commands in their own terminal is not affected. The subagent an LLM runs as is not told apart from its parent in a shared session, so LLM role rules that match on a subagent or an agent type apply only where the environment states them (`SPECPLANE_SUBAGENT`, `SPECPLANE_AGENT_TYPE`). Codex has none of the hook measures (see `harnesses`).
 
+## Strict mode
+
+Roles are not airtight (see above). Strict mode is an optional mode that locks them down more tightly, with extra measures at three levels. It is off by default. Turn it on with `config set strict_mode.enabled on`; every measure is then on, and you can turn one off with `config set strict_mode.<measure> off`. A measure set to `on` while `strict_mode.enabled` is off has no effect, and `validate` warns about it, about a name that matches no measure, and about each measure that the installation cannot carry out.
+
+| Measure | What it does | Needs |
+|---------|--------------|-------|
+| `edit_block` | Blocks file-tool and shell writes to the specification folders (`paths.requirements`, `paths.features`, `paths.architecture`, subproject folders), `.specplane/decisions` and `.specplane/roles`, so specifications change only through Specplane actions, which check the role. Reading is not blocked. | Claude Code hook |
+| `git_commit_guard` | A pre-commit check (`check strict`) refuses a commit from an LLM's process when it stages a specification, decision, role or configuration change that the LLM's role may not make directly. The harness also blocks `git commit --no-verify`, changing `core.hooksPath` and edits of the git hooks. | Pre-commit hook (any harness), Claude Code hook for the second part |
+| `os_permissions` | Makes the installed hooks, `.claude/settings.json` and the pre-commit hook read-only, keeps the local store folder private to its owner (mode 0700, files 0600), and blocks `chmod`, `chown`, `chattr` and `setfacl` on them. Setting it back off makes the hooks writable again. | The core; Claude Code hook for the chmod block |
+
+The measures are best effort, like the bypass guards. They read command text, so an obfuscated command or a script that writes the files gets past the hook. The file permissions stop another operating system user and make the owner change a mode first; they do not stop the owner or root. For a stronger separation, run the LLM under a different operating system user than yours, with the checkout writable only through Specplane (map the users with `role map`, see "Custom roles and management" above). A person working in their own editor or terminal is not affected by the hook measures. The pre-commit check applies to commits whose process carries the LLM marker. Codex has no hook, so on Codex `edit_block` and the hook part of `git_commit_guard` and `os_permissions` do not apply (see `harnesses`).
+
 ## Presets
 
 Choose a preset with `config set permissions.preset <id>`. The four defaults are built in and cannot be edited or deleted. You can create your own with `preset create`, change it with `preset edit` and remove it with `preset delete` (see `commands`).

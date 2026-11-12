@@ -508,6 +508,12 @@ Refuse duplicate requirement IDs in the staged requirement files (reads the inde
 
 Run the deterministic tests of the architecture specs whose files are staged, on a copy of the index. Intelligent tests never run and nothing is recorded. The pre-commit hook runs it when `pre_commit.tests` is on; exit 1 names the spec and the failing test.
 
+### `check strict`
+
+`specplane check strict --staged [--json]`
+
+Refuse a commit made by an LLM's process (marked with `SPECPLANE_ACTOR=llm`, see `permissions`) when it stages a specification, decision record, role file or configuration change that the LLM's role may not make directly, that is, when the permission it would have needed is not `allow`. A commit by a person is never refused. The pre-commit hook runs it when strict mode's `git_commit_guard` measure is on (`strict_mode.enabled`); exit 1 names each file and the permission.
+
 ### `init`
 
 `specplane init [options]`
