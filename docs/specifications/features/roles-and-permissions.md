@@ -5,12 +5,12 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R42, R42.1, R42.2, R43, R44, R44.1, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R57, R58, R60]
-references: [R16.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, requests R52.3, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64]
+references: [R16.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, requests R52.3, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64, architecture/file-formats §13]
 ---
 
 # Roles and Permissions
 
-Specplane decides what a person or an LLM may do with roles. A role holds permissions, and every command, in the CLI or in the harness, is checked against the permissions of the role that runs it. This spec describes the default roles, the kinds of permission, the default permission presets, how roles are assigned, how roles are managed, and how far enforcement goes. Most of the first release needs only the default roles and presets; custom roles, role management, role mappings and strict enforcement are later releases and are marked as such.
+Specplane decides what a person or an LLM may do with roles. A role holds permissions, and every command, in the CLI or in the harness, is checked against the permissions of the role that runs it. This spec describes the default roles, the kinds of permission, the default permission presets, how roles are assigned, how roles are managed, and how far enforcement goes. Custom roles, role management, role mappings and LLM role rules are described here too; strict mode and the bypass guards (`R55.1`, `R58`) are still later releases and are marked as such.
 
 ## §1 Terms
 
@@ -29,10 +29,18 @@ Every role has permissions, and roles apply the same way in the CLI and in the h
 There are three types of permission:
 
 1. **Standard permissions.** Permissions to do things with specifications, plans, tests, configuration and the other work Specplane manages. Unless a section says otherwise, "permission" means a standard permission. They are listed in `R50`.
-2. **Management permissions.** Permissions to change what other roles may do (`R43`). A later release.
-3. **System permissions.** Permissions to change which role an OS user or an LLM gets (`R60`). A later release.
+2. **Management permissions.** Permissions to change what other roles may do (`R43`). The permission `role.manage`.
+3. **System permissions.** Permissions to change which role an OS user or an LLM gets (`R60`). The permission `role.map`.
 
-Management and system permissions are separate from standard permissions. A preset (`R57`) sets standard permissions only.
+Management and system permissions are separate from standard permissions. A preset (`R57`) sets standard permissions only. They are catalog permissions with the three modes, but `request user` does not apply to them: a role that has one only as `request user` is refused, because a request would let a lower role change what applies to a higher one. A default mode never grants them, and neither does it grant the protected overrides (`R17.2`); a custom role has these only when its file states them.
+
+| Role | `role.manage` | `role.map` |
+|------|---------------|------------|
+| Administrator | allow | allow |
+| Standard User | allow | deny |
+| LLM | deny | deny |
+
+The Standard User can therefore manage roles below level 10 but cannot map users (assumption: the page gives the Standard User a level, `R42.2`, and says the Administrator manages all other users, so the Standard User keeps management and the Administrator alone holds the system permission by default). A custom role holds either, or both, when its file states them.
 
 ## R42: Default Roles
 
@@ -41,7 +49,7 @@ Specplane has default roles whose permissions come from the active preset (`R57`
 ### R42.1: Default Role Definitions
 
 - **Standard User** is the default role for a person using the CLI or the harness.
-- **LLM** is the default role for every LLM in the harness. A subagent has the role of the LLM that started it, unless a rule overrides it (`R44.1`, a later release).
+- **LLM** is the default role for every LLM in the harness. A subagent has the role of the LLM that started it, unless a rule overrides it (`R44.1`).
 - **Administrator** has every permission, of every type, and can manage all other roles. It is never limited by a preset.
 
 ### R42.2: Default Role Management Levels
@@ -94,6 +102,7 @@ These are the standard permissions. The section named in the last column defines
 | Requests | Sending a request is always allowed to the LLM role. Accepting a request has no permission of its own: it uses the permission of the requested action | `R52`, `R52.2` |
 
 - Switching to the Administrator is not a permission of a role but a change of role, described with the role mapping in `R44`.
+- `role.manage` and `role.map` (`R43`, `R60`) are standard catalog entries for documentation, steering and audit, but a preset does not state them (`R57`).
 - The list is complete in the sense of `R50`: a new command that does something not covered by an existing permission brings its own permission, with a default in each default preset.
 - A role needs the permission for each thing a command does. For example, a step that writes a specification needs the permission to edit that type of specification (`R19.2`); a plan that starts runs only if both the starting permission and the start conditions are met (`plan-execution R31.1`).
 - All permissions are documented and can be viewed from the CLI and the harness (`R54`). Each permission has instructions attached to it that tell the LLM about the limit and that it must not try to bypass it (`R51`, `steering R51`).
@@ -138,7 +147,7 @@ A preset applies permissions to a group of roles, including the user and LLM rol
 
 - **Default presets.** The four default presets always exist and cannot be edited or deleted. The user chooses which one is active as a configuration change (`R25.1`).
 - **Custom presets.** Presets can be created, edited and deleted (`R56`). A custom preset applies modes to the roles that exist (the Standard User and the LLM role, `R42.1`), is stored in git so it follows branches like specifications (`R40`), and applies once committed, like configuration. The active preset cannot be deleted.
-- **Who may manage presets.** Creating, editing or deleting a preset needs the configuration permission as allow (`R50`) and a management level above every other role the preset applies to (`R42.2`, `R43`). Assumption: the page asks for management permission and level but custom roles and management permissions are a later release (`R43`, `R49`), so the configuration permission stands in for the management permission, and the actor's own role does not count against it. The Standard User (10) therefore may manage presets, the LLM role (5) may not, since the Standard User is above it, and the Administrator always may. Request user does not stand in for this: a role that has the permission only as request user is refused, because a request would let the LLM change what applies to the Standard User.
+- **Who may manage presets.** Creating, editing or deleting a preset needs the configuration permission and `role.manage`, both as allow (`R50`), and a management level above every other role the preset applies to (`R42.2`, `R43`). The management permission is `role.manage` (`R43`); the configuration permission is needed as well, because a preset is configuration (assumption). The management level is the actor's level (`R42.2`, `R49`), and the actor's own role does not count against it. The Standard User (10) therefore may manage presets, the LLM role (5) may not, since it has neither permission and the Standard User is above it, and the Administrator always may. A preset applies to the default roles only (the Standard User and the LLM role); a custom role carries its own modes (`R48`). Request user does not stand in for this: a role that has the permission only as request user is refused, because a request would let the LLM change what applies to the Standard User.
 - **Activating.** Choosing a custom preset as active is a configuration change like any other (`configuration R25`), so the LLM role may send a request for it and the user decides.
 - **A preset's content.** Every preset states a default mode (`R56.1`) and may state a mode per permission, for each of the two roles, and a default mode per role. Unstated permissions take the role's default, then the preset's (`R42`). A malformed preset is reported by validation and ignored. A preset cannot share an ID with a default preset.
 
@@ -154,55 +163,94 @@ A preset also states the default mode for every permission it does not list. The
 
 ## R43: Role Management
 
-*Later release.*
-
 Management permissions decide what permissions a role can set for other roles. A role cannot change its own permissions, whatever its management permissions or level.
 
-Scenario: Given a role with management permissions, When it tries to add a permission to its own role, Then the change is refused.
+The management permission is `role.manage` (`R46`). With it, and a management level above the role concerned (`R49`), a role can:
+
+- create, edit and delete custom roles (`R48`);
+- approve a custom role or an LLM role rule, which is what makes it apply (`R48`);
+- create, edit and delete presets that apply to roles below its level (`R56`).
+
+Assumptions below the page: a role cannot give another role a permission mode more permissive than its own, because a role that can grant what it lacks could lift a role above itself (the Administrator is exempt); and the approver of a role needs the same, so it cannot approve a role that holds more than it does. Default roles are not stored as files: their permissions come from the active preset, and `R56` governs who changes a preset.
+
+Scenario: Given a role with management permission, When it tries to add a permission to its own role, Then the change is refused.
+
+Scenario: Given a Standard User whose `override.status` is deny, When it creates a custom role that allows `override.status`, Then it is refused; the Administrator can.
+
+Test T1 (deterministic): a role with `role.manage` as allow edits a lower role and is refused for itself; a role with it as request user and an LLM role are refused; a role cannot be created or approved with a mode more permissive than the actor's.
 
 ## R49: Role Management Levels
 
-*Later release.*
+A role's management level decides which roles it can change, even if it has management permissions (`R43`). Levels are whole numbers. A role can change the permissions of every role with a lower level than its own, and of no role at an equal or higher level. The Administrator's level is always above every level a role can have (`R42.2`). A custom role has a level from 1 to 99 (assumption, so the Administrator is always above).
 
-A role's management level decides which roles it can change, even if it has management permissions (`R43`). Levels are numbers. A role can change the permissions of every role with a lower level than its own, and of no role at an equal or higher level. The Administrator's level is always above every level a role can have (`R42.2`).
+The level check uses the highest of the role's committed level, its working-tree level and its approved level, so lowering a role's level does not allow its edit by a role that was below its previous level.
 
 Scenario: Given a role at level 10 with management permissions, When it changes the permissions of an LLM role at level 5, Then the change is allowed; When it changes the permissions of another role at level 10, Then it is refused.
 
-Test T1 (deterministic): with roles at levels 5, 10 and 10, expect a level 10 role to change only the level 5 role.
+Test T1 (deterministic): with roles at levels 5, 10 and 10, expect a level 10 role to change only the level 5 role; a role cannot create a role at its own or a higher level; levels outside 1 to 99 are refused.
 
 ## R44: Applying Custom Users
 
-Which role a person has depends on who they are, and Specplane does not tie the source of identities to the operating system. Identities can come from elsewhere later, such as a git server.
+Which role a person has depends on who they are, and Specplane does not tie the source of identities to the operating system. An identity is written `<source>:<name>`; the only source is `os` (an operating system user name), so a git server or another source can be added later without changing the mapping.
 
-- **Without a mapping (first release).** Mapping is optional. When no mapping is configured, every user of the CLI and the harness is the Standard User. Anyone can switch to the Administrator with a command, without operating system administrator rights.
-- **Switching.** Switching to the Administrator is an explicit command. LLM roles cannot run it, because the CLI is not callable by LLMs in the harness (`R47`) and a harness command typed by the user runs under the user's role. Switching back to the Standard User needs no permission.
-- **With a mapping (later release).** The configuration can assign Specplane roles to operating system users. Once any mapping is configured, a user who has no role gets the Standard User. Administrator or root accounts can optionally switch to the Administrator, and the switch command no longer lets everyone become the Administrator. Mappings are stored locally, outside of git, per machine (`R48`).
+- **Without a mapping.** Mapping is optional. When no mapping is configured, every user of the CLI and the harness is the Standard User. Anyone can switch to the Administrator with a command, without operating system administrator rights.
+- **Switching.** Switching to the Administrator is an explicit command. LLM roles cannot run it, because the CLI is not callable by LLMs in the harness (`R47`) and a harness command typed by the user runs under the user's role. Switching back to the Standard User needs no permission. The switch is remembered for the operating system user who made it.
+- **With a mapping.** The configuration can assign a role, default or custom, to an operating system user (`specplane role map`). Once any mapping is configured, a user who has no entry gets the Standard User, and so does a user whose role does not apply (deleted, or never approved, `R48`). A mapping can allow its user to switch to the Administrator, which is how Administrator or root accounts become the Administrator: the switch command no longer lets everyone. Mapping a user to the Administrator role itself is also possible and is for the Administrator only (`R60`).
+- **Storage.** Mappings are stored locally, outside of git, per machine (`R48`): `os-users.json` in the local store. Removing the last mapping returns to the first state.
 
 Scenario: Given no mapping, When a user runs the switch command, Then they act as the Administrator until they switch back, and the LLM in the same session keeps the LLM role.
 
+Scenario: Given a mapping that maps `sam` to a custom role and has no entry for `lee`, When `lee` runs a command, Then `lee` is the Standard User, and when `lee` runs the switch command it is refused.
+
+Test T1 (deterministic): no mapping, switch works; with a mapping, an unmapped user and a user whose role is pending are the Standard User, a switch is refused unless the mapping allows it, and the mapping stays out of git.
+
 ### R44.1: Custom LLM role rules
 
-*Later release.*
+Users can assign roles to LLMs with rules. A rule is a file `.specplane/roles/rules/<id>.yaml` (`R48`) that names a role and the factors an LLM must match:
 
-Users can assign roles to LLMs with rules. A rule can use factors such as a named subagent the harness defines for a task, the current agent type, the agent's provider and others. A rule that matches no LLM leaves it with the default LLM role. For example, a higher role can be given to an LLM that reviews or manages the work of other LLMs. A subagent has its parent's role unless such a rule gives it another (`R42.1`).
+- `subagent`: the name of a subagent the harness defines for a task;
+- `agent_type`: the current agent type;
+- `provider`: the agent provider (for example `anthropic`; the harness derives it from its adapter unless told);
+- `model`: the model name;
+- `delegated`: whether the LLM is a subagent.
 
-A rule that gives a role above the default LLM role does not apply until the user has trusted it on this machine (`R48`).
+A text factor matches exactly, or as a prefix when it ends in `*`; every factor a rule states must match. When several rules match, the one with the highest `priority` (default 0) wins, then the smallest rule ID. A rule that matches no LLM leaves it with the default LLM role. For example, a higher role can be given to an LLM that reviews or manages the work of other LLMs. A subagent has its parent's role unless a rule gives it another (`R42.1`). A rule cannot give the Administrator role.
+
+A rule applies only when its file is approved (`R48`) and the role it gives applies. A rule that gives a role above the default LLM role does not apply until the user has trusted it on this machine (`R48`). "Above" means a higher management level than the LLM role's (5), or a management or system permission other than deny (assumption: a low-level role that can manage roles is above in the way that matters).
+
+The harness supplies the factors from the adapter's environment (`SPECPLANE_PROVIDER`, `SPECPLANE_AGENT_TYPE`, `SPECPLANE_SUBAGENT`, `SPECPLANE_MODEL`, `SPECPLANE_DELEGATED_BY`), never from tool input. Which factors a harness can supply depends on the harness; a rule on a factor it does not supply never matches.
+
+Scenario: Given a rule that gives `reviewer` to the subagent `code-reviewer`, approved and trusted, When that subagent calls a harness action, Then the call is checked and audited under `reviewer`; any other LLM keeps the LLM role.
+
+Test T1 (deterministic): a rule applies only when approved, and when above the LLM role only when trusted; factors combine with AND; priority orders matches; a non-matching LLM has the default role; an LLM cannot create or trust a rule.
 
 ## R60: Permissions for applying Custom Users
 
-*Later release.*
+System permissions (`R46`) allow a role to change the mapping from OS users to roles and from LLMs to roles (`R44`, `R44.1`). The permission is `role.map`. The Administrator can fully manage the OS user mapping. A role with system permissions obeys management levels: it cannot map a user or an LLM to a role at an equal or higher level than its own (`R49`), and it cannot change the mapping of a user who has such a role. The Administrator is exempt from this for OS user mappings only; an LLM rule can never give the Administrator role. Allowing a user to switch to the Administrator (`R44`) is the same as mapping the user to it, so it is for the Administrator only.
 
-System permissions (`R46`) allow a role to change the mapping from OS users to roles and from LLMs to roles (`R44`, `R44.1`). The Administrator can fully manage the OS user mapping. A role with system permissions obeys management levels: it cannot map a user or an LLM to a role at an equal or higher level than its own (`R49`). The Administrator is exempt from this for OS user mappings only.
+Creating, editing and deleting rules needs `role.map`; approving them needs `role.manage` (`R43`, `R48`), because approval is a management act. Both must be `allow`.
 
 Scenario: Given a role at level 10 with system permissions, When it maps an OS user to a role at level 10, Then the mapping is refused; the Administrator can do the same mapping.
 
+Test T1 (deterministic): a role with `role.map` maps a user to a lower role and is refused for an equal or higher role, the Administrator role and an unknown role; the Standard User and the LLM role are refused; the Administrator maps any role; a rule for the Administrator role is refused.
+
 ## R48: Role Configuration Storage
 
-*Later release.*
+Custom roles, their permissions and LLM role rules (`R44.1`) are stored in git, so they follow branches like specifications (`R40`):
 
-Custom roles, their permissions and LLM role rules (`R44.1`) are stored in git, so they follow branches like specifications (`R40`). A change to them is pending until a role with enough management permission and level approves it (`R43`, `R49`). An LLM role rule that gives a role above the default LLM role also has to be trusted locally before it applies. Mappings of operating system users to roles are stored locally, outside of git, per machine, and are not part of this approval.
+- a custom role is `.specplane/roles/roles/<id>.yaml` with `id`, `title`, `management_level`, a required `default_mode` and `modes` (permission to mode);
+- an LLM role rule is `.specplane/roles/rules/<id>.yaml` (`R44.1`);
+- custom presets stay in `.specplane/roles/presets/` (`R56`) and need no approval.
 
-Until this exists, the Standard User and the LLM role are the only roles. Presets, including custom presets, are not part of it (`R56`), and the active preset is an ordinary configuration setting (`configuration R25`).
+Both are read from HEAD like configuration. A change to a role or rule is pending until a role with enough management permission and level approves it (`R43`, `R49`). The approval is a record in the notes store (`architecture/file-formats §13`) on the file's content, so any later edit is pending again. While a change to an approved role is pending, the last approved content keeps applying; a role that was never approved does not apply, and a user mapped to it is the Standard User. A malformed file is a validation error and is ignored. A role applies in the CLI and the harness alike.
+
+An LLM role rule that gives a role above the default LLM role also has to be trusted locally before it applies. Trust is recorded on this machine only (`trusted-rules.json` in the local store), covers the rule's content and the level of the role it gives, and ends when either changes. Only a person can trust a rule. Mappings of operating system users to roles are stored locally, outside of git, per machine (`R44`), and are not part of this approval.
+
+Assumption: deleting a role or a rule takes effect when the deletion is committed, with no approval, because a deleted role gives its users the Standard User and a deleted rule gives the LLM its default role. Presets, including custom presets, are not part of this approval (`R56`), and the active preset is an ordinary configuration setting (`configuration R25`).
+
+Scenario: Given a role file that was committed and approved and is then edited and committed, When a user with that role runs a command, Then the last approved content applies, `validate` reports the pending change, and after `role approve` the new content applies.
+
+Test T1 (deterministic): an uncommitted, a committed-unapproved, an approved and an edited-after-approval role each apply as described; a malformed role file is reported and ignored; trust is local, per rule content and level.
 
 ## R55: Role Enforcement
 

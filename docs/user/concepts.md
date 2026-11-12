@@ -15,7 +15,7 @@ Specplane tracks four things separately, because one does not prove the others.
 
 ## Roles and permissions
 
-A person at the CLI is a Standard User or an Administrator. An agent in a harness is the LLM role. Each permission has a mode per role: `allow`, `request-user` or `deny` (see `permissions`). Approving a spec is its own permission, so writing a spec and approving it are different acts.
+A person at the CLI is a Standard User or an Administrator. An agent in a harness is the LLM role. Each permission has a mode per role: `allow`, `request-user` or `deny` (see `permissions`). You can add custom roles with management levels, map operating system users to roles on your machine and give LLMs roles by rule (see `permissions`). Approving a spec is its own permission, so writing a spec and approving it are different acts.
 
 ## Decision records
 

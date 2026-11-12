@@ -4,8 +4,8 @@ title: File formats
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-implements: [specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4]
-references: [architecture/reference-cli §8, architecture/reference-cli §12.4, roles-and-permissions R56.1, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R37.1, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6]
+implements: [specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4, roles-and-permissions R43, roles-and-permissions R44.1, roles-and-permissions R49, roles-and-permissions R60]
+references: [architecture/reference-cli §8, architecture/reference-cli §12.4, roles-and-permissions R56.1, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R37.1, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6, architecture/reference-cli §12.1]
 ---
 
 # File formats
@@ -421,7 +421,6 @@ decisions: {enabled: off}            # later release
 subprojects: []                      # items {name, path}; a subproject folder holds requirements/, features/, architecture/ (§12.4)
 strict_mode: {enabled: off}          # later release
 bypass_guards: {}                    # later release
-roles: {llm_rules: []}               # later release; os_user_mapping is local (§7.4)
 ```
 
 ### §6.1 Value types and defaults
@@ -547,20 +546,55 @@ roles:
 
 `permissions.preset` in `.specplane/config.yaml` (`§6`) names the active preset, read from the committed file at HEAD (`§6.2`): an uncommitted change of the preset is ignored with a validate and status warning. A preset ID is a default preset or a custom one (`§7.4`). An unknown preset ID is a malformed-setting finding and the default preset is used.
 
-### §7.4 Custom presets; later release: custom roles, rules and mappings
+### §7.4 Custom presets
 
 **Custom presets** (`roles-and-permissions R56`, `roles-and-permissions R56.1`) are stored in git, one file per preset, at `.specplane/roles/presets/<id>.yaml`, in the shape of `§7.2` (`id`, `title`, required `default_mode`, `roles` with `standard-user` and `llm`, each with optional `default_mode` and `modes`). Assumption: the folder is `presets/` under `roles/`, so it does not collide with the role files below. Rules:
 
-- The file name without `.yaml` equals `id`, which is kebab-case and is not the ID of a default preset. A role key other than `standard-user` and `llm` (the Administrator is never in a preset), a permission that is not in the catalog (`§7.1`), a mode that is not `allow`, `request-user` or `deny`, or a missing `default_mode` makes the file malformed: validation reports an error naming the file, and the file is ignored.
+- The file name without `.yaml` equals `id`, which is kebab-case and is not the ID of a default preset. A role key other than `standard-user` and `llm` (the Administrator is never in a preset), a permission that is not in the catalog (`§7.1`) or is a management or system permission (`role.manage`, `role.map`), a mode that is not `allow`, `request-user` or `deny`, or a missing `default_mode` makes the file malformed: validation reports an error naming the file, and the file is ignored.
 - Like configuration (`§6.2`), custom presets are read from HEAD of the checked-out branch, never from the working tree; `preset` commands edit the working tree and print that the change is not committed. The commands that create, edit or delete a preset read the working tree, so a preset created and not yet committed can be edited and activated by `config set`.
 - A custom preset is resolved like a default one: role entry, else role `default_mode`, else preset `default_mode`, else `deny`. It takes part in the steering stamp through its content (`architecture/reference-cli §12.4`).
 
-Not read in the first release; the rest of this section is an assumption for the shape:
+### §7.5 Custom roles, LLM role rules and mappings
 
-- Custom roles, their modes and LLM role rules (`roles.llm_rules`) are stored in git under `.specplane/roles/*.yaml` (`roles-and-permissions R48`); a role file holds `id`, `title`, `management_level`, `modes`. A change is pending until approved by a role with enough management permission and level (pending changes are request records, `§9`).
-- An LLM role rule above the default LLM role applies only after the user trusts it locally; trust is recorded in the local store (`§9.1`, `trusted-rules.json`: rule fingerprint, date).
-- OS user mappings (`roles.os_user_mapping`) are kept locally outside git: `os-users.yaml` in the local store (`§9.1`), mapping an OS user name to a role ID.
-- Which role runs a command is resolved at run time from the environment and these files; it is never written into a spec or plan.
+Implements `roles-and-permissions R43`, `roles-and-permissions R44`, `roles-and-permissions R44.1`, `roles-and-permissions R48`, `roles-and-permissions R49`, `roles-and-permissions R60`.
+
+**Custom role** `.specplane/roles/roles/<id>.yaml`, one file per role:
+
+```yaml
+id: triage                  # kebab-case, equals the file name, not administrator, standard-user or llm
+title: Triage lead          # optional
+management_level: 7         # whole number 1..99 (R49); the Administrator is above all
+default_mode: deny          # required: allow, request-user or deny
+modes:                      # permission -> mode; any catalog permission
+  spec.edit.feature: request-user
+  role.manage: allow
+```
+
+Resolution for a custom role: `modes` entry, else `default_mode`, except that the protected overrides (`§7.1`) and the management and system permissions `role.manage` and `role.map` come only from a `modes` entry (else `deny`). The default roles are fixed for `role.manage` (Standard User allow, LLM deny) and `role.map` (Standard User and LLM deny); the Administrator has all.
+
+**LLM role rule** `.specplane/roles/rules/<id>.yaml`:
+
+```yaml
+id: review
+title: Code reviewers       # optional
+role: reviewer              # a default role other than administrator, or a custom role
+priority: 5                 # whole number, default 0
+match:                      # at least one factor; all must match
+  subagent: code-reviewer
+  provider: anthropic       # also agent_type, model (a trailing * is a prefix), delegated (true/false)
+```
+
+Rules for both:
+
+- Read from HEAD of the checked-out branch, like configuration (`§6.2`); the commands edit the working tree and say the change is not committed. A malformed file (bad ID, level out of range, unknown permission or mode, unknown factor, a rule for the Administrator) is a validation error and is ignored.
+- **Approval.** A notes record (`§13`) with kind `approval`, subject `role/<id>` or `role-rule/<id>`, fingerprint `role-v1:sha256:<hex>` (SHA-256 of the canonical JSON of the parsed file: keys sorted, comments and spacing ignored), `by` `{human, role}` and, for a role, `content` holding the approved file text. A role applies when its committed fingerprint has an applicable approval (`§13.2`); if only an older approval exists its `content` applies and validation warns that a change is pending; with no approval the role does not apply and validation warns. A rule applies when approved and the role it gives applies.
+- **Trust.** `trusted-rules.json` in the local store: `{"<rule id>": "<fingerprint>@<level>"}`. A rule whose role is above the default LLM role (level over 5, or a management or system permission other than deny) applies only when its entry equals the current rule fingerprint and the role's level.
+- **Matching.** `resolveLlmRole` filters the rules that are approved, whose role applies, trusted where needed, and whose factors all match; the highest `priority`, then the smallest ID, wins; none gives `llm`. The factors come from the adapter's environment (`architecture/reference-cli §12.1`).
+- Deletion takes effect when committed, with no approval (`roles-and-permissions R48`).
+
+**Mapping** `os-users.json` in the local store: `{"os:<user name>": {"role": "<role id>", "admin_switch": true}}`; `admin_switch` is optional. The key form `<source>:<name>` leaves room for other identity sources. Never committed, per machine. `cliRole` reads it: no entries, the first-release behaviour; with entries, the mapped role if it applies (default role, or an approved custom role), else `standard-user`, and `administrator` after a switch only when `admin_switch` is true (or the mapped role is `administrator`). `role.json` records the user who switched, and a switch by another OS user is ignored.
+
+Which role runs a command is resolved at run time from the environment and these files; it is never written into a spec or plan.
 
 ## §8 Commit messages
 
@@ -606,8 +640,8 @@ Assumption: state that is not content of the project (requests, audit log, logs,
   sessions/<session-id>.json  instructions already delivered (§9.3)
   role.json                 Administrator switch (§9.3)
   tmp/                      temporary checkouts for test runs and pre-commit checks
-  trusted-rules.json        later release
-  os-users.yaml             later release
+  trusted-rules.json        local trust of LLM role rules (§7.5)
+  os-users.json             local mapping of OS users to roles (§7.5)
 ```
 
 ### §9.2 Request file
@@ -648,7 +682,8 @@ Assumption: the files of the local store besides requests, the audit log and log
 - `runs/<plan-id>.json`: run marker `{"session": "<id>", "pid": 1234, "heartbeat": "2026-11-09T10:15:00Z"}`, kept up to date by the adapter while a session works and removed on a clean end.
 - `reviews/<plan-id>.json`: `{"target_branch": "main", "target_commit": "<hash>", "seen": "2026-11-09T10:15:00Z"}`, the target tip the final review was shown against.
 - `sessions/<session-id>.json`: `{"epoch": 0, "delivered": [{"key": "<instruction key>", "hash": "<sha256>"}]}`, the instruction texts already delivered in the session and the compaction epoch.
-- `role.json`: `{"role": "administrator", "since": "2026-11-09T10:15:00Z"}`, present only while the Administrator switch is on (`roles-and-permissions R44`).
+- `role.json`: `{"role": "administrator", "user": "alice"}`, present only while the Administrator switch is on (`roles-and-permissions R44`); the switch counts only for the OS user named in `user` (a file without `user` counts for everyone, as in earlier versions).
+- `os-users.json` and `trusted-rules.json`: `§7.5`.
 - `tmp/`: temporary checkouts, removed when the command ends.
 
 Writes use the temp-file-and-rename rule of `§9.2`. A missing file is the empty or default state.
@@ -784,7 +819,7 @@ Every record has:
 | `kind` | `approval`, `reopen`, `override`, `test-result` or `implementation` |
 | `by` | Author item (`§2.1`), with `delegated-by` for a delegated LLM (`§2.3`) |
 | `date` | The day the record was made |
-| `fingerprint` | `spec-v3` of the spec content (or `plan-v1` of the plan) the record applies to |
+| `fingerprint` | `spec-v3` of the spec content (or `plan-v1` of the plan, `decision-v1` of a decision record, `role-v1` of a role or rule file, `§7.5`) the record applies to |
 
 Kind-specific fields:
 
