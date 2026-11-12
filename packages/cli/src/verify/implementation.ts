@@ -1,5 +1,5 @@
 import { loadSettings } from "../config.js";
-import { PreconditionError, SpecNotFoundError } from "../errors.js";
+import { AmbiguousSpecError, PreconditionError, SpecNotFoundError } from "../errors.js";
 import { run } from "../git/exec.js";
 import { guard, type Actor, type Preset } from "../perm/permissions.js";
 import { specFingerprint } from "../spec/fingerprint.js";
@@ -43,6 +43,7 @@ export function headContext(root: string): { project: Project; ctx: StatusCtx } 
 /** A spec by full ID or by a slug that names exactly one spec. */
 export function findSpecId(ids: string[], arg: string): string {
   const hits = ids.includes(arg) ? [arg] : ids.filter((i) => i.slice(i.indexOf("/") + 1) === arg);
+  if (hits.length > 1) throw new AmbiguousSpecError(arg, hits);
   if (hits.length !== 1) throw new SpecNotFoundError(arg);
   return hits[0];
 }

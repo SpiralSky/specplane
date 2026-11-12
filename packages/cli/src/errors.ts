@@ -37,6 +37,13 @@ export class AmbiguousIdError extends SpecplaneError {
     );
   }
 }
+/** A bare slug names a root spec and a subproject spec (or several subprojects'); the user must qualify it (`later-releases R39.3`). */
+export class AmbiguousSpecError extends SpecplaneError {
+  readonly exitCode = 1;
+  constructor(slug: string, ids: string[]) {
+    super(`Specification \`${slug}\` is ambiguous: it matches ${ids.map((i) => `\`${i}\``).join(", ")}. Use the qualified ID.`);
+  }
+}
 export class FrontmatterError extends SpecplaneError {
   readonly exitCode = 1;
   constructor(file: string, violation: string) {

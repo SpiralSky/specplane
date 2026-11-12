@@ -17,18 +17,32 @@ export interface SpecChange { spec: string; before: string | null; after: string
 const LEGACY = ["status", "approval", "review-reason", "results", "implementation"];
 const result = (r: Partial<Result> & { ok: boolean }): Result => ({ lines: [], reasons: [], commit: null, warnings: [], written: [], ...r });
 
+const SPEC_ID = /^(?:([a-z0-9][a-z0-9-]*):)?((requirement|feature|architecture)\/[a-z0-9]+(?:-[a-z0-9]+)*)$/;
+
+/** Split `<layer>/<slug>` or `<name>:<layer>/<slug>` (`later-releases R39.3`); `root:` names the root project. */
+export function splitSpecWriteId(id: string): { project: string | null; local: string; layer: string } {
+  const m = SPEC_ID.exec(id);
+  if (!m) throw new Error("A specification ID must be <layer>/<slug>, or <project>:<layer>/<slug> in a subproject.");
+  return { project: m[1] && m[1] !== "root" ? m[1] : null, local: m[2], layer: m[3] };
+}
+
 export function specLayer(id: string): string {
-  const m = /^(requirement|feature|architecture)\/[a-z0-9]+(?:-[a-z0-9]+)*$/.exec(id);
-  if (!m) throw new Error("A specification ID must be <layer>/<slug>.");
-  return m[1];
+  return splitSpecWriteId(id).layer;
 }
 
 /** Resolve only a configured spec path, refusing symlinks including in parent directories. */
 function location(root: string, id: string): { abs: string; rel: string } {
-  const layer = specLayer(id);
+  const { project, local, layer } = splitSpecWriteId(id);
   const paths = loadSpecPaths(root).paths;
-  const dir = layer === "requirement" ? paths.requirements : layer === "feature" ? paths.features : paths.architecture;
-  const rel = `${dir}/${id.split("/")[1]}.md`;
+  let base = "";
+  if (project !== null) {
+    const sub = paths.subprojects.find((s) => s.name === project);
+    if (!sub) throw new Error(`Unknown subproject \`${project}\`; declare it in the \`subprojects\` setting first.`);
+    base = `${sub.dir}/`;
+  }
+  const dir = project !== null ? `${base}${layer === "requirement" ? "requirements" : layer === "feature" ? "features" : "architecture"}`
+    : layer === "requirement" ? paths.requirements : layer === "feature" ? paths.features : paths.architecture;
+  const rel = `${dir}/${local.split("/")[1]}.md`;
   let abs = path.resolve(root);
   for (const part of rel.split("/")) {
     if (!part || part === "." || part === "..") throw new Error("Unsafe specification path.");
@@ -43,8 +57,10 @@ export function checkSpecText(id: string, text: string): void {
   const fm = splitFrontmatter(text);
   if (fm.error && !(fm.missing && specLayer(id) === "requirement")) throw new Error(fm.error);
   for (const key of LEGACY) if (Object.hasOwn(fm.data ?? {}, key)) throw new Error(`Legacy record key \`${key}\` is not accepted in specification writes.`);
-  if (fm.data?.id !== undefined && fm.data.id !== id) throw new Error("Specification ID must match its path.");
-  if (specLayer(id) !== "requirement" && (fm.data?.id !== id || typeof fm.data?.title !== "string" || !Array.isArray(fm.data?.authors))) {
+  // A subproject spec's frontmatter `id` stays the local `<layer>/<slug>` (V1b).
+  const local = splitSpecWriteId(id).local;
+  if (fm.data?.id !== undefined && fm.data.id !== local) throw new Error("Specification ID must match its path.");
+  if (specLayer(id) !== "requirement" && (fm.data?.id !== local || typeof fm.data?.title !== "string" || !Array.isArray(fm.data?.authors))) {
     throw new Error("A specification needs id, title and authors frontmatter.");
   }
 }
@@ -69,7 +85,9 @@ export function prepareSpecChange(ctx: Ctx, operation: SpecOperation, input: { s
   if (input.section) {
     if (operation !== "edit") throw new Error("Only edits can replace a section.");
     const project = loadProject(worktreeSource(ctx.root), loadSpecPaths(ctx.root).paths);
-    const cite = specLayer(input.spec) === "requirement" ? `${input.spec.split("/")[1]}.md#${input.section}` : `${input.spec} ${input.section}`;
+    const at = splitSpecWriteId(input.spec);
+    const prefix = at.project ? `${at.project}:` : "";
+    const cite = at.layer === "requirement" ? `${prefix}${at.local.split("/")[1]}.md#${input.section}` : `${prefix}${at.local} ${input.section}`;
     const resolved = resolveRaw(project, cite)?.resolution;
     if (!resolved?.ok || !resolved.target.startLine || !resolved.target.endLine) throw new Error("Section not found.");
     const lines = before!.split("\n");

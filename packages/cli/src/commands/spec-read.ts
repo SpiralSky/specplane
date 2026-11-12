@@ -1,5 +1,5 @@
 import { allSpecs, findDoc } from "../spec/project.js";
-import { SpecNotFoundError } from "../errors.js";
+import { AmbiguousSpecError, SpecNotFoundError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, guard } from "../perm/permissions.js";
 import { implementationState, headContext } from "../verify/implementation.js";
@@ -117,6 +117,7 @@ export function specShowCommand(id: string): CommandResult {
   const root = checkoutRoot();
   const { project, ctx } = headContext(root);
   const hits = findDoc(project, id) ? [findDoc(project, id)!] : [...allSpecs(project)].filter((d) => d.slug === id);
+  if (hits.length > 1) throw new AmbiguousSpecError(id, hits.map((d) => d.id));
   if (hits.length !== 1) throw new SpecNotFoundError(id);
   const v = view(ctx, hits[0], worktreeSource(root).read(hits[0].file));
   const lines = [
