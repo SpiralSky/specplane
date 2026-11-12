@@ -13,7 +13,7 @@ export const STEERING_COMMANDS: Readonly<Record<string, readonly string[]>> = {
   "plan-step": ["info.retrieve", "spec.edit.requirement", "spec.edit.feature", "spec.edit.architecture", "test.record", "plan.softstop", "plan.resume", "plan.budget"],
   "plan-finish": ["info.retrieve", "plan.complete", "plan.edit"], "plan-status": ["info.retrieve"],
   validate: ["info.retrieve"], verify: ["info.retrieve", "test.record"],
-  approve: ["info.retrieve", "spec.approve"], requests: [], "plan-abandon": ["info.retrieve", "plan.abandon", "plan.delete"],
+  approve: ["info.retrieve", "spec.approve"], requests: [], "spec-view": ["info.retrieve"], "plan-abandon": ["info.retrieve", "plan.abandon", "plan.delete"],
 };
 export interface CustomSteering { permission?: string; command?: string; scope?: string; text: string }
 export interface SteeringContext { specType?: "requirement" | "feature" | "architecture"; planId?: string }

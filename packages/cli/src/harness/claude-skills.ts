@@ -12,6 +12,7 @@ interface SkillMeta { description: string; argumentHint: string; modelInvocable:
 const META: Readonly<Record<string, SkillMeta>> = {
   approve: { description: "Approve specifications, plans or decision records by ID. Only the user runs this command.", argumentHint: "<id>...", modelInvocable: false },
   requests: { description: "Open the requests pane. Only the user runs this command.", argumentHint: "[list | show <id> | accept <id> | decline <id>]", modelInvocable: false },
+  "spec-view": { description: "Show one specification with its status and what changed since its last approval. Only the user runs this command.", argumentHint: "[spec id]", modelInvocable: false },
   "plan-start": { description: "Start a plan: create its worktree and open its session.", argumentHint: "<plan-id>", modelInvocable: false },
   "plan-step": { description: "Execute the next selected steps of a plan, one at a time.", argumentHint: "[plan-id]", modelInvocable: false },
   "plan-finish": { description: "Run the final review of a plan and decide whether it is complete.", argumentHint: "[plan-id]", modelInvocable: false },

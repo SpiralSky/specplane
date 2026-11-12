@@ -1,6 +1,7 @@
 import { requestsAccept, requestsDecline, requestsList, requestsShow } from "../commands/requests.js";
 import type { CommandResult } from "../commands/runner.js";
 import { specApproveHuman } from "../commands/spec-human.js";
+import { specViewCommand, specViewIndex } from "../commands/spec-view.js";
 import { validateCommand } from "../commands/validate.js";
 import { PreconditionError, UsageError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
@@ -68,6 +69,7 @@ function noArgs(root: string, command: string): CommandResult | Promise<CommandR
   switch (command) {
     case "validate": return validateCommand([]);
     case "requests": return requestsList();
+    case "spec-view": return specViewIndex(root);
     case "plan-status": {
       const infos = plans(root);
       return { ok: true, data: infos, lines: infos.length ? infos.map(describe) : ["No plans."] };
@@ -109,6 +111,7 @@ async function withArgs(root: string, command: string, args: string[], o: RunOpt
       return o.launcher ? openSession(ctx, o.launcher, args[0], sessionId!, false, started)
         : { ok: true, lines: [...started, "No harness adapter opens the plan's session here; open one in the worktree and use plan-step."] };
     }
+    case "spec-view": return specViewCommand(root, args[0], !!process.stdout.isTTY);
     case "plan-status": {
       const infos = plans(root, args[0]);
       return infos.length ? { ok: true, data: infos, lines: infos.map(describe) } : { ok: false, findings: [`Plan \`${args[0]}\` not found.`] };

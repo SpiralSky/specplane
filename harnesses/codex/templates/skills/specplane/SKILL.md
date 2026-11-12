@@ -23,3 +23,4 @@ If a contract needs a capability this setup lacks (for example the MCP tools are
 
 - `approve`: not offered in Codex, because approval is a typed, user-only command and Codex has no verified way to run one without a model turn. The user can run it in their own terminal.
 - `requests`: not offered in Codex, because the requests pane is a typed, user-only command and Codex has no verified way to run one without a model turn. The user can run it in their own terminal.
+- `spec-view`: not offered in Codex, because spec viewing is a typed, user-only command and Codex has no verified way to run one without a model turn, so it does not claim the viewing capability. The user can run it in their own terminal.

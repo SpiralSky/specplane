@@ -11,6 +11,7 @@ import { COMMANDS, readContract } from "./instructions.js";
 const WITHHELD: Readonly<Record<string, string>> = {
   approve: "approval is a typed, user-only command and Codex has no verified way to run one without a model turn",
   requests: "the requests pane is a typed, user-only command and Codex has no verified way to run one without a model turn",
+  "spec-view": "spec viewing is a typed, user-only command and Codex has no verified way to run one without a model turn, so it does not claim the viewing capability",
 };
 
 const SUMMARY: Readonly<Record<string, string>> = {

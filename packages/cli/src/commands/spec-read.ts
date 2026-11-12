@@ -72,6 +72,11 @@ function refused(what: string): CommandResult | null {
   return g.kind === "allow" ? null : { ok: false, findings: [g.kind === "deny" ? g.message : `${what} needs approval from the user.`], permission: "info.retrieve" };
 }
 
+/** The view of one spec read from HEAD and the notes store, for commands that print more than `spec show` does. */
+export function specView(root: string, doc: SpecDoc): SpecView {
+  return view(headContext(root).ctx, doc, worktreeSource(root).read(doc.file));
+}
+
 /** Reasons for one list row: `unapproved-dependency: ...` repeated reasons collapse to a count; `spec show` has them all. */
 function briefReasons(reasons: string[]): string {
   const counts = new Map<string, number>();

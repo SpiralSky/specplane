@@ -85,7 +85,7 @@ test("the committed templates match the generator and the skill table lists ever
   assert.deepEqual(fs.readdirSync(path.join(dir, "contracts")).sort(), CODEX_CONTRACTS.map((c) => `${c}.md`).sort());
   for (const c of CODEX_CONTRACTS) assert.match(renderCodexSkill(), new RegExp(`contracts/${c}\\.md`));
   for (const c of CODEX_WITHHELD) assert.doesNotMatch(renderCodexSkill(), new RegExp(`contracts/${c}\\.md`));
-  assert.deepEqual(CODEX_WITHHELD, ["approve", "requests"]);
+  assert.deepEqual(CODEX_WITHHELD, ["approve", "requests", "spec-view"]);
 });
 
 test("Codex claims no capability, setup says so, and plan-start refuses with the manual command", () => {

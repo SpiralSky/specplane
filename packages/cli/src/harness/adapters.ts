@@ -15,6 +15,7 @@ export const claudeAdapter: HarnessAdapter = {
     const caps = noCapabilities();
     caps["instructions-on-demand"] = true; // Skills load on demand.
     caps.subagents = true;
+    caps.viewing = true; // `/spec-view` runs in the user-command runner with no model turn.
     caps["usage-measurement"] = true; // The session adapter reads usage from the host's rate limit event.
     caps["session-opening"] = true; // `claude -p` in the plan checkout.
     // Blocking needs the installed pre-tool hook, so it is claimed only when that file is present.

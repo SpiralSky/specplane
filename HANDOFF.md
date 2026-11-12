@@ -29,6 +29,7 @@ Notes store landed: `aa52451`, `eac8f55`, `ce1c397`, `0c08bfd`, `c81f74a`, `beed
 
 Unit status (backlog in `docs/work-records/2026-11-11-remaining-work.md`):
 
+- R21 done: `/spec-view [id]` (Claude only; user-only, no model turn): status, authors, approval, diff since last approval (HEAD for requirement files), text; `commands/spec-view.ts`, Claude adapter reports `viewing`, Codex withholds it. Uses `info.retrieve`, no permission of its own. `npm test` 503 pass / 0 fail; hooks 52 pass; check-sync OK; validate 0 errors, 31 warnings.
 - R33/R33.1 done: `plan meta get|set` (`plan/meta.ts`, permissions `plan.meta.read`, `plan.meta.write[.title|authors|references|implements]`), user docs and specs updated. `npm test` 497 pass / 0 fail; hooks 52 pass; check-sync OK; validate 0 errors, 31 warnings (the extra one is the `AGENTS.md` steering stamp: rerun `specplane init --harness claude` to refresh it).
 
 - U0-U7, U9, U10: done (decisions, notes store, permissions, requests, plan record, steering, instruction delivery; see the work record).
