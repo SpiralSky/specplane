@@ -87,7 +87,7 @@ These are the standard permissions. The section named in the last column defines
 | Set a plan budget | Setting or changing the budget of a plan | `R27.1.1`, `plan-execution R27.1.1` |
 | Resume a plan | Resuming a stopped plan | `R27.2.1`, `plan-execution R27.2.1` |
 | Soft stop a plan | The LLM stopping the plan it is running (`plan-execution R27.1`); no mode other than allow is needed by default | `R27.3` |
-| Decision records | Add, retrieve, edit and delete user decision records; a later release | `R37.1` |
+| Decision records | Add, retrieve, edit and delete user decision records | `R37.1` |
 | Change configuration | Any change to Specplane's configuration, including which preset is active | `R25.1`, `configuration R25` |
 | Validate, list warnings, show coverage, run tests, read the audit log | Read-only checks and reads; they use the information retrieval permission and have none of their own. Recording a test result is separate (`R61.2`) | `verification R12`, `verification R24`, `verification R13`, `verification R64` |
 | Mark an architecture specification implemented | No permission of its own: it needs the permission to record a test result, and for an LLM the setting `architecture.llm_may_mark_implemented` (`configuration R25`) | `verification R36.1` |

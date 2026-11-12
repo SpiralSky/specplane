@@ -10,7 +10,7 @@ covers: [R37, R37.1, R39, R39.1, R39.2, R39.3, R39.4, R66]
 
 # Later Releases
 
-This spec describes three features; subprojects (`R39`) are built, and the other two are planned for releases after the first one (`docs/release-plan.md`): user decision records, subprojects and project migration. Nothing here is needed for the first release. The behaviour is described briefly so that earlier specs can point at it and so that the first release does not make it impossible.
+This spec describes three features; decision records (`R37`) and subprojects (`R39`) are built, and project migration is planned for a release after the first one (`docs/release-plan.md`): user decision records, subprojects and project migration. The behaviour is described briefly so that earlier specs can point at it.
 
 ## §1 Terms
 
@@ -20,14 +20,17 @@ This spec describes three features; subprojects (`R39`) are built, and the other
 
 ## R37: User Decision Records
 
-Later release. When the user discusses work with the LLM in the harness and makes a decision, the decision and its context can be stored as a decision record. The LLM retrieves records when it later faces a related choice, so that a settled question is not reopened without the user knowing.
+When the user discusses work with the LLM in the harness and makes a decision, the decision and its context can be stored as a decision record. The LLM retrieves records when it later faces a related choice, so that a settled question is not reopened without the user knowing.
 
 - Decision records are on or off (setting `decisions.enabled`, `configuration R25`). When off, nothing is stored and nothing is retrieved, and the permissions below have no effect.
 - A record holds what was decided, the context and reasons the user gave, the date, and any specification or plan it concerns. It records the user's decision, not the LLM's suggestion; a record is written only after the user has made the decision in the conversation.
 - The LLM can search records and read them. A record is retrieved by its identifier or by a description of the topic, and the LLM tells the user when a record it found affects what it is about to do.
 - A record can be corrected by editing it, or removed by deleting it. Editing and deleting are explicit actions, never a side effect of other work.
-- A record is not a specification. It does not define behaviour, is not approved and is not checked by tests. Where a decision should bind the product, the user puts it in a specification.
-- Records are part of the project and travel with it, so that every user and every LLM in the project sees the same decisions.
+- A record is not a specification. It does not define behaviour, is not checked by tests and is not part of coverage. Where a decision should bind the product, the user puts it in a specification. A record has an approval state of its own, by its ID (see below): a record the LLM stores is Awaiting Review until the user approves it, and the LLM still finds and shows it, with its state.
+- Records are part of the project and travel with it, so that every user and every LLM in the project sees the same decisions. Each is a file `.specplane/decisions/D<n>.md` with the format of `§14` of `file-formats`.
+- Approval is by ID (`approve D1`, `spec approve D1`, `decision approve D1`), of committed content, with the `spec.approve` permission of `roles-and-permissions R50`: the user approves, and the LLM can only send a request when its mode is request user. A change to a record's text, title, date or concerns returns it to Awaiting Review. Records and specifications are approved in separate commands.
+- Commands: `decision add|list|show|edit|delete|approve` for people, the harness actions `decision.add`, `decision.retrieve`, `decision.edit` and `decision.delete`, and the harness command `/decision-new`, which writes a record from the user's description or from the decision the user has just stated, after searching the existing records for the topic. `decision list <topic>` and `decision.retrieve` rank records by how many words of the description they contain.
+- Validation checks every record's format (an error) and that each entry of `concerns` names an existing specification, plan or cite (a warning), only while records are on.
 - Taking the old architecture decision records into this feature is optional: existing records of that kind can be kept as decision records, but Specplane no longer requires them.
 - Product scope decision awaiting review: the first implementation uses one decision-record system to avoid duplicate review and approval workflows. A separate ADR lifecycle is deferred, not ruled out by its absence from requirements. Existing ADRs remain available as source records; retaining or replacing their lifecycle needs a decision based on user value and maintenance cost.
 

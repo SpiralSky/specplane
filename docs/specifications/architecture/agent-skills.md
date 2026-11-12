@@ -118,7 +118,7 @@ Implements `harness R26`, `harness R26.1`, `harness R26.2`, `harness R21`, `harn
 - **Permission.** `info.retrieve`, mode allow by default; a role with deny is told so and the contract stops (`harness R26.2`). Retrieval does not depend on the permission to edit, so a role that cannot write a spec still reads it.
 - **Other reads.** `spec.review-context` returns a spec with its coverage, warnings and recorded results for review; `warnings`, `coverage` and `audit.read` are read-only actions under the same permission (`architecture/reference-cli §12.1`).
 - **Viewing.** `spec-view` (`harness R21`, `§7.9`) is a user-only command with no model. It reads through the same retrieval and status routines, not an LLM action, and needs the adapter's `viewing` capability.
-- **Later release.** Spec review (`harness R38`) is a contract that uses `spec.retrieve` and `spec.review-context`. Review is read-only: feedback goes to the user in conversation, and a change that follows is a separate edit under `harness R19.2`. When decision records are on the LLM may store the user's decision (`§7.11`). They use the same permission and have none of their own (`harness R26.2`).
+- **Later release.** Spec review (`harness R38`) is a contract that uses `spec.retrieve` and `spec.review-context`. Review is read-only: feedback goes to the user in conversation, and a change that follows is a separate edit under `harness R19.2`. When decision records are on the LLM may store the user's decision (`§7.11`) under the decision permissions (`later-releases R37.1`).
 
 ## §7 Command contracts
 
@@ -223,9 +223,9 @@ Output: per-section result, what was recorded, and the implemented status.
 
 Purpose: end a plan that will not be done (`plan-execution §3`). Preconditions: `plan.abandon` not `deny`. Steps: `[code]` show the plan, its run state and the worktree status, and ask the user to confirm; `plan.abandon` stops the run, archives the plan as abandoned and removes the worktree unless it has uncommitted changes, when the user chooses to force or leave it; the branch is kept (`architecture/reference-cli §11.7`). Output: the result, the kept branch, and plans that reference it and can no longer start. `plan.delete` follows the same flow under `plan.delete`.
 
-### §7.11 Later release
+### §7.11 Decision records and later releases
 
-- **decision-new** (`later-releases R37`, only when `decisions.enabled`): the LLM writes a decision record only after the user has made the decision in conversation, recording the decision, context, reasons, date and the spec or plan it concerns; it retrieves matching records before a related choice and says when one applies. Permissions are in `later-releases R37.1`. With decisions off nothing is stored or searched.
+- **decision-new** (built; `later-releases R37`, only when `decisions.enabled`): `[code] decision.retrieve` for the topic, `[llm]` writes the title, decision, context, reasons and concerns from the user's description or the decision the user has just made (it asks when the user has not yet decided, and never records its own suggestion), `[code] decision.add`. The contract is `assets/commands/decision-new.md`; steering covers `decision.retrieve` and `decision.add`. The LLM also retrieves matching records before a related choice through `decision.retrieve` and says when one applies. Permissions are in `later-releases R37.1`. With decisions off nothing is stored or searched.
 - **migrate** (`later-releases R66`): the prompt is a configurable instruction (`harness R14`). Preconditions: create permission is not `deny`, else the LLM requests or tells the user what to create. Steps: `[llm]` read existing specs, documents and code and show what was found and what it proposes; `[code]` `spec.create` for each, all awaiting-review whatever the old status; old files untouched. Output lists migrated, left and uncertain items.
 - **parallelism** (`plan-execution R31.2`, assumption): steps that list independent tasks use subagents up to the configured number; without subagents tasks run one after another and the user is told.
 

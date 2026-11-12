@@ -67,6 +67,7 @@ Harness (`harness R14`, `specifications R9`):
 | `harness.retrieval_include_references` | Whether retrieving a specification also includes the sections it references, when the request does not say | `off` |
 | `harness.install_block` | Whether setup may write the marked Specplane block into a shared instruction file (for example `AGENTS.md`); `off` leaves the project's own files alone | `on` |
 | `authorship.record_llm` | Whether the harness adds the LLM as an author when it writes or changes a specification | `on` |
+| `decisions.enabled` | Whether user decision records are stored and retrieved (`later-releases R37`) | `off` |
 
 Verification (`verification R12`, `verification R13`, `verification R61`):
 
@@ -85,7 +86,6 @@ Later releases:
 
 | Setting | Meaning | Default |
 |---------|---------|---------|
-| `decisions.enabled` | Whether user decision records are stored and retrieved (`later-releases R37`). Later release | `off` |
 | `subprojects` | The named locations in the project that are subprojects (`later-releases R39`): a list of items with a `name` and a `path`; the folder at `path` holds `requirements/`, `features/` and `architecture/` | None |
 | `plans.parallelism` | The greatest number of tasks in a plan step run at once (`plan-execution R31.2`). Later release | 1 |
 | `strict_mode.enabled` and `strict_mode.<measure>` | Strict mode as a whole, and each of its measures (blocking direct file edits in the harness, git safeguards, operating system safeguards) on its own (`roles-and-permissions R55.1`). Later release | `off` |

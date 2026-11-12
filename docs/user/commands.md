@@ -213,6 +213,42 @@ List specs with effective status, authors, current results and implementation (n
 
 Show one spec's effective status, reasons, authors, results and implementation (needs info.retrieve)
 
+### `decision add`
+
+`specplane decision add [options]`
+
+Add a decision record: `--title`, `--decision` and `--context` are required, `--reasons`, `--concerns <ids>` (comma separated specification or plan IDs) and `--date` are optional. Needs `decision.add` and `decisions.enabled`. The record is written to `.specplane/decisions/D<n>.md` and not committed; commit it, then approve it by its ID.
+
+### `decision list`
+
+`specplane decision list [options] [query]`
+
+List decision records with their date and approval status, or, with a description of a topic, those that match it, best match first. `--concerns <id>` keeps the records that concern one specification or plan. Needs `decision.retrieve`.
+
+### `decision show`
+
+`specplane decision show [options] <id>`
+
+Show one decision record in full. Needs `decision.retrieve`.
+
+### `decision edit`
+
+`specplane decision edit [options] <id>`
+
+Change the title, decision, context, reasons, concerns or date of a record; fields you leave out stay as they are. Needs `decision.edit`. The edited record is Awaiting Review until it is approved again.
+
+### `decision delete`
+
+`specplane decision delete [options] <id>`
+
+Delete a decision record. Needs `decision.delete`.
+
+### `decision approve`
+
+`specplane decision approve [options] <ids...>`
+
+Approve decision records by ID, like `spec approve` (the two are the same command for IDs such as `D1`). Needs `spec.approve`; committed content only.
+
 ### `sync`
 
 `specplane sync [options] [remote]`

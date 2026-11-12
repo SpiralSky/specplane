@@ -356,7 +356,7 @@ Commands: `plan stop`
 
 ### `decision.add`
 
-Allows: Add a decision record (later release).
+Allows: Add a decision record the user made.
 
 Does not allow: Editing or deleting one.
 
@@ -364,15 +364,15 @@ Commands: `decision add`
 
 ### `decision.retrieve`
 
-Allows: Read decision records (later release).
+Allows: Read decision records: list, search and show.
 
 Does not allow: Changing them.
 
-Commands: `decision show`
+Commands: `decision list`, `decision show`
 
 ### `decision.edit`
 
-Allows: Edit a decision record (later release).
+Allows: Edit a decision record.
 
 Does not allow: Adding or deleting one.
 
@@ -380,7 +380,7 @@ Commands: `decision edit`
 
 ### `decision.delete`
 
-Allows: Delete a decision record (later release).
+Allows: Delete a decision record.
 
 Does not allow: Adding or editing one.
 

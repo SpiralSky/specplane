@@ -17,6 +17,10 @@ Specplane tracks four things separately, because one does not prove the others.
 
 A person at the CLI is a Standard User or an Administrator. An agent in a harness is the LLM role. Each permission has a mode per role: `allow`, `request-user` or `deny` (see `permissions`). Approving a spec is its own permission, so writing a spec and approving it are different acts.
 
+## Decision records
+
+When `decisions.enabled` is on, a decision you make in a discussion can be stored as a decision record, `.specplane/decisions/D<n>.md`: what was decided, the context and reasons you gave, the date and the specifications or plans it concerns. The LLM searches the records before a related choice and tells you when one applies, so a settled question is not reopened without you knowing. A record is not a specification: it defines no behaviour and no test checks it. It is approved by ID (`approve D1`) like a specification, and the LLM can only ask for that; an LLM-stored record is Awaiting Review until you do. Where a decision should bind the product, put it in a specification. The permissions are `decision.add`, `decision.retrieve`, `decision.edit` and `decision.delete`; by default the LLM may retrieve and must ask to add, edit or delete.
+
 ## Plans
 
 A plan is an optional folder of steps on its own branch `plan/<id>` and worktree. Any other way to implement works too: branches have no prescribed role, and specs and implementation may change together or separately (see `plans`).

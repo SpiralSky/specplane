@@ -74,6 +74,12 @@ Show the user one specification with its status and the change since its last ap
 
 Type `spec-view <id>` (a bare slug such as `plan-execution` works when it names one spec) to see the spec's status, authors and approval, then the change since the last approval as a diff, then the text. In a terminal additions are green and deletions red; elsewhere they keep the `+` and `-` markers. A spec never approved is shown as all new; a requirement file, which has no approval record, shows its change since the last commit. Without an ID the command lists every spec with its status. Viewing is a read and uses the `info.retrieve` permission; it has no permission of its own. It needs the viewing capability, so it is offered on Claude Code only (see `harnesses`).
 
+## decision-new
+
+Store a decision you made, with its context, as a decision record, optionally written from your description (`later-releases R37`, `R37.1`).
+
+Say which record was stored or which request is pending, and that you approve a record by its ID before it counts as confirmed. Needs `decisions.enabled`.
+
 ## requests
 
 Open the requests pane for the user, with no model turn (`requests R52.1`, `R52.2`, `R52.4`).

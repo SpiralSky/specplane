@@ -163,7 +163,7 @@ Spec viewing uses `R26.2` and has no permissions of its own. The user documentat
 
 Later release. A command lets the LLM review each specification and give feedback. It points out problems and possible gaps in feature and architecture specifications, and asks the user questions about the requirement specification where it needs clarification. It also covers grammar mistakes, poor wording and unclear instructions across all specifications.
 
-- Review is read-only. The LLM does not change files, with one exception: when user decision records are enabled it can store the user's decisions (`R37`, `later-releases R37`, permissions `later-releases R37.1`).
+- Review is read-only. The LLM does not change files, with one exception: when user decision records are enabled it can store the user's decisions (`R37`, `later-releases R37`, permissions `later-releases R37.1`; the `/decision-new` command).
 - Feedback goes to the user in the conversation. A change that follows from feedback is a separate action under `R19.2`.
 
 ### R38.1: Spec reviewal permissions

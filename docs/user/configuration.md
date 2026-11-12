@@ -58,7 +58,7 @@ Settings marked later release are read and validated but do nothing yet.
 | `pre_commit.duplicate_requirement_ids` | `off` | Check that refuses a commit in which two requirements share an identifier |
 | `pre_commit.tests` | `off` | Check that refuses a commit when the deterministic tests of an architecture specification fail |
 | `coverage.requirement_only` | `[]` | Requirements annotated as requirement-only; uncovered warnings are still reported |
-| `decisions.enabled` | `off` | (later release) Whether user decision records are stored and retrieved |
+| `decisions.enabled` | `off` | Whether user decision records are stored and retrieved |
 | `subprojects` | `[]` | The named locations in the project that are subprojects: items `{name, path}`; the folder holds `requirements/`, `features/` and `architecture/` |
 | `strict_mode.enabled` | `off` | (later release) Strict mode as a whole |
 | `strict_mode` | `{}` | (later release) Each strict mode measure on its own: strict_mode.<measure> |
