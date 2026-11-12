@@ -8,7 +8,7 @@ Order (one subagent per unit, in order; each unit updates specs, code, tests and
   - [x] V1b Subproject approval, records and coverage (see V1b notes)
 - [x] V2 Decision records: R37, R37.1 (`/decision-new`, permissions, storage)
 - [x] V3 Project migration: R66 (see V3 notes)
-- [ ] V4 Spec review command: R38
+- [x] V4 Spec review command: R38 (see V4 notes)
 - [ ] V5 Custom roles and role management: R43, R48, R49, R60, role mappings in R44 and R44.1
 - [ ] V6 Role permission bypass guards: R58
 - [ ] V7 Strict mode: R55.1 (and R32, R36.3 if the review found them unbuilt)
@@ -39,3 +39,11 @@ Gaps: `decision.retrieve` under `request-user` is held as a harness read like ot
 Built before: only `specplane migrate status` (legacy frontmatter records into the notes store), which is not R66. R66 is new: nothing existed for bringing a whole project in. Decisions (agent's call): a harness command `migrate` (`/migrate` in Claude Code as a model-invocable skill, a contract for Codex), no CLI command and no new harness action. The LLM reads sources with `info.retrieve` and writes through the existing `spec.create.requirement|feature|architecture` permissions (modes allow, request user, deny), `decision.add` only when the user keeps an old record. The prompt is the packaged contract plus command documentation, replaceable through the existing `harness.instructions.migrate`; the separation check applies. Awaiting Review follows from the notes store (no approval is ever written); resume and idempotence rely on `info.retrieve` listing existing specs and `spec.create` never overwriting. Specs: later-releases R66, harness R14, agent-skills 7.11, reference-cli, claude-integration; user docs concepts and harness-commands.
 
 Gaps: the LLM behaviour (proposal before writing, asking, leaving out unsupported content, listing migrated/left/uncertain) is prompt-only and is covered by the intelligent test T1, which was not run. No marker records which old file a new spec came from, so resumption depends on the LLM matching by ID and title. Overlay to subproject and role-setting to preset mappings are prompt guidance, not code.
+
+## V4 notes (Spec review command)
+
+Already existed: the read action `spec.review-context` (spec with coverage, warnings and recorded results), `spec.retrieve`, `spec.list`, `info.retrieve` as the permission (R38.1 needs no new one), `decision.add|retrieve` for the stored-decision exception, and the `verify` contract that reads with the same actions. `/spec-assist` has no review-only mode in the current contract (the old `llm_role: review` setting is gone, `docs/user/configuration.md` lists it as an older-model key), and `plan.review` is the plan final review, unrelated. Missing: the command itself and its feedback instructions, which is what was built.
+
+Decisions (agent's call): harness command `spec-review` (`/spec-review` in Claude Code, a model-invocable skill; a contract for Codex), arguments spec IDs or `all`, no arguments only asks and starts no model turn. Contract in `assets/commands/spec-review.md`; steering `info.retrieve`, `decision.retrieve`, `decision.add`, never a spec write or approval permission. Problems and gaps for feature and architecture specs, numbered questions (no proposed changes) for requirement files, grammar and wording for all. No review state or discussion notes are stored, so no new action or permission: R38 makes review read-only, and the user's decisions go through the existing decision records. The separation check (`harness.separation_check`) has a review variant that asks for layer mixing as a finding. Specs: harness R38 (the "Later release" label dropped), agent-skills section 7.12 and 6, reference-cli, claude-integration; user docs concepts and harness-commands; `docs/release-plan.md` line.
+
+Gaps: review quality is prompt-only, with no deterministic test beyond the contract, steering and runner tests; the Claude skill and Codex contract were not run live; the `later-releases` coverage-style "intelligent" test for review was not added; reviewing everything with `all` in a large project depends on the model's context.
