@@ -353,9 +353,99 @@ Decline a request: nothing changes
 
 ### `role show`
 
-`specplane role show [options]`
+`specplane role show [options] [id]`
 
-Show the role the CLI runs as: administrator or standard-user.
+Without an ID, show the role the CLI runs as. With an ID, show that role: for a custom role its management level, whether it applies or has a change pending, and the mode of every permission. Needs no permission.
+
+### `role list`
+
+`specplane role list [options]`
+
+List the default roles and the custom roles in `.specplane/roles/roles/` with their management levels and approval state: `approved`, `pending-change` (an earlier approved version still applies) or `pending` (never approved, so it does not apply). Needs no permission.
+
+### `role create`
+
+`specplane role create [options] <id>`
+
+Create a custom role in `.specplane/roles/roles/<id>.yaml`. `--level <1-99>` is the management level (a role can change roles below its level, never its own or an equal or higher one) and `--default-mode allow|request-user|deny` is the mode of every permission the file does not list; `--set <permission>=<mode>` sets one mode (repeatable) and `--title` names the role. The management and system permissions (`role.manage`, `role.map`) and the protected overrides are never given by a default mode: a role holds them only when `--set` states them. Needs `role.manage` as `allow`, a management level above the new role's, and no permission more permissive than the creator's own. The file is not committed, and the role does not apply until it is committed and approved with `role approve`.
+
+### `role edit`
+
+`specplane role edit [options] <id>`
+
+Change a custom role with `--level`, `--default-mode`, `--title`, `--set <permission>=<mode>` and `--unset <permission>`. The same checks as `role create` apply, and the level check covers the old and the new level. Once committed, the change is pending: the last approved version keeps applying until `role approve`.
+
+### `role delete`
+
+`specplane role delete [options] <id>`
+
+Delete a custom role file. The default roles cannot be deleted. Needs `role.manage` and a level above the role's. The deletion applies once it is committed; users mapped to it become the Standard User.
+
+### `role approve`
+
+`specplane role approve [options] <id>`
+
+Approve the committed file of a custom role so it applies. Refused for uncommitted changes. Needs `role.manage` as `allow`, a management level above the role's (new and previously approved), and nothing more permissive than the approver holds. The approval is a record in the notes store on the file's content.
+
+### `role map`
+
+`specplane role map [options] <os-user> <role>`
+
+Map an operating system user to a role on this machine. The mapping is local and never committed. Needs `role.map` as `allow`; the role must be below your management level, except that the Administrator may map any user to any role, including the Administrator. `--allow-admin-switch` (Administrator only) lets that user run `role switch administrator`. Once any mapping exists, a user with no entry is the Standard User, and only a user whose mapping allows it can switch to the Administrator. A role that does not apply (pending or deleted) gives the Standard User.
+
+### `role unmap`
+
+`specplane role unmap [options] <os-user>`
+
+Remove an operating system user's mapping on this machine. Needs `role.map` and a level above the mapped role. With the last mapping gone, every user is the Standard User again and anyone may switch to the Administrator.
+
+### `role mappings`
+
+`specplane role mappings [options]`
+
+List this machine's mappings. Needs no permission.
+
+### `role rule list`
+
+`specplane role rule list [options]`
+
+List the LLM role rules in `.specplane/roles/rules/` and whether each applies: it must be approved, its role must apply, and a rule that gives a role above the default LLM role must be trusted on this machine. Needs no permission.
+
+### `role rule show`
+
+`specplane role rule show [options] <id>`
+
+Show one rule with its factors and state. Needs no permission.
+
+### `role rule create`
+
+`specplane role rule create [options] <id>`
+
+Create a rule that gives LLMs a role. `--role <role>` is the role given (not the Administrator); `--match <factor>=<value>` states a factor (repeatable): `subagent`, `agent_type`, `provider`, `model` (a value ending in `*` matches a prefix) or `delegated` (`true` for a subagent). All stated factors must match; with several matching rules the highest `--priority` wins, and with no match the LLM keeps the default LLM role. Needs `role.map` as `allow` and a role below your management level. The file is not committed, and it applies once committed and approved.
+
+### `role rule edit`
+
+`specplane role rule edit [options] <id>`
+
+Change a rule with `--role`, `--match`, `--unmatch <factor>`, `--priority` and `--title`. Same checks as `role rule create`; a changed rule is approved again before it applies.
+
+### `role rule delete`
+
+`specplane role rule delete [options] <id>`
+
+Delete a rule file. Needs `role.map` and a level above the role the rule gives.
+
+### `role rule approve`
+
+`specplane role rule approve [options] <id>`
+
+Approve the committed file of a rule. Needs `role.manage` as `allow` and a management level above the role the rule gives.
+
+### `role rule trust`
+
+`specplane role rule trust [options] <id>`
+
+Trust an approved rule on this machine. Only a rule that gives a role above the default LLM role (a higher management level, or a management or system permission) needs it; until it is trusted the LLM keeps the default role. The trust is local, not committed, and ends when the rule or the level of its role changes. A person only; an LLM cannot.
 
 
 ### `role switch`

@@ -9,6 +9,7 @@ import { registerPlanCommands } from "./commands/plan-cli.js";
 import { registerHarnessCommands } from "./commands/harness.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specShowCommand } from "./commands/spec-read.js";
+import { mapCommand, mappingsCommand, roleApproveCommand, roleCreateCommand, roleDeleteCommand, roleDescribeCommand, roleEditCommand, roleListCommand, ruleApproveCommand, ruleCreateCommand, ruleDeleteCommand, ruleEditCommand, ruleListCommand, ruleShowCommand, ruleTrustCommand, unmapCommand } from "./commands/role.js";
 import { presetCreateCommand, presetDeleteCommand, presetEditCommand, presetListCommand, presetShowCommand } from "./commands/preset.js";
 import { configGetCommand, configListCommand, configSetCommand, configUnsetCommand, permissionsCommand } from "./commands/config.js";
 import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, migrateStatusHuman, specReopenHuman, syncHuman } from "./commands/spec-human.js";
@@ -121,8 +122,39 @@ requests.command("list", { isDefault: true }).description("List requests, pendin
 requests.command("show <id>").description("Show one request in full, with the change as a diff").option("--json").action((id: string, opts) => runCommand({ command: "requests show", args: [id], json: opts.json }, () => requestsShow(id)));
 requests.command("accept <id>").description("Accept a request: the action is done once, under your permission").option("--note <text>").option("--json").action((id: string, opts) => runCommand({ command: "requests accept", args: [id], json: opts.json }, () => requestsAccept(id, opts.note)));
 requests.command("decline <id>").description("Decline a request: nothing changes").option("--note <text>").option("--json").action((id: string, opts) => runCommand({ command: "requests decline", args: [id], json: opts.json }, () => requestsDecline(id, opts.note)));
-const role = program.command("role").description("Show or switch the CLI role");
-role.command("show").option("--json").action((opts) => runCommand({ command: "role show", json: opts.json }, () => roleShowHuman()));
+const role = program.command("role").description("Show or switch the CLI role; create, approve and map custom roles (feature/roles-and-permissions R43, R44, R48, R49, R60)");
+role.command("show [id]").description("Show the CLI role, or one role with its management level and permissions").option("--json").action((id: string | undefined, opts) => runCommand({ command: "role show", ...(id ? { args: [id] } : {}), json: opts.json }, () => (id ? roleDescribeCommand(id) : roleShowHuman())));
+role.command("list").description("List the default and custom roles with their management levels and approval state").option("--json").action((opts) => runCommand({ command: "role list", json: opts.json }, () => roleListCommand()));
+const levelOption = (v: string): number => Number(v);
+role.command("create <id>").description("Create a custom role (needs the role.manage permission and a management level above the new role)")
+  .option("--level <n>", "management level, 1 to 99 (R49)", levelOption).option("--default-mode <mode>", "mode of every permission the role does not list: allow, request-user or deny").option("--title <text>", "a readable title")
+  .option("--set <permission=mode>", "set a mode (repeatable)", collect, []).option("--json")
+  .action((id: string, opts) => runCommand({ command: "role create", args: [id], json: opts.json }, () => roleCreateCommand(id, { level: opts.level, defaultMode: opts.defaultMode, title: opts.title, sets: opts.set })));
+role.command("edit <id>").description("Change a custom role; the change is pending until approved")
+  .option("--level <n>", "management level, 1 to 99", levelOption).option("--default-mode <mode>", "mode of every permission the role does not list").option("--title <text>", "a readable title")
+  .option("--set <permission=mode>", "set a mode (repeatable)", collect, []).option("--unset <permission>", "remove a mode so the default applies (repeatable)", collect, []).option("--json")
+  .action((id: string, opts) => runCommand({ command: "role edit", args: [id], json: opts.json }, () => roleEditCommand(id, { level: opts.level, defaultMode: opts.defaultMode, title: opts.title, sets: opts.set, unsets: opts.unset })));
+role.command("delete <id>").description("Delete a custom role").option("--json").action((id: string, opts) => runCommand({ command: "role delete", args: [id], json: opts.json }, () => roleDeleteCommand(id)));
+role.command("approve <id>").description("Approve the committed file of a custom role (needs role.manage and a management level above the role)").option("--json").action((id: string, opts) => runCommand({ command: "role approve", args: [id], json: opts.json }, () => roleApproveCommand(id)));
+role.command("map <os-user> <role>").description("Map an operating system user to a role on this machine (needs the role.map permission; local, not in git)")
+  .option("--allow-admin-switch", "let this user switch to the Administrator (Administrator only)").option("--json")
+  .action((u: string, r: string, opts) => runCommand({ command: "role map", args: [u, r], json: opts.json }, () => mapCommand(u, r, !!opts.allowAdminSwitch)));
+role.command("unmap <os-user>").description("Remove the mapping of an operating system user on this machine").option("--json").action((u: string, opts) => runCommand({ command: "role unmap", args: [u], json: opts.json }, () => unmapCommand(u)));
+role.command("mappings").description("List the operating system user mappings of this machine").option("--json").action((opts) => runCommand({ command: "role mappings", json: opts.json }, () => mappingsCommand()));
+const rule = role.command("rule").description("LLM role rules: which role an LLM gets, by subagent, agent type, provider, model (R44.1)");
+rule.command("list").description("List the rules and whether each applies").option("--json").action((opts) => runCommand({ command: "role rule list", json: opts.json }, () => ruleListCommand()));
+rule.command("show <id>").description("Show one rule").option("--json").action((id: string, opts) => runCommand({ command: "role rule show", args: [id], json: opts.json }, () => ruleShowCommand(id)));
+rule.command("create <id>").description("Create a rule (needs the role.map permission and a role below your level)")
+  .option("--role <role>", "the role the rule gives").option("--match <factor=value>", "a factor to match: subagent, agent_type, provider, model, delegated (repeatable)", collect, [])
+  .option("--priority <n>", "higher wins when several rules match (default 0)", levelOption).option("--title <text>", "a readable title").option("--json")
+  .action((id: string, opts) => runCommand({ command: "role rule create", args: [id], json: opts.json }, () => ruleCreateCommand(id, { role: opts.role, matches: opts.match, priority: opts.priority, title: opts.title })));
+rule.command("edit <id>").description("Change a rule; a changed rule is approved again before it applies")
+  .option("--role <role>", "the role the rule gives").option("--match <factor=value>", "set a factor (repeatable)", collect, []).option("--unmatch <factor>", "remove a factor (repeatable)", collect, [])
+  .option("--priority <n>", "higher wins when several rules match", levelOption).option("--title <text>", "a readable title").option("--json")
+  .action((id: string, opts) => runCommand({ command: "role rule edit", args: [id], json: opts.json }, () => ruleEditCommand(id, { role: opts.role, matches: opts.match, unmatches: opts.unmatch, priority: opts.priority, title: opts.title })));
+rule.command("delete <id>").description("Delete a rule").option("--json").action((id: string, opts) => runCommand({ command: "role rule delete", args: [id], json: opts.json }, () => ruleDeleteCommand(id)));
+rule.command("approve <id>").description("Approve the committed file of a rule (needs role.manage and a level above the role it gives)").option("--json").action((id: string, opts) => runCommand({ command: "role rule approve", args: [id], json: opts.json }, () => ruleApproveCommand(id)));
+rule.command("trust <id>").description("Trust an approved rule that gives a role above the default LLM role, on this machine only").option("--json").action((id: string, opts) => runCommand({ command: "role rule trust", args: [id], json: opts.json }, () => ruleTrustCommand(id)));
 role.command("switch <role>").description("administrator or standard-user").option("--json").action((r: string, opts) => runCommand({ command: "role switch", args: [r], json: opts.json }, () => roleSwitchHuman(r)));
 
 spec
