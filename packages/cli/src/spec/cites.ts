@@ -24,8 +24,14 @@ const PROJECT = /^([a-z0-9][a-z0-9-]*):(\S.*)$/;
 
 export const normalizeCite = (s: string): string => s.replace(/\s+/g, " ").trim();
 
-/** Comparison key: in the root project, `root:<cite>` and `<cite>` name the same thing. */
-export const citeKey = (s: string): string => normalizeCite(s).replace(/^root:/, "");
+/**
+ * Comparison key: in the root project, `root:<cite>` and `<cite>` name the same thing. Inside a subproject a plain
+ * cite names the subproject's own target and `root:<cite>` the root's, so the keys stay different there.
+ */
+export const citeKey = (s: string, inSubproject = false): string => {
+  const n = normalizeCite(s);
+  return inSubproject ? n : n.replace(/^root:/, "");
+};
 
 /** Parse a cite string; null when the text is not a cite. */
 export function parseCite(input: string): Cite | null {

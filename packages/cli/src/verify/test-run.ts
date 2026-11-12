@@ -1,3 +1,4 @@
+import { allSpecs } from "../spec/project.js";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -51,7 +52,7 @@ const DIFF_LINES = 5;
 /** The tests a selection names, in spec and file order. Requirement files declare none. */
 export function selectTests(project: Project, sel: Selection): TestDef[] {
   const out: TestDef[] = [];
-  for (const doc of [...project.specs.values()].sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const doc of [...allSpecs(project)].sort((a, b) => a.id.localeCompare(b.id))) {
     if (doc.layer === "requirement" || (sel.spec && doc.id !== sel.spec) || (sel.specs && !sel.specs.includes(doc.id))) continue;
     let tests = allTests(declarations(doc));
     if (sel.label) tests = tests.filter((t) => t.sectionId === null && t.label === sel.label);

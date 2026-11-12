@@ -1,7 +1,7 @@
 import { parseCite } from "./cites.js";
 import { specFingerprint } from "./fingerprint.js";
 import { byAtRid, isApproving, NotesView, type Stored, type Subject } from "./notes.js";
-import { resolveCite, targetFingerprint, type Project, type SpecDoc } from "./project.js";
+import { resolveCite, targetFingerprint, type Project, type SpecDoc, findDoc, projectOf } from "./project.js";
 import { committedSource } from "./source.js";
 
 /** Effective status of a spec, computed from committed content and the notes store (`architecture/file-formats` §4.5). */
@@ -60,7 +60,7 @@ export function specSubject(ctx: StatusCtx, doc: SpecDoc): Subject {
 }
 
 /** Steps 2 to 4 for a subject: the decisive record and the reasons; `reasons` is empty when approved. */
-export function recordState(ctx: StatusCtx, s: Subject): { decisive: Stored | null; reasons: string[] } {
+export function recordState(ctx: StatusCtx, s: Subject, own: Project = ctx.head): { decisive: Stored | null; reasons: string[] } {
   const { applicable, other } = ctx.notes.lookup(s);
   const decisive = ctx.notes.decisive(s);
   if (!decisive) return { decisive, reasons: [applicable.length || other.length ? "edited" : "never-approved"] };
@@ -69,7 +69,7 @@ export function recordState(ctx: StatusCtx, s: Subject): { decisive: Stored | nu
   for (const [raw, expected] of Object.entries(decisive.rec.cited ?? {})) {
     const cite = parseCite(raw);
     if (!cite) continue;
-    const res = resolveCite(ctx.head, cite);
+    const res = resolveCite(own, cite);
     const now = res.ok ? targetFingerprint(res.target) : null;
     if (now === null || now !== expected) reasons.push(`outdated: ${raw}`);
   }
@@ -83,17 +83,17 @@ export function computeStatus(head: Project, doc: SpecDoc, ctx: StatusCtx, worki
   // Step 1: a requirement file is always approved.
   if (doc.layer === "requirement") return { status: "approved", reasons: [], notes, warnings };
   if (!doc.fm.data || specFingerprint(doc.text) === null) return { status: "awaiting-review", reasons: ["never-approved"], notes, warnings };
-  const state = recordState(ctx, specSubject(ctx, doc));
+  const state = recordState(ctx, specSubject(ctx, doc), projectOf(head, doc));
   const reasons = [...state.reasons];
   // Step 5: dependencies on other specs that are not approved.
   {
     for (const raw of dependencyCites(doc.fm.data)) {
       const cite = parseCite(raw);
       if (!cite) continue;
-      const res = resolveCite(head, cite);
+      const res = resolveCite(projectOf(head, doc), cite);
       const id = res.ok ? res.target.specId : undefined;
       if (!id || id === doc.id) continue;
-      const dep = head.specs.get(id);
+      const dep = findDoc(head, id);
       if (dep && dep.layer !== "requirement" && !isApproving(ctx.newestOf(dep))) reasons.push(`unapproved-dependency: ${raw}`);
     }
   }

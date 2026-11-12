@@ -1,5 +1,5 @@
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject } from "../spec/project.js";
+import { allSpecs, loadProject } from "../spec/project.js";
 import { committedSource, headCommit, worktreeSource } from "../spec/source.js";
 import { StatusCtx } from "../spec/status.js";
 import { RULES } from "./rules/index.js";
@@ -38,14 +38,13 @@ export function validateProject(root: string, opts: ValidateOptions = {}): Repor
   const findings: Finding[] = [];
   for (const rule of RULES) for (const f of rule.run(ctx)) findings.push({ ...f, source: sourceOf(f.file) });
   // Each subproject is checked like the root project, and its findings name it (`later-releases R39`).
-  if (!wanted) {
+  {
     for (const sub of wt.subprojects.values()) {
       const subCtx = { ...ctx, wt: sub, paths: sub.paths };
       for (const rule of RULES.filter((r) => SUBPROJECT_RULES.has(r.id))) for (const f of rule.run(subCtx)) findings.push({ ...f, project: sub.name, source: sourceOf(f.file) });
     }
   }
-  const checked: string[] = [...wt.specs.values()].filter((d) => !wanted || wanted.has(d.id)).map((d) => d.id);
-  for (const sub of wt.subprojects.values()) if (!wanted) for (const d of sub.specs.values()) checked.push(`${sub.name}:${d.id}`);
+  const checked: string[] = allSpecs(wt).filter((d) => !wanted || wanted.has(d.id)).map((d) => d.id);
 
   findings.sort((a, b) => (a.file === b.file ? (a.line ?? 0) - (b.line ?? 0) : a.file < b.file ? -1 : 1));
   const counts = { errors: 0, warnings: 0, notes: 0 };

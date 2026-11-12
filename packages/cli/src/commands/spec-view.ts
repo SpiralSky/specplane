@@ -1,3 +1,4 @@
+import { allSpecs, findDoc } from "../spec/project.js";
 import { run } from "../git/exec.js";
 import { SpecNotFoundError } from "../errors.js";
 import { activePreset, cliActor, guard } from "../perm/permissions.js";
@@ -48,7 +49,7 @@ export function specViewCommand(root: string, id: string, color = false): Comman
   const no = refusal(root, "Viewing a spec");
   if (no) return no;
   const { project } = headContext(root);
-  const hits = project.specs.has(id) ? [project.specs.get(id)!] : [...project.specs.values()].filter((d) => d.slug === id);
+  const hits = findDoc(project, id) ? [findDoc(project, id)!] : [...allSpecs(project)].filter((d) => d.slug === id);
   if (hits.length !== 1) throw new SpecNotFoundError(id);
   const doc = hits[0];
   const v = specView(root, doc);

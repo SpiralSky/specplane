@@ -1,3 +1,4 @@
+import { findDoc } from "./project.js";
 import { specFingerprint } from "./fingerprint.js";
 import { byAtRid, KIND_TEST_RESULT, type NoteRecord } from "./notes.js";
 import { specSubject, type StatusCtx } from "./status.js";
@@ -15,7 +16,7 @@ function againstHolds(rec: NoteRecord, ctx: StatusCtx): boolean {
   if (against === undefined) return true;
   if (!isMap(against)) return false;
   return Object.entries(against).every(([id, fp]) => {
-    const other = ctx.head.specs.get(id);
+    const other = findDoc(ctx.head, id);
     return other !== undefined && specFingerprint(other.text) === fp;
   });
 }

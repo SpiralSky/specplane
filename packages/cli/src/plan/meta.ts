@@ -4,7 +4,7 @@ import { PLAN_PIECES } from "../perm/permissions.js";
 import { parseCite } from "../spec/cites.js";
 import { editKeys } from "../spec/fm-edit.js";
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject, resolveCite } from "../spec/project.js";
+import { loadProject, resolveCite, findDoc } from "../spec/project.js";
 import { worktreeSource } from "../spec/source.js";
 import { audit } from "../audit/log.js";
 import { authorize, commitPaths, gitTry, guardedWith, PlanOpError, planSlug, requirePlan, type PlanCtx } from "./ctx.js";
@@ -91,7 +91,7 @@ function parseValue(ctx: PlanCtx, root: string, piece: PlanPiece, raw: string, o
       return list(raw).map((item) => {
         const writes = item.startsWith("writes:");
         const spec = writes ? item.slice(7).trim() : item;
-        const doc = proj.specs.get(spec);
+        const doc = findDoc(proj, spec);
         if (!doc) throw new PlanOpError(`Specification \`${spec}\` does not exist; name it as feature/<slug> or architecture/<slug>.`);
         if (writes) return { spec, mode: "writes" };
         const kept = prior.find((e) => e.spec === spec && e.mode === "implements" && typeof e.commit === "string");

@@ -4,7 +4,7 @@ import { dumpYaml } from "../yaml.js";
 import { parseCite } from "../spec/cites.js";
 import { appendRecords, makeRecord, notesTip } from "../spec/notes.js";
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject, resolveCite, targetFingerprint } from "../spec/project.js";
+import { loadProject, resolveCite, targetFingerprint, findDoc } from "../spec/project.js";
 import { committedSource, worktreeSource } from "../spec/source.js";
 import { AlreadyExistsError } from "../errors.js";
 import { MAX_PLAN_ID, PLAN_ID_RE, findPlan, planReferences } from "./model.js";
@@ -39,7 +39,7 @@ function createInner(ctx: PlanCtx, o: CreateOpts): { id: string; files: string[]
 
   const impls: Record<string, unknown>[] = [];
   for (const spec of o.implements ?? []) {
-    const doc = project.specs.get(spec);
+    const doc = findDoc(project, spec);
     if (!doc) throw new PlanOpError(`Specification \`${spec}\` does not exist; name it as feature/<slug> or architecture/<slug>.`);
     const commit = gitTry(ctx.root, ["log", "-1", "--format=%H", "--", doc.file])?.trim();
     impls.push({ spec, ...(commit ? { commit } : {}), mode: "implements" });

@@ -1,5 +1,5 @@
 import { extractBodyCites, parseCite, type Cite } from "../spec/cites.js";
-import type { Project, SpecDoc } from "../spec/project.js";
+import { allSpecs, projectOf, qualifyId, type Project, type SpecDoc } from "../spec/project.js";
 import { dependencyCites } from "../spec/status.js";
 
 /**
@@ -8,7 +8,7 @@ import { dependencyCites } from "../spec/status.js";
  */
 
 export interface CoverageItem {
-  /** `R12` for a requirement, `feature/<slug>` for a feature spec. */
+  /** `R12` for a requirement, `feature/<slug>` for a feature spec; `<subproject>:` precedes the ID of a subproject item. */
   id: string;
   kind: "requirement" | "feature";
   title: string;
@@ -40,16 +40,28 @@ function citesOf(project: Project, doc: SpecDoc): Cite[] {
   return out;
 }
 
-const inRoot = (c: Cite): boolean => !("project" in c) || c.project === null || c.project === "root";
+/** The name of the project a cite points into, as seen from the citing spec's own project; null for plan and file cites. */
+function targetProject(own: Project, c: Cite): string | null {
+  if (c.kind === "plan" || c.kind === "file") return null;
+  if (c.project !== null) return c.project;
+  const bare = c.kind === "req" || c.kind === "file-req" || c.kind === "req-file";
+  return bare && own.name !== "root" && own.requirements.files.length === 0 ? "root" : own.name;
+}
 
 /** A requirement cited as `R5` also covers `R5.1`: a cite includes the sub-requirements (`file-formats` §1.2). */
 const isSelfOrAncestor = (cited: string, id: string): boolean => cited === id || id.startsWith(`${cited}.`);
 
-export function computeCoverage(project: Project, requirementOnly: readonly string[] = []): Coverage {
-  const docs = [...project.specs.values()];
+/**
+ * Coverage over the root project and every subproject. An item of a subproject is named with its subproject
+ * (`<name>:R5`, `<name>:feature/<slug>`); a cite covers an item in the project it points into, so a subproject
+ * feature spec can cover a root requirement and the reverse (`later-releases R39.2`).
+ */
+export function computeCoverage(root: Project, requirementOnly: readonly string[] = []): Coverage {
+  const projects = [root, ...root.subprojects.values()];
+  const docs = allSpecs(root);
   const features = docs.filter((d) => d.layer === "feature");
   const architectures = docs.filter((d) => d.layer === "architecture");
-  const cites = new Map(docs.map((d) => [d.id, citesOf(project, d)]));
+  const cites = new Map(docs.map((d) => [d.id, citesOf(projectOf(root, d), d).map((c) => ({ c, to: targetProject(projectOf(root, d), c) }))]));
   const only = new Set(requirementOnly);
   const skipped: string[] = [];
   const items: CoverageItem[] = [];
@@ -58,20 +70,24 @@ export function computeCoverage(project: Project, requirementOnly: readonly stri
 
   // Requirements are covered by feature specs; with no feature layer, by architecture specs; with neither, skipped.
   const reqCoverers = features.length ? features : architectures;
-  const reqs = new Map<string, string>();
-  for (const f of project.requirements.files) for (const r of f.requirements) if (!reqs.has(r.id)) reqs.set(r.id, r.title);
-  if (reqs.size && !reqCoverers.length) skipped.push("feature");
-  else for (const [id, title] of reqs) {
-    const coveredBy = reqCoverers.filter((d) => cites.get(d.id)!.some((c) => (c.kind === "req" || c.kind === "file-req") && inRoot(c) && isSelfOrAncestor(c.reqId, id))).map((d) => d.id);
-    for (const s of coveredBy) note(s, id);
-    items.push({ id, kind: "requirement", title, coveredBy, requirementOnly: only.has(id) });
+  const reqs: { project: Project; id: string; title: string }[] = [];
+  for (const project of projects) {
+    const seen = new Set<string>();
+    for (const f of project.requirements.files) for (const r of f.requirements) if (!seen.has(r.id)) { seen.add(r.id); reqs.push({ project, id: r.id, title: r.title }); }
+  }
+  if (reqs.length && !reqCoverers.length) skipped.push("feature");
+  else for (const { project, id, title } of reqs) {
+    const coveredBy = reqCoverers.filter((d) => cites.get(d.id)!.some(({ c, to }) => (c.kind === "req" || c.kind === "file-req") && to === project.name && isSelfOrAncestor(c.reqId, id))).map((d) => d.id);
+    const name = qualifyId(project.name, id);
+    for (const sp of coveredBy) note(sp, name);
+    items.push({ id: name, kind: "requirement", title, coveredBy, requirementOnly: only.has(name) });
   }
 
   // Feature specs are covered by architecture specs; with no architecture layer they are not assessed.
   if (features.length && !architectures.length) skipped.push("architecture");
   else for (const f of features) {
-    const coveredBy = architectures.filter((a) => cites.get(a.id)!.some((c) => (c.kind === "spec" || c.kind === "section") && inRoot(c) && c.layer === "feature" && c.slug === f.slug)).map((a) => a.id);
-    for (const s of coveredBy) note(s, f.id);
+    const coveredBy = architectures.filter((a) => cites.get(a.id)!.some(({ c, to }) => (c.kind === "spec" || c.kind === "section") && to === f.project && c.layer === "feature" && c.slug === f.slug)).map((a) => a.id);
+    for (const sp of coveredBy) note(sp, f.id);
     items.push({ id: f.id, kind: "feature", title: typeof f.fm.data?.title === "string" ? f.fm.data.title : f.slug, coveredBy, requirementOnly: false });
   }
 

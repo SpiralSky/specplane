@@ -5,7 +5,7 @@ import { guard, type Actor, type Preset } from "../perm/permissions.js";
 import { specFingerprint } from "../spec/fingerprint.js";
 import { appendRecords, byAtRid, KIND_IMPLEMENTATION, makeRecord, type Stored } from "../spec/notes.js";
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject, type Project, type SpecDoc } from "../spec/project.js";
+import { loadProject, type Project, type SpecDoc, allSpecs, findDoc } from "../spec/project.js";
 import { currentResults, failedTests } from "../spec/results.js";
 import { committedSource, headCommit } from "../spec/source.js";
 import { specSubject, StatusCtx } from "../spec/status.js";
@@ -86,7 +86,7 @@ export async function implementSpec(ctx: ImplementCtx, specArg: string): Promise
   const commit = headCommit(ctx.root);
   if (!commit) throw new PreconditionError(["The repository has no commits; the checks run on the committed content at HEAD."]);
   const { project } = headContext(ctx.root);
-  const doc = project.specs.get(findSpecId([...project.specs.keys()], specArg))!;
+  const doc = findDoc(project, findSpecId(allSpecs(project).map((d) => d.id), specArg))!;
   if (doc.layer !== "architecture") throw new PreconditionError([`\`${doc.id}\` is not an architecture spec; only architecture specs have an implementation status.`]);
   const g = guard(ctx.preset, ctx.actor, ["test.record"], "Marking a specification implemented");
   if (g.kind === "deny") throw new PreconditionError([g.message]);
@@ -109,7 +109,7 @@ export async function implementSpec(ctx: ImplementCtx, specArg: string): Promise
   // Read the store again: the results just recorded, earlier results of harness runs and overrides, all by content.
   const fresh = headContext(ctx.root);
   if (headCommit(ctx.root) !== commit) throw new PreconditionError(["HEAD changed while checks ran; nothing was marked implemented. Run the checks again."]);
-  const currentDoc = fresh.project.specs.get(doc.id)!;
+  const currentDoc = findDoc(fresh.project, doc.id)!;
   const current = currentResults(fresh.ctx, currentDoc);
   out.failed = failedTests(fresh.ctx, currentDoc);
   const decl = declarations(doc);
@@ -127,7 +127,7 @@ export async function implementSpec(ctx: ImplementCtx, specArg: string): Promise
     else if (r?.outcome !== "passed") out.needsHarness.push(s.verdictId);
   }
   if (out.failed.length || out.missing.length || out.needsHarness.length) return out;
-  const state = implementationState(fresh.ctx, fresh.project.specs.get(doc.id)!);
+  const state = implementationState(fresh.ctx, findDoc(fresh.project, doc.id)!);
   if (state.status !== "implemented") {
     const at = ctx.now ?? new Date();
     appendRecords(ctx.root, commit, [makeRecord("implementation", doc.id, specFingerprint(doc.text)!, { status: "implemented", by: byOf(ctx.actor), date: at.toISOString().slice(0, 10) }, at)]);

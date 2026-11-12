@@ -10,7 +10,7 @@ import { editKeys } from "./fm-edit.js";
 import { LEGACY_RECORD_KEYS, specFingerprint } from "./fingerprint.js";
 import { appendRecords, makeRecord, readNotes, type NoteRecord } from "./notes.js";
 import { loadSpecPaths } from "./paths.js";
-import { loadProject, resolveCite, targetFingerprint, type Project } from "./project.js";
+import { loadProject, resolveCite, targetFingerprint, type Project, allSpecs, findDoc, projectOf } from "./project.js";
 import { commitExists, committedSource, headCommit } from "./source.js";
 import { dependencyCites } from "./status.js";
 
@@ -99,19 +99,19 @@ function plan(root: string, head: Project, opts: { now?: Date }): MigrationPlan 
     return touched;
   };
 
-  for (const doc of [...head.specs.values()].sort((x, y) => x.id.localeCompare(y.id))) {
+  for (const doc of [...allSpecs(head)].sort((x, y) => x.id.localeCompare(y.id))) {
     const d = doc.fm.data;
     if (!d || !hasLegacy(d)) continue;
     if (doc.layer === "requirement") { out.warnings.push(`${doc.file}: requirement files are always approved; remove its legacy keys (${LEGACY_RECORD_KEYS.filter((k) => d[k] !== undefined).join(", ")}) by hand`); continue; }
     out.files.push(doc.file);
     common(doc.id, doc.file, d,
-      (p, _c) => { const t = p.specs.get(doc.id)?.text; return t ? specFingerprint(t) : null; },
+      (p, _c) => { const t = findDoc(p, doc.id)?.text; return t ? specFingerprint(t) : null; },
       (p) => {
         const cited: Record<string, string> = {};
-        const then = p.specs.get(doc.id);
+        const then = findDoc(p, doc.id);
         for (const raw of dependencyCites(then?.fm.data ?? null)) {
           const cite = parseCite(raw);
-          const res = cite ? resolveCite(p, cite) : null;
+          const res = cite ? resolveCite(then ? projectOf(p, then) : p, cite) : null;
           if (res?.ok) cited[raw] = targetFingerprint(res.target);
         }
         return cited;

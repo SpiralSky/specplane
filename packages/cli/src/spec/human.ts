@@ -12,7 +12,7 @@ import { editKeys } from "./fm-edit.js";
 import { specFingerprint } from "./fingerprint.js";
 import { appendRecords, isApproving, makeRecord, notesTip, type NoteRecord } from "./notes.js";
 import { loadSpecPaths } from "./paths.js";
-import { loadProject, resolveCite, targetFingerprint, type Project, type SpecDoc } from "./project.js";
+import { loadProject, resolveCite, targetFingerprint, type Project, type SpecDoc, allSpecs, findDoc, projectOf } from "./project.js";
 import { currentResults, failedTests } from "./results.js";
 import { commitExists, committedSource, headCommit, worktreeSource } from "./source.js";
 import { computeStatus, dependencyCites, specSubject, StatusCtx } from "./status.js";
@@ -95,12 +95,12 @@ function isDirty(root: string, file: string): boolean {
 /** Tarjan strongly connected components over resolved spec-to-spec dependencies. */
 function components(head: Project): Map<string, string[]> {
   const edges = new Map<string, string[]>();
-  for (const doc of head.specs.values()) {
+  for (const doc of allSpecs(head)) {
     const out = new Set<string>();
     for (const raw of dependencyCites(doc.fm.data)) {
       const cite = parseCite(raw);
       if (!cite) continue;
-      const res = resolveCite(head, cite);
+      const res = resolveCite(projectOf(head, doc), cite);
       if (res.ok && res.target.specId && res.target.specId !== doc.id) out.add(res.target.specId);
     }
     edges.set(doc.id, [...out]);
@@ -132,7 +132,7 @@ function fingerprintsOf(head: Project, doc: SpecDoc): { fingerprint: string; cit
   for (const raw of dependencyCites(doc.fm.data)) {
     const cite = parseCite(raw);
     if (!cite) continue;
-    const res = resolveCite(head, cite);
+    const res = resolveCite(projectOf(head, doc), cite);
     if (res.ok) cited[raw] = targetFingerprint(res.target);
   }
   return { fingerprint: specFingerprint(doc.text)!, cited };
@@ -179,11 +179,11 @@ function writeAndCommit(_auth: Authorized, ctx: Ctx, ops: WriteOp[], workflow: "
 }
 
 function findSpec(head: Project, id: string): SpecDoc | null {
-  return head.specs.get(id) ?? null;
+  return findDoc(head, id) ?? null;
 }
 
 const notFound = (id: string, head: Project) =>
-  `Specification \`${id}\` not found. Known IDs: ${[...head.specs.keys()].sort().join(", ") || "(none)"}.`;
+  `Specification \`${id}\` not found. Known IDs: ${allSpecs(head).map((d) => d.id).sort().join(", ") || "(none)"}.`;
 
 /* ------------------------------------------------------------------ approve */
 
@@ -219,8 +219,8 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   const memberIds = new Set<string>();
   for (const d of named) for (const m of comp.get(d.id) ?? [d.id]) memberIds.add(m);
   // A requirement file is always approved and never needs a record, so it is not a member (`file-formats` §1.2).
-  for (const m of [...memberIds]) if (head.specs.get(m)?.layer === "requirement") memberIds.delete(m);
-  const members = [...memberIds].sort().map((m) => head.specs.get(m)!);
+  for (const m of [...memberIds]) if (findDoc(head, m)?.layer === "requirement") memberIds.delete(m);
+  const members = [...memberIds].sort().map((m) => findDoc(head, m)!);
   if (reasons.length === 0 && members.length === 0 && named.length) {
     for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "done", reason: "requirement file is always approved" });
     return result({ ok: true, lines: [`${named.map((d) => d.id).join(", ")}: a requirement file is always approved and has no record. Nothing changed.`] });
@@ -235,14 +235,14 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
     for (const raw of dependencyCites(doc.fm.data)) {
       const cite = parseCite(raw);
       if (!cite) continue;
-      const res = resolveCite(head, cite);
+      const res = resolveCite(projectOf(head, doc), cite);
       if (!res.ok) {
         reasons.push(`\`${doc.id}\` references \`${raw}\`, which does not exist: ${res.reason}.`);
         continue;
       }
       const dep = res.target.specId;
       if (dep && dep !== doc.id && !memberIds.has(dep)) {
-        const depDoc = head.specs.get(dep)!;
+        const depDoc = findDoc(head, dep)!;
         const st = computeStatus(head, depDoc, commits);
         if (st.status !== "approved") reasons.push(`\`${doc.id}\` references \`${dep}\` (via \`${raw}\`), which is ${st.status}${st.reasons.length ? ` (${st.reasons.join("; ")})` : ""}. Approve \`${dep}\` first.`);
       }
@@ -362,7 +362,7 @@ export function metaSet(ctx: Ctx, id: string, field: string, raw: string, opts: 
     return result({ ok: false, reasons: [(e as Error).message] });
   }
   // The worktree file is what is edited; its current values are the old values.
-  const work = loadProject(worktreeSource(ctx.root), head.paths).specs.get(id) ?? doc;
+  const work = findDoc(loadProject(worktreeSource(ctx.root), head.paths), id) ?? doc;
   const data = work.fm.data ?? {};
   const old: unknown = data[field] ?? null;
   const edits: Record<string, unknown> = { [field]: value };

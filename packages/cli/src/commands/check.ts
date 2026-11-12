@@ -4,7 +4,7 @@ import { checkoutRoot } from "../git/repo.js";
 import { cliActor } from "../perm/permissions.js";
 import { checkRequirementIds } from "../spec/requirements.js";
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject } from "../spec/project.js";
+import { loadProject, allSpecs } from "../spec/project.js";
 import { headCommit, indexSource, stagedFiles } from "../spec/source.js";
 import { DEFAULT_TIMEOUT_SEC, runTests } from "../verify/test-run.js";
 import type { CommandResult } from "./runner.js";
@@ -40,7 +40,7 @@ export async function checkTestsCommand(opts: { staged?: boolean; timeout?: stri
   const { paths } = loadSpecPaths(root);
   const project = loadProject(indexSource(root), paths);
   const staged = new Set(stagedFiles(root));
-  const specs = [...project.specs.values()].filter((d) => d.layer === "architecture" && staged.has(d.file)).map((d) => d.id);
+  const specs = [...allSpecs(project)].filter((d) => d.layer === "architecture" && staged.has(d.file)).map((d) => d.id);
   if (!specs.length) return { ok: true, data: { specs: [], results: [] }, lines: ["No architecture specs are staged; no tests to run."] };
   const settings = loadSettings(root).config;
   const actor = cliActor(root);

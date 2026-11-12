@@ -13,7 +13,7 @@ import { resumePlan, retargetPlan, setBudget, startPlan, stopPlan } from "../pla
 import { applySpecEdit, patchApplies } from "../spec/edit.js";
 import { approveSpecs, metaSet, overrideSpec, reopenSpec, type OverrideKind } from "../spec/human.js";
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject } from "../spec/project.js";
+import { loadProject, findDoc } from "../spec/project.js";
 import { committedSource } from "../spec/source.js";
 
 /**
@@ -46,7 +46,7 @@ const ACTIONS: Record<string, Action> = {
   "spec edit": (c, p) => {
     if ("before" in p || "after" in p) return writeSpecification(c, "edit", p as SpecChange);
     const head = loadProject(committedSource(c.root, "HEAD"), loadSpecPaths(c.root).paths);
-    const doc = head.specs.get(p.spec);
+    const doc = findDoc(head, p.spec);
     if (!doc) return { ok: false, lines: [], reasons: [`Specification \`${p.spec}\` no longer exists.`] };
     if (!patchApplies(c.root, p.patch)) return { ok: false, lines: [], reasons: [`The change to \`${p.spec}\` no longer applies to the current text.`] };
     if (!fs.existsSync(path.join(c.root, doc.file))) return { ok: false, lines: [], reasons: [`${doc.file} is gone.`] };

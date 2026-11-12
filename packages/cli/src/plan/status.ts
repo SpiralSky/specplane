@@ -1,3 +1,4 @@
+import { findDoc } from "../spec/project.js";
 import { planFingerprint } from "../spec/fingerprint.js";
 import type { Subject } from "../spec/notes.js";
 import type { Project } from "../spec/project.js";
@@ -39,7 +40,7 @@ export function planApproval(root: string, project: Project, rec: PlanRecord): P
 
 /** Effective approval of a spec at a project snapshot. */
 export function specApproved(root: string, project: Project, id: string): boolean {
-  const doc = project.specs.get(id);
+  const doc = findDoc(project, id);
   if (!doc || !doc.fm.data) return false;
   return computeStatus(project, doc, new StatusCtx(root, project)).status === "approved";
 }

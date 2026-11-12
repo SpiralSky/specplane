@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadSettings } from "../config.js";
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject, resolveRaw } from "../spec/project.js";
+import { loadProject, resolveRaw, findDoc } from "../spec/project.js";
 import { worktreeSource } from "../spec/source.js";
 import { computeStatus, dependencyCites } from "../spec/status.js";
 import { headContext } from "../verify/implementation.js";
@@ -38,8 +38,8 @@ export function retrieveSpecs(root: string, ids: string[], includeReferences?: b
     const key = `${t.file}:${t.startLine ?? ""}:${t.endLine ?? ""}`;
     const existing = parts.get(key);
     if (existing) { if (!existing.sources.includes(source)) existing.sources.push(source); return; }
-    const doc = t.specId ? head.specs.get(t.specId) : undefined;
-    const current = t.specId ? working.specs.get(t.specId)?.text : undefined;
+    const doc = t.specId ? findDoc(head, t.specId) : undefined;
+    const current = t.specId ? findDoc(working, t.specId)?.text : undefined;
     const state = doc ? computeStatus(head, doc, ctx, current) : null;
     parts.set(key, { cite, sources: [source], found: true, text: t.text, file: t.file,
       ...(t.specId ? { status: state?.status ?? (t.kind === "requirement-file" || t.kind === "requirement" ? "approved" : "awaiting-review"),
@@ -47,7 +47,7 @@ export function retrieveSpecs(root: string, ids: string[], includeReferences?: b
   };
   for (const id of ids) {
     add(id, id);
-    if (include) for (const cite of dependencyCites(working.specs.get(id)?.fm.data ?? null)) add(cite, id);
+    if (include) for (const cite of dependencyCites(findDoc(working, id)?.fm.data ?? null)) add(cite, id);
   }
   return [...parts.values()];
 }
@@ -58,5 +58,5 @@ export function reviewContext(root: string, ids: string[], includeReferences?: b
   return { parts: retrieveSpecs(root, ids, includeReferences),
     coverage: { items: coverage.items.filter((x) => ids.includes(x.id) || x.coveredBy.some((id) => ids.includes(id))), covers: coverage.covers.filter((x) => ids.includes(x.spec)) },
     warnings: collectWarnings(root, { ids }).filter((w) => ids.some((id) => narrowWarnings([w], id).length)),
-    results: ids.flatMap((id) => { const doc = project.specs.get(id); return doc ? [...currentResults(ctx, doc)].map(([test, result]) => ({ spec: id, test, result })) : []; }) };
+    results: ids.flatMap((id) => { const doc = findDoc(project, id); return doc ? [...currentResults(ctx, doc)].map(([test, result]) => ({ spec: id, test, result })) : []; }) };
 }

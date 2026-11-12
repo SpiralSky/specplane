@@ -1,3 +1,4 @@
+import { allSpecs } from "../../spec/project.js";
 import { computeStatus } from "../../spec/status.js";
 import { collector, type Rule } from "./types.js";
 
@@ -9,7 +10,7 @@ export const rules: Rule[] = [{
   run(ctx) {
     const { emit, items } = collector();
     if (!ctx.head || !ctx.status) { emit("note", "status", "the repository has no commits; effective status is not computed", "."); return items; }
-    for (const doc of ctx.head.specs.values()) {
+    for (const doc of allSpecs(ctx.head)) {
       if (ctx.wanted && !ctx.wanted.has(doc.id)) continue;
       if (!doc.fm.data && !(doc.layer === "requirement" && doc.fm.missing)) continue;
       const st = computeStatus(ctx.head, doc, ctx.status, ctx.wt.source.read(doc.file));

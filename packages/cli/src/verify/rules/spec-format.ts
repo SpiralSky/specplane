@@ -29,7 +29,7 @@ export function checkSpecFormat(doc: SpecDoc, emit: Emit): void {
   if (isReq && doc.fm.missing) return;
   if (doc.fm.error || !doc.fm.data) { err(doc.fm.error ?? "frontmatter is missing"); return; }
   const d = doc.fm.data;
-  if (isReq ? d.id !== undefined && d.id !== doc.id : d.id !== doc.id) err(`id is ${JSON.stringify(d.id)} but the path gives ${doc.id}`);
+  if (isReq ? d.id !== undefined && d.id !== `${doc.layer}/${doc.slug}` : d.id !== `${doc.layer}/${doc.slug}`) err(`id is ${JSON.stringify(d.id)} but the path gives ${doc.layer}/${doc.slug}`);
   if (isReq ? d.title !== undefined && (typeof d.title !== "string" || !d.title.trim() || d.title.includes("\n")) : typeof d.title !== "string" || !d.title.trim() || d.title.includes("\n")) err("title must be a non-empty single line");
   if (d.authors === undefined && isReq) { /* optional on requirement files */ }
   else if (!Array.isArray(d.authors)) err("authors is required and must be a list (it may be empty)");

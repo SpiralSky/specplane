@@ -2,7 +2,7 @@ import { run } from "../git/exec.js";
 import { citeKey, extractBodyCites, parseCite, type Layer } from "../spec/cites.js";
 import { LEGACY_RECORD_KEYS as LEGACY_KEYS } from "../spec/fingerprint.js";
 import { indexSections } from "../spec/sections.js";
-import { resolveCite, type Project } from "../spec/project.js";
+import { resolveCite, type Project, findDoc } from "../spec/project.js";
 import { EXEC_STATUSES, GAP_FIELDS, HANDOFF_SECTIONS, MAX_PLAN_ID, PLAN_ID_RE, latestEntry, planImplements, planReferences, referencedPlans, stepNumbers, type PlanRecord } from "./model.js";
 
 /** Plan validation rules (`architecture/reference-cli` §11.1, `architecture/file-formats` §5). */
@@ -58,10 +58,10 @@ function checkOne(p: PlanRecord, project: Project, root: string | null, emit: Pl
   const impls = planImplements(fm);
   for (const e of impls) {
     if (e.mode !== "writes" && e.mode !== "implements") err(`implements entry ${JSON.stringify(e.spec)}: mode must be writes or implements`, p.planFile, 1);
-    const exists = project.specs.has(e.spec);
+    const exists = findDoc(project, e.spec) !== undefined;
     if (!exists && e.mode === "implements") err(`implements entry ${JSON.stringify(e.spec)} does not resolve to a specification`, p.planFile, 1);
     if (e.commit !== null && !HEX40.test(e.commit)) err(`implements entry ${e.spec}: commit must be 40 hex digits`, p.planFile, 1);
-    const doc = project.specs.get(e.spec);
+    const doc = findDoc(project, e.spec);
     if (doc && e.commit && root) {
       const latest = latestCommitOf(root, doc.file);
       if (latest && latest !== e.commit) warn(`outdated reference: ${e.spec} was recorded at ${e.commit.slice(0, 12)} and its latest commit on this branch is ${latest.slice(0, 12)} (plan ${p.id}); check what changed before continuing (plans R29.3)`, p.planFile, 1);
@@ -77,7 +77,7 @@ function checkOne(p: PlanRecord, project: Project, root: string | null, emit: Pl
   // body cites must be listed
   if (fm?.data && p.planText) {
     const lines = p.planText.split("\n");
-    const listed = new Set([...planReferences(fm), ...impls.map((e) => e.spec)].map(citeKey));
+    const listed = new Set([...planReferences(fm), ...impls.map((e) => e.spec)].map((c) => citeKey(c)));
     const body = extractBodyCites(lines, fm.bodyStartLine, indexSections(lines, fm.bodyStartLine), { layer: "feature" as Layer, slug: "\0plan" }, (l, s) => project.specs.has(`${l}/${s}`));
     const seen = new Set<string>();
     for (const b of body) {
@@ -110,7 +110,7 @@ function checkOne(p: PlanRecord, project: Project, root: string | null, emit: Pl
       const v = d[k];
       if (v === undefined) continue;
       if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) { err(`${k} must be a list of spec IDs`, s.file, 1); continue; }
-      if (k === "implements") for (const id of v as string[]) if (!project.specs.has(id)) err(`implements item ${JSON.stringify(id)} does not resolve to a specification`, s.file, 1);
+      if (k === "implements") for (const id of v as string[]) if (!findDoc(project, id)) err(`implements item ${JSON.stringify(id)} does not resolve to a specification`, s.file, 1);
     }
     const ctx = d.context;
     if (ctx !== undefined) {
@@ -168,7 +168,7 @@ function checkOne(p: PlanRecord, project: Project, root: string | null, emit: Pl
     if (f.Kind && !["gap", "assumption", "proposal"].includes(f.Kind)) err(`G${g.n}: Kind must be gap, assumption or proposal`, p.gapsFile, g.line);
     if (f.State && !["open", "applied", "rejected"].includes(f.State)) err(`G${g.n}: State must be open, applied or rejected`, p.gapsFile, g.line);
     if (f.Step && !stepNumbers(p).includes(Number(f.Step))) err(`G${g.n}: Step ${f.Step} has no step file`, p.gapsFile, g.line);
-    if (f["Target spec"]) for (const id of f["Target spec"].split(",").map((x) => x.trim().replace(/^`|`$/g, ""))) if (id && !project.specs.has(id)) err(`G${g.n}: target spec ${id} does not exist`, p.gapsFile, g.line);
+    if (f["Target spec"]) for (const id of f["Target spec"].split(",").map((x) => x.trim().replace(/^`|`$/g, ""))) if (id && !findDoc(project, id)) err(`G${g.n}: target spec ${id} does not exist`, p.gapsFile, g.line);
   }
 }
 

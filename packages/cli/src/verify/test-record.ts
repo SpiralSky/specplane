@@ -6,7 +6,7 @@ import { parseCite } from "../spec/cites.js";
 import { specFingerprint } from "../spec/fingerprint.js";
 import { appendRecords, makeRecord } from "../spec/notes.js";
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject, resolveCite, type Project, type SpecDoc } from "../spec/project.js";
+import { loadProject, resolveCite, type Project, type SpecDoc, findDoc, projectOf } from "../spec/project.js";
 import { committedSource, headCommit } from "../spec/source.js";
 import { looksLikeCredential } from "./credentials.js";
 
@@ -51,9 +51,9 @@ export function againstOf(project: Project, doc: SpecDoc): Record<string, string
     if (!Array.isArray(v)) continue;
     for (const raw of v) {
       const cite = typeof raw === "string" ? parseCite(raw) : null;
-      const res = cite ? resolveCite(project, cite) : null;
+      const res = cite ? resolveCite(projectOf(project, doc), cite) : null;
       const id = res && res.ok ? res.target.specId : undefined;
-      const other = id && id !== doc.id ? project.specs.get(id) : undefined;
+      const other = id && id !== doc.id ? findDoc(project, id) : undefined;
       if (other) out[other.id] = specFingerprint(other.text)!;
     }
   }
@@ -62,7 +62,7 @@ export function againstOf(project: Project, doc: SpecDoc): Record<string, string
 
 /** Reject malformed evidence before writing any records or requests. */
 export function validateResult(project: Project, r: RecordableResult): void {
-  const doc = project.specs.get(r.spec);
+  const doc = findDoc(project, r.spec);
   if (!doc) throw new PreconditionError([`Unknown specification: ${r.spec}`]);
   if (!["passed", "failed"].includes(r.outcome) || !["deterministic", "intelligent"].includes(r.kind) || typeof r.summary !== "string" || !r.summary.trim()) {
     throw new PreconditionError(["A test result needs a valid kind, passed/failed outcome and non-empty summary."]);
@@ -92,7 +92,7 @@ export function recordResults(ctx: RecordCtx, commit: string, results: Recordabl
   const now = ctx.now ?? new Date();
   const records = [];
   for (const r of results) {
-    const doc = project.specs.get(r.spec);
+    const doc = findDoc(project, r.spec);
     if (!doc) { report.warnings.push(`${r.test}: specification \`${r.spec}\` is not in commit ${commit.slice(0, 8)}; not recorded`); continue; }
     if (looksLikeCredential(r.summary)) report.warnings.push(credentialWarning(r));
     const fingerprint = specFingerprint(doc.text)!;
@@ -130,7 +130,7 @@ export function recordFromRequest(ctx: AcceptCtx, p: Record<string, any>): Accep
   const project = loadProject(committedSource(ctx.root, "HEAD"), loadSpecPaths(ctx.root).paths);
   validateResult(project, p as RecordableResult);
   if (p.kind === "intelligent" && (typeof p.by?.llm !== "string" || !p.by.llm.trim())) return { ok: false, lines: [], reasons: ["Intelligent judgement needs the originating LLM; nothing was recorded."] };
-  const doc = project.specs.get(p.spec);
+  const doc = findDoc(project, p.spec);
   if (!doc) return { ok: false, lines: [], reasons: [`Specification \`${p.spec}\` no longer exists; nothing was recorded.`] };
   const stale: string[] = [];
   if (specFingerprint(doc.text) !== p.fingerprint) stale.push(doc.id);

@@ -9,8 +9,13 @@ import type { Source } from "./source.js";
 /** The project snapshot for one `Source` (`architecture/reference-cli` §4.5). */
 
 export interface SpecDoc {
-  /** Path-derived ID: `requirement/<stem>`, `feature/<slug>` or `architecture/<slug>`. */
+  /**
+   * Path-derived ID: `requirement/<stem>`, `feature/<slug>` or `architecture/<slug>`; in a subproject it is
+   * prefixed with the subproject name, `<name>:feature/<slug>` (`architecture/file-formats` §12.4).
+   */
   id: string;
+  /** `root` or the name of the subproject the spec is in. */
+  project: string;
   layer: Layer;
   slug: string;
   /** Repository-relative path. */
@@ -51,10 +56,13 @@ export interface Project {
 
 const SLUG_FILE = /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 
-export function makeSpecDoc(layer: Layer, slug: string, file: string, text: string): SpecDoc {
+/** The ID of a spec in a project: the local `<layer>/<slug>`, prefixed with the subproject name outside the root. */
+export const qualifyId = (project: string, local: string): string => (project === "root" ? local : `${project}:${local}`);
+
+export function makeSpecDoc(layer: Layer, slug: string, file: string, text: string, project = "root"): SpecDoc {
   const fm = splitFrontmatter(text);
   const lines = text.split("\n");
-  return { id: `${layer}/${slug}`, layer, slug, file, text, lines, fm, index: indexSections(lines, fm.bodyStartLine) };
+  return { id: qualifyId(project, `${layer}/${slug}`), project, layer, slug, file, text, lines, fm, index: indexSections(lines, fm.bodyStartLine) };
 }
 
 function loadRequirements(source: Source, paths: SpecPaths): RequirementSet {
@@ -115,7 +123,32 @@ export function loadProject(source: Source, paths: SpecPaths): Project {
   return project;
 }
 
-function loadOne(source: Source, paths: SpecPaths, name: string): Project {
+/** Every spec of the root project and of its subprojects, root first, by qualified ID. */
+export function allSpecs(root: Project): SpecDoc[] {
+  return [...root.specs.values(), ...[...root.subprojects.values()].flatMap((p) => [...p.specs.values()])];
+}
+
+/** The project a qualified spec ID belongs to, and the ID inside it: `<name>:<layer>/<slug>` or a root ID. */
+export function splitSpecId(root: Project, id: string): { project: Project; local: string } | null {
+  const m = /^([a-z0-9][a-z0-9-]*):(.+)$/.exec(id);
+  if (!m) return { project: root, local: id };
+  const project = m[1] === "root" ? root : root.subprojects.get(m[1]);
+  return project ? { project, local: m[2] } : null;
+}
+
+/** Look a spec up by qualified ID; `root:<id>` names a root spec like the plain ID does. */
+export function findDoc(root: Project, id: string): SpecDoc | undefined {
+  const at = splitSpecId(root, id);
+  return at?.project.specs.get(at.local);
+}
+
+/** The project that owns a spec. */
+export function projectOf(root: Project, doc: SpecDoc): Project {
+  return doc.project === "root" ? root : root.subprojects.get(doc.project) ?? root;
+}
+
+function loadOne(source: Source, paths: SpecPaths, projectName: string): Project {
+  const name = projectName;
   const specs = new Map<string, SpecDoc>();
   const strayFiles: Project["strayFiles"] = [];
   for (const [layer, dir] of [["feature", paths.features], ["architecture", paths.architecture]] as const) {
@@ -129,8 +162,8 @@ function loadOne(source: Source, paths: SpecPaths, name: string): Project {
         continue;
       }
       if (!SLUG_FILE.test(name)) { strayFiles.push({ file, reason: `file name is not a valid slug ([a-z0-9]+(-[a-z0-9]+)*.md)` }); continue; }
-      const doc = makeSpecDoc(layer, name.slice(0, -3), file, text);
-      specs.set(doc.id, doc);
+      const doc = makeSpecDoc(layer, name.slice(0, -3), file, text, projectName);
+      specs.set(`${layer}/${doc.slug}`, doc);
     }
   }
   const planIds = new Set<string>();
@@ -140,8 +173,8 @@ function loadOne(source: Source, paths: SpecPaths, name: string): Project {
   const requirements = loadRequirements(source, paths);
   for (const req of requirements.files) {
     const stem = req.file.slice(req.file.lastIndexOf("/") + 1, -3);
-    const doc = makeSpecDoc("requirement", stem, req.file, req.text);
-    specs.set(doc.id, doc);
+    const doc = makeSpecDoc("requirement", stem, req.file, req.text, projectName);
+    specs.set(`requirement/${stem}`, doc);
   }
   return { name, root: undefined as unknown as Project, subprojects: new Map(), subprojectProblems: [], source, paths, requirements, specs, strayFiles, planIds };
 }
@@ -177,9 +210,7 @@ export function resolveCite(own: Project, cite: Cite): Resolution {
     // A subproject without requirements of its own relies on the root project's (`later-releases R39`).
     project = own.root;
   }
-  const r = resolveIn(project, cite);
-  // Specs of a subproject have no ID in the root's table, so status code that follows `specId` skips them.
-  return r.ok && project.name !== "root" && r.target.specId ? { ok: true, target: { ...r.target, specId: undefined } } : r;
+  return resolveIn(project, cite);
 }
 
 const ownsNoRequirements = (p: Project): boolean => p.requirements.files.length === 0;
@@ -204,7 +235,7 @@ function resolveIn(project: Project, cite: Cite): Resolution {
       if (hits.length === 0) return fail(project.requirements.retired.has(id) ? `requirement ${id} is retired` : `requirement not found: ${id}`);
       if (hits.length > 1) return fail(`duplicate requirement ${id} (${hits.map((h) => `${h.file}:${h.startLine}`).join(", ")})`);
       const h = hits[0];
-      const specId = `requirement/${h.file.slice(h.file.lastIndexOf("/") + 1, -3)}`;
+      const specId = qualifyId(project.name, `requirement/${h.file.slice(h.file.lastIndexOf("/") + 1, -3)}`);
       return { ok: true, target: { kind: "requirement", file: h.file, startLine: h.startLine, endLine: h.endLine, text: h.text, specId } };
     }
     case "req-file": {

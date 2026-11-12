@@ -1,3 +1,4 @@
+import { allSpecs } from "../spec/project.js";
 import { configSet } from "../config-ops.js";
 import { loadSettings } from "../config.js";
 import { PreconditionError } from "../errors.js";
@@ -25,7 +26,7 @@ export function registerOperationActions(add: Adder): void {
     const commit = headCommit(c.root);
     if (!commit) throw new PreconditionError(["The repository has no commits; tests run on the committed content at HEAD."]);
     const { project } = headContext(c.root);
-    const selection: Selection = p.spec ? { spec: findSpecId([...project.specs.keys()], p.spec), ...(p.label ? { label: p.label } : p.section ? { section: p.section } : {}) } : {};
+    const selection: Selection = p.spec ? { spec: findSpecId(allSpecs(project).map((d) => d.id), p.spec), ...(p.label ? { label: p.label } : p.section ? { section: p.section } : {}) } : {};
     const settings = loadSettings(c.root).config;
     const report = await runTests({ root: c.root, project, selection, timeoutSec: p.timeout ?? DEFAULT_TIMEOUT_SEC, commit,
       logMode: settings.values["tests.logs"] as "local" | "git" | "off", gitLogDir: settings.abs.testLogs, actor: actorTag(c) });

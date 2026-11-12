@@ -7,9 +7,10 @@ import { collector, type Emit, type Rule } from "./types.js";
 export function checkSpecCites(project: Project, doc: SpecDoc, emit: Emit): void {
   if (!doc.fm.data) return;
   const f = doc.file;
+  const inSub = project.name !== "root";
   const isKnown = (layer: Layer, slug: string) => project.specs.has(`${layer}/${slug}`);
   const body = extractBodyCites(doc.lines, doc.fm.bodyStartLine, doc.index, { layer: doc.layer, slug: doc.slug }, isKnown);
-  const listed = new Set(dependencyCites(doc.fm.data).map(citeKey));
+  const listed = new Set(dependencyCites(doc.fm.data).map((c) => citeKey(c, inSub)));
   const used = new Set<string>();
   const resolveAndReport = (raw: string, line: number | undefined, where: string) => {
     const cite = parseCite(raw);
@@ -26,7 +27,7 @@ export function checkSpecCites(project: Project, doc: SpecDoc, emit: Emit): void
       const resolved = resolveCite(project, b.cite);
       if (resolved.ok && resolved.target.file === doc.file) continue;
     }
-    const key = citeKey(b.raw);
+    const key = citeKey(b.raw, inSub);
     used.add(key);
     if (!listed.has(key) && !seen.has(key)) {
       seen.add(key);
@@ -36,7 +37,7 @@ export function checkSpecCites(project: Project, doc: SpecDoc, emit: Emit): void
     const bodyKey = `${key}@body`;
     if (!seen.has(bodyKey)) { seen.add(bodyKey); resolveAndReport(b.raw, b.line, "the body"); }
   }
-  const ownKeys = new Set(["covers", "implements"].flatMap((k) => (Array.isArray(doc.fm.data![k]) ? (doc.fm.data![k] as unknown[]) : []).filter((x): x is string => typeof x === "string").map(citeKey)));
+  const ownKeys = new Set(["covers", "implements"].flatMap((k) => (Array.isArray(doc.fm.data![k]) ? (doc.fm.data![k] as unknown[]) : []).filter((x): x is string => typeof x === "string").map((c) => citeKey(c, inSub))));
   for (const raw of listed) {
     resolveAndReport(raw, 1, "the frontmatter");
     if (!used.has(raw) && !ownKeys.has(raw)) emit("warning", "cites", `references lists \`${raw}\`, which the body never cites`, f, 1);

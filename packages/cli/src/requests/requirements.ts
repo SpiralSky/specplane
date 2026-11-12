@@ -3,7 +3,7 @@ import { validateEditParams } from "../plan/edit.js";
 import { specLayer as writeLayer, validateSpecChange } from "../spec/write.js";
 import { validateActionInput } from "../harness/actions.js";
 import { loadSpecPaths } from "../spec/paths.js";
-import { loadProject } from "../spec/project.js";
+import { loadProject, findDoc } from "../spec/project.js";
 import { committedSource } from "../spec/source.js";
 
 /** Required permissions come from the action, never from request permission metadata (requests R52.2/R52.3). */
@@ -38,7 +38,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
   const specLayer = (key: string): string => {
     const id = requireText(key);
     const head = loadProject(committedSource(root, "HEAD"), loadSpecPaths(root).paths);
-    const doc = head.specs.get(id);
+    const doc = findDoc(head, id);
     if (!doc) return invalid(`Specification \`${id}\` does not exist.`);
     return doc.layer;
   };

@@ -1,3 +1,4 @@
+import { allSpecs, findDoc } from "../spec/project.js";
 import { SpecNotFoundError } from "../errors.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, guard } from "../perm/permissions.js";
@@ -90,7 +91,7 @@ const implText = (i: NonNullable<SpecView["implementation"]>) => `${i.status}${i
 export function listSpecViews(root: string, opts: { status?: string; type?: string } = {}): SpecView[] {
   const { project, ctx } = headContext(root);
   const src = worktreeSource(root);
-  return [...project.specs.values()].sort((a, b) => a.id.localeCompare(b.id)).map((doc) => view(ctx, doc, src.read(doc.file)))
+  return [...allSpecs(project)].sort((a, b) => a.id.localeCompare(b.id)).map((doc) => view(ctx, doc, src.read(doc.file)))
     .filter((v) => (!opts.status || v.status === opts.status) && (!opts.type || v.type === opts.type));
 }
 
@@ -115,7 +116,7 @@ export function specShowCommand(id: string): CommandResult {
   if (no) return no;
   const root = checkoutRoot();
   const { project, ctx } = headContext(root);
-  const hits = project.specs.has(id) ? [project.specs.get(id)!] : [...project.specs.values()].filter((d) => d.slug === id);
+  const hits = findDoc(project, id) ? [findDoc(project, id)!] : [...allSpecs(project)].filter((d) => d.slug === id);
   if (hits.length !== 1) throw new SpecNotFoundError(id);
   const v = view(ctx, hits[0], worktreeSource(root).read(hits[0].file));
   const lines = [

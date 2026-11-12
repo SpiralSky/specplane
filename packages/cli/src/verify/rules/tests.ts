@@ -1,3 +1,4 @@
+import { allSpecs } from "../../spec/project.js";
 import { loadSettings } from "../../config.js";
 import { GIT_LOG_WARNING } from "../logs.js";
 import { declarations, allTests } from "../tests.js";
@@ -13,7 +14,7 @@ export const rules: Rule[] = [{
   source: "worktree",
   run(ctx) {
     const { emit, items } = collector();
-    for (const doc of ctx.wt.specs.values()) {
+    for (const doc of allSpecs(ctx.wt)) {
       if (doc.layer === "requirement") continue;
       for (const d of doc.index.duplicateTests) {
         emit("error", "tests", `test label ${d.label} is declared twice in ${d.sectionId ?? "the preamble"} (first at line ${d.first}); its tests are not run`, doc.file, d.second, d.sectionId ?? undefined);

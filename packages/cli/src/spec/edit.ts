@@ -8,7 +8,7 @@ import { guard } from "../perm/permissions.js";
 import { audit } from "../audit/log.js";
 import { lastApprovalCommit } from "./notes.js";
 import { loadSpecPaths } from "./paths.js";
-import { loadProject } from "./project.js";
+import { loadProject, findDoc } from "./project.js";
 import { committedSource, headCommit } from "./source.js";
 import type { Ctx, Result } from "./human.js";
 
@@ -48,7 +48,7 @@ export interface SpecEditParams { spec: string; patch: string }
 export function editSpec(ctx: Ctx, specId: string, newText: string): Result {
   if (!headCommit(ctx.root)) return result({ ok: false, reasons: ["The repository has no commits."] });
   const head = loadProject(committedSource(ctx.root, "HEAD"), loadSpecPaths(ctx.root).paths);
-  const doc = head.specs.get(specId);
+  const doc = findDoc(head, specId);
   if (!doc) return result({ ok: false, reasons: [`Specification \`${specId}\` not found.`] });
   const abs = path.join(ctx.root, doc.file);
   const current = fs.readFileSync(abs, "utf8");
@@ -73,7 +73,7 @@ export function editSpec(ctx: Ctx, specId: string, newText: string): Result {
 /** Write the edit (used directly under allow, and when a request is accepted); needs the edit permission with `allow`. */
 export function applySpecEdit(ctx: Ctx, specId: string, file: string, patch: string): Result {
   const actor = { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name };
-  const layer = loadProject(committedSource(ctx.root, "HEAD"), loadSpecPaths(ctx.root).paths).specs.get(specId)?.layer;
+  const layer = findDoc(loadProject(committedSource(ctx.root, "HEAD"), loadSpecPaths(ctx.root).paths), specId)?.layer;
   if (!layer) return result({ ok: false, reasons: [`Specification \`${specId}\` not found.`] });
   const g = guard(ctx.preset, ctx.actor, [`spec.edit.${layer}`], "Editing a specification");
   if (g.kind !== "allow") {
@@ -97,7 +97,7 @@ export function applySpecEdit(ctx: Ctx, specId: string, file: string, patch: str
 export function specDiffText(root: string, specId: string, patch: string): string | null {
   try {
     const head = loadProject(committedSource(root, "HEAD"), loadSpecPaths(root).paths);
-    const doc = head.specs.get(specId);
+    const doc = findDoc(head, specId);
     if (!doc) return null;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-diff-"));
     try {
