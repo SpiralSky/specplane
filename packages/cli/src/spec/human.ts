@@ -237,7 +237,7 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
       if (!cite) continue;
       const res = resolveCite(head, cite);
       if (!res.ok) {
-        if (res.code !== "later-release") reasons.push(`\`${doc.id}\` references \`${raw}\`, which does not exist: ${res.reason}.`);
+        reasons.push(`\`${doc.id}\` references \`${raw}\`, which does not exist: ${res.reason}.`);
         continue;
       }
       const dep = res.target.specId;

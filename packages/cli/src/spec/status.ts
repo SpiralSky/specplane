@@ -70,7 +70,6 @@ export function recordState(ctx: StatusCtx, s: Subject): { decisive: Stored | nu
     const cite = parseCite(raw);
     if (!cite) continue;
     const res = resolveCite(ctx.head, cite);
-    if (!res.ok && res.code === "later-release") continue;
     const now = res.ok ? targetFingerprint(res.target) : null;
     if (now === null || now !== expected) reasons.push(`outdated: ${raw}`);
   }

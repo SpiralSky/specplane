@@ -117,7 +117,7 @@ test("overlapping folders are malformed and the later key falls back", () => {
 });
 
 test("later-release settings are accepted without being unknown; dynamic entries are kept", () => {
-  const { findings, config } = parseConfig("strict_mode:\n  enabled: on\n  git: off\nbypass_guards:\n  headless: on\nharness:\n  instructions:\n    plan-step: use this text\nsubprojects: [a, b]\nroles:\n  llm_rules: []\n");
+  const { findings, config } = parseConfig("strict_mode:\n  enabled: on\n  git: off\nbypass_guards:\n  headless: on\nharness:\n  instructions:\n    plan-step: use this text\nsubprojects:\n  - {name: a, path: sub/a}\n  - {name: b, path: sub/b}\nroles:\n  llm_rules: []\n");
   assert.deepEqual(findings, []);
   assert.equal(config.values["strict_mode.enabled"], true);
   assert.deepEqual(config.values["strict_mode"], { git: false });
@@ -391,4 +391,24 @@ test("CLI: outside a repository docs and help work and other commands exit 3", (
   assert.equal(v.status, 3);
   assert.match(v.stderr, /Not in a git repository/);
   assert.equal(run("config", "list").status, 3);
+});
+
+test("subprojects: items need unique kebab-case names, not root or file, and separate paths inside the repository", () => {
+  const ok = parseConfig("subprojects:\n  - {name: claude, path: harnesses/claude/specs}\n");
+  assert.deepEqual(ok.findings, []);
+  assert.deepEqual(ok.config.values["subprojects"], [{ name: "claude", path: "harnesses/claude/specs" }]);
+  for (const text of [
+    "subprojects:\n  - {name: root, path: a}\n",
+    "subprojects:\n  - {name: file, path: a}\n",
+    "subprojects:\n  - {name: Bad_Name, path: a}\n",
+    "subprojects:\n  - {name: a, path: x}\n  - {name: a, path: y}\n",
+    "subprojects:\n  - {name: a, path: x}\n  - {name: b, path: x/y}\n",
+    "subprojects:\n  - {name: a, path: ../out}\n",
+    "subprojects: [a, b]\n",
+  ]) {
+    const r = parseConfig(text);
+    assert.equal(r.findings.length, 1, text);
+    assert.match(r.findings[0].message, /subprojects.*malformed/);
+    assert.deepEqual(r.config.values["subprojects"], [], "the default applies");
+  }
 });

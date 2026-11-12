@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
-import { validateProject, type Report } from "./validate.js";
+import { formatReport, validateProject, type Report } from "./validate.js";
 import { DEFAULT_PRESET } from "../perm/permissions.js";
 import { approveSpecs, reopenSpec } from "../spec/human.js";
 
@@ -64,7 +64,7 @@ test("format errors: id mismatch, bad status, wrong-layer field, unknown field, 
   has(/INFO.md has frontmatter/);
 });
 
-test("cites: unresolved, missing from references, listed but unused, subproject later release", () => {
+test("cites: unresolved, missing from references, listed but unused, undeclared subproject", () => {
   const root = repo({
     "docs/requirements/product-requirements.md": REQ,
     "docs/specifications/features/alpha.md": spec({ id: "feature/alpha", covers: "[R1]", references: "[R7, beta R5, claude:R1, R2]", body: "## R1: One\n\nCites `R2`, `beta R1`, `beta §3` and `claude:R1`.\n" }),
@@ -78,10 +78,78 @@ test("cites: unresolved, missing from references, listed but unused, subproject 
   assert.ok(e.some((x) => /unresolved cite `beta R1`/.test(x)));
   assert.ok(e.some((x) => /`beta R1` is used in the body but missing from references/.test(x)));
   assert.ok(e.some((x) => /`beta §3` is used in the body but missing from references/.test(x)));
-  assert.ok(!e.some((x) => /claude:R1/.test(x)), "subproject cites are not errors");
+  assert.ok(e.some((x) => /unresolved cite `claude:R1`.*subproject `claude` is not declared/.test(x)), "a subproject that is not declared is an error");
   const w = rules(r, "warning");
-  assert.ok(w.some((x) => /subproject `claude`.*later release/.test(x)));
   assert.ok(w.some((x) => /lists `R7`, which the body never cites/.test(x)));
+});
+
+const SUB_CONFIG = "subprojects:\n  - {name: claude, path: sub/claude}\n  - {name: codex, path: sub/codex}\n";
+const SUB_REQ = "**R1: Sub one**\nSub text\n\n**R2: Own**\nOwn text\n";
+
+test("subprojects: cites resolve by project name, plain cites mean the own project, findings name the project", () => {
+  const root = repo({
+    ".specplane/config.yaml": SUB_CONFIG,
+    "docs/requirements/product-requirements.md": REQ,
+    "sub/claude/requirements/reqs.md": SUB_REQ,
+    "sub/codex/requirements/reqs.md": SUB_REQ,
+    "sub/claude/features/harness.md": spec({ id: "feature/harness", covers: "[R1]", references: "[root:R2, codex:R1]", body: "## R1: Sub one\n\nCites `root:R2` and `codex:R1`.\n" }),
+    "sub/codex/features/integration.md": spec({ id: "feature/integration", references: "[R1, root:R1]", body: "## §1 Part\n\nCites `R1` and `root:R1`.\n" }),
+    "docs/specifications/features/alpha.md": spec({ id: "feature/alpha", covers: "[R1]", references: "[claude:R1, claude:harness R1]", body: "## R1: One\n\nCites `claude:R1` and `claude:harness R1`.\n" }),
+  });
+  commit(root);
+  const r = validateProject(root);
+  assert.deepEqual(rules(r, "error"), []);
+  assert.ok(r.checked.includes("claude:feature/harness") && r.checked.includes("codex:feature/integration"));
+});
+
+test("subprojects: a subproject without requirements relies on the root project's; unresolved cites name the project", () => {
+  const root = repo({
+    ".specplane/config.yaml": SUB_CONFIG,
+    "docs/requirements/product-requirements.md": REQ,
+    "sub/claude/requirements/reqs.md": SUB_REQ,
+    "sub/claude/features/harness.md": spec({ id: "feature/harness", references: "[R7, codex:R9]", body: "## §1 Part\n\nCites `R7` and `codex:R9`.\n" }),
+    "sub/codex/features/integration.md": spec({ id: "feature/integration", references: "[R2.1]", body: "## §1 Part\n\nCites `R2.1`.\n" }),
+  });
+  commit(root);
+  const r = validateProject(root);
+  const hit = (name: string) => r.findings.filter((f) => f.severity === "error" && f.project === name).map((f) => f.message);
+  assert.ok(hit("claude").some((m) => /unresolved cite `R7`.*requirement not found: R7/.test(m)), "R7 is not in claude's own requirements");
+  assert.ok(hit("claude").some((m) => /unresolved cite `codex:R9`.*requirement not found: R9/.test(m)));
+  assert.deepEqual(hit("codex"), [], "codex has no requirements, so R2.1 is the root's");
+  assert.equal(r.findings.filter((f) => f.severity === "error" && !f.project).length, 0);
+  const text = formatReport(r);
+  assert.match(text, /project claude, cites/);
+  assert.match(text, /Project claude: 4 errors/);
+});
+
+test("subprojects: IDs are unique per project, not across projects; a root and a subproject may share an ID", () => {
+  const root = repo({
+    ".specplane/config.yaml": SUB_CONFIG,
+    "docs/requirements/product-requirements.md": REQ,
+    "sub/claude/requirements/reqs.md": "**R1: A**\nx\n\n**R1: B**\ny\n",
+    "sub/codex/requirements/reqs.md": SUB_REQ,
+  });
+  commit(root);
+  const r = validateProject(root);
+  const dup = r.findings.filter((f) => /duplicate requirement ID R1/.test(f.message));
+  assert.equal(dup.length, 1);
+  assert.equal(dup[0].project, "claude");
+  assert.equal(r.findings.filter((f) => f.severity === "error" && f.project === "codex").length, 0, "R1 in root and codex is fine");
+});
+
+test("subprojects: a missing folder is an error; a subproject requirement that restates a root requirement differently warns that the root wins", () => {
+  const root = repo({
+    ".specplane/config.yaml": SUB_CONFIG,
+    "docs/requirements/product-requirements.md": REQ,
+    "sub/claude/requirements/reqs.md": "**R5: One**\nDifferent text\n\n**R6: Unrelated**\nMore\n",
+  });
+  commit(root);
+  const r = validateProject(root);
+  assert.ok(r.findings.some((f) => f.severity === "error" && f.rule === "subprojects" && /subproject `codex` has no folder sub\/codex/.test(f.message)));
+  const w = r.findings.filter((f) => f.rule === "subprojects" && f.severity === "warning");
+  assert.equal(w.length, 1, "R6 has no root counterpart, only R5 differs");
+  assert.match(w[0].message, /R5 "One".*root requirement R1.*root requirement wins/s);
+  assert.equal(w[0].project, "claude");
 });
 
 test("requirement ID rules surface through validate", () => {

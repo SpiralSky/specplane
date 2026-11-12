@@ -13,6 +13,8 @@ export interface Finding {
   message: string;
   file: string;
   line?: number;
+  /** The subproject the finding belongs to; absent for the root project (`later-releases R39`). */
+  project?: string;
   /** Section ID the finding is in, when known. */
   section?: string;
   /** `worktree` when the file differs from HEAD (or is not committed), else `committed`. */

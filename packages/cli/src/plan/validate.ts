@@ -72,7 +72,7 @@ function checkOne(p: PlanRecord, project: Project, root: string | null, emit: Pl
     const cite = parseCite(raw);
     if (!cite) { err(`reference ${JSON.stringify(raw)} is not a valid cite`, p.planFile, 1); continue; }
     const r = resolveCite(project, cite);
-    if (!r.ok) { if (r.code === "later-release") warn(`reference \`${raw}\`: ${r.reason}`, p.planFile, 1); else err(`unresolved reference \`${raw}\`: ${r.reason}`, p.planFile, 1); }
+    if (!r.ok) err(`unresolved reference \`${raw}\`: ${r.reason}`, p.planFile, 1);
   }
   // body cites must be listed
   if (fm?.data && p.planText) {

@@ -32,6 +32,14 @@ export interface RequirementSet {
 }
 
 export interface Project {
+  /** `root` for the root project, else the subproject's name (`later-releases R39`). */
+  name: string;
+  /** The root project; the project itself for the root. */
+  root: Project;
+  /** The subprojects by name; empty inside a subproject. */
+  subprojects: Map<string, Project>;
+  /** Problems with a declared subproject, such as a missing folder (root project only). */
+  subprojectProblems: { name: string; dir: string; message: string }[];
   source: Source;
   paths: SpecPaths;
   requirements: RequirementSet;
@@ -87,7 +95,27 @@ function loadRequirements(source: Source, paths: SpecPaths): RequirementSet {
   return { files, central: central ? `${dir}/${central}` : null, problems, unlisted, retired };
 }
 
+/** The layout of a subproject folder: `requirements/`, `features/` and `architecture/` (`architecture/file-formats` §12.4). */
+function subprojectPaths(dir: string, root: SpecPaths): SpecPaths {
+  return { requirements: `${dir}/requirements`, requirementsIndex: null, features: `${dir}/features`, architecture: `${dir}/architecture`, plansDir: root.plansDir, subprojects: [] };
+}
+
 export function loadProject(source: Source, paths: SpecPaths): Project {
+  const project = loadOne(source, paths, "root");
+  project.root = project;
+  for (const sub of paths.subprojects) {
+    if (!source.exists(sub.dir)) {
+      project.subprojectProblems.push({ name: sub.name, dir: sub.dir, message: `subproject \`${sub.name}\` has no folder ${sub.dir}` });
+      continue;
+    }
+    const child = loadOne(source, subprojectPaths(sub.dir, paths), sub.name);
+    child.root = project;
+    project.subprojects.set(sub.name, child);
+  }
+  return project;
+}
+
+function loadOne(source: Source, paths: SpecPaths, name: string): Project {
   const specs = new Map<string, SpecDoc>();
   const strayFiles: Project["strayFiles"] = [];
   for (const [layer, dir] of [["feature", paths.features], ["architecture", paths.architecture]] as const) {
@@ -115,7 +143,7 @@ export function loadProject(source: Source, paths: SpecPaths): Project {
     const doc = makeSpecDoc("requirement", stem, req.file, req.text);
     specs.set(doc.id, doc);
   }
-  return { source, paths, requirements, specs, strayFiles, planIds };
+  return { name, root: undefined as unknown as Project, subprojects: new Map(), subprojectProblems: [], source, paths, requirements, specs, strayFiles, planIds };
 }
 
 /** Directory names inside `base`. */
@@ -134,15 +162,29 @@ export interface Target {
   specId?: string;
 }
 
-export type Resolution = { ok: true; target: Target } | { ok: false; code: "later-release" | "error"; reason: string };
+export type Resolution = { ok: true; target: Target } | { ok: false; code: "error"; reason: string };
 
 const fail = (reason: string): Resolution => ({ ok: false, code: "error", reason });
 
 /** Resolve a cite in a project (`architecture/file-formats` §3.4). `ownProject` is the project the citing spec is in. */
-export function resolveCite(project: Project, cite: Cite): Resolution {
-  if ("project" in cite && cite.project !== null && cite.project !== "root") {
-    return { ok: false, code: "later-release", reason: `cite into subproject \`${cite.project}\` is resolved in a later release` };
+export function resolveCite(own: Project, cite: Cite): Resolution {
+  let project = own;
+  if ("project" in cite && cite.project !== null) {
+    const found = cite.project === "root" ? own.root : own.root.subprojects.get(cite.project);
+    if (!found) return fail(`subproject \`${cite.project}\` is not declared in the subprojects setting`);
+    project = found;
+  } else if (own.name !== "root" && ownsNoRequirements(own) && (cite.kind === "req" || cite.kind === "file-req" || cite.kind === "req-file")) {
+    // A subproject without requirements of its own relies on the root project's (`later-releases R39`).
+    project = own.root;
   }
+  const r = resolveIn(project, cite);
+  // Specs of a subproject have no ID in the root's table, so status code that follows `specId` skips them.
+  return r.ok && project.name !== "root" && r.target.specId ? { ok: true, target: { ...r.target, specId: undefined } } : r;
+}
+
+const ownsNoRequirements = (p: Project): boolean => p.requirements.files.length === 0;
+
+function resolveIn(project: Project, cite: Cite): Resolution {
   switch (cite.kind) {
     case "file": {
       if (!project.source.exists(cite.path)) return fail(`file ${cite.path} does not exist`);

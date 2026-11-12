@@ -16,8 +16,7 @@ export function checkSpecCites(project: Project, doc: SpecDoc, emit: Emit): void
     if (!cite) return;
     const r = resolveCite(project, cite);
     if (r.ok) return;
-    if (r.code === "later-release") emit("warning", "cites", `${where} \`${raw}\`: ${r.reason}`, f, line);
-    else emit("error", "cites", `unresolved cite \`${raw}\` in ${where}: ${r.reason}`, f, line);
+    emit("error", "cites", `unresolved cite \`${raw}\` in ${where}: ${r.reason}`, f, line);
   };
   const seen = new Set<string>();
   for (const b of body) {
@@ -29,9 +28,7 @@ export function checkSpecCites(project: Project, doc: SpecDoc, emit: Emit): void
     }
     const key = citeKey(b.raw);
     used.add(key);
-    // A subproject cite cannot be resolved yet (later release), so listing it is not enforced either.
-    const subproject = "project" in b.cite && b.cite.project !== null && b.cite.project !== "root";
-    if (!listed.has(key) && !seen.has(key) && !subproject) {
+    if (!listed.has(key) && !seen.has(key)) {
       seen.add(key);
       if (b.cite.kind === "spec") emit("warning", "cites", `whole-spec cite \`${b.raw}\` in the body is not listed in references; cite a section or list it`, f, b.line);
       else emit("error", "cites", `cite \`${b.raw}\` is used in the body but missing from references, covers and implements`, f, b.line);

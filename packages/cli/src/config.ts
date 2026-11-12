@@ -26,6 +26,7 @@ export type Kind =
   | { t: "steering" }
   | { t: "strmap" }
   | { t: "list" }
+  | { t: "subprojects" }
   | { t: "boolmap" };
 
 export interface SettingDef {
@@ -73,7 +74,7 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "pre_commit.tests", kind: { t: "bool" }, def: false, doc: "Check that refuses a commit when the deterministic tests of an architecture specification fail" },
   { key: "coverage.requirement_only", kind: { t: "reqids" }, def: [], doc: "Requirements annotated as requirement-only; uncovered warnings are still reported" },
   { key: "decisions.enabled", kind: { t: "bool" }, def: false, later: true, doc: "Whether user decision records are stored and retrieved" },
-  { key: "subprojects", kind: { t: "list" }, def: [], later: true, doc: "The named locations in the project that are subprojects" },
+  { key: "subprojects", kind: { t: "subprojects" }, def: [], doc: "The named locations in the project that are subprojects: items {name, path}; the folder holds requirements/, features/ and architecture/" },
   { key: "strict_mode.enabled", kind: { t: "bool" }, def: false, later: true, doc: "Strict mode as a whole" },
   { key: "strict_mode", kind: { t: "boolmap" }, def: {}, later: true, dynamic: true, doc: "Each strict mode measure on its own: strict_mode.<measure>" },
   { key: "bypass_guards", kind: { t: "boolmap" }, def: {}, later: true, dynamic: true, doc: "Each guardrail against permission bypass on its own (default on): bypass_guards.<measure>" },
@@ -129,6 +130,7 @@ export function isInside(rel: string): boolean {
 
 const normPath = (v: string): string => path.posix.normalize(v.replace(/\\/g, "/")).replace(/\/+$/, "") || ".";
 
+const SUBPROJECT_NAME = /^[a-z0-9][a-z0-9-]*$/;
 const REQ_ID = /^R\d+(\.\d+)*$/;
 const PRESET_IDS = PRESETS.map((p) => p.id);
 const PRESET_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -149,6 +151,7 @@ function allowedFor(kind: Kind): string {
     case "steering": return "a list of {permission or command, scope, text}";
     case "strmap": return "a mapping of text";
     case "list": return "a list";
+    case "subprojects": return "a list of {name, path} with unique kebab-case names (not root or file) and paths inside the repository that do not overlap";
     case "boolmap": return "a mapping of on/off";
   }
 }
@@ -211,6 +214,26 @@ export function checkValue(kind: Kind, v: unknown): { ok: true; value: unknown }
       return isMap(v) && Object.values(v).every((x) => typeof x === "string") ? good(v) : bad("must be a mapping of text");
     case "list":
       return Array.isArray(v) ? good(v) : bad("must be a list");
+    case "subprojects": {
+      if (!Array.isArray(v)) return bad("must be a list");
+      const names = new Set<string>();
+      const dirs: string[] = [];
+      const out: { name: string; path: string }[] = [];
+      for (const [i, item] of v.entries()) {
+        if (!isMap(item)) return bad(`item ${i + 1} must be a mapping with name and path`);
+        const { name, path: where } = item;
+        if (typeof name !== "string" || !SUBPROJECT_NAME.test(name) || name === "root" || name === "file") return bad(`item ${i + 1}: name ${JSON.stringify(name)} must be kebab-case and not root or file`);
+        if (names.has(name)) return bad(`item ${i + 1}: name \`${name}\` is used twice`);
+        if (typeof where !== "string" || !isInside(where)) return bad(`item ${i + 1}: path ${JSON.stringify(where)} is not inside the repository`);
+        const dir = normPath(where);
+        if (dir === ".") return bad(`item ${i + 1}: path must not be the repository root`);
+        if (dirs.some((d) => d === dir || d.startsWith(`${dir}/`) || dir.startsWith(`${d}/`))) return bad(`item ${i + 1}: path \`${dir}\` overlaps another subproject`);
+        names.add(name);
+        dirs.push(dir);
+        out.push({ name, path: dir });
+      }
+      return good(out);
+    }
     case "boolmap": {
       if (!isMap(v)) return bad("must be a mapping");
       const out: Record<string, boolean> = {};
