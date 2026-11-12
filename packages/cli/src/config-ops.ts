@@ -6,7 +6,7 @@ import { applyEffects } from "./config-effects.js";
 import { readWorkingConfig } from "./config-source.js";
 import { CONFIG_PATH, checkValue, describeDefault, formatValue, listSettings, loadSettings, lookup, parseConfig, type Config, type Kind } from "./config.js";
 import { editConfig } from "./config-edit.js";
-import { guard, type Actor, type Preset } from "./perm/permissions.js";
+import { findPreset, guard, type Actor, type Preset } from "./perm/permissions.js";
 import { holdRequest, sentMessage } from "./requests/hold.js";
 
 /**
@@ -90,6 +90,9 @@ function change(ctx: ConfigCtx, key: string, value: unknown | undefined, command
     if (!c.ok) return fail([`setting \`${key}\` cannot be set: ${c.problem}`]);
     candidate = c.value;
     if (hit.kind.t === "bool" && typeof value === "string") candidate = value in { on: 1, off: 1 } ? value : candidate;
+  }
+  if (key === "permissions.preset" && typeof candidate === "string" && !findPreset(ctx.root, candidate, "work")) {
+    return fail([`setting \`${key}\` cannot be set: preset ${JSON.stringify(candidate)} does not exist; \`specplane preset list\` shows the presets`]);
   }
   const g = guard(ctx.preset, ctx.actor, ["config.change"], `changing \`${key}\``);
   if (g.kind === "request") {

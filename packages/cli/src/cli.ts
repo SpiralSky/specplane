@@ -8,6 +8,7 @@ import { registerPlanCommands } from "./commands/plan-cli.js";
 import { registerHarnessCommands } from "./commands/harness.js";
 import { initCommand } from "./commands/init.js";
 import { specListCommand, specShowCommand } from "./commands/spec-read.js";
+import { presetCreateCommand, presetDeleteCommand, presetEditCommand, presetListCommand, presetShowCommand } from "./commands/preset.js";
 import { configGetCommand, configListCommand, configSetCommand, configUnsetCommand, permissionsCommand } from "./commands/config.js";
 import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, migrateStatusHuman, specReopenHuman, syncHuman } from "./commands/spec-human.js";
 import { docsCommand, docsEssentialsCommand, docsSearchCommand } from "./commands/docs.js";
@@ -92,6 +93,19 @@ configCmd.command("list").description("Show every setting").option("--json").act
 configCmd.command("set <key> <value>").description("Set a setting (needs the config.change permission)").option("--json").action((k: string, v: string, opts) => runCommand({ command: "config set", args: [k, v], json: opts.json }, () => configSetCommand(k, v)));
 configCmd.command("unset <key>").description("Remove a setting so its default applies").option("--json").action((k: string, opts) => runCommand({ command: "config unset", args: [k], json: opts.json }, () => configUnsetCommand(k)));
 program.command("permissions [id]").description("Show which role holds which permission, or the documentation of one permission").option("--json").action((id: string | undefined, opts) => runCommand({ command: "permissions", args: id ? [id] : [], json: opts.json }, () => permissionsCommand(id)));
+const presetCmd = program.command("preset").description("Create, edit and delete permission presets (feature/roles-and-permissions R56)");
+const collect = (v: string, prev: string[]): string[] => [...prev, v];
+presetCmd.command("list").description("List the default and custom presets").option("--json").action((opts) => runCommand({ command: "preset list", json: opts.json }, () => presetListCommand()));
+presetCmd.command("show <id>").description("Show the mode every role has for every permission in a preset").option("--json").action((id: string, opts) => runCommand({ command: "preset show", args: [id], json: opts.json }, () => presetShowCommand(id)));
+presetCmd.command("create <id>").description("Create a custom preset (needs the config.change permission and a management level above the roles it applies to)")
+  .option("--default-mode <mode>", "mode of every permission the preset does not list: allow, request-user or deny").option("--from <preset>", "copy the modes of this preset").option("--title <text>", "a readable title")
+  .option("--set <role:permission=mode>", "set a mode; use <role>:* for the role default (repeatable)", collect, []).option("--json")
+  .action((id: string, opts) => runCommand({ command: "preset create", args: [id], json: opts.json }, () => presetCreateCommand(id, { defaultMode: opts.defaultMode, from: opts.from, title: opts.title, sets: opts.set })));
+presetCmd.command("edit <id>").description("Change a custom preset; the default presets cannot be edited")
+  .option("--default-mode <mode>", "mode of every permission the preset does not list").option("--title <text>", "a readable title")
+  .option("--set <role:permission=mode>", "set a mode; use <role>:* for the role default (repeatable)", collect, []).option("--unset <role:permission>", "remove a mode so the default applies (repeatable)", collect, []).option("--json")
+  .action((id: string, opts) => runCommand({ command: "preset edit", args: [id], json: opts.json }, () => presetEditCommand(id, { defaultMode: opts.defaultMode, title: opts.title, sets: opts.set, unsets: opts.unset })));
+presetCmd.command("delete <id>").description("Delete a custom preset that is not the active preset").option("--json").action((id: string, opts) => runCommand({ command: "preset delete", args: [id], json: opts.json }, () => presetDeleteCommand(id)));
 program
   .command("audit")
   .description("Read the audit log (needs info.retrieve)")

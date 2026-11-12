@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { loadSettings } from "../config.js";
 import { permissionDoc } from "../perm/catalog.js";
-import { CATALOG, PRESETS, mode, type Preset, type RoleId } from "../perm/permissions.js";
+import { CATALOG, allPresets, findPreset, mode, type Preset, type RoleId } from "../perm/permissions.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
 
 /** U9 generation only; U10 assembles delivery and U14 owns installed files. */
@@ -29,7 +29,7 @@ interface SteeringState { stamp: string; failed: boolean }
 export function steeringInputs(root: string, role: RoleId = "llm"): SteeringInputs {
   const { config } = loadSettings(root); // HEAD only: pending configuration never becomes active steering.
   return {
-    role, preset: PRESETS.find((p) => p.id === config.permissionsPreset) ?? PRESETS[0],
+    role, preset: findPreset(root, config.permissionsPreset) ?? allPresets(root)[0],
     custom: (config.values["steering.custom"] ?? []) as CustomSteering[],
     version: (JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string }).version,
   };
@@ -146,7 +146,7 @@ export function steeringWarnings(root: string, read: TemplateReader = readSteeri
   try {
     // Read all templates and all permissions, so a missing command/permission template is visible too.
     const input = steeringInputs(root);
-    for (const p of PRESETS) for (const id of CATALOG) generatePermissionSteering({ ...input, preset: p }, id, {}, read);
+    for (const p of allPresets(root)) for (const id of CATALOG) generatePermissionSteering({ ...input, preset: p }, id, {}, read);
     template(read, "cases");
     const state = readStoreJson<SteeringState>(root, STATE);
     if (state?.failed) return [UNTRUSTED_STEERING];

@@ -2,6 +2,7 @@ import { parseYaml } from "../yaml.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
 import { readCommittedConfig } from "../config-source.js";
 import { run } from "../git/exec.js";
+import { readCustomPresets, type PresetFinding } from "./presets.js";
 
 /**
  * Minimal permission engine: catalog IDs, the four default presets, mode resolution and the guard
@@ -30,8 +31,11 @@ export const CATALOG: readonly string[] = [
 export interface Preset {
   id: string;
   number: number;
+  /** Set on a preset a user created (`R56`); the four default presets have none. */
+  custom?: true;
+  title?: string;
   defaultMode: Mode;
-  standardUser: { defaultMode: Mode; modes: Record<string, Mode> };
+  standardUser: { defaultMode?: Mode; modes: Record<string, Mode> };
   llm: { defaultMode?: Mode; modes: Record<string, Mode> };
 }
 
@@ -68,14 +72,28 @@ export function mode(preset: Preset, role: RoleId, permission: string): Mode {
   return r.modes[permission] ?? r.defaultMode ?? preset.defaultMode ?? "deny";
 }
 
+/** The four default presets and the custom ones at HEAD (or in the working tree, for a command that edits them). */
+export function allPresets(root: string, source: "head" | "work" = "head"): Preset[] {
+  return [...PRESETS, ...readCustomPresets(root, source, CATALOG, PRESETS.map((p) => p.id)).presets];
+}
+
+/** Findings for malformed custom preset files at HEAD. */
+export function customPresetFindings(root: string): PresetFinding[] {
+  return readCustomPresets(root, "head", CATALOG, PRESETS.map((p) => p.id)).findings;
+}
+
+/** The preset with this ID, default or custom; `undefined` when none. */
+export function findPreset(root: string, id: unknown, source: "head" | "work" = "head"): Preset | undefined {
+  return PRESETS.find((p) => p.id === id) ?? allPresets(root, source).find((p) => p.id === id);
+}
+
 /** The preset named by `permissions.preset`; an unknown or missing ID gives the default preset. */
 export function activePreset(root: string): Preset {
   try {
     const text = readCommittedConfig(root);
     if (text === null) return DEFAULT_PRESET;
     const doc = parseYaml(text) as { permissions?: { preset?: unknown } } | null;
-    const id = doc?.permissions?.preset;
-    return PRESETS.find((p) => p.id === id) ?? DEFAULT_PRESET;
+    return findPreset(root, doc?.permissions?.preset) ?? DEFAULT_PRESET;
   } catch { return DEFAULT_PRESET; }
 }
 

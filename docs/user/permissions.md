@@ -1,6 +1,6 @@
 ---
 title: Roles, permissions and presets
-summary: Who may do what, the four default presets, and what each permission allows.
+summary: Who may do what, the four default presets, custom presets, and what each permission allows.
 related: [configuration, commands, harnesses]
 ---
 
@@ -21,7 +21,7 @@ Every action that changes something needs a permission. Each role has a mode for
 
 ## Presets
 
-Choose a preset with `config set permissions.preset <id>`. The four defaults are built in and cannot be edited.
+Choose a preset with `config set permissions.preset <id>`. The four defaults are built in and cannot be edited or deleted. You can create your own with `preset create`, change it with `preset edit` and remove it with `preset delete` (see `commands`).
 
 | Preset | LLM on requirement specs | LLM on feature specs | LLM on architecture specs | `plan.create`, `plan.edit` |
 |--------|------|------|------|------|
@@ -31,6 +31,22 @@ Choose a preset with `config set permissions.preset <id>`. The four defaults are
 | `full-llm-control` | allow | allow | allow | allow |
 
 The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve`, `config.change`, `plan.start`, `plan.resume`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
+
+### Custom presets
+
+A custom preset is a file `.specplane/roles/presets/<id>.yaml` that is read from the committed version, like configuration: a new or changed preset applies once you commit it. It names a `default_mode` (required: the mode of every permission it does not list) and, per role (`standard-user`, `llm`), an optional `default_mode` and a `modes` mapping from permission to `allow`, `request-user` or `deny`. A mode resolves from the role's entry, then the role's default, then the preset's default. A preset only applies modes to roles; the modes can still be changed afterwards.
+
+```yaml
+id: careful-llm
+title: Careful LLM
+default_mode: deny
+roles:
+  standard-user: {default_mode: allow, modes: {override.status: deny}}
+  llm:
+    modes: {spec.edit.architecture: request-user, info.retrieve: allow}
+```
+
+Creating, editing and deleting a preset needs `config.change` as `allow` and a management level above every other role the preset applies to. The Standard User (10) is above the LLM role (5), so a person can manage presets; an LLM cannot, and a request cannot stand in for it. Activating a preset is a configuration change and still goes through a request for the LLM role. A malformed preset file is reported by `validate` and ignored; naming a preset that does not exist in `permissions.preset` is a malformed setting and the default preset applies. The active preset cannot be deleted.
 
 ## The permissions
 

@@ -243,6 +243,36 @@ Remove a setting so its default applies
 
 Show which role holds which permission, or the documentation of one permission
 
+### `preset list`
+
+`specplane preset list [options]`
+
+List the four default presets and the custom ones, marking the active preset. Needs no permission.
+
+### `preset show`
+
+`specplane preset show [options] <id>`
+
+Show the mode every role has for every permission in one preset, including what the preset's default mode gives to unlisted permissions. Needs no permission.
+
+### `preset create`
+
+`specplane preset create [options] <id>`
+
+Create a custom preset in `.specplane/roles/presets/<id>.yaml`. A preset states the default mode of every permission it does not list, so pass `--default-mode allow|request-user|deny`, or copy a preset with `--from <preset>` (the default presets can be copied). `--set <role>:<permission>=<mode>` sets one mode (repeatable); `<role>:*=<mode>` sets that role's default mode; the roles are `standard-user` and `llm`. `--title` gives a readable title. Needs `config.change` as `allow`, and a management level above every other role the preset applies to: the Standard User (10) may manage presets because the LLM role is 5, the LLM role may not, and the Administrator always may. The file is written but not committed; it applies after you commit it, and `config set permissions.preset <id>` then activates it.
+
+### `preset edit`
+
+`specplane preset edit [options] <id>`
+
+Change a custom preset with `--default-mode`, `--title`, `--set <role>:<permission>=<mode>` and `--unset <role>:<permission>` (both repeatable). The four default presets cannot be edited; copy one with `preset create --from`. Same permission as `preset create`; the change applies after you commit it. Pending requests are not rewritten: they are checked against the permissions in force when they are accepted.
+
+### `preset delete`
+
+`specplane preset delete [options] <id>`
+
+Delete a custom preset. Refused for the default presets and for the preset named by `permissions.preset`. Same permission as `preset create`; the deletion applies after you commit it.
+
 ### `audit`
 
 `specplane audit [options]`

@@ -102,7 +102,7 @@ test("old-model terms are reported as unknown and not read", () => {
 });
 
 test("bad paths, presets and permissions are malformed", () => {
-  const { findings, config } = parseConfig("paths:\n  features: ../outside\n  requirements: docs/specifications/features/inner\npermissions:\n  preset: nope\nnotifications:\n  push_permissions: [spec.approve, made.up]\n  push: on\nplans:\n  parallelism: 1.5\n");
+  const { findings, config } = parseConfig("paths:\n  features: ../outside\n  requirements: docs/specifications/features/inner\npermissions:\n  preset: Not A Name\nnotifications:\n  push_permissions: [spec.approve, made.up]\n  push: on\nplans:\n  parallelism: 1.5\n");
   const keys = findings.filter((f) => f.severity === "error").map((f) => f.key).sort();
   assert.deepEqual(keys, ["notifications.push_permissions", "paths.features", "permissions.preset", "plans.parallelism"].sort().concat(keys.includes("paths.requirements") ? ["paths.requirements"] : []).sort());
   assert.equal(config.values["notifications.push"], true);

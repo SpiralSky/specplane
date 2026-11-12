@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import { parseYaml } from "./yaml.js";
 import { configDiffersFromHead, readCommittedConfig } from "./config-source.js";
-import { CATALOG, PRESETS } from "./perm/permissions.js";
+import { CATALOG, PRESETS, allPresets, customPresetFindings } from "./perm/permissions.js";
 
 /**
  * The project's configuration (`feature/configuration` R25, `architecture/file-formats` §6,
@@ -58,7 +58,7 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "notifications.push", kind: { t: "bool" }, def: false, doc: "Whether requests are sent as push notifications, in a harness that supports them" },
   { key: "notifications.push_permissions", kind: { t: "permissions" }, def: ["all"], doc: "Permissions whose requests are pushed when notifications.push is on" },
   { key: "steering.custom", kind: { t: "steering" }, def: [], doc: "Custom steering added to a permission or command: items {permission|command, scope, text}; command '*' applies overall; scope is all, a spec type, or a plan id" },
-  { key: "permissions.preset", kind: { t: "preset" }, def: DEFAULT_PRESET_ID, doc: "The active preset, one of the four default presets" },
+  { key: "permissions.preset", kind: { t: "preset" }, def: DEFAULT_PRESET_ID, doc: "The active preset: one of the four default presets or a custom preset" },
   { key: "harness.install_block", kind: { t: "bool" }, def: true, doc: "off stops setup writing the marked block into shared instruction files" },
   { key: "harness.separation_check", kind: { t: "bool" }, def: true, doc: "Whether the optional feature and architecture separation instructions are used" },
   { key: "harness.instructions", kind: { t: "strmap" }, def: {}, dynamic: true, doc: "Replacement text for the instructions delivered with a command: harness.instructions.<command>" },
@@ -131,6 +131,7 @@ const normPath = (v: string): string => path.posix.normalize(v.replace(/\\/g, "/
 
 const REQ_ID = /^R\d+(\.\d+)*$/;
 const PRESET_IDS = PRESETS.map((p) => p.id);
+const PRESET_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 function allowedFor(kind: Kind): string {
   switch (kind.t) {
@@ -142,7 +143,7 @@ function allowedFor(kind: Kind): string {
     case "posint": return "a whole number above 0";
     case "days": return "a whole number of days above 0, or forever";
     case "text": return "text";
-    case "preset": return [...new Set(PRESET_IDS)].join(", ");
+    case "preset": return `${[...new Set(PRESET_IDS)].join(", ")} or a custom preset`;
     case "permissions": return "a list of permission ids, or [all]";
     case "reqids": return "a list of requirement ids such as R12 or R12.1";
     case "steering": return "a list of {permission or command, scope, text}";
@@ -183,7 +184,7 @@ export function checkValue(kind: Kind, v: unknown): { ok: true; value: unknown }
     case "text":
       return typeof v === "string" && (kind.allowEmpty || v.trim() !== "") ? good(v) : bad(kind.allowEmpty ? "must be text" : "must be non-empty text");
     case "preset":
-      return typeof v === "string" && PRESET_IDS.includes(v) ? good(v) : bad(`preset ${JSON.stringify(v)} does not exist`);
+      return typeof v === "string" && PRESET_NAME.test(v) ? good(v) : bad(`preset ${JSON.stringify(v)} is not a preset name`);
     case "permissions": {
       if (!Array.isArray(v)) return bad("must be a list");
       const missing = v.filter((p) => p !== "all" && !CATALOG.includes(String(p)));
@@ -343,6 +344,14 @@ export function loadSettings(root: string): LoadResult {
     result.findings.push({ severity: "warning", key: CONFIG_PATH, message: `${CONFIG_PATH} differs from HEAD; the uncommitted change is ignored until it is committed` });
   }
   result.config.abs = resolvePaths(root, result.config, result.findings);
+  for (const f of customPresetFindings(root)) result.findings.push({ severity: "error", key: f.file, message: f.message });
+  // A preset ID that names no default or custom preset is malformed, and the default preset applies (`file-formats` §7.3).
+  const id = result.config.permissionsPreset;
+  if (!allPresets(root).some((p) => p.id === id)) {
+    if (result.config.set.has("permissions.preset")) result.findings.push({ severity: "error", key: "permissions.preset", message: `setting \`permissions.preset\` is malformed: preset ${JSON.stringify(id)} does not exist; allowed: ${allowedFor({ t: "preset" })}; using the default` });
+    result.config.permissionsPreset = DEFAULT_PRESET_ID;
+    result.config.values["permissions.preset"] = DEFAULT_PRESET_ID;
+  }
   return result;
 }
 

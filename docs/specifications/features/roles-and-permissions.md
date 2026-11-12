@@ -136,8 +136,17 @@ Test T1 (deterministic): for each default preset, check the mode of each permiss
 
 A preset applies permissions to a group of roles, including the user and LLM roles. Presets only apply permissions; the permissions can still be changed afterwards, role by role.
 
-- **First release.** The four default presets exist and cannot be edited or deleted. The user chooses which one is active as a configuration change (`R25.1`).
-- **Later release.** Presets can be created, edited and deleted. Applying a preset to a set of roles needs management permission and a management level above every role it applies to (`R43`, `R49`).
+- **Default presets.** The four default presets always exist and cannot be edited or deleted. The user chooses which one is active as a configuration change (`R25.1`).
+- **Custom presets.** Presets can be created, edited and deleted (`R56`). A custom preset applies modes to the roles that exist (the Standard User and the LLM role, `R42.1`), is stored in git so it follows branches like specifications (`R40`), and applies once committed, like configuration. The active preset cannot be deleted.
+- **Who may manage presets.** Creating, editing or deleting a preset needs the configuration permission as allow (`R50`) and a management level above every other role the preset applies to (`R42.2`, `R43`). Assumption: the page asks for management permission and level but custom roles and management permissions are a later release (`R43`, `R49`), so the configuration permission stands in for the management permission, and the actor's own role does not count against it. The Standard User (10) therefore may manage presets, the LLM role (5) may not, since the Standard User is above it, and the Administrator always may. Request user does not stand in for this: a role that has the permission only as request user is refused, because a request would let the LLM change what applies to the Standard User.
+- **Activating.** Choosing a custom preset as active is a configuration change like any other (`configuration R25`), so the LLM role may send a request for it and the user decides.
+- **A preset's content.** Every preset states a default mode (`R56.1`) and may state a mode per permission, for each of the two roles, and a default mode per role. Unstated permissions take the role's default, then the preset's (`R42`). A malformed preset is reported by validation and ignored. A preset cannot share an ID with a default preset.
+
+Scenario: Given a Standard User, When they create a preset with default mode deny and make `spec.edit.feature` request user for the LLM role, Then the preset is stored uncommitted, and once it is committed and activated the LLM role needs the user's agreement to edit a feature specification.
+
+Scenario: Given the LLM role, When it tries to create, edit or delete a preset, Then the action is refused, even where the LLM role has the configuration permission as request user.
+
+Test T1 (deterministic): create, edit and delete a custom preset as Standard User and Administrator; expect each to succeed, the LLM role to be refused, the default presets to refuse edit and delete, the active preset to refuse delete, a preset without a default mode to be refused and a preset file with an unknown permission or mode to be reported and ignored.
 
 ### R56.1: Preset Default Permissions
 
@@ -193,7 +202,7 @@ Scenario: Given a role at level 10 with system permissions, When it maps an OS u
 
 Custom roles, their permissions and LLM role rules (`R44.1`) are stored in git, so they follow branches like specifications (`R40`). A change to them is pending until a role with enough management permission and level approves it (`R43`, `R49`). An LLM role rule that gives a role above the default LLM role also has to be trusted locally before it applies. Mappings of operating system users to roles are stored locally, outside of git, per machine, and are not part of this approval.
 
-Until this exists, the default roles and presets are the only roles, and the active preset is an ordinary configuration setting (`configuration R25`).
+Until this exists, the Standard User and the LLM role are the only roles. Presets, including custom presets, are not part of it (`R56`), and the active preset is an ordinary configuration setting (`configuration R25`).
 
 ## R55: Role Enforcement
 

@@ -56,7 +56,7 @@ Roles and permissions (`roles-and-permissions R57`, `roles-and-permissions R56`)
 
 | Setting | Meaning | Default |
 |---------|---------|---------|
-| `permissions.preset` | The active preset, one of the four default presets. In a later release also a preset the user has created | The first default preset |
+| `permissions.preset` | The active preset: one of the four default presets or a custom preset (`roles-and-permissions R56`) | The first default preset |
 
 Harness (`harness R14`, `specifications R9`):
 
@@ -142,5 +142,5 @@ Test T1 (deterministic): list the permissions in the CLI and the harness for the
 - A setting with the value of the default that is explicitly written is kept as written, and removing it is not a change in behaviour.
 - A configuration change cannot be made by editing around a denied permission: the harness stops such edits where it can, and otherwise validation and the audit log show the change afterwards (`R47`).
 - Changing `permissions.preset` does not change pending requests; they are checked when accepted (`requests R52`).
-- The active preset (`permissions.preset`) is part of the first release (Phase 1 of `docs/release-plan.md`), while configuration as a whole is Phase 2; until configuration exists, the default preset is active.
+- Custom presets are managed with the `preset` commands (`roles-and-permissions R56`); a `permissions.preset` that names no default or custom preset is a malformed setting and the default preset applies. The active preset (`permissions.preset`) is part of the first release (Phase 1 of `docs/release-plan.md`), while configuration as a whole is Phase 2; until configuration exists, the default preset is active.
 - Settings for a later release can be written already; until the release exists they have no effect and validation does not report them as unknown.

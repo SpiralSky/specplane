@@ -44,7 +44,7 @@ Settings marked later release are read and validated but do nothing yet.
 | `notifications.push` | `off` | Whether requests are sent as push notifications, in a harness that supports them |
 | `notifications.push_permissions` | `["all"]` | Permissions whose requests are pushed when notifications.push is on |
 | `steering.custom` | `[]` | Custom steering added to a permission or command: items {permission|command, scope, text}; command '*' applies overall; scope is all, a spec type, or a plan id |
-| `permissions.preset` | `architecture-level-llm-control` | The active preset, one of the four default presets |
+| `permissions.preset` | `architecture-level-llm-control` | The active preset: one of the four default presets or a custom preset |
 | `harness.install_block` | `on` | off stops setup writing the marked block into shared instruction files |
 | `harness.separation_check` | `on` | Whether the optional feature and architecture separation instructions are used |
 | `harness.instructions` | `{}` | Replacement text for the instructions delivered with a command: harness.instructions.<command> |

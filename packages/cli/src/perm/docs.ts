@@ -1,12 +1,11 @@
 import { loadSettings } from "../config.js";
 import { PERMISSION_DOCS, permissionDoc, type PermDoc } from "./catalog.js";
-import { CATALOG, PRESETS, mode, type Mode, type RoleId } from "./permissions.js";
+import { CATALOG, allPresets, findPreset, mode, type Mode, type RoleId } from "./permissions.js";
 import { inspectSteering } from "../harness/steering.js";
 
 /** Permission documentation (`feature/configuration` R54, `architecture/reference-cli` §7.4). Reading needs no permission. */
 
 const ROLES: RoleId[] = ["standard-user", "llm", "administrator"];
-const UNIQUE_PRESETS = PRESETS.filter((p, i) => PRESETS.findIndex((q) => q.id === p.id) === i);
 
 export interface PermissionRow { id: string; modes: Record<RoleId, Mode>; reader: Mode }
 
@@ -14,7 +13,7 @@ export interface PermissionsListing { preset: string; reader: RoleId; rows: Perm
 
 export function listPermissions(root: string, reader: RoleId): PermissionsListing {
   const { config } = loadSettings(root);
-  const preset = PRESETS.find((p) => p.id === config.permissionsPreset) ?? PRESETS[0];
+  const preset = findPreset(root, config.permissionsPreset) ?? allPresets(root)[0];
   const rows = CATALOG.map((id) => ({
     id,
     modes: Object.fromEntries(ROLES.map((r) => [r, mode(preset, r, id)])) as Record<RoleId, Mode>,
@@ -43,8 +42,8 @@ export function describePermission(root: string, id: string, reader: RoleId): Pe
   const doc = permissionDoc(id);
   if (!doc || !CATALOG.includes(id)) return null;
   const { config } = loadSettings(root);
-  const active = PRESETS.find((p) => p.id === config.permissionsPreset) ?? PRESETS[0];
-  const presets = UNIQUE_PRESETS.map((p) => ({ preset: p.id, modes: Object.fromEntries(ROLES.map((r) => [r, mode(p, r, id)])) as Record<RoleId, Mode> }));
+  const active = findPreset(root, config.permissionsPreset) ?? allPresets(root)[0];
+  const presets = allPresets(root).map((p) => ({ preset: p.id, modes: Object.fromEntries(ROLES.map((r) => [r, mode(p, r, id)])) as Record<RoleId, Mode> }));
   const custom = ((config.values["steering.custom"] as Array<{ permission?: string; scope?: string; text: string }>) ?? [])
     .filter((c) => c.permission === id).map((c) => ({ scope: c.scope ?? "all", text: c.text }));
   const readerMode = mode(active, reader, id);
@@ -53,7 +52,7 @@ export function describePermission(root: string, id: string, reader: RoleId): Pe
     `Allows: ${doc.allows}`,
     `Does not allow: ${doc.doesNotAllow}`,
     `Used by: ${doc.commands.join(", ")}`,
-    `Mode per default preset (standard-user / llm):`,
+    `Mode per preset (standard-user / llm):`,
     ...presets.map((p) => `  ${p.preset}${p.preset === active.id ? " (active)" : ""}: ${p.modes["standard-user"]} / ${p.modes.llm}`),
     `You are ${reader}: ${readerMode} under the active preset.`,
     `Steering for the LLM role:`,

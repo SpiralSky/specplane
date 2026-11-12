@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4]
-references: [architecture/reference-cli §8, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6]
+references: [architecture/reference-cli §8, architecture/reference-cli §12.4, roles-and-permissions R56.1, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6]
 ---
 
 # File formats
@@ -489,7 +489,7 @@ The four default presets are built into Specplane (shipped as data it reads; ass
 | `feature-level-llm-control` | 3 |
 | `full-llm-control` | 4 |
 
-A preset file (embedded, same shape reusable by later custom presets) is:
+A preset file (embedded; custom presets use the same shape, `§7.4`) is:
 
 ```yaml
 id: architecture-level-llm-control
@@ -545,13 +545,19 @@ roles:
 
 ### §7.3 Active preset
 
-`permissions.preset` in `.specplane/config.yaml` (`§6`) names the active preset, read from the committed file at HEAD (`§6.2`): an uncommitted change of the preset is ignored with a validate and status warning. The first release stores nothing else about roles in git. An unknown preset ID is a malformed-setting finding and the default preset is used.
+`permissions.preset` in `.specplane/config.yaml` (`§6`) names the active preset, read from the committed file at HEAD (`§6.2`): an uncommitted change of the preset is ignored with a validate and status warning. A preset ID is a default preset or a custom one (`§7.4`). An unknown preset ID is a malformed-setting finding and the default preset is used.
 
-### §7.4 Later release: custom roles, rules and mappings
+### §7.4 Custom presets; later release: custom roles, rules and mappings
 
-Not read in the first release. Assumption for the shape:
+**Custom presets** (`roles-and-permissions R56`, `roles-and-permissions R56.1`) are stored in git, one file per preset, at `.specplane/roles/presets/<id>.yaml`, in the shape of `§7.2` (`id`, `title`, required `default_mode`, `roles` with `standard-user` and `llm`, each with optional `default_mode` and `modes`). Assumption: the folder is `presets/` under `roles/`, so it does not collide with the role files below. Rules:
 
-- Custom roles, their modes, custom presets and LLM role rules (`roles.llm_rules`) are stored in git under `.specplane/roles/*.yaml` (`roles-and-permissions R48`); a role file holds `id`, `title`, `management_level`, `modes`. A change is pending until approved by a role with enough management permission and level (pending changes are request records, `§9`).
+- The file name without `.yaml` equals `id`, which is kebab-case and is not the ID of a default preset. A role key other than `standard-user` and `llm` (the Administrator is never in a preset), a permission that is not in the catalog (`§7.1`), a mode that is not `allow`, `request-user` or `deny`, or a missing `default_mode` makes the file malformed: validation reports an error naming the file, and the file is ignored.
+- Like configuration (`§6.2`), custom presets are read from HEAD of the checked-out branch, never from the working tree; `preset` commands edit the working tree and print that the change is not committed. The commands that create, edit or delete a preset read the working tree, so a preset created and not yet committed can be edited and activated by `config set`.
+- A custom preset is resolved like a default one: role entry, else role `default_mode`, else preset `default_mode`, else `deny`. It takes part in the steering stamp through its content (`architecture/reference-cli §12.4`).
+
+Not read in the first release; the rest of this section is an assumption for the shape:
+
+- Custom roles, their modes and LLM role rules (`roles.llm_rules`) are stored in git under `.specplane/roles/*.yaml` (`roles-and-permissions R48`); a role file holds `id`, `title`, `management_level`, `modes`. A change is pending until approved by a role with enough management permission and level (pending changes are request records, `§9`).
 - An LLM role rule above the default LLM role applies only after the user trusts it locally; trust is recorded in the local store (`§9.1`, `trusted-rules.json`: rule fingerprint, date).
 - OS user mappings (`roles.os_user_mapping`) are kept locally outside git: `os-users.yaml` in the local store (`§9.1`), mapping an OS user name to a role ID.
 - Which role runs a command is resolved at run time from the environment and these files; it is never written into a spec or plan.
