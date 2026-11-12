@@ -14,6 +14,7 @@ export type RoleId = "standard-user" | "administrator" | "llm";
 
 export const PROTECTED = ["override.status", "override.approver", "override.approval-commit", "override.test"] as const;
 export const GRANULAR_PIECES = ["title", "authors", "references", "covers", "approval"] as const;
+export const PLAN_PIECES = ["title", "authors", "references", "implements"] as const;
 export type Piece = (typeof GRANULAR_PIECES)[number];
 
 /** Permission IDs of `architecture/file-formats` §7.1 (plan permissions listed for completeness). */
@@ -24,7 +25,7 @@ export const CATALOG: readonly string[] = [
   "spec.approve", "meta.read", "meta.write",
   ...GRANULAR_PIECES.map((p) => `meta.write.${p}`),
   ...PROTECTED, "test.record", "info.retrieve",
-  "plan.meta.read", "plan.meta.write", "plan.edit", "plan.create", "plan.delete", "plan.start", "plan.abandon", "plan.complete",
+  "plan.meta.read", "plan.meta.write", ...PLAN_PIECES.map((p) => `plan.meta.write.${p}`), "plan.edit", "plan.create", "plan.delete", "plan.start", "plan.abandon", "plan.complete",
   "plan.budget", "plan.resume", "plan.softstop", "decision.add", "decision.retrieve", "decision.edit", "decision.delete", "config.change",
 ];
 
@@ -47,7 +48,7 @@ function llmModes(req: Mode, feat: Mode, arch: Mode, planEdit: Mode): Record<str
   return {
     ...m,
     "spec.approve": "request-user", "config.change": "request-user", "info.retrieve": "allow", "test.record": "allow",
-    "meta.read": "allow", "meta.write": "deny",
+    "meta.read": "allow", "meta.write": "deny", "plan.meta.read": "allow", "plan.meta.write": "deny",
     "plan.create": planEdit, "plan.edit": planEdit, "plan.start": "request-user", "plan.resume": "request-user",
     "plan.abandon": "request-user", "plan.complete": "request-user", "plan.delete": "request-user", "plan.budget": "request-user",
     "plan.softstop": "allow", "decision.retrieve": "allow", "decision.add": "request-user", "decision.edit": "request-user",

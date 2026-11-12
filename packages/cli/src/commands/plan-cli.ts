@@ -8,6 +8,7 @@ import { approvePlan, createPlan } from "../plan/create.js";
 import { guarded, liveRoot, requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { abandonPlan, deletePlan, finishPlan, formatReview, mergePlan, reviewPlan } from "../plan/finish.js";
 import { resumePlan, retargetPlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
+import { planMetaGet, planMetaSet } from "../plan/meta.js";
 import { checkSelection, describePlan, listInfos, type PlanInfo } from "../plan/status.js";
 
 /** Human CLI commands for plans (`architecture/reference-cli` §11, §13.1). */
@@ -130,6 +131,23 @@ export function registerPlanCommands(program: Command): void {
 
   plan.command("abandon <id>").description("Abandon a plan: archive it, remove its worktree, keep its branch").option("--force", "remove the worktree even with uncommitted changes")
     .action((id: string, o) => run("abandon", [id], o, (ctx) => { const r = abandonPlan(ctx, id, { force: !!o.force }); out(`Abandoned ${id}.${r.kept ? ` Branch ${r.kept} was kept.` : ""}`); }));
+
+  const meta = plan.command("meta").description("Read and change plan metadata (get, set)");
+  meta.command("get <id>").description("Show a plan's metadata, approval and execution status").option("--json")
+    .action((id: string, o) => run("meta get", [id], o, (ctx) => {
+      const m = planMetaGet(ctx, id);
+      if (o.json) { json(m); return; }
+      out(`id: ${m.id}\ntitle: ${m.title}\napproval: ${m.approval}\nstatus: ${m.status}${m.archived ? " (archived)" : ""}${m.stop?.reason ? ` [${m.stop.reason}]` : ""}`);
+      out(`authors: ${JSON.stringify(m.authors)}\nimplements: ${JSON.stringify(m.implements)}\nreferences: ${JSON.stringify(m.references)}`);
+      out(`current step: ${m.current_step ?? "none"}; done: ${JSON.stringify(m.done)}\nbranch: ${m.branch ?? "none"}; target: ${m.target_branch ?? "none"}; session: ${m.session ?? "none"}`);
+      if (m.budget.length) out(`budget: ${JSON.stringify(m.budget)}`);
+    }));
+
+  meta.command("set <id> <field> <value>").description("Set title, authors, references or implements of a plan (lists are comma separated; empty clears)")
+    .action((id: string, field: string, value: string) => run("meta set", [id, field], undefined, (ctx) => {
+      const r = planMetaSet(ctx, id, field, value);
+      out(`Set ${field} of ${id} (${r.commit.slice(0, 12)}). A change to the title, references or specifications changes the plan's approval, so approve it again.`);
+    }));
 
   plan.command("delete <id>").description("Delete a plan").option("--force", "remove the worktree even with uncommitted changes")
     .action((id: string, o) => run("delete", [id], o, (ctx) => { deletePlan(ctx, id, { force: !!o.force }); out(`Deleted ${id}.`); }));

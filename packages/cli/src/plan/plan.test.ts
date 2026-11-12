@@ -12,6 +12,7 @@ import { listRequests } from "../requests/store.js";
 import { checkBudget, evaluateBudget } from "./budget.js";
 import { validateProject } from "../verify/validate.js";
 import { editPlan } from "./edit.js";
+import { planMetaGet, planMetaSet } from "./meta.js";
 import { approvePlan, createPlan } from "./create.js";
 import { abandonPlan, deletePlan, finishPlan, mergePlan, reviewPlan } from "./finish.js";
 import { PlanOpError, loadPlanAt, logBudgetHardStop, writeRun, readStore, worktreeOf, writeStore, type PlanCtx } from "./ctx.js";
@@ -695,4 +696,102 @@ test("hard-stop status recovery preserves dirty progress and unrelated staging",
   assert.ok(readStore<any>(fx.root, `runs/${ID}.json`).hardStop);
   writeRun(c, ID, "session", null, true);
   assert.equal(readStore<any>(fx.root, `runs/${ID}.json`).hardStop, undefined);
+});
+
+test("plan meta get shows author-written fields, approval and execution status; the permission is checked", () => {
+  const fx = repo(); approvedPlan(fx, { implements: ["feature/export"] });
+  const m = planMetaGet(fx.ctx, ID);
+  assert.equal(m.title, "Export things");
+  assert.equal(m.approval, "approved");
+  assert.equal(m.status, "not-started");
+  assert.deepEqual(m.authors, [{ human: "Pat Person" }]);
+  assert.equal((m.implements[0] as any).spec, "feature/export");
+  assert.equal(audit(fx.root).at(-1)!.command, "plan meta get");
+  const noRead = { ...fx.ctx, preset: { ...DEFAULT_PRESET, standardUser: { defaultMode: "allow" as const, modes: { "plan.meta.read": "deny" as const } } } };
+  refused(() => planMetaGet(noRead, ID), /Refused|plan.meta.read/);
+  assert.throws(() => planMetaGet(fx.ctx, "2026-11-10-no-such"), /not found/);
+});
+
+test("plan meta set changes the title in a metadata-only commit, audits old and new, and reopens approval", () => {
+  const fx = repo(); approvedPlan(fx);
+  const r = planMetaSet(fx.ctx, ID, "title", "Export all the things");
+  assert.equal(r.old, "Export things");
+  assert.equal(loadPlanAt(fx.root, ID)!.fm!.data!.title, "Export all the things");
+  assert.equal(sh(fx.root, "log", "-1", "--format=%s"), "docs(export-things): set title");
+  assert.match(sh(fx.root, "log", "-1", "--format=%B"), /Specplane-Workflow: plan-meta/);
+  assert.equal(sh(fx.root, "show", "--format=", "--name-only", "HEAD"), `plans/${ID}/PLAN.md`);
+  const last = audit(fx.root).at(-1)!;
+  assert.equal(last.command, "plan meta set");
+  assert.equal(last.permission, "plan.meta.write.title");
+  assert.deepEqual(last.old, { title: "Export things" });
+  assert.deepEqual(last.new, { title: "Export all the things" });
+  assert.equal(planMetaGet(fx.ctx, ID).approval, "awaiting-review");
+});
+
+test("plan meta set handles authors, references and implements, validating values", () => {
+  const fx = repo({ specs: { other: spec("other") } }); approvedPlan(fx);
+  planMetaSet(fx.ctx, ID, "authors", "human:Sam|reviewer,llm:claude-sonnet-5-5");
+  assert.deepEqual(planMetaGet(fx.ctx, ID).authors, [{ human: "Sam", contribution: "reviewer" }, { llm: "claude-sonnet-5-5" }]);
+  planMetaSet(fx.ctx, ID, "implements", "feature/export,writes:feature/other");
+  const impl = planMetaGet(fx.ctx, ID).implements as any[];
+  assert.deepEqual(impl.map((e) => [e.spec, e.mode]), [["feature/export", "implements"], ["feature/other", "writes"]]);
+  const commit = impl[0].commit;
+  assert.match(commit, /^[0-9a-f]{40}$/);
+  planMetaSet(fx.ctx, ID, "implements", "feature/export");
+  assert.equal((planMetaGet(fx.ctx, ID).implements[0] as any).commit, commit);
+  planMetaSet(fx.ctx, ID, "references", "export R9");
+  assert.deepEqual(planMetaGet(fx.ctx, ID).references, ["export R9"]);
+  planMetaSet(fx.ctx, ID, "references", "");
+  assert.deepEqual(planMetaGet(fx.ctx, ID).references, []);
+  refused(() => planMetaSet(fx.ctx, ID, "implements", "feature/missing"), /does not exist/);
+  refused(() => planMetaSet(fx.ctx, ID, "references", "not a cite"), /not a valid cite/);
+  refused(() => planMetaSet(fx.ctx, ID, "authors", "bob"), /human:<name>/);
+  refused(() => planMetaSet(fx.ctx, ID, "title", ""), /non-empty/);
+  assert.equal(audit(fx.root).at(-1)!.outcome, "failed");
+});
+
+test("plan meta set refuses execution fields, archived plans and uncommitted PLAN.md; started plans change in their worktree", () => {
+  const fx = repo(); approvedPlan(fx);
+  refused(() => planMetaSet(fx.ctx, ID, "status", "completed"), /cannot be set here/);
+  refused(() => planMetaSet(fx.ctx, ID, "approval", "x"), /cannot be set here/);
+  fs.appendFileSync(path.join(fx.root, `plans/${ID}/PLAN.md`), "dirty");
+  refused(() => planMetaSet(fx.ctx, ID, "title", "New"), /uncommitted/);
+  sh(fx.root, "checkout", "--", `plans/${ID}/PLAN.md`);
+  const { path: wt } = startPlan(fx.ctx, ID);
+  planMetaSet(fx.ctx, ID, "title", "In worktree");
+  assert.equal(loadPlanAt(wt, ID)!.fm!.data!.title, "In worktree");
+  assert.equal(loadPlanAt(fx.root, ID)!.fm!.data!.title, "Export things");
+  assert.equal(planMetaGet(fx.ctx, ID).status, "in-progress");
+  abandonPlan(fx.ctx, ID, {});
+  refused(() => planMetaSet(fx.ctx, ID, "title", "Late"), /archived or finished/);
+});
+
+test("plan meta set permissions: granular beats general deny, request-user is held and accepted, deny is refused", async () => {
+  const fx = repo(); approvedPlan(fx);
+  const llm = mk(fx.root, "llm");
+  llm.preset = { ...DEFAULT_PRESET, llm: { defaultMode: "deny", modes: {} } };
+  refused(() => planMetaSet(llm, ID, "title", "X"), /Refused|plan.meta.write/);
+  llm.preset = { ...DEFAULT_PRESET, llm: { defaultMode: "deny", modes: { "plan.meta.write.title": "allow" } } };
+  planMetaSet(llm, ID, "title", "By granular");
+  refused(() => planMetaSet(llm, ID, "references", ""), /Refused|plan.meta.write/);
+  llm.preset = { ...DEFAULT_PRESET, llm: { defaultMode: "deny", modes: { "plan.meta.write": "request-user" } } };
+  held(() => planMetaSet(llm, ID, "title", "Requested"), /plan.meta.write/);
+  const pending = listRequests(fx.root).find((r) => r.action.command === "plan meta set")!;
+  assert.equal(loadPlanAt(fx.root, ID)!.fm!.data!.title, "By granular");
+  assert.equal((await acceptRequest(fx.ctx, pending.id)).ok, true);
+  assert.equal(loadPlanAt(fx.root, ID)!.fm!.data!.title, "Requested");
+  assert.equal(sendRequest(llm, { command: "plan meta set", params: { id: ID, field: "status", value: "x" }, reason: "bad" }).ok, false);
+});
+
+test("the plan meta commands run through the CLI", () => {
+  const fx = repo(); approvedPlan(fx);
+  const cliPath = path.join(import.meta.dirname, "..", "cli.js");
+  const run = (...args: string[]) => spawnSync("node", [cliPath, ...args], { cwd: fx.root, encoding: "utf8", env: ENV });
+  const set = run("plan", "meta", "set", ID, "title", "From the CLI");
+  assert.equal(set.status, 0, set.stderr);
+  const get = run("plan", "meta", "get", ID, "--json");
+  assert.equal(get.status, 0, get.stderr);
+  assert.equal(JSON.parse(get.stdout).data.title, "From the CLI");
+  assert.match(run("plan", "meta", "get", ID).stdout, /title: From the CLI/);
+  assert.notEqual(run("plan", "meta", "set", ID, "status", "completed").status, 0);
 });

@@ -236,7 +236,7 @@ Commands: `validate`, `warnings`, `coverage`, `spec list`, `spec show`, `test ru
 
 ### `plan.meta.read`
 
-Allows: Read plan metadata (later release).
+Allows: Read plan metadata: title, authors, references, specifications, approval and execution status.
 
 Does not allow: Writing plan metadata.
 
@@ -244,9 +244,41 @@ Commands: `plan meta get`
 
 ### `plan.meta.write`
 
-Allows: Write plan metadata (later release).
+Allows: Write any plan metadata piece that has a granular permission.
 
-Does not allow: The plan body.
+Does not allow: The plan body and steps, and execution status and progress, which change through the plan commands.
+
+Commands: `plan meta set`
+
+### `plan.meta.write.title`
+
+Allows: Write only the title of a plan.
+
+Does not allow: Any other plan metadata piece. The more permissive of this and `plan.meta.write` applies.
+
+Commands: `plan meta set`
+
+### `plan.meta.write.authors`
+
+Allows: Write only the authors of a plan.
+
+Does not allow: Any other plan metadata piece. The more permissive of this and `plan.meta.write` applies.
+
+Commands: `plan meta set`
+
+### `plan.meta.write.references`
+
+Allows: Write only the references of a plan.
+
+Does not allow: Any other plan metadata piece. The more permissive of this and `plan.meta.write` applies.
+
+Commands: `plan meta set`
+
+### `plan.meta.write.implements`
+
+Allows: Write only the specifications the plan implements or writes of a plan.
+
+Does not allow: Any other plan metadata piece. The more permissive of this and `plan.meta.write` applies.
 
 Commands: `plan meta set`
 

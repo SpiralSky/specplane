@@ -1,3 +1,4 @@
+import { PLAN_PIECES } from "../perm/permissions.js";
 import { validateEditParams } from "../plan/edit.js";
 import { specLayer as writeLayer, validateSpecChange } from "../spec/write.js";
 import { validateActionInput } from "../harness/actions.js";
@@ -107,6 +108,13 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
     case "plan edit":
       try { validateEditParams(p.id, p.changes); } catch (e) { return invalid((e as Error).message); }
       return ["plan.edit"];
+    case "plan meta set": {
+      requireText("id");
+      const field = requireText("field");
+      if (!(PLAN_PIECES as readonly string[]).includes(field)) invalid(`Plan metadata field \`${field}\` cannot be set.`);
+      if (typeof p.value !== "string") invalid("`plan meta set` needs a string `value`.");
+      return [[`plan.meta.write.${field}`, "plan.meta.write"]];
+    }
     case "plan approve": requireText("id"); return ["spec.approve"];
     case "plan start":
       requireText("id"); optional("target", text); bool("forceDeps"); return ["plan.start"];

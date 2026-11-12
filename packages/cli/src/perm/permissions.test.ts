@@ -10,7 +10,7 @@ const admin: Actor = { role: "administrator", kind: "human", name: "Pat" };
 
 test("every preset states a mode for each permission the LLM role has under R57, and denies the rest", () => {
   const stated = [
-    "spec.approve", "config.change", "info.retrieve", "test.record", "meta.read", "meta.write", "plan.create", "plan.edit", "plan.start", "plan.resume",
+    "spec.approve", "config.change", "info.retrieve", "test.record", "meta.read", "meta.write", "plan.meta.read", "plan.meta.write", "plan.create", "plan.edit", "plan.start", "plan.resume",
     "plan.abandon", "plan.complete", "plan.delete", "plan.budget", "plan.softstop", "decision.retrieve", "decision.add", "decision.edit", "decision.delete",
     ...["requirement", "feature", "architecture"].flatMap((t) => ["create", "edit", "delete"].map((a) => `spec.${a}.${t}`)),
   ];

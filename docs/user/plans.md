@@ -31,6 +31,7 @@ Plan approval is separate from execution. The plan's fingerprint covers `PLAN.md
 4. `plan stop <id>` stops after the current work; `plan resume <id>` continues. A session that ended without recording a stop is reported as stopped.
 5. `plan budget <id>` sets soft and hard limits on a usage resource (`5h` or `weekly`) as a percent. At the soft limit the session is told to finish; at the hard limit it is stopped.
 6. `plan review <id>` opens the final review. `plan finish <id> --complete` completes and archives; `--back <reason>` returns it to progress. `plan merge <id>` merges the branch by pull request or local merge. `plan abandon <id>` archives it and keeps the branch; `plan delete <id>` removes it.
+7. `plan meta get <id>` shows a plan's metadata and statuses; `plan meta set <id> <field> <value>` changes its title, authors, references or specifications as an audited override (see `commands`).
 
 A step that finds the spec silent records a gap or assumption in `spec-gaps.md` and goes on. Gaps never block a merge.
 

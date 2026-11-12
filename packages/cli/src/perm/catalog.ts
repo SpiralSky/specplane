@@ -1,4 +1,4 @@
-import { CATALOG } from "./permissions.js";
+import { CATALOG, PLAN_PIECES } from "./permissions.js";
 
 /**
  * Documentation of every permission (`feature/configuration` R54, `architecture/reference-cli` §7.2, §7.4).
@@ -38,8 +38,11 @@ function docs(): PermDoc[] {
   add("override.test", "Set or clear a test result by hand.", "It is never covered by `meta.write`.", ["spec override test"]);
   add("test.record", "Record a test result.", "Marking a result by hand (that is `override.test`).", ["test run"]);
   add("info.retrieve", "Read information: viewing, review, validation, listing, coverage, test runs and the audit log.", "Changing anything.", ["validate", "warnings", "coverage", "spec list", "spec show", "test run", "audit"]);
-  add("plan.meta.read", "Read plan metadata (later release).", "Writing plan metadata.", ["plan meta get"]);
-  add("plan.meta.write", "Write plan metadata (later release).", "The plan body.", ["plan meta set"]);
+  add("plan.meta.read", "Read plan metadata: title, authors, references, specifications, approval and execution status.", "Writing plan metadata.", ["plan meta get"]);
+  add("plan.meta.write", "Write any plan metadata piece that has a granular permission.", "The plan body and steps, and execution status and progress, which change through the plan commands.", ["plan meta set"]);
+  for (const p of PLAN_PIECES) {
+    add(`plan.meta.write.${p}`, `Write only the ${p === "implements" ? "specifications the plan implements or writes" : p} of a plan.`, "Any other plan metadata piece. The more permissive of this and `plan.meta.write` applies.", ["plan meta set"]);
+  }
   add("plan.edit", "Edit a plan.", "Creating, starting or deleting it.", ["harness plan edit"]);
   add("plan.create", "Create a plan.", "Starting it.", ["harness plan create"]);
   add("plan.delete", "Delete a plan.", "Abandoning a running one.", ["plan delete"]);

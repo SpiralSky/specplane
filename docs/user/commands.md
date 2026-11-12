@@ -105,6 +105,18 @@ Merge a completed plan's branch by pull request or local merge
 
 Abandon a plan: archive it, remove its worktree, keep its branch
 
+### `plan meta get`
+
+`specplane plan meta get [options] <id>`
+
+Show a plan's metadata, approval and execution status. Needs `plan.meta.read`. Shows the title, authors, specifications the plan implements or writes, references, approval, execution status (and stop reason), current step, done steps, branch, target branch, session and budget. `--json` prints the same as data.
+
+### `plan meta set`
+
+`specplane plan meta set <id> <field> <value>`
+
+Set `title`, `authors`, `references` or `implements` of a plan, committing the change to PLAN.md on the plan's branch. Needs `plan.meta.write.<field>` or `plan.meta.write`, whichever is more permissive. Lists are comma separated and an empty value clears the field. Authors look like `human:<name>` or `llm:<model>`, optionally followed by `|<contribution>`; `implements` items are `<spec>` or `writes:<spec>` and each spec must exist. Execution status and progress cannot be set here; they change through the plan commands. An archived, completed or abandoned plan cannot be changed. The change is recorded in the audit log with the old and new values. Changing the title, references or specifications changes the plan's content, so the plan is Awaiting Review again until it is approved.
+
 ### `plan delete`
 
 `specplane plan delete [options] <id>`
