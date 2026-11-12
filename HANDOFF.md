@@ -29,6 +29,7 @@ Notes store landed: `aa52451`, `eac8f55`, `ce1c397`, `0c08bfd`, `c81f74a`, `beed
 
 Unit status (backlog in `docs/work-records/2026-11-11-remaining-work.md`):
 
+- Later-release backlog V1b done: subproject specs use qualified IDs (`<name>:<layer>/<slug>`) across approval, notes, test and implementation records, coverage and scoped validation; dependencies follow cites into subprojects; `citeKey` keeps `root:X` and `X` apart in a subproject; `npm test` 515 pass / 0 fail; hooks 52 pass; check-sync OK; validate 0 errors, 29 warnings. Remaining gaps are in the V1b notes of the backlog (harness spec-write path accepts root IDs only).
 - Later-release backlog V1 (subprojects, R39-R39.4) done: `subprojects` config `{name, path}`, per-project loading, cite resolution by project name, per-project validation findings, precedence warning; see `docs/work-records/2026-11-12-later-release-backlog.md` (V1 notes, with gaps). Next: V2.
 
 - R21 done: `/spec-view [id]` (Claude only; user-only, no model turn): status, authors, approval, diff since last approval (HEAD for requirement files), text; `commands/spec-view.ts`, Claude adapter reports `viewing`, Codex withholds it. Uses `info.retrieve`, no permission of its own. `npm test` 503 pass / 0 fail; hooks 52 pass; check-sync OK; validate 0 errors, 31 warnings.
