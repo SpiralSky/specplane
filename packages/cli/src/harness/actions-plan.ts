@@ -4,7 +4,9 @@ import { editPlan, validateEditParams } from "../plan/edit.js";
 import { liveRoot, requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { abandonPlan, deletePlan, finishPlan, mergePlan, reviewPlan } from "../plan/finish.js";
 import { resumePlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
-import { checkSelection, describePlan, listInfos } from "../plan/status.js";
+import "./adapters.js";
+import { getAdapter } from "./adapter.js";
+import { checkSelection, describePlan, listInfos, stepTasks } from "../plan/status.js";
 import { bool, str, strings, type ActionContext, type Adder } from "./action-types.js";
 
 /**
@@ -28,7 +30,10 @@ export function registerPlanActions(add: Adder): void {
     const { root, rec } = requirePlan(pc(c), p.id);
     const info = describePlan(pc(c), root, rec);
     const selection = checkSelection(info, p.from ?? null, p.count ?? 1);
-    return { ok: selection.ok, reasons: selection.ok ? [] : [selection.message], next: info.next, selection };
+    // The next step's tasks and how they run: parallel groups need subagents on this harness (`plan-execution R31.2`).
+    const host = c.adapter ? getAdapter(c.adapter) : undefined;
+    const tasks = info.next ? stepTasks(pc(c), rec, info.next.number, { name: host?.name ?? "this harness", subagents: !!host?.capabilities(root).subagents }) : null;
+    return { ok: selection.ok, reasons: selection.ok ? [] : [selection.message], next: info.next, selection, tasks };
   });
   add("plan.step-done", { ...id, step: { type: "integer", minimum: 1 }, outcome: { enum: ["done", "partial"] }, summary: str, type: str }, ["id", "step", "outcome"], [], false,
     (c, p) => ({ ok: true, ...stepDone(pc(c), p.id, { step: p.step, outcome: p.outcome, summary: p.summary, type: p.type }) }));

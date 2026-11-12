@@ -32,6 +32,7 @@ export async function runMcp(): Promise<void> {
     subagent: env("SPECPLANE_SUBAGENT"),
     ...(measurable ? { measurable } : {}),
     ...(launcher ? { launcher } : {}),
+    ...(adapter ? { adapter } : {}),
   });
   await server.serve({ input: process.stdin, write: (line) => process.stdout.write(line) });
 }

@@ -7,6 +7,7 @@ import { loadProject, resolveCite } from "../spec/project.js";
 import { committedSource } from "../spec/source.js";
 import { HANDOFF_SECTIONS, findPlan, latestEntry, loadPlans, nextStep, planImplements, planReferences, referencedPlans, type PlanRecord } from "./model.js";
 import { readRequest } from "../requests/store.js";
+import { withStoreLockWait } from "../repo/store.js";
 import {
   PlanOpError, assertMeasurable, branchExists, clearRun, commitPaths, currentBranch, git, gitTry, guarded, guardedWith, isDirty, listWorktreePaths, loadPlanAt, mainRoot,
   recoveredStop, planSlug, plansConfig, plansDir, requirePlan, revParse, setWorktree, worktreeOf, writeProgress, writeRun, type PlanCtx,
@@ -128,7 +129,8 @@ export interface StepDoneOpts { step: number; outcome: "done" | "partial"; summa
 
 export function stepDone(ctx: PlanCtx, id: string, o: StepDoneOpts): { commit: string; allDone: boolean; next: number | null } {
   // Recording a step needs no permission of its own (`reference-cli §11.3`); the commit it makes is the plan's own bookkeeping.
-  return recordedRun(ctx, "plan step-done", [id, String(o.step), o.outcome], { id, ...o }, () => stepDoneInner(ctx, id, o));
+  // The plan record has one writer at a time: tasks that run in parallel may report together (`plan-execution R31.2`).
+  return recordedRun(ctx, "plan step-done", [id, String(o.step), o.outcome], { id, ...o }, () => withStoreLockWait(ctx.root, `plan-${id}`, () => stepDoneInner(ctx, id, o)));
 }
 
 function recordedRun<T>(ctx: PlanCtx, command: string, args: string[], params: Record<string, unknown>, fn: () => T): T {

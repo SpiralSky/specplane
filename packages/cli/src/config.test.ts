@@ -235,13 +235,13 @@ test("the Administrator may change configuration", () => {
   assert.ok(configSet(ctxFor(root, "administrator"), "auto_warn", "off").ok);
 });
 
-test("config get and list show value, source and default, and mark later releases", () => {
+test("config get and list show value, source and default", () => {
   const root = repo("audit:\n  retention: 7\nstrict_mode:\n  enabled: on\n");
   const g = configGet(root, "audit.retention");
   assert.match(g.lines[0], /^audit\.retention = 7 \(set; default 30\)/);
   assert.match(configGet(root, "auto_warn").lines[0], /auto_warn = on \(default; default on\)/);
   assert.match(configGet(root, "plans.worktree_dir").lines[0], /default; default a folder next to the project/);
-  assert.match(configGet(root, "plans.parallelism").lines[0], /later release/);
+  assert.doesNotMatch(configGet(root, "plans.parallelism").lines[0], /later release/, "parallelism is built (R31.2)");
   assert.doesNotMatch(configGet(root, "strict_mode.enabled").lines[0], /later release/);
   assert.ok(!configGet(root, "nope").ok);
   const all = configList(root);

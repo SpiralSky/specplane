@@ -57,7 +57,7 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "plans.worktree_dir", kind: { t: "outpath" }, def: null, defText: "a folder next to the project", doc: "Folder in which plan worktrees are created, one subfolder per plan" },
   { key: "plans.setup_command", kind: { t: "text" }, def: null, defText: "none", doc: "Command run once in a new plan worktree; if it fails the plan does not start" },
   { key: "plans.start_conditions", kind: { t: "bool" }, def: true, doc: "on requires the plan and the specifications it references to be Approved before it starts" },
-  { key: "plans.parallelism", kind: { t: "posint" }, def: 1, later: true, doc: "Greatest number of tasks in a plan step run at once" },
+  { key: "plans.parallelism", kind: { t: "posint" }, def: 1, doc: "Greatest number of tasks in a plan step run at once (tasks marked [parallel] run through subagents)" },
   { key: "notifications.push", kind: { t: "bool" }, def: false, doc: "Whether requests are sent as push notifications, in a harness that supports them" },
   { key: "notifications.push_permissions", kind: { t: "permissions" }, def: ["all"], doc: "Permissions whose requests are pushed when notifications.push is on" },
   { key: "steering.custom", kind: { t: "steering" }, def: [], doc: "Custom steering added to a permission or command: items {permission|command, scope, text}; command '*' applies overall; scope is all, a spec type, or a plan id" },

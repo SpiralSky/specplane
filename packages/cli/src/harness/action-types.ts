@@ -11,6 +11,8 @@ export interface ActionContext extends Ctx {
   measurable?: string[];
   /** The host adapter's session opener; unset when no adapter is named (`agent-skills` §7.4). */
   launcher?: SessionLauncher;
+  /** The host adapter named by the harness (`claude` or `codex`); decides whether tasks can run in parallel. */
+  adapter?: string;
 }
 export interface HarnessAction {
   id: string; inputSchema: Schema;

@@ -4,6 +4,7 @@ import { LEGACY_RECORD_KEYS as LEGACY_KEYS } from "../spec/fingerprint.js";
 import { indexSections } from "../spec/sections.js";
 import { resolveCite, type Project, findDoc } from "../spec/project.js";
 import { EXEC_STATUSES, GAP_FIELDS, HANDOFF_SECTIONS, MAX_PLAN_ID, PLAN_ID_RE, latestEntry, planImplements, planReferences, referencedPlans, stepNumbers, type PlanRecord } from "./model.js";
+import { parseTasks, taskProblems } from "./tasks.js";
 
 /** Plan validation rules (`architecture/reference-cli` §11.1, `architecture/file-formats` §5). */
 
@@ -112,6 +113,7 @@ function checkOne(p: PlanRecord, project: Project, root: string | null, emit: Pl
       if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) { err(`${k} must be a list of spec IDs`, s.file, 1); continue; }
       if (k === "implements") for (const id of v as string[]) if (!findDoc(project, id)) err(`implements item ${JSON.stringify(id)} does not resolve to a specification`, s.file, 1);
     }
+    for (const problem of taskProblems(parseTasks(s.text.replace(/^---\n[\s\S]*?\n---\n?/, "")))) warn(problem, s.file);
     const ctx = d.context;
     if (ctx !== undefined) {
       if (!Array.isArray(ctx) || ctx.some((x) => typeof x !== "string")) err("context must be a list of cite strings", s.file, 1);

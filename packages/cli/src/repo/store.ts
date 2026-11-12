@@ -71,7 +71,11 @@ function takeLock(root: string, name: string): () => void {
       return () => fs.rmSync(lock, { force: true });
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
-      const holder = Number(fs.readFileSync(lock, "utf8").trim());
+      let text = "";
+      try { text = fs.readFileSync(lock, "utf8").trim(); } catch { continue; }
+      // A lock that exists but is still empty was just created and its holder has not written its PID yet: it is held.
+      if (text === "") throw new Error(`Another Specplane command is changing this checkout (lock ${lock}).`);
+      const holder = Number(text);
       let alive = Number.isInteger(holder) && holder > 0;
       if (alive) { try { process.kill(holder, 0); } catch (k) { alive = (k as NodeJS.ErrnoException).code === "EPERM"; } }
       if (alive || attempt > 0) throw new Error(`Another Specplane command is changing this checkout (lock ${lock}).`);
@@ -89,4 +93,21 @@ export function withStoreLock<T>(root: string, name: string, fn: () => T): T {
 export async function withStoreLockAsync<T>(root: string, name: string, fn: () => Promise<T>): Promise<T> {
   const release = takeLock(root, name);
   try { return await fn(); } finally { release(); }
+}
+
+/**
+ * Like `withStoreLock`, but waits for a live holder up to `timeoutMs` instead of refusing. Parallel subagents of one plan
+ * session (`plan-execution R31.2`) may reach the plan record at the same moment; their writes then queue instead of
+ * failing, and a holder that never lets go ends the wait with the same error as `withStoreLock`.
+ */
+export function withStoreLockWait<T>(root: string, name: string, fn: () => T, timeoutMs = 15000): T {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    let release: (() => void) | null = null;
+    try { release = takeLock(root, name); } catch (e) {
+      if (!/Another Specplane command/.test((e as Error).message) || Date.now() > deadline) throw e;
+    }
+    if (release) { try { return fn(); } finally { release(); } }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+  }
 }

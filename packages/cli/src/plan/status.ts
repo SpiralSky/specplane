@@ -4,7 +4,8 @@ import type { Subject } from "../spec/notes.js";
 import type { Project } from "../spec/project.js";
 import { computeStatus, recordState, StatusCtx } from "../spec/status.js";
 import { committedSource, headCommit, worktreeSource } from "../spec/source.js";
-import { commitPaths, gitTry, writeProgress, recoveredStop, runIsLive, committedProject, loadPlanAt, plansDir, type PlanCtx } from "./ctx.js";
+import { plansConfig, commitPaths, gitTry, writeProgress, recoveredStop, runIsLive, committedProject, loadPlanAt, plansDir, type PlanCtx } from "./ctx.js";
+import { stepTaskPlan, type TaskPlan } from "./tasks.js";
 import { findPlan, loadPlans, stepNumbers, stepTitle, type ExecStatus, type PlanRecord } from "./model.js";
 
 /** Effective plan status and the next step (`architecture/reference-cli` §11.2). */
@@ -145,3 +146,8 @@ function describeLegacy(rec: PlanRecord, root: string): PlanInfo {
   return { id: rec.id, title: typeof rec.fm?.data?.title === "string" ? (rec.fm.data.title as string) : rec.id, archived: rec.archived, legacy: true, approval: "awaiting-review", stored: "", status: "legacy", stop: null, stepsTotal: 0, stepsDone: 0, steps: [], next: null, reviewPending: false, branch: null, target: null, location: root };
 }
 
+
+/** Tasks of step `n` and how they run under the configured parallelism on this harness (`plan-execution R31.2`). */
+export function stepTasks(ctx: PlanCtx, rec: PlanRecord, n: number, harness?: { name: string; subagents: boolean }): TaskPlan {
+  return stepTaskPlan(rec.steps.find((s) => s.number === n), plansConfig(ctx.root).parallelism, harness?.subagents ?? false, harness?.name);
+}
