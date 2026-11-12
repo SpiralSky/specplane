@@ -418,7 +418,7 @@ pre_commit:
 coverage:
   requirement_only: []               # requirement ids
 decisions: {enabled: off}            # later release
-subprojects: []                      # later release
+subprojects: []                      # items {name, path}; a subproject folder holds requirements/, features/, architecture/ (§12.4)
 strict_mode: {enabled: off}          # later release
 bypass_guards: {}                    # later release
 roles: {llm_rules: []}               # later release; os_user_mapping is local (§7.4)
@@ -749,9 +749,15 @@ Two Test lines with the same label in one section are a validation error (`§11.
 
 Files directly in `<plans.dir>` (not in a plan folder or the archive) are shared files. They are cited by repository-relative path in a plan's `references` as `file:<path>` (grammar in `§3.1`, assumption); a missing file is reported.
 
-### §12.4 Subprojects (later release)
+### §12.4 Subprojects
 
-Spec IDs are unique within a project, and a cite to another project is written `<project>:<cite>` (`later-releases R39.3`). Subproject locations come from the `subprojects` setting. Decision records (`later-releases R37`) have no format in the first release.
+Spec IDs are unique within a project, and a cite to another project is written `<project>:<cite>` (`later-releases R39.3`). Subproject locations come from the `subprojects` setting, a list of items `{name, path}` (`§6`): `name` is kebab-case, unique, not `root` or `file`, and `path` is a folder inside the repository that does not contain or sit inside another subproject's folder.
+
+- A subproject folder has the layout `<path>/requirements/`, `<path>/features/` and `<path>/architecture/`. Plans stay in the root project's plans folder. The root project's own spec folders are not inside any subproject folder.
+- A spec ID inside a subproject is path-derived like any other (`feature/<slug>`); the project name tells apart two specs with the same ID.
+- Resolution: a cite without a project resolves in the citing spec's own project; `root:<cite>` resolves in the root project; `<name>:<cite>` in that subproject. An undeclared name is a resolution error. A requirement cite (`R<n>`, a requirements-file cite) written in a subproject that has no requirement files resolves in the root project instead (R39).
+- Validation runs the `requirements`, `spec-format` and `cites` families inside each subproject; each finding carries the project name (the `project` field of the report), and the text report appends `project <name>` to the finding and prints one count line per project. The `subprojects` family reports a declared folder that is missing and, as a warning, a subproject requirement with the title of a root requirement but a different text (R39.4: the root requirement wins).
+- The notes store, approval status and coverage are not yet extended to subproject specs: a target inside a subproject has no spec ID for status code to follow, so a spec that cites it is made outdated by a change to the cited text but is not held back by that spec's approval. Decision records (`later-releases R37`) have no format in the first release.
 
 ## §13 Notes store and records
 

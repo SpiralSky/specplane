@@ -59,7 +59,7 @@ Settings marked later release are read and validated but do nothing yet.
 | `pre_commit.tests` | `off` | Check that refuses a commit when the deterministic tests of an architecture specification fail |
 | `coverage.requirement_only` | `[]` | Requirements annotated as requirement-only; uncovered warnings are still reported |
 | `decisions.enabled` | `off` | (later release) Whether user decision records are stored and retrieved |
-| `subprojects` | `[]` | (later release) The named locations in the project that are subprojects |
+| `subprojects` | `[]` | The named locations in the project that are subprojects: items `{name, path}`; the folder holds `requirements/`, `features/` and `architecture/` |
 | `strict_mode.enabled` | `off` | (later release) Strict mode as a whole |
 | `strict_mode` | `{}` | (later release) Each strict mode measure on its own: strict_mode.<measure> |
 | `bypass_guards` | `{}` | (later release) Each guardrail against permission bypass on its own (default on): bypass_guards.<measure> |
@@ -68,3 +68,19 @@ Settings marked later release are read and validated but do nothing yet.
 ## Reading the notes
 
 `audit.retention` and `tests.logs_retention` default to 30 days; see `verification` for what is kept and for the warning about logs kept in git. See `permissions` for the presets, and `plans` for plan folders and worktrees.
+
+## Subprojects
+
+A subproject is a part of the project with its own feature and architecture specifications and, optionally, its own requirements. Declare each one in `.specplane/config.yaml`:
+
+```yaml
+subprojects:
+  - {name: claude, path: harnesses/claude/specs}
+```
+
+The folder at `path` holds `requirements/` (optional), `features/` and `architecture/`. A name is lowercase with dashes, unique, and not `root` or `file`; paths must be inside the repository and must not contain each other. Edit the file and commit it, like any other setting.
+
+- A cite in a subproject without a project name means that subproject. Write `root:R5` for the root project and `claude:R7` or `claude:harness R14` for another project. A subproject with no requirement files of its own uses the root project's requirements for plain requirement cites.
+- Requirement IDs are unique within the root project and within each subproject; the same ID may appear in two projects.
+- `validate` checks each subproject and names the project in every finding, with a count per project. The root project's requirements outrank a subproject's: a subproject requirement with the title of a root requirement but a different text is a warning to resolve, and the root requirement wins.
+- Approval status, test records and coverage are not yet extended to subproject specifications.

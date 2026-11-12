@@ -86,7 +86,7 @@ Later releases:
 | Setting | Meaning | Default |
 |---------|---------|---------|
 | `decisions.enabled` | Whether user decision records are stored and retrieved (`later-releases R37`). Later release | `off` |
-| `subprojects` | The named locations in the project that are subprojects (`later-releases R39`). Later release | None |
+| `subprojects` | The named locations in the project that are subprojects (`later-releases R39`): a list of items with a `name` and a `path`; the folder at `path` holds `requirements/`, `features/` and `architecture/` | None |
 | `plans.parallelism` | The greatest number of tasks in a plan step run at once (`plan-execution R31.2`). Later release | 1 |
 | `strict_mode.enabled` and `strict_mode.<measure>` | Strict mode as a whole, and each of its measures (blocking direct file edits in the harness, git safeguards, operating system safeguards) on its own (`roles-and-permissions R55.1`). Later release | `off` |
 | `bypass_guards.<measure>` | Each guardrail against permission bypass by headless sessions or the CLI inside an LLM session, on its own (`roles-and-permissions R58`). Later release | `on` (assumption) |

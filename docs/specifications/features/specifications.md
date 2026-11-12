@@ -89,7 +89,7 @@ A citation names a requirement or a part of a specification in a fixed shape:
 - `plans R28`: the section of the named feature spec that covers that requirement.
 - `plans §2`: a section of the named spec that is not tied to a requirement.
 - `architecture/<slug> R<n>`: the same for an architecture spec. A name without a layer always means a feature spec.
-- `claude:R7`, `claude:harness R14`: a cite into a subproject or the root project, written `<project>:<cite>` with any of the shapes above. A cite without a project means the citing spec's own project; `root` always names the root project and cannot be a subproject name; spec IDs are unique within a project (`later-releases R39.3`). This syntax is an assumption, because the page only asks that the project be named.
+- A project name, a colon and a cite of any shape above (for requirement R7 of the subproject `claude`, the name, a colon and `R7`): a cite into a subproject or the root project, written `<project>:<cite>`. A cite without a project means the citing spec's own project; `root` always names the root project and cannot be a subproject name; spec IDs are unique within a project (`later-releases R39.3`). This syntax is an assumption, because the page only asks that the project be named.
 
 A citation to a part means that section and its subsections. A citation to a whole spec is allowed but marks the citing spec outdated whenever anything in the cited spec changes (`R11.2`), so citing the narrowest part is preferred.
 

@@ -10,7 +10,7 @@ covers: [R37, R37.1, R39, R39.1, R39.2, R39.3, R39.4, R66]
 
 # Later Releases
 
-This spec describes three features that are planned for releases after the first one (`docs/release-plan.md`): user decision records, subprojects and project migration. Nothing here is needed for the first release. The behaviour is described briefly so that earlier specs can point at it and so that the first release does not make it impossible.
+This spec describes three features; subprojects (`R39`) are built, and the other two are planned for releases after the first one (`docs/release-plan.md`): user decision records, subprojects and project migration. Nothing here is needed for the first release. The behaviour is described briefly so that earlier specs can point at it and so that the first release does not make it impossible.
 
 ## §1 Terms
 
@@ -49,11 +49,12 @@ Test T1 (deterministic): with decision records on and add set to deny for the LL
 
 ## R39: Subprojects
 
-Later release. A project can contain subprojects, for example folders that hold feature and architecture specifications. Requirements specifications can also live in a subproject. For example, an integration for one harness can have its own feature and architecture specifications while sharing the requirements of the root project, which then has no requirements of its own to write.
+A project can contain subprojects, for example folders that hold feature and architecture specifications. Requirements specifications can also live in a subproject. For example, an integration for one harness can have its own feature and architecture specifications while sharing the requirements of the root project, which then has no requirements of its own to write.
 
-- Each subproject is a named location in the project, set in the `subprojects` setting (`configuration R25`). Specifications in it behave like any other specifications: types, layers, approval, metadata and checks all apply (`specifications R11`, `specifications R65`).
+- Each subproject is a named location in the project, set in the `subprojects` setting (`configuration R25`) as a list of items with a `name` and a `path`. The folder at `path` has the same layout as the project's spec folders: `requirements/` (optional), `features/` and `architecture/`. A declared folder that does not exist, a repeated name, `root` or `file` as a name, and paths that contain each other are reported as errors. Specifications in it behave like any other specifications: types, layers, approval, metadata and checks all apply (`specifications R11`, `specifications R65`).
 - A subproject may have no requirements specification of its own; it then relies on the root project's.
-- Roots and subprojects are checked together: warnings, validation and coverage reports show which project each finding belongs to.
+- Roots and subprojects are checked together: validation runs the requirement, format and cite checks inside each subproject and every finding names its project (a finding without a project is the root's). The validation summary counts errors and warnings per project. A cite check inside a subproject resolves a requirement cite against the subproject's own requirements, or against the root's when the subproject has none.
+- Not yet covered for subprojects: approval and review state, test records and coverage of a subproject's specifications. A dependency on a specification in another project is tracked through the cited text (the citing spec becomes outdated when it changes) but not through that specification's approval.
 - Product scope decision awaiting review: overlay inheritance is deferred while the initial model uses explicit subprojects and references. Requirements do not prohibit overlays. A subproject is not automatically equivalent to an overlay: migration must preserve the intended behaviour and obtain the user's decision before replacing inheritance (`R66`).
 
 ### R39.1: Subproject Decisions
@@ -72,7 +73,7 @@ Specifications in a subproject can reference requirement, feature and architectu
 
 Requirement IDs must be unique within the root project and within each subproject. The same ID may appear in two different subprojects, because each is a separate numbering.
 
-- A reference to something in another subproject, or in the root project, names the project as well as the cite, written `<project>:<cite>` where the cite is any citation shape (`specifications R7`). Examples are `claude:R7` for requirement R7 of the subproject `claude`, and `claude:harness R14` for a section of a feature specification in it. A reference without a project name means the project of the specification that makes the reference. The syntax is an assumption, because the page only says the project is named as well as the ID.
+- A reference to something in another subproject, or in the root project, names the project as well as the cite, written `<project>:<cite>` where the cite is any citation shape (`specifications R7`). For example, a cite of requirement R7 of the subproject `claude` is the project name, a colon and the requirement ID, and a cite of a section of the feature specification `harness` in it adds that cite after the colon in the same way. A reference without a project name means the project of the specification that makes the reference. The syntax is an assumption, because the page only says the project is named as well as the ID.
 - The name `root` always means the root project and cannot be used as a subproject name. Specification IDs are unique within a project, so the project name tells apart two specifications with the same ID in different projects.
 - A reference that names a project that does not exist, or an ID that does not exist in the named project, is reported by validation as an error.
 - A subproject's name is unique in the root project and does not change once specifications reference it.
@@ -83,7 +84,7 @@ Scenario: Given the root project and the subproject `claude` both have a require
 
 The root project's requirements outrank a subproject's requirements. Within a subproject, layer precedence applies as in the rest of the project (`specifications R65`): requirements outrank feature specifications, which outrank architecture specifications.
 
-- If a subproject requirement contradicts a root requirement, the root requirement wins and the contradiction is reported as a warning for the user to resolve; the LLM does not implement the subproject side.
+- If a subproject requirement contradicts a root requirement, the root requirement wins and the contradiction is reported as a warning for the user to resolve; the LLM does not implement the subproject side. Validation cannot judge meaning, so it reports the case it can see: a subproject requirement with the title of a root requirement but a different text. Other contradictions are found in review.
 
 ## R66: Project Migration
 
