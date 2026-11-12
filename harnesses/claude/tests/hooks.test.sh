@@ -185,5 +185,75 @@ case "$out" in "ESSENTIALS TEXT"*"Next step: 02 Second thing."*) report "session
 out=$(printf '{"session_id":"e3"}' | PATH="$tmp/stubbin:$tmp/nospec" STUB_OUT=x STUB_EXIT=1 CLAUDE_PROJECT_DIR="$tmp/noconf" sh "$hooks/specplane-session-context.sh" 2>/dev/null)
 [ -z "$out" ] && report "session: no essentials without the config" 1 || report "session: no essentials without the config" 0
 
+# ---- bypass guard (roles-and-permissions R58) ----
+bg=specplane-bypass-guard.sh
+mkdir -p "$tmp/bp/.specplane" "$tmp/bpoff/.specplane" "$tmp/bpflow/.specplane"
+: > "$tmp/bp/.specplane/config.yaml"
+printf 'bypass_guards:\n  headless_block: off\n  marker_protect: false\n  store_protect: no\n  hook_protect: off\n' > "$tmp/bpoff/.specplane/config.yaml"
+printf 'bypass_guards: {headless_block: off}\nother: 1\n' > "$tmp/bpflow/.specplane/config.yaml"
+bj() { "$JQ" -n --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}'; }
+fj() { "$JQ" -n --arg t "$1" --arg f "$2" '{tool_name:$t,tool_input:{file_path:$f}}'; }
+bgrun() { # project expected name json
+  CLAUDE_PROJECT_DIR="$tmp/$1" sh "$hooks/$bg" >/dev/null 2>&1 <<EOJ
+$4
+EOJ
+  rc=$?
+  if [ "$rc" = "$2" ]; then report "$3" 1; else report "$3 (got $rc, want $2)" 0; fi
+}
+bgrun bp 2 "bypass: denies claude -p" "$(bj 'claude -p "hello"')"
+bgrun bp 2 "bypass: denies claude --print with flags and a path" "$(bj 'FOO=1 /usr/bin/claude --model x --print hi')"
+bgrun bp 2 "bypass: denies claude -p after &&" "$(bj 'cd x && claude -p hi')"
+bgrun bp 2 "bypass: denies claude -p inside sh -c" "$(bj "sh -c 'claude -p hi'")"
+bgrun bp 2 "bypass: denies npx claude -p" "$(bj 'npx claude -p hi')"
+bgrun bp 2 "bypass: denies codex exec" "$(bj 'codex exec "do it"')"
+bgrun bp 0 "bypass: allows an interactive claude" "$(bj 'claude --version')"
+bgrun bp 0 "bypass: allows text that only mentions claude -p" "$(bj 'git commit -m "no claude -p here"')"
+bgrun bp 0 "bypass: allows ordinary commands" "$(bj 'ls -la && npm test')"
+bgrun bp 2 "bypass: denies unsetting the marker" "$(bj 'unset SPECPLANE_ACTOR; ls')"
+bgrun bp 2 "bypass: denies overriding the marker" "$(bj 'SPECPLANE_ACTOR=human ls')"
+bgrun bp 2 "bypass: denies env -i" "$(bj 'env -i PATH=/usr/bin ls')"
+bgrun bp 2 "bypass: denies env -u of the marker" "$(bj 'env -u SPECPLANE_ACTOR ls')"
+bgrun bp 0 "bypass: allows reading the marker" "$(bj 'echo $SPECPLANE_ACTOR')"
+bgrun bp 2 "bypass: denies a shell write to role.json" "$(bj 'echo {} > .git/specplane/role.json')"
+bgrun bp 2 "bypass: denies a path to os-users.json" "$(bj 'rm /repo/.git/specplane/os-users.json')"
+bgrun bp 2 "bypass: denies git notes add on the specplane ref" "$(bj 'git notes --ref specplane add -m x HEAD')"
+bgrun bp 2 "bypass: denies update-ref on the notes ref" "$(bj 'git update-ref refs/notes/specplane HEAD')"
+bgrun bp 0 "bypass: allows git notes show on the specplane ref" "$(bj 'git notes --ref specplane show HEAD')"
+bgrun bp 0 "bypass: allows git notes on another ref" "$(bj 'git notes add -m x HEAD')"
+bgrun bp 2 "bypass: denies a shell write to a Specplane hook" "$(bj 'cp x .claude/hooks/specplane-cli-block.sh')"
+bgrun bp 2 "bypass: denies a shell write to the Claude settings" "$(bj "sed -i 's/a/b/' .claude/settings.json")"
+bgrun bp 2 "bypass: denies Write to role.json" "$(fj Write /repo/.git/specplane/role.json)"
+bgrun bp 2 "bypass: denies Edit of trusted-rules.json" "$(fj Edit /repo/.git/specplane/trusted-rules.json)"
+bgrun bp 2 "bypass: denies Write to a Specplane hook" "$(fj Write /repo/.claude/hooks/specplane-bypass-guard.sh)"
+bgrun bp 2 "bypass: denies MultiEdit of the Claude settings" "$(fj MultiEdit /repo/.claude/settings.json)"
+bgrun bp 0 "bypass: allows Write to a spec" "$(fj Write /repo/docs/specifications/features/x.md)"
+bgrun bp 0 "bypass: allows a tool it does not know" "$(fj Read /repo/.git/specplane/role.json)"
+bgrun bpoff 0 "bypass: headless_block off allows claude -p" "$(bj 'claude -p hi')"
+bgrun bpoff 0 "bypass: marker_protect off allows env -i" "$(bj 'env -i ls')"
+bgrun bpoff 0 "bypass: store_protect off allows a store path" "$(bj 'cat .git/specplane/role.json')"
+bgrun bpoff 0 "bypass: hook_protect off allows a hook write" "$(fj Write /repo/.claude/hooks/specplane-cli-block.sh)"
+bgrun bpflow 0 "bypass: flow-style off allows claude -p" "$(bj 'claude -p hi')"
+bgrun bpflow 2 "bypass: flow-style leaves the other measures on" "$(bj 'unset SPECPLANE_ACTOR')"
+bgrun noconf 0 "bypass: no-op without the config" "$(bj 'claude -p hi')"
+out=$(printf '%s' "$(bj 'claude -p hi')" | PATH="$tmp/nojq" CLAUDE_PROJECT_DIR="$tmp/bp" "$tmp/nojq/sh" "$hooks/$bg" 2>/dev/null); rc=$?
+[ "$rc" = 0 ] && report "bypass: exits quietly without jq" 1 || report "bypass: exits quietly without jq" 0
+
+# marker export (session start)
+printf 'plans:\n  dir: plans\n' > "$tmp/bp/.specplane/config.yaml"
+mx() { # env-file config-text
+  printf '%s' "$2" > "$tmp/bp/.specplane/config.yaml"
+  printf '{"session_id":"m1","model":"opus"}' | PATH="$tmp/nospec" CLAUDE_PROJECT_DIR="$tmp/bp" CLAUDE_ENV_FILE="$1" sh "$hooks/specplane-session-context.sh" >/dev/null 2>&1
+}
+mx "$tmp/envm1" 'plans:
+  dir: plans
+'
+grep -Fxq 'export SPECPLANE_ACTOR=llm' "$tmp/envm1" && grep -Fxq 'export SPECPLANE_PROVIDER=anthropic' "$tmp/envm1" && grep -Fxq 'export SPECPLANE_MODEL=opus' "$tmp/envm1" \
+  && report "marker: session start exports the LLM marker and identity" 1 || report "marker: session start exports the LLM marker and identity" 0
+mx "$tmp/envm2" 'bypass_guards:
+  marker_export: off
+'
+grep -q SPECPLANE_ACTOR "$tmp/envm2" && report "marker: marker_export off exports no marker" 0 || report "marker: marker_export off exports no marker" 1
+grep -Fxq 'export SPECPLANE_AGENT=claude-code/opus' "$tmp/envm2" && report "marker: identity export is kept when the marker is off" 1 || report "marker: identity export is kept when the marker is off" 0
+
 echo "passed: $pass, failed: $fail"
 [ "$fail" = 0 ]

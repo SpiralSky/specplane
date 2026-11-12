@@ -1,5 +1,5 @@
 #!/bin/sh
-# SessionStart hook: export agent identity, load the documentation essentials into context (`specplane docs essentials`,
+# SessionStart hook: export agent identity and the LLM marker (`bypass_guards.marker_export`, `roles-and-permissions` R58), load the documentation essentials into context (`specplane docs essentials`,
 # `steering R23`) and, in a plan checkout (branch plan/<id>), print the plan, its next step and the instruction to
 # work only on that step (architecture/claude-integration §4). Runs again after compaction, which redelivers the essentials.
 # Exits 0 whenever it cannot do its job.
@@ -16,6 +16,12 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
   {
     printf 'export SPECPLANE_AGENT=%s\n' "$agent"
     printf 'export SPECPLANE_SESSION=%s\n' "$sid"
+    # Every shell command of the session, and any headless session or CLI call it starts, is then known to be an LLM's.
+    v=$(sed -n '/^bypass_guards:/,/^[^[:space:]#]/p' "$config" 2>/dev/null | grep -E '(^|[[:space:]{,])marker_export:' | head -n 1 | sed 's/.*marker_export:[[:space:]]*//; s/[^A-Za-z].*//')
+    case "$v" in off|Off|OFF|false|False|FALSE|no|No|NO) ;; *)
+      printf 'export SPECPLANE_ACTOR=llm\nexport SPECPLANE_PROVIDER=anthropic\n'
+      [ -n "$model" ] && printf 'export SPECPLANE_MODEL=%s\n' "$model" ;;
+    esac
   } >> "$CLAUDE_ENV_FILE" 2>/dev/null
 fi
 plan_message() {
