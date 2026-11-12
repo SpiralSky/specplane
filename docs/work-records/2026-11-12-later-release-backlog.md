@@ -7,7 +7,7 @@ Order (one subagent per unit, in order; each unit updates specs, code, tests and
 - [x] V1 Subprojects: R39, R39.1-R39.4 (see V1 notes)
   - [x] V1b Subproject approval, records and coverage (see V1b notes)
 - [x] V2 Decision records: R37, R37.1 (`/decision-new`, permissions, storage)
-- [ ] V3 Project migration: R66
+- [x] V3 Project migration: R66 (see V3 notes)
 - [ ] V4 Spec review command: R38
 - [ ] V5 Custom roles and role management: R43, R48, R49, R60, role mappings in R44 and R44.1
 - [ ] V6 Role permission bypass guards: R58
@@ -33,3 +33,9 @@ Follow-up done: `spec/write.ts` accepts qualified IDs (`splitSpecWriteId`; creat
 Decisions (agent's call): a record is `.specplane/decisions/D<n>.md` (outside the spec folders, so the old ADRs in `docs/decisions` are untouched and not imported), frontmatter `id`, `title`, `date`, optional `concerns` and `authors`, body sections Decision, Context, optional Reasons (`file-formats` §14). Approval is a notes record with subject `decision/D<n>` and fingerprint `decision-v1` (authors excluded), by ID through `spec approve` / `decision approve` under `spec.approve`; the LLM therefore only requests it. This refines `later-releases R37`, which said records are not approved. Permissions and preset modes already existed; only the "later release" labels went. `decisions.enabled` is a first-release setting (default off); with it off every write, read and the validation family refuse or skip. Harness: actions `decision.add|retrieve|edit|delete` (40 actions), request actions `decision add|edit|delete`, command `/decision-new` (contract, Claude skill, plugin command, Codex contract). Retrieval ranks by the number of query words found; no stemming.
 
 Gaps: `decision.retrieve` under `request-user` is held as a harness read like other reads; a deleted record's approval note is left in the store; no import of old ADRs; `decision-new` without arguments only explains (needs a model turn); the Claude and Codex commands were not run live; approval of mixed spec and decision IDs is refused rather than split; `concerns` accepts any cite shape but is only checked, not fingerprinted.
+
+## V3 notes (Project migration)
+
+Built before: only `specplane migrate status` (legacy frontmatter records into the notes store), which is not R66. R66 is new: nothing existed for bringing a whole project in. Decisions (agent's call): a harness command `migrate` (`/migrate` in Claude Code as a model-invocable skill, a contract for Codex), no CLI command and no new harness action. The LLM reads sources with `info.retrieve` and writes through the existing `spec.create.requirement|feature|architecture` permissions (modes allow, request user, deny), `decision.add` only when the user keeps an old record. The prompt is the packaged contract plus command documentation, replaceable through the existing `harness.instructions.migrate`; the separation check applies. Awaiting Review follows from the notes store (no approval is ever written); resume and idempotence rely on `info.retrieve` listing existing specs and `spec.create` never overwriting. Specs: later-releases R66, harness R14, agent-skills 7.11, reference-cli, claude-integration; user docs concepts and harness-commands.
+
+Gaps: the LLM behaviour (proposal before writing, asking, leaving out unsupported content, listing migrated/left/uncertain) is prompt-only and is covered by the intelligent test T1, which was not run. No marker records which old file a new spec came from, so resumption depends on the LLM matching by ID and title. Overlay to subproject and role-setting to preset mappings are prompt guidance, not code.
