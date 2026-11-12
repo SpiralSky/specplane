@@ -29,6 +29,6 @@ Plans come first so that an agent can carry out the remaining work, including wr
 - Subprojects: `R39`
 - Custom roles and role management: `R43`, `R48`, `R49`, `R56`, `R60`, and role mappings in `R44` and `R44.1`, built after the first release was assembled
 - Stronger enforcement: `R55.1` strict mode, built after the first release was assembled (`R58`, permission bypass guards, is built too). `R32` and `R36.3` (the pre-commit checks) were already built in the first release
-- Plan parallelism: `R31.2`
+- Plan parallelism: `R31.2`, built after the first release was assembled
 - CLI plan management: `R33`
 - Project migration: `R66`

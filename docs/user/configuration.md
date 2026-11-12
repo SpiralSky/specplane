@@ -27,8 +27,6 @@ Value types: `on` or `off` for switches, whole numbers for counts, folders relat
 
 ## Settings and defaults
 
-Settings marked later release are read and validated but do nothing yet.
-
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `paths.requirements` | `docs/requirements` | Folder of the requirements files |
@@ -40,7 +38,7 @@ Settings marked later release are read and validated but do nothing yet.
 | `plans.worktree_dir` | `a folder next to the project` | Folder in which plan worktrees are created, one subfolder per plan |
 | `plans.setup_command` | `none` | Command run once in a new plan worktree; if it fails the plan does not start |
 | `plans.start_conditions` | `on` | on requires the plan and the specifications it references to be Approved before it starts |
-| `plans.parallelism` | `1` | (later release) Greatest number of tasks in a plan step run at once |
+| `plans.parallelism` | `1` | Greatest number of tasks in a plan step run at once; only tasks marked `[parallel]` run together, and only on a harness with subagents |
 | `notifications.push` | `off` | Whether requests are sent as push notifications, in a harness that supports them |
 | `notifications.push_permissions` | `["all"]` | Permissions whose requests are pushed when notifications.push is on |
 | `steering.custom` | `[]` | Custom steering added to a permission or command: items {permission|command, scope, text}; command '*' applies overall; scope is all, a spec type, or a plan id |

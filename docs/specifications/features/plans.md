@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R28, R28.1, R29, R29.1, R29.2, R29.3, R30, R30.1, R69]
-references: [R7, R9, R11, R11.2, R19.2, R24, specifications R65, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.6, plan-execution R27.3, requests R52, steering R59, R27, R4, plan-execution R31.1, feature/cli]
+references: [R7, R9, R11, R11.2, R19.2, R24, specifications R65, plan-execution R27, plan-execution R27.1, plan-execution R27.2, plan-execution R27.6, plan-execution R27.3, requests R52, steering R59, R27, R4, plan-execution R31.1, plan-execution R31.2, feature/cli]
 ---
 
 # Plans
@@ -183,7 +183,7 @@ The next step is the lowest-numbered step that is not done.
 
 - **Goal**: one paragraph, small enough for one session.
 - **Acceptance criteria**: conditions that confirm the step is complete, checked before the step is committed.
-- **Tasks**: an ordered list of imperative actions.
+- **Tasks**: an ordered list of imperative actions. A task that starts with `[parallel]` does not depend on the `[parallel]` tasks next to it; those neighbours form a group that the harness may run at the same time (`plan-execution R31.2`). Tasks without the marker run in order, one at a time.
 - **Context**: the specifications, decisions and files the session must read. A session reads this context, the step, and the handoff entries so far, and avoids unrelated files. If it must read more, it records that in the handoff so later steps can be corrected.
 - **Guidance** (optional): pitfalls and conventions the specifications do not cover.
 

@@ -39,16 +39,22 @@ Plan management has one permission for each of: editing, creating, deleting, sta
 
 Test T1 (deterministic): with the starting permission set to deny, ask for a plan to start and expect a refusal and no worktree.
 
-### R31.2: Parallelism (later release)
+### R31.2: Parallelism
 
 The user can control how much parallelism a plan run uses. A step may contain several tasks that do not depend on each other; with parallelism on, the harness runs them in parallel through subagents.
 
 - The setting is the greatest number of tasks run at once. Its default is one, which means tasks run one after another.
-- Whether tasks are independent is stated by the step (`plans §3.2` describes step contents); tasks that depend on each other are never run in parallel.
-- A harness without subagents runs the tasks one after another and tells the user that parallelism is not available there.
-- Parallelism applies inside a step. Steps themselves still run in order (`R27`).
+- Whether tasks are independent is stated by the step (`plans §3.2` describes step contents): the author marks a task `[parallel]`, and neighbouring marked tasks form one group of independent tasks. Tasks that are not marked depend on what comes before them and are never run in parallel; a group starts only after every task before it is done.
+- A harness without subagents runs the tasks one after another and tells the user that parallelism is not available there. The same note is given when the setting is one.
+- Parallelism applies inside a step. Steps themselves still run in order (`R27`), and a plan still has one session, one worktree and one branch: the tasks of a step share that worktree, so tasks that name the same file are not independent and validation warns about them.
+- The session that runs the step owns the plan record. Tasks run by subagents report back to it; only the session writes the handoff, the progress and the step commit, and reports to the plan record are applied one at a time, never together.
+- The plan's budget (`R27.1`) is the account's usage as the session adapter measures it, so subagents count against the same budget as the session; there is no per-task budget.
 
 Scenario: Given parallelism is set to three and a step lists four independent tasks, When the step runs, Then at most three run at once and the step is done only when all four are.
+
+Scenario: Given the harness has no subagents and a step lists independent tasks, When the next step is looked up, Then the reply says the tasks run one after another because parallelism is not available there.
+
+Test T1 (deterministic): with parallelism three, a step of one sequential task, four `[parallel]` tasks and one more sequential task reports groups of one, four and one with concurrency three on Claude and one on Codex; five processes reporting the same step at once record it exactly once.
 
 ## R27: Plan execution
 

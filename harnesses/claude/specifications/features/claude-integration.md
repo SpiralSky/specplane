@@ -88,7 +88,7 @@ Refines `root:plan-execution R27` and `root:plan-execution R31.2`.
 - A subagent has the role of the session that started it and works one step only (`root:plan-execution R27.4`).
 - A subagent cannot ask the user questions. It records gaps and assumptions, sends requests as non-blocking or blocking (`root:plan-execution R27.5`), or stops, as the root specs say.
 - Using subagents is off unless the user or the plan asks for it (assumption).
-- For parallel tasks inside a step, Claude uses subagents when parallelism is on and runs tasks one after another otherwise, telling the user (`root:plan-execution R31.2`).
+- For parallel tasks inside a step (tasks marked `[parallel]`), Claude uses subagents, at most `plans.parallelism` at once, when that setting is above one, and runs tasks one after another otherwise, telling the user. The subagents work in the plan worktree and report to the session, which alone writes the handoff and records the step. Their usage counts against the plan budget, because the budget reads the account windows the whole session draws on (`root:plan-execution R31.2`).
 
 ## §6 Worktrees and the cloud
 
