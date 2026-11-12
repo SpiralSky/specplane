@@ -7,7 +7,7 @@ import { updateStoreJson } from "../repo/store.js";
 import { inspectSteering, STEERING_COMMANDS, type SteeringContext } from "./steering.js";
 
 export const COMMANDS = Object.keys(STEERING_COMMANDS);
-const WRITES_SPECS = new Set(["spec-assist", "spec-draft-architecture", "plan-step"]);
+const WRITES_SPECS = new Set(["spec-assist", "spec-draft-architecture", "plan-step", "migrate"]);
 export function readContract(command: string): string {
   if (!COMMANDS.includes(command)) throw new Error(`Unknown command contract: ${command}`);
   return readFileSync(new URL(`../../assets/commands/${command}.md`, import.meta.url), "utf8").trim();

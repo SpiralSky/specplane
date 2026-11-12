@@ -56,7 +56,7 @@ Claude Code offers one slash command per workflow:
 - A command typed without arguments runs without a model turn; with arguments it passes them and the command's instructions to Claude (`root:harness R18`). Asking Claude in plain words runs the same workflow under Claude's own role.
 - Instructions for a command are delivered when it is used, once per conversation, and again after compaction (`root:harness R14`). Claude Code loads them on demand as skills where it can.
 - Claude Code's own commands, such as `/resume`, are not replaced.
-- Decision records add the `/decision-new` command, a model-invocable skill that is a no-op while `decisions.enabled` is off; migration adds its command in a later release.
+- Decision records add the `/decision-new` command, a model-invocable skill that is a no-op while `decisions.enabled` is off; `/migrate` is a model-invocable skill that brings an existing project into Specplane (`root:later-releases R66`).
 
 Scenario: Given the user types `/plan-status` with no arguments, When it runs, Then the plans are shown and no model turn starts.
 

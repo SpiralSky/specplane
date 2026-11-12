@@ -20,9 +20,9 @@ function commit(root: string): void {
 }
 function session(root = repo()): InstructionSession { return { root, id: "test-session", reportsContext: true }; }
 
-test("all fourteen packaged contracts have versioned, ordered parts and action-only mechanical steps", () => {
+test("all fifteen packaged contracts have versioned, ordered parts and action-only mechanical steps", () => {
   const version = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
-  assert.equal(COMMANDS.length, 14);
+  assert.equal(COMMANDS.length, 15);
   for (const key of COMMANDS) {
     const contract = readContract(key);
     assert.ok(contract.startsWith(`<!-- Specplane command contract v${version};`), key);
@@ -55,6 +55,18 @@ test("documentation replacement preserves every mechanical step, steering and op
   assert.doesNotMatch(changed.text, /Replacement:|## Separation check/);
   assert.ok(changed.text.includes(commandDocumentation("spec-assist")));
   assert.notEqual(changed.hash, assembled.hash);
+});
+
+test("the migrate prompt is configurable and its steering covers reading and creating specs, never approving", () => {
+  const root = repo('harness:\n  instructions:\n    migrate: "Custom migrate prompt"\n');
+  const text = assembleInstructions(root, "migrate").text;
+  assert.ok(text.startsWith(readContract("migrate")));
+  assert.match(text, /Custom migrate prompt/);
+  assert.match(text, /Permission: spec.create.feature/);
+  assert.match(text, /Permission: info.retrieve/);
+  assert.doesNotMatch(text, /Permission: spec.approve/);
+  assert.match(text, /## Separation check/);
+  assert.match(readContract("migrate"), /Awaiting Review/);
 });
 
 test("permission keys carry their limits, role mode, custom steering and no-bypass text", () => {
