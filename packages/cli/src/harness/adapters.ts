@@ -20,6 +20,8 @@ export const claudeAdapter: HarnessAdapter = {
     caps["session-opening"] = true; // `claude -p` in the plan checkout.
     // Blocking needs the installed pre-tool hook, so it is claimed only when that file is present.
     caps["command-blocking"] = !!root && fs.existsSync(path.join(root, ".claude/hooks/specplane-cli-block.sh"));
+    // The marker, headless-session and store guards live in one installed hook (`roles-and-permissions` R58).
+    caps["bypass-guards"] = !!root && fs.existsSync(path.join(root, ".claude/hooks/specplane-bypass-guard.sh"));
     return caps;
   },
 };

@@ -14,6 +14,7 @@ export const CAPABILITIES = [
   "usage-measurement",
   "command-blocking",
   "session-opening",
+  "bypass-guards",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 export type Capabilities = Record<Capability, boolean>;
@@ -26,6 +27,7 @@ export const CAPABILITY_LABELS: Readonly<Record<Capability, string>> = {
   "usage-measurement": "usage measurement",
   "command-blocking": "blocking the Specplane CLI",
   "session-opening": "opening a plan session",
+  "bypass-guards": "guarding against permission bypass by headless sessions",
 };
 
 export interface HarnessAdapter {

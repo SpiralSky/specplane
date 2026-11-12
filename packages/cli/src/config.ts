@@ -2,6 +2,7 @@ import * as path from "node:path";
 import { parseYaml } from "./yaml.js";
 import { configDiffersFromHead, readCommittedConfig } from "./config-source.js";
 import { CATALOG, PRESETS, allPresets, customPresetFindings, customRoleFindings } from "./perm/permissions.js";
+import { bypassFindings } from "./perm/bypass.js";
 
 /**
  * The project's configuration (`feature/configuration` R25, `architecture/file-formats` §6,
@@ -77,7 +78,7 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: "subprojects", kind: { t: "subprojects" }, def: [], doc: "The named locations in the project that are subprojects: items {name, path}; the folder holds requirements/, features/ and architecture/" },
   { key: "strict_mode.enabled", kind: { t: "bool" }, def: false, later: true, doc: "Strict mode as a whole" },
   { key: "strict_mode", kind: { t: "boolmap" }, def: {}, later: true, dynamic: true, doc: "Each strict mode measure on its own: strict_mode.<measure>" },
-  { key: "bypass_guards", kind: { t: "boolmap" }, def: {}, later: true, dynamic: true, doc: "Each guardrail against permission bypass on its own (default on): bypass_guards.<measure>" },
+  { key: "bypass_guards", kind: { t: "boolmap" }, def: {}, dynamic: true, doc: "Each guardrail against permission bypass on its own (default on): bypass_guards.<measure>" },
 ];
 
 /** Terms of the old model; reported as unknown with a hint (`file-formats` §6.2). */
@@ -368,6 +369,7 @@ export function loadSettings(root: string): LoadResult {
   }
   result.config.abs = resolvePaths(root, result.config, result.findings);
   for (const f of customPresetFindings(root)) result.findings.push({ severity: "error", key: f.file, message: f.message });
+  for (const f of bypassFindings(result.config.values["bypass_guards"] as Record<string, boolean> | undefined)) result.findings.push({ severity: "warning", key: "bypass_guards", message: f });
   for (const f of customRoleFindings(root)) result.findings.push({ severity: f.severity, key: f.file, message: f.message });
   // A preset ID that names no default or custom preset is malformed, and the default preset applies (`file-formats` §7.3).
   const id = result.config.permissionsPreset;

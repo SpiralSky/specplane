@@ -8,6 +8,7 @@ import { PreconditionError, UsageError } from "../errors.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
 import { SKILL_COMMANDS, skillPath } from "./claude-skills.js";
 import { CODEX_CONTRACTS, contractPath, SKILL_FILE as CODEX_SKILL_FILE } from "./codex-skills.js";
+import { bypassGuardOn } from "../perm/bypass.js";
 import { steeringInputs, steeringStamp } from "./steering.js";
 
 /**
@@ -336,6 +337,11 @@ export function inspectInstallation(root: string): HarnessFinding[] {
     } catch (e) { out.push({ severity: "error", file: f, message: (e as Error).message }); continue; }
     const { header } = splitHeader(text);
     if (header) seen(f, header[1], header[2] ?? null);
+  }
+  // The Claude guards against permission bypass live in one hook; without it only the core's marker check applies (`R58`).
+  if (fs.existsSync(path.join(root, ".claude/hooks/specplane-cli-block.sh")) && !fs.existsSync(path.join(root, ".claude/hooks/specplane-bypass-guard.sh"))
+    && (["headless_block", "marker_protect", "store_protect", "hook_protect"] as const).some((m) => bypassGuardOn(root, m))) {
+    out.push({ severity: "warning", file: ".claude/hooks/specplane-bypass-guard.sh", message: "the Claude hook that guards against permission bypass is not installed, so headless sessions and direct store edits are not blocked; run `specplane init --harness claude` again" });
   }
   return out;
 }

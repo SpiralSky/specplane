@@ -8,6 +8,7 @@ import { checkBudget, type Usage } from "../plan/budget.js";
 import { clearRun, requirePlan, worktreeOf, writeRun, type PlanCtx } from "../plan/ctx.js";
 import { storeDir } from "../repo/store.js";
 import type { SessionLauncher } from "./run.js";
+import { ACTOR_ENV, LLM_MARK, bypassGuardOn } from "../perm/bypass.js";
 
 /**
  * The Claude Code session adapter (`harnesses/claude/specifications/architecture/claude-integration` §7,
@@ -115,6 +116,8 @@ export async function runPlanSession(ctx: PlanCtx, planId: string, deps: ClaudeD
   const env = {
     ...(deps.env ?? process.env), SPECPLANE_SESSION: session, SPECPLANE_CHECKOUT: worktree,
     SPECPLANE_MEASURABLE_RESOURCES: CLAUDE_RESOURCES.join(","),
+    // The headless session is an LLM's: mark it so the CLI and any session it starts run with an LLM role (`R58`, `marker_export`).
+    ...(bypassGuardOn(ctx.root, "marker_export") ? { [ACTOR_ENV]: LLM_MARK, SPECPLANE_PROVIDER: "anthropic" } : {}),
   };
   const child = deps.spawn(buildArgv(session, { resume: o.resume }), { cwd: worktree, env });
   const budgetCtx: PlanCtx = { ...ctx, measurable: [...CLAUDE_RESOURCES] };

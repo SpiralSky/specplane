@@ -5,6 +5,8 @@ import { run } from "../git/exec.js";
 import * as os from "node:os";
 import { readCustomPresets, type PresetFinding } from "./presets.js";
 import { identityOf, loadRoleSet, readMappings, type RoleFinding } from "./roles.js";
+import { bypassGuardOn, envFactors, llmMarked, type Env } from "./bypass.js";
+import { resolveLlmRole } from "./llm-rules.js";
 
 /**
  * Minimal permission engine: catalog IDs, the four default presets, mode resolution and the guard
@@ -187,9 +189,19 @@ export function gitUserName(root: string): string | null {
 
 export interface Actor { role: RoleId; kind: "human" | "llm"; name: string; model?: string; session?: string; delegatedBy?: string }
 
-/** The actor for a person's CLI call: the CLI role, the git user, and the harness session when `SPECPLANE_SESSION` names one (`reference-cli` §7.1). */
-export function cliActor(root: string): Actor {
-  const session = process.env.SPECPLANE_SESSION?.trim();
+/**
+ * The actor for a CLI call (`reference-cli` §7.1, §7.8). A person: the CLI role, the git user, and the harness session
+ * when `SPECPLANE_SESSION` names one. A process the environment marks as an LLM's (`SPECPLANE_ACTOR=llm`, measure
+ * `bypass_guards.llm_marker`, `roles-and-permissions` R58): an LLM actor with the role the LLM role rules give, so a
+ * headless session or the CLI run from inside an LLM session never runs as the Standard User, and `role.json` and the
+ * OS user mapping are not consulted.
+ */
+export function cliActor(root: string, env: Env = process.env): Actor {
+  const session = env.SPECPLANE_SESSION?.trim();
+  if (llmMarked(env) && bypassGuardOn(root, "llm_marker")) {
+    const { factors, model, delegatedBy } = envFactors(env);
+    return { role: resolveLlmRole(root, factors), kind: "llm", name: model ?? "unknown", model: model ?? "unknown", ...(session ? { session } : {}), ...(delegatedBy ? { delegatedBy } : {}) };
+  }
   return { role: cliRole(root), kind: "human", name: gitUserName(root) ?? "unknown", ...(session ? { session } : {}) };
 }
 
