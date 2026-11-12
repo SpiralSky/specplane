@@ -29,6 +29,8 @@ Notes store landed: `aa52451`, `eac8f55`, `ce1c397`, `0c08bfd`, `c81f74a`, `beed
 
 Unit status (backlog in `docs/work-records/2026-11-11-remaining-work.md`):
 
+- R33/R33.1 done: `plan meta get|set` (`plan/meta.ts`, permissions `plan.meta.read`, `plan.meta.write[.title|authors|references|implements]`), user docs and specs updated. `npm test` 497 pass / 0 fail; hooks 52 pass; check-sync OK; validate 0 errors, 31 warnings (the extra one is the `AGENTS.md` steering stamp: rerun `specplane init --harness claude` to refresh it).
+
 - U0-U7, U9, U10: done (decisions, notes store, permissions, requests, plan record, steering, instruction delivery; see the work record).
 - U11: done. 35-action registry and stdio MCP server.
 - U12, U8: done (`3f89d82`, `252806a`). Legacy engine removed; `yaml` library.

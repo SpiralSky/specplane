@@ -82,7 +82,7 @@ These are the standard permissions. The section named in the last column defines
 | Override status, override approver, override approval commit, override test results | Four separate protected permissions; general metadata writing does not include them | `R17.2` |
 | Record a test result | Recording the result of a specification test | `R61.2`, `verification R61` |
 | Information retrieval | Reading specifications and other project information; viewing and review use it and have no permission of their own | `R26.2`, `R21`, `R38.1` |
-| Read and write plan metadata | Plan metadata through the CLI; a later release | `R33.1` |
+| Read and write plan metadata | Plan metadata through the CLI: `plan.meta.read`, `plan.meta.write` and `plan.meta.write.<piece>` | `R33.1` |
 | Edit, create, delete, start, abandon and complete plans | Six separate permissions | `R31.1`, `plan-execution R31.1` |
 | Set a plan budget | Setting or changing the budget of a plan | `R27.1.1`, `plan-execution R27.1.1` |
 | Resume a plan | Resuming a stopped plan | `R27.2.1`, `plan-execution R27.2.1` |

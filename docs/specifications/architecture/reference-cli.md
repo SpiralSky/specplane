@@ -56,7 +56,7 @@ src/
   audit/       log.ts, retention.ts (§9)
   plan/        parse.ts, validate.ts, progress.ts, next.ts, start.ts, stop.ts,
                resume.ts, budget.ts, review.ts, finish.ts, abandon.ts, merge.ts,
-               worktree.ts (§11)
+               worktree.ts, meta.ts (§11, §13.5)
   harness/     actions.ts, adapter-claude.ts, adapter-codex.ts, instructions.ts,
                retrieve.ts, steering.ts, install.ts (§12)
   git/         exec.ts, blobs.ts, commit.ts, worktree.ts, hooks.ts (§1, §14)
@@ -476,15 +476,25 @@ Implements `cli R16`, `cli R16.1`, `cli R17`, `cli R17.1`, `cli R17.2`, `cli R33
 | `role show`, `role switch <role>` | `§7.1` | none |
 | `requests [list\|show <id>\|accept <id>\|decline <id>]` | `§8` | permission of the requested action |
 | `audit` | `§9` | `info.retrieve` |
+| `plan meta get <id>`, `plan meta set <id> <field> <value>` | `§13.5` | `plan.meta.read`, `plan.meta.write[.piece]` |
 | `plan list\|show\|next\|start\|stop\|resume\|review\|finish\|merge\|abandon\|delete\|budget\|retarget` (assumption, below) | `§11` | the plan permissions, `info.retrieve` for the read-only ones |
 | `docs [topic]`, `docs search <text>` | `§12.5` | none |
 | `check ...` | `§14` | none |
 
-The permission column names the permission that guards the command; Standard User holds all of these, and a read-only command is checked against `info.retrieve` like any other (`§7.3`). Spec content is edited in an editor, not by a command. Plan metadata commands are a later release (`cli R33`, `§15`). **Assumption:** the feature specs say plans are managed through the harness (`plan-execution R31`) and give the CLI only plan metadata (`cli R33`, later release); the human plan commands above (`start`, `stop`, `resume`, `review`, `finish`, `merge --pr|--local`, `abandon`, `delete`, `budget`) are an addition so a person without a harness can run the same functions, and `plan retarget <id> --target <branch>` and `--force-deps` on `start` are assumptions with no counterpart in the feature specs. Every command accepts `--json`, and `--dry-run` where it writes: a dry run runs the guard and all checks and prints the writes it would do (assumption).
+The permission column names the permission that guards the command; Standard User holds all of these, and a read-only command is checked against `info.retrieve` like any other (`§7.3`). Spec content is edited in an editor, not by a command. **Assumption:** the feature specs say plans are managed through the harness (`plan-execution R31`) and give the CLI only plan metadata (`cli R33`, `§13.5`); the human plan commands above (`start`, `stop`, `resume`, `review`, `finish`, `merge --pr|--local`, `abandon`, `delete`, `budget`) are an addition so a person without a harness can run the same functions, and `plan retarget <id> --target <branch>` and `--force-deps` on `start` are assumptions with no counterpart in the feature specs. Every command accepts `--json`, and `--dry-run` where it writes: a dry run runs the guard and all checks and prints the writes it would do (assumption).
 
 ### §13.2 Metadata
 
 `metadata.ts` reads and writes the author-written frontmatter fields of a spec through the YAML document (`title`, `authors`, `covers`, `implements`, `references`), with the permission per piece mapped to `meta.write.<piece>` (`cli R17.1`). Status, approver and test results are not frontmatter; they are records, and their overrides map to `override.*` and append `override` or `test-result` records carrying the mark of `architecture/file-formats §2.4`. `override status approved|awaiting-review`, `override approver` and `override approval-commit` append `override` records with `target` and `value` (`architecture/file-formats §2.4`); `override status approved` computes the fingerprints from the HEAD content so later edits reopen it (`cli R17.2`). A `meta get` shows the records' fields (approver, date) read from the store. All writes record `old` and `new` in the audit log (`cli R17`). Metadata writes do not change body or review state (`specifications R11.3`): `title`, `covers`, `implements` and `references` are outside the fingerprint (`architecture/file-formats §4.2`), so correcting them leaves an approved spec approved; a field that is not one of those in `architecture/file-formats §2.1`, including a legacy record key, is refused. `plan meta` commands use the same code on PLAN.md (later release).
+
+### §13.5 Plan metadata
+
+`plan/meta.ts` backs `plan meta get <id> [--json]` and `plan meta set <id> <field> <value>` (`cli R33`, `cli R33.1`). The plan is read through `requirePlan`, so a started plan is read and changed in its own worktree, and an archived plan can be read.
+
+- **Get** is guarded by `plan.meta.read`. It returns the author-written fields of PLAN.md (`title`, `authors`, `implements`, `references`), the effective approval (`§11.2`), the execution status with its stop reason, `current_step`, `done`, `budget`, `branch`, `target_branch` and `session` from `progress.yaml`. Execution fields are shown, never settable.
+- **Set** takes one of `title`, `authors`, `references`, `implements` and is guarded by `[plan.meta.write.<piece>, plan.meta.write]`, the more permissive of the two (`cli R17.1`). Any other field, including `status` and every progress field, is refused naming the plan commands that change it; plans have no protected override in this release (`cli R33.1`). Values parse as for specs (`§13.2`): `authors` items are `human:<name>` or `llm:<model>` with an optional `|<contribution>`; `references` items must be valid cites that resolve; `implements` items are `<spec>` or `writes:<spec>`, each spec must exist, and the recorded `commit` of an unchanged `implements` entry is kept (a new one takes the spec's latest commit). An empty value clears a list.
+- **Write.** The key is edited in PLAN.md with the frontmatter editor and committed alone on the plan's branch: `docs(<slug>): set <piece>`, workflow `plan-meta`. It is refused for an archived, completed or abandoned plan, and when PLAN.md has uncommitted changes (the commit would absorb them). Because the `plan-v1` fingerprint keeps `title`, `references` and `implements` (`architecture/file-formats §5.2`), changing those makes the plan Awaiting Review again; `authors` does not.
+- **Audit.** One entry per call with the permission used and the old and new values, or `failed` with the reason (`cli R17`). The action can be requested (`request-user`): accepting it runs the same function with the stored `id`, `field` and `value` (`§8`).
 
 ### §13.3 Output and errors
 
@@ -525,5 +535,5 @@ Not built in the first release; each has a defined attachment point:
 - **Decision records, subprojects, migration** (`later-releases R37`, `later-releases R39`, `later-releases R66`): a `decisions/` module behind `decisions.enabled`; a project registry behind `subprojects` extending the resolver of `§4.3`; the migration prompt is a harness instruction (`§12.3`).
 - **Parallelism** (`plan-execution R31.2`): a `step_tasks` read in `plan/next.ts` and an adapter capability; steps still run in order.
 - **Viewing and review commands** (`harness R21`, `harness R38`): adapter commands on `spec.retrieve` and the diff routine.
-- **Plan metadata through the CLI** and the pre-commit checks of `§14.2`.
+- The pre-commit checks of `§14.2` (built; kept in this list only for history).
 - **Left to the harness specs or a later release without a design here:** viewing and review permissions (`harness R21.1`, `harness R38.1`: they are the `info.retrieve` permission, `harness R26.2`), decision-record permissions (`later-releases R37.1`: catalog entries only, `architecture/file-formats §7.1`), the subproject rules (`later-releases R39.1`, `later-releases R39.2`, `later-releases R39.3`, `later-releases R39.4`: resolver prefix and unique IDs per project only, `architecture/file-formats §12.4`) and custom-user permissions (`roles-and-permissions R44.1`, `roles-and-permissions R60`).

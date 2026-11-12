@@ -109,7 +109,7 @@ Test T1 (deterministic): set each protected value as the Administrator and check
 
 ## R33: Plan Management
 
-A person can manage plans from the CLI by changing plan metadata: a plan carries the same metadata as a specification (`plans R29`). This is a later release.
+A person can manage plans from the CLI by changing plan metadata: a plan carries the same metadata as a specification (`plans R29`). A person runs `plan meta get <id>` and `plan meta set <id> <field> <value>`.
 
 - Changes made here are overrides and are recorded in the audit log in the same way as for specifications (`R17`, `R13.1`).
 - This is about metadata. Starting, resuming, stopping and finishing plans, and the plan's steps, are described in `plans R29` and `plan-execution R31.1`, and in a harness they are LLM actions that follow the LLM's role.
@@ -120,6 +120,12 @@ Scenario: Given a plan with an outdated title in its metadata, When a person wit
 ### R33.1: Plan Metadata Permissions
 
 Plan metadata has a read permission, a general write permission that covers all plan metadata, and granular write permissions per piece of metadata, each with the three modes. They combine as in `R17.1`. There is no protected override for plans in this release.
+
+The settable pieces are the title, the authors, the references and the specifications the plan implements or writes. Execution status and progress are shown but not settable: they change through the plan commands. A plan that is archived, completed or abandoned cannot be changed. Changing the title, references or specifications changes the plan's content, so the plan is Awaiting Review again; changing the authors does not.
+
+Scenario: Given a plan whose execution status is stopped, When a person tries to set its status by metadata, Then it is refused and names the plan commands.
+
+Test T1 (deterministic): set each piece as a person with and without the matching permission, check the audit entry with old and new values, and check that status is refused.
 
 ## §2 Edge cases
 
