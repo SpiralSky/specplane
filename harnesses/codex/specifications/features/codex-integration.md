@@ -63,5 +63,5 @@ Codex records the model it reports as the author of a spec it writes. If Codex e
 ## §7 What this release does not do
 
 - No typed commands that skip the model, unless verified (`§3`).
-- No viewing or review commands (later release in the root specs).
+- No viewing command (Codex lacks the viewing capability, `root:harness R35.1`) and no review command (later release in the root specs).
 - No background sessions (`§5`).

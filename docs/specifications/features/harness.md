@@ -10,7 +10,7 @@ references: [R4, R10, R11, R16, R22, R24, R27, R37, R61.1, R66, later-releases R
 
 # Harness
 
-A harness is the environment in which an LLM works with the user, for example Claude Code or Codex. This spec describes what Specplane provides inside a harness: how commands typed by the user run, how instructions reach the LLM, how specifications are written, approved, retrieved and reviewed through it, which harnesses are supported, and what the LLM may not do (call the CLI). Permissions are decided by roles (`roles-and-permissions R50`); this spec states which permission each harness action uses. Parts marked as a later release follow `docs/release-plan.md`: spec viewing (`R21`) and spec review (`R38`) come after the first release. Everything else here is part of the first release.
+A harness is the environment in which an LLM works with the user, for example Claude Code or Codex. This spec describes what Specplane provides inside a harness: how commands typed by the user run, how instructions reach the LLM, how specifications are written, approved, retrieved and reviewed through it, which harnesses are supported, and what the LLM may not do (call the CLI). Permissions are decided by roles (`roles-and-permissions R50`); this spec states which permission each harness action uses. Parts marked as a later release follow `docs/release-plan.md`: spec review (`R38`) comes after the first release; spec viewing (`R21`) is built for Claude Code. Everything else here is part of the first release.
 
 ## §1 Terms
 
@@ -144,11 +144,16 @@ Test T1 (deterministic): retrieve a specification with citations and check the r
 
 ## R21: Spec Viewing (Optional, per harness)
 
-Later release. If the harness can show a specification to the user, Specplane adds a command that lets the user view a specific specification directly. If the specification changed since it was last approved, the change is highlighted.
+If the harness can show a specification to the user, Specplane adds a command that lets the user view a specific specification directly. Claude Code supports it (`/spec-view`); Codex does not. If the specification changed since it was last approved, the change is highlighted.
 
 - It is a user command with no LLM involvement (`R18`).
 - A harness that cannot show specifications does not offer it, and Specplane says so (`R35.1`).
 - A specification that was never approved is shown without highlighting.
+- With no ID the command lists the specifications with their status. A requirement file has no approval record, so its change is shown against the last commit.
+
+Scenario: Given an approved specification edited since its approval, When the user runs the viewing command with its ID, Then the status and the changed lines are shown, highlighted, and no model turn starts.
+
+Test T2 (deterministic): view a specification changed since approval and check the output carries the diff; view a never-approved one and check there is none.
 
 ### R21.1: Spec Viewing Permissions
 

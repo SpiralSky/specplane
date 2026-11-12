@@ -6,7 +6,7 @@ related: [harnesses, commands, permissions]
 
 # Harness commands
 
-These descriptions are packaged as the default command documentation. Custom instructions replace this documentation only; action checks and command procedures remain. Commands without arguments do not start a model turn. Typed approval by ID and the requests pane are user-only operations.
+These descriptions are packaged as the default command documentation. Custom instructions replace this documentation only; action checks and command procedures remain. Commands without arguments do not start a model turn. Typed approval by ID, spec viewing and the requests pane are user-only operations.
 
 ## spec-assist
 
@@ -67,6 +67,12 @@ Give per-section outcomes, recorded versus unrecorded evidence, and implementati
 Approve specified IDs under the acting role and dependency checks (`harness R20`, `R20.1`, `cli R16`).
 
 Name the approved IDs or exact pending request or refusal, including any approval group.
+
+## spec-view
+
+Show the user one specification with its status and the change since its last approval, with no model turn (`harness R21`, `R21.1`).
+
+Type `spec-view <id>` (a bare slug such as `plan-execution` works when it names one spec) to see the spec's status, authors and approval, then the change since the last approval as a diff, then the text. In a terminal additions are green and deletions red; elsewhere they keep the `+` and `-` markers. A spec never approved is shown as all new; a requirement file, which has no approval record, shows its change since the last commit. Without an ID the command lists every spec with its status. Viewing is a read and uses the `info.retrieve` permission; it has no permission of its own. It needs the viewing capability, so it is offered on Claude Code only (see `harnesses`).
 
 ## requests
 

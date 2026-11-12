@@ -51,6 +51,7 @@ Claude Code offers one slash command per workflow:
 | `/verify` | Judge an architecture spec against its implementation |
 | `/approve` | Approve specs or plans by ID; only the user can run it |
 | `/requests` | Open the pane of pending requests; only the user can run it |
+| `/spec-view` | Show a spec with its status and the change since its last approval; only the user can run it |
 
 - A command typed without arguments runs without a model turn; with arguments it passes them and the command's instructions to Claude (`root:harness R18`). Asking Claude in plain words runs the same workflow under Claude's own role.
 - Instructions for a command are delivered when it is used, once per conversation, and again after compaction (`root:harness R14`). Claude Code loads them on demand as skills where it can.

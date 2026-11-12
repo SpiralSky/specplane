@@ -23,7 +23,8 @@ Plans come first so that an agent can carry out the remaining work, including wr
 
 ## Later releases
 
-- Spec viewing and review commands: `R21`, `R38`
+- Spec review command: `R38`
+- Spec viewing command (Claude Code): `R21`, built after the first release was assembled
 - Decision records: `R37`
 - Subprojects: `R39`
 - Custom roles and role management: `R43`, `R48`, `R49`, `R56`, `R60`, and role mappings in `R44` and `R44.1`
