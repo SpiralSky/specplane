@@ -23,6 +23,7 @@ const SUMMARY: Readonly<Record<string, string>> = {
   "plan-status": "Show plans with live status and the next step.",
   "spec-draft-architecture": "Draft an architecture specification from feature specifications.",
   "spec-assist": "Write or change a specification together with the user.",
+  "decision-new": "Record a decision the user made, with its context, as a decision record.",
   validate: "Check the specifications and show warnings and coverage.",
   verify: "Judge an architecture specification against its implementation and record evidence.",
 };

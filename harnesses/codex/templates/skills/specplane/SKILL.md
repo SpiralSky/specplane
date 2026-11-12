@@ -19,6 +19,7 @@ If a contract needs a capability this setup lacks (for example the MCP tools are
 | `plan-status` | Show plans with live status and the next step. | `contracts/plan-status.md` |
 | `validate` | Check the specifications and show warnings and coverage. | `contracts/validate.md` |
 | `verify` | Judge an architecture specification against its implementation and record evidence. | `contracts/verify.md` |
+| `decision-new` | Record a decision the user made, with its context, as a decision record. | `contracts/decision-new.md` |
 | `plan-abandon` | Abandon a plan after the user confirms. | `contracts/plan-abandon.md` |
 
 - `approve`: not offered in Codex, because approval is a typed, user-only command and Codex has no verified way to run one without a model turn. The user can run it in their own terminal.

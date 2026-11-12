@@ -20,9 +20,9 @@ function commit(root: string): void {
 }
 function session(root = repo()): InstructionSession { return { root, id: "test-session", reportsContext: true }; }
 
-test("all thirteen packaged contracts have versioned, ordered parts and action-only mechanical steps", () => {
+test("all fourteen packaged contracts have versioned, ordered parts and action-only mechanical steps", () => {
   const version = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
-  assert.equal(COMMANDS.length, 13);
+  assert.equal(COMMANDS.length, 14);
   for (const key of COMMANDS) {
     const contract = readContract(key);
     assert.ok(contract.startsWith(`<!-- Specplane command contract v${version};`), key);

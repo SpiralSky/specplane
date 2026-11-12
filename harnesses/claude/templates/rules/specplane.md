@@ -7,6 +7,6 @@ If the project has no Specplane configuration, do not apply Specplane rules.
 
 ### Claude Code
 
-- Commands: `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/plan-start`, `/plan-status`, `/plan-abandon`, `/validate`, `/verify`, `/approve`, `/requests`, `/spec-view`.
+- Commands: `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/plan-start`, `/plan-status`, `/plan-abandon`, `/validate`, `/verify`, `/approve`, `/requests`, `/spec-view`, `/decision-new`.
 - Commits: put `Specplane-Agent: $SPECPLANE_AGENT` and `Specplane-Session: $SPECPLANE_SESSION` in the trailers when those variables are set.
 - In a plan checkout, the session start context names the plan and its next step; work only on that step.
