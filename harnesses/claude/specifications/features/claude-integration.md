@@ -49,6 +49,7 @@ Claude Code offers one slash command per workflow:
 | `/plan-abandon` | Abandon a plan after confirmation |
 | `/validate` | Run validation and summarise the findings |
 | `/verify` | Judge an architecture spec against its implementation |
+| `/spec-review` | Review specs read-only: problems, gaps, wording and questions for the user |
 | `/approve` | Approve specs or plans by ID; only the user can run it |
 | `/requests` | Open the pane of pending requests; only the user can run it |
 | `/spec-view` | Show a spec with its status and the change since its last approval; only the user can run it |

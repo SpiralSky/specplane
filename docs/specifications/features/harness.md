@@ -10,7 +10,7 @@ references: [R4, R10, R11, R16, R22, R24, R27, R37, R61.1, R66, later-releases R
 
 # Harness
 
-A harness is the environment in which an LLM works with the user, for example Claude Code or Codex. This spec describes what Specplane provides inside a harness: how commands typed by the user run, how instructions reach the LLM, how specifications are written, approved, retrieved and reviewed through it, which harnesses are supported, and what the LLM may not do (call the CLI). Permissions are decided by roles (`roles-and-permissions R50`); this spec states which permission each harness action uses. Parts marked as a later release follow `docs/release-plan.md`: spec review (`R38`) comes after the first release; spec viewing (`R21`) is built for Claude Code. Everything else here is part of the first release.
+A harness is the environment in which an LLM works with the user, for example Claude Code or Codex. This spec describes what Specplane provides inside a harness: how commands typed by the user run, how instructions reach the LLM, how specifications are written, approved, retrieved and reviewed through it, which harnesses are supported, and what the LLM may not do (call the CLI). Permissions are decided by roles (`roles-and-permissions R50`); this spec states which permission each harness action uses. Spec viewing (`R21`) is built for Claude Code; spec review (`R38`) is a model command in both harnesses.
 
 ## §1 Terms
 
@@ -161,9 +161,11 @@ Spec viewing uses `R26.2` and has no permissions of its own. The user documentat
 
 ## R38: Spec reviewal and discussion
 
-Later release. A command lets the LLM review each specification and give feedback. It points out problems and possible gaps in feature and architecture specifications, and asks the user questions about the requirement specification where it needs clarification. It also covers grammar mistakes, poor wording and unclear instructions across all specifications.
+A command (`spec-review`, `/spec-review` in Claude Code) lets the LLM review each specification and give feedback. It points out problems and possible gaps in feature and architecture specifications, and asks the user questions about the requirement specification where it needs clarification. It also covers grammar mistakes, poor wording and unclear instructions across all specifications.
 
 - Review is read-only. The LLM does not change files, with one exception: when user decision records are enabled it can store the user's decisions (`R37`, `later-releases R37`, permissions `later-releases R37.1`; the `/decision-new` command).
+- The command takes spec IDs or `all`; with no arguments it only asks which to review and starts no model turn. It reads each specification with the parts it cites, its coverage, warnings and recorded results, and keeps to what that text supports. For feature and architecture specifications it reports problems (contradictions with cited requirements or other specifications, behaviour that no scenario or test covers, content in the wrong layer) and possible gaps. For a requirement file it proposes no change and asks the user numbered questions. For every specification it reports grammar mistakes, poor wording and unclear instructions with the section concerned and a suggested wording.
+- Review records nothing of its own: no review state is stored and nothing is approved, so it needs no action or permission beyond reading and the decision actions above.
 - Feedback goes to the user in the conversation. A change that follows from feedback is a separate action under `R19.2`.
 
 ### R38.1: Spec reviewal permissions

@@ -23,7 +23,7 @@ Plans come first so that an agent can carry out the remaining work, including wr
 
 ## Later releases
 
-- Spec review command: `R38`
+- Spec review command: `R38`, built after the first release was assembled
 - Spec viewing command (Claude Code): `R21`, built after the first release was assembled
 - Decision records: `R37`
 - Subprojects: `R39`
