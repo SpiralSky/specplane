@@ -130,7 +130,7 @@ The identifier forms are in `architecture/file-formats §12.1`; this section onl
 Implements `specifications R7`, `plan-execution R27`.
 
 - Paths come only from the configuration or the defaults; no tool hard-codes a location.
-- Every path Specplane writes is inside the repository, inside `plans.worktree_dir`, or inside `<git-common-dir>/specplane/`, with two further exceptions, the ref `refs/notes/specplane` and the pre-commit hook file: the hook file at `git rev-parse --git-path hooks/pre-commit`, which may lie outside the working tree when `core.hooksPath` is set (`architecture/reference-cli §14.2`, later release). Temporary checkouts go under `<git-common-dir>/specplane/tmp/`, not a system temp directory. It writes nowhere else.
+- Every path Specplane writes is inside the repository, inside `plans.worktree_dir`, or inside `<git-common-dir>/specplane/`, with two further exceptions, the ref `refs/notes/specplane` and the pre-commit hook file: the hook file at `git rev-parse --git-path hooks/pre-commit`, which may lie outside the working tree when `core.hooksPath` is set (`architecture/reference-cli §14.2`). Temporary checkouts go under `<git-common-dir>/specplane/tmp/`, not a system temp directory. It writes nowhere else.
 - The main checkout's branch and files are unchanged by starting, running or removing a plan.
 - A plan has at most one worktree, and a worktree belongs to exactly one plan; two runs never share one (`plan-execution R27`).
 - Local state is never committed. Tracked files never contain absolute paths, user names or machine-specific values that Specplane wrote (assumption).

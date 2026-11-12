@@ -499,7 +499,7 @@ Implements `verification R12`, `verification R32`, `verification R36.3`, `config
 
 The earlier generated-index job no longer exists. The CI recipe is a documented command, not a generated workflow: run `specplane validate --json` on the checked-out commit; a non-zero exit fails the job. It reads committed content, needs no permission, no local store and no harness, and writes nothing. `specplane test run --all` may be added by a project; the `deterministic` runnable tests execute in the same temporary checkout and the job fails on `failed`. Neither records results in CI (no role records; assumption).
 
-### §14.2 Pre-commit hooks (later release)
+### §14.2 Pre-commit hooks
 
 - `specplane check requirement-ids --staged` (setting `pre_commit.duplicate_requirement_ids`, `verification R32`): parses requirement files from the index (`git show :<path>`), reports duplicate IDs naming both places, exits 1 on any; it runs nothing else.
 - `specplane check tests --staged` (setting `pre_commit.tests`, `verification R36.3`): finds architecture specs whose files are staged, exports the index to a temporary directory under `<store>/tmp/` (`git checkout-index --prefix`), runs their deterministic tests there, and exits 1 naming spec and test; never runs intelligent tests, never records results or sets implementation.

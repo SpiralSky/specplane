@@ -413,8 +413,8 @@ tests:
   logs: local                        # local | git | off
   logs_retention: 30
 pre_commit:
-  duplicate_requirement_ids: off     # later release
-  tests: off                         # later release
+  duplicate_requirement_ids: off
+  tests: off
 coverage:
   requirement_only: []               # requirement ids
 decisions: {enabled: off}            # later release
@@ -737,7 +737,7 @@ Implements `specifications R1`, `plans R30`.
 
 ### §12.2 Collisions
 
-Two Test lines with the same label in one section are a validation error (`§11.2`). Two specs or plans created on parallel branches with the same ID are an ordinary git conflict (same path). Two requirements with the same number on parallel branches show as duplicates after the merge and are reported by validation (and by the pre-commit check, later release, `verification R32`).
+Two Test lines with the same label in one section are a validation error (`§11.2`). Two specs or plans created on parallel branches with the same ID are an ordinary git conflict (same path). Two requirements with the same number on parallel branches show as duplicates after the merge and are reported by validation (and by the pre-commit check, `verification R32`).
 
 ### §12.3 Shared plan files
 

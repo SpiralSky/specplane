@@ -105,7 +105,7 @@ Scenario: Given the setting is off, When the user runs any command, Then no coun
 
 Test T1 (deterministic): run a command with the setting on and off against a project with one warning and compare the last line of the output.
 
-## R32: Requirements Testing (later release)
+## R32: Requirements Testing
 
 Requirements can be checked for duplicate identifiers before they are committed, not only when validating (`R12`).
 
@@ -164,7 +164,7 @@ Scenario: Given the same specification, When commit C edits its text, Then it sh
 
 Test T1 (deterministic): mark a specification implemented on a commit, make a commit that edits another file and expect it still implemented, then edit the specification and expect unimplemented.
 
-### R36.3: Test Commit Gate (later release)
+### R36.3: Test Commit Gate
 
 An option in the configuration (`configuration R25`) blocks a commit when the deterministic tests of an architecture specification fail. It is off by default and is a pre-commit step installed and removed the same way as in `R32`.
 

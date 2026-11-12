@@ -77,8 +77,8 @@ Verification (`verification R12`, `verification R13`, `verification R61`):
 | `architecture.llm_may_mark_implemented` | Whether an LLM may mark an architecture specification implemented once its checks pass (`R36.1`). When `off`, only a person can | `on` |
 | `tests.logs` | Where full test logs are kept: `local`, `git` or `off` (`R61.4`) | `local` |
 | `tests.logs_retention` | How long local test logs are kept, in days, or `forever`. Does not apply to logs kept in git | 30 days |
-| `pre_commit.duplicate_requirement_ids` | Installs a check that refuses a commit in which two requirements share an identifier (`R32`). Later release | `off` |
-| `pre_commit.tests` | Installs a check that refuses a commit when the deterministic tests of an architecture specification fail (`R36.3`). Later release | `off` |
+| `pre_commit.duplicate_requirement_ids` | Installs a check that refuses a commit in which two requirements share an identifier (`R32`). | `off` |
+| `pre_commit.tests` | Installs a check that refuses a commit when the deterministic tests of an architecture specification fail (`R36.3`). | `off` |
 | `coverage.requirement_only` | Requirements the owner marks requirement-only; coverage shows the annotation and still warns when uncovered (`verification R64`) | None |
 
 Later releases:

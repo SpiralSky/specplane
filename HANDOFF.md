@@ -8,7 +8,7 @@ State: first release built. U0-U19 and the gap-closure pass are committed on `sp
 Remaining, in this order:
 
 1. **Requirements coverage review (not yet done):** validate passing does not prove every requirement on `docs/requirements/product-requirements.md` is met. Have a separate agent walk the requirements against code and report gaps one or two at a time. Do not edit the page.
-2. **Spec markers:** the "(later release)" labels for the pre-commit checks in `reference-cli §14.2`, `configuration` and `verification R32`/`R36.3` are now stale; remove them in a spec edit.
+2. **Spec markers:** done (stale "later release" labels for the pre-commit checks removed).
 3. **Live verification by the user** (list below, "Needs live verification"). Items the agent cannot run: the plugin loading, the `claude -p` route, Codex config trust.
 4. **Open design decision, push notification and request dialogue:** not implemented; the adapter reports `push` as missing. Needs a live check of what Claude Code offers (push route, MCP elicitation) and the user's decision on who answers an elicitation prompt. Ask the user in product terms (what changes for people using it, tradeoff, recommendation: wait for the live pass).
 5. Merge/push only when the user asks.
