@@ -15,6 +15,8 @@ Review specifications and discuss the result with the user, read-only (`harness 
 
 Configuration must be present at HEAD. Stop with the reason and no change if a precondition fails. The adapter checks required capabilities and refuses missing capabilities by name. Instruction loading on demand is preferred when supported; otherwise use instruction injection. Typed commands without arguments run only mechanical steps and start no model turn; arguments accompany this contract under the acting role. Plain-language requests use the LLM role, never the user role.
 
+Before reading or reviewing, call `command.begin` with `command: "spec-review"` to activate the session guard. If it fails, stop. The harness refuses write actions while review is active, even when the role allows them; only `decision.add` and its request path are permitted. Reads retain their permissions. The restriction survives context compaction and ends when the next command begins or the session ends. Begin any subsequent workflow with `command.begin` naming that command. Do not switch commands just to evade a review refusal.
+
 Review changes no file. If `info.retrieve` is deny, stop and say so. A role that may not edit a specification can still review it.
 
 ## Steps
@@ -30,7 +32,7 @@ Review changes no file. If `info.retrieve` is deny, stop and say so. A role that
 
 `config.get` needs no permission; listing, retrieval and review context use `info.retrieve`, which review shares and has no permission of its own; `decision.retrieve` and `decision.add` use their own permissions.
 
-Every action checks its permissions in code. Allow acts directly unless custom steering asks for a request first. Request-user sends the exact action through `request.send`, writes nothing first, and ends outside a plan with the pending request ID. Deny refuses, names the permission, and permits no retry by another tool, role or direct edit. The LLM cannot accept or decline requests or switch roles. Never edit a specification, approval or execution status during review. A change that follows from feedback is a separate action: tell the user to use `spec-assist`.
+Every action checks its permissions in code. Allow acts directly unless custom steering asks for a request first. Request-user on `decision.add` creates its pending request without writing the decision record; `request.send` may also submit that exact `decision add` request. Reads can still request permission. Other write requests are refused as read-only. End outside a plan with the pending request ID. Deny refuses, names the permission, and permits no retry by another tool, role or direct edit. The LLM cannot accept or decline requests or switch roles. Never edit a specification, approval or execution status during review. A change that follows from feedback is a separate action: tell the user to use `spec-assist`.
 
 ## Output
 

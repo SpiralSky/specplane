@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { test } from "node:test";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { run } from "../git/exec.js";
 import { makeRepo, spec } from "../test-repo.js";
 import { DEFAULT_PRESET, type Mode } from "../perm/permissions.js";
@@ -14,6 +16,9 @@ import { computeStatus } from "../spec/status.js";
 import { readNotes } from "../spec/notes.js";
 import { createActionRuntime, listActions, validateActionInput } from "./actions.js";
 import { retrieveSpecs } from "./retrieve.js";
+import { runHarnessCommand } from "./run.js";
+import { advanceEpoch } from "./instructions.js";
+import { prepareDecision, readRecords } from "../decisions/decisions.js";
 
 const file = "docs/specifications/features/a.md";
 const text = (id = "feature/a", body = "# A\n\n## R1: First\n\nOriginal\n\n### R1.1: Nested\n\nNested\n\n## R2: Second\n\nOther\n") => spec({ id, title: "A", authors: [] }, body);
@@ -35,6 +40,126 @@ const inputs: Record<string, Record<string, unknown>> = {
 };
 
 const specActions = new Set(Object.keys(inputs));
+
+test("spec-review refuses every project write before dispatch or request, even with full control", async () => {
+  const root = repo("permissions:\n  preset: full-llm-control\ndecisions:\n  enabled: true\n");
+  const rt = createActionRuntime({ root, id: "review", reportsContext: true, command: "spec-review" });
+  const writes = {
+    ...inputs,
+    "spec.implement": { spec: "feature/a" }, "test.run": { all: true },
+    "test.record": { results: [{ test: "R1#T1", spec: "feature/a", kind: "intelligent", outcome: "passed", summary: "Checked" }] },
+    "config.set": { key: "auto_warn", value: "true" },
+    "request.send": { command: "spec approve", params: { ids: ["feature/a"] }, reason: "Approve" },
+    "decision.edit": { id: "D1", decision: "Changed" }, "decision.delete": { id: "D1" },
+    "plan.create": { words: ["review", "plan"] },
+    "plan.edit": { id: "P1", changes: [{ path: "PLAN.md", before: "old", after: "new" }] },
+    "plan.step-done": { id: "P1", step: 1, outcome: "done" },
+    "plan.softstop": { id: "P1" }, "plan.start": { id: "P1" }, "plan.resume": { id: "P1" },
+    "plan.abandon": { id: "P1" }, "plan.delete": { id: "P1" },
+    "plan.budget": { id: "P1", resource: "tokens", soft: 80 },
+    "plan.finish": { id: "P1", complete: true }, "plan.merge": { id: "P1", mode: "local" },
+  };
+  const before = run("git", ["status", "--porcelain"], { cwd: root });
+  for (const action of listActions().filter((a) => (!a.readOnly || a.id === "test.run") && a.id !== "decision.add")) {
+    const input = writes[action.id as keyof typeof writes];
+    assert.ok(input, `Missing review coverage: ${action.id}`);
+    validateActionInput(action.id, input);
+    const reply = await rt.call(action.id, input);
+    assert.equal(reply.ok, false, action.id);
+    assert.match(reply.findings.join(), /review is read-only/, action.id);
+    assert.equal(reply.request, undefined);
+  }
+  for (const [id, input] of Object.entries(inputs).filter(([id]) => listActions().find((a) => a.id === id)!.readOnly)) {
+    const reply = await rt.call(id, input);
+    assert.equal(reply.ok, true, `${id}: ${reply.findings.join()}`);
+  }
+  assert.equal(listRequests(root).length, 0);
+  assert.equal(run("git", ["status", "--porcelain"], { cwd: root }), before);
+  assert.equal(fs.readFileSync(path.join(root, file), "utf8"), text());
+});
+
+test("review state crosses runner and MCP calls, survives compaction, and ends at the next command", async () => {
+  const root = repo("permissions:\n  preset: full-llm-control\n");
+  const rt = runtime(root, "review"); // The MCP process can already be running when a command starts.
+  await runHarnessCommand("spec-review", ["feature/a"], root, { sessionId: "review" });
+  assert.match((await rt.call("spec.edit", inputs["spec.edit"])).findings.join(), /review is read-only/);
+  advanceEpoch({ root, id: "review" });
+  assert.match((await runtime(root, "review").call("spec.delete", inputs["spec.delete"])).findings.join(), /review is read-only/);
+  assert.equal((await runtime(root, "other-session").call("warnings.report", inputs["warnings.report"])).ok, true);
+  assert.equal((await rt.call("command.begin", { command: "invalid" })).ok, false);
+  assert.match((await rt.call("spec.edit", inputs["spec.edit"])).findings.join(), /review is read-only/);
+  await runHarnessCommand("spec-assist", ["feature/a"], root, { sessionId: "review" });
+  assert.equal((await rt.call("spec.edit", inputs["spec.edit"])).ok, true);
+  assert.equal((await rt.call("command.begin", { command: "spec-review" })).ok, true);
+  assert.match((await rt.call("spec.delete", inputs["spec.delete"])).findings.join(), /review is read-only/);
+  assert.equal((await rt.call("command.begin", { command: "spec-assist" })).ok, true);
+  assert.equal((await rt.call("warnings.report", inputs["warnings.report"])).ok, true);
+});
+
+test("review permits decision creation and its requests while retaining decision permissions and configuration", async () => {
+  const decision = { title: "Keep A", decision: "Keep the existing behaviour", context: "User chose it during review" };
+  for (const mode of ["allow", "request-user", "deny"] as Mode[]) {
+    const root = repo("decisions:\n  enabled: true\n");
+    const prior = DEFAULT_PRESET.llm.modes;
+    DEFAULT_PRESET.llm.modes = { ...prior, "decision.add": mode };
+    try {
+      const rt = createActionRuntime({ root, id: "review", reportsContext: false, command: "spec-review" });
+      const reply = await rt.call("decision.add", decision);
+      assert.equal(reply.ok, mode !== "deny", reply.findings.join());
+      assert.equal(!!reply.request, mode === "request-user");
+      if (reply.request) assert.equal((await acceptRequest(human(root), reply.request)).ok, true);
+      assert.equal(readRecords(root).records.length, mode === "deny" ? 0 : 1);
+      if (mode === "request-user") {
+        const request = await rt.call("request.send", { command: "decision add", params: prepareDecision(human(root), "add", decision), reason: "User decision" });
+        assert.ok(request.request, request.findings.join());
+        assert.equal((await acceptRequest(human(root), request.request)).ok, true);
+      }
+      const read = await rt.call("decision.retrieve", {});
+      assert.equal(read.ok, true, read.findings.join());
+    } finally { DEFAULT_PRESET.llm.modes = prior; }
+  }
+  const rt = createActionRuntime({ root: repo(), id: "off", reportsContext: false, command: "spec-review" });
+  const disabled = await rt.call("decision.add", decision);
+  assert.equal(disabled.ok, false);
+  assert.match(disabled.findings.join(), /Decision records are off/);
+});
+
+test("command steering activates review across processes; permission steering cannot lift it", async () => {
+  const root = repo("permissions:\n  preset: full-llm-control\n");
+  const rt = runtime(root, "steered");
+  const cli = fileURLToPath(new URL("../cli.js", import.meta.url));
+  const invoke = (...args: string[]) => execFileSync(process.execPath, [cli, ...args], {
+    cwd: root, env: { ...process.env, SPECPLANE_SESSION: "steered" }, stdio: "pipe",
+  });
+  invoke("steering", "spec-review");
+  invoke("steering", "spec.edit.feature");
+  assert.match((await rt.call("spec.edit", inputs["spec.edit"])).findings.join(), /review is read-only/);
+  invoke("harness", "run", "spec-assist", "feature/a");
+  assert.equal((await rt.call("spec.edit", inputs["spec.edit"])).ok, true);
+});
+
+test("review preserves requested reads but refuses writes smuggled through read requests", async () => {
+  const root = repo();
+  const rt = runtime(root);
+  await rt.call("command.begin", { command: "spec-review" });
+  const prior = DEFAULT_PRESET.llm.modes;
+  DEFAULT_PRESET.llm.modes = { ...prior, "info.retrieve": "request-user" };
+  try {
+    const read = await rt.call("spec.retrieve", inputs["spec.retrieve"]);
+    assert.ok(read.request);
+    assert.equal((await acceptRequest(human(root), read.request)).ok, true);
+    for (const id of ["spec.delete", "test.run", "command.begin"]) {
+      const r = await rt.call("request.send", { command: "harness read", params: { id, input: {} }, reason: "Attempt bypass" });
+      assert.equal(r.ok, false);
+      assert.match(r.findings.join(), /review is read-only/);
+    }
+    const explicit = await rt.call("request.send", { command: "harness read", params: { id: "spec.retrieve", input: inputs["spec.retrieve"] }, reason: "Read the spec" });
+    assert.ok(explicit.request, explicit.findings.join());
+    assert.equal((await acceptRequest(human(root), explicit.request)).ok, true);
+    DEFAULT_PRESET.llm.modes = { ...prior, "info.retrieve": "deny" };
+    assert.equal((await rt.call("spec.retrieve", inputs["spec.retrieve"])).ok, false);
+  } finally { DEFAULT_PRESET.llm.modes = prior; }
+});
 for (const action of listActions().filter((a) => specActions.has(a.id))) for (const mode of ["allow", "request-user", "deny"] as Mode[]) {
   test(`${action.id}: ${mode} uses the in-process LLM permission`, async () => {
     const root = repo();

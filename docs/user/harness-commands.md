@@ -84,7 +84,7 @@ Say which record was stored or which request is pending, and that you approve a 
 
 ## spec-review
 
-Review specifications and discuss the result, read-only (`harness R38`, `R38.1`).
+Review specifications and discuss the result, read-only (`harness R38`, `R38.1`). The harness refuses write actions even if your assistant’s role allows them, except storing your decision records and requesting permission to store them. It also blocks test runs, which can write results. Reads keep their usual permissions. This restriction lasts across tool calls and context compaction until the next command begins or the session ends. Direct Claude skills and Codex contracts activate it with `command.begin`; they begin subsequent workflows the same way.
 
 Point out problems and possible gaps in feature and architecture specifications, ask the user questions about requirement files, and report grammar mistakes, poor wording and unclear instructions in any specification. Reviewing changes no file: say so, and say that a change that follows is a separate `spec-assist` action. Review reads through `info.retrieve` and has no permission of its own, so a role that cannot edit a specification can still review it. When decision records are on, a decision the user states may be stored.
 

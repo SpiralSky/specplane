@@ -10,6 +10,7 @@ import { guarded, liveRoot, type PlanCtx } from "../plan/ctx.js";
 import { resumePlan, startPlan } from "../plan/run.js";
 import { listInfos, type PlanInfo } from "../plan/status.js";
 import { COMMANDS } from "./instructions.js";
+import { beginCommand } from "./active-command.js";
 
 /**
  * The user-command runner (`architecture/reference-cli` §12.2, `harness R18`): what the harness hook invokes as
@@ -31,7 +32,7 @@ export interface SessionLauncher {
   newSessionId(): string;
   open(ctx: PlanCtx, planId: string, o: { sessionId: string; resume: boolean }): string[];
 }
-export interface RunOptions { launcher?: SessionLauncher }
+export interface RunOptions { launcher?: SessionLauncher; sessionId?: string }
 
 
 const pad = (n: number): string => String(n).padStart(2, "0");
@@ -147,6 +148,8 @@ async function withArgs(root: string, command: string, args: string[], o: RunOpt
 /** Run one harness command as the person who typed it. Refuses anything outside the harness command list. */
 export async function runHarnessCommand(command: string, args: string[], root: string = checkoutRoot(), o: RunOptions = {}): Promise<CommandResult> {
   if (!COMMANDS.includes(command)) throw new UsageError(`Not a harness command: ${command}. The harness commands are: ${COMMANDS.join(", ")}.`);
+  const session = o.sessionId ?? process.env.SPECPLANE_SESSION?.trim();
+  if (session) beginCommand(root, session, command);
   const result = args.length === 0 ? await noArgs(root, command) : await withArgs(root, command, args, o);
   return { ...result, permission: result.permission ?? null };
 }

@@ -8,6 +8,8 @@ Read `.specplane/config.yaml` through the Specplane tools first and resolve ever
 
 If a contract needs a capability this setup lacks (for example the MCP tools are not registered), stop and name what is missing. Do not substitute another route, and do not approve anything on the user's behalf.
 
+Before a model command workflow, call `command.begin` with its command name so the harness applies that command’s session restrictions. A new command replaces the previous one; never switch just to evade a refusal.
+
 | Workflow | Use for | Contract |
 |----------|---------|----------|
 | `spec-assist` | Write or change a specification together with the user. | `contracts/spec-assist.md` |

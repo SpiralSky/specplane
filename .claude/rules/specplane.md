@@ -5,6 +5,8 @@ Look up your steering for your role and follow it. Use the Specplane harness act
 Load the documentation essentials with `docs.essentials` at the start of a session; when you lack information, search the rest with `docs.search` instead of guessing.
 If the project has no Specplane configuration, do not apply Specplane rules.
 
+Before a model command workflow, call `command.begin` with its command name so the harness applies that command’s session restrictions. A new command replaces the previous one; never switch just to evade a refusal.
+
 ### Claude Code
 
 - Commands: `/spec-assist`, `/spec-draft-architecture`, `/plan-create`, `/plan-step`, `/plan-finish`, `/plan-start`, `/plan-status`, `/plan-abandon`, `/validate`, `/verify`, `/approve`, `/requests`, `/spec-view`, `/decision-new`, `/migrate`, `/spec-review`.

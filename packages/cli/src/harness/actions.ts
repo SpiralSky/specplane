@@ -22,7 +22,8 @@ import type { ActionContext, HarnessAction } from "./action-types.js";
 import { bool, str, strings, type Input, type Schema, type Adder } from "./action-types.js";
 import { registerOperationActions } from "./actions-ops.js";
 import { registerPlanActions } from "./actions-plan.js";
-import { deliver, type InstructionDelivery, type InstructionSession } from "./instructions.js";
+import { COMMANDS, deliver, type InstructionDelivery, type InstructionSession } from "./instructions.js";
+import { activeCommand, beginCommand } from "./active-command.js";
 
 const object = (properties: Schema, required: string[] = []): Schema => ({ type: "object", properties, required, additionalProperties: false });
 const registry = new Map<string, HarnessAction>();
@@ -35,6 +36,11 @@ const add: Adder = (id, properties, required, permissions, readOnly, handler) =>
 };
 const info = ["info.retrieve"];
 const retrieval = { ids: strings, include_references: bool };
+// Session control, like instruction delivery: no project content or permission is changed.
+add("command.begin", { command: { enum: COMMANDS } }, ["command"], [], true, (c, p) => {
+  beginCommand(c.root, c.actor.session!, p.command);
+  return { command: p.command };
+});
 add("spec.retrieve", retrieval, ["ids"], info, true, (c, p) => retrieveSpecs(c.root, p.ids, p.include_references));
 add("spec.review-context", retrieval, ["ids"], info, true, (c, p) => reviewContext(c.root, p.ids, p.include_references));
 add("spec.list", { status: { enum: ["approved", "awaiting-review"] }, type: { enum: ["requirement", "feature", "architecture"] } }, [], info, true, (c, p) => listSpecViews(c.root, p));
@@ -100,6 +106,7 @@ export interface ActionSession extends InstructionSession { measurable?: string[
 
 /** A runtime belongs to exactly one adapter session. Actor identity never comes from tool input. */
 export function createActionRuntime(session: ActionSession) {
+  if (session.command) beginCommand(session.root, session.id, session.command);
   const sessionWarnings: Warning[] = [];
   const base: Actor = { role: "llm", kind: "llm", name: session.model || "unknown", model: session.model || "unknown", session: session.id, delegatedBy: session.delegatedBy };
   // What the harness knows about this LLM, matched by the LLM role rules (`R44.1`); never taken from tool input.
@@ -112,10 +119,20 @@ export function createActionRuntime(session: ActionSession) {
       try {
         const action = validateActionInput(id, input);
         const p = input as Input;
+        const command = activeCommand(session.root, session.id);
+        // test.run also records results and executes arbitrary project commands despite its read permission.
+        const isRead = (a: HarnessAction) => a.readOnly && a.id !== "test.run";
+        const decisionRequest = id === "request.send" && p.command === "decision add";
+        const readRequest = id === "request.send" && p.command === "harness read" &&
+          registry.has(p.params?.id) && p.params.id !== "command.begin" && isRead(registry.get(p.params.id)!);
+        if (command === "spec-review" && !isRead(action) && id !== "decision.add" && !decisionRequest && !readRequest) {
+          throw new Error(`Spec review is read-only; ${id} is refused. Only storing user decision records is permitted.`);
+        }
         const ctx: ActionContext = { root: session.root, actor, preset: activePreset(session.root), now: session.now, sessionWarnings, ...(session.measurable ? { measurable: session.measurable } : {}), ...(session.launcher ? { launcher: session.launcher } : {}), ...(session.adapter ? { adapter: session.adapter } : {}) };
         permissions = action.permissions(p);
         try { pruneAudit(ctx.root, loadSettings(ctx.root).config.auditRetention, { actor }); } catch { /* audit is best effort */ }
-        reply.instructions = [...(session.command ? [session.command] : []), ...permissions].map((key) => deliver(session, key, { role: actor.role }));
+        const instructionCommand = id === "command.begin" ? p.command : command;
+        reply.instructions = [...(instructionCommand ? [instructionCommand] : []), ...permissions].map((key) => deliver(session, key, { role: actor.role }));
         if (reply.instructions.some((i) => i.status === "unavailable")) throw new Error("Required instructions could not be delivered.");
         const g = guard(ctx.preset, actor, permissions, id);
         if (g.kind === "deny") throw new Error(g.message);
