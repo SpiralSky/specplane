@@ -115,7 +115,7 @@ export function createActionRuntime(session: ActionSession) {
         const ctx: ActionContext = { root: session.root, actor, preset: activePreset(session.root), now: session.now, sessionWarnings, ...(session.measurable ? { measurable: session.measurable } : {}), ...(session.launcher ? { launcher: session.launcher } : {}), ...(session.adapter ? { adapter: session.adapter } : {}) };
         permissions = action.permissions(p);
         try { pruneAudit(ctx.root, loadSettings(ctx.root).config.auditRetention, { actor }); } catch { /* audit is best effort */ }
-        reply.instructions = [...(session.command ? [session.command] : []), ...permissions].map((key) => deliver(session, key));
+        reply.instructions = [...(session.command ? [session.command] : []), ...permissions].map((key) => deliver(session, key, { role: actor.role }));
         if (reply.instructions.some((i) => i.status === "unavailable")) throw new Error("Required instructions could not be delivered.");
         const g = guard(ctx.preset, actor, permissions, id);
         if (g.kind === "deny") throw new Error(g.message);

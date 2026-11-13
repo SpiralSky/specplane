@@ -19,6 +19,8 @@ specplane init --harness codex
 
 The LLM does not run the CLI. It calls the Specplane actions through an MCP server (`specplane mcp`, started by the harness adapter, not by hand). Every action checks the permission of the LLM role (see `permissions`); an action needing `request-user` becomes a request that you answer in the harness or with `requests accept <id>` and `requests decline <id>`. A person's typed commands (`/validate`, `/approve`, and so on) run as the person who typed them and make no model call; see `harness-commands`.
 
+Steering and command instructions describe the same effective role that each action checks, including approved custom permissions. LLM role rules use the identity factors supplied by the adapter; when the effective role or permissions change, instructions are sent again. A shared MCP process still uses its adapter session's identity; it cannot distinguish individual subagents unless the adapter supplies their identity separately.
+
 ## What each harness supports
 
 <!-- note: harness-support -->

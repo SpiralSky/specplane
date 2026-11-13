@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { configSet } from "../config-ops.js";
 import { describePermission } from "../perm/docs.js";
 import { CATALOG, PRESETS, activePreset } from "../perm/permissions.js";
+import { roleApprove, roleCreate, roleEdit } from "../perm/role-ops.js";
 import { makeRepo } from "../test-repo.js";
 import {
   generateCommandSteering, generatePermissionSteering, generateRoleSteering, inspectSteering,
@@ -110,6 +111,36 @@ test("stamps are stable and change with preset identity, mode content, custom te
     { ...input, custom: [{ command: "*", text: "Ask first" }] },
     { ...input, version: "0.2.0" },
   ]) assert.notEqual(first, steeringStamp(changed));
+});
+
+test("steering uses approved custom permissions and refreshes its stamp only when an edit is approved", () => {
+  const root = repo();
+  const ctx = () => ({ root, actor: { kind: "human" as const, role: "administrator", name: "Test" }, preset: activePreset(root) });
+  assert.equal(roleCreate(ctx(), "helper", { level: 2, defaultMode: "deny", sets: ["info.retrieve=allow", "spec.create.feature=request-user"] }).ok, true);
+  git(root, "add", ".specplane/roles");
+  git(root, "commit", "-qm", "role");
+  const pending = inspectSteering(root, "info.retrieve", {}, "helper");
+  assert.match(pending.text, /Role: helper\. Mode: deny/);
+  assert.equal(roleApprove(ctx(), "helper").ok, true);
+  const before = inspectSteering(root, "info.retrieve", {}, "helper");
+  assert.equal(before.trusted, true);
+  assert.match(before.text, /Role: helper\. Mode: allow/);
+  assert.notEqual(before.stamp, pending.stamp);
+  assert.match(inspectSteering(root, "spec.create.feature", {}, "helper").text, /Role: helper\. Mode: request-user/);
+  const role = inspectSteering(root, "role", {}, "helper");
+  assert.match(role.text, /info.retrieve: allow/);
+  assert.match(role.text, /spec.create.feature: request-user/);
+  assert.match(role.text, /spec.edit.architecture: deny/);
+  assert.match(inspectSteering(root, "plan-status", {}, "helper").text, /Role: helper\. Mode: allow/);
+  assert.equal(roleEdit(ctx(), "helper", { sets: ["info.retrieve=deny"] }).ok, true);
+  git(root, "add", ".specplane/roles");
+  git(root, "commit", "-qm", "edit role");
+  assert.deepEqual(inspectSteering(root, "info.retrieve", {}, "helper"), before);
+  assert.equal(roleApprove(ctx(), "helper").ok, true);
+  const after = inspectSteering(root, "info.retrieve", {}, "helper");
+  assert.equal(after.trusted, true);
+  assert.match(after.text, /Role: helper\. Mode: deny/);
+  assert.notEqual(after.stamp, before.stamp);
 });
 
 test("config effects regenerate HEAD only; preset and custom changes stay inactive until committed", () => {

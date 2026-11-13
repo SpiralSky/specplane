@@ -27,6 +27,7 @@ Specplane generates steering for the LLM and delivers it through the harness (`h
 
 - Besides what other sections require, the LLM is told to follow the limits of its role and not to try to get round them (`R59`). This covers asking a different tool, rephrasing an action as a different one, using another role, running a command through a side route, or editing files directly to reach the same result.
 - The LLM is told which role it has and what that role may do, in short. Details are looked up on demand (`R23`, `R54`), not repeated in every session.
+- For each harness call, command and permission instructions use the same effective role as the permission check, resolved by the LLM role rules from the adapter's identity factors. Steering includes that role's approved custom permissions; changes to the effective role or permissions cause updated instructions to be delivered.
 - The LLM is told that Specplane's checks, not steering, decide what is allowed, and that a denial is final for that action.
 - Steering is regenerated when roles, presets or permissions change, so what the LLM is told matches what is active. If it cannot be regenerated, the LLM is not left with old text that claims more than the role has; Specplane says so (see `R24`).
 - Steering is kept short. Anything that applies only to a command is attached to that command and sent when the command is used (`R14`), not carried in every session.

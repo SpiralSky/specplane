@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { loadSettings } from "../config.js";
 import { permissionDoc } from "../perm/catalog.js";
-import { CATALOG, allPresets, findPreset, mode, type Preset, type RoleId } from "../perm/permissions.js";
+import { CATALOG, activePreset, allPresets, mode, type Preset, type RoleId } from "../perm/permissions.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
 
 /** U9 generation only; U10 assembles delivery and U14 owns installed files. */
@@ -31,7 +31,7 @@ interface SteeringState { stamp: string; failed: boolean }
 export function steeringInputs(root: string, role: RoleId = "llm"): SteeringInputs {
   const { config } = loadSettings(root); // HEAD only: pending configuration never becomes active steering.
   return {
-    role, preset: findPreset(root, config.permissionsPreset) ?? allPresets(root)[0],
+    role, preset: activePreset(root),
     custom: (config.values["steering.custom"] ?? []) as CustomSteering[],
     version: (JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string }).version,
   };
