@@ -1,7 +1,24 @@
 # Session handoff
-Updated 2026-11-11. Read "Next session: start here" first, then "Current state"; older continuation sections are historical.
+Updated 2026-11-13. Read "Next session: start here" first, then "Current state"; older continuation sections are historical.
 
-## Next session: start here (refreshed 2026-11-12)
+## Next session: start here (refreshed 2026-11-13)
+
+A read-only audit of the later-release requirements (R31.2, R37, R37.1, R38, R39-R39.4, R43, R44, R44.1, R48, R49, R55.1, R58, R60, R66) against the code found seven misses; five fix units closed all but one. Audit and units were run by Codex (`gpt-6-astra`), one unit per session, coordinated from Claude Code.
+
+- `fec5b72` R48: edits and deletions of roles and role rules stay pending until approved; the last approved definition stays in force.
+- `4579045` R55.1: the strict-mode hook resolves protected folders through the core for every YAML form and refuses edits when it cannot resolve them.
+- `bc4452e` R39.3, R39.1, R37: a subproject rejects a bare reference that only resolves in the root; drafting contracts consider subprojects; `spec-assist` records the user's decisions.
+- `b3b33d7`: the test runners drop inherited LLM marker variables (17 CLI tests failed when the suite was started from a Claude Code shell).
+- `7d9cdc9` R58: steering and delivered instructions use the effective role of the permission check, including a custom role's permissions.
+- `202d711` R38: while spec review is the active command, the harness refuses every write except storing decision records.
+
+Verification at `202d711` from a Claude Code shell: `npm test` 580 pass / 0 fail / 6 skipped under Node (the Bun run hit the known 30 s timeout in "held reads and writes replay once under the human request runner" and fell back); hooks 164 pass; check-sync OK; validate 0 errors, 30 warnings.
+
+Open: (1) the remaining miss, a subagent's own identity inside the shared MCP process (R58, R44.1), needs facts from a live Claude Code session; (2) live verification by the user ("Needs live verification" below, plus a `[parallel]` task group through subagents and the bypass-guard hook in a real session); (3) the push notification and request dialogue decision (item 4 below); (4) the Bun end-of-run stall and that 30 s timeout are unexplained; (5) merge or push only when the user asks. Edited specs await re-approval; nothing was approved.
+
+To run Codex headless from a Claude Code session here, the user must agree to turn `bypass_guards.headless_block` off in `.specplane/config.yaml` for the session (restored afterwards, never committed).
+
+## Earlier: start here (refreshed 2026-11-12)
 
 The later-release backlog V1-V8 is complete (`docs/work-records/2026-11-12-later-release-backlog.md`). What remains: (1) live verification by the user of the items in "Needs live verification", now also a Claude session running a `[parallel]` task group through subagents; (2) the push notification and request dialogue decision (item 4 below); (3) merge or push only when the user asks. Edited specs await re-approval by whoever may approve them; nothing was approved in this unit.
 
