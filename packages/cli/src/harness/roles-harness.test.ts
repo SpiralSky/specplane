@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { activePreset, type Actor } from "../perm/permissions.js";
 import { roleApprove, roleCreate, roleEdit, ruleApprove, ruleCreate, type RoleCtx } from "../perm/role-ops.js";
 import { makeRepo } from "../test-repo.js";
@@ -98,4 +99,25 @@ test("an existing session refreshes instructions when its effective role or appr
     assert.notEqual(instruction.hash, assigned.instructions[index].hash);
     assert.match(instruction.text!, /Role: helper\. Mode: deny/);
   }
+});
+
+test("the steering command shows an LLM caller its own custom role and a person the default LLM role", () => {
+  const root = repo();
+  assert.equal(roleCreate(ctx(root), "helper", { level: 2, defaultMode: "deny", sets: ["info.retrieve=allow"] }).ok, true);
+  commit(root);
+  assert.equal(roleApprove(ctx(root), "helper").ok, true);
+  assert.equal(ruleCreate(ctx(root), "small", { role: "helper", matches: ["subagent=scribe"] }).ok, true);
+  commit(root);
+  assert.equal(ruleApprove(ctx(root), "small").ok, true);
+  const cli = fileURLToPath(new URL("../cli.js", import.meta.url));
+  const base = { ...process.env, SPECPLANE_SESSION: "", SPECPLANE_AGENT: "" };
+  const run = (env: NodeJS.ProcessEnv): string => {
+    const out = path.join(root, ".git", "steering-out");
+    const fd = fs.openSync(out, "w");
+    try { assert.equal(spawnSync(process.execPath, [cli, "steering", "info.retrieve", "--json"], { cwd: root, env, stdio: ["ignore", fd, "ignore"] }).status, 0); } finally { fs.closeSync(fd); }
+    return (JSON.parse(fs.readFileSync(out, "utf8")) as { data: { text: string } }).data.text;
+  };
+  assert.match(run({ ...base, SPECPLANE_ACTOR: "llm", SPECPLANE_SUBAGENT: "scribe" }), /Role: helper\. Mode: allow/);
+  assert.match(run({ ...base, SPECPLANE_ACTOR: "llm" }), /Role: llm\./);
+  assert.match(run(base), /Role: llm\./);
 });
