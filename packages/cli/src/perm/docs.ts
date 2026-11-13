@@ -55,7 +55,7 @@ export function describePermission(root: string, id: string, reader: RoleId): Pe
     `Mode per preset (standard-user / llm):`,
     ...presets.map((p) => `  ${p.preset}${p.preset === active.id ? " (active)" : ""}: ${p.modes["standard-user"]} / ${p.modes.llm}`),
     `You are ${reader}: ${readerMode} under the active preset.`,
-    `Steering for the LLM role:`,
+    `Steering for the default llm role:`,
     inspectSteering(root, id).text,
   ];
   return { doc, presets, reader, readerMode, activePreset: active.id, customSteering: custom, lines };
