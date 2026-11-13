@@ -6,7 +6,7 @@ Look up your steering for your role and follow it. Use the Specplane harness act
 Load the documentation essentials with `docs.essentials` at the start of a session; when you lack information, search the rest with `docs.search` instead of guessing.
 If the project has no Specplane configuration, do not apply Specplane rules.
 
-Steering stamp: 7a5aebfbc41f5308f7ffe97948af900512d6e5337ce4d7978dfa5a1b9711ef73
+Steering stamp: e15ab8fe4c60a7a0104cdf78beb28213452f696e27b50cc9dad1f74a3ec63145
 <!-- specplane:end -->
 
 ## Requirements override everything
