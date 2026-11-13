@@ -7,9 +7,12 @@ import { activePreset, cliRole, mode, osUserName, switchRole, type Actor, type P
 import { PRESETS } from "./permissions.js";
 import { resolveLlmRole } from "./llm-rules.js";
 import {
-  mapUser, roleApprove, roleCreate, roleDelete, roleEdit, roleList, ruleApprove, ruleCreate, ruleTrust, unmapUser, type RoleCtx,
+  mapUser, roleApprove, roleCreate, roleDelete, roleEdit, roleList, roleShow, ruleApprove, ruleCreate, ruleEdit, ruleDelete, ruleList, ruleShow, ruleTrust, unmapUser, type RoleCtx,
 } from "./role-ops.js";
-import { roleFile, ruleFile } from "./roles.js";
+import { roleFile, ruleFile, roleFingerprint } from "./roles.js";
+import { appendRecords, makeRecord } from "../spec/notes.js";
+import { headCommit } from "../spec/source.js";
+import { validateProject } from "../verify/validate.js";
 import { loadSettings } from "../config.js";
 import { makeRepo } from "../test-repo.js";
 
@@ -161,9 +164,11 @@ test("OS user mapping is local, optional and bound by levels; the Administrator 
   assert.equal(mapUser(ctx(root, admin), me, "worker").ok, true);
   assert.throws(() => switchRole(root, "administrator"), /does not let this operating system user switch/);
   assert.equal(cliRole(root), "worker");
-  // a role that stops applying gives the Standard User
+  // a deletion stays pending until approved, then gives the Standard User
   fs.rmSync(path.join(root, roleFile("worker")));
   commit(root);
+  assert.equal(cliRole(root), "worker");
+  assert.equal(roleApprove(ctx(root, admin), "worker").ok, true);
   assert.equal(cliRole(root), "standard-user");
 });
 
@@ -206,4 +211,147 @@ test("LLM role rules: approved, applicable and, above the default LLM role, trus
   // changing the role's level voids the trust; the actor role of a harness call follows
   const next = activePreset(root);
   assert.equal(mode(next, "reviewer", "spec.edit.feature"), "deny");
+});
+
+
+test("role deletion needs committed absence and approval; deleted approvals never resurrect the role", () => {
+  const root = repo();
+  applied(root, "worker", 12, ["spec.edit.feature=allow"]);
+  const text = fs.readFileSync(path.join(root, roleFile("worker")), "utf8");
+  assert.equal(roleDelete(ctx(root, admin), "worker").ok, true);
+  assert.equal(roleApprove(ctx(root, admin), "worker").ok, false, "uncommitted deletion");
+  commit(root);
+  assert.equal(mode(activePreset(root), "worker", "spec.edit.feature"), "allow");
+  assert.match(roleList(root).lines.join("\n"), /worker.*pending-deletion/);
+  assert.match(roleShow(root, "worker").lines[0], /pending-deletion/);
+  assert.ok(validateProject(root).findings.some((f) => f.severity === "warning" && /deletion of role `worker` is pending/.test(f.message)));
+  assert.equal(roleApprove(ctx(root), "worker").ok, false, "level must cover the approved role");
+  assert.equal(roleApprove(ctx(root, llm), "worker").ok, false, "management permission required");
+  fs.writeFileSync(path.join(root, roleFile("worker")), text);
+  assert.equal(roleApprove(ctx(root, admin), "worker").ok, false, "uncommitted restoration");
+  fs.rmSync(path.join(root, roleFile("worker")));
+  assert.equal(roleApprove(ctx(root, admin), "worker").ok, true);
+  assert.equal(roleShow(root, "worker").ok, false);
+  assert.equal(activePreset(root).customRoles?.worker, undefined);
+  commit(root);
+  assert.equal(activePreset(root).customRoles?.worker, undefined, "older approval stays retired");
+  fs.writeFileSync(path.join(root, roleFile("worker")), text);
+  commit(root);
+  assert.match(roleShow(root, "worker").lines[0], /pending: no effective approval/);
+  assert.equal(activePreset(root).customRoles?.worker, undefined, "recreation needs approval");
+  assert.equal(roleApprove(ctx(root, admin), "worker").ok, true);
+  assert.equal(mode(activePreset(root), "worker", "spec.edit.feature"), "allow");
+});
+
+test("pending rule edits retain approved matching, priority and trust until replacement is approved", () => {
+  const root = repo();
+  applied(root, "reviewer", 9);
+  applied(root, "helper", 2);
+  assert.equal(ruleCreate(ctx(root, admin), "review", { role: "reviewer", priority: 8, matches: ["subagent=old"] }).ok, true);
+  assert.equal(ruleCreate(ctx(root, admin), "fallback", { role: "helper", priority: 2, matches: ["subagent=old"] }).ok, true);
+  commit(root);
+  assert.ok(validateProject(root).findings.some((f) => /LLM role rule `review` is pending/.test(f.message)));
+  assert.equal(ruleApprove(ctx(root), "review").ok, true);
+  assert.equal(ruleApprove(ctx(root), "fallback").ok, true);
+  assert.equal(ruleTrust(ctx(root), "review").ok, true);
+  assert.equal(ruleEdit(ctx(root, admin), "review", { priority: 0, matches: ["subagent=new"] }).ok, true);
+  assert.equal(ruleApprove(ctx(root), "review").ok, false, "uncommitted edit");
+  commit(root);
+  assert.equal(resolveLlmRole(root, { subagent: "old" }), "reviewer");
+  assert.equal(resolveLlmRole(root, { subagent: "new" }), "llm");
+  assert.match(ruleList(root).lines.join("\n"), /review.*priority 8.*pending-change.*applies/);
+  assert.match(ruleShow(root, "review").lines.join("\n"), /pending-change/);
+  assert.ok(validateProject(root).findings.some((f) => /change to LLM role rule `review` is pending/.test(f.message)));
+  assert.equal(ruleApprove(ctx(root), "review").ok, true);
+  assert.equal(resolveLlmRole(root, { subagent: "old" }), "helper");
+  assert.equal(resolveLlmRole(root, { subagent: "new" }), "llm", "new approved content requires new local trust");
+  assert.equal(ruleTrust(ctx(root), "review").ok, true);
+  assert.equal(resolveLlmRole(root, { subagent: "new" }), "reviewer");
+});
+
+test("legacy rule approvals recover from git; deletion and downgrade approval check the effective role", () => {
+  const root = repo();
+  applied(root, "high", 12);
+  applied(root, "low", 2);
+  applied(root, "mapper", 8, ["role.map=allow"]);
+  assert.equal(ruleCreate(ctx(root, admin), "review", { role: "high", matches: ["subagent=review"] }).ok, true);
+  commit(root);
+  const file = path.join(root, ruleFile("review"));
+  const original = fs.readFileSync(file, "utf8");
+  // Older rule approval notes do not carry content.
+  appendRecords(root, headCommit(root)!, [makeRecord("approval", "role-rule/review", roleFingerprint(original)!, { by: { human: "Pat", role: "administrator" }, cited: {} })]);
+  assert.equal(ruleTrust(ctx(root), "review").ok, true);
+  assert.equal(ruleEdit(ctx(root, admin), "review", { role: "low" }).ok, true);
+  commit(root);
+  assert.equal(resolveLlmRole(root, { subagent: "review" }), "high");
+  assert.equal(ruleApprove(ctx(root), "review").ok, false, "cannot approve a downgrade of a higher role's rule");
+  const mapper = ctx(root, { role: "mapper", kind: "human", name: "Pat" });
+  assert.equal(ruleDelete(mapper, "review").ok, false);
+  assert.equal(ruleEdit(mapper, "review", { priority: 3 }).ok, false);
+  assert.equal(ruleDelete(ctx(root, admin), "review").ok, true);
+  assert.equal(ruleApprove(ctx(root, admin), "review").ok, false, "uncommitted deletion");
+  commit(root);
+  assert.equal(resolveLlmRole(root, { subagent: "review" }), "high");
+  assert.match(ruleList(root).lines.join("\n"), /review.*pending-deletion.*applies/);
+  assert.match(ruleShow(root, "review").lines.join("\n"), /pending-deletion/);
+  assert.ok(validateProject(root).findings.some((f) => /deletion of LLM role rule `review` is pending/.test(f.message)));
+  assert.equal(ruleApprove(ctx(root), "review").ok, false);
+  assert.equal(ruleApprove(ctx(root, llm), "review").ok, false);
+  fs.writeFileSync(file, original);
+  assert.equal(ruleApprove(ctx(root, admin), "review").ok, false, "uncommitted restoration");
+  fs.rmSync(file);
+  assert.equal(ruleApprove(ctx(root, admin), "review").ok, true);
+  assert.equal(resolveLlmRole(root, { subagent: "review" }), "llm");
+  assert.equal(ruleShow(root, "review").ok, false);
+  commit(root);
+  assert.equal(resolveLlmRole(root, { subagent: "review" }), "llm");
+  fs.writeFileSync(file, original);
+  commit(root);
+  assert.equal(resolveLlmRole(root, { subagent: "review" }), "llm", "recreation needs approval");
+  assert.match(ruleShow(root, "review").lines.join("\n"), /state: pending;/);
+});
+
+
+test("malformed replacements keep approved definitions and cannot be approved as deletions", () => {
+  const root = repo();
+  applied(root, "helper", 2, ["spec.edit.feature=allow"]);
+  assert.equal(ruleCreate(ctx(root, admin), "help", { role: "helper", matches: ["agent_type=explore"] }).ok, true);
+  commit(root);
+  assert.equal(ruleApprove(ctx(root), "help").ok, true);
+  fs.writeFileSync(path.join(root, roleFile("helper")), "id: helper\nmanagement_level: invalid\n");
+  fs.writeFileSync(path.join(root, ruleFile("help")), "id: help\nmatch: {}\n");
+  commit(root);
+  assert.equal(mode(activePreset(root), "helper", "spec.edit.feature"), "allow");
+  assert.equal(resolveLlmRole(root, { agent_type: "explore" }), "helper");
+  assert.match(roleShow(root, "helper").lines[0], /pending-change/);
+  assert.match(ruleShow(root, "help").lines.join("\n"), /pending-change/);
+  assert.equal(roleApprove(ctx(root, admin), "helper").ok, false);
+  assert.equal(ruleApprove(ctx(root, admin), "help").ok, false);
+  const findings = validateProject(root).findings;
+  for (const file of [roleFile("helper"), ruleFile("help")]) {
+    assert.ok(findings.some((f) => f.message.includes(file) && f.severity === "error" && /malformed/.test(f.message)));
+  }
+});
+
+
+test("pending and approved deletions follow branch history, not the shared notes ref alone", () => {
+  const root = repo();
+  assert.equal(spawnSync("git", ["branch", "empty"], { cwd: root }).status, 0);
+  applied(root, "helper", 2);
+  assert.equal(ruleCreate(ctx(root, admin), "help", { role: "helper", matches: ["agent_type=explore"] }).ok, true);
+  commit(root);
+  assert.equal(ruleApprove(ctx(root), "help").ok, true);
+  assert.equal(spawnSync("git", ["checkout", "-q", "-b", "remove"], { cwd: root }).status, 0);
+  assert.equal(ruleDelete(ctx(root, admin), "help").ok, true);
+  assert.equal(roleDelete(ctx(root, admin), "helper").ok, true);
+  commit(root);
+  assert.equal(ruleApprove(ctx(root), "help").ok, true);
+  assert.equal(roleApprove(ctx(root), "helper").ok, true);
+  assert.equal(spawnSync("git", ["checkout", "-q", "main"], { cwd: root }).status, 0);
+  assert.equal(resolveLlmRole(root, { agent_type: "explore" }), "helper", "another branch's deletion does not retire this definition");
+  assert.match(roleShow(root, "helper").lines[0], /custom, approved/);
+  assert.equal(spawnSync("git", ["checkout", "-q", "empty"], { cwd: root }).status, 0);
+  assert.equal(activePreset(root).customRoles, undefined, "no deletion when the branch never contained the file");
+  assert.equal(ruleShow(root, "help").ok, false);
+  assert.equal(resolveLlmRole(root, { agent_type: "explore" }), "llm");
 });

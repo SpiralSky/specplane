@@ -8,7 +8,7 @@ import { BUILTIN_ROLES, CATALOG, LEVELS, RANK, guard, levelOf, mode, type Actor,
 import { MODES } from "./presets.js";
 import { ruleStatuses } from "./llm-rules.js";
 import {
-  FACTORS, MAX_LEVEL, MIN_LEVEL, ROLE_ID, identityOf, loadRoleSet, parseRole, parseRule, readMappings, readRoleFiles, readRuleFiles, roleFile,
+  DELETED_FINGERPRINT, FACTORS, MAX_LEVEL, MIN_LEVEL, ROLE_ID, identityOf, loadRoleSet, parseRole, parseRule, readMappings, readRoleFiles, readRuleFiles, roleFile,
   roleFingerprint, ruleFile, serializeRole, serializeRule, trustRule, writeMappings, type Factor, type RuleDef, type RuleFile,
 } from "./roles.js";
 
@@ -69,7 +69,7 @@ export function roleList(root: string): RoleResult {
     { id: "administrator", kind: "default", level: "above all", state: "approved" },
     { id: "standard-user", kind: "default", level: LEVELS["standard-user"], state: "approved" },
     { id: "llm", kind: "default", level: LEVELS.llm, state: "approved" },
-    ...files.map((f) => { const a = set.roles.get(f.id); return { id: f.id, kind: "custom", level: (a?.def ?? f).level, state: a ? a.state : "pending" }; }),
+    ...Array.from(new Set([...files.map((f) => f.id), ...set.roles.keys()])).sort().map((id) => { const a = set.roles.get(id); return { id, kind: "custom", level: (a?.def ?? files.find((f) => f.id === id)!).level, state: a?.state ?? "pending" }; }),
   ];
   return { ok: true, written: false, reasons: set.findings.map((f) => `${f.severity}: ${f.message}`), lines: rows.map((r) => `${r.id}  ${r.kind}  level ${r.level}  ${r.state}`), data: rows };
 }
@@ -78,12 +78,12 @@ export function roleShow(root: string, id: string): RoleResult {
   if ((BUILTIN_ROLES as readonly string[]).includes(id)) return done([`${id} is a default role; its permissions come from the active preset (\`specplane permissions\`). Management level: ${id === "administrator" ? "above every assignable level" : LEVELS[id]}.`], { id, kind: "default" }, false);
   const set = loadRoleSet(root, CATALOG, BUILTIN_ROLES);
   const file = readRoleFiles(root, "head", CATALOG, BUILTIN_ROLES).roles.find((r) => r.id === id);
-  if (!file) return fail([`role \`${id}\` does not exist at HEAD; \`specplane role list\` shows the roles`]);
+  if (!file && !set.roles.has(id)) return fail([`role \`${id}\` does not exist at HEAD; \`specplane role list\` shows the roles`]);
   const a = set.roles.get(id);
-  const def = a?.def ?? file;
+  const def = a?.def ?? file!;
   const probe: Preset = { id: "x", number: 0, defaultMode: "deny", standardUser: { modes: {} }, llm: { modes: {} }, customRoles: { [id]: def } };
   return done([
-    `${id} (custom, ${a ? a.state : "pending: never approved, does not apply"}); management level ${def.level}; default mode ${def.defaultMode}`,
+    `${id} (custom, ${a ? a.state : "pending: no effective approval, does not apply"}); management level ${def.level}; default mode ${def.defaultMode}`,
     ...CATALOG.map((p) => `${p}  ${mode(probe, id, p)}`),
   ], { id, level: def.level, state: a?.state ?? "pending", default_mode: def.defaultMode, modes: def.modes }, false);
 }
@@ -166,7 +166,21 @@ export function roleDelete(ctx: RoleCtx, id: string): RoleResult {
   const users = Object.entries(readMappings(ctx.root)).filter(([, m]) => m.role === id).map(([k]) => k);
   fs.rmSync(path.join(ctx.root, roleFile(id)));
   record(ctx, "role delete", [id], "role.manage", "done", { id }, null);
-  return done([`Deleted role \`${id}\`.`, `Removed ${roleFile(id)}, not committed. The deletion applies once it is committed.`, ...(users.length ? [`Mapped here to this role: ${users.join(", ")}; they become the Standard User when it no longer applies.`] : [])], { id });
+  return done([`Deleted role \`${id}\`.`, `Removed ${roleFile(id)}, not committed. The deletion stays pending after commit until approved; the last approved version still applies.`, ...(users.length ? [`Mapped here to this role: ${users.join(", ")}; they become the Standard User after the deletion is approved.`] : [])], { id });
+}
+
+/** Approve committed absence, retaining the same permission and level gates as an edit. */
+function approveDeletion(ctx: RoleCtx, kind: "role" | "role-rule", id: string, levels: Array<[string, number]>): RoleResult {
+  const file = kind === "role" ? roleFile(id) : ruleFile(id);
+  const command = kind === "role" ? "role approve" : "role rule approve";
+  if (fs.existsSync(path.join(ctx.root, file))) return fail([`\`${id}\` has uncommitted changes: commit ${file} first; approval applies to committed content`]);
+  const bad = above(ctx, `approving deletion of \`${id}\``, levels);
+  if (bad) { record(ctx, command, [id], "role.manage", "refused", null, null, bad); return fail([bad]); }
+  const name = gitUserName(ctx.root);
+  if (!name) return fail(["Cannot tell who is approving: set git `user.name`. The approver is never invented."]);
+  appendRecords(ctx.root, headCommit(ctx.root)!, [makeRecord("approval", `${kind}/${id}`, DELETED_FINGERPRINT, { by: { human: name, role: ctx.actor.role }, date: (ctx.now ?? new Date()).toISOString().slice(0, 10), cited: {}, deleted: true }, ctx.now ?? new Date())]);
+  record(ctx, command, [id], "role.manage", "done", null, { deleted: true });
+  return done([`Approved deletion of \`${id}\` as ${name}. It no longer applies.`], { id, deleted: true });
 }
 
 /** Approve the committed file of a role (`R48`): `role.manage` allow, a level above the role's, and nothing the approver lacks. */
@@ -174,6 +188,8 @@ export function roleApprove(ctx: RoleCtx, id: string): RoleResult {
   const refused = needs(ctx, "role.manage", `approving role \`${id}\``);
   if (refused) { record(ctx, "role approve", [id], "role.manage", "refused", null, null, refused); return fail([refused]); }
   const file = readRoleFiles(ctx.root, "head", CATALOG, BUILTIN_ROLES).roles.find((r) => r.id === id);
+  const applied = loadRoleSet(ctx.root, CATALOG, BUILTIN_ROLES).roles.get(id);
+  if (!file && applied?.state === "pending-deletion") return approveDeletion(ctx, "role", id, [[id, applied.def.level]]);
   if (!file) return fail([`role \`${id}\` is not committed (or is malformed): commit ${roleFile(id)} first; approval applies to committed content`]);
   const abs = path.join(ctx.root, roleFile(id));
   if (!fs.existsSync(abs) || fs.readFileSync(abs, "utf8") !== committedSource(ctx.root, "HEAD").read(roleFile(id))) return fail([`\`${id}\` has uncommitted changes: commit ${roleFile(id)} first; approval applies to committed content`]);
@@ -193,14 +209,14 @@ export function roleApprove(ctx: RoleCtx, id: string): RoleResult {
 // ---- LLM role rules ----------------------------------------------------------------------------------------------------
 
 export function ruleList(root: string): RoleResult {
-  const rows = ruleStatuses(root).map((s) => ({ id: s.rule.id, role: s.rule.role, priority: s.rule.priority, approved: s.approved, role_applies: s.roleApplies, needs_trust: s.needsTrust, trusted: s.trusted, applies: s.approved && s.roleApplies && (!s.needsTrust || s.trusted) }));
-  return { ok: true, written: false, reasons: [], lines: rows.map((r) => `${r.id}  gives ${r.role}  priority ${r.priority}  ${r.applies ? "applies" : `not applied: ${!r.approved ? "not approved" : !r.role_applies ? "role does not apply" : "not trusted on this machine"}`}`), data: rows };
+  const rows = ruleStatuses(root).map((s) => ({ id: s.rule.id, role: s.rule.role, priority: s.rule.priority, state: s.state, approved: s.approved, role_applies: s.roleApplies, needs_trust: s.needsTrust, trusted: s.trusted, applies: s.approved && s.roleApplies && (!s.needsTrust || s.trusted) }));
+  return { ok: true, written: false, reasons: [], lines: rows.map((r) => `${r.id}  gives ${r.role}  priority ${r.priority}  ${r.state}  ${r.applies ? "applies" : `not applied: ${!r.approved ? "not approved" : !r.role_applies ? "role does not apply" : "not trusted on this machine"}`}`), data: rows };
 }
 
 export function ruleShow(root: string, id: string): RoleResult {
   const s = ruleStatuses(root).find((x) => x.rule.id === id);
   if (!s) return fail([`rule \`${id}\` does not exist at HEAD; \`specplane role rule list\` shows the rules`]);
-  return done([`${id}: gives ${s.rule.role}, priority ${s.rule.priority}, matches ${JSON.stringify(s.rule.match)}`, `approved: ${s.approved}; role applies: ${s.roleApplies}; needs local trust: ${s.needsTrust}; trusted: ${s.trusted}`], s, false);
+  return done([`${id}: gives ${s.rule.role}, priority ${s.rule.priority}, matches ${JSON.stringify(s.rule.match)}`, `state: ${s.state}; approved definition: ${s.approved}; role applies: ${s.roleApplies}; needs local trust: ${s.needsTrust}; trusted: ${s.trusted}`], s, false);
 }
 
 function applyRuleEdits(d: { title: string; role: string; priority: number; match: RuleDef["match"] }, e: RuleEdits): string[] {
@@ -245,6 +261,13 @@ export function ruleCreate(ctx: RoleCtx, id: string, e: RuleEdits): RoleResult {
   return done([`Created rule \`${id}\`: LLMs matching ${JSON.stringify(draft.match)} get the \`${draft.role}\` role.`, `Written to ${ruleFile(id)}, not committed. Once committed, a role with enough management permission and level must approve it (\`specplane role rule approve ${id}\`)${target.level > LEVELS.llm ? ", and you must trust it on this machine (`specplane role rule trust`)" : ""}.`], { id });
 }
 
+/** A pending edit cannot hide the level of the rule still in force. */
+function appliedRuleLevels(ctx: RoleCtx, id: string): Array<[string, number]> {
+  const s = ruleStatuses(ctx.root).find((s) => s.rule.id === id && s.approved);
+  const level = s ? levelFor(ctx, s.rule.role) : undefined;
+  return s && level !== undefined ? [[s.rule.role, level]] : [];
+}
+
 export function ruleEdit(ctx: RoleCtx, id: string, e: RuleEdits): RoleResult {
   const refused = needs(ctx, "role.map", `editing LLM role rule \`${id}\``);
   if (refused) { record(ctx, "role rule edit", [id], "role.map", "refused", null, null, refused); return fail([refused]); }
@@ -256,7 +279,7 @@ export function ruleEdit(ctx: RoleCtx, id: string, e: RuleEdits): RoleResult {
   if (problems.length) return fail(problems);
   const oldLevel = levelFor(ctx, found.role);
   const target = ruleTarget(ctx, draft.role, `giving LLMs the \`${draft.role}\` role`);
-  const bad = oldLevel === undefined ? null : above(ctx, `changing the rule \`${id}\` that gives the \`${found.role}\` role`, [[found.role, oldLevel]]);
+  const bad = above(ctx, `changing the rule \`${id}\` that gives the \`${found.role}\` role`, [...(oldLevel === undefined ? [] : [[found.role, oldLevel] as [string, number]]), ...appliedRuleLevels(ctx, id)]);
   const refusal = bad ?? (typeof target === "string" ? target : null);
   if (refusal) { record(ctx, "role rule edit", [id], "role.map", "refused", null, null, refusal); return fail([refusal]); }
   const next = serializeRule({ id, ...draft });
@@ -272,11 +295,11 @@ export function ruleDelete(ctx: RoleCtx, id: string): RoleResult {
   const found = readRuleFiles(ctx.root, "work").rules.find((r) => r.id === id);
   if (!found) return fail([`rule \`${id}\` does not exist in the working tree; \`specplane role rule list\` shows the rules`]);
   const level = levelFor(ctx, found.role);
-  const bad = level === undefined ? null : above(ctx, `deleting the rule \`${id}\``, [[found.role, level]]);
+  const bad = above(ctx, `deleting the rule \`${id}\``, [...(level === undefined ? [] : [[found.role, level] as [string, number]]), ...appliedRuleLevels(ctx, id)]);
   if (bad) { record(ctx, "role rule delete", [id], "role.map", "refused", null, null, bad); return fail([bad]); }
   fs.rmSync(path.join(ctx.root, ruleFile(id)));
   record(ctx, "role rule delete", [id], "role.map", "done", { role: found.role }, null);
-  return done([`Deleted rule \`${id}\`.`, `Removed ${ruleFile(id)}, not committed. The deletion applies once it is committed.`], { id });
+  return done([`Deleted rule \`${id}\`.`, `Removed ${ruleFile(id)}, not committed. The deletion stays pending after commit until approved; the last approved version still applies.`], { id });
 }
 
 /** Approve a rule file at HEAD: `role.manage` allow and a level above the role the rule gives (`R48`). */
@@ -284,17 +307,20 @@ export function ruleApprove(ctx: RoleCtx, id: string): RoleResult {
   const refused = needs(ctx, "role.manage", `approving LLM role rule \`${id}\``);
   if (refused) { record(ctx, "role rule approve", [id], "role.manage", "refused", null, null, refused); return fail([refused]); }
   const file = readRuleFiles(ctx.root, "head").rules.find((r) => r.id === id);
+  const status = ruleStatuses(ctx.root).find((s) => s.rule.id === id);
+  if (!file && status?.state === "pending-deletion") return approveDeletion(ctx, "role-rule", id, appliedRuleLevels(ctx, id));
   if (!file) return fail([`rule \`${id}\` is not committed (or is malformed): commit ${ruleFile(id)} first; approval applies to committed content`]);
   const abs = path.join(ctx.root, ruleFile(id));
   if (!fs.existsSync(abs) || fs.readFileSync(abs, "utf8") !== committedSource(ctx.root, "HEAD").read(ruleFile(id))) return fail([`\`${id}\` has uncommitted changes: commit ${ruleFile(id)} first; approval applies to committed content`]);
-  const status = ruleStatuses(ctx.root).find((s) => s.rule.id === id)!;
-  if (status.approved) return done([`Rule \`${id}\` is already approved. Nothing changed.`], { id }, false);
+  if (status?.state === "approved") return done([`Rule \`${id}\` is already approved. Nothing changed.`], { id }, false);
+  const bad = above(ctx, `approving the rule \`${id}\``, appliedRuleLevels(ctx, id));
+  if (bad) { record(ctx, "role rule approve", [id], "role.manage", "refused", null, null, bad); return fail([bad]); }
   const target = ruleTarget(ctx, file.role, `approving the rule \`${id}\``);
   if (typeof target === "string") { record(ctx, "role rule approve", [id], "role.manage", "refused", null, null, target); return fail([target]); }
   const name = gitUserName(ctx.root);
   if (!name) return fail(["Cannot tell who is approving: set git `user.name`. The approver is never invented."]);
   const fp = roleFingerprint(file.text)!;
-  appendRecords(ctx.root, headCommit(ctx.root)!, [makeRecord("approval", `role-rule/${id}`, fp, { by: { human: name, role: ctx.actor.role }, date: (ctx.now ?? new Date()).toISOString().slice(0, 10), cited: {} }, ctx.now ?? new Date())]);
+  appendRecords(ctx.root, headCommit(ctx.root)!, [makeRecord("approval", `role-rule/${id}`, fp, { by: { human: name, role: ctx.actor.role }, date: (ctx.now ?? new Date()).toISOString().slice(0, 10), cited: {}, content: file.text }, ctx.now ?? new Date())]);
   record(ctx, "role rule approve", [id], "role.manage", "done", null, { fingerprint: fp });
   return done([`Approved rule \`${id}\` as ${name}.${target.level > LEVELS.llm ? ` It gives a role above the default LLM role, so it applies only after \`specplane role rule trust ${id}\` on each machine.` : ""}`], { id });
 }

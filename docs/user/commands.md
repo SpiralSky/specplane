@@ -361,7 +361,7 @@ Without an ID, show the role the CLI runs as. With an ID, show that role: for a 
 
 `specplane role list [options]`
 
-List the default roles and the custom roles in `.specplane/roles/roles/` with their management levels and approval state: `approved`, `pending-change` (an earlier approved version still applies) or `pending` (never approved, so it does not apply). Needs no permission.
+List the default roles and the custom roles in `.specplane/roles/roles/` with their management levels and approval state: `approved`, `pending-change` (an earlier approved version still applies), `pending-deletion` (removed from git but still in force until approved), or `pending` (no effective approval, so it does not apply). Needs no permission.
 
 ### `role create`
 
@@ -379,13 +379,13 @@ Change a custom role with `--level`, `--default-mode`, `--title`, `--set <permis
 
 `specplane role delete [options] <id>`
 
-Delete a custom role file. The default roles cannot be deleted. Needs `role.manage` and a level above the role's. The deletion applies once it is committed; users mapped to it become the Standard User.
+Delete a custom role file. The default roles cannot be deleted. Needs `role.manage` and a level above the role's. Commit the deletion, then run `role approve <id>`; until approval the last approved role stays in force. After approval users mapped to it become the Standard User.
 
 ### `role approve`
 
 `specplane role approve [options] <id>`
 
-Approve the committed file of a custom role so it applies. Refused for uncommitted changes. Needs `role.manage` as `allow`, a management level above the role's (new and previously approved), and nothing more permissive than the approver holds. The approval is a record in the notes store on the file's content.
+Approve a committed role definition or its committed deletion. Deletion retires the previous definition; restoring the file needs fresh approval. Refused for uncommitted changes. Needs `role.manage` as `allow`, a management level above the role's (new and previously approved), and nothing more permissive than the approver holds. The approval is a record in the notes store on the file's content.
 
 ### `role map`
 
@@ -409,7 +409,7 @@ List this machine's mappings. Needs no permission.
 
 `specplane role rule list [options]`
 
-List the LLM role rules in `.specplane/roles/rules/` and whether each applies: it must be approved, its role must apply, and a rule that gives a role above the default LLM role must be trusted on this machine. Needs no permission.
+List LLM role rules, including pending deletions, with `approved`, `pending`, `pending-change` or `pending-deletion` state and whether each applies: it must be approved, its role must apply, and a rule that gives a role above the default LLM role must be trusted on this machine. Needs no permission.
 
 ### `role rule show`
 
@@ -427,19 +427,19 @@ Create a rule that gives LLMs a role. `--role <role>` is the role given (not the
 
 `specplane role rule edit [options] <id>`
 
-Change a rule with `--role`, `--match`, `--unmatch <factor>`, `--priority` and `--title`. Same checks as `role rule create`; a changed rule is approved again before it applies.
+Change a rule with `--role`, `--match`, `--unmatch <factor>`, `--priority` and `--title`. Same checks as `role rule create`, also covering the effective role. A committed edit is pending: the approved matching, priority, role and trust stay in force until the replacement is approved.
 
 ### `role rule delete`
 
 `specplane role rule delete [options] <id>`
 
-Delete a rule file. Needs `role.map` and a level above the role the rule gives.
+Delete a rule file. Needs `role.map` and a level above both its proposed and effective roles. Commit the deletion, then run `role rule approve <id>`; until approval the last approved rule and its trust stay in force.
 
 ### `role rule approve`
 
 `specplane role rule approve [options] <id>`
 
-Approve the committed file of a rule. Needs `role.manage` as `allow` and a management level above the role the rule gives.
+Approve a committed rule definition or its committed deletion; refuses uncommitted changes. Needs `role.manage` as `allow` and a management level above the effective and proposed roles. Deletion retires the previous definition; restoring the file needs fresh approval. List and show expose pending changes, and `validate` warns.
 
 ### `role rule trust`
 

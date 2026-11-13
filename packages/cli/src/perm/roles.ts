@@ -148,39 +148,63 @@ function subject(root: string, kind: "role" | "role-rule", id: string, file: str
   };
 }
 
-/** `approved`: the committed file is approved. `pending-change`: an earlier version applies. `pending`: never approved, so not applied. */
-export type ApprovalState = "approved" | "pending-change" | "pending";
-
+/** A deletion uses a distinct role-v1 fingerprint of canonical JSON null. */
+export const DELETED_FINGERPRINT = roleFingerprint("null")!;
+export type ApprovalState = "approved" | "pending-change" | "pending-deletion" | "pending";
 export interface AppliedRole { def: CustomRoleDef; state: ApprovalState }
-export interface AppliedRule { rule: RuleDef; fingerprint: string; approved: boolean; trusted: boolean; needsTrust: boolean }
-export interface RoleSet { roles: Map<string, AppliedRole>; rules: RuleFile[]; findings: RoleFinding[]; notes: NotesView }
+export interface AppliedRule { rule: RuleFile; state: ApprovalState }
+export interface RoleSet { roles: Map<string, AppliedRole>; rules: AppliedRule[]; findings: RoleFinding[]; notes: NotesView }
 
-/**
- * The custom roles that apply (`R48`): a role with a committed, approved file applies; one whose committed file changed
- * after approval keeps its last approved content (the change is pending); one never approved does not apply.
- */
+/** Include approved subjects whose files have disappeared, and recover legacy approvals from their commit. */
+function definitions<T extends { id: string; text: string }>(
+  root: string, notes: NotesView, kind: "role" | "role-rule", files: T[],
+  fileFor: (id: string) => string, parse: (text: string, id: string) => T | null, findings: RoleFinding[],
+): Array<{ def: T; state: ApprovalState }> {
+  const current = new Map(files.map((f) => [f.id, f]));
+  const ids = new Set([...current.keys(), ...[...notes.notes.bySpec.keys()].filter((s) => s.startsWith(`${kind}/`)).map((s) => s.slice(kind.length + 1))]);
+  const result: Array<{ def: T; state: ApprovalState }> = [];
+  const head = committedSource(root, "HEAD");
+  const reachable = (commit: string): boolean => {
+    try { run("git", ["merge-base", "--is-ancestor", commit, "HEAD"], { cwd: root }); return true; } catch { return false; }
+  };
+  for (const id of [...ids].sort()) {
+    if (!ROLE_ID.test(id)) continue;
+    const file = fileFor(id), next = current.get(id);
+    const missing = head.read(file) === null;
+    // Notes are shared across branches. Absence is a deletion only where the file has history.
+    if (missing && !run("git", ["log", "-1", "--format=%H", "HEAD", "--", file], { cwd: root }).trim()) continue;
+    const latest = notes.records(`${kind}/${id}`).filter((s) => s.rec.kind === "approval" && (s.rec.deleted !== true || reachable(s.commit))).sort(byAtRid).at(-1);
+    let old: T | null = null;
+    if (latest && latest.rec.deleted !== true) {
+      const text = typeof latest.rec.content === "string" ? latest.rec.content : committedSource(root, latest.commit).read(file);
+      if (text !== null && roleFingerprint(text) === latest.rec.fingerprint) old = parse(text, id);
+    }
+    const approved = next && latest && latest.rec.deleted !== true && notes.lookup(subject(root, kind, id, file, next.text)).applicable.some((s) => s.rec.rid === latest.rec.rid);
+    if (approved) { result.push({ def: next, state: "approved" }); continue; }
+    if (!next && !old) continue;
+    const state: ApprovalState = old ? (missing ? "pending-deletion" : "pending-change") : "pending";
+    result.push({ def: old ?? next!, state });
+    const label = kind === "role" ? "role" : "LLM role rule";
+    const command = kind === "role" ? "role" : "role rule";
+    findings.push({ file, severity: "warning", message: old
+      ? `a ${missing ? "deletion of" : "change to"} ${label} \`${id}\` is pending approval; the last approved version still applies (\`specplane ${command} approve ${id}\`)`
+      : `${label} \`${id}\` is pending approval and does not apply yet (\`specplane ${command} approve ${id}\`)` });
+  }
+  return result;
+}
+
+/** Last approved role and rule definitions remain in force until an edit or deletion is approved (R48). */
 export function loadRoleSet(root: string, catalog: readonly string[], reserved: readonly string[]): RoleSet {
   const files = readRoleFiles(root, "head", catalog, reserved);
   const rules = readRuleFiles(root, "head");
   const notes = new NotesView(root);
-  const roles = new Map<string, AppliedRole>();
   const findings: RoleFinding[] = [...files.findings, ...rules.findings];
-  for (const r of files.roles) {
-    const s = subject(root, "role", r.id, roleFile(r.id), r.text);
-    const { applicable } = notes.lookup(s);
-    if (applicable.some((a) => a.rec.kind === "approval")) { roles.set(r.id, { def: r, state: "approved" }); continue; }
-    const earlier = notes.records(s.id).filter((a) => a.rec.kind === "approval" && typeof a.rec.content === "string").sort(byAtRid).at(-1);
-    const old = earlier ? parseRole(earlier.rec.content as string, r.id, catalog, reserved).role : null;
-    if (old) { roles.set(r.id, { def: old, state: "pending-change" }); findings.push({ file: roleFile(r.id), severity: "warning", message: `a change to role \`${r.id}\` is pending approval; the last approved version still applies (\`specplane role approve ${r.id}\`)` }); }
-    else findings.push({ file: roleFile(r.id), severity: "warning", message: `role \`${r.id}\` is pending approval and does not apply yet (\`specplane role approve ${r.id}\`)` });
+  const roles = new Map<string, AppliedRole>();
+  for (const r of definitions(root, notes, "role", files.roles, roleFile, (text, id) => parseRole(text, id, catalog, reserved).role, findings)) {
+    if (r.state !== "pending") roles.set(r.def.id, r);
   }
-  return { roles, rules: rules.rules, findings, notes };
-}
-
-/** True when the rule's file at HEAD is approved. */
-export function ruleApproved(root: string, notes: NotesView, r: RuleFile): boolean {
-  const { applicable } = notes.lookup(subject(root, "role-rule", r.id, ruleFile(r.id), r.text));
-  return applicable.some((a) => a.rec.kind === "approval");
+  const resolvedRules = definitions(root, notes, "role-rule", rules.rules, ruleFile, (text, id) => parseRule(text, id).rule, findings);
+  return { roles, rules: resolvedRules.map(({ def, state }) => ({ rule: def, state })), findings, notes };
 }
 
 /** Trust is recorded locally per rule and covers the rule's content and the level of the role it gives (`R48`). */

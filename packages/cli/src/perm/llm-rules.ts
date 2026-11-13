@@ -1,9 +1,9 @@
 import { CATALOG, BUILTIN_ROLES, LEVELS, ROLE_PERMISSIONS, type CustomRoleDef, type RoleId } from "./permissions.js";
-import { isTrusted, loadRoleSet, ruleApproved, FACTORS, type Factor, type RuleDef, type RuleFile } from "./roles.js";
+import { isTrusted, loadRoleSet, FACTORS, type ApprovalState, type Factor, type RuleDef, type RuleFile } from "./roles.js";
 
 /**
  * Custom LLM role rules (`feature/roles-and-permissions` R44.1, R48): which role an LLM has, from what the harness knows
- * about it. A rule applies only when its file is approved at HEAD and, if it gives a role above the default LLM role,
+ * about it. A rule applies using its last approved definition and, if it gives a role above the default LLM role,
  * trusted on this machine. No matching rule leaves the default LLM role.
  */
 
@@ -32,15 +32,15 @@ export function aboveLlm(role: string, applied: Map<string, { def: CustomRoleDef
   return (ruleRoleLevel(role, applied) ?? 0) > LEVELS.llm;
 }
 
-export interface RuleStatus { rule: RuleFile; approved: boolean; roleApplies: boolean; needsTrust: boolean; trusted: boolean }
+export interface RuleStatus { rule: RuleFile; state: ApprovalState; approved: boolean; roleApplies: boolean; needsTrust: boolean; trusted: boolean }
 
-/** Every rule at HEAD with whether it can apply here. */
+/** Effective definitions, including pending edits and deletions, with whether they can apply here. */
 export function ruleStatuses(root: string): RuleStatus[] {
   const set = loadRoleSet(root, CATALOG, BUILTIN_ROLES);
-  return set.rules.map((rule) => {
+  return set.rules.map(({ rule, state }) => {
     const level = ruleRoleLevel(rule.role, set.roles);
     const needsTrust = level !== undefined && aboveLlm(rule.role, set.roles);
-    return { rule, approved: ruleApproved(root, set.notes, rule), roleApplies: level !== undefined, needsTrust, trusted: level !== undefined && isTrusted(root, rule, level) };
+    return { rule, state, approved: state !== "pending", roleApplies: level !== undefined, needsTrust, trusted: level !== undefined && isTrusted(root, rule, level) };
   });
 }
 
