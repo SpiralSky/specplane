@@ -19,7 +19,7 @@ specplane init --harness codex
 
 The LLM does not run the CLI. It calls the Specplane actions through an MCP server (`specplane mcp`, started by the harness adapter, not by hand). Every action checks the permission of the LLM role (see `permissions`); an action needing `request-user` becomes a request that you answer in the harness or with `requests accept <id>` and `requests decline <id>`. A person's typed commands (`/validate`, `/approve`, and so on) run as the person who typed them and make no model call; see `harness-commands`.
 
-Steering and command instructions describe the same effective role that each action checks, including approved custom permissions. LLM role rules use the identity factors supplied by the adapter; when the effective role or permissions change, instructions are sent again. A shared MCP process still uses its adapter session's identity; it cannot distinguish individual subagents unless the adapter supplies their identity separately.
+Steering and command instructions describe the same effective role that each action checks, including approved custom permissions. LLM role rules use the identity factors supplied by the adapter; when the effective role or permissions change, instructions are sent again. All callers of a Claude Code session share one MCP process, so the installed caller hook records which subagent makes each call and the call takes the role the rules give that subagent; the subagent's identity never comes from tool input. Without that hook, or on Codex, rules on a subagent, an agent type or delegation match only where the environment states them.
 
 ## What each harness supports
 
@@ -37,6 +37,7 @@ Steering and command instructions describe the same effective role that each act
 | Opening a plan session | supported | missing |
 | Guarding against permission bypass by headless sessions | supported when the installed bypass-guard hook file is present | missing |
 | strict mode: blocking direct edits of specifications | supported when the installed bypass-guard hook is a version that handles strict mode | missing |
+| Telling subagents apart for LLM role rules | supported when the installed caller hook file is present | missing |
 
 Codex claims no capability until each surface has been checked live with a Codex build. Its `plan-start` refuses with the command that opens Codex in the plan's checkout.
 
@@ -45,7 +46,7 @@ Codex claims no capability until each surface has been checked live with a Codex
 | `spec-assist`, `spec-draft-architecture`, `plan-create`, `plan-start`, `plan-step`, `plan-finish`, `plan-status`, `validate`, `verify`, `plan-abandon` | typed command | skill with a contract |
 | `approve`, `requests`, `spec-view` | typed command | not offered; run them in your own terminal |
 
-The Claude Code installation adds the typed commands, a hook that denies an agent's shell call to the Specplane CLI, a bypass-guard hook (see `permissions`), a compaction hook that makes the instructions be delivered again, a pre-commit validation hook, a status line and the MCP server entry. The Codex installation adds `.agents/skills/specplane/` (an entry skill and one contract per command), the `AGENTS.md` block and a `[mcp_servers.specplane]` table in project `.codex/config.toml`, which Codex reads only for a trusted project.
+The Claude Code installation adds the typed commands, a hook that denies an agent's shell call to the Specplane CLI, a bypass-guard hook (see `permissions`), a caller hook that tells subagents apart, a compaction hook that makes the instructions be delivered again, a pre-commit validation hook, a status line and the MCP server entry. The Codex installation adds `.agents/skills/specplane/` (an entry skill and one contract per command), the `AGENTS.md` block and a `[mcp_servers.specplane]` table in project `.codex/config.toml`, which Codex reads only for a trusted project.
 
 ## Keeping the LLM off the CLI
 
