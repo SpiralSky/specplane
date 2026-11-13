@@ -109,3 +109,18 @@ test("harness run spec-view for a host without the viewing capability is refused
     assert.equal(ok.ok, true);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test("harness run spec-view with no --adapter falls back to SPECPLANE_ADAPTER, and runs when neither is set (harness R35.1)", async () => {
+  const root = repo();
+  const saved = process.env.SPECPLANE_ADAPTER;
+  try {
+    process.env.SPECPLANE_ADAPTER = "codex";
+    await assert.rejects(runHarnessCommand("spec-view", [], root), /spec-view needs viewing specifications, which codex does not support/);
+    delete process.env.SPECPLANE_ADAPTER;
+    const ok = await runHarnessCommand("spec-view", [], root);
+    assert.equal(ok.ok, true);
+  } finally {
+    if (saved === undefined) delete process.env.SPECPLANE_ADAPTER; else process.env.SPECPLANE_ADAPTER = saved;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

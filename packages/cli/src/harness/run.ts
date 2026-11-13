@@ -154,7 +154,9 @@ async function withArgs(root: string, command: string, args: string[], o: RunOpt
 /** Run one harness command as the person who typed it. Refuses anything outside the harness command list. */
 export async function runHarnessCommand(command: string, args: string[], root: string = checkoutRoot(), o: RunOptions = {}): Promise<CommandResult> {
   if (!COMMANDS.includes(command)) throw new UsageError(`Not a harness command: ${command}. The harness commands are: ${COMMANDS.join(", ")}.`);
-  const adapter = o.adapter ? getAdapter(o.adapter) : undefined;
+  // Without --adapter the harness names itself through SPECPLANE_ADAPTER; neither set means a person in a plain terminal.
+  const adapterName = o.adapter ?? (process.env.SPECPLANE_ADAPTER?.trim() || undefined);
+  const adapter = adapterName ? getAdapter(adapterName) : undefined;
   const needs = COMMAND_CAPABILITY[command];
   if (adapter && needs) requireCapability(adapter, needs, command, root);
   const session = o.sessionId ?? process.env.SPECPLANE_SESSION?.trim();

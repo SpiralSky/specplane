@@ -17,7 +17,7 @@ paths:
 `;
 
 /**
- * \`specplane init [--harness <name>]` (`architecture/reference-cli` §13.1): sets the notes fetch refspec for every remote
+ * `specplane init [--harness <name>]` (`architecture/reference-cli` §13.1): sets the notes fetch refspec for every remote
  * so approval records travel with fetches, then installs the named harness (`§12.6`) and says which capabilities it
  * lacks (`harness R35.1`). When no `.specplane/config.yaml` exists, writes a default one (never overwriting) so the installed hooks have a configuration to enforce.
  */
