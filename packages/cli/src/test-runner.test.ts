@@ -31,7 +31,8 @@ for (const runner of ["bun", "node", "auto"]) {
       const result = spawnSync("sh", [script, "selected test.js"], {
         encoding: "utf8",
         env: { ...process.env, ...Object.fromEntries(markers.map((key) => [key, key === "SPECPLANE_ACTOR" ? "llm" : "inherited"])),
-          PATH: `${dir}:${process.env.PATH}`, SPECPLANE_TEST_RUNNER: runner },
+          // Pin the stub: the wrapper otherwise prefers a fixed Bun release found later on PATH.
+          PATH: `${dir}:${process.env.PATH}`, SPECPLANE_TEST_RUNNER: runner, SPECPLANE_TEST_BUN: path.join(dir, "bun") },
       });
       assert.equal(result.status, 0, result.stderr + result.stdout);
       const expected = runner === "auto" ? ["bun", "node"] : [runner];
