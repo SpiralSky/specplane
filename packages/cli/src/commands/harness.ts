@@ -9,6 +9,13 @@ import { runCommand } from "./runner.js";
 export function registerHarnessCommands(program: Command): void {
   const harness = program.command("harness").description("Harness plumbing: the user-command runner the harness hooks invoke");
   harness
+    .command("guard-config", { hidden: true })
+    .description("Print resolved working-tree hook protections as JSON (read-only)")
+    .action(async () => {
+      const { guardConfig } = await import("../harness/guard-config.js");
+      process.stdout.write(`${JSON.stringify(guardConfig(process.cwd()))}\n`);
+    });
+  harness
     .command("run <command> [args...]")
     .description("Run a harness command as the person who typed it, with no model call (refuses anything outside the harness command list)")
     .allowUnknownOption()

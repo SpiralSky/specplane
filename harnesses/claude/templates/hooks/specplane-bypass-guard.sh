@@ -15,44 +15,32 @@
 #                     is installed by Specplane)
 #   os_permissions    denies chmod, chown, chgrp, chattr and setfacl on the hooks, the Claude settings, .git/hooks and the store
 # (llm_marker is the core's; marker_export is the session-start hook's.) Best effort, like the CLI block: text that is
-# not run is ignored with the same pass as specplane-cli-block.sh. Exits 0 whenever it cannot do its job.
-conf="${CLAUDE_PROJECT_DIR:-.}/.specplane/config.yaml"
+# not run is ignored with the same pass as specplane-cli-block.sh.
+root="${CLAUDE_PROJECT_DIR:-$PWD}"
+conf="$root/.specplane/config.yaml"
 [ -f "$conf" ] || exit 0
-command -v jq >/dev/null 2>&1 || exit 0
-input=$(cat) || exit 0
-tool=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null) || exit 0
-
-# on <measure>: true unless the configuration states the measure as off, false or no (block or flow form).
-on() {
-  v=$(sed -n '/^bypass_guards:/,/^[^[:space:]#]/p' "$conf" 2>/dev/null | grep -E "(^|[[:space:]{,])$1:" | head -n 1 | sed "s/.*$1:[[:space:]]*//; s/[^A-Za-z].*//")
-  case "$v" in off|Off|OFF|false|False|FALSE|no|No|NO) return 1 ;; esac
-  return 0
-}
 deny() { printf '%s\n' "$1" >&2; exit 2; }
+CONFIG_MSG="Specplane cannot resolve the hook protections. File edits and shell calls are blocked until the core and configuration are available. Ask the user to repair the installation or configuration."
+command -v jq >/dev/null 2>&1 || deny "$CONFIG_MSG"
+input=$(cat) || deny "$CONFIG_MSG"
+tool=$(printf '%s' "$input" | jq -er '.tool_name' 2>/dev/null) || deny "$CONFIG_MSG"
+case "$tool" in Write|Edit|MultiEdit|NotebookEdit|Bash) ;; *) exit 0 ;; esac
+
+# One read-only core query per invocation; never parse YAML or guess folders here.
+core=$(command -v specplane) || deny "$CONFIG_MSG"
+settings=$(cd "$root" && "$core" harness guard-config 2>/dev/null) || deny "$CONFIG_MSG"
+printf '%s' "$settings" | jq -e '
+  .version == 1 and
+  (.spec_dirs | type == "array" and length > 0 and all(.[]; type == "string" and length > 0)) and
+  ([.strict.edit_block, .strict.git_commit_guard, .strict.os_permissions,
+    .bypass.store_protect, .bypass.hook_protect, .bypass.headless_block, .bypass.marker_protect] | all(.[]; type == "boolean"))
+' >/dev/null 2>&1 || deny "$CONFIG_MSG"
+on() { printf '%s' "$settings" | jq -e --arg m "$1" '.bypass[$m]' >/dev/null; }
+strict() { printf '%s' "$settings" | jq -e --arg m "$1" '.strict[$m]' >/dev/null; }
+specdirs() { printf '%s' "$settings" | jq -r '.spec_dirs[]'; }
 STORE_MSG="Specplane's local store and approvals are not for direct edits. Use the Specplane harness actions, or ask the user (bypass_guards.store_protect)."
 HOOK_MSG="Specplane's installed hooks and the Claude settings are not for direct edits by an LLM. Ask the user (bypass_guards.hook_protect)."
 
-# strict <measure>: true when strict mode is on and the measure is not stated as off (block or flow form).
-sval() { sed -n '/^strict_mode:/,/^[^[:space:]#]/p' "$conf" 2>/dev/null | grep -E "(^|[[:space:]{,])$1:" | head -n 1 | sed "s/.*$1:[[:space:]]*//; s/[^A-Za-z].*//"; }
-strict() {
-  case "$(sval enabled)" in on|On|ON|true|True|TRUE|yes|Yes) ;; *) return 1 ;; esac
-  case "$(sval "$1")" in off|Off|OFF|false|False|FALSE|no|No) return 1 ;; esac
-  return 0
-}
-# The specification folders, one per line: configured paths (default when unset) and the subproject folders.
-cfgpath() {
-  v=$(sed -n '/^paths:/,/^[^[:space:]#]/p' "$conf" 2>/dev/null | grep -E "^[[:space:]]+$1:" | head -n 1 | sed "s/^[^:]*:[[:space:]]*//; s/[[:space:]]*#.*//; s/[\"']//g; s/[[:space:]]*\$//; s#/\$##")
-  printf '%s\n' "${v:-$2}"
-}
-specdirs() {
-  cfgpath requirements docs/requirements
-  cfgpath features docs/specifications/features
-  cfgpath architecture docs/specifications/architecture
-  printf '%s\n' .specplane/decisions .specplane/roles
-  sed -n '/^subprojects:/,/^[^[:space:]#-]/p' "$conf" 2>/dev/null | grep -E 'path:' | sed "s/.*path:[[:space:]]*//; s/[\"'}, ].*//" | while IFS= read -r sp; do
-    [ -n "$sp" ] && printf '%s\n' "$sp/requirements" "$sp/features" "$sp/architecture"
-  done
-}
 EDIT_MSG="Specifications, decision records and roles are changed through Specplane actions, not by editing their files directly. Use the harness actions, or ask the user (strict_mode.edit_block)."
 GIT_MSG="Strict mode keeps the commit check and the git hooks in force: do not skip or edit them. Ask the user (strict_mode.git_commit_guard)."
 OS_MSG="Strict mode keeps Specplane's hooks, settings and store read-only: do not change their permissions. Ask the user (strict_mode.os_permissions)."
@@ -67,9 +55,9 @@ case "$tool" in
     if strict git_commit_guard && printf '%s\n' "$file" | grep -Eq '(^|/)\.git/hooks/'; then deny "$GIT_MSG"; fi
     if strict edit_block; then
       rel=${file#"${CLAUDE_PROJECT_DIR:-$PWD}"/}; rel=${rel#./}
-      for d in $(specdirs); do
-        case "$rel" in "$d"/*) deny "$EDIT_MSG" ;; esac
-      done
+      if printf '%s' "$settings" | jq -e --arg file "$rel" '
+        any(.spec_dirs[]; . as $dir | $dir == "." or $file == $dir or ($file | startswith($dir + "/")))
+      ' >/dev/null; then deny "$EDIT_MSG"; fi
     fi
     exit 0 ;;
   Bash) ;;

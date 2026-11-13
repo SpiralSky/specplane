@@ -187,14 +187,24 @@ out=$(printf '{"session_id":"e3"}' | PATH="$tmp/stubbin:$tmp/nospec" STUB_OUT=x 
 
 # ---- bypass guard (roles-and-permissions R58) ----
 bg=specplane-bypass-guard.sh
+# Exercise the actual core query, including CLI registration, without an installed CLI dependency.
+guard_cli="$(cd "$here/../../.." && pwd)/packages/cli/dist/cli.js"
+[ -f "$guard_cli" ] || { echo "Build packages/cli before running hook tests"; exit 1; }
+mkdir "$tmp/guardbin"
+cat > "$tmp/guardbin/specplane" <<'GUARD'
+#!/bin/sh
+printf '%s\n' "$*" >> "${GUARD_LOG:-/dev/null}"
+exec node "$GUARD_CLI" "$@"
+GUARD
+chmod +x "$tmp/guardbin/specplane"
 mkdir -p "$tmp/bp/.specplane" "$tmp/bpoff/.specplane" "$tmp/bpflow/.specplane"
 : > "$tmp/bp/.specplane/config.yaml"
-printf 'bypass_guards:\n  headless_block: off\n  marker_protect: false\n  store_protect: no\n  hook_protect: off\n' > "$tmp/bpoff/.specplane/config.yaml"
+printf 'bypass_guards:\n  headless_block: off\n  marker_protect: false\n  store_protect: off\n  hook_protect: off\n' > "$tmp/bpoff/.specplane/config.yaml"
 printf 'bypass_guards: {headless_block: off}\nother: 1\n' > "$tmp/bpflow/.specplane/config.yaml"
 bj() { "$JQ" -n --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}'; }
 fj() { "$JQ" -n --arg t "$1" --arg f "$2" '{tool_name:$t,tool_input:{file_path:$f}}'; }
 bgrun() { # project expected name json
-  CLAUDE_PROJECT_DIR="$tmp/$1" sh "$hooks/$bg" >/dev/null 2>&1 <<EOJ
+  PATH="$tmp/guardbin:$ORIG_PATH" GUARD_CLI="$guard_cli" CLAUDE_PROJECT_DIR="$tmp/$1" sh "$hooks/$bg" >/dev/null 2>&1 <<EOJ
 $4
 EOJ
   rc=$?
@@ -236,13 +246,13 @@ bgrun bpflow 0 "bypass: flow-style off allows claude -p" "$(bj 'claude -p hi')"
 bgrun bpflow 2 "bypass: flow-style leaves the other measures on" "$(bj 'unset SPECPLANE_ACTOR')"
 bgrun noconf 0 "bypass: no-op without the config" "$(bj 'claude -p hi')"
 out=$(printf '%s' "$(bj 'claude -p hi')" | PATH="$tmp/nojq" CLAUDE_PROJECT_DIR="$tmp/bp" "$tmp/nojq/sh" "$hooks/$bg" 2>/dev/null); rc=$?
-[ "$rc" = 0 ] && report "bypass: exits quietly without jq" 1 || report "bypass: exits quietly without jq" 0
+[ "$rc" = 2 ] && report "bypass: fails closed without jq" 1 || report "bypass: fails closed without jq" 0
 
 # ---- strict mode (roles-and-permissions R55.1) ----
 mkdir -p "$tmp/st/.specplane" "$tmp/stoff/.specplane" "$tmp/stpart/.specplane" "$tmp/stpath/.specplane" "$tmp/stflow/.specplane"
 printf 'strict_mode:\n  enabled: on\n' > "$tmp/st/.specplane/config.yaml"
 printf 'strict_mode:\n  enabled: off\n' > "$tmp/stoff/.specplane/config.yaml"
-printf 'strict_mode:\n  enabled: on\n  edit_block: off\n  git_commit_guard: false\n  os_permissions: no\n' > "$tmp/stpart/.specplane/config.yaml"
+printf 'strict_mode:\n  enabled: on\n  edit_block: off\n  git_commit_guard: false\n  os_permissions: off\n' > "$tmp/stpart/.specplane/config.yaml"
 printf 'paths:\n  features: "specs/f"  # mine\nsubprojects:\n  - {name: sub, path: lib/sub}\nstrict_mode:\n  enabled: on\n' > "$tmp/stpath/.specplane/config.yaml"
 printf 'strict_mode: {enabled: on, edit_block: off}\n' > "$tmp/stflow/.specplane/config.yaml"
 bgrun st 2 "strict: denies Write to a feature spec" "$(fj Write "$tmp/st/docs/specifications/features/x.md")"
@@ -288,6 +298,61 @@ bgrun stpath 0 "strict: the default features folder is free when moved" "$(fj Wr
 bgrun stpath 2 "strict: a subproject folder is blocked" "$(fj Write lib/sub/requirements/r.md)"
 bgrun stflow 0 "strict: flow style edit_block off allows a spec write" "$(fj Write docs/specifications/features/x.md)"
 bgrun stflow 2 "strict: flow style leaves the other measures on" "$(bj 'git commit --no-verify -m x')"
+
+# YAML forms are resolved by the same core parser as other settings.
+mkdir -p "$tmp/styaml/.specplane" "$tmp/stquoted/.specplane" "$tmp/stbad/.specplane"
+cat > "$tmp/styaml/.specplane/config.yaml" <<'YAML'
+"paths": {"requirements": "specs/req", features: specs/features, architecture: 'specs/arch'} # custom folders
+subprojects: [{name: child, path: "modules/child specs"}]
+"strict_mode": {"enabled": "on"} # quoted keys and values
+YAML
+for entry in 'specs/req/r.md' 'specs/features/f.md' 'specs/arch/a.md' 'modules/child specs/requirements/r.md' 'modules/child specs/features/f.md' 'modules/child specs/architecture/a.md'; do
+  bgrun styaml 2 "strict: flow configuration protects $entry" "$(fj Write "$tmp/styaml/$entry")"
+done
+bgrun styaml 0 "strict: flow configuration frees the old default folder" "$(fj Write docs/specifications/features/f.md)"
+bgrun styaml 2 "strict: flow configuration blocks shell writes" "$(bj 'echo x > specs/features/f.md')"
+cat > "$tmp/stquoted/.specplane/config.yaml" <<'YAML'
+paths:
+  requirements: "specs/req # records" # the hash is part of the path
+  features: 'specs/team''s features' # YAML escaped apostrophe
+  architecture: "specs/quoted \"arch\"" # YAML escaped quotes
+subprojects:
+  - name: child
+    path: 'modules/child # one'
+strict_mode:
+  enabled: "on" # quoted switch
+  git_commit_guard: 'off'
+bypass_guards: {headless_block: "off", marker_protect: 'off', store_protect: "off", hook_protect: 'off'}
+YAML
+for entry in 'specs/req # records/r.md' "specs/team's features/f.md" 'specs/quoted "arch"/a.md' 'modules/child # one/features/f.md'; do
+  bgrun stquoted 2 "strict: quoted configuration protects $entry" "$(fj Edit "$entry")"
+done
+bgrun stquoted 2 "strict: quoted path blocks a shell redirect" "$(bj 'echo x > "specs/req # records/r.md"')"
+bgrun stquoted 0 "strict: quoted off disables git guard" "$(bj 'git commit --no-verify -m x')"
+bgrun stquoted 0 "bypass: quoted off disables headless guard" "$(bj 'claude -p hi')"
+bgrun stquoted 0 "bypass: quoted off disables marker guard" "$(bj 'unset SPECPLANE_ACTOR')"
+bgrun stquoted 0 "bypass: quoted off disables store guard" "$(fj Edit .git/specplane/role.json)"
+bgrun stquoted 0 "bypass: quoted off disables hook guard" "$(fj Write .claude/settings.json)"
+printf 'strict_mode: {enabled: on}\npaths: {features: [broken}\n' > "$tmp/stbad/.specplane/config.yaml"
+bgrun stbad 2 "strict: malformed YAML fails closed for file writes" "$(fj Write specs/features/f.md)"
+bgrun stbad 2 "strict: malformed YAML fails closed for shell calls" "$(bj 'echo x > specs/features/f.md')"
+bgrun stbad 0 "strict: failed config still allows Read tools" "$(fj Read specs/features/f.md)"
+for mode in missing failed malformed empty; do
+  guard_path="$tmp/stubbin:$ORIG_PATH"; guard_exit=0; guard_out='{}'
+  case "$mode" in
+    missing) guard_path="$tmp/nospec" ;;
+    failed) guard_exit=1 ;;
+    malformed) guard_out='not json' ;;
+    empty) guard_out='' ;;
+  esac
+  for payload in "$(fj Write specs/features/f.md)" "$(bj 'echo x > specs/features/f.md')"; do
+    printf '%s' "$payload" | PATH="$guard_path" STUB_EXIT="$guard_exit" STUB_OUT="$guard_out" CLAUDE_PROJECT_DIR="$tmp/styaml" sh "$hooks/$bg" >/dev/null 2>&1
+    rc=$?
+    [ "$rc" = 2 ] && report "strict: $mode core query fails closed" 1 || report "strict: $mode core query fails closed (got $rc)" 0
+  done
+done
+printf '%s' "$(fj Write specs/features/f.md)" | PATH="$tmp/guardbin:$ORIG_PATH" GUARD_CLI="$guard_cli" GUARD_LOG="$tmp/guard-log" CLAUDE_PROJECT_DIR="$tmp/styaml" sh "$hooks/$bg" >/dev/null 2>&1
+[ "$(wc -l < "$tmp/guard-log" | tr -d ' ')" = 1 ] && report "strict: core settings queried once per hook invocation" 1 || report "strict: core settings queried once per hook invocation" 0
 
 # marker export (session start)
 printf 'plans:\n  dir: plans\n' > "$tmp/bp/.specplane/config.yaml"
