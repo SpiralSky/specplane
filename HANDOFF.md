@@ -1,7 +1,47 @@
 # Session handoff
-Updated 2026-11-13. Read the first "Next session: start here" section; everything below it is history.
+Updated 2026-11-13 after the Flash worker and socket-probe session. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
-## Next session: start here (written 2026-11-13, end of the fourth session)
+## Next session: start here (2026-11-13, socket probe prepared)
+
+### Current state and landed work
+
+- Branch `spec-edits-20261106`; nothing pushed or merged. The only untracked files at the end of this session were the user's `problems.md` and `docs/codex-vs-claude-usage-analysis.md`; leave them untouched.
+- `ac9c681` — isolated socket-probe plugin in `harnesses/claude/host-evidence/2.1.322-socket-probe/`, plus `packages/cli/src/harness/claude-socket-probe.test.ts`. It starts a Node HTTP listener through the mod's spawn stream, forwards probe calls over a Unix socket, reports PID/counter and caller metadata, and exercises output draining and shutdown. It is an evidence fixture, not the production action channel.
+- `9cf600d` — `live-startup.txt` and README status record the first actual host run and its usage-limit blocker. No production code, specs or requirements changed.
+- **Unit A1 below is still incomplete.** The fixture is ready; the live transport, main/subagent calls and host lifecycle checks are not verified. Do not choose socket transport or the per-call fallback from these results yet.
+
+### Verification and live blocker
+
+- `npm run build` in `packages/cli` passed outside the Codex filesystem/process sandbox. Inside the sandbox, documentation generation failed with an empty command name because its CLI subprocess produced no help output; the unsandboxed rerun passed without source changes.
+- Strict standalone TypeScript checking of the probe's `hooks/register.ts` passed against the installed Claude declarations at `~/.claude/dev-mods/65b0a8c0-51e1-4b2e-a06e-2c013e0fa476/specplane/.claude-plugin/types/claude-code/index.d.ts` (written by 2.1.312). The real host is **Claude Code 2.1.322**. The normal package build does not type-check this isolated mod fixture.
+- Focused tests: `SPECPLANE_TEST_RUNNER=bun sh scripts/test.sh ./dist/harness/claude-socket-probe.test.js`, from `packages/cli`: **3 pass, 0 fail, Bun 1.4.4**. They verify Node process reuse, synthetic metadata round-trip, a 2 MiB drained stdout burst, controlled failure/shutdown, and a stale socket after `SIGKILL` that a new listener refuses to remove. The sandbox run failed all three with `listen EPERM`; the unsandboxed rerun passed. No full suite was run in this session; the older 589-pass figure is historical.
+- The authorized headless Haiku run at about **17:59 Singapore time on 2026-11-13** loaded the fixture and listed `mcp__specplane-socket-probe__socket_probe`. The request then failed with **HTTP 429 / `usage_limit_reached` / `five_hour`**, before any model tool calls or subagent spawn. The host reported a reset at **18:50 Singapore time that day**; check current availability rather than treating that as a current deadline.
+- The expected socket was absent after the failed session. That alone does not prove there was no orphan child. Tool registration follows receipt of the child's READY line, so successful startup is an inference from the observed tool list; actual transport and cleanup still need testing.
+- The user explicitly authorized temporarily disabling `bypass_guards.headless_block` for this session's live check. The runner restored the exact original `.specplane/config.yaml`; its git diff is empty. Do not commit a guard override. This session's agreement is not blanket authorization for a later session.
+
+### Coordination and Flash worker setup
+
+The user wants **Codex to coordinate and Google Antigravity Flash to implement bounded units**, not Flash to coordinate the project. Select the unit here, give one worker explicit file ownership and a short brief, inspect its diff, run verification, and commit before starting another unit. Do not delegate the whole backlog or ask Flash to spawn more agents.
+
+- The executable is `/home/spiralsky/.local/bin/agy`, not `antigravity` or `gemini`. `agy models` listed `gemini-3.8-flash-high`, `gemini-3.8-flash-medium` and `gemini-3.8-flash-low`; this session used **`gemini-3.8-flash-high`**.
+- `agy` needs local service sockets, log writes under `~/.gemini/antigravity-cli`, and network access. It could not start inside the Codex sandbox; use the normal escalation mechanism when required.
+- Headless `--print` cannot prompt for tools and auto-denies ungranted permissions. Supply session-only `--settings` JSON with `permissions.allow`: for example `read_file(/absolute/repo)`, `write_file(/absolute/owned/path)`, and exact `command(...)` prefixes. Do not use `--dangerously-skip-permissions` or change global permissions.
+- Command prefixes matter: `command(npm run build)` did not cover `npm --prefix packages/cli run build`. A later optional `node -e` dependency check was denied too. Stop unnecessary exploration; do not expand grants indiscriminately. The successful final arrangement had Flash write its assigned files and Codex perform the build/tests and repair verified defects.
+- A smoke check successfully read the handoff, ran `pwd`, and wrote `/tmp/specplane-agy-worker/result.txt`. The working settings and briefs are under `/tmp/specplane-agy-worker/`, but those files are temporary, not durable project configuration. Recreate scoped grants for the next unit if missing. The worker conversation ID was `33c8b372-9f08-4c36-968d-4ff42ba2486a`; its assignment is finished. Start a fresh worker for a new unit.
+- Typical invocation: `agy --model gemini-3.8-flash-high --mode accept-edits --settings <scoped-settings.json> --print-timeout 600s --print <bounded-brief>`. Use `--conversation <id>` only to resume an interrupted assignment with the same ownership. An exit status of zero alone did not prove success: inspect the report, diff and tests. One denied-command run exited without a final report.
+
+### Next unit: finish the live socket probe
+
+1. Read the fixture's `README.md` and `live-startup.txt`; reuse the committed fixture rather than rebuilding it. Confirm the live Claude version and usage window. Observe the session-specific headless-guard agreement rule above.
+2. Repeat two main-agent probe calls, one general-purpose subagent call and another main-agent call. The PID should remain fixed and the request counter increase; only the subagent should carry its engine agent ID/type. `$.session.model()` is the session model, not proof of the subagent's own model. Record actual `$.http.fetch` results.
+3. Compare draining with `serverStreamDraining = false` using the README's bounded flood experiment; restore the flag. Check normal session end, host termination, child termination, stale socket behavior and orphan processes. Keep timeouts around experiments that may block. Interactive checks require the user.
+4. Record only observed results under the fixture's host-evidence directory, distinguish declarations/inferences from live evidence, and commit the completed unit. If the socket route actually fails, evaluate the existing per-call fallback; the usage-limit rejection is not a transport failure.
+
+Temporary local aids, if still present: `/tmp/specplane-live-socket/run.py` (150-second bounded headless runner with config restoration), `normal.jsonl`, `normal.stderr` and `normal.session`. The runner uses Haiku, a USD 1 cap, only Agent plus the probe tool explicitly allowed, and no permission prompts. Review it before reuse; raw logs are not committed and should not be copied wholesale into evidence.
+
+After A1 is resolved, the earlier section's **A2–A6** remains the order: specs with independent review and user approval, session-server core, production mod, identity-variable guards, then live checks/docs. Keep the MCP server and caller hook for Codex and non-plugin Claude installs. The earlier **B** list remains open, including full requirements coverage; none of those items was completed here. No approvals, push or merge were performed.
+
+## Earlier continuation (written 2026-11-13, end of the fourth session)
 
 This list replaces the older "Do next" lists below. State: branch `spec-edits-20261106`, nothing pushed, not merged; `npm test` 589 pass / 0 fail. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` are the user's; leave them. Run units as chained subagents, one unit each, built, tested and committed. Headless runs (`claude -p`, `codex exec`) need the user's agreement each session to set `bypass_guards.headless_block: off` in `.specplane/config.yaml`; restore it with `git checkout .specplane/config.yaml` and never commit it. In a Bash command, do not write a shell variable assignment that ends in `/specplane;` (the CLI-block hook reads it as the CLI), and do not `ls` the local store (`store_protect` refuses it).
 
