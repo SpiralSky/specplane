@@ -1,0 +1,5 @@
+{
+  "name": "specplane-socket-probe",
+  "version": "0.1.0",
+  "description": "Probe for Claude Code 2.1.322 mod-spawned long-lived Unix socket server"
+}
