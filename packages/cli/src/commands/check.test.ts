@@ -47,10 +47,10 @@ test("check requirement-ids --staged refuses a duplicate in the index and ignore
   } finally { rm(root); }
 });
 
-test("check tests --staged runs only staged architecture specs on the index", () => {
+test("check tests --staged runs the declared tests of staged architecture specs on the index", () => {
   const root = repo();
   try {
-    assert.match(sp(root, ["check", "tests", "--staged"]).out, /No architecture specs are staged/);
+    assert.match(sp(root, ["check", "tests", "--staged"]).out, /Nothing is staged/);
     // A passing test in the index; the working tree holds a failing version that must be ignored.
     write(root, { "docs/specifications/architecture/beta.md": arch("exit 0") });
     git(root, "add", "docs/specifications/architecture/beta.md");
@@ -65,6 +65,22 @@ test("check tests --staged runs only staged architecture specs on the index", ()
     assert.match(bad.out + bad.err, /architecture\/beta §1#T1\s+failed/);
     assert.equal(fs.readdirSync(path.join(root, ".git", "specplane", "tmp")).length, 0, "temporary checkout removed");
     assert.equal(git(root, "notes", "--ref=specplane", "list"), "", "nothing recorded");
+  } finally { rm(root); }
+});
+
+test("check tests --staged blocks a code-only commit that breaks a committed architecture spec's test", () => {
+  const root = repo();
+  try {
+    write(root, { "docs/specifications/architecture/beta.md": arch("test -f ok.txt"), "ok.txt": "x\n" });
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "spec");
+    write(root, { "code.ts": "export {};\n" });
+    git(root, "add", "code.ts");
+    assert.equal(sp(root, ["check", "tests", "--staged"]).code, 0, "passes while the file exists");
+    git(root, "rm", "-q", "ok.txt");
+    const bad = sp(root, ["check", "tests", "--staged"]);
+    assert.equal(bad.code, 1, "the spec file itself is not staged");
+    assert.match(bad.out + bad.err, /architecture\/beta §1#T1\s+failed/);
   } finally { rm(root); }
 });
 

@@ -10,6 +10,8 @@ related: [specification-format, configuration, commands, permissions]
 
 Tests are declared in specs (see `specification-format`). `test run <spec>[#<section>]` or `test run --all` runs the deterministic tests on the content committed at `HEAD`, in a temporary checkout, so uncommitted edits are not tested. Results are recorded as `test-result` records bound to the spec's fingerprint; a result for changed content is shown as outdated and counts for nothing. Recording needs `test.record`. A person can set or clear a result by hand with `spec override test`, which needs the protected `override.test` permission.
 
+To block commits that break tests, turn on `pre_commit.tests` (off by default). The pre-commit hook then runs the deterministic tests of every architecture spec that declares them, on the staged content, whenever anything is staged, and refuses the commit on a failure; this includes commits that change only code. Intelligent tests are never run by the hook.
+
 `spec implement <id>` verifies an architecture spec: every declared check must pass on the committed content, intelligent judgements must carry a recorded verdict, and `HEAD` must not move meanwhile. Only then is an implementation record written. An LLM may do this only when `architecture.llm_may_mark_implemented` is on and the permissions allow it. A failed current result blocks both approval and mark-implemented.
 
 `coverage` shows which specs cover each requirement and feature section; `--uncovered` lists what nothing covers. `coverage.requirement_only` marks requirements that need no spec; they are still reported as uncovered warnings.

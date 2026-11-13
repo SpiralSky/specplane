@@ -220,7 +220,7 @@ checkCmd
   .action((opts: { staged?: boolean; json?: boolean }) => runCommand({ command: "check requirement-ids", args: opts.staged ? ["--staged"] : [], json: opts.json }, () => checkRequirementIdsCommand(opts)));
 checkCmd
   .command("tests")
-  .description("Run the deterministic tests of staged architecture specs on the index; installed by pre_commit.tests")
+  .description("Run the deterministic tests of all architecture specs on the index when anything is staged; installed by pre_commit.tests")
   .option("--staged", "check the index (required)")
   .option("--timeout <seconds>", "wall-clock limit per command (default 120)")
   .option("--json", "output JSON")

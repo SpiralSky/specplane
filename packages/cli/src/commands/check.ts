@@ -8,7 +8,7 @@ import { checkRequirementIds } from "../spec/requirements.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject, allSpecs } from "../spec/project.js";
 import { headCommit, indexSource, stagedFiles } from "../spec/source.js";
-import { DEFAULT_TIMEOUT_SEC, runTests } from "../verify/test-run.js";
+import { DEFAULT_TIMEOUT_SEC, runTests, selectTests } from "../verify/test-run.js";
 import type { CommandResult } from "./runner.js";
 
 /**
@@ -30,7 +30,10 @@ export function checkRequirementIdsCommand(opts: { staged?: boolean }): CommandR
   return { ok: duplicates.length === 0, data: { duplicates }, lines, findings: duplicates.length ? lines : [] };
 }
 
-/** `check tests --staged` (`verification R36.3`): deterministic tests of architecture specs with staged files, run on the index. */
+/**
+ * `check tests --staged` (`verification R36.3`): when anything is staged, the deterministic tests of every architecture spec that
+ * declares them, run on the index; a code-only commit is checked too. Nothing staged means nothing to run.
+ */
 export async function checkTestsCommand(opts: { staged?: boolean; timeout?: string }): Promise<CommandResult> {
   if (!opts.staged) throw new PreconditionError(["Pass --staged: the check reads the index."]);
   let timeoutSec = DEFAULT_TIMEOUT_SEC;
@@ -41,9 +44,11 @@ export async function checkTestsCommand(opts: { staged?: boolean; timeout?: stri
   const root = checkoutRoot();
   const { paths } = loadSpecPaths(root);
   const project = loadProject(indexSource(root), paths);
-  const staged = new Set(stagedFiles(root));
-  const specs = [...allSpecs(project)].filter((d) => d.layer === "architecture" && staged.has(d.file)).map((d) => d.id);
-  if (!specs.length) return { ok: true, data: { specs: [], results: [] }, lines: ["No architecture specs are staged; no tests to run."] };
+  if (!stagedFiles(root).length) return { ok: true, data: { specs: [], results: [] }, lines: ["Nothing is staged; no tests to run."] };
+  const specs = [...allSpecs(project)]
+    .filter((d) => d.layer === "architecture" && selectTests(project, { spec: d.id }).some((t) => t.kind === "deterministic"))
+    .map((d) => d.id);
+  if (!specs.length) return { ok: true, data: { specs: [], results: [] }, lines: ["No architecture spec declares deterministic tests; no tests to run."] };
   const settings = loadSettings(root).config;
   const actor = cliActor(root);
   const report = await runTests({
