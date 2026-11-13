@@ -8,7 +8,7 @@ export function checkSpecCites(project: Project, doc: SpecDoc, emit: Emit): void
   if (!doc.fm.data) return;
   const f = doc.file;
   const inSub = project.name !== "root";
-  const isKnown = (layer: Layer, slug: string) => project.specs.has(`${layer}/${slug}`);
+  const isKnown = (layer: Layer, slug: string) => project.specs.has(`${layer}/${slug}`) || project.root.specs.has(`${layer}/${slug}`);
   const body = extractBodyCites(doc.lines, doc.fm.bodyStartLine, doc.index, { layer: doc.layer, slug: doc.slug }, isKnown);
   const listed = new Set(dependencyCites(doc.fm.data).map((c) => citeKey(c, inSub)));
   const used = new Set<string>();

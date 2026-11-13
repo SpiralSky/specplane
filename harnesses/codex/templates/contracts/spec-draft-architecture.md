@@ -15,7 +15,7 @@ Source specifications must exist; approval is not required. `spec.create.<type>`
 
 1. [code] `config.get`: read .specplane/config.yaml from HEAD and resolve every path from it. If configuration is absent, say Specplane is not set up and stop without changes.
 2. [code] `spec.retrieve`: retrieve the source working set and referenced parts, including higher-layer requirements where cited; read files only for missing parts.
-3. [llm] Draft by topic. Cite the source parts in frontmatter and in each section. List unclear or contradictory sources as questions, report conflicts and follow the higher layer; label choices the sources leave open as assumptions.
+3. [llm] When requirements exist and specification design is delegated to you, consider whether the work belongs in a subproject and choose one where needed, respecting the user’s settings and specification creation permissions. Use a declared subproject, or describe the needed declaration for the user; do not bypass configuration permissions. Qualify references to the root project with `root:`. Draft by topic. Cite the source parts in frontmatter and in each section. List unclear or contradictory sources as questions, report conflicts and follow the higher layer; label choices the sources leave open as assumptions.
 4. [code] `spec.create`: submit the draft with cites. The action appends model authorship when configured and rejects status, approval and other legacy record keys. A request stores the proposed change without writing it.
 5. [code] `validate`: validate the draft.
 6. [code] `coverage`: retrieve uncovered source parts.

@@ -10,13 +10,15 @@ These descriptions are packaged as the default command documentation. Custom ins
 
 ## spec-assist
 
-Write or edit a feature or architecture specification with the user (`harness R19`, `specifications R4`).
+Write or edit a feature or architecture specification with the user (`harness R19`, `specifications R4`). When requirements exist and design is delegated, consider and choose a subproject where needed under the creation permissions; use a declared subproject or describe the declaration the user needs to add. Root references use `root:`.
+
+When decision records are enabled, search for relevant records and store decisions the user states, with their context and reasons, through `decision.retrieve` and `decision.add` under their permissions. Suggestions are not decisions. With records disabled, neither search nor store them. Report any stored record or pending request; confirmation requires the user’s approval by ID.
 
 Say what changed, that changed content is awaiting-review, and that approval is a separate permission-checked action.
 
 ## spec-draft-architecture
 
-Generate an architecture specification from features, or a feature specification from requirements (`specifications R67`).
+Generate an architecture specification from features, or a feature specification from requirements (`specifications R67`). When requirements exist and design is delegated, consider and choose a subproject where needed under the creation permissions; use a declared subproject or describe the declaration the user needs to add. Root references use `root:`.
 
 Name the new awaiting-review specification, its source cites, uncovered parts and open questions, and its model author.
 

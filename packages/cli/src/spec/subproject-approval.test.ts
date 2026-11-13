@@ -32,7 +32,7 @@ function setup(): Ctx {
     ".specplane/config.yaml": "subprojects:\n  - {name: claude, path: sub/claude}\n",
     "docs/requirements/product.md": "# Requirements\n\n**R1: Harness**\nIntegrate.\n\n**R2: Export**\nExport the data.\n",
     [FEATURE]: front("feature/export", `covers: [R2]\nreferences: ["${HARNESS} R1"]`) + "## R2: Export\n\nExport. Needs `claude:feature/harness R1`.\n",
-    [SUB_FEATURE]: front("feature/harness", "covers: [R1]\nreferences: []") + "## R1: Harness\n\nIntegrates.\n",
+    [SUB_FEATURE]: front("feature/harness", "covers: [root:R1]\nreferences: []") + "## R1: Harness\n\nIntegrates.\n",
     [SUB_ARCH]: front("architecture/impl", "implements: [feature/harness R1]\nreferences: []") + "## R1: Check\n\nTest T1 (deterministic): passes.\n\n```specplane-test\nrun: [\"true\"]\n```\n",
   });
   git(root, "init", "-q", "-b", "main");

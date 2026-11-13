@@ -206,14 +206,13 @@ export function resolveCite(own: Project, cite: Cite): Resolution {
     const found = cite.project === "root" ? own.root : own.root.subprojects.get(cite.project);
     if (!found) return fail(`subproject \`${cite.project}\` is not declared in the subprojects setting`);
     project = found;
-  } else if (own.name !== "root" && ownsNoRequirements(own) && (cite.kind === "req" || cite.kind === "file-req" || cite.kind === "req-file")) {
-    // A subproject without requirements of its own relies on the root project's (`later-releases R39`).
-    project = own.root;
   }
-  return resolveIn(project, cite);
+  const resolved = resolveIn(project, cite);
+  if (!resolved.ok && own.name !== "root" && "project" in cite && cite.project === null && resolveIn(own.root, cite).ok) {
+    return fail(`reference resolves only in the root project; use \`root:${cite.raw}\` to name the project`);
+  }
+  return resolved;
 }
-
-const ownsNoRequirements = (p: Project): boolean => p.requirements.files.length === 0;
 
 function resolveIn(project: Project, cite: Cite): Resolution {
   switch (cite.kind) {

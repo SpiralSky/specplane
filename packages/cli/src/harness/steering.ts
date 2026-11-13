@@ -7,7 +7,7 @@ import { readStoreJson, writeStoreJson } from "../repo/store.js";
 
 /** U9 generation only; U10 assembles delivery and U14 owns installed files. */
 export const STEERING_COMMANDS: Readonly<Record<string, readonly string[]>> = {
-  "spec-assist": ["info.retrieve", "spec.create.feature", "spec.edit.feature", "spec.create.architecture", "spec.edit.architecture"],
+  "spec-assist": ["info.retrieve", "spec.create.feature", "spec.edit.feature", "spec.create.architecture", "spec.edit.architecture", "decision.retrieve", "decision.add"],
   "spec-draft-architecture": ["info.retrieve", "spec.create.feature", "spec.create.architecture"],
   "plan-create": ["info.retrieve", "plan.create", "plan.edit"], "plan-start": ["plan.start"],
   "plan-step": ["info.retrieve", "spec.edit.requirement", "spec.edit.feature", "spec.edit.architecture", "test.record", "plan.softstop", "plan.resume", "plan.budget"],

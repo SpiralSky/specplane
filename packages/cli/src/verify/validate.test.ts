@@ -102,25 +102,59 @@ test("subprojects: cites resolve by project name, plain cites mean the own proje
   assert.ok(r.checked.includes("claude:feature/harness") && r.checked.includes("codex:feature/integration"));
 });
 
-test("subprojects: a subproject without requirements relies on the root project's; unresolved cites name the project", () => {
+test("subprojects: a subproject without requirements cites the root explicitly; unresolved cites name the project", () => {
   const root = repo({
     ".specplane/config.yaml": SUB_CONFIG,
     "docs/requirements/product-requirements.md": REQ,
     "sub/claude/requirements/reqs.md": SUB_REQ,
     "sub/claude/features/harness.md": spec({ id: "feature/harness", references: "[R7, codex:R9]", body: "## §1 Part\n\nCites `R7` and `codex:R9`.\n" }),
-    "sub/codex/features/integration.md": spec({ id: "feature/integration", references: "[R2.1]", body: "## §1 Part\n\nCites `R2.1`.\n" }),
+    "sub/codex/features/integration.md": spec({ id: "feature/integration", references: "[root:R2.1]", body: "## §1 Part\n\nCites `root:R2.1`.\n" }),
   });
   commit(root);
   const r = validateProject(root);
   const hit = (name: string) => r.findings.filter((f) => f.severity === "error" && f.project === name).map((f) => f.message);
   assert.ok(hit("claude").some((m) => /unresolved cite `R7`.*requirement not found: R7/.test(m)), "R7 is not in claude's own requirements");
   assert.ok(hit("claude").some((m) => /unresolved cite `codex:R9`.*requirement not found: R9/.test(m)));
-  assert.deepEqual(hit("codex"), [], "codex has no requirements, so R2.1 is the root's");
+  assert.deepEqual(hit("codex"), [], "root:R2.1 explicitly names the root's requirement");
   assert.equal(r.findings.filter((f) => f.severity === "error" && !f.project).length, 0);
   const text = formatReport(r);
   assert.match(text, /project claude, cites/);
   assert.match(text, /Project claude: 4 errors/);
 });
+
+for (const ownRequirements of [false, true]) {
+  test(`subprojects: root-only cites require qualification (own requirements: ${ownRequirements})`, () => {
+    const cites = ["R2.1", "product-requirements.md#R2.1", "requirement/product-requirements", "alpha R2", "feature/alpha", "architecture/design §1", "architecture/design"];
+    const feature = (qualified: boolean) => spec({
+      id: "feature/integration",
+      references: JSON.stringify(cites.map((cite) => qualified ? `root:${cite}` : cite)),
+      body: `## §9 Integration\n\n${cites.map((cite) => `Uses \`${qualified ? "root:" : ""}${cite}\`.`).join("\n")}\n`,
+    });
+    const root = repo({
+      ".specplane/config.yaml": "subprojects:\n  - {name: codex, path: sub/codex}\n",
+      "docs/requirements/product-requirements.md": REQ,
+      "docs/specifications/features/alpha.md": spec({ id: "feature/alpha", body: "## R2: Two\n\nText.\n" }),
+      "docs/specifications/architecture/design.md": spec({ id: "architecture/design", body: "## §1 Design\n\nText.\n" }),
+      ...(ownRequirements ? { "sub/codex/requirements/reqs.md": SUB_REQ } : {}),
+      "sub/codex/features/integration.md": feature(false),
+    });
+    commit(root);
+    const errors = validateProject(root).findings.filter((f) => f.rule === "cites" && f.severity === "error" && f.project === "codex");
+    assert.equal(errors.length, cites.length * 2, "each cite is rejected in both the body and frontmatter");
+    for (const cite of cites) {
+      for (const where of ["the body", "the frontmatter"]) {
+        assert.ok(errors.some((f) => f.message.includes(`unresolved cite \`${cite}\` in ${where}`) && f.message.includes(`use \`root:${cite}\``)), `${where}: ${cite}`);
+      }
+    }
+    fs.writeFileSync(path.join(root, "sub/codex/features/integration.md"), feature(true));
+    assert.deepEqual(rules(validateProject(root), "error"), [], "qualified root cites resolve with or without local requirements");
+    fs.writeFileSync(path.join(root, "sub/codex/features/integration.md"), spec({ id: "feature/integration", body: "## §9 Integration\n\nUses `alpha` and `feature/alpha`.\n" }));
+    const bodyErrors = rules(validateProject(root), "error");
+    for (const cite of ["alpha", "feature/alpha"]) {
+      assert.ok(bodyErrors.some((m) => m.includes(`unresolved cite \`${cite}\` in the body`) && m.includes(`use \`root:${cite}\``)), "body-only root spec cites are checked");
+    }
+  });
+}
 
 test("subprojects: IDs are unique per project, not across projects; a root and a subproject may share an ID", () => {
   const root = repo({

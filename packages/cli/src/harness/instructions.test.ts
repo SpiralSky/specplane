@@ -78,6 +78,31 @@ test("the spec-review steering is read-only: retrieval and decisions, no spec wr
   assert.match(readContract("spec-review"), /changes no file/);
 });
 
+test("drafting contracts choose subprojects and qualify root references under creation permissions", () => {
+  for (const command of ["spec-assist", "spec-draft-architecture"]) {
+    const contract = readContract(command);
+    assert.match(contract, /When requirements exist and specification design is delegated/);
+    assert.match(contract, /consider whether the work belongs in a subproject and choose one where needed/);
+    assert.match(contract, /specification creation permissions/);
+    assert.match(contract, /Use a declared subproject/);
+    assert.match(contract, /do not bypass configuration permissions/);
+    assert.match(contract, /Qualify references to the root project with `root:`/);
+  }
+});
+
+test("spec-assist records only user decisions when enabled with decision permission steering", () => {
+  const contract = readContract("spec-assist");
+  assert.match(contract, /`decision.retrieve` and `decision.add`: only when `decisions.enabled` is on and the user states a decision/);
+  assert.match(contract, /Search first and say when a record already applies/);
+  assert.match(contract, /context, reasons the user gave/);
+  assert.match(contract, /never your own suggestion/);
+  assert.match(contract, /With records off, store and search nothing/);
+  const text = assembleInstructions(repo(), "spec-assist").text;
+  assert.match(text, /Permission: decision.retrieve/);
+  assert.match(text, /Permission: decision.add/);
+  assert.doesNotMatch(text, /Permission: decision\.(edit|delete)|Permission: spec.approve/);
+});
+
 test("permission keys carry their limits, role mode, custom steering and no-bypass text", () => {
   const root = repo('steering:\n  custom:\n    - permission: spec.approve\n      text: Ask for review first\n');
   for (const key of CATALOG) {

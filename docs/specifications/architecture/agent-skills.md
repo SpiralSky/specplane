@@ -129,10 +129,12 @@ Implements `harness R19`, `harness R19.1`, `harness R19.2`, `harness R20`, `harn
 Purpose: write or edit a feature or architecture spec with the user (`harness R19`). Preconditions: config read; `spec.create.<type>` or `spec.edit.<type>` for the spec's type is not `deny` (`harness R19.2`).
 
 1. `[code]` `config.get`; `spec.retrieve` of the spec being changed (if any) with its cited parts, and of related specs the user names.
-2. `[llm]` Discuss and refine the content with the user until they finalise it. Apply the separation check (`§3`). Do not invent requirements; ask.
+2. `[llm]` Discuss and refine the content with the user until they finalise it. Apply the separation check (`§3`). Do not invent requirements; ask. When requirements exist and design is delegated, consider and choose a subproject where needed under creation permissions, using a declared subproject or describing the declaration the user needs to add. Qualify root references with `root:`.
 3. `[code]` `spec.create` (new spec, ID from the path, cites in `covers` or `implements`) or `spec.edit` (section or whole file). Under request-user the edit becomes a request holding a patch and nothing is written; the LLM stops at `§5.1` (`harness R19.2`).
 4. `[code]` The action appends the LLM as author with a contribution at the granularity of the change when `authorship.record_llm` is on, using the model the adapter reports (`harness R19.1`, `specifications R10`). It rejects any `approved` status or `approval` block in supplied text (`architecture/reference-cli §12.1`).
 5. `[code]` `validate` scoped to the spec; report its findings.
+
+During discussion, when decision records are enabled and the user states a decision, use `decision.retrieve` first and `decision.add` to store it with the context and reasons the user gave, never the LLM’s suggestion. With records off neither action runs. Command steering includes both decision permissions; report any record or pending request and its separate user approval (`later-releases R37`, `later-releases R37.1`).
 
 Output: what changed, that the spec is awaiting-review, and that approval is a separate action under the approving actor's permission (`specifications R11.3`, `harness R20`).
 
@@ -141,7 +143,7 @@ Output: what changed, that the spec is awaiting-review, and that approval is a s
 Purpose: generate an architecture spec from feature specs, or a feature spec from requirements (`specifications R67`). Preconditions: the source specs exist; the create permission is not `deny`; the sources need not be approved, and the output says when they are not.
 
 1. `[code]` `spec.retrieve` of the sources with referenced parts.
-2. `[llm]` Draft the spec: topics, not feature sections; each section cites the source parts it implements in its frontmatter and states them in the body; unclear or contradictory source parts are listed as questions for the user, not decided; detail the sources leave open is marked "assumption".
+2. `[llm]` When requirements exist and design is delegated, consider and choose a subproject where needed under creation permissions, using a declared subproject or describing the declaration the user needs to add; qualify root references with `root:`. Draft the spec: topics, not feature sections; each section cites the source parts it implements in its frontmatter and states them in the body; unclear or contradictory source parts are listed as questions for the user, not decided; detail the sources leave open is marked "assumption".
 3. `[code]` `spec.create` as in `§7.1` step 3 to 5.
 4. `[llm]` Report coverage of the sources: `coverage` shows source parts nothing covers (`verification R64`).
 
