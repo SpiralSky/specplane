@@ -25,7 +25,7 @@ export function registerHarnessCommands(program: Command): void {
       if (opts.adapter !== undefined && opts.adapter !== "claude" && opts.adapter !== "codex") throw new UsageError(`Unknown adapter: ${opts.adapter}. Supported: claude, codex.`);
       const launcher = opts.adapter === "claude" ? (await import("../harness/adapter-claude.js")).claudeLauncher
         : opts.adapter === "codex" ? (await import("../harness/adapter-codex.js")).codexLauncher : undefined;
-      await runCommand({ command: "harness run", args: [command, ...args], json: opts.json }, () => runHarnessCommand(command, args, checkoutRoot(), { launcher }));
+      await runCommand({ command: "harness run", args: [command, ...args], json: opts.json }, () => runHarnessCommand(command, args, checkoutRoot(), { launcher, adapter: opts.adapter }));
     });
   harness
     .command("session <plan>", { hidden: true })

@@ -99,3 +99,13 @@ test("Claude reports the viewing capability; Codex lacks it and refuses by name 
   assert.doesNotThrow(() => requireCapability(claudeAdapter, "viewing", "spec-view"));
   assert.throws(() => requireCapability(codexAdapter, "viewing", "spec-view"), /viewing specifications/);
 });
+
+test("harness run spec-view for a host without the viewing capability is refused by name, and still runs for Claude (harness R35.1)", async () => {
+  const root = repo();
+  try {
+    await assert.rejects(runHarnessCommand("spec-view", [], root, { adapter: "codex" }), /spec-view needs viewing specifications, which codex does not support; nothing was done/);
+    await assert.rejects(runHarnessCommand("spec-view", ["alpha"], root, { adapter: "codex" }), /viewing specifications/);
+    const ok = await runHarnessCommand("spec-view", [], root, { adapter: "claude" });
+    assert.equal(ok.ok, true);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
