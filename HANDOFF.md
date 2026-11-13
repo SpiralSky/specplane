@@ -1,6 +1,17 @@
 # Session handoff
 Updated 2026-11-13. Read "Next session: start here" first, then "Current state"; older continuation sections are historical.
 
+## Session 2026-11-13 (fourth): subagent identity done; read this first
+
+Item 4 of the "Do next" list (subagent identity, R58 and R44.1) is done in `8340518`, `1c926ca`, `6963311`. Continue with the rest of item 3, then item 5.
+
+- **Route.** The Claude PreToolUse hook `specplane-caller.sh` (matcher `mcp__(plugin_.*_)?specplane__.*`) writes `<git-common-dir>/specplane/callers/<tool_use_id>.json` when the hook input has `agent_id` or `agent_type`. The MCP server reads `_meta["claudecode/toolUseId"]` from the `tools/call` request, takes and deletes the record (`harness/caller.ts`) and resolves the role from per-call factors: `subagent` and `delegated` when `agent_id` is present, `agent_type` whenever it is present. The audit actor gains `agentType`, `agentId` and `delegatedBy`. New capability `subagent-identity`: Claude with the hook installed, Codex missing; `validate` warns when an approved rule states these factors and the harness lacks it.
+- **Live probe (Claude Code 2.1.322, `claude -p`, Haiku, scratch fixture):** hook input carries `agent_id` and `agent_type` only inside a subagent; the MCP request carries `claudecode/toolUseId` equal to the hook's `tool_use_id` (undocumented); `updatedInput` with `permissionDecision: allow` rewrites an MCP call's arguments, also on a tool with `additionalProperties: false` (not used by the route); no environment variable identifies a subagent in Bash. Evidence file under `harnesses/claude/host-evidence/`.
+- **End-to-end check, passed:** fixture with `init --harness claude`, the built server registered as `specplane` by `--mcp-config`; a main-agent `docs.search` was audited without an agent, a general-purpose subagent's with `agentType: general-purpose`, its `agentId` and `delegatedBy`; the record was consumed. Not checked live: a rule changing the role (covered by `roles-harness.test.ts` only, because this shell carries the LLM marker and cannot create or trust a rule), the plugin tool-name form, and a `--agent` session.
+- **Limits.** The route rests on an undocumented field; without it a call keeps the session's role (the page's default: a subagent inherits). The Claude plugin package ships no PreToolUse hook, so a plugin-only project lacks the capability until `init --harness claude` installs the hooks. Codex (docs only, not live): custom agents in `.codex/agents/*.toml` inherit the parent's MCP servers and PreToolUse documents no agent identity.
+- **Also seen:** plain `init` in an empty repository created no `.specplane/config.yaml`, so every hook stayed quiet until a config file was added; `ls` of the local store is refused by `store_protect` (a read). Neither was changed.
+- **Verification at `6963311`:** `npm test` 589 pass / 0 fail; hooks 172 pass; check-sync OK; validate 0 errors, 30 warnings (worker's run; the suite was not rerun after it). `headless_block` was off for the probes with the user's agreement and is restored.
+
 ## Session 2026-11-13 (third): read this before the list below
 
 Progress on the "Do next" list below; item numbers refer to it. Items 1 and 2 are done; continue at item 3.
