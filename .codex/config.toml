@@ -1,0 +1,5 @@
+# Registered by specplane init; delete this table to remove the Specplane tools.
+[mcp_servers.specplane]
+command = "specplane"
+args = ["mcp"]
+env = { SPECPLANE_ADAPTER = "codex" }
