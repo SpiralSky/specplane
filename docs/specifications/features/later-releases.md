@@ -4,7 +4,7 @@ title: Later Releases
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-references: [R14, R62.3, specifications R9, specifications R11, specifications R65, roles-and-permissions R50, roles-and-permissions R57, harness R14, configuration R25, requests R52, steering R59, R68, specifications R7]
+references: [harness, R14, R62.3, specifications R9, specifications R11, specifications R65, roles-and-permissions R50, roles-and-permissions R57, harness R14, configuration R25, requests R52, steering R59, R68, specifications R7]
 covers: [R37, R37.1, R39, R39.1, R39.2, R39.3, R39.4, R66]
 ---
 
