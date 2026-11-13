@@ -16,6 +16,7 @@ export const CAPABILITIES = [
   "session-opening",
   "bypass-guards",
   "strict-mode",
+  "subagent-identity",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 export type Capabilities = Record<Capability, boolean>;
@@ -30,6 +31,7 @@ export const CAPABILITY_LABELS: Readonly<Record<Capability, string>> = {
   "session-opening": "opening a plan session",
   "bypass-guards": "guarding against permission bypass by headless sessions",
   "strict-mode": "strict mode: blocking direct edits of specifications",
+  "subagent-identity": "telling subagents apart for LLM role rules",
 };
 
 export interface HarnessAdapter {

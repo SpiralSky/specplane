@@ -1,3 +1,4 @@
+import { takeCaller, toolUseIdOf } from "./caller.js";
 import * as readline from "node:readline";
 import { createActionRuntime, listActions, type ActionSession } from "./actions.js";
 
@@ -64,7 +65,7 @@ export function createMcpServer(session: ActionSession, options: McpServerOption
         case "tools/call": {
           const action = typeof params.name === "string" ? byTool.get(params.name) : undefined;
           if (!action) return failure(id, -32602, `Unknown tool: ${String(params.name)}`);
-          const reply = await runtime.call(action, params.arguments ?? {});
+          const reply = await runtime.call(action, params.arguments ?? {}, takeCaller(session.root, toolUseIdOf(params)));
           return success(id, { content: [{ type: "text", text: JSON.stringify(reply) }], isError: !reply.ok });
         }
         default: return failure(id, -32601, `Method not found: ${method}`);

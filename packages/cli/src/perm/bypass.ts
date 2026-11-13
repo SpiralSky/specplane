@@ -15,7 +15,7 @@ export const BYPASS_MEASURE_DOCS: Readonly<Record<BypassMeasure, string>> = {
   marker_export: "The harness marks every shell command of an LLM session and every headless session it starts with the marker and the LLM's identity, so a headless session or the CLI run from inside it is recognised",
   marker_protect: "The harness blocks a shell command that clears or overrides the marker (unset, env -u, env -i, setting SPECPLANE_ACTOR)",
   headless_block: "The harness blocks a shell command that starts a headless LLM session (claude -p, claude --print, codex exec)",
-  store_protect: "The harness blocks direct writes to the local Specplane store (role.json, os-users.json, trusted-rules.json) and to the approvals notes ref",
+  store_protect: "The harness blocks direct writes to the local Specplane store (role.json, os-users.json, trusted-rules.json, the callers/ folder of recorded subagent callers) and to the approvals notes ref",
   hook_protect: "The harness blocks direct writes to the installed Specplane hooks and the Claude settings that register them, which would switch the other guards off",
 };
 

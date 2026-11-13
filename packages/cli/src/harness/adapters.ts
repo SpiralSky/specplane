@@ -25,6 +25,8 @@ export const claudeAdapter: HarnessAdapter = {
     caps["bypass-guards"] = !!root && fs.existsSync(path.join(root, ".claude/hooks/specplane-bypass-guard.sh"));
     // Strict mode's edit block lives in the same hook, so an installed copy that predates it does not count.
     caps["strict-mode"] = !!root && guardHookHasStrict(root);
+    // Per-call subagent identity comes from the caller hook (`roles-and-permissions` R58).
+    caps["subagent-identity"] = !!root && fs.existsSync(path.join(root, ".claude/hooks/specplane-caller.sh"));
     return caps;
   },
 };

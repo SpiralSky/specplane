@@ -1,3 +1,5 @@
+import { type Caller } from "./caller.js";
+import { type LlmFactors } from "../perm/llm-rules.js";
 import { createAjv } from "../ajv.js";
 import { activePreset, guard, type Actor } from "../perm/permissions.js";
 import { resolveLlmRole } from "../perm/llm-rules.js";
@@ -112,9 +114,14 @@ export function createActionRuntime(session: ActionSession) {
   // What the harness knows about this LLM, matched by the LLM role rules (`R44.1`); never taken from tool input.
   const factors = { ...(session.subagent ? { subagent: session.subagent } : {}), ...(session.agentType ? { agent_type: session.agentType } : {}), ...(session.provider ? { provider: session.provider } : {}), ...(session.model ? { model: session.model } : {}), delegated: !!session.delegatedBy };
   return {
-    async call(id: string, input: unknown): Promise<ActionReply> {
+    async call(id: string, input: unknown, caller?: Caller): Promise<ActionReply> {
       const reply: ActionReply = { ok: false, findings: [], instructions: [] };
-      const actor: Actor = { ...base, role: resolveLlmRole(session.root, factors) };
+      // The host's record of who made this call overrides the session's factors (`R58`): a subagent is the agent type
+      // when it has an ID; an agent type alone (a session started with `--agent`) sets only `agent_type`.
+      const callFactors: LlmFactors = { ...factors, ...(caller?.agentType ? { agent_type: caller.agentType } : {}),
+        ...(caller?.agentId ? { delegated: true, ...(caller.agentType ? { subagent: caller.agentType } : {}) } : {}) };
+      const actor: Actor = { ...base, ...(caller?.agentId ? { delegatedBy: base.delegatedBy ?? session.id } : {}), ...(caller?.agentType ? { agentType: caller.agentType } : {}),
+        ...(caller?.agentId ? { agentId: caller.agentId } : {}), role: resolveLlmRole(session.root, callFactors) };
       let permissions: string[] = [];
       try {
         const action = validateActionInput(id, input);

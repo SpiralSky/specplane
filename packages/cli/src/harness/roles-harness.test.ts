@@ -121,3 +121,63 @@ test("the steering command shows an LLM caller its own custom role and a person 
   assert.match(run({ ...base, SPECPLANE_ACTOR: "llm" }), /Role: llm\./);
   assert.match(run(base), /Role: llm\./);
 });
+
+test("a subagent's call takes its role from the host's caller record, once, and never from tool input", async () => {
+  const root = repo();
+  assert.equal(roleCreate(ctx(root), "helper", { level: 2, defaultMode: "deny", sets: ["info.retrieve=allow"] }).ok, true);
+  commit(root);
+  assert.equal(roleApprove(ctx(root), "helper").ok, true);
+  assert.equal(ruleCreate(ctx(root), "small", { role: "helper", matches: ["subagent=scribe", "delegated=true"] }).ok, true);
+  commit(root);
+  assert.equal(ruleApprove(ctx(root), "small").ok, true);
+  const { createMcpServer } = await import("./mcp.js");
+  const { storeDir } = await import("../repo/store.js");
+  const server = createMcpServer({ root, id: "mcp1", model: "m", reportsContext: false });
+  const callers = path.join(storeDir(root), "callers");
+  fs.mkdirSync(callers, { recursive: true });
+  const record = (id: string, rec: unknown): void => fs.writeFileSync(path.join(callers, `${id}.json`), JSON.stringify(rec));
+  let n = 0;
+  const call = async (meta: unknown, args: unknown = {}, refused = false): Promise<{ role: string; subagent?: string; delegatedBy?: string }> => {
+    const line = await server.handleLine(JSON.stringify({ jsonrpc: "2.0", id: ++n, method: "tools/call", params: { name: "role_list", arguments: args, ...(meta ? { _meta: meta } : {}) } }));
+    assert.equal(JSON.parse(line!).result.isError, refused);
+    const last = fs.readFileSync(path.join(root, ".git", "specplane", "audit.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { actor: { role: string; agentType?: string; delegatedBy?: string } }).pop()!.actor;
+    return { role: last.role, subagent: last.agentType, delegatedBy: last.delegatedBy };
+  };
+  record("toolu_A1", { agent_type: "scribe", agent_id: "a1", at: new Date().toISOString() });
+  assert.deepEqual(await call({ "claudecode/toolUseId": "toolu_A1" }), { role: "helper", subagent: "scribe", delegatedBy: "mcp1" });
+  assert.equal(fs.existsSync(path.join(callers, "toolu_A1.json")), false, "the record is consumed");
+  assert.equal((await call({ "claudecode/toolUseId": "toolu_A1" })).role, "llm", "a second call has no record");
+  assert.equal((await call(undefined)).role, "llm", "a call without a tool-use ID keeps the session role");
+  record("bad id", { agent_type: "scribe", agent_id: "a1" });
+  record("x", { agent_type: "scribe", agent_id: "a1" });
+  assert.equal((await call({ "claudecode/toolUseId": "../x" })).role, "llm", "an invalid ID is ignored");
+  assert.equal((await call({ "claudecode/toolUseId": "bad id" })).role, "llm");
+  assert.equal(fs.existsSync(path.join(callers, "x.json")), true);
+  // Tool input and an agent type without an agent ID do not give the subagent identity.
+  assert.equal((await call({ "claudecode/toolUseId": "toolu_none" }, { subagent: "scribe", agent_type: "scribe", delegated: true, caller: { agent_type: "scribe", agent_id: "a1" } }, true)).role, "llm");
+  record("toolu_B2", { agent_type: "scribe" });
+  assert.equal((await call({ "claudecode/toolUseId": "toolu_B2" })).role, "llm", "an agent type alone is not a delegated subagent");
+  // Records older than 24 hours are removed on the next call.
+  record("toolu_old", { agent_type: "scribe", agent_id: "a1" });
+  const old = new Date(Date.now() - 25 * 3600 * 1000);
+  fs.utimesSync(path.join(callers, "toolu_old.json"), old, old);
+  await call({ "claudecode/toolUseId": "toolu_other" });
+  assert.equal(fs.existsSync(path.join(callers, "toolu_old.json")), false);
+});
+
+test("validation warns when a rule states the subagent and the Claude caller hook is missing", async () => {
+  const root = repo();
+  assert.equal(roleCreate(ctx(root), "helper", { level: 2, defaultMode: "deny", sets: ["info.retrieve=allow"] }).ok, true);
+  commit(root);
+  assert.equal(roleApprove(ctx(root), "helper").ok, true);
+  assert.equal(ruleCreate(ctx(root), "small", { role: "helper", matches: ["subagent=scribe"] }).ok, true);
+  commit(root);
+  assert.equal(ruleApprove(ctx(root), "small").ok, true);
+  fs.mkdirSync(path.join(root, ".claude/hooks"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".claude/hooks/specplane-cli-block.sh"), "#!/bin/sh\n");
+  const { inspectInstallation } = await import("./install.js");
+  const has = (): boolean => inspectInstallation(root).some((f) => f.severity === "warning" && /cannot tell subagents apart/.test(f.message));
+  assert.equal(has(), true);
+  fs.writeFileSync(path.join(root, ".claude/hooks/specplane-caller.sh"), "#!/bin/sh\n");
+  assert.equal(has(), false);
+});

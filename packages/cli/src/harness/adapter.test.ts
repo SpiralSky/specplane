@@ -33,4 +33,8 @@ test("claude claims command blocking only once the hook is installed", () => {
   fs.writeFileSync(path.join(root, ".claude/hooks/specplane-bypass-guard.sh"), "#!/bin/sh\n");
   assert.equal(claude.capabilities(root)["bypass-guards"], true);
   assert.equal(getAdapter("codex")!.capabilities(root)["bypass-guards"], false);
+  assert.equal(claude.capabilities(root)["subagent-identity"], false);
+  fs.writeFileSync(path.join(root, ".claude/hooks/specplane-caller.sh"), "#!/bin/sh\n");
+  assert.equal(claude.capabilities(root)["subagent-identity"], true);
+  assert.equal(getAdapter("codex")!.capabilities(root)["subagent-identity"], false);
 });

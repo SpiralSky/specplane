@@ -187,7 +187,7 @@ export function gitUserName(root: string): string | null {
   try { return run("git", ["config", "user.name"], { cwd: root }).trim() || null; } catch { return null; }
 }
 
-export interface Actor { role: RoleId; kind: "human" | "llm"; name: string; model?: string; session?: string; delegatedBy?: string }
+export interface Actor { role: RoleId; kind: "human" | "llm"; name: string; model?: string; session?: string; delegatedBy?: string; agentType?: string; agentId?: string }
 
 /**
  * The actor for a CLI call (`reference-cli` §7.1, §7.8). A person: the CLI role, the git user, and the harness session

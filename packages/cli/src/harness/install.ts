@@ -8,6 +8,9 @@ import { PreconditionError, UsageError } from "../errors.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
 import { SKILL_COMMANDS, skillPath } from "./claude-skills.js";
 import { CODEX_CONTRACTS, contractPath, SKILL_FILE as CODEX_SKILL_FILE } from "./codex-skills.js";
+import { getAdapter } from "./adapter.js";
+import "./adapters.js";
+import { ruleStatuses } from "../perm/llm-rules.js";
 import { bypassGuardOn } from "../perm/bypass.js";
 import { strictMeasureOn } from "../perm/strict.js";
 import { applyOsSafeguards } from "../perm/strict-os.js";
@@ -347,5 +350,17 @@ export function inspectInstallation(root: string): HarnessFinding[] {
     && (["headless_block", "marker_protect", "store_protect", "hook_protect"] as const).some((m) => bypassGuardOn(root, m))) {
     out.push({ severity: "warning", file: ".claude/hooks/specplane-bypass-guard.sh", message: "the Claude hook that guards against permission bypass is not installed, so headless sessions and direct store edits are not blocked; run `specplane init --harness claude` again" });
   }
+  // An approved LLM role rule on the subagent, agent type or delegation matches nothing where the harness cannot tell
+  // subagents apart (`roles-and-permissions R58`).
+  try {
+    const harnesses = new Set(Object.keys(recorded));
+    if (fs.existsSync(path.join(root, ".claude/hooks/specplane-cli-block.sh"))) harnesses.add("claude");
+    const used = ruleStatuses(root).filter((s) => s.approved && (["subagent", "agent_type", "delegated"] as const).some((k) => k in s.rule.match));
+    for (const h of [...harnesses].sort()) {
+      const adapter = getAdapter(h);
+      if (!used.length || !adapter || adapter.capabilities(root)["subagent-identity"]) continue;
+      out.push({ severity: "warning", file: h === "claude" ? ".claude/hooks/specplane-caller.sh" : h, message: `LLM role rule ${used.map((s) => s.rule.id).join(", ")} states subagent, agent_type or delegated, but ${h} cannot tell subagents apart for them${h === "claude" ? "; run \`specplane init --harness claude\` again to install the caller hook" : ""}` });
+    }
+  } catch { /* roles that cannot be read are reported by their own checks */ }
   return out;
 }

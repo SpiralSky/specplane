@@ -154,7 +154,7 @@ test("settings merge: absent, invalid, registered, partial and an existing statu
   partial.theme = "dark";
   const merged = mergeSettings(JSON.stringify(partial), tpl);
   const out = JSON.parse(merged.text!);
-  assert.equal(out.hooks.PreToolUse.length, 3);
+  assert.equal(out.hooks.PreToolUse.length, 4);
   assert.equal(out.theme, "dark");
   const own = { statusLine: { type: "command", command: "mine.sh" }, permissions: { allow: ["Bash(ls:*)"] } };
   const kept = mergeSettings(JSON.stringify(own), tpl);
