@@ -36,4 +36,6 @@ A recorded result keeps only a short summary, and Specplane warns when a summary
 
 ## Continuous integration
 
+For contributors to Specplane itself, `npm test` in `packages/cli` builds and runs the repository suite. Its wrapper clears inherited LLM identity and session markers for both runners, so it also works from a harness shell. Tests that exercise an LLM identity supply their own markers. Set `SPECPLANE_TEST_RUNNER=bun` to require Bun without Node fallback.
+
 Run `specplane validate --json` on the checked-out commit; a non-zero exit fails the job. It reads committed content only, needs no permission, local store or harness, and writes nothing. A project may also run `specplane test run --all`, which executes the deterministic tests in a temporary checkout and fails on any failure. Neither command records results in CI.

@@ -16,6 +16,13 @@
 # a normal run takes about 45 s).
 # Exits with the status of the run that is reported.
 
+# Tests opt into harness identity themselves; the caller's session must not turn
+# ordinary CLI subprocesses into LLM calls. Apply this to both runners and fallback.
+unset SPECPLANE_ACTOR SPECPLANE_PROVIDER SPECPLANE_AGENT SPECPLANE_SESSION \
+  SPECPLANE_AGENT_TYPE SPECPLANE_SUBAGENT SPECPLANE_MODEL SPECPLANE_DELEGATED_BY \
+  SPECPLANE_ADAPTER SPECPLANE_CHECKOUT SPECPLANE_MEASURABLE_RESOURCES \
+  CLAUDECODE CLAUDE_CODE_ENTRYPOINT
+
 base="${TMPDIR:-/tmp}"
 run_dir=$(mktemp -d "$base/specplane-test-run.XXXXXX") || exit 1
 trap 'rm -rf "$run_dir"' EXIT
@@ -48,7 +55,7 @@ fresh_tmp() {
 run_bun() {
   fresh_tmp
   # shellcheck disable=SC2086 # $watchdog is a command prefix
-  env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT $watchdog bun test --parallel=20 --timeout=30000 "$@"
+  $watchdog bun test --parallel=20 --timeout=30000 "$@"
 }
 
 run_node() {
@@ -60,7 +67,7 @@ run_node() {
     if [ "$first" -eq 1 ]; then set --; first=0; fi
     if [ -d "$arg" ]; then set -- "$@" "${arg%/}/**/*.test.js"; else set -- "$@" "$arg"; fi
   done
-  env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT node --test --test-concurrency=20 --test-timeout=120000 "$@"
+  node --test --test-concurrency=20 --test-timeout=120000 "$@"
 }
 
 if [ "$runner" = node ]; then

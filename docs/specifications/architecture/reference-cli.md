@@ -542,6 +542,8 @@ Implements `verification R12`, `verification R32`, `verification R36.3`, `config
 
 ### §14.1 CI
 
+The reference CLI's own test wrapper clears inherited Specplane actor, agent, session and adapter environment variables and Claude detection markers before either test runner (including fallback). Tests that need a harness identity set it explicitly; starting the suite from an LLM shell must not change CLI test permissions.
+
 The earlier generated-index job no longer exists. The CI recipe is a documented command, not a generated workflow: run `specplane validate --json` on the checked-out commit; a non-zero exit fails the job. It reads committed content, needs no permission, no local store and no harness, and writes nothing. `specplane test run --all` may be added by a project; the `deterministic` runnable tests execute in the same temporary checkout and the job fails on `failed`. Neither records results in CI (no role records; assumption).
 
 ### §14.2 Pre-commit hooks
