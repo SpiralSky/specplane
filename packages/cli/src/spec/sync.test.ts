@@ -108,3 +108,15 @@ test("CLI: specplane sync pushes and approve --ref attaches the record to that b
   assert.equal(s.status, 0, s.stderr);
   assert.match(git(remote, "for-each-ref", "refs/notes/"), /refs\/notes\/specplane/);
 });
+
+test("init writes a default configuration when none exists, never overwrites one, and says to commit it", () => {
+  const { one } = setup();
+  const file = path.join(one, ".specplane", "config.yaml");
+  fs.rmSync(file, { force: true });
+  const lines = runInit(one, { harness: "none" });
+  assert.ok(fs.existsSync(file));
+  assert.ok(lines.some((l) => /Created \.specplane\/config\.yaml.*Commit it/.test(l)));
+  fs.writeFileSync(file, "plans:\n  dir: mine\n");
+  assert.ok(!runInit(one, { harness: "none" }).some((l) => /Created/.test(l)));
+  assert.equal(fs.readFileSync(file, "utf8"), "plans:\n  dir: mine\n");
+});
