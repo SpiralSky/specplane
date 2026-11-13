@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
 import { PreconditionError, UsageError } from "../errors.js";
 import { runInit } from "../commands/init.js";
 import { makeRepo } from "../test-repo.js";
 import { renderSkill, SKILL_COMMANDS, skillPath } from "./claude-skills.js";
+import { SKILL_FILE as CODEX_SKILL_FILE } from "./codex-skills.js";
 import { claudeTemplateDir, inspectInstallation, installHarness, mergeSettings, splitBlock } from "./install.js";
 
 function repo(files: Record<string, string> = {}): string {
@@ -84,6 +86,21 @@ test("setup refuses to write through a symlink and changes nothing", () => {
   fs.writeFileSync(path.join(root2, "target.md"), "t\n");
   fs.symlinkSync(path.join(root2, "target.md"), path.join(root2, "AGENTS.md"));
   assert.throws(() => installHarness(root2, "codex"), /symlink/);
+});
+
+test("setup refuses a dangling symlink to a path outside the repository and does not create the target", () => {
+  const root = repo();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-outside-"));
+  try {
+    const target = path.join(outside, "created-by-install.md");
+    const link = path.join(root, ".agents", CODEX_SKILL_FILE);
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    fs.symlinkSync(target, link);
+    assert.throws(() => installHarness(root, "codex"), /symlink/);
+    assert.equal(fs.existsSync(target), false, "the outside file was not created");
+    assert.deepEqual(fs.readdirSync(outside), []);
+    assert.equal(fs.lstatSync(link).isSymbolicLink(), true, "the link is left as it was");
+  } finally { fs.rmSync(outside, { recursive: true, force: true }); }
 });
 
 test("validation reports a missing file, an older version, a stamp mismatch and marker problems", () => {
