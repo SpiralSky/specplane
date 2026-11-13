@@ -226,6 +226,8 @@ bgrun bp 2 "bypass: denies env -u of the marker" "$(bj 'env -u SPECPLANE_ACTOR l
 bgrun bp 0 "bypass: allows reading the marker" "$(bj 'echo $SPECPLANE_ACTOR')"
 bgrun bp 2 "bypass: denies a shell write to role.json" "$(bj 'echo {} > .git/specplane/role.json')"
 bgrun bp 2 "bypass: denies a path to os-users.json" "$(bj 'rm /repo/.git/specplane/os-users.json')"
+bgrun bp 2 "bypass: denies a shell write to a caller record" "$(bj 'echo {} > .git/specplane/callers/toolu_x.json')"
+bgrun bp 2 "bypass: denies Write to a caller record" "$(fj Write /repo/.git/specplane/callers/toolu_x.json)"
 bgrun bp 2 "bypass: denies git notes add on the specplane ref" "$(bj 'git notes --ref specplane add -m x HEAD')"
 bgrun bp 2 "bypass: denies update-ref on the notes ref" "$(bj 'git update-ref refs/notes/specplane HEAD')"
 bgrun bp 0 "bypass: allows git notes show on the specplane ref" "$(bj 'git notes --ref specplane show HEAD')"
@@ -370,6 +372,31 @@ mx "$tmp/envm2" 'bypass_guards:
 '
 grep -q SPECPLANE_ACTOR "$tmp/envm2" && report "marker: marker_export off exports no marker" 0 || report "marker: marker_export off exports no marker" 1
 grep -Fxq 'export SPECPLANE_AGENT=claude-code/opus' "$tmp/envm2" && report "marker: identity export is kept when the marker is off" 1 || report "marker: identity export is kept when the marker is off" 0
+
+# ---- caller hook (per-call subagent identity) ----
+ch="$hooks/specplane-caller.sh"
+mkdir -p "$tmp/cp/.specplane" "$tmp/cnoconf"
+: > "$tmp/cp/.specplane/config.yaml"
+git -C "$tmp/cp" init -q
+callers="$tmp/cp/.git/specplane/callers"
+crun() { # dir json
+  printf '%s' "$2" | PATH="$ORIG_PATH" CLAUDE_PROJECT_DIR="$1" sh "$ch" >"$tmp/cout" 2>&1; echo $? > "$tmp/crc"
+}
+crun "$tmp/cp" '{"tool_use_id":"toolu_01Abc","tool_name":"mcp__plugin_specplane_specplane__spec_retrieve","agent_id":"a3d18b16","agent_type":"general-purpose"}'
+[ "$(cat "$tmp/crc")" = 0 ] && [ ! -s "$tmp/cout" ] && [ "$(jq -r '[.agent_type,.agent_id,(.at|type)]|join(",")' "$callers/toolu_01Abc.json" 2>/dev/null)" = "general-purpose,a3d18b16,string" ] \
+  && report "caller: a subagent call writes the record, silently" 1 || report "caller: a subagent call writes the record, silently" 0
+crun "$tmp/cp" '{"tool_use_id":"toolu_main","tool_name":"mcp__specplane__spec_retrieve"}'
+[ "$(cat "$tmp/crc")" = 0 ] && [ ! -e "$callers/toolu_main.json" ] && report "caller: a main-agent call writes no record" 1 || report "caller: a main-agent call writes no record" 0
+crun "$tmp/cp" '{"tool_use_id":"toolu_ag","agent_type":"my-agent"}'
+[ "$(jq -r '.agent_id' "$callers/toolu_ag.json" 2>/dev/null)" = null ] && report "caller: an agent type alone is recorded without an ID" 1 || report "caller: an agent type alone is recorded without an ID" 0
+crun "$tmp/cp" '{"tool_use_id":"../evil","agent_id":"a1","agent_type":"x"}'
+crun "$tmp/cp" '{"tool_use_id":"a/b","agent_id":"a1","agent_type":"x"}'
+[ "$(cat "$tmp/crc")" = 0 ] && [ ! -e "$tmp/cp/.git/specplane/evil.json" ] && [ ! -e "$callers/b.json" ] && [ "$(ls "$callers" | wc -l)" -eq 2 ] \
+  && report "caller: a bad tool_use_id writes nothing" 1 || report "caller: a bad tool_use_id writes nothing" 0
+crun "$tmp/cnoconf" '{"tool_use_id":"toolu_nc","agent_id":"a1","agent_type":"x"}'
+[ "$(cat "$tmp/crc")" = 0 ] && [ ! -s "$tmp/cout" ] && report "caller: no config exits quietly" 1 || report "caller: no config exits quietly" 0
+crun "$tmp/cp" 'not json'
+[ "$(cat "$tmp/crc")" = 0 ] && [ ! -s "$tmp/cout" ] && report "caller: invalid input exits quietly" 1 || report "caller: invalid input exits quietly" 0
 
 echo "passed: $pass, failed: $fail"
 [ "$fail" = 0 ]

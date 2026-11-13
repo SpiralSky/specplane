@@ -1,0 +1,15 @@
+Claude Code 2.1.322, live probe, 2026-11-13: how a harness action call identifies the subagent that made it.
+(roles-and-permissions R58 and R44.1; architecture/reference-cli §12.1)
+
+PreToolUse hooks fire for MCP tools. The hook input JSON has tool_use_id, tool_name, tool_input, session_id and cwd.
+Only when the call is made inside a subagent it also has agent_id (for example a3d18b1611970fff4) and agent_type
+(for example general-purpose). A main-agent call has neither. The documentation says agent_type without agent_id is
+present when the session was started with `claude --agent <name>`.
+
+The MCP tools/call request the server receives carries params._meta["claudecode/toolUseId"], equal to the hook's
+tool_use_id (undocumented, observed). Example:
+  "_meta":{"claudecode/toolUseId":"toolu_01SqfaPd5XvJy3xkkNy1uC1x","progressToken":2}
+
+No environment variable identifies a subagent, in Bash or in the hook process.
+Plugin MCP tools are named mcp__plugin_<plugin>_<server>__<tool>; a project-registered server is mcp__<server>__<tool>.
+Codex: its PreToolUse hook input documents no agent identity, so Codex has no per-call subagent identity.

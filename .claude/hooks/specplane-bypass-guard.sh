@@ -4,7 +4,7 @@
 # `bypass_guards.<measure>: off` in .specplane/config.yaml:
 #   headless_block  denies a command that starts a headless LLM session (claude -p, claude --print, codex exec)
 #   marker_protect  denies a command that clears or overrides the LLM marker (SPECPLANE_ACTOR) or the environment
-#   store_protect   denies direct writes to the local store (role.json, os-users.json, trusted-rules.json) and the
+#   store_protect   denies direct writes to the local store (role.json, os-users.json, trusted-rules.json, callers/) and the
 #                   approvals notes ref, by shell or by a file tool
 #   hook_protect    denies direct writes to the installed hooks and .claude settings, by shell or by a file tool
 # Strict mode (R55.1, `strict_mode.enabled: on` in .specplane/config.yaml, off by default; each measure on unless

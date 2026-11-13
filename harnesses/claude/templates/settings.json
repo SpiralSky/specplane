@@ -18,6 +18,12 @@
         "hooks": [
           { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/specplane-bypass-guard.sh" }
         ]
+      },
+      {
+        "matcher": "mcp__(plugin_.*_)?specplane__.*",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/specplane-caller.sh" }
+        ]
       }
     ],
     "SessionStart": [
