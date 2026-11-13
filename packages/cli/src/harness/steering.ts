@@ -125,10 +125,16 @@ export function inspectSteering(root: string, target: string, context: SteeringC
   } catch { return failure(); } // Never return cached text that might overstate current permissions.
 }
 
+/** Every role steering is generated for: the built-in roles plus every effective custom role. */
+function steeringRoles(root: string): RoleId[] {
+  const custom = Object.keys(activePreset(root).customRoles ?? {});
+  return [...new Set<RoleId>(["llm", "standard-user", "administrator", ...custom])];
+}
+
 export function regenerateSteering(root: string, read: TemplateReader = readSteeringTemplate): SteeringResult {
   try {
     const input = steeringInputs(root);
-    for (const role of ["llm", "standard-user", "administrator"] as const) {
+    for (const role of steeringRoles(root)) {
       const actor = { ...input, role };
       generateRoleSteering(actor, read);
       for (const id of CATALOG) generatePermissionSteering(actor, id, {}, read);

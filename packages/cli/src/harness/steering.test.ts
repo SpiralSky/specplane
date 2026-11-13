@@ -211,3 +211,15 @@ test("published tarball includes steering assets and generator resolves them fro
     assert.ok(instructions.assembleInstructions(repo(), command).text.includes(instructions.commandDocumentation(command)));
   }
 });
+
+test("regeneration pre-validates every role it generates steering for, including approved custom roles", () => {
+  const root = repo();
+  const ctx = () => ({ root, actor: { kind: "human" as const, role: "administrator", name: "Test" }, preset: activePreset(root) });
+  const roleReads = (): number => { let n = 0; regenerateSteering(root, (name) => { if (name === "role") n++; return readSteeringTemplate(name); }); return n; };
+  const builtin = roleReads();
+  assert.equal(roleCreate(ctx(), "helper", { level: 2, defaultMode: "deny", sets: ["info.retrieve=allow"] }).ok, true);
+  git(root, "add", ".specplane/roles");
+  git(root, "commit", "-qm", "role");
+  assert.equal(roleApprove(ctx(), "helper").ok, true);
+  assert.equal(roleReads(), builtin + 1, "the custom role is validated as well");
+});
