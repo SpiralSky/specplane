@@ -1,7 +1,37 @@
 # Session handoff
-Updated 2026-11-13. Read "Next session: start here" first, then "Current state"; older continuation sections are historical.
+Updated 2026-11-13. Read the first "Next session: start here" section; everything below it is history.
 
-## Session 2026-11-13 (fourth): subagent identity done; read this first
+## Next session: start here (written 2026-11-13, end of the fourth session)
+
+This list replaces the older "Do next" lists below. State: branch `spec-edits-20261106`, nothing pushed, not merged; `npm test` 589 pass / 0 fail. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` are the user's; leave them. Run units as chained subagents, one unit each, built, tested and committed. Headless runs (`claude -p`, `codex exec`) need the user's agreement each session to set `bypass_guards.headless_block: off` in `.specplane/config.yaml`; restore it with `git checkout .specplane/config.yaml` and never commit it. In a Bash command, do not write a shell variable assignment that ends in `/specplane;` (the CLI-block hook reads it as the CLI), and do not `ls` the local store (`store_protect` refuses it).
+
+### A. Mod-served actions for the Claude plugin (the user wants this; not started)
+
+Goal: the plugin's mod registers every harness action as its own tool and serves it, so the caller's identity comes from the engine and not from the undocumented `_meta` field. The user accepts that the mod API is early access, provided the release it was built for is documented.
+
+Verified by a probe mod (Claude Code 2.1.322, `claude -p --plugin-dir`, Haiku): a tool registered with `$.tool.register` is callable by the main agent and by a subagent as `mcp__<plugin>__<name>`; the `tool.call` input has `agentId` only in a subagent (pinned by the engine) and `tool_use_id`; `$.agent.list()` gives the agent's `type`; `$.session.model()` and `$.session.id()` work; `$.process.run` with `env` starts a child in 82 to 96 ms. The probe is not kept in the repository; rebuild it from this description. Read from the declarations only (`~/.claude/dev-mods/*/specplane/.claude-plugin/types/claude-code/index.d.ts`, written by 2.1.312), not tested: a mod has no Node, no `import()`; `$.process.spawn` takes `input` as one string and then closes standard input; `$.http.fetch` takes `socketPath` (a Unix socket, about 100 bytes of path at most); `$.fs` exists.
+
+Units, in order:
+
+1. **Probe the long-lived core.** A mod starts a Node listener on a Unix socket with `$.process.spawn` at `session.start`, and a `tool.call` hook sends a request with `$.http.fetch(..., { socketPath })`. Check: it works from the main agent and a subagent, headless and (by the user) interactive; what happens to the child at session end and after a crash; whether the spawn stream must be read to keep the child alive. If the socket route fails, fall back to one core process per call (about 0.35 s each, session state moved to the store). Record the result in `harnesses/claude/host-evidence/`.
+2. **Specs.** `reference-cli` §12 (action channel, LLM identity, capabilities, installer) and the Claude integration text: the mod channel, the core's session server entry, the caller identity it accepts (agent id, agent type from `$.agent.list()`, model, session id), a per-session secret sent with each request so a Bash command cannot connect and claim an identity, restart and shutdown, a stale socket. One review by a separate agent before approval (spec review policy).
+3. **Core.** A session server entry that serves the action runtime over the socket, shares the action registry with the MCP server, and takes per-call caller factors (the `runtime.call(action, input, caller)` argument from `1c926ca`). Fill the actor's model from the mod (the MCP route audits it as `unknown`).
+4. **Mod.** Register the actions from the registry at `session.start`, serve each by `tool.call`, drop `mcpServers` from the plugin manifest so the tools are not listed twice (names become `mcp__specplane__<action>`; update skills, steering and matchers that name the old form), record the Claude Code version the plugin was built and checked against, compare it with the running version at load, and report the capability as missing with a warning on a mismatch.
+5. **Guards.** Make `marker_protect` cover the identity variables (`SPECPLANE_AGENT_TYPE`, `SPECPLANE_SUBAGENT`, `SPECPLANE_MODEL`, `SPECPLANE_PROVIDER`, `SPECPLANE_DELEGATED_BY`), not only `SPECPLANE_ACTOR`: `perm/bypass.ts` reads them from the environment for a marked CLI process. Whether a Bash command can gain a role this way today was not tested; test it first.
+6. **Live check and docs.** Repeat the end-to-end check of the fourth session through the plugin (`--plugin-dir packages/cli/dist/plugin`): audit shows the subagent and the model. User docs (`docs/user/harnesses.md`, capability table) and the handoff.
+
+Keep the MCP server and the `specplane-caller.sh` hook: Codex needs the server, and a Claude project set up with `init --harness claude` and no plugin uses both.
+
+### B. Still open from the earlier list
+
+1. **Live checks not yet run:** Codex loading `mcp_servers.specplane` and the skill in a project trusted in `~/.codex/config.toml` (needs the user to trust a fixture path; run from a shell without inherited `SPECPLANE_*` variables); the `claude -p` stream-json session adapter route with `plan.start` opening a session; whether `CLAUDE_ENV_FILE` reaches a spawned `claude -p`; whether SessionStart `additionalContext` reaches a headless model; a plan step with a `[parallel]` task group. For the user in the interactive app: plugin loading from `dist/plugin`, the `/requests` pane, context after compaction, mod-served tools and their permission prompts, a `claude --agent` session.
+2. **Subagent identity, not verified live:** a rule changing a subagent's role (unit test only; a shell marked as an LLM cannot create or trust a rule, so the user runs `role rule create|approve|trust` in the fixture), the plugin tool-name form, a `--agent` session.
+3. **Push notification and request dialogue:** not implemented, the adapter reports `push` as missing. Docs say Claude Code supports MCP elicitation answered by the user in a terminal dialog and cancels it in non-interactive runs. Check live, then ask the user in product terms (what changes for people, the tradeoff, who answers) before implementing.
+4. **Small items:** plain `init` in an empty repository created no `.specplane/config.yaml`, so every hook stayed quiet (decide whether `init` should write one); `store_protect` refuses reads such as `ls`; the hook's protected-path check is a literal prefix match (`docs/../docs/requirements/x`, unverified); `regenerateSteering` pre-validates only the three built-in roles; three validation warnings worth fixing (`.codex/config.toml` missing, stale `AGENTS.md` steering stamp, three unlisted or unused citations in `reference-cli` and `later-releases`); `problems.md` (2026-11-03) cites files that no longer exist and needs re-checking against the current code.
+5. **Requirements coverage:** only the later-release requirements were audited against the code. A full walk of every requirement on the page by a separate agent has not been done.
+6. **Merge or push** only when the user asks. Edited specs await re-approval; approvals are not run on this repo for now.
+
+## Session 2026-11-13 (fourth): subagent identity done
 
 Item 4 of the "Do next" list (subagent identity, R58 and R44.1) is done in `8340518`, `1c926ca`, `6963311`. Continue with the rest of item 3, then item 5.
 
