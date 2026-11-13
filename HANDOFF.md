@@ -1,7 +1,43 @@
 # Session handoff
-Updated 2026-11-13 after the Flash worker and socket-probe session. Read the first "Next session: start here" section; older sections are historical unless referenced below.
+Updated 2026-11-13 after the "everything that does not need the user" session. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
-## Next session: start here (2026-11-13, socket probe prepared)
+## Next session: start here (2026-11-13, only user-gated work is left)
+
+### Current state
+
+- Branch `spec-edits-20261106`; nothing pushed or merged. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` are the user's; leave them.
+- Verified at `987d86e` from the coordinating session: full suite **598 pass / 0 fail** (Bun 1.4.4, no fallback), hooks **172 pass**, check-sync OK, validate **0 errors, 25 warnings** (23 retired-format plan warnings, `hook_protect` off on purpose, one not examined).
+- Every remaining item needs the user. Do not start any of them without the stated input.
+
+### Done this session (Sonnet subagents, one unit each, coordinated from the main session)
+
+- `5c3950b` `init` writes a default `.specplane/config.yaml` when none exists (never overwrites; tells the user to commit it). `2761eec` `regenerateSteering` validates approved custom roles too. `c870cd9` the permission-docs heading names the default llm role. `99c7e88` citation fixes in `reference-cli` and `later-releases`. `637e1b2` and `a63121b` AGENTS.md steering stamp refreshed and `.codex/config.toml` committed.
+- **Requirements coverage audit, done** by three separate read-only agents: about 90 requirements read against the code. Four gaps found:
+  - R36.3, fixed in `8cbfd69`: with the pre-commit test gate on and anything staged, the deterministic tests of every architecture spec that declares them run; a failure blocks the commit. Off by default.
+  - R35.1, fixed in `ed22a17` and `987d86e`: `harness run spec-view` refuses when the adapter lacks `viewing`; the adapter comes from `--adapter` or `SPECPLANE_ADAPTER`. Other capabilities already refused or only produce `validate` warnings.
+  - R4, fixed in `6fcdd10`: the `spec-assist` and `spec-review` contracts tell the model to warn about architecture content in a feature spec.
+  - R52.1, open, see "Needs the user" item 5.
+  - Not checked in depth: R5 and R7 (layout and format, broad), R40 for the spec read and view paths (they use worktree content; whether they label it was not confirmed), the R42 subagent-inheritance edge case.
+- `dac0591` test: install refuses a dangling symlink that points outside the repository.
+- **`problems.md` re-checked** against current code by a separate agent: none of its five findings still applies (four fixed by the rewrite, the reduced Codex step workflow no longer exists). The file was not edited; the user can delete or archive it.
+- One independent review of this session's commits found one defect (the spec-view check skipped without `--adapter`), fixed in `987d86e`.
+
+### Needs the user (nothing else is left)
+
+1. **Agree to `bypass_guards.headless_block: off` for one session.** This unlocks, in order: unit A1 (the live socket probe, "Next unit" in the section below; the usage window that blocked it has reset), then A2-A4 and A6 of the mod-served actions (specs, session-server core, production mod, live check and docs; all depend on A1's result), and the headless live checks in B1 (the `claude -p` stream-json route with `plan.start`, `CLAUDE_ENV_FILE`, SessionStart context in a headless run, a `[parallel]` task group). Restore the config afterwards and never commit it.
+2. **Allow the guard-hook unit.** The permission classifier refused the dispatch of a worker to change the guard hooks, and it was not worked around. The unit is three fixes in `harnesses/claude/templates` (`specplane-bypass-guard.sh` and the protected-path hook), each with hook tests: (a) A5: make `marker_protect` cover `SPECPLANE_AGENT_TYPE`, `SPECPLANE_SUBAGENT`, `SPECPLANE_MODEL`, `SPECPLANE_PROVIDER`, `SPECPLANE_DELEGATED_BY`, after first testing whether a Bash command can gain a role through them; (b) normalise `.` and `..` in the protected-path check (`docs/../docs/requirements/x`, unverified); (c) decide from the docs whether `store_protect` should allow plain listing such as `ls`. The user can approve the agent run when prompted, or do it in a session with a permission mode that allows it.
+3. **Codex live check:** add a fixture path as trusted in `~/.codex/config.toml`, then run Codex there from a shell without inherited `SPECPLANE_*` variables: does it load `mcp_servers.specplane`, list the actions, load the skill.
+4. **Role rule live check:** in a fixture, run `role rule create|approve|trust` as a person (an LLM-marked shell cannot), then check that a subagent's role changes.
+5. **Interactive app checks:** plugin loading from `packages/cli/dist/plugin`, the `/requests` pane, context after compaction, a `claude --agent` session, mod-served tools and their permission prompts. For R52.1 in particular: the audit read `/requests` as printing a static list (ID, state, role, command, reason) with accepting done by a second typed command `requests accept <id>`, where the page asks for an interactive pane to view and accept. Check what the app shows and say whether that meets the page.
+6. **Two decisions.** (a) Push notification and request dialogue: not implemented; needs the live check of MCP elicitation from item 1, then the user's decision on who answers. (b) R35.1 against R31.2: on a harness without subagents a `[parallel]` step runs its tasks one at a time with a note (`packages/cli/src/plan/tasks.ts:89`). A strict reading of R35.1 says refuse; refusing makes such plans unrunnable on Codex. Left as is.
+7. **Re-approve the edited specs** (`reference-cli` and `later-releases` changed again this session), then **merge or push**.
+
+### Notes for whoever continues
+
+- Cost setup that worked: main session only coordinates; read-only audits run in parallel as `reviewer` agents with a 15-30 line report cap; write units run one at a time as `step-worker` agents with the unit text, known `path:line` ranges, decisions and test commands in the brief; one `reviewer` pass over the whole commit range at the end; `SendMessage` to resume an agent that hit its turn limit. A sampled audit leaves requirements unchecked, so ask for the unchecked list and send one follow-up for exactly those.
+- Running a single test file with `node --test` from an LLM-marked shell fails two environment-sensitive cases; `npm test` or `sh scripts/test.sh` is the valid run.
+
+## Earlier: start here (2026-11-13, socket probe prepared)
 
 ### Current state and landed work
 
