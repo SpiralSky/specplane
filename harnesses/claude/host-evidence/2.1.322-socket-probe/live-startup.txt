@@ -1,0 +1,34 @@
+Claude Code 2.1.322 socket probe, 2026-11-13, approximately 17:59 Asia/Singapore.
+Fixture commit: ac9c681.
+
+Scope: a headless run with the probe plugin, Haiku, the Agent tool and the
+registered socket_probe tool allowed, permission prompts set to none, a USD 1
+budget cap and an external 150-second timeout. Requested two main-agent calls,
+one general-purpose subagent call, then another main-agent call.
+
+Observed:
+- The system/init event listed specplane-socket-probe@inline, version 0.1.0,
+  loaded from this fixture directory.
+- The tool list contained mcp__specplane-socket-probe__socket_probe.
+- The model request was rejected: HTTP 429, usage_limit_reached, five_hour.
+  Claude reported: "You've hit your 5-hour limit · resets 6:50pm (Asia/Singapore)".
+- The result reported no subagents spawned, no permission denials, zero model
+  input/output tokens and total_cost_usd 0. The Claude process exited with code 1.
+- The expected session socket path was absent after the process exited.
+- The temporary headless_block override was restored; git diff for
+  .specplane/config.yaml was empty afterward.
+
+Inference, not independently captured process telemetry: registration happens
+after the fixture receives the child's READY line, so the advertised tool is
+evidence that the startup hook passed its readiness check.
+
+Not verified: a main-agent or subagent tool call, $.http.fetch socket transport,
+engine identity propagation, repeated-call PID/counter stability, output-stream
+backpressure inside Claude, normal successful-session cleanup, host/child crash
+cleanup, or interactive behavior. Absence of the socket alone does not prove
+the absence of an orphan child process. No live transport conclusion is drawn.
+
+Next: repeat the prepared run after the usage window resets; then perform the
+draining/no-draining and lifecycle experiments in README.md. Interactive checks
+still require the user. This result does not select socket transport over the
+per-call fallback and does not complete the live-probe unit.

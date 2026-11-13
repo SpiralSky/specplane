@@ -2,7 +2,10 @@
 
 Evidence fixture for HANDOFF.md unit 1 (mod-spawned long-lived Node core over Unix socket).
 
-**Status: prepared for live testing, not live-verified.** API signatures were checked
+**Status: live startup observed; transport not live-verified.** The first host run
+loaded the plugin and advertised its tool, but Claude's five-hour usage limit
+blocked the model before any calls. See `live-startup.txt` for the exact scope.
+API signatures were checked
 against the locally installed declarations written by Claude Code 2.1.312; 2.1.322
 is the intended live target from the handoff. This fixture is not shipped with the
 plugin and does not expose Specplane actions or authorize caller identity.
