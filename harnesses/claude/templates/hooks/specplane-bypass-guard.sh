@@ -5,7 +5,7 @@
 #   headless_block  denies a command that starts a headless LLM session (claude -p, claude --print, codex exec)
 #   marker_protect  denies a command that clears or overrides the LLM marker (SPECPLANE_ACTOR), the identity variables the
 #                   core reads for a marked process (SPECPLANE_PROVIDER, _AGENT_TYPE, _SUBAGENT, _MODEL, _DELEGATED_BY,
-#                   _SESSION) or the environment
+#                   _SESSION) or the environment, and a command that starts the session server
 #   store_protect   denies direct writes to the local store (role.json, os-users.json, trusted-rules.json, callers/) and the
 #                   approvals notes ref, by shell or by a file tool; a command made only of plain reads (ls, cat, ...) passes
 # Paths are compared after `.` and `..` components are resolved by text, so `docs/../docs/x` is `docs/x`; links are not followed.
@@ -179,6 +179,10 @@ if on marker_protect; then
     || printf '%s\n' "$text" | grep -Eq '(^|[;&|(`{[:space:]])export[[:space:]]+-[A-Za-z]*n[A-Za-z]*[[:space:]][^;&|]*SPECPLANE_' \
     || printf '%s\n' "$text" | grep -Eq "${head}${prefix}${path}env([[:space:]]+[^;&|]*)?[[:space:]](-[A-Za-z]*i[A-Za-z]*|--ignore-environment|-[A-Za-z]*u[A-Za-z]*|--unset)${end}"; then
     deny "A command that clears or overrides Specplane's session marker or the environment would hide that an LLM runs it. Ask the user (bypass_guards.marker_protect)."
+  fi
+  # The session server takes the caller's identity from whoever starts it, so only the plugin's mod starts it (reference-cli §12.8).
+  if printf '%s\n' "$text" | grep -Eq "${head}${prefix}${runner}${path}(node|nodejs|bun|deno|tsx|ts-node)${rest}session-server-main"; then
+    deny "Specplane's session server is started by the Claude plugin, not by a shell command: it would let the command state its own identity. Ask the user (bypass_guards.marker_protect)."
   fi
 fi
 
