@@ -34,6 +34,17 @@ This is the maintainers' own file; Specplane never writes or ships a `CLAUDE.md`
 - Hook tests: `sh harnesses/claude/tests/hooks.test.sh`.
 - Commit regularly without being asked: after each coherent unit of work (a resolved question, a spec or plan edit, a passing fix) and before ending a session, so `main` is never left with a large uncommitted diff. Keep commits small and single-purpose, follow `file-formats` §8, and stage specific paths, not `git add -A` of the whole tree. Never push or rewrite history unless asked. Keep the repo-root `HANDOFF.md` "Current state" accurate in the same commit.
 
+## Models and delegation
+
+These apply to every session, including a cloud session that has only this repository. They are the maintainers' setup, not part of Specplane, and `.claude/agents/` and `.claude/skills/approach/` are not installed from the templates.
+
+- The main session runs Fable 5.2 (`model` in `.claude/settings.json`) and only coordinates: it decides, writes briefs, checks results and keeps the progress record in `HANDOFF.md`.
+- Write units go to `step-worker` (a whole unit that ends built, tested and committed) or `implementer` (one small specified change), both Sonnet. Run them one at a time. Lookups go to `Explore` or `researcher`, both Haiku, and may run in parallel. One `reviewer` pass (Sonnet) covers a large change at the end, not each unit. Do not use a general-purpose agent for code work.
+- For a lookup that takes one or two tool calls, work directly.
+- A brief is all a subagent has. Give it the goal and what done looks like, the unit text itself, the known files or `path:line` ranges, the decisions already made, the test commands (`npx tsc --noEmit -p .` in `packages/cli` before every build, then `npm test`), the commit conventions, and a report limit of 15 lines.
+- Check a result with `git log` and one test run, not by reading the transcript. Continue a recent agent with SendMessage for a small fix; otherwise start a fresh one.
+- The `approach` skill is for subagents, and only where a unit has a real open decision about method that the brief cannot settle and where a wrong choice would be costly. In that case the brief tells the worker to read `.claude/skills/approach/SKILL.md` first, settle the approach and report it in two lines. Do not use it for routine units or in the main session.
+
 ## Permissions
 
 Safe to allow for this project: `Bash(specplane:*)`, `Bash(git worktree:*)`, `Bash(git branch:*)`, `Bash(git switch:*)`.
