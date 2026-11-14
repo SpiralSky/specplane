@@ -22,6 +22,15 @@ Updated 2026-11-13 after the "everything that does not need the user" session. R
 - **`problems.md` re-checked** against current code by a separate agent: none of its five findings still applies (four fixed by the rewrite, the reduced Codex step workflow no longer exists). The file was not edited; the user can delete or archive it.
 - One independent review of this session's commits found one defect (the spec-view check skipped without `--adapter`), fixed in `987d86e`.
 
+### Added 2026-11-14 (audit remainder)
+
+- The requirements left unchecked above were audited read-only (R5, R7, R40 on the read and view paths, R42). Three gaps, fixed and tested; suite **599 pass / 0 fail**:
+  - R40: `spec show` and `spec list` now note uncommitted changes for a requirement file (`commands/spec-read.ts` `view`).
+  - R40: `spec-view` prints the status notes and says when the change and text shown include uncommitted edits (`commands/spec-view.ts`).
+  - R42.1: a subagent's call inherits the session's role unless a rule that states `subagent`, `agent_type` or `delegated` matches it (`resolveSubagentRole` in `perm/llm-rules.ts`, used in `harness/actions.ts`). The CLI path has no per-call identity and is unchanged.
+- Not a page violation, left as is: no check for a feature spec's purpose paragraph or scenario shape; a `§1.2` heading is not checked against its parent. Still unchecked: project-prefixed cite resolution (R7), the R42.2 level numbers.
+- Codex has subagents (official docs; enabled by default in current releases). The adapter does not claim the capability because no live check was run. Add a subagent run to item 3 below and set `caps.subagents` for Codex if it passes; that settles item 6(b) for Codex.
+
 ### Needs the user (nothing else is left)
 
 1. **Agree to `bypass_guards.headless_block: off` for one session.** This unlocks, in order: unit A1 (the live socket probe, "Next unit" in the section below; the usage window that blocked it has reset), then A2-A4 and A6 of the mod-served actions (specs, session-server core, production mod, live check and docs; all depend on A1's result), and the headless live checks in B1 (the `claude -p` stream-json route with `plan.start`, `CLAUDE_ENV_FILE`, SessionStart context in a headless run, a `[parallel]` task group). Restore the config afterwards and never commit it.
