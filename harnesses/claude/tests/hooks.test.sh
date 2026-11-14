@@ -409,7 +409,7 @@ callers="$tmp/cp/.git/specplane/callers"
 crun() { # dir json
   printf '%s' "$2" | PATH="$ORIG_PATH" CLAUDE_PROJECT_DIR="$1" sh "$ch" >"$tmp/cout" 2>&1; echo $? > "$tmp/crc"
 }
-crun "$tmp/cp" '{"tool_use_id":"toolu_01Abc","tool_name":"mcp__plugin_specplane_specplane__spec_retrieve","agent_id":"a3d18b16","agent_type":"general-purpose"}'
+crun "$tmp/cp" '{"tool_use_id":"toolu_01Abc","tool_name":"mcp__specplane__spec_retrieve","agent_id":"a3d18b16","agent_type":"general-purpose"}'
 [ "$(cat "$tmp/crc")" = 0 ] && [ ! -s "$tmp/cout" ] && [ "$(jq -r '[.agent_type,.agent_id,(.at|type)]|join(",")' "$callers/toolu_01Abc.json" 2>/dev/null)" = "general-purpose,a3d18b16,string" ] \
   && report "caller: a subagent call writes the record, silently" 1 || report "caller: a subagent call writes the record, silently" 0
 crun "$tmp/cp" '{"tool_use_id":"toolu_main","tool_name":"mcp__specplane__spec_retrieve"}'

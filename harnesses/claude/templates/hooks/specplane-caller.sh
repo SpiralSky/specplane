@@ -1,5 +1,5 @@
 #!/bin/sh
-# PreToolUse hook (matcher: Specplane's MCP tools, `mcp__(plugin_.*_)?specplane__.*`): records which subagent makes a
+# PreToolUse hook (matcher: Specplane's MCP tools, `mcp__specplane__.*`): records which subagent makes a
 # harness action call (roles-and-permissions R58, architecture/reference-cli §12.1). All callers of a session share one
 # MCP process, so the core cannot tell them apart; the host's hook input names the subagent (`agent_id`, `agent_type`)
 # and the MCP request carries the same tool-use ID. The record goes to <git-common-dir>/specplane/callers/<tool_use_id>.json
