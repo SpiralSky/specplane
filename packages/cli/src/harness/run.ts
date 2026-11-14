@@ -1,4 +1,5 @@
-import { requestsAccept, requestsDecline, requestsList, requestsShow } from "../commands/requests.js";
+import { planStartedBy, requestsAccept, requestsDecline, requestsList, requestsShow } from "../commands/requests.js";
+import { show as showRequest } from "../requests/ops.js";
 import type { CommandResult } from "../commands/runner.js";
 import { specApproveHuman } from "../commands/spec-human.js";
 import { specViewCommand, specViewIndex } from "../commands/spec-view.js";
@@ -12,6 +13,7 @@ import { listInfos, type PlanInfo } from "../plan/status.js";
 import { COMMANDS } from "./instructions.js";
 import { beginCommand } from "./active-command.js";
 import "./adapters.js";
+import { manualSessionLines } from "./manual-session.js";
 import { getAdapter, requireCapability, type Capability } from "./adapter.js";
 
 /**
@@ -53,6 +55,21 @@ function planCtx(root: string, sessionId?: string): PlanCtx {
 function openSession(ctx: PlanCtx, launcher: SessionLauncher, planId: string, sessionId: string, resume: boolean, done: string[]): CommandResult {
   try { return { ok: true, lines: [...done, ...launcher.open(ctx, planId, { sessionId, resume })] }; }
   catch (e) { return { ok: false, lines: done, findings: e instanceof PreconditionError ? e.reasons : [(e as Error).message] }; }
+}
+
+/**
+ * Open the session of a plan an accepted request started. The accept stands whatever happens here: a host without the
+ * capability, or a launch that fails, is reported with the command that opens the session by hand (`harness R35.1`).
+ */
+function launchAccepted(root: string, o: RunOptions, planId: string, sessionId: string, answered: CommandResult): CommandResult {
+  const adapter = o.adapter ? getAdapter(o.adapter) : undefined;
+  let refused: string[] | undefined;
+  try { if (adapter) requireCapability(adapter, "session-opening", "Opening the plan's session", root); }
+  catch (e) { refused = e instanceof PreconditionError ? e.reasons : [(e as Error).message]; }
+  const opened = refused ? undefined : openSession(planCtx(root, sessionId), o.launcher!, planId, sessionId, false, answered.lines ?? []);
+  if (opened?.ok) return { ...answered, lines: opened.lines };
+  return { ...answered, ok: false, lines: [...(opened?.lines ?? answered.lines ?? []), `The request stays accepted and ${planId} is started, but its session was not opened.`, ...manualSessionLines(root, planId, o.adapter ?? o.launcher!.name)],
+    findings: [...(answered.findings ?? []), ...(refused ?? opened?.findings ?? [])] };
 }
 
 function describe(i: PlanInfo): string {
@@ -132,7 +149,13 @@ async function withArgs(root: string, command: string, args: string[], o: RunOpt
       if (!id) throw new UsageError("requests takes list, show <id>, accept <id> or decline <id>.");
       if (sub === "show") return requestsShow(id, root);
       if (sub === "accept" || sub === "decline") {
-        const answered = await (sub === "accept" ? requestsAccept : requestsDecline)(id, note.join(" ") || undefined);
+        // An accepted `plan start` opens the plan's session through the adapter; the session ID is chosen first so the plan
+        // record, the run marker and the host session name the same one. Without an adapter the accept prints how to open it.
+        const startsPlan = sub === "accept" && o.launcher && showRequest(root, id)?.action.command === "plan start";
+        const startSession = startsPlan ? o.launcher!.newSessionId() : undefined;
+        const answered = await (sub === "accept" ? requestsAccept(id, note.join(" ") || undefined, { session: startSession, manual: !o.launcher }) : requestsDecline(id, note.join(" ") || undefined));
+        const started = startSession ? planStartedBy(answered) : null;
+        if (started) return launchAccepted(root, o, started, startSession!, answered);
         // A blocking request answered while a session is active resumes the plan it stopped (`plan-execution R27.5`).
         const planId = (answered.data as { resume?: string | null } | null | undefined)?.resume;
         if (!o.launcher || !planId) return answered;
@@ -161,7 +184,7 @@ export async function runHarnessCommand(command: string, args: string[], root: s
   if (adapter && needs) requireCapability(adapter, needs, command, root);
   const session = o.sessionId ?? process.env.SPECPLANE_SESSION?.trim();
   if (session) beginCommand(root, session, command);
-  const result = args.length === 0 ? await noArgs(root, command) : await withArgs(root, command, args, o);
+  const result = args.length === 0 ? await noArgs(root, command) : await withArgs(root, command, args, { ...o, adapter: adapterName });
   return { ...result, permission: result.permission ?? null };
 }
 

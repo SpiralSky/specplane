@@ -23,9 +23,12 @@ export function registerHarnessCommands(program: Command): void {
     .option("--adapter <name>", "the host adapter that opens plan sessions (claude or codex)")
     .action(async (command: string, args: string[], opts: { json?: boolean; adapter?: string }) => {
       if (opts.adapter !== undefined && opts.adapter !== "claude" && opts.adapter !== "codex") throw new UsageError(`Unknown adapter: ${opts.adapter}. Supported: claude, codex.`);
-      const launcher = opts.adapter === "claude" ? (await import("../harness/adapter-claude.js")).claudeLauncher
-        : opts.adapter === "codex" ? (await import("../harness/adapter-codex.js")).codexLauncher : undefined;
-      await runCommand({ command: "harness run", args: [command, ...args], json: opts.json }, () => runHarnessCommand(command, args, checkoutRoot(), { launcher, adapter: opts.adapter }));
+      // Without --adapter the harness names itself through SPECPLANE_ADAPTER, as for the capability check.
+      const env = process.env.SPECPLANE_ADAPTER?.trim();
+      const name = opts.adapter ?? (env === "claude" || env === "codex" ? env : undefined);
+      const launcher = name === "claude" ? (await import("../harness/adapter-claude.js")).claudeLauncher
+        : name === "codex" ? (await import("../harness/adapter-codex.js")).codexLauncher : undefined;
+      await runCommand({ command: "harness run", args: [command, ...args], json: opts.json }, () => runHarnessCommand(command, args, checkoutRoot(), { launcher, adapter: name }));
     });
   harness
     .command("session <plan>", { hidden: true })

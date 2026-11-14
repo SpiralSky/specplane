@@ -2,6 +2,7 @@ import type { CommandResult } from "./runner.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, type Actor } from "../perm/permissions.js";
 import { acceptRequest, declineRequest, formatRequest, list, show, type RequestCtx, type RequestResult } from "../requests/ops.js";
+import { manualSessionLines } from "../harness/manual-session.js";
 import { withStoreLockAsync } from "../repo/store.js";
 
 /** `specplane requests [list|show|accept|decline]` (`architecture/reference-cli` §8, §13.1). */
@@ -27,10 +28,23 @@ function result(r: RequestResult): CommandResult {
   return { ok: r.ok, data: { request: r.request ?? null, resume: r.resume ?? null }, findings: r.reasons, lines: r.lines };
 }
 
-export const requestsAccept = async (id: string, note?: string): Promise<CommandResult> => {
+/**
+ * `session` names the plan session a harness opens for an accepted `plan start` (the plan record names it). `manual: false`
+ * means the caller opens the session itself; otherwise an accepted `plan start` prints how to open it by hand.
+ */
+export const requestsAccept = async (id: string, note?: string, o: { session?: string; manual?: boolean } = {}): Promise<CommandResult> => {
   const c = ctx();
-  return result(await withStoreLockAsync(c.root, "commands", () => acceptRequest(c, id, note)));
+  if (o.session) c.actor = { ...c.actor, session: o.session };
+  const r = result(await withStoreLockAsync(c.root, "commands", () => acceptRequest(c, id, note)));
+  const planId = planStartedBy(r);
+  return r.ok && planId && o.manual !== false ? { ...r, lines: [...(r.lines ?? []), ...manualSessionLines(c.root, planId)] } : r;
 };
+
+/** The plan an accepted `plan start` request started, when the result is one. */
+export function planStartedBy(r: CommandResult): string | null {
+  const rec = (r.data as { request?: { action?: { command?: string; params?: { id?: unknown } } } | null } | undefined)?.request;
+  return r.ok && rec?.action?.command === "plan start" && typeof rec.action.params?.id === "string" ? rec.action.params.id : null;
+}
 
 export const requestsDecline = async (id: string, note?: string): Promise<CommandResult> => {
   const c = ctx();

@@ -9,6 +9,7 @@ import { DEFAULT_PRESET, type Actor } from "../perm/permissions.js";
 import { createPlan } from "../plan/create.js";
 import { loadPlanAt, readStore, worktreeOf, type PlanCtx, type RunMarker } from "../plan/ctx.js";
 import { setBudget, startPlan } from "../plan/run.js";
+import { readRequest } from "../requests/store.js";
 import { sendRequest } from "../requests/ops.js";
 import { makeRepo } from "../test-repo.js";
 import { buildArgv, claudeLauncher, CLAUDE_RESOURCES, manualCommand, readUsage, reportsSpecplane, runPlanSession, sessionPrompt, type ClaudeDeps, type SessionProcess } from "./adapter-claude.js";
@@ -260,4 +261,85 @@ test("answering a blocking request while a session is active resumes the plan an
   } finally { process.chdir(cwd); }
   assert.deepEqual(calls, [`${ID}:sess-R:true`]);
   assert.equal(progress(root).status, "in-progress");
+});
+
+// An accepted `plan.start` request opens the plan's session through the adapter, or prints how to (the live check's gap).
+function startRequest(): { root: string; id: string } {
+  const { root, ctx } = started(undefined, false);
+  const llm: PlanCtx = { ...ctx, actor: { role: "llm", kind: "llm", name: "claude", model: "claude-sonnet-5-5" } };
+  const sent = sendRequest(llm, { command: "plan start", params: { id: ID }, permissions: ["plan.start"], reason: "start it" });
+  assert.ok(sent.ok && sent.request, JSON.stringify(sent));
+  return { root, id: sent.request!.id };
+}
+async function inRoot<T>(root: string, fn: () => Promise<T>): Promise<T> {
+  const cwd = process.cwd();
+  // The accepting person is a human whatever session runs the tests.
+  const saved = { a: process.env.SPECPLANE_ACTOR, s: process.env.SPECPLANE_SESSION };
+  delete process.env.SPECPLANE_ACTOR; delete process.env.SPECPLANE_SESSION;
+  process.chdir(root);
+  try { return await fn(); } finally {
+    process.chdir(cwd);
+    if (saved.a !== undefined) process.env.SPECPLANE_ACTOR = saved.a;
+    if (saved.s !== undefined) process.env.SPECPLANE_SESSION = saved.s;
+  }
+}
+const recorder = (calls: string[], open?: () => string[]): SessionLauncher =>
+  ({ name: "fake", newSessionId: () => "sess-P", open: (_c, id, o) => { calls.push(`${id}:${o.sessionId}:${o.resume}`); return open ? open() : ["Opened."]; } });
+
+test("typed accept of a plan.start request opens the plan's session once under one session id", async () => {
+  const { root, id } = startRequest();
+  const calls: string[] = [];
+  const r = await inRoot(root, () => runHarnessCommand("requests", ["accept", id], root, { launcher: recorder(calls), adapter: "claude" }));
+  assert.ok(r.ok, JSON.stringify(r));
+  assert.deepEqual(calls, [`${ID}:sess-P:false`]);
+  assert.ok(r.lines!.includes("Opened."));
+  assert.equal(progress(root).session, "sess-P");
+  assert.equal(marker(root)!.session, "sess-P");
+});
+
+test("typed accept of a request that does not start a plan launches nothing", async () => {
+  const { root, ctx } = started();
+  const llm: PlanCtx = { ...ctx, actor: { role: "llm", kind: "llm", name: "claude", model: "claude-sonnet-5-5" } };
+  const sent = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve"], reason: "approve export" });
+  assert.ok(sent.ok && sent.request);
+  const calls: string[] = [];
+  const r = await inRoot(root, () => runHarnessCommand("requests", ["accept", sent.request!.id], root, { launcher: recorder(calls), adapter: "claude" }));
+  assert.ok(r.ok, JSON.stringify(r));
+  assert.deepEqual(calls, []);
+  assert.doesNotMatch(r.lines!.join("\n"), /session/i);
+});
+
+test("accept in the plain CLI starts the plan, launches nothing and prints the manual command", async () => {
+  const { root, id } = startRequest();
+  fs.mkdirSync(path.join(root, ".claude/rules"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".claude/rules/specplane.md"), "x");
+  const r = await inRoot(root, () => runHarnessCommand("requests", ["accept", id], root));
+  assert.ok(r.ok, JSON.stringify(r));
+  assert.equal(progress(root).status, "in-progress");
+  assert.equal(progress(root).session ?? null, null);
+  assert.match(r.lines!.join("\n"), /Claude Code: cd ".*" && claude "\/specplane-plan-step 2026-11-10-export-things"/);
+});
+
+test("a launch that fails after the accept leaves the request accepted and prints the manual command", async () => {
+  const { root, id } = startRequest();
+  const failing = recorder([], () => { throw new PreconditionError(["no claude here"]); });
+  const r = await inRoot(root, () => runHarnessCommand("requests", ["accept", id], root, { launcher: failing, adapter: "claude" }));
+  assert.equal(r.ok, false);
+  assert.match(r.findings!.join("\n"), /no claude here/);
+  const text = r.lines!.join("\n");
+  assert.match(text, /Accepted /);
+  assert.match(text, /stays accepted/);
+  assert.match(text, /claude "\/specplane-plan-step /);
+  assert.equal(readRequest(root, id)!.state, "accepted");
+});
+
+test("an adapter without the session-opening capability refuses the launch, keeps the accept and does not call the launcher", async () => {
+  const { root, id } = startRequest();
+  const calls: string[] = [];
+  const r = await inRoot(root, () => runHarnessCommand("requests", ["accept", id], root, { launcher: recorder(calls), adapter: "codex" }));
+  assert.equal(r.ok, false);
+  assert.deepEqual(calls, []);
+  assert.match(r.findings!.join("\n"), /opening a plan session, which codex does not support/);
+  assert.match(r.lines!.join("\n"), /Codex: cd .* && codex/);
+  assert.equal(readRequest(root, id)!.state, "accepted");
 });

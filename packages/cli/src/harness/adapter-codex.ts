@@ -25,6 +25,9 @@ export const codexAdapter: HarnessAdapter = {
  * the launch is refused with the reason and the command that opens Codex in the plan's checkout (an assumption: `codex`
  * started with the checkout as its working directory). Nothing else is used in its place.
  */
+/** The command that opens Codex in the plan's checkout by hand. */
+export function manualCommand(dir: string): string { return `cd ${dir} && codex`; }
+
 export const codexLauncher: SessionLauncher = {
   name: "codex",
   newSessionId: () => `codex-${randomUUID()}`,
@@ -32,7 +35,7 @@ export const codexLauncher: SessionLauncher = {
     const dir = worktreeOf(ctx.root, planId) ?? `the checkout of plan ${planId}`;
     throw new PreconditionError([
       `Opening a plan session needs the ability to launch \`codex exec\`, which this Codex setup is not verified to have; no session was opened.`,
-      `To continue the plan yourself, open Codex in its checkout: cd ${dir} && codex`,
+      `To continue the plan yourself, open Codex in its checkout: ${manualCommand(dir)}`,
     ]);
   },
 };
