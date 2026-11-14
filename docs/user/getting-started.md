@@ -19,7 +19,7 @@ npm install -g --prefix ~/.local .
 
 ```sh
 cd your-project
-specplane init --harness claude   # notes refspecs and the Claude Code files; or --harness codex
+specplane init --harness claude   # notes refspecs and the Claude Code files (including the specplane entry in .mcp.json); or --harness codex
 specplane validate                # format, citations, requirement IDs, status
 specplane spec list               # every spec with its effective status
 specplane spec approve feature/login
