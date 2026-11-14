@@ -30,7 +30,7 @@ Steering and command instructions describe the same effective role that each act
 |------------|-------------|-------|
 | Instructions on demand | supported | missing |
 | Push notifications | missing | missing |
-| Subagents | supported | missing |
+| Subagents | supported | supported (checked with Codex 0.169.0) |
 | Viewing specifications (`spec-view`) | supported | missing |
 | Usage measurement | supported | missing |
 | Blocking the Specplane CLI | supported when the installed hook file is present | missing |
@@ -39,14 +39,14 @@ Steering and command instructions describe the same effective role that each act
 | strict mode: blocking direct edits of specifications | supported when the installed bypass-guard hook is a version that handles strict mode | missing |
 | Telling subagents apart for LLM role rules | supported with the plugin when the running Claude Code version is the one the plugin was checked against; without the plugin, when the installed caller hook file is present | missing |
 
-Codex claims no capability until each surface has been checked live with a Codex build. Its `plan-start` refuses with the command that opens Codex in the plan's checkout.
+Codex claims only what has been checked live with a Codex build: subagents were checked with Codex 0.169.0, and every other capability stays missing until it is. Its `plan-start` refuses with the command that opens Codex in the plan's checkout.
 
 | Command | Claude Code | Codex |
 |---------|-------------|-------|
 | `spec-assist`, `spec-draft-architecture`, `plan-create`, `plan-start`, `plan-step`, `plan-finish`, `plan-status`, `validate`, `verify`, `plan-abandon` | typed command | skill with a contract |
 | `approve`, `requests`, `spec-view` | typed command | not offered; run them in your own terminal |
 
-The Claude Code installation adds the typed commands, a hook that denies an agent's shell call to the Specplane CLI, a bypass-guard hook (see `permissions`), a caller hook that tells subagents apart, a compaction hook that makes the instructions be delivered again, a pre-commit validation hook, a status line and the MCP server entry. The Codex installation adds `.agents/skills/specplane/` (an entry skill and one contract per command), the `AGENTS.md` block and a `[mcp_servers.specplane]` table in project `.codex/config.toml`, which Codex reads only for a trusted project.
+The Claude Code installation adds the typed commands, a hook that denies an agent's shell call to the Specplane CLI, a bypass-guard hook (see `permissions`), a caller hook that tells subagents apart, a compaction hook that makes the instructions be delivered again, a pre-commit validation hook, a status line and the MCP server entry. The Codex installation adds `.agents/skills/specplane/` (an entry skill and one contract per command), the `AGENTS.md` block and a `[mcp_servers.specplane]` table in project `.codex/config.toml`, which Codex reads only for a trusted project. The table also sets `default_tools_approval_mode = "approve"`: Specplane checks the role's permission for every action itself, so Codex's own per-tool prompt adds nothing, and without the line a headless Codex run cannot call any action.
 
 The Claude Code plugin uses an early-access part of Claude Code to serve the actions. It was built and checked against Claude Code 2.1.322. On another version it still serves the actions, shows a warning once per session, and reports telling subagents apart as missing, so LLM role rules that state a subagent or an agent type do not apply there. With the plugin, the identity of the caller and the model come from Claude Code itself. This needs `sh`, so it does not work on Windows.
 

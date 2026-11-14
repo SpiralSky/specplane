@@ -63,6 +63,6 @@ Codex records the model it reports as the author of a spec it writes. If Codex e
 ## §7 What this release does not do
 
 - No typed commands that skip the model, unless verified (`§3`).
-- No parallel tasks (`root:plan-execution R31.2`): Codex does not report the subagents capability, so `plan.next` says tasks run one after another and the plan-step contract runs them in order, whatever `plans.parallelism` says.
+- Parallel tasks (`root:plan-execution R31.2`): Codex reports the subagents capability (checked with Codex 0.169.0), so a `[parallel]` group is planned with subagents, at most `plans.parallelism` at once. Codex cannot tell subagents apart, so rules on a subagent do not apply there.
 - No viewing command (Codex lacks the viewing capability, `root:harness R35.1`) and no review command (later release in the root specs).
 - No background sessions (`§5`).
