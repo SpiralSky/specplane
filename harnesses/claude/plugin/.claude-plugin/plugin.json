@@ -1,17 +1,6 @@
 {
   "name": "specplane",
   "version": "0.1.0",
-  "description": "Specplane slash commands and action server for Claude Code",
-  "license": "Apache-2.0",
-  "mcpServers": {
-    "specplane": {
-      "command": "node",
-      "args": [
-        "${CLAUDE_PLUGIN_ROOT}/core/dist/harness/mcp-main.js"
-      ],
-      "env": {
-        "SPECPLANE_ADAPTER": "claude"
-      }
-    }
-  }
+  "description": "Specplane slash commands and harness action tools for Claude Code",
+  "license": "Apache-2.0"
 }

@@ -1,6 +1,6 @@
 // Assemble the Claude Code plugin (`harnesses/claude/specifications/architecture/claude-integration` §10): the plugin
-// sources of harnesses/claude/plugin plus a self-contained copy of the compiled core under core/, because the manifest
-// starts `core/dist/harness/mcp-main.js` and the slash-command handler runs `core/dist/cli.js`. The result is dist/plugin
+// sources of harnesses/claude/plugin plus a self-contained copy of the compiled core under core/, because the mod starts
+// `core/dist/harness/session-server-main.js` and the slash-command handler runs `core/dist/cli.js`. The result is dist/plugin
 // (or the directory named by --out); it needs only Node, no install step.
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -36,10 +36,10 @@ for (const dir of listed) {
   cpSync(dir, path.join(core, 'node_modules', rel), { recursive: true });
 }
 const manifest = JSON.parse(readFileSync(path.join(out, '.claude-plugin/plugin.json'), 'utf8'));
-for (const server of Object.values(manifest.mcpServers ?? {})) {
-  for (const a of server.args ?? []) {
-    const file = a.replace('${CLAUDE_PLUGIN_ROOT}', out);
-    if (file !== a && !existsSync(file)) throw new Error(`The plugin manifest names a file the package lacks: ${a}`);
-  }
+if (manifest.mcpServers) throw new Error('The plugin manifest must not declare mcpServers: the mod serves the actions.');
+const checked = JSON.parse(readFileSync(path.join(out, '.claude-plugin/host-version.json'), 'utf8')).checkedHostVersion;
+if (typeof checked !== 'string' || !/^\d+\.\d+\.\d+/.test(checked)) throw new Error('host-version.json must name the checked Claude Code version as checkedHostVersion.');
+for (const file of ['core/dist/harness/session-server-main.js', 'hooks/channel.ts', 'hooks/core-channel.ts']) {
+  if (!existsSync(path.join(out, file))) throw new Error(`The plugin package lacks ${file}`);
 }
 console.log(`Claude plugin written to ${path.relative(process.cwd(), out) || '.'}`);
