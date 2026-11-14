@@ -21,7 +21,10 @@ Updated 2026-11-14 after the first live rerun check and the push. Read the first
   4. The session check when several `specplane` MCP entries are listed (now passes unless all are dead): decide, test, and state it in the spec.
   5. The audits left unchecked: project-prefixed cite resolution (R7) and the R42.2 level numbers.
 - The local session keeps the live rerun and merges or cherry-picks the cloud branch afterwards.
-- The cloud session was started on 2026-11-14: `session_011WogkRA75hEy1vrnBPfrta` (`claude --teleport session_011WogkRA75hEy1vrnBPfrta` resumes it locally). Whether it picked up the branch, the agents and the model setting was not checked.
+- The first cloud session (`session_011WogkRA75hEy1vrnBPfrta`) stopped after 33 seconds: with no installed `specplane`, the guard hook blocks every shell call and edit in the sandbox ("Specplane cannot resolve the hook protections"). The user agreed to run the cloud work without the hooks.
+- `cloud/spec-edits-20261114` is pushed with one cloud-only commit, `d1c104c`, that removes the hooks from `.claude/settings.json`. **Never merge or cherry-pick `d1c104c`**; take the commits after it. In ai-workflow, `cloud/approach-20261114` is pushed from `dot/procedural-selection-20261113` at `2538812`.
+- Routine `trig_01Dt5Qj4hTvCmfo8Z1oZyoV7` ("Overnight specplane and ai-workflow", https://claude.ai/code/routines/trig_01Dt5Qj4hTvCmfo8Z1oZyoV7) fires hourly at minute 6 on Fable 5.2 with both repositories cloned under `/home/user`. Each run resumes from the "Cloud overnight progress" section at the top of `HANDOFF.md` on the cloud branch, so a run that ends at a usage limit is continued by a later one. Part A is the scope above plus a sampled requirements audit; Part B is ai-workflow (apply the `approach` skill, improve the skill in `.claude/skills/approach/` on the cloud branch, review problems L2-L5). Disable the routine when the work is done or no longer wanted; it cannot be deleted through the API. The prompt is in the routine itself.
+- An improved `approach` skill on the cloud branch has to be copied back to `~/.claude/skills/approach/` by hand.
 
 ### Fixture gaps fixed (2026-11-14, later session; Sonnet workers one unit each, one independent review)
 
