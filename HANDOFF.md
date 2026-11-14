@@ -1,13 +1,21 @@
 # Session handoff
-Updated 2026-11-13 after the "everything that does not need the user" session. Read the first "Next session: start here" section; older sections are historical unless referenced below.
+Updated 2026-11-14 after the mod-served actions landed. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
-## Next session: start here (2026-11-13, only user-gated work is left)
+## Next session: start here (2026-11-14, only user-gated work is left)
 
 ### Current state
 
-- Branch `spec-edits-20261106`; nothing pushed or merged. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` are the user's; leave them.
-- Verified at `987d86e` from the coordinating session: full suite **598 pass / 0 fail** (Bun 1.4.4, no fallback), hooks **172 pass**, check-sync OK, validate **0 errors, 25 warnings** (23 retired-format plan warnings, `hook_protect` off on purpose, one not examined).
+- Branch `spec-edits-20261106`, 257 commits ahead of `main`; nothing pushed or merged. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` are the user's; leave them.
+- Verified at `506d866`: `npm test` in `packages/cli` **625 pass / 0 fail**, hooks **209 pass**, check-sync OK. `validate` was not rerun (last: 0 errors, 25 warnings at `987d86e`).
 - Every remaining item needs the user. Do not start any of them without the stated input.
+
+### Landed 2026-11-14 after the list below was written (items 1 and 2 of it, mostly)
+
+- Mod-served actions, units A1-A4 and A6, done: live socket probe (`de47afe`, `harnesses/claude/host-evidence/2.1.322-socket-probe/live-results.txt`), specs (`bb68052`, `c4bfc30`, `aef30de`), session server (`8e29f09`, `1dde563`), production mod (`16db6f9`, `fac5c46`), headless live check and user docs (`09d92d4`, `harnesses/claude/host-evidence/2.1.322-plugin-session-server.txt`).
+- Guard-hook unit done: `182a79f` (identity variables, `.` and `..` in paths, plain reads of the store pass), `fa7bac6` (a shell command may not start the session server), `506d866` (process substitution, grouping, removal of the store folder).
+- Not verified for the mod channel (from the evidence file): an interactive session and its permission prompts, a call longer than 25 seconds (pending and poll), the mod restarting a core that exited, a host version mismatch, a role rule changing a subagent's role through this route, Windows.
+- No evidence file records the other headless checks of item 1 (the `claude -p` stream-json route with `plan.start`, `CLAUDE_ENV_FILE`, SessionStart context in a headless run, a `[parallel]` task group) or the MCP elicitation check for item 6(a); treat them as not run.
+- Specs edited since the last approval now also include `reference-cli`, `claude-integration` and `roles-and-permissions`.
 
 ### Done this session (Sonnet subagents, one unit each, coordinated from the main session)
 
@@ -32,6 +40,8 @@ Updated 2026-11-13 after the "everything that does not need the user" session. R
 - Codex has subagents (official docs; enabled by default in current releases). The adapter does not claim the capability because no live check was run. Add a subagent run to item 3 below and set `caps.subagents` for Codex if it passes; that settles item 6(b) for Codex.
 
 ### Needs the user (nothing else is left)
+
+Item 1 is reduced to its headless live checks and item 2 is done; see "Landed 2026-11-14" above.
 
 1. **Agree to `bypass_guards.headless_block: off` for one session.** This unlocks, in order: unit A1 (the live socket probe, "Next unit" in the section below; the usage window that blocked it has reset), then A2-A4 and A6 of the mod-served actions (specs, session-server core, production mod, live check and docs; all depend on A1's result), and the headless live checks in B1 (the `claude -p` stream-json route with `plan.start`, `CLAUDE_ENV_FILE`, SessionStart context in a headless run, a `[parallel]` task group). Restore the config afterwards and never commit it.
 2. **Allow the guard-hook unit.** The permission classifier refused the dispatch of a worker to change the guard hooks, and it was not worked around. The unit is three fixes in `harnesses/claude/templates` (`specplane-bypass-guard.sh` and the protected-path hook), each with hook tests: (a) A5: make `marker_protect` cover `SPECPLANE_AGENT_TYPE`, `SPECPLANE_SUBAGENT`, `SPECPLANE_MODEL`, `SPECPLANE_PROVIDER`, `SPECPLANE_DELEGATED_BY`, after first testing whether a Bash command can gain a role through them; (b) normalise `.` and `..` in the protected-path check (`docs/../docs/requirements/x`, unverified); (c) decide from the docs whether `store_protect` should allow plain listing such as `ls`. The user can approve the agent run when prompted, or do it in a session with a permission mode that allows it.
