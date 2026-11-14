@@ -1,5 +1,5 @@
 # Session handoff
-Updated 2026-11-14 after the mod-served actions landed. Read the first "Next session: start here" section; older sections are historical unless referenced below.
+Updated 2026-11-14 after the first live rerun check and the push. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
 ## Next session: start here (2026-11-14, only user-gated work is left)
 
@@ -8,6 +8,19 @@ Updated 2026-11-14 after the mod-served actions landed. Read the first "Next ses
 - Branch `spec-edits-20261106`; nothing pushed or merged. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` are the user's; leave them.
 - Verified at `080c7e4`: `npm test` in `packages/cli` **642 pass / 0 fail**, hooks **209 pass**, check-sync OK. `validate` was not rerun (last: 0 errors, 25 warnings at `987d86e`).
 - The five fixture gaps listed below are fixed (see "Fixture gaps fixed"). Every remaining item needs the user or a live run. Do not start any of them without the stated input.
+
+### Live rerun started and cloud session (2026-11-14, evening)
+
+- The branch is pushed to `origin/spec-edits-20261106`. `6f622c5` adds the maintainers' worker agents (`.claude/agents/`), the `approach` skill, `"model": "claude-fable-5-2"` in `.claude/settings.json` and the "Models and delegation" section of `CLAUDE.md`.
+- Live check 1, passed (local, Haiku, the adapter's arguments, no `--plugin-dir`, fixture at `9bc9357` after the user re-ran `init --harness claude`): `system/init` listed `{'name': 'specplane', 'status': 'connected', 'source': 'project'}`, 43 `mcp__specplane` tools and 16 skills; `docs_essentials` returned text. Neither the user settings nor the fixture hold an MCP approval, so a headless session loads the unapproved project server and init needs no `enabledMcpjsonServers`. An interactive session was not checked. Not yet written to a host-evidence file.
+- Live check 2, waiting for the user: plan `2026-11-14-rerun-check` is committed in the fixture (`55f54f8`). The user runs, in a plain terminal in the fixture: `specplane plan approve 2026-11-14-rerun-check && ANTHROPIC_MODEL=haiku specplane harness run --adapter claude plan-start 2026-11-14-rerun-check`. Then read the plan checkout, audit log and session log, write the evidence file and update this section. The request route (`/requests accept` typed in a session) comes after and needs an interactive session.
+- A cloud session (`claude --cloud`) takes the work that needs no live run and no local fixture. It works on its own branch `cloud/spec-edits-20261114`, made from `spec-edits-20261106`, and pushes only that branch. Its scope:
+  1. Build and confirm the baseline (`npx tsc --noEmit -p .`, `npm run build`, `npm test` in `packages/cli`; hooks test; check-sync).
+  2. One independent `reviewer` pass over the specs edited since the last approval (`claude-integration`, `reference-cli`, `agent-skills`, `roles-and-permissions`, both `codex-integration` specs, `later-releases`) against `docs/requirements/product-requirements.md` and the code; fix what it finds in the specs or code; approve nothing.
+  3. Update the `claude-integration` "not checked live" note on the `mcp_servers` entry shape with the result of live check 1.
+  4. The session check when several `specplane` MCP entries are listed (now passes unless all are dead): decide, test, and state it in the spec.
+  5. The audits left unchecked: project-prefixed cite resolution (R7) and the R42.2 level numbers.
+- The local session keeps the live rerun and merges or cherry-picks the cloud branch afterwards.
 
 ### Fixture gaps fixed (2026-11-14, later session; Sonnet workers one unit each, one independent review)
 
