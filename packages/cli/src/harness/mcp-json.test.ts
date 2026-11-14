@@ -58,3 +58,12 @@ test("a .mcp.json that is a symlink resolving outside the repository is refused 
   assert.equal(fs.readFileSync(target, "utf8"), "{}\n");
   assert.ok(!fs.existsSync(path.join(root, ".claude/settings.json")), "nothing else was written");
 });
+
+test("a dangling .mcp.json symlink pointing outside the repository is refused and the outside file is not created", () => {
+  const root = repo();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-outside-"));
+  const target = path.join(outside, "missing.json");
+  fs.symlinkSync(target, path.join(root, ".mcp.json"));
+  assert.throws(() => installHarness(root, "claude"), /symlink/);
+  assert.ok(!fs.existsSync(target), "the outside file was not created");
+});

@@ -200,6 +200,22 @@ test("the init check accepts the plugin or the specplane MCP server and refuses 
   assert.equal(reportsSpecplane({ mcp_servers: "specplane" }), false);
 });
 
+test("a listed specplane MCP server that failed or needs auth does not count; pending, no status and unknown do", async () => {
+  for (const status of ["failed", "needs-auth"]) {
+    assert.equal(reportsSpecplane({ mcp_servers: [{ name: "specplane", status }] }), false, status);
+    assert.equal(reportsSpecplane({ mcp_servers: [{ name: "specplane", status }], plugins: [{ name: "specplane" }] }), true, `${status} with plugin`);
+  }
+  for (const status of ["pending", "connected", "weird", undefined]) assert.equal(reportsSpecplane({ mcp_servers: [{ name: "specplane", status }] }), true, String(status));
+  const { ctx } = started();
+  const f = fake();
+  const p = runPlanSession(ctx, ID, f.deps);
+  f.emit({ type: "system", subtype: "init", permissionMode: "auto", mcp_servers: [{ name: "specplane", status: "needs-auth" }] });
+  await tick();
+  const r = await p;
+  assert.equal(r.outcome, "failed");
+  assert.match(r.notes.join("\n"), /listed but did not connect \(status `needs-auth`\)/);
+});
+
 test("a plan that is not in progress, or has no worktree, is refused before anything starts", async () => {
   const { ctx } = started();
   const f = fake();
@@ -342,4 +358,29 @@ test("an adapter without the session-opening capability refuses the launch, keep
   assert.match(r.findings!.join("\n"), /opening a plan session, which codex does not support/);
   assert.match(r.lines!.join("\n"), /Codex: cd .* && codex/);
   assert.equal(readRequest(root, id)!.state, "accepted");
+});
+
+test("an LLM-marked caller accepting a plan.start request through the typed route is refused and launches nothing", async () => {
+  const { root, id } = startRequest();
+  const calls: string[] = [];
+  const cwd = process.cwd();
+  const saved = process.env.SPECPLANE_ACTOR;
+  process.env.SPECPLANE_ACTOR = "llm";
+  process.chdir(root);
+  let r;
+  try { r = await runHarnessCommand("requests", ["accept", id], root, { launcher: recorder(calls), adapter: "claude" }); }
+  finally { process.chdir(cwd); if (saved === undefined) delete process.env.SPECPLANE_ACTOR; else process.env.SPECPLANE_ACTOR = saved; }
+  assert.equal(r.ok, false);
+  assert.deepEqual(calls, []);
+  assert.equal(readRequest(root, id)!.state, "pending");
+});
+
+test("accepting a plan.start request for a plan that is already started fails the request and launches nothing", async () => {
+  const { root, id } = startRequest();
+  startPlan({ root, actor: person, preset: DEFAULT_PRESET, now: NOW, env: {} }, ID);
+  const calls: string[] = [];
+  const r = await inRoot(root, () => runHarnessCommand("requests", ["accept", id], root, { launcher: recorder(calls), adapter: "claude" }));
+  assert.equal(r.ok, false);
+  assert.deepEqual(calls, []);
+  assert.equal(readRequest(root, id)!.state, "failed");
 });
