@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { codexAdapter } from "./adapter-codex.js";
+import { readStoreJson, storeDir } from "../repo/store.js";
 import { guardHookHasStrict } from "../perm/strict.js";
 import { noCapabilities, registerAdapter, type Capabilities, type HarnessAdapter } from "./adapter.js";
 
@@ -9,6 +10,20 @@ import { noCapabilities, registerAdapter, type Capabilities, type HarnessAdapter
  * claimed; the Claude and Codex integration units add the host-specific behaviour behind these claims. Codex claims
  * nothing until each surface has a live check (`codex-integration` §7).
  */
+
+/** The match recorded by each live session server (`reference-cli` §12.8); empty when no session server runs. */
+export function sessionServerMatches(root: string): boolean[] {
+  const out: boolean[] = [];
+  try {
+    for (const f of fs.readdirSync(path.join(storeDir(root), "sessions"))) {
+      if (!f.endsWith(".host.json")) continue;
+      const rec = readStoreJson<{ adapter?: string; pid?: number; match?: boolean }>(root, `sessions/${f}`);
+      if (rec?.adapter !== "claude" || !Number.isInteger(rec.pid)) continue;
+      try { process.kill(rec.pid!, 0); out.push(rec.match === true); } catch (e) { if ((e as NodeJS.ErrnoException).code === "EPERM") out.push(rec.match === true); }
+    }
+  } catch { /* no store or no record */ }
+  return out;
+}
 
 export const claudeAdapter: HarnessAdapter = {
   name: "claude",
@@ -26,7 +41,10 @@ export const claudeAdapter: HarnessAdapter = {
     // Strict mode's edit block lives in the same hook, so an installed copy that predates it does not count.
     caps["strict-mode"] = !!root && guardHookHasStrict(root);
     // Per-call subagent identity comes from the caller hook (`roles-and-permissions` R58).
-    caps["subagent-identity"] = !!root && fs.existsSync(path.join(root, ".claude/hooks/specplane-caller.sh"));
+    // Or from the session server of `reference-cli` §12.8.
+    // When a session server serves the session, only its version match decides; the hook then does not count.
+    const served = root ? sessionServerMatches(root) : [];
+    caps["subagent-identity"] = !!root && (served.length ? served.some(Boolean) : fs.existsSync(path.join(root, ".claude/hooks/specplane-caller.sh")));
     return caps;
   },
 };
