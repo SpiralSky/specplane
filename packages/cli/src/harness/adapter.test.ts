@@ -11,8 +11,8 @@ test("an adapter reports every capability as supported or missing", () => {
   const codex = getAdapter("codex")!;
   const lines = reportCapabilities(codex);
   assert.equal(lines.length, CAPABILITIES.length);
-  assert.ok(lines.every((l) => l.endsWith(": missing")));
-  assert.deepEqual(missingCapabilities(codex), [...CAPABILITIES]);
+  assert.deepEqual(lines.filter((l) => l.endsWith(": supported")), ["codex: subagents: supported"]);
+  assert.deepEqual(missingCapabilities(codex), CAPABILITIES.filter((c) => c !== "subagents"));
   assert.deepEqual(noCapabilities()["command-blocking"], false);
 });
 

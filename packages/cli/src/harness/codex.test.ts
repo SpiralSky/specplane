@@ -88,10 +88,10 @@ test("the committed templates match the generator and the skill table lists ever
   assert.deepEqual(CODEX_WITHHELD, ["approve", "requests", "spec-view"]);
 });
 
-test("Codex claims no capability, setup says so, and plan-start refuses with the manual command", () => {
+test("Codex claims only subagents, setup says so, and plan-start refuses with the manual command", () => {
   const adapter = getAdapter("codex")!;
   const caps = adapter.capabilities();
-  for (const c of CAPABILITIES) assert.equal(caps[c], false, c);
+  for (const c of CAPABILITIES) assert.equal(caps[c], c === "subagents", c);
   const root = repo();
   const out = runInit(root, { harness: "codex" }).join("\n");
   assert.match(out, /codex: blocking the Specplane CLI: missing/);

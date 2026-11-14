@@ -8,14 +8,16 @@ import { randomUUID } from "node:crypto";
  * The Codex adapter (`harnesses/codex/specifications/architecture/codex-integration` §3 to §6). Nothing Codex does is
  * claimed until each surface has had a live check with the user's approval (`§7`, `harness R35.1`): the skill table and
  * contracts exist, but whether Codex loads them on demand, runs a native command without a model turn, blocks a shell
- * call or reports usage is unverified, so every capability is missing and setup and the actions say so by name.
+ * call or reports usage is unverified, so every capability is missing and setup and the actions say so by name, except `subagents`, which was
+ * checked live with Codex 0.169.0 (a subagent started by Codex calls a Specplane tool). Subagents carry no identity there,
+ * so `subagent-identity` stays missing.
  *
  * Model identity: Codex exposes none that Specplane has verified, so a write through the action channel records the
  * author as `unknown` (`codex-integration` §6) and never a guess from the product name.
  */
 export const codexAdapter: HarnessAdapter = {
   name: "codex",
-  capabilities(): Capabilities { return noCapabilities(); },
+  capabilities(): Capabilities { return { ...noCapabilities(), subagents: true }; },
 };
 
 /**

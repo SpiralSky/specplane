@@ -34,9 +34,9 @@ test("tasks: concurrency is the setting capped by the widest group, and one with
   assert.equal(three.concurrency, 3, "four independent tasks, at most three at once");
   assert.equal(three.note, null);
   assert.equal(planTasks(body(FOUR), 9, true).concurrency, 4, "never wider than the group");
-  const none = planTasks(body(FOUR), 3, false, "codex");
+  const none = planTasks(body(FOUR), 3, false, "other");
   assert.equal(none.concurrency, 1);
-  assert.match(none.note ?? "", /not available in codex.*one after another/);
+  assert.match(none.note ?? "", /not available in other.*one after another/);
   const one = planTasks(body(FOUR), 1, true);
   assert.equal(one.concurrency, 1);
   assert.match(one.note ?? "", /plans\.parallelism is 1/);
@@ -63,7 +63,7 @@ function fixture(config: string): { root: string; wt: string } {
   return { root, wt };
 }
 
-test("plan.next reports the next step's tasks by harness: Claude runs three at once, Codex one at a time", async () => {
+test("plan.next reports the next step's tasks by harness: Claude and Codex run three at once, no adapter one at a time", async () => {
   const { root } = fixture("  parallelism: 3\n");
   const prior = DEFAULT_PRESET.llm.modes;
   DEFAULT_PRESET.llm.modes = { ...prior, "info.retrieve": "allow" };
@@ -74,8 +74,8 @@ test("plan.next reports the next step's tasks by harness: Claude runs three at o
     assert.deepEqual(claude.tasks.groups.map((g: any) => g.tasks), [[1], [2, 3, 4, 5], [6]]);
     assert.equal(claude.tasks.note, null);
     const codex = await call("codex");
-    assert.equal(codex.tasks.concurrency, 1);
-    assert.match(codex.tasks.note, /not available in codex/);
+    assert.equal(codex.tasks.concurrency, 3);
+    assert.equal(codex.tasks.note, null);
     assert.equal((await call()).tasks.concurrency, 1, "no adapter named: no subagents claimed");
   } finally { DEFAULT_PRESET.llm.modes = prior; }
 });

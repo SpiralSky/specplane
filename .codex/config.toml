@@ -3,3 +3,4 @@
 command = "specplane"
 args = ["mcp"]
 env = { SPECPLANE_ADAPTER = "codex" }
+default_tools_approval_mode = "approve"
