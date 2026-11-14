@@ -1,0 +1,63 @@
+Claude Code 2.1.322 socket probe, live results, 2026-11-14.
+Fixture: this directory, with the result-shape fix described below.
+
+Scope: headless runs (claude -p --plugin-dir <this directory>), model claude-haiku-5-5,
+only the Agent tool and the probe tool allowed, permission prompts none, a USD 1 cap and
+an external 150-second limit per run. bypass_guards.headless_block was off for each run
+with the user's agreement for this session and restored after each; it was not committed.
+Everything below was observed in the stream-json output or by checking the process and
+the socket path from outside, unless marked as an inference. Raw logs are not committed.
+
+1. Result shape (fixture defect, fixed before the runs below)
+   A tool.call handler that returned `{ result: <object> }` was rejected by the host:
+   "tool.call step resolved ... with a result that does not match its output shape",
+   expected string, array or undefined. The request had reached the server. Returning
+   `{ result: JSON.stringify(...) }` is accepted.
+
+2. Transport and identity (case: normal)
+   Four calls: main, main, a general-purpose subagent, main. All status 200.
+   serverPid was the same in all four; requestCounter went 1, 2, 3, 4.
+   Only the subagent call carried agentId, and agentType "general-purpose" from
+   $.agent.list(). The main-agent calls carried neither. $.session.model() returned
+   claude-haiku-5-5 for all four, including the subagent call; that is the session's
+   model, not evidence of the subagent's own. Each call carried a distinct tool_use_id.
+   After the session ended normally (exit 0) the socket path was gone and the server
+   process no longer existed.
+
+3. Output draining (case: flood, 2097152 bytes written by the child to stdout)
+   With the spawn stream drained by the mod: the flood call returned status 200 and the
+   next probe returned counter 2 from the same PID.
+   With serverStreamDraining = false: the flood call failed after the host's limit,
+   "$.http.fetch(...) aborted: no complete answer within 30000ms". The child stayed
+   alive: the next probe returned counter 2 from the same PID. The flag was restored.
+   So the stream must be drained, or the child must not write to stdout after its
+   readiness line. HttpInit in the 2.1.312 declarations has no timeout field, so the
+   30000 ms limit is the only one seen and no way to raise it is known.
+
+4. Child exit during the session (case: crash)
+   The crash call returned status 500 and the child exited. The next call failed with
+   "$.http.fetch(http://localhost/probe) over <socket> failed: ENOENT". The host did not
+   restart the child. After session end no process and no socket remained.
+
+5. Host terminated with SIGTERM during the session (case: hostterm)
+   Signal sent to the host process only, after the first probe result. Host exit code
+   143. One second later the child was gone and the socket path was gone.
+   Inference: the host ended the child or ran session.end; which of the two was not
+   observed.
+
+6. Host killed with SIGKILL during the session (case: hostkill)
+   Signal sent to the host process only. One, five and fifteen seconds later the child
+   was still running and the socket still existed: an orphan. Sending SIGTERM to that
+   PID (confirmed as the probe server by its command line) ended it and removed the
+   socket.
+
+Conclusions for the production channel
+- The socket route works from the main agent and from a subagent in a headless session;
+  the per-call fallback is not needed.
+- The core must end itself when the host disappears (a SIGKILL leaves it running), and
+  the mod must handle a socket left by an earlier process.
+- The mod must drain the spawn stream, and must restart or report a child that exited.
+- A tool result is a string. A call has 30 seconds over this route.
+
+Not verified: an interactive session (the user's check), Windows, a host crash other
+than SIGKILL, what happens to the child when the session is compacted or resumed.

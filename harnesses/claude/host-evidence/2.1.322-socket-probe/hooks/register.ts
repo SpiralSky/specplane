@@ -106,8 +106,9 @@ export const register: Register = on => {
       });
 
       const data = JSON.parse(response.text);
+      // The host accepts a string or a content array as a tool result, not an object (observed on 2.1.322).
       return {
-        result: {
+        result: JSON.stringify({
           status: response.status,
           serverPid: data.pid,
           requestCounter: data.requestCount,
@@ -115,7 +116,7 @@ export const register: Register = on => {
           agentType,
           model,
           received: data.received,
-        },
+        }),
       };
     } catch (err) {
       return {

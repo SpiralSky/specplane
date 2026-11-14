@@ -2,9 +2,9 @@
 
 Evidence fixture for HANDOFF.md unit 1 (mod-spawned long-lived Node core over Unix socket).
 
-**Status: live startup observed; transport not live-verified.** The first host run
-loaded the plugin and advertised its tool, but Claude's five-hour usage limit
-blocked the model before any calls. See `live-startup.txt` for the exact scope.
+**Status: live-verified headless on 2.1.322 (2026-11-14); see `live-results.txt`.**
+The socket route works from the main agent and a subagent. `live-startup.txt` is the
+earlier run that the usage limit stopped. Interactive behaviour is not verified.
 API signatures were checked
 against the locally installed declarations written by Claude Code 2.1.312; 2.1.322
 is the intended live target from the handoff. This fixture is not shipped with the
