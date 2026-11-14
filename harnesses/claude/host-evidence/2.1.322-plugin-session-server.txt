@@ -1,0 +1,35 @@
+Claude Code 2.1.322, live check of the built plugin's mod-served actions, 2026-11-14.
+(architecture/reference-cli §12.8; architecture/claude-integration §10)
+
+Scope: two headless runs (claude -p --plugin-dir packages/cli/dist/plugin), model
+claude-haiku-5-5, in a fixture repository with a minimal .specplane/config.yaml, started
+from an environment with no SPECPLANE_* variables, only Agent and the plugin's tools
+allowed, a USD 1 cap. Plugin built from commit fac5c46. bypass_guards.headless_block was
+off in the maintainers' repository for the runs with the user's agreement and restored.
+Observed in the stream-json output, the fixture's audit log and the process list.
+
+1. Tools. The session's init event listed 43 tools named mcp__specplane__<action>, and an
+   MCP server entry "specplane" with source "plugin", although the manifest declares no
+   mcpServers: the mod's registered tools appear that way. No version warning appeared;
+   the core was started with --host-version 2.1.322 --checked-version 2.1.322.
+
+2. Calls. role_list was called by the main agent twice, by a general-purpose subagent
+   once, and by the main agent once more. All four returned the action's reply text.
+   One core process served all four; its parent PID argument was the host's PID.
+
+3. Audit. The three main-agent entries have actor model claude-haiku-5-5 and no agent
+   fields. The subagent's entry also has agentType general-purpose, the engine's agentId
+   and delegatedBy equal to the session id. The MCP route recorded the model as unknown
+   in the earlier check (2.1.322-subagent-identity.txt).
+
+4. Session end. One second after the host exited normally the core process was gone and
+   its socket directory ($XDG_RUNTIME_DIR/specplane, mode 700) was empty.
+
+5. Host killed. SIGKILL sent to the host process only, after the first tool result. The
+   core was still running one second later and gone within five seconds; the socket
+   directory was empty afterwards.
+
+Not verified: an interactive session and its permission prompts for these tools, a call
+that takes longer than 25 seconds (pending and poll), a core that exits during a session
+(the mod's restart), a host version mismatch, a role rule changing a subagent's role
+through this route (unit tests only), Windows.
