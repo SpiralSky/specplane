@@ -1,0 +1,44 @@
+Claude Code 2.1.322, live check of a plan session in a fixture project, 2026-11-14.
+(architecture/claude-integration §4; features/plan-execution R27, R31.2)
+
+Fixture: a new repository set up by the user with `specplane init --harness claude` (hooks,
+rules, skills, settings; default preset), plans.parallelism 2, and a one-step plan with no
+implemented specification whose step has two `[parallel]` tasks, each creating one file.
+The user ran the person-only commands in their own terminal. Headless runs used model
+claude-haiku-5-5 with a USD 1 cap and the built plugin passed with --plugin-dir, except
+where stated. bypass_guards.headless_block was off in the maintainers' repository for each
+run with the user's agreement and restored. Observed in the stream-json output, the audit
+log, the store and the plan checkout.
+
+1. A person's `!` command in a Claude Code session is taken as the LLM's. `plan approve`
+   typed that way became a request ("Sent request ... to the user"): the session's shell
+   carries the LLM marker. Accepted from the user's own terminal, it approved the plan.
+2. plan.start from a model call: the action returned ok with a request and did nothing,
+   as the request-user mode says. The audit entry names the model (claude-haiku-5-5).
+3. `requests accept` of that request (user's terminal) started the plan: branch, worktree,
+   progress in-progress, both audit entries by the user. No session was opened: the run
+   marker had session null and no session log existed. In the code a session is opened only
+   by the typed plan-start command with an adapter and by a plan.start action that runs
+   with allow; an accepted plan.start request runs a plain `plan start`.
+4. `specplane harness session <plan> --session <id>` (the monitor that plan-start starts),
+   run by the user: "failed (... exit 143). The session did not report the Specplane plugin
+   and auto mode, so it was stopped." A run of the adapter's arguments without --plugin-dir
+   reported permissionMode auto, no "specplane" plugin and no mcp__specplane tool. `init
+   --harness claude` installs neither the plugin nor an MCP registration, and no user
+   documentation says how to install the plugin.
+5. The adapter's session prompt ("Use the specplane-plan-step skill for plan <id>. Work only
+   in this checkout.") with the adapter's arguments plus --plugin-dir: the model's Skill call
+   was refused because the skill has disable-model-invocation: true, and the session ended
+   without doing anything.
+6. The message "/specplane-plan-step <id>" on standard input loaded the skill. The model
+   called command_begin, config_get, plan_next and plan_review, then started two Agent
+   subagents in one turn, one per `[parallel]` task; each wrote its file and made no
+   Specplane call. The main agent committed the two files.
+7. The step was not recorded. plan_step-done refused five times ("HANDOFF.md has no entry
+   for step 01" / "outcome (none), not done"); the pre-commit hook refused three handoff
+   layouts. The model searched the documentation with docs_search and did not find the
+   entry format; the skill text names the entry's content but not its heading and outcome
+   form. The plan stayed in-progress with done: []. Cost of this run: USD 0.09.
+
+Not verified: the monitor's own run with the plugin present (budgets, soft stop, run
+marker to a clean end), --resume, a stronger model on item 7, an interactive session.
