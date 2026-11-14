@@ -54,6 +54,8 @@ Refines `root:plan-execution R27`, `root:plan-execution R27.6` and `root:plans R
 
 Scenario: Given a Codex surface without the Specplane files, When the user asks to run a step, Then Specplane names the missing files and runs nothing.
 
+Parallel tasks (`root:plan-execution R31.2`): Codex reports the subagents capability (checked with Codex 0.169.0), so a `[parallel]` group is planned with subagents, at most `plans.parallelism` at once. Codex cannot tell subagents apart, so rules on a subagent do not apply there.
+
 ## §6 Authors and model identity
 
 Refines `root:harness R19.1`.
@@ -63,6 +65,5 @@ Codex records the model it reports as the author of a spec it writes. If Codex e
 ## §7 What this release does not do
 
 - No typed commands that skip the model, unless verified (`§3`).
-- Parallel tasks (`root:plan-execution R31.2`): Codex reports the subagents capability (checked with Codex 0.169.0), so a `[parallel]` group is planned with subagents, at most `plans.parallelism` at once. Codex cannot tell subagents apart, so rules on a subagent do not apply there.
 - No viewing command (Codex lacks the viewing capability, `root:harness R35.1`) and no review command (later release in the root specs).
 - No background sessions (`§5`).
