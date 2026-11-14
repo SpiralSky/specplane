@@ -26,7 +26,31 @@ The session must be in the plan worktree on plan/<id>; otherwise name the requir
 5. [llm] Check changes to references newer than the recorded commits. Implement one step; run each parallel group of `tasks` through subagents, at most `concurrency` at a time, each with only its own task and the step's context, and run every other task yourself, group by group in order. Subagents change only the files of their task and never write the handoff, progress or `plan.*` actions: you collect their summaries, then record the step once. Without subagents or with `concurrency` 1 run the tasks one after another. Record gaps and assumptions in spec-gaps.md. Follow Requirements > Feature > Architecture and report conflicts; same-layer contradictions stop the affected work.
 6. [code] `spec.edit`: route any needed specification change through its permission. `request.send` records an exact requested action without performing it. Prefer blocking when unsure: the blocking request soft-stops with its ID, then write a partial handoff and end. For non-blocking requests record the ID in Open issues and continue only independent work within the current step; never skip an unfinished step.
 7. [code] `test.run` and `test.record`: run declared checks against committed state and record results and concise reasons without private data.
-8. [llm] Write the handoff entry with outcome done or partial, changes, tests, gaps and Open issues. At a budget soft stop reach a safe point, commit and write a partial entry; never wait open for a user answer.
+8. [llm] Append the handoff entry to the end of `HANDOFF.md` in the plan's folder before `plan.step-done`, in exactly this form: heading `## Step NN: <title>` with the two-digit step number, the two bold fields, and all five `###` sections in this order, each non-empty (write `None.` when there is nothing). `**Outcome**` is `done` or `partial`. A repeated step adds a new entry; never edit an earlier one. `plan.step-done` refuses any other form and prints this template with the step filled in.
+
+```markdown
+## Step NN: <step title>
+
+**Date**: YYYY-MM-DD
+**Outcome**: done | partial
+
+### What changed
+- `<path>`: <reason>
+
+### Deviations from the step
+None. | <text>
+
+### Gaps found
+None. | - G<n> (<kind>): <one line>
+
+### Open issues
+None. | - <text>
+
+### What the next step must know
+<self-contained facts>
+```
+
+   At a budget soft stop reach a safe point, commit and write a partial entry; never wait open for a user answer.
 9. [code] `plan.step-done`: record the outcome after the handoff and at least one step commit; the action makes an entry-only commit if necessary and commits progress. If the harness records completion itself, do not call it twice. For a block or budget stop use `plan.softstop` with the reason and what must change; end the run.
 10. [code] `plan.next`: repeat only for further selected steps after completing this one. After the last step use `plan.review` and the plan-finish contract, never automatic completion.
 

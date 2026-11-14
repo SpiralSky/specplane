@@ -35,6 +35,32 @@ Plan approval is separate from execution. The plan's fingerprint covers `PLAN.md
 
 A step that finds the spec silent records a gap or assumption in `spec-gaps.md` and goes on. Gaps never block a merge.
 
+## Handoff entry
+
+Each ended step adds one entry to the end of the plan's `HANDOFF.md`, and `plan step-done <id>` refuses a step whose latest entry is missing, has another outcome, or lacks a section; its message prints this form with the step filled in. The heading, the two bold fields and the five `###` sections are all required, in this order; a section with nothing to say reads `None.`. `**Outcome**` is `done` or `partial`. A repeated step adds a new entry and the last one counts.
+
+```markdown
+## Step NN: <step title>
+
+**Date**: YYYY-MM-DD
+**Outcome**: done | partial
+
+### What changed
+- `<path>`: <reason>
+
+### Deviations from the step
+None. | <text>
+
+### Gaps found
+None. | - G<n> (<kind>): <one line>
+
+### Open issues
+None. | - <text>
+
+### What the next step must know
+<self-contained facts>
+```
+
 ## Requests
 
 When a plan session needs an answer that only you can give, or an action whose permission is `request-user`, it makes a request and stops. `requests list` shows what is pending; `requests accept <id>` runs the action once under your permission; `requests decline <id>` changes nothing. Accepting a request that blocks a plan resumes the plan. Accepting a request to start a plan starts it; when you accept it with `/requests accept <id>` in your harness, the plan's session opens for you, and when you accept it with `specplane requests accept <id>` in a terminal nothing opens and the output prints the command that opens the session (for Claude Code, `claude "/specplane-plan-step <plan-id>"` in the plan's worktree). If the harness cannot open sessions, or the launch fails, the request stays accepted and the same command is printed.
