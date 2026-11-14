@@ -56,6 +56,7 @@ test("an approved spec with no change says so; a change since approval is shown 
     assert.equal((plain.data as { changed: boolean }).changed, true);
     const lines = plain.lines ?? [];
     assert.ok(lines.includes("Changed since the last approval:"));
+    assert.ok(lines.includes("note: uncommitted changes are ignored"), "R40: the status is HEAD's, and the view says so");
     assert.ok(lines.includes("+Added sentence."));
     assert.ok(!lines.some((l) => l.includes("\u001b")), "no colour unless asked");
     assert.ok(!lines.some((l) => l.startsWith("+++") || l.startsWith("diff --git")), "file headers dropped");
@@ -70,6 +71,8 @@ test("a requirement file shows its change since HEAD, and an unknown id is not f
     fs.appendFileSync(path.join(root, "docs/requirements/product-requirements.md"), "\n**R2: Two**\nNew\n");
     const r = specViewCommand(root, "requirement/product-requirements");
     assert.match((r.lines ?? []).join("\n"), /Changed since HEAD:/);
+    assert.ok((r.lines ?? []).includes("note: uncommitted changes are ignored"), "R40: the worktree text is labelled");
+    assert.ok((r.lines ?? []).some((l) => /^note: the change and the text below include uncommitted edits/.test(l)));
     assert.ok((r.lines ?? []).includes("+**R2: Two**"));
     assert.throws(() => specViewCommand(root, "feature/nope"), SpecNotFoundError);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }

@@ -70,6 +70,9 @@ export function specViewCommand(root: string, id: string, color = false): Comman
     `authors: ${v.authors.join(", ") || "none"}`,
   ];
   if (v.approver) lines.push(`approved by: ${v.approver}${v.approval_date ? ` on ${v.approval_date}` : ""}`);
+  for (const n of v.notes) lines.push(`note: ${n}`);
+  // The status above is read from HEAD; the change and the text below are the working tree (`R40`).
+  if (current !== doc.text) lines.push("note: the change and the text below include uncommitted edits, which are not the current state of the specification");
   lines.push("");
   let changed = false;
   if (baseline === null && doc.layer !== "requirement") {

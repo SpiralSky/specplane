@@ -64,6 +64,8 @@ test("spec show reads approval from the notes store and notes uncommitted edits;
     assert.match(shown.out, /status: approved/);
     assert.match(shown.out, /approved by: human:tester on \d{4}-\d{2}-\d{2}/);
     assert.match(shown.out, /note: uncommitted changes are ignored/);
+    fs.appendFileSync(path.join(root, "docs/requirements/product-requirements.md"), "\n**R3: Three**\nNew\n");
+    assert.match(sp(root, "spec", "show", "requirement/product-requirements").out, /note: uncommitted changes are ignored/, "a requirement file is labelled too (R40)");
     const json = JSON.parse(sp(root, "spec", "show", "feature/alpha", "--json").out);
     assert.equal(json.data.approver, "human:tester");
     assert.deepEqual(json.data.results, []);

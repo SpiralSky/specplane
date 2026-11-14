@@ -44,9 +44,11 @@ function who(v: unknown): string {
 
 function view(ctx: StatusCtx, doc: SpecDoc, working: string | null): SpecView {
   if (doc.layer === "requirement") {
-    // A requirement file is always approved and has no notes, results or implementation (`file-formats` §1.2).
+    // A requirement file is always approved and has no results or implementation (`file-formats` §1.2). Its only
+    // note says that uncommitted changes are not its current state (`R40`).
     const d = (doc.fm.data ?? {}) as Record<string, unknown>;
-    return { id: doc.id, title: typeof d.title === "string" ? d.title : "", type: doc.layer, file: doc.file, status: "approved", reasons: [], notes: [], authors: Array.isArray(d.authors) ? d.authors.map(who) : [], approver: null, approval_date: null, results: [], implementation: null };
+    const notes = working != null && working !== doc.text ? ["uncommitted changes are ignored"] : [];
+    return { id: doc.id, title: typeof d.title === "string" ? d.title : "", type: doc.layer, file: doc.file, status: "approved", reasons: [], notes, authors: Array.isArray(d.authors) ? d.authors.map(who) : [], approver: null, approval_date: null, results: [], implementation: null };
   }
   const st = computeStatus(ctx.head, doc, ctx, working);
   const d = (doc.fm.data ?? {}) as Record<string, unknown>;
