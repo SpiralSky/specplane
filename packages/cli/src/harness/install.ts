@@ -28,7 +28,9 @@ export interface BlockTarget { file: string; text: string }
 export interface SettingsTarget { path: string; template: Record<string, unknown> }
 /** One table in a shared TOML file (Codex `config.toml`): added only when absent, never rewritten (`codex-integration` §1). */
 export interface TomlEntryTarget { path: string; table: string; lines: string[] }
-export interface InstallPlan { harness: string; owned: OwnedFile[]; block?: BlockTarget; settings?: SettingsTarget; toml?: TomlEntryTarget }
+/** One server in a shared JSON `.mcp.json` (Claude Code project MCP file): added only when absent, a differing entry is kept and reported (`claude-integration` §1). */
+export interface McpJsonTarget { path: string; server: string; entry: Record<string, unknown> }
+export interface InstallPlan { harness: string; owned: OwnedFile[]; block?: BlockTarget; settings?: SettingsTarget; toml?: TomlEntryTarget; mcpJson?: McpJsonTarget }
 export interface InstallReport { written: string[]; unchanged: string[]; kept: string[]; lines: string[] }
 export interface HarnessFinding { severity: "error" | "warning"; message: string; file: string }
 
@@ -80,7 +82,10 @@ function claudePlan(stamp: string): InstallPlan {
   for (const name of fs.readdirSync(path.join(dir, "hooks")).filter((n) => n.endsWith(".sh")).sort()) {
     owned.push({ path: `.claude/hooks/${name}`, content: read(`hooks/${name}`), mode: 0o755 });
   }
-  return { harness: "claude", owned, settings: { path: ".claude/settings.json", template: JSON.parse(read("settings.json")) as Record<string, unknown> } };
+  return {
+    harness: "claude", owned, settings: { path: ".claude/settings.json", template: JSON.parse(read("settings.json")) as Record<string, unknown> },
+    mcpJson: { path: CLAUDE_MCP, server: "specplane", entry: { command: "specplane", args: ["mcp"], env: { SPECPLANE_ADAPTER: "claude" } } },
+  };
 }
 
 /** Where the Codex templates live: next to the compiled CLI when packaged, else the repository's own folder. */
@@ -109,6 +114,7 @@ function codexPlan(text: string): InstallPlan {
 }
 
 export const CODEX_CONFIG = ".codex/config.toml";
+export const CLAUDE_MCP = ".mcp.json";
 
 /** The files one named harness needs. */
 export function planFor(root: string, harness: string): InstallPlan {
@@ -188,7 +194,34 @@ function atomicWrite(file: string, content: string, mode?: number): void {
   try { fs.writeFileSync(tmp, content, { flag: "wx" }); if (mode) fs.chmodSync(tmp, mode); fs.renameSync(tmp, file); } finally { fs.rmSync(tmp, { force: true }); }
 }
 
-interface Pending { rel: string; content: string; kind: "owned" | "block" | "settings" | "toml"; mode?: number }
+/**
+ * Add one server to the project's `.mcp.json`. Other servers and keys are kept in order. An existing `specplane` entry
+ * is never overwritten: a different one is reported and left; invalid JSON leaves the file alone with a report.
+ */
+export function mergeMcpJson(existing: string | null, target: McpJsonTarget): { text: string | null; lines: string[]; skipped: boolean } {
+  const render = (v: unknown): string => `${JSON.stringify(v, null, 2)}\n`;
+  if (existing === null) return { text: render({ mcpServers: { [target.server]: target.entry } }), lines: [], skipped: false };
+  let current: Record<string, any>;
+  try {
+    const parsed = JSON.parse(existing) as unknown;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new Error("not an object");
+    current = parsed as Record<string, any>;
+  } catch {
+    return { text: null, lines: [`Skipped ${target.path} (invalid JSON; add the \`${target.server}\` MCP server by hand)`], skipped: true };
+  }
+  const servers = current.mcpServers;
+  if (servers !== undefined && (typeof servers !== "object" || servers === null || Array.isArray(servers))) {
+    return { text: null, lines: [`Skipped ${target.path} (mcpServers is not an object; add the \`${target.server}\` MCP server by hand)`], skipped: true };
+  }
+  if (servers && Object.prototype.hasOwnProperty.call(servers, target.server)) {
+    const same = JSON.stringify(servers[target.server]) === JSON.stringify(target.entry);
+    return { text: null, lines: same ? [] : [`Kept the existing \`${target.server}\` server in ${target.path}: it differs from the one Specplane registers. Remove it and run init again to replace it.`], skipped: false };
+  }
+  (current.mcpServers ??= {})[target.server] = target.entry;
+  return { text: render(current), lines: [], skipped: false };
+}
+
+interface Pending { rel: string; content: string; kind: "owned" | "block" | "settings" | "toml" | "mcp"; mode?: number }
 
 /**
  * Add the one table of `target` to a Codex TOML file. An existing table of that name is left alone (the user may have
@@ -286,6 +319,15 @@ export function installHarness(root: string, harness: string): InstallReport {
     else report.unchanged.push(plan.toml.path);
   }
 
+  if (plan.mcpJson) {
+    refuseSymlinks(root, plan.mcpJson.path);
+    const abs = path.join(root, plan.mcpJson.path);
+    const merged = mergeMcpJson(fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null, plan.mcpJson);
+    report.lines.push(...merged.lines);
+    if (merged.text !== null) pending.push({ rel: plan.mcpJson.path, content: merged.text, kind: "mcp" });
+    else if (!merged.skipped) report.unchanged.push(plan.mcpJson.path);
+  }
+
   if (plan.block) {
     if (!loadSettings(root).config.values["harness.install_block"]) {
       report.lines.push(`Skipped the Specplane block in ${plan.block.file}: harness.install_block is off, so the standing instructions are not installed for ${harness}.`);
@@ -307,7 +349,7 @@ export function installHarness(root: string, harness: string): InstallReport {
   }
 
   for (const p of pending) { atomicWrite(path.join(root, p.rel), p.content, p.mode); report.written.push(p.rel); }
-  const files = [...plan.owned.map((f) => f.path), ...(plan.toml ? [plan.toml.path] : []), ...(plan.block && report.written.concat(report.unchanged).includes(plan.block.file) ? [plan.block.file] : [])];
+  const files = [...plan.owned.map((f) => f.path), ...(plan.toml ? [plan.toml.path] : []), ...(plan.mcpJson ? [plan.mcpJson.path] : []), ...(plan.block && report.written.concat(report.unchanged).includes(plan.block.file) ? [plan.block.file] : [])];
   const record = readStoreJson<Record<string, string[]>>(root, RECORD) ?? {};
   writeStoreJson(root, RECORD, { ...record, [harness]: files.filter((f) => !report.kept.includes(f)) });
   // Rewritten hooks and settings are writable again; strict mode keeps them read-only (`roles-and-permissions R55.1`).

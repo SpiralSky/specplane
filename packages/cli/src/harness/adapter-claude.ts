@@ -49,6 +49,12 @@ const ALLOWED_TOOLS = ["Skill", "mcp__specplane"];
 /** Hard limits the classifier cannot override. The Specplane CLI is for people (`harness R47`). */
 const DISALLOWED_TOOLS = ["git push", "git reset --hard", "git clean", "sudo", "npm publish", "specplane", "npx specplane", "bunx specplane"].map((c) => `Bash(${c} *)`);
 
+/** Whether `system/init` lists the Specplane plugin or a connected-or-listed `specplane` MCP server (`claude-integration` §10). */
+export function reportsSpecplane(ev: Record<string, unknown>): boolean {
+  const named = (list: unknown, name: string): boolean => Array.isArray(list) && list.some((p) => (p as { name?: unknown } | null)?.name === name);
+  return named(ev.plugins, PLUGIN_NAME) || named(ev.mcp_servers, "specplane");
+}
+
 /** The one line that starts the step: the skill and the plan, no free text from the plan. */
 export function sessionPrompt(planId: string): string {
   return `Use the specplane-plan-step skill for plan ${planId}. Work only in this checkout.`;
@@ -159,9 +165,9 @@ export async function runPlanSession(ctx: PlanCtx, planId: string, deps: ClaudeD
 
   const onEvent = (ev: Record<string, unknown>): void => {
     if (ev.type === "system" && ev.subtype === "init") {
-      initOk = ev.permissionMode === PERMISSION_MODE && Array.isArray(ev.plugins) && ev.plugins.some((p) => (p as { name?: unknown } | null)?.name === PLUGIN_NAME);
-      // Without the plugin or the mode the session lacks its tools and policy: stop it rather than let it work unguarded.
-      if (!initOk) { notes.push("The session did not report the Specplane plugin and auto mode, so it was stopped."); void killNow(); }
+      initOk = ev.permissionMode === PERMISSION_MODE && reportsSpecplane(ev);
+      // Without the plugin or the MCP server, or without the mode, the session lacks its tools and policy: stop it rather than let it work unguarded.
+      if (!initOk) { notes.push("The session did not report the Specplane plugin or the `specplane` MCP server, and auto mode, so it was stopped. Run `specplane init --harness claude` to register the MCP server, or install the plugin."); void killNow(); }
       return;
     }
     const readings = readUsage(ev);

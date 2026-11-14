@@ -11,7 +11,7 @@ import { loadPlanAt, readStore, worktreeOf, type PlanCtx, type RunMarker } from 
 import { setBudget, startPlan } from "../plan/run.js";
 import { sendRequest } from "../requests/ops.js";
 import { makeRepo } from "../test-repo.js";
-import { buildArgv, claudeLauncher, CLAUDE_RESOURCES, manualCommand, readUsage, runPlanSession, sessionPrompt, type ClaudeDeps, type SessionProcess } from "./adapter-claude.js";
+import { buildArgv, claudeLauncher, CLAUDE_RESOURCES, manualCommand, readUsage, reportsSpecplane, runPlanSession, sessionPrompt, type ClaudeDeps, type SessionProcess } from "./adapter-claude.js";
 import { runHarnessCommand, type SessionLauncher } from "./run.js";
 import "./adapters.js";
 
@@ -180,6 +180,23 @@ test("a session without the plugin is stopped, fails, and leaves its marker to g
   assert.ok(f.kills.includes("SIGTERM"));
   assert.ok(marker(root));
   assert.ok(r.notes.some((n) => /did not report the Specplane plugin/.test(n)));
+});
+
+test("the init check accepts the plugin or the specplane MCP server and refuses neither", async () => {
+  const run = async (init: Record<string, unknown>): Promise<string> => {
+    const { ctx } = started();
+    const f = fake();
+    const p = runPlanSession(ctx, ID, f.deps);
+    f.emit({ type: "system", subtype: "init", permissionMode: "auto", ...init });
+    if (f.kills.length === 0) { f.emit(RESULT); f.exit(0); } else await tick();
+    return (await p).outcome;
+  };
+  assert.equal(await run({ mcp_servers: [{ name: "specplane", status: "connected" }], plugins: [] }), "completed");
+  assert.equal(await run({ plugins: [{ name: "specplane" }] }), "completed");
+  assert.equal(await run({ mcp_servers: [{ name: "other", status: "connected" }], plugins: [{ name: "other" }] }), "failed");
+  assert.equal(await run({}), "failed");
+  assert.equal(reportsSpecplane({ mcp_servers: [{ name: "specplane" }] }), true);
+  assert.equal(reportsSpecplane({ mcp_servers: "specplane" }), false);
 });
 
 test("a plan that is not in progress, or has no worktree, is refused before anything starts", async () => {
