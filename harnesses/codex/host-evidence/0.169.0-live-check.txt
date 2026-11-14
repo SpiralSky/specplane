@@ -1,0 +1,29 @@
+codex-cli 0.169.0, live check of the Specplane installation, 2026-11-14.
+(architecture/codex-integration; architecture/reference-cli §12)
+
+Scope: three `codex exec` runs with model gpt-6-luna and the read-only sandbox, in the
+maintainers' repository, which the user's ~/.codex/config.toml lists as trusted and which has
+the committed .codex/config.toml ([mcp_servers.specplane]) and .agents/skills/specplane.
+Started without SPECPLANE_* variables. bypass_guards.headless_block was off for each run with
+the user's agreement and restored. Observed in the --json output and the audit log.
+
+1. Tools. The model listed 43 tools named mcp__specplane__<action>: a trusted project's
+   .codex/config.toml loads mcp_servers.specplane. (An earlier attempt that passed trust as a
+   -c override in an untrusted fixture loaded none.)
+2. Skill. The skill "specplane" was available with its description.
+3. Environment. printenv showed no SPECPLANE_* variable in the Codex shell: Codex sets none,
+   so a CLI call from that shell carries no LLM marker.
+4. Tool calls in `codex exec`. role_list failed three times with "MCP tool call requires
+   approval, but approval policy is never". With default_tools_approval_mode = "approve" in
+   the mcp_servers.specplane table the call succeeded, both when passed as a -c override and
+   when written into the project's .codex/config.toml (the file was restored afterwards).
+   The installer does not write that line today.
+5. Subagents. The main agent started a subagent (a collab tool call) which called role_list.
+   Without the approval setting the subagent's call failed with the same error; with it the
+   call succeeded.
+6. Audit. The main agent's and the subagent's calls were recorded with role llm, name unknown,
+   model unknown, and two different sessions (mcp-<id>): each had its own server process and
+   no field tells the subagent from the main agent.
+
+Not verified: an interactive Codex session and its approval prompt for these tools,
+SPECPLANE_ADAPTER reaching the server (not read back), a plan step, a role rule.

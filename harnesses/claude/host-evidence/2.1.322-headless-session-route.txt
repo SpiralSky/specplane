@@ -1,0 +1,43 @@
+Claude Code 2.1.322, live check of the headless session route, 2026-11-14.
+(architecture/claude-integration §4; packages/cli/src/harness/adapter-claude.ts buildArgv)
+
+Scope: headless runs with model claude-haiku-5-5 and a USD 1 cap. bypass_guards.headless_block
+was off in the maintainers' repository for each run with the user's agreement and restored.
+Observed in the stream-json output unless marked as an inference. Raw logs are not committed.
+
+A. Stream-json route (two runs in a fixture repository with a minimal .specplane/config.yaml)
+   Arguments: exactly those of buildArgv (-p, --session-id, --permission-mode auto,
+   --permission-prompts none, --allowedTools Skill,mcp__specplane, the disallowed Bash list,
+   --input-format stream-json, --output-format stream-json, --verbose), plus, for the check
+   only, --model haiku, --max-budget-usd 1 and --plugin-dir packages/cli/dist/plugin. The
+   environment had the adapter's variables (SPECPLANE_SESSION, SPECPLANE_CHECKOUT, the LLM
+   marker) and no other SPECPLANE_* variable.
+   1. The host accepted the arguments. system/init reported permissionMode auto, the plugin
+      "specplane" and 43 tools named mcp__specplane__<action>: the adapter's init check holds.
+   2. A user message written to standard input as one JSON line started a turn; a second line
+      written after the first result started a second turn in the same process (the route a
+      soft stop uses). Closing standard input ended the process with exit code 0.
+   3. mcp__specplane__role_list ran without a prompt under --permission-prompts none. A Bash
+      printenv command also ran under auto mode.
+   4. Fixture with the plugin only: no Specplane skill was listed, the model's context had no
+      documentation essentials, and SPECPLANE_AGENT was unset. The plugin carries no skills
+      and no SessionStart shell hook, so a plan session needs the installed files as well.
+   5. Fixture with the installed hooks, rules, skills and settings (copied from .claude/) and
+      the plugin: the 16 specplane-* skills were listed, the model quoted the first sentence
+      of the essentials from its context (SessionStart additionalContext reaches a headless
+      model), and printenv returned SPECPLANE_SESSION, SPECPLANE_CHECKOUT and
+      SPECPLANE_AGENT=claude-code.
+
+B. CLAUDE_ENV_FILE in a spawned headless session (one run in the maintainers' repository with
+   its installed hooks, no plugin, started without SPECPLANE_* variables or CLAUDE_ENV_FILE)
+   printenv in the session's Bash returned the LLM marker (llm), SPECPLANE_PROVIDER=anthropic,
+   SPECPLANE_AGENT=claude-code and SPECPLANE_SESSION equal to the session id: the SessionStart
+   hook's exports reach the shell of a headless session.
+   SPECPLANE_MODEL was unset and SPECPLANE_AGENT had no model suffix, in this run and in A.5.
+   Inference: the SessionStart hook input of a headless run carries no model field. The hook
+   input itself was not captured.
+
+Not verified: plan.start opening the session from a model call (the LLM role has request-user
+for plan.start, and start conditions need an approved plan, so a person must take part), a
+plan step with a [parallel] task group, a soft stop sent by the monitor at a budget limit,
+--resume, the adapter run without --plugin-dir against an installed plugin, MCP elicitation.
