@@ -165,6 +165,35 @@ test("a subagent's call takes its role from the host's caller record, once, and 
   assert.equal(fs.existsSync(path.join(callers, "toolu_old.json")), false);
 });
 
+test("a subagent inherits the session's role unless a rule about the subagent overrides it (R42.1)", async () => {
+  const root = repo();
+  for (const r of ["lead", "helper", "vendor"]) assert.equal(roleCreate(ctx(root), r, { level: 2, defaultMode: "deny", sets: ["info.retrieve=allow"] }).ok, true);
+  commit(root);
+  for (const r of ["lead", "helper", "vendor"]) assert.equal(roleApprove(ctx(root), r).ok, true);
+  assert.equal(ruleCreate(ctx(root), "lead-session", { role: "lead", matches: ["agent_type=reviewer"], priority: 5 }).ok, true);
+  assert.equal(ruleCreate(ctx(root), "scribe-sub", { role: "helper", matches: ["subagent=scribe"] }).ok, true);
+  // A rule on the model alone matches the session too, so it is not an override of the subagent.
+  assert.equal(ruleCreate(ctx(root), "by-model", { role: "vendor", matches: ["model=m"] }).ok, true);
+  commit(root);
+  for (const r of ["lead-session", "scribe-sub", "by-model"]) assert.equal(ruleApprove(ctx(root), r).ok, true);
+  const { createMcpServer } = await import("./mcp.js");
+  const { storeDir } = await import("../repo/store.js");
+  const server = createMcpServer({ root, id: "mcp2", model: "m", agentType: "reviewer", reportsContext: false });
+  const callers = path.join(storeDir(root), "callers");
+  fs.mkdirSync(callers, { recursive: true });
+  let n = 0;
+  const role = async (rec?: unknown): Promise<string> => {
+    const id = `toolu_${++n}`;
+    if (rec) fs.writeFileSync(path.join(callers, `${id}.json`), JSON.stringify({ ...(rec as object), at: new Date().toISOString() }));
+    const line = await server.handleLine(JSON.stringify({ jsonrpc: "2.0", id: n, method: "tools/call", params: { name: "role_list", arguments: {}, _meta: { "claudecode/toolUseId": id } } }));
+    assert.equal(JSON.parse(line!).result.isError, false);
+    return fs.readFileSync(path.join(root, ".git", "specplane", "audit.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { actor: { role: string } }).pop()!.actor.role;
+  };
+  assert.equal(await role(), "lead", "the session itself");
+  assert.equal(await role({ agent_type: "Explore", agent_id: "a1" }), "lead", "a subagent with no rule of its own inherits");
+  assert.equal(await role({ agent_type: "scribe", agent_id: "a2" }), "helper", "a rule on the subagent overrides");
+});
+
 test("validation warns when a rule states the subagent and the Claude caller hook is missing", async () => {
   const root = repo();
   assert.equal(roleCreate(ctx(root), "helper", { level: 2, defaultMode: "deny", sets: ["info.retrieve=allow"] }).ok, true);

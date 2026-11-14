@@ -2,7 +2,7 @@ import { type Caller } from "./caller.js";
 import { type LlmFactors } from "../perm/llm-rules.js";
 import { createAjv } from "../ajv.js";
 import { activePreset, guard, type Actor } from "../perm/permissions.js";
-import { resolveLlmRole } from "../perm/llm-rules.js";
+import { resolveLlmRole, resolveSubagentRole } from "../perm/llm-rules.js";
 import { roleList, roleShow, ruleList } from "../perm/role-ops.js";
 import { listPermissions, describePermission } from "../perm/docs.js";
 import { approveSpecs, metaGet, type Ctx } from "../spec/human.js";
@@ -121,7 +121,8 @@ export function createActionRuntime(session: ActionSession) {
       const callFactors: LlmFactors = { ...factors, ...(caller?.agentType ? { agent_type: caller.agentType } : {}),
         ...(caller?.agentId ? { delegated: true, ...(caller.agentType ? { subagent: caller.agentType } : {}) } : {}) };
       const actor: Actor = { ...base, ...(caller?.agentId ? { delegatedBy: base.delegatedBy ?? session.id } : {}), ...(caller?.agentType ? { agentType: caller.agentType } : {}),
-        ...(caller?.agentId ? { agentId: caller.agentId } : {}), role: resolveLlmRole(session.root, callFactors) };
+        ...(caller?.agentId ? { agentId: caller.agentId } : {}), // A subagent inherits the session's role unless a rule about the subagent itself overrides it (`R42.1`).
+        role: caller?.agentId ? resolveSubagentRole(session.root, callFactors, factors) : resolveLlmRole(session.root, callFactors) };
       let permissions: string[] = [];
       try {
         const action = validateActionInput(id, input);

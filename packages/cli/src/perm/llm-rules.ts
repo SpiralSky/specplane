@@ -44,11 +44,29 @@ export function ruleStatuses(root: string): RuleStatus[] {
   });
 }
 
+/** The applicable rules that match these factors, the one that decides first. */
+function matching(root: string, factors: LlmFactors): RuleFile[] {
+  const usable = ruleStatuses(root).filter((s) => s.approved && s.roleApplies && (!s.needsTrust || s.trusted) && ruleMatches(s.rule, factors));
+  usable.sort((a, b) => b.rule.priority - a.rule.priority || a.rule.id.localeCompare(b.rule.id));
+  return usable.map((s) => s.rule);
+}
+
 /** The role an LLM with these factors has: the matching applicable rule of the highest priority (then the smallest ID), else `llm`. */
 export function resolveLlmRole(root: string, factors: LlmFactors): RoleId {
+  try { return matching(root, factors)[0]?.role ?? "llm"; } catch { return "llm"; }
+}
+
+/** Factors that tell a subagent from the LLM that started it. */
+const SUBAGENT_FACTORS: Factor[] = ["subagent", "agent_type", "delegated"];
+
+/**
+ * The role of a subagent (`R42.1`): it inherits its parent's role unless a rule overrides it. A rule overrides when it
+ * matches the subagent and states a factor that is about the subagent itself; a rule on the provider or the model alone
+ * matches the parent as well, so it is already part of the parent's role.
+ */
+export function resolveSubagentRole(root: string, factors: LlmFactors, parent: LlmFactors): RoleId {
   try {
-    const usable = ruleStatuses(root).filter((s) => s.approved && s.roleApplies && (!s.needsTrust || s.trusted) && ruleMatches(s.rule, factors));
-    usable.sort((a, b) => b.rule.priority - a.rule.priority || a.rule.id.localeCompare(b.rule.id));
-    return usable[0]?.rule.role ?? "llm";
+    const own = matching(root, factors).find((r) => SUBAGENT_FACTORS.some((k) => k in r.match));
+    return own?.role ?? resolveLlmRole(root, parent);
   } catch { return "llm"; }
 }
