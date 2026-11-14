@@ -110,11 +110,13 @@ export interface ActionSession extends InstructionSession { measurable?: string[
 export function createActionRuntime(session: ActionSession) {
   if (session.command) beginCommand(session.root, session.id, session.command);
   const sessionWarnings: Warning[] = [];
-  const base: Actor = { role: "llm", kind: "llm", name: session.model || "unknown", model: session.model || "unknown", session: session.id, delegatedBy: session.delegatedBy };
-  // What the harness knows about this LLM, matched by the LLM role rules (`R44.1`); never taken from tool input.
-  const factors = { ...(session.subagent ? { subagent: session.subagent } : {}), ...(session.agentType ? { agent_type: session.agentType } : {}), ...(session.provider ? { provider: session.provider } : {}), ...(session.model ? { model: session.model } : {}), delegated: !!session.delegatedBy };
   return {
-    async call(id: string, input: unknown, caller?: Caller): Promise<ActionReply> {
+    /** `model` is the model of this one call when the host reports it per call (the session server); otherwise the session's. */
+    async call(id: string, input: unknown, caller?: Caller, callModel?: string): Promise<ActionReply> {
+      const model = callModel || session.model;
+      const base: Actor = { role: "llm", kind: "llm", name: model || "unknown", model: model || "unknown", session: session.id, delegatedBy: session.delegatedBy };
+      // What the harness knows about this LLM, matched by the LLM role rules (`R44.1`); never taken from tool input.
+      const factors = { ...(session.subagent ? { subagent: session.subagent } : {}), ...(session.agentType ? { agent_type: session.agentType } : {}), ...(session.provider ? { provider: session.provider } : {}), ...(model ? { model } : {}), delegated: !!session.delegatedBy };
       const reply: ActionReply = { ok: false, findings: [], instructions: [] };
       // The host's record of who made this call overrides the session's factors (`R58`): a subagent is the agent type
       // when it has an ID; an agent type alone (a session started with `--agent`) sets only `agent_type`.

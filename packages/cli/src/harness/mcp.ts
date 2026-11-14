@@ -1,6 +1,6 @@
 import { takeCaller, toolUseIdOf } from "./caller.js";
 import * as readline from "node:readline";
-import { createActionRuntime, listActions, type ActionSession } from "./actions.js";
+import { createActionRuntime, listActions, type ActionReply, type ActionSession } from "./actions.js";
 
 /**
  * The Specplane MCP server (`architecture/reference-cli` §12.1 channel): JSON-RPC 2.0 over newline-delimited stdio with
@@ -17,6 +17,14 @@ type Json = Record<string, unknown>;
 const isObject = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
 const failure = (id: unknown, code: number, message: string): string => JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 const success = (id: unknown, result: unknown): string => JSON.stringify({ jsonrpc: "2.0", id, result });
+
+/** The text an MCP tool result carries for a reply; the session server returns the same text (`reference-cli` §12.8). */
+export const replyText = (reply: ActionReply): string => JSON.stringify(reply);
+
+/** The action id a tool name stands for (`spec_retrieve` is `spec.retrieve`), or undefined when there is none. */
+export function actionOfTool(name: unknown): string | undefined {
+  return typeof name === "string" ? listActions().find((a) => toolName(a.id) === name)?.id : undefined;
+}
 
 export function listTools(): { name: string; description: string; inputSchema: unknown }[] {
   // Permissions can depend on the input (a spec write needs the layer's permission), so the description does not list them.
@@ -66,7 +74,7 @@ export function createMcpServer(session: ActionSession, options: McpServerOption
           const action = typeof params.name === "string" ? byTool.get(params.name) : undefined;
           if (!action) return failure(id, -32602, `Unknown tool: ${String(params.name)}`);
           const reply = await runtime.call(action, params.arguments ?? {}, takeCaller(session.root, toolUseIdOf(params)));
-          return success(id, { content: [{ type: "text", text: JSON.stringify(reply) }], isError: !reply.ok });
+          return success(id, { content: [{ type: "text", text: replyText(reply) }], isError: !reply.ok });
         }
         default: return failure(id, -32601, `Method not found: ${method}`);
       }
