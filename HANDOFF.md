@@ -21,6 +21,7 @@ Updated 2026-11-14 after the first live rerun check and the push. Read the first
   4. The session check when several `specplane` MCP entries are listed (now passes unless all are dead): decide, test, and state it in the spec.
   5. The audits left unchecked: project-prefixed cite resolution (R7) and the R42.2 level numbers.
 - The local session keeps the live rerun and merges or cherry-picks the cloud branch afterwards.
+- The cloud session was started on 2026-11-14: `session_011WogkRA75hEy1vrnBPfrta` (`claude --teleport session_011WogkRA75hEy1vrnBPfrta` resumes it locally). Whether it picked up the branch, the agents and the model setting was not checked.
 
 ### Fixture gaps fixed (2026-11-14, later session; Sonnet workers one unit each, one independent review)
 
