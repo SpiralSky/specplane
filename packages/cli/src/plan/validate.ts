@@ -3,7 +3,7 @@ import { citeKey, extractBodyCites, parseCite, type Layer } from "../spec/cites.
 import { LEGACY_RECORD_KEYS as LEGACY_KEYS } from "../spec/fingerprint.js";
 import { indexSections } from "../spec/sections.js";
 import { resolveCite, type Project, findDoc } from "../spec/project.js";
-import { EXEC_STATUSES, GAP_FIELDS, HANDOFF_SECTIONS, MAX_PLAN_ID, PLAN_ID_RE, latestEntry, planImplements, planReferences, referencedPlans, stepNumbers, type PlanRecord } from "./model.js";
+import { EXEC_STATUSES, GAP_FIELDS, HANDOFF_SECTIONS, MAX_PLAN_ID, handoffEntryTemplate, PLAN_ID_RE, latestEntry, planImplements, planReferences, referencedPlans, stepNumbers, type PlanRecord } from "./model.js";
 import { parseTasks, taskProblems } from "./tasks.js";
 
 /** Plan validation rules (`architecture/reference-cli` §11.1, `architecture/file-formats` §5). */
@@ -148,10 +148,11 @@ function checkOne(p: PlanRecord, project: Project, root: string | null, emit: Pl
   }
 
   // handoff
+  const form = (step: number) => `\nRequired form:\n\n${handoffEntryTemplate({ step })}\n`;
   const doneSet = new Set(pr?.done ?? []);
   for (const e of p.handoff) {
-    if (e.outcome !== "done" && e.outcome !== "partial") err(`handoff entry for step ${e.step}: Outcome must be done or partial`, p.handoffFile, e.line);
-    if (e.missing.length) err(`handoff entry for step ${e.step} is missing ${e.missing.join(", ")} (all of ${HANDOFF_SECTIONS.length} sections are required)`, p.handoffFile, e.line);
+    if (e.outcome !== "done" && e.outcome !== "partial") err(`handoff entry for step ${e.step}: Outcome must be done or partial; the line must read exactly \`**Outcome**: done\` or \`**Outcome**: partial\`${form(e.step)}`, p.handoffFile, e.line);
+    if (e.missing.length) err(`handoff entry for step ${e.step} is missing ${e.missing.join(", ")} (all of ${HANDOFF_SECTIONS.length} sections are required)${form(e.step)}`, p.handoffFile, e.line);
     if (!stepNumbers(p).includes(e.step)) err(`handoff entry names step ${e.step}, which has no step file`, p.handoffFile, e.line);
   }
   for (const n of stepNumbers(p)) {

@@ -5,7 +5,7 @@ import { parseCite } from "../spec/cites.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject, resolveCite } from "../spec/project.js";
 import { committedSource } from "../spec/source.js";
-import { HANDOFF_SECTIONS, findPlan, latestEntry, loadPlans, nextStep, planImplements, planReferences, referencedPlans, type PlanRecord } from "./model.js";
+import { HANDOFF_SECTIONS, findPlan, handoffEntryTemplate, stepTitle, latestEntry, loadPlans, nextStep, planImplements, planReferences, referencedPlans, type PlanRecord } from "./model.js";
 import { readRequest } from "../requests/store.js";
 import { withStoreLockWait } from "../repo/store.js";
 import {
@@ -145,9 +145,15 @@ function stepDoneInner(ctx: PlanCtx, id: string, o: StepDoneOpts) {
   if (next === null) throw new PlanOpError("Every step is done.");
   if (o.step !== next) throw new PlanOpError(`Denied: step ${pad(o.step)} cannot be recorded before step ${pad(next)}, which comes first.`);
   const entry = latestEntry(rec, o.step);
-  if (!entry) throw new PlanOpError(`HANDOFF.md has no entry for step ${pad(o.step)}; write it first.`);
-  if (entry.outcome !== o.outcome) throw new PlanOpError(`The latest handoff entry for step ${pad(o.step)} has outcome ${entry.outcome ?? "(none)"}, not ${o.outcome}.`);
-  if (entry.missing.length) throw new PlanOpError(`The handoff entry for step ${pad(o.step)} is missing ${entry.missing.join(", ")}; all ${HANDOFF_SECTIONS.length} sections are required (write \`None.\` for an empty one).`);
+  const entryStep = rec.steps.find((x) => x.number === o.step);
+  const form = () => `\nRequired form, appended to ${rec.handoffFile} (the heading must read exactly \`## Step ${pad(o.step)}: <title>\`, the two bold fields and all ${HANDOFF_SECTIONS.length} \`###\` sections are required, write \`None.\` for an empty section; replace every <placeholder>):\n\n${handoffEntryTemplate({ step: o.step, title: entryStep ? stepTitle(entryStep) : undefined, outcome: o.outcome })}\n`;
+  if (!entry) {
+    const headings = (rec.handoffText ?? "").split("\n").filter((l) => /^#{1,6} /.test(l) && !/^# HANDOFF: /.test(l));
+    const found = headings.length ? `Headings found in it: ${headings.map((h) => `\`${h}\``).join(", ")}, none of which is \`## Step ${pad(o.step)}: <title>\`.` : "It has no headings.";
+    throw new PlanOpError(`${rec.handoffFile} has no entry for step ${pad(o.step)}; write it first. ${found}${form()}`);
+  }
+  if (entry.outcome !== o.outcome) throw new PlanOpError(`The latest handoff entry for step ${pad(o.step)} (${rec.handoffFile} line ${entry.line}) has outcome ${entry.outcome ?? "(none)"}, not ${o.outcome}; the line must read exactly \`**Outcome**: ${o.outcome}\`.${form()}`);
+  if (entry.missing.length) throw new PlanOpError(`The handoff entry for step ${pad(o.step)} (${rec.handoffFile} line ${entry.line}) is missing or has an empty section: ${entry.missing.map((m) => `\`### ${m}\``).join(", ")}; all ${HANDOFF_SECTIONS.length} sections are required (write \`None.\` for an empty one).${form()}`);
   const done = o.outcome === "done" ? [...pr.done, o.step].sort((a, b) => a - b) : pr.done;
   const after = { ...rec, progress: { ...pr, done } };
   const nxt = nextStep(after);

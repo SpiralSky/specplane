@@ -26,7 +26,7 @@ test("all sixteen packaged contracts have versioned, ordered parts and action-on
   for (const key of COMMANDS) {
     const contract = readContract(key);
     assert.ok(contract.startsWith(`<!-- Specplane command contract v${version};`), key);
-    assert.deepEqual([...contract.matchAll(/^## (.*)$/gm)].map((m) => m[1]), ["Purpose", "Preconditions", "Steps", "Permissions and requests", "Output"]);
+    assert.deepEqual([...contract.replace(/^```[\s\S]*?^```$/gm, "").matchAll(/^## (.*)$/gm)].map((m) => m[1]), ["Purpose", "Preconditions", "Steps", "Permissions and requests", "Output"]);
     assert.match(contract, /1\. \[code\] `config.get`/);
     assert.doesNotMatch(contract, /`specplane\s|\b(?:npx|bunx)\s+specplane|request\.accept|request\.decline|role\.switch/);
     for (const step of contract.matchAll(/^\d+\. (.*)$/gm)) assert.match(step[1], /^\[(code|llm)\]/);

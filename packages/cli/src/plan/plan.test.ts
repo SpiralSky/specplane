@@ -17,7 +17,7 @@ import { approvePlan, createPlan } from "./create.js";
 import { abandonPlan, deletePlan, finishPlan, mergePlan, reviewPlan } from "./finish.js";
 import { PlanOpError, loadPlanAt, logBudgetHardStop, writeRun, readStore, worktreeOf, writeStore, type PlanCtx } from "./ctx.js";
 import { RequestSent } from "../requests/hold.js";
-import { parseGaps, parseHandoff } from "./model.js";
+import { handoffEntryTemplate, parseGaps, parseHandoff } from "./model.js";
 import { resumePlan, retargetPlan, setBudget, startPlan, stepDone, stopPlan } from "./run.js";
 import { checkSelection, describePlan, listInfos } from "./status.js";
 
@@ -196,7 +196,28 @@ test("full flow: steps in order, soft stop, resume, final review, finish, local 
   refused(() => stepDone(fx.ctx, ID, { step: 1, outcome: "done" }), /no entry for step 01/);
   refused(() => stepDone(fx.ctx, ID, { step: 2, outcome: "done" }), /step 02 cannot be recorded before step 01/);
   const handoff = path.join(wt, "plans", ID, "HANDOFF.md");
-  fs.writeFileSync(handoff, `# HANDOFF: ${ID}\n${entry(1)}`);
+  // every refusal prints the required form for this step, and the printed form is itself accepted
+  const form = (fn: () => unknown): string => {
+    try { fn(); } catch (e) { const m = (e as Error).message; assert.match(m, new RegExp(`plans/${ID}/HANDOFF.md`)); return m.slice(m.indexOf("## Step 01: First step")).trimEnd(); }
+    throw new Error("expected a refusal");
+  };
+  const printed = form(() => stepDone(fx.ctx, ID, { step: 1, outcome: "done" }));
+  assert.equal(printed, handoffEntryTemplate({ step: 1, title: "First step", outcome: "done" }));
+  fs.writeFileSync(handoff, `# HANDOFF: ${ID}\n${entry(1, "partial")}`);
+  refused(() => stepDone(fx.ctx, ID, { step: 1, outcome: "done" }), /has outcome partial, not done; the line must read exactly `\*\*Outcome\*\*: done`/);
+  assert.equal(form(() => stepDone(fx.ctx, ID, { step: 1, outcome: "done" })), printed);
+  fs.writeFileSync(handoff, `# HANDOFF: ${ID}\n${entry(1).replace("### Open issues\nNone.\n\n", "")}`);
+  // the commit-time validation (`specplane validate`) states the same required form for the same fault
+  const found = validateProject(wt).findings.find((f) => /handoff entry for step 1 is missing/.test(f.message));
+  assert.ok(found, "validate reports the missing section");
+  assert.ok(found!.message.endsWith(`Required form:\n\n${handoffEntryTemplate({ step: 1 })}\n`));
+  refused(() => stepDone(fx.ctx, ID, { step: 1, outcome: "done" }), /missing or has an empty section: `### Open issues`/);
+  assert.equal(form(() => stepDone(fx.ctx, ID, { step: 1, outcome: "done" })), printed);
+  fs.writeFileSync(handoff, `# HANDOFF: ${ID}\n\n## Step 1 - First step\n\nDone.\n`);
+  refused(() => stepDone(fx.ctx, ID, { step: 1, outcome: "done" }), /Headings found in it: `## Step 1 - First step`/);
+  // the printed form is accepted once its placeholders are filled in
+  assert.match(printed, /### What changed\n.*<path>/);
+  fs.writeFileSync(handoff, `# HANDOFF: ${ID}\n\n${printed.replace(/(### What changed\n).*/, "$1- `f1.txt`: work")}\n`);
   fs.writeFileSync(path.join(wt, "f1.txt"), "work\n");
   const d1 = stepDone(fx.ctx, ID, { step: 1, outcome: "done", summary: "do the first step" });
   assert.equal(d1.allDone, false);

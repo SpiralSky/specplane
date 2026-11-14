@@ -111,6 +111,29 @@ export function parseHandoff(text: string): HandoffEntry[] {
   });
 }
 
+const ENTRY_PLACEHOLDERS: Record<(typeof HANDOFF_SECTIONS)[number], string> = {
+  "What changed": "- `<path>`: <reason>",
+  "Deviations from the step": "None. | <text>",
+  "Gaps found": "None. | - G<n> (<kind>): <one line>",
+  "Open issues": "None. | - <text>",
+  "What the next step must know": "<self-contained facts>",
+};
+
+/**
+ * The one definition of a HANDOFF.md entry (`architecture/file-formats` §5.5). `parseHandoff` reads this form, the
+ * step-done refusals print it for the step in question, and the plan-step contract and the plans documentation quote
+ * `handoffEntryTemplate()` verbatim; a test keeps all of them equal.
+ */
+export function handoffEntryTemplate(o: { step?: number; title?: string; outcome?: string; date?: string } = {}): string {
+  const heading = `## Step ${o.step === undefined ? "NN" : String(o.step).padStart(2, "0")}: ${o.title ?? "<step title>"}`;
+  return [
+    heading, "",
+    `**Date**: ${o.date ?? "YYYY-MM-DD"}`,
+    `**Outcome**: ${o.outcome ?? "done | partial"}`,
+    ...HANDOFF_SECTIONS.flatMap((n) => ["", `### ${n}`, ENTRY_PLACEHOLDERS[n]]),
+  ].join("\n");
+}
+
 export function parseGaps(text: string): GapEntry[] {
   const lines = text.split("\n");
   const starts: { i: number; n: number; title: string }[] = [];
