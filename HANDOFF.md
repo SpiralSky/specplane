@@ -5,9 +5,21 @@ Updated 2026-11-14 after the mod-served actions landed. Read the first "Next ses
 
 ### Current state
 
-- Branch `spec-edits-20261106`, 257 commits ahead of `main`; nothing pushed or merged. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` are the user's; leave them.
-- Verified at `506d866`: `npm test` in `packages/cli` **625 pass / 0 fail**, hooks **209 pass**, check-sync OK. `validate` was not rerun (last: 0 errors, 25 warnings at `987d86e`).
-- Every remaining item needs the user. Do not start any of them without the stated input.
+- Branch `spec-edits-20261106`; nothing pushed or merged. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` are the user's; leave them.
+- Verified at `080c7e4`: `npm test` in `packages/cli` **642 pass / 0 fail**, hooks **209 pass**, check-sync OK. `validate` was not rerun (last: 0 errors, 25 warnings at `987d86e`).
+- The five fixture gaps listed below are fixed (see "Fixture gaps fixed"). Every remaining item needs the user or a live run. Do not start any of them without the stated input.
+
+### Fixture gaps fixed (2026-11-14, later session; Sonnet workers one unit each, one independent review)
+
+1. `a27afce`, `64adbd4`, `080c7e4`: `init --harness claude` registers `specplane mcp` in `.mcp.json` (merge, idempotent, a differing entry is kept and reported, symlinks refused). The session check accepts the plugin or an MCP server named `specplane` unless its status is `failed` or `needs-auth`. User docs say what init installs and how to add the plugin.
+2. `5ad27d4`: the Claude plan session's first message is `/specplane-plan-step <plan-id>`.
+3. `6a2a181`, `180f739`: an accepted `plan start` request opens the session through the adapter on the typed route; the plain CLI prints each installed harness's manual command. `harness run` now also takes the adapter from `SPECPLANE_ADAPTER` for launching.
+4. `1d4767c`, `d412479`: `handoffEntryTemplate` (`packages/cli/src/plan/model.ts`) is the one definition of the handoff entry form, printed in the `step-done` refusals and the `validate` handoff errors and quoted in the contract, skills and `docs/user/plans.md`.
+5. `bf0e13e`: `docs/user/permissions.md` and `harnesses.md` say a `!` command in a Claude Code session counts as the LLM.
+- The review of units 1-4 found no defects; its test gaps were closed in `080c7e4`.
+- None of this was run live. To check in the fixture rerun: whether a headless session loads an unapproved project `.mcp.json` server (may need `enabledMcpjsonServers` in the settings template and `mergeSettings`); the real shape of `mcp_servers` entries in `system/init`; whether the bare `/specplane-plan-step` name works when the skill comes from the plugin; duplicate tools with both the plugin and the MCP entry; whether `/requests accept` typed in a session runs as the person. Known and left: a failed launch after an accept leaves the plan in progress with a run marker for a session that never opened (same as the existing `plan-start` failure path).
+- A failed `npm run build` leaves `dist` half-built and the bypass guard then blocks every shell call and edit until a person rebuilds. Run `npx tsc --noEmit -p .` in `packages/cli` before every build and put that in worker briefs.
+- Specs edited since the last approval now also include `claude-integration` (again), `reference-cli` (again) and `agent-skills`.
 
 ### Landed 2026-11-14 after the list below was written (items 1 and 2 of it, mostly)
 
@@ -16,7 +28,7 @@ Updated 2026-11-14 after the mod-served actions landed. Read the first "Next ses
 - Not verified for the mod channel (from the evidence file): an interactive session and its permission prompts, a call longer than 25 seconds (pending and poll), the mod restarting a core that exited, a host version mismatch, a role rule changing a subagent's role through this route, Windows.
 - Headless live checks, run later on 2026-11-14 with the user's agreement (`0a1588d`, `harnesses/claude/host-evidence/2.1.322-headless-session-route.txt`): the adapter's stream-json arguments, a second message on standard input, `CLAUDE_ENV_FILE` and SessionStart context all work in a headless session. With the plugin alone there are no skills and no essentials. `SPECPLANE_MODEL` is unset in a headless session (hook input not captured).
 - Codex 0.169.0 live check (`harnesses/codex/host-evidence/0.169.0-live-check.txt`): tools, skill and a subagent call work in this repository, which the user's Codex config trusts. Followed by `a507e23` and `6011d5c`: the installer writes `default_tools_approval_mode = "approve"` (without it `codex exec` refuses every Specplane tool call) and the Codex adapter claims `subagents`, which settles item 6(b) for Codex. Item 3 is done except an interactive Codex session.
-- Plan session check in a fixture the user made (`~/projects/temp/specplane-fixture`, plan `2026-11-14-parallel-check`; evidence `harnesses/claude/host-evidence/2.1.322-plan-session-fixture.txt`). A `[parallel]` group does run as two subagents that stay off the plan record. It also exposed five gaps, none fixed yet. **These are the next units, in this order** (decide below the requirements page yourself; one spec review for the set):
+- Plan session check in a fixture the user made (`~/projects/temp/specplane-fixture`, plan `2026-11-14-parallel-check`; evidence `harnesses/claude/host-evidence/2.1.322-plan-session-fixture.txt`). A `[parallel]` group does run as two subagents that stay off the plan record. It also exposed five gaps, **all fixed since; see "Fixture gaps fixed" above**. The original list:
   1. `init --harness claude` gives the session no Specplane tools: it installs neither the plugin nor an MCP registration, no user doc says how to install the plugin, and the monitor stops a session that does not report the plugin. Decide how a project gets the tools (register `specplane mcp` in `.mcp.json` at init, or install the plugin, or both) and make the adapter's init check accept what is installed.
   2. The adapter's session prompt cannot load the skill (`disable-model-invocation: true`). Sending `/specplane-plan-step <id>` as the message works; change `sessionPrompt` and its spec text.
   3. An accepted `plan.start` request never opens a session (`harness/run.ts` reopens only for a blocking request with `resume`; the CLI has no launcher). Open the session when the request is accepted through the typed `/requests accept` with an adapter, and have the terminal accept print how to open it.
