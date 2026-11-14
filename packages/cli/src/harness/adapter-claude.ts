@@ -55,9 +55,9 @@ export function reportsSpecplane(ev: Record<string, unknown>): boolean {
   return named(ev.plugins, PLUGIN_NAME) || named(ev.mcp_servers, "specplane");
 }
 
-/** The one line that starts the step: the skill and the plan, no free text from the plan. */
+/** The message that starts the step: the slash command and the plan, no free text from the plan. The skill has `disable-model-invocation: true`, so only a slash command at the very start of the message loads it. */
 export function sessionPrompt(planId: string): string {
-  return `Use the specplane-plan-step skill for plan ${planId}. Work only in this checkout.`;
+  return `/specplane-plan-step ${planId}`;
 }
 
 /** `claude -p` in streaming mode, so a soft stop can be sent to the running session on stdin. No `--bare` and no permission bypass. */

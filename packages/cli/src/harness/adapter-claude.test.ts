@@ -208,7 +208,8 @@ test("a plan that is not in progress, or has no worktree, is refused before anyt
 
 test("resume uses the saved session and the manual command names the worktree", () => {
   assert.deepEqual(buildArgv("abc", { resume: true }).slice(0, 4), ["claude", "-p", "--resume", "abc"]);
-  assert.match(manualCommand("/w/plan", ID), /^cd "\/w\/plan" && claude "Use the specplane-plan-step skill for plan /);
+  assert.match(manualCommand("/w/plan", ID), /^cd "\/w\/plan" && claude "\/specplane-plan-step /);
+  assert.equal(sessionPrompt(ID), `/specplane-plan-step ${ID}`);
 });
 
 test("plan-start through the runner opens the session once under the chosen id; a refusal prints the manual command as an error", async () => {

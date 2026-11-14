@@ -101,7 +101,7 @@ When a step runs as a subagent, the `plan-step` skill starts it with the Agent t
 
 Implements `claude-integration §6`.
 
-- `plan-start` launches the plan session in the checkout path of `root:architecture/repository-layout §3` through the session adapter, by the `claude -p` route of its existing design; the project's own session is not moved (assumption). Only when the adapter reports the capability unavailable does it print the exact command that opens Claude Code there, shown as an error naming why (`root:architecture/agent-skills §7.4`, `root:harness R35.1`).
+- `plan-start` launches the plan session in the checkout path of `root:architecture/repository-layout §3` through the session adapter, by the `claude -p` route of its existing design, sending the slash command `/specplane-plan-step <plan-id>` as the whole first message (the skill is not model-invocable, and a slash command is recognised only at the very start of a message); the project's own session is not moved (assumption). Only when the adapter reports the capability unavailable does it print the exact command that opens Claude Code there, shown as an error naming why (`root:architecture/agent-skills §7.4`, `root:harness R35.1`).
 - A session detects a plan checkout by the branch name `plan/<id>` and the plan record in it; the session-context hook (`§4`) reports it.
 - A cloud session needs the repository checkout, the installed `.claude/` files and the Specplane core. If a hook script or the core is missing there, the contract's capability check names the missing piece and stops (`root:architecture/agent-skills §1`). Whether the hooks run in the cloud is to be verified per surface (assumption).
 - A step in the cloud pushes its commits so later sessions see them (assumption).
