@@ -3,9 +3,12 @@
 # (roles-and-permissions R58, architecture/claude-integration §4, reference-cli §7.8). Five measures, each on unless
 # `bypass_guards.<measure>: off` in .specplane/config.yaml:
 #   headless_block  denies a command that starts a headless LLM session (claude -p, claude --print, codex exec)
-#   marker_protect  denies a command that clears or overrides the LLM marker (SPECPLANE_ACTOR) or the environment
+#   marker_protect  denies a command that clears or overrides the LLM marker (SPECPLANE_ACTOR), the identity variables the
+#                   core reads for a marked process (SPECPLANE_PROVIDER, _AGENT_TYPE, _SUBAGENT, _MODEL, _DELEGATED_BY,
+#                   _SESSION) or the environment
 #   store_protect   denies direct writes to the local store (role.json, os-users.json, trusted-rules.json, callers/) and the
-#                   approvals notes ref, by shell or by a file tool
+#                   approvals notes ref, by shell or by a file tool; a command made only of plain reads (ls, cat, ...) passes
+# Paths are compared after `.` and `..` components are resolved by text, so `docs/../docs/x` is `docs/x`; links are not followed.
 #   hook_protect    denies direct writes to the installed hooks and .claude settings, by shell or by a file tool
 # Strict mode (R55.1, `strict_mode.enabled: on` in .specplane/config.yaml, off by default; each measure on unless
 # `strict_mode.<measure>: off`) adds three, handled here too:
@@ -39,6 +42,20 @@ on() { printf '%s' "$settings" | jq -e --arg m "$1" '.bypass[$m]' >/dev/null; }
 strict() { printf '%s' "$settings" | jq -e --arg m "$1" '.strict[$m]' >/dev/null; }
 specdirs() { printf '%s' "$settings" | jq -r '.spec_dirs[]'; }
 STORE_MSG="Specplane's local store and approvals are not for direct edits. Use the Specplane harness actions, or ask the user (bypass_guards.store_protect)."
+# A path with its `.` and `..` components resolved by text.
+norm() {
+  printf '%s\n' "$1" | awk '{
+    n = split($0, p, "/"); m = 0; abs = (substr($0, 1, 1) == "/")
+    for (i = 1; i <= n; i++) {
+      if (p[i] == "" || p[i] == ".") continue
+      if (p[i] == "..") { if (m > 0 && o[m] != "..") m--; else if (!abs) o[++m] = ".."; continue }
+      o[++m] = p[i]
+    }
+    s = abs ? "/" : ""
+    for (i = 1; i <= m; i++) s = s (i > 1 ? "/" : "") o[i]
+    print s
+  }'
+}
 HOOK_MSG="Specplane's installed hooks and the Claude settings are not for direct edits by an LLM. Ask the user (bypass_guards.hook_protect)."
 
 EDIT_MSG="Specifications, decision records and roles are changed through Specplane actions, not by editing their files directly. Use the harness actions, or ask the user (strict_mode.edit_block)."
@@ -50,6 +67,7 @@ case "$tool" in
   Write|Edit|MultiEdit|NotebookEdit)
     file=$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' 2>/dev/null) || exit 0
     [ -n "$file" ] || exit 0
+    file=$(norm "$file")
     if on store_protect && printf '%s\n' "$file" | grep -Eq '(^|/)\.git/(specplane/|refs/notes/)|(^|/)specplane/(role|os-users|trusted-rules)\.json$'; then deny "$STORE_MSG"; fi
     if on hook_protect && printf '%s\n' "$file" | grep -Eq '(^|/)\.claude/(hooks/specplane-[^/]*|settings(\.local)?\.json)$'; then deny "$HOOK_MSG"; fi
     if strict git_commit_guard && printf '%s\n' "$file" | grep -Eq '(^|/)\.git/hooks/'; then deny "$GIT_MSG"; fi
@@ -120,6 +138,24 @@ END {
   }
   printf "%s", res
 }') || exit 0
+# The same resolution for paths written in a command: `a/./b` is `a/b` and `a/b/../c` is `a/c`.
+cmd=$(printf '%s\n' "$cmd" | sed -E -e ':a' -e 's#/\./#/#g' -e 'ta' -e ':b' -e 's#(^|[^A-Za-z0-9_.-])[A-Za-z0-9_.-]*[A-Za-z0-9_-][A-Za-z0-9_.-]*/\.\./#\1#' -e 'tb') || exit 0
+# True when the command only reads: every part starts with a plain read command, and nothing is redirected or substituted.
+reads_only() {
+  printf '%s\n' "$text" | awk '
+    /[>`]|\$\(/ { bad = 1 }
+    {
+      n = split($0, part, /[;&|]+/)
+      for (i = 1; i <= n; i++) {
+        s = part[i]; sub(/^[ \t]+/, "", s)
+        if (s == "") continue
+        split(s, w, /[ \t]+/)
+        if (w[1] !~ /^(ls|cat|head|tail|stat|wc|file|du|grep|jq|cd|test|true|find)$/) bad = 1
+        if (w[1] == "find" && s ~ /[ \t]-(delete|exec|execdir|ok|okdir|fprint|fprintf|fls)/) bad = 1
+      }
+    }
+    END { exit bad ? 1 : 0 }'
+}
 q="[\"']"
 head="(^|[;&|(\`{]|\\\$\\(|[[:space:]]-[A-Za-z]*c[[:space:]]+$q)[[:space:]]*"
 prefix="(([A-Za-z_][A-Za-z_0-9]*=[^[:space:]]*|([^[:space:]]*/)?env|command|exec|sudo|doas|nohup|time|xargs|-[^[:space:]]+)[[:space:]]+)*"
@@ -139,13 +175,15 @@ if on marker_protect; then
   if printf '%s\n' "$text" | grep -Eq 'SPECPLANE_(ACTOR|PROVIDER|AGENT_TYPE|SUBAGENT|MODEL|DELEGATED_BY|SESSION)[[:space:]]*\+?=' \
     || printf '%s\n' "$text" | grep -Eq '(^|[;&|(`{[:space:]])unset[[:space:]][^;&|]*SPECPLANE_' \
     || printf '%s\n' "$text" | grep -Eq '(^|[;&|(`{[:space:]])(-[A-Za-z]*u[[:space:]=]*SPECPLANE_|--unset[[:space:]=]+SPECPLANE_)' \
+    || printf '%s\n' "$text" | grep -Eq '(^|[;&|(`{[:space:]])(read|readarray|mapfile|getopts|printf[[:space:]]+-v)[[:space:]][^;&|]*SPECPLANE_(ACTOR|PROVIDER|AGENT_TYPE|SUBAGENT|MODEL|DELEGATED_BY|SESSION)' \
+    || printf '%s\n' "$text" | grep -Eq '(^|[;&|(`{[:space:]])export[[:space:]]+-[A-Za-z]*n[A-Za-z]*[[:space:]][^;&|]*SPECPLANE_' \
     || printf '%s\n' "$text" | grep -Eq "${head}${prefix}${path}env([[:space:]]+[^;&|]*)?[[:space:]](-[A-Za-z]*i[A-Za-z]*|--ignore-environment|-[A-Za-z]*u[A-Za-z]*|--unset)${end}"; then
     deny "A command that clears or overrides Specplane's session marker or the environment would hide that an LLM runs it. Ask the user (bypass_guards.marker_protect)."
   fi
 fi
 
 if on store_protect; then
-  if printf '%s\n' "$cmd" | grep -Eq '(^|[^A-Za-z0-9_.-])\.git/(specplane/|refs/notes/)|(^|/)specplane/(role|os-users|trusted-rules)\.json' \
+  if { printf '%s\n' "$cmd" | grep -Eq '(^|[^A-Za-z0-9_.-])\.git/(specplane/|refs/notes/)|(^|/)specplane/(role|os-users|trusted-rules)\.json' && ! reads_only; } \
     || printf '%s\n' "$cmd" | grep -Eq '(update-ref|symbolic-ref|fast-import|hash-object)[^;&|]*refs/notes/specplane' \
     || printf '%s\n' "$cmd" | grep -Eq 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+notes([[:space:]]+--ref[= ]+(refs/notes/)?specplane)[[:space:]]+(add|append|copy|edit|merge|remove|prune)' \
     || printf '%s\n' "$cmd" | grep -Eq 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+notes[[:space:]]+(add|append|copy|edit|merge|remove|prune)([[:space:]]+[^;&|]*)?[[:space:]]--ref[= ]+(refs/notes/)?specplane'; then
