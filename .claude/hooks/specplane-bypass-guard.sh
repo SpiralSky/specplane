@@ -140,17 +140,18 @@ END {
 }') || exit 0
 # The same resolution for paths written in a command: `a/./b` is `a/b` and `a/b/../c` is `a/c`.
 cmd=$(printf '%s\n' "$cmd" | sed -E -e ':a' -e 's#/\./#/#g' -e 'ta' -e ':b' -e 's#(^|[^A-Za-z0-9_.-])[A-Za-z0-9_.-]*[A-Za-z0-9_-][A-Za-z0-9_.-]*/\.\./#\1#' -e 'tb') || exit 0
-# True when the command only reads: every part starts with a plain read command, and nothing is redirected or substituted.
+# True when the command only reads: every part starts with a plain read command, and nothing is redirected, substituted
+# or grouped (no `<`, `>`, backtick, parenthesis or brace outside quotes).
 reads_only() {
   printf '%s\n' "$text" | awk '
-    /[>`]|\$\(/ { bad = 1 }
+    /[<>`(){}]|\$\(/ { bad = 1 }
     {
       n = split($0, part, /[;&|]+/)
       for (i = 1; i <= n; i++) {
         s = part[i]; sub(/^[ \t]+/, "", s)
         if (s == "") continue
         split(s, w, /[ \t]+/)
-        if (w[1] !~ /^(ls|cat|head|tail|stat|wc|file|du|grep|jq|cd|test|true|find)$/) bad = 1
+        if (w[1] !~ /^(ls|cat|head|tail|stat|wc|du|grep|jq|cd|test|true|find)$/) bad = 1
         if (w[1] == "find" && s ~ /[ \t]-(delete|exec|execdir|ok|okdir|fprint|fprintf|fls)/) bad = 1
       }
     }
@@ -187,7 +188,7 @@ if on marker_protect; then
 fi
 
 if on store_protect; then
-  if { printf '%s\n' "$cmd" | grep -Eq '(^|[^A-Za-z0-9_.-])\.git/(specplane/|refs/notes/)|(^|/)specplane/(role|os-users|trusted-rules)\.json' && ! reads_only; } \
+  if { printf '%s\n' "$cmd" | grep -Eq '(^|[^A-Za-z0-9_.-])\.git/(specplane([/[:space:];&|"'"'"']|$)|refs/notes/)|(^|/)specplane/(role|os-users|trusted-rules)\.json' && ! reads_only; } \
     || printf '%s\n' "$cmd" | grep -Eq '(update-ref|symbolic-ref|fast-import|hash-object)[^;&|]*refs/notes/specplane' \
     || printf '%s\n' "$cmd" | grep -Eq 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+notes([[:space:]]+--ref[= ]+(refs/notes/)?specplane)[[:space:]]+(add|append|copy|edit|merge|remove|prune)' \
     || printf '%s\n' "$cmd" | grep -Eq 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+notes[[:space:]]+(add|append|copy|edit|merge|remove|prune)([[:space:]]+[^;&|]*)?[[:space:]]--ref[= ]+(refs/notes/)?specplane'; then
