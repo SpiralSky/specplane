@@ -61,9 +61,96 @@ export function skillPrompt(name: string, args: string[]): string {
   return `Use the specplane-${name} skill. Arguments: ${JSON.stringify(args)}`
 }
 
+export interface AskPort { ask(question: string, options: string[] | { options: string[]; header?: string; multiSelect?: boolean }): Promise<string> }
+
+/** The dialogue shows at most this many diff lines; the rest is named, not dropped silently. */
+export const DIFF_LINE_LIMIT = 60
+export const DIALOGUE_LABELS = ['Accept', 'Decline', 'Skip'] as const
+export const ANSWER_LINE = 'Answer with /requests accept <id> or /requests decline <id>.'
+
+export interface RequestView {
+  id: string; state?: string; reason?: string; diff?: string | null
+  from?: { role?: string }; action?: { command?: string }
+}
+
+/** The text of one dialogue: sender, action, reason and, for a spec request, the diff as stored (`-`/`+` lines). */
+export function dialogueText(r: RequestView): string {
+  const lines = [`Request ${r.id} from ${r.from?.role ?? 'unknown'}: ${r.action?.command ?? 'unknown action'}`, `Reason: ${r.reason ?? ''}`]
+  if (typeof r.diff === 'string' && r.diff.trim() !== '') {
+    const d = r.diff.replace(/\n$/, '').split('\n')
+    lines.push('', ...d.slice(0, DIFF_LINE_LIMIT))
+    if (d.length > DIFF_LINE_LIMIT) lines.push(`... ${d.length - DIFF_LINE_LIMIT} more lines; see \`specplane requests show ${r.id}\``)
+  }
+  return lines.join('\n')
+}
+
+const asText = (r: CliResult): string => [r.stdout.trim(), r.stderr.trim()].filter(Boolean).join('\n')
+
+/**
+ * Open the dialogue for each request in turn. Returns the output lines of the answers, or `null` when the dialogue was
+ * unavailable, dismissed or answered with something that is not a label (the caller then falls back to the text list).
+ */
+export async function runDialogue(requests: RequestView[], ask: AskPort, core: CorePort, signal?: AbortSignal): Promise<string[] | null> {
+  const out: string[] = []
+  for (const r of requests) {
+    let answer: string
+    try { answer = await ask.ask(dialogueText(r), { options: [...DIALOGUE_LABELS], header: 'Request' }) } catch { return null }
+    if (answer !== 'Accept' && answer !== 'Decline' && answer !== 'Skip') return null
+    if (answer === 'Skip') { out.push(`Skipped ${r.id}; it stays pending.`); continue }
+    try {
+      const res = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', answer === 'Accept' ? 'accept' : 'decline', r.id], signal)
+      out.push(asText(res) || `${answer} ${r.id}: done.`)
+    } catch (e) { out.push(`Could not ${answer.toLowerCase()} ${r.id}: ${e instanceof Error ? e.message : String(e)}`) }
+  }
+  return out
+}
+
+/** The pending requests from `requests list --json`, or null when the core did not give a usable list. */
+async function pendingRequests(core: CorePort, signal?: AbortSignal): Promise<RequestView[] | null> {
+  try {
+    const r = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', 'list', '--json'], signal)
+    if (r.exitCode !== 0) return null
+    const data = (JSON.parse(r.stdout) as { data?: unknown }).data
+    return Array.isArray(data) ? (data as RequestView[]).filter(x => x && x.state === 'pending') : null
+  } catch { return null }
+}
+
+/** The id of the request a `request.send` reply says was created, else undefined. */
+export function createdRequestId(action: string, replyText: string): string | undefined {
+  if (action !== 'request_send' && action !== 'request.send') return undefined
+  try {
+    const b = JSON.parse(replyText) as { ok?: unknown; request?: unknown }
+    return b.ok === true && typeof b.request === 'string' && b.request ? b.request : undefined
+  } catch { return undefined }
+}
+
+/** The arrival dialogue: after a reply that created a request, ask about it. Never throws; the reply is not touched. */
+export async function arrivalDialogue(action: string, replyText: string, ask: AskPort, core: CorePort, log: (m: string) => void): Promise<void> {
+  try {
+    const id = createdRequestId(action, replyText)
+    if (!id) return
+    const r = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', 'show', id, '--json'])
+    if (r.exitCode !== 0) return
+    const rec = (JSON.parse(r.stdout) as { data?: RequestView | null }).data
+    if (!rec || rec.state !== 'pending') return
+    const lines = await runDialogue([rec], ask, core)
+    if (lines) for (const l of lines) log(l)
+  } catch (e) { log(`specplane: the request dialogue failed: ${e instanceof Error ? e.message : String(e)}`) }
+}
+
 /** Run one typed command. Nothing here can call a model; a prompt is only returned for the host to submit. */
-export async function dispatch(cmd: SlashCommand, rawArgs: string, core: CorePort, signal?: AbortSignal): Promise<CommandOutcome> {
+export async function dispatch(cmd: SlashCommand, rawArgs: string, core: CorePort, signal?: AbortSignal, ask?: AskPort): Promise<CommandOutcome> {
   const args = splitArgs(rawArgs)
+  if (cmd.name === 'requests' && args.length === 0 && ask) {
+    const pending = await pendingRequests(core, signal)
+    if (pending && pending.length === 0) return { output: { text: 'No requests waiting.' } }
+    if (pending) {
+      const lines = await runDialogue(pending, ask, core, signal)
+      if (lines) return { output: { text: lines.join('\n') } }
+      const plain = await dispatch(cmd, rawArgs, core, signal)
+      return { output: { ...plain.output, text: `${plain.output.text}\n${ANSWER_LINE}` } }
+    }
+  }
   if (cmd.modelWithArgs && args.length > 0) {
     return { output: { text: `/${cmd.name}: handing your arguments to the assistant.` }, prompt: skillPrompt(cmd.name, args) }
   }

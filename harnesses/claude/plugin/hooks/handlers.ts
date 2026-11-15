@@ -2,10 +2,10 @@
 // command.register, command.run, process.run, prompt.submit, clock.after and ui.log.
 import type { EngineInterface, Register } from 'claude-code'
 import { BUNDLED_CLI, dispatch, SLASH_COMMANDS } from './commands'
-import type { CorePort, SlashCommand } from './commands'
+import type { AskPort, CorePort, SlashCommand } from './commands'
 
 /** Runs the bundled core through the host's process API; the plugin has no shell. */
-function bundledCore($: EngineInterface): CorePort {
+export function bundledCore($: EngineInterface): CorePort {
   return {
     async run(argv, signal) {
       if (signal?.aborted) return { exitCode: 130, stdout: '', stderr: 'cancelled' }
@@ -13,6 +13,11 @@ function bundledCore($: EngineInterface): CorePort {
       return { exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr }
     },
   }
+}
+
+/** The host's question dialogue as a port; it rejects when dismissed or in a `-p` run. */
+export function hostAsk($: EngineInterface): AskPort {
+  return { ask: (question, options) => $.ui.ask(question, Array.isArray(options) ? options : { options: options.options, ...(options.header ? { header: options.header } : {}) } as never) }
 }
 
 /** Names this module registered; a command.run for any other name passes through to its owner. */
@@ -24,7 +29,7 @@ export const PROMPT_DELAY_MS = 100
 function bindCommand(on: Parameters<Register>[0], cmd: SlashCommand): void {
   on('command.run', { command: cmd.name }, async ($, e, next) => {
     if (!registered.has(cmd.name)) return next(e) // not ours: the host or another plugin owns the name
-    const outcome = await dispatch(cmd, (e as { args?: string }).args ?? '', bundledCore($), next.signal)
+    const outcome = await dispatch(cmd, (e as { args?: string }).args ?? '', bundledCore($), next.signal, hostAsk($))
     const prompt = outcome.prompt
     if (prompt) {
       // No asUser: the prompt never carries human authority, so the assistant acts under its own role.

@@ -66,3 +66,63 @@ test("the commands the plugin hands to the assistant are the ones the runner pas
     assert.ok((r.data as { passToLlm?: unknown })?.passToLlm, `${c.name} should pass its arguments to the assistant`);
   }
 });
+
+// ---- the /requests dialogue (claude-integration §3) ----
+const rec = (id: string, extra: Record<string, unknown> = {}) => ({ id, state: "pending", from: { role: "spec-writer" }, action: { command: "spec edit" }, reason: `why ${id}`, diff: null, ...extra });
+const listOut = (records: unknown[]) => ({ exitCode: 0, stdout: JSON.stringify({ ok: true, data: records }), stderr: "" });
+function fakes(records: unknown[], answers: Array<string | Error>) {
+  const calls: string[][] = [];
+  const asked: Array<{ q: string; o: unknown }> = [];
+  const core = { run: async (argv: string[]) => { calls.push(argv); return argv.includes("--json") ? listOut(records) : { exitCode: 0, stdout: argv.at(-1) === "requests" ? "plain list\n" : `ok ${argv.at(-1)}\n`, stderr: "" }; } };
+  const ask = { ask: async (q: string, o: unknown) => { asked.push({ q, o }); const a = answers.shift(); if (a instanceof Error || a === undefined) throw a ?? new Error("none"); return a; } };
+  return { calls, asked, core, ask };
+}
+const requestsCmd = async () => (await load()).SLASH_COMMANDS.find((c: { name: string }) => c.name === "requests");
+
+test("/requests with no arguments opens a dialogue per pending request and runs accept, decline, skip", opts, async () => {
+  const m = await load();
+  const f = fakes([rec("a1"), rec("b2", { state: "accepted" }), rec("c3"), rec("d4")], ["Accept", "Decline", "Skip"]);
+  const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
+  assert.deepEqual(f.calls[0], ["harness", "run", "--adapter", "claude", "requests", "list", "--json"]);
+  assert.deepEqual(f.calls.slice(1), [["harness", "run", "--adapter", "claude", "requests", "accept", "a1"], ["harness", "run", "--adapter", "claude", "requests", "decline", "c3"]]);
+  assert.equal(f.asked.length, 3);
+  assert.deepEqual(f.asked[0]!.o, { options: ["Accept", "Decline", "Skip"], header: "Request" });
+  assert.match(f.asked[0]!.q, /spec-writer/); assert.match(f.asked[0]!.q, /spec edit/); assert.match(f.asked[0]!.q, /why a1/);
+  assert.match(out.output.text, /ok a1/); assert.match(out.output.text, /ok c3/); assert.match(out.output.text, /Skipped d4/);
+});
+
+test("the dialogue includes the diff and truncates a long one", opts, async () => {
+  const m = await load();
+  const diff = ["-old", "+new", ...Array.from({ length: 80 }, (_, i) => `+l${i}`)].join("\n");
+  const f = fakes([rec("a1", { diff })], ["Skip"]);
+  await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
+  const q = f.asked[0]!.q;
+  assert.match(q, /^-old$/m); assert.match(q, /^\+new$/m);
+  assert.match(q, /\.\.\. 22 more lines; see `specplane requests show a1`/);
+  assert.doesNotMatch(q, /l79/);
+});
+
+test("no pending requests prints the empty message and asks nothing", opts, async () => {
+  const m = await load();
+  const f = fakes([rec("a1", { state: "declined" })], []);
+  const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
+  assert.equal(out.output.text, "No requests waiting."); assert.equal(f.asked.length, 0);
+});
+
+test("a rejected or unexpected answer falls back to the text list and the answer line", opts, async () => {
+  const m = await load();
+  for (const a of [new Error("dismissed"), "something else"]) {
+    const f = fakes([rec("a1"), rec("b2")], [a]);
+    const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
+    assert.equal(out.output.text, "plain list\nAnswer with /requests accept <id> or /requests decline <id>.");
+    assert.equal(f.asked.length, 1);
+  }
+});
+
+test("/requests with arguments keeps the text behaviour and opens no dialogue", opts, async () => {
+  const m = await load();
+  const f = fakes([rec("a1")], ["Accept"]);
+  const out = await m.dispatch(await requestsCmd(), "accept a1", f.core, undefined, f.ask);
+  assert.deepEqual(f.calls, [["harness", "run", "--adapter", "claude", "requests", "accept", "a1"]]);
+  assert.equal(out.output.text, "ok a1"); assert.equal(f.asked.length, 0);
+});

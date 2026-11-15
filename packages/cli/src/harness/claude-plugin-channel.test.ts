@@ -144,3 +144,44 @@ test("a request with no answer in the host's limit is denied: no retry, no new c
   assert.equal(t.restarts(), 0);
   assert.equal(t.seen.length, 1);
 });
+
+// ---- the arrival dialogue (claude-integration §3) ----
+const cmdsLoad = async (): Promise<any> => import(pathToFileURL(path.join(repo, "harnesses/claude/plugin/hooks/commands.ts")).href); // eslint-disable-line @typescript-eslint/no-explicit-any
+function arrivalFakes(answer: string | Error) {
+  const calls: string[][] = [];
+  const logs: string[] = [];
+  const asked: string[] = [];
+  const record = { id: "r1", state: "pending", from: { role: "spec-writer" }, action: { command: "spec edit" }, reason: "because", diff: "-a\n+b" };
+  const core = { run: async (argv: string[]) => { calls.push(argv); return { exitCode: 0, stdout: argv.includes("show") ? JSON.stringify({ ok: true, data: record }) : "Accepted r1.\n", stderr: "" }; } };
+  const ask = { ask: async (q: string) => { asked.push(q); if (answer instanceof Error) throw answer; return answer; } };
+  return { calls, logs, asked, core, ask, log: (m: string) => logs.push(m) };
+}
+const created = JSON.stringify({ ok: true, request: "r1", findings: [] });
+
+test("a reply that created a request opens one dialogue and runs the answer", opts, async () => {
+  const m = await cmdsLoad();
+  const f = arrivalFakes("Accept");
+  await m.arrivalDialogue("request_send", created, f.ask, f.core, f.log);
+  assert.equal(f.asked.length, 1); assert.match(f.asked[0]!, /spec-writer/); assert.match(f.asked[0]!, /\+b/);
+  assert.deepEqual(f.calls[0], ["harness", "run", "--adapter", "claude", "requests", "show", "r1", "--json"]);
+  assert.deepEqual(f.calls[1], ["harness", "run", "--adapter", "claude", "requests", "accept", "r1"]);
+});
+
+test("other replies and other tools open no dialogue", opts, async () => {
+  const m = await cmdsLoad();
+  const f = arrivalFakes("Accept");
+  await m.arrivalDialogue("spec_retrieve", created, f.ask, f.core, f.log);
+  await m.arrivalDialogue("request_send", JSON.stringify({ ok: false, findings: ["no"] }), f.ask, f.core, f.log);
+  await m.arrivalDialogue("request_send", "not json", f.ask, f.core, f.log);
+  assert.equal(f.asked.length, 0); assert.deepEqual(f.calls, []);
+});
+
+test("a rejecting ask changes nothing and never throws", opts, async () => {
+  const m = await cmdsLoad();
+  const f = arrivalFakes(new Error("no UI"));
+  await m.arrivalDialogue("request_send", created, f.ask, f.core, f.log);
+  assert.equal(f.asked.length, 1); assert.equal(f.calls.length, 1);
+  const broken = { run: async () => { throw new Error("boom"); } };
+  await m.arrivalDialogue("request_send", created, f.ask, broken, f.log);
+  assert.match(f.logs.at(-1)!, /boom/);
+});

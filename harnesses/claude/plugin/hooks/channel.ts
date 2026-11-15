@@ -7,6 +7,8 @@ import {
   actionOfTool, callBody, forward, parseReadiness, SECRET_HEADER, serverArgv, versionMatches,
 } from './core-channel'
 import type { Readiness } from './core-channel'
+import { arrivalDialogue } from './commands'
+import { bundledCore, hostAsk } from './handlers'
 
 const CORE_ENTRY = 'core/dist/harness/session-server-main.js'
 const VERSION_FILE = '.claude-plugin/host-version.json'
@@ -91,7 +93,10 @@ export function registerChannel(on: Parameters<Register>[0]): void {
     }, callBody(action, ev, agentType, model))
     if ('deny' in out) return { deny: `Specplane: ${out.deny}` }
     // The host takes a string result. A hook's own result cannot carry an error flag, so an error reply is a refusal.
-    return out.reply.isError ? { deny: out.reply.text } : { result: out.reply.text }
+    if (out.reply.isError) return { deny: out.reply.text }
+    // The arrival dialogue (claude-integration §3): it never changes the reply and never throws into the host.
+    try { await arrivalDialogue(action, out.reply.text, hostAsk($), bundledCore($), m => $.ui.log(m, { to: 'transcript' })) } catch { /* the reply stands */ }
+    return { result: out.reply.text }
   })
 
   on('session.end', async ($, e, next) => {
