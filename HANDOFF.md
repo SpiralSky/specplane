@@ -8,6 +8,13 @@ Updated 2026-11-14 after the first live rerun check and the push. Read the first
 - Branch `spec-edits-20261106`; nothing pushed or merged. Untracked `problems.md` and `docs/codex-vs-claude-usage-analysis.md` are the user's; leave them.
 - Verified at `080c7e4`: `npm test` in `packages/cli` **642 pass / 0 fail**, hooks **209 pass**, check-sync OK. `validate` was not rerun (last: 0 errors, 25 warnings at `987d86e`).
 - The five fixture gaps listed below are fixed (see "Fixture gaps fixed"). Every remaining item needs the user or a live run. Do not start any of them without the stated input.
+- Former cloud scope, worked locally on 2026-11-15 (Opus 5.5 coordinating, Sonnet workers):
+  1. Baseline: done; 642 pass / 0 fail, hooks 209 pass, check-sync OK.
+  2. Review of the 8 edited spec files: done; 9 findings fixed in `de154c3`, `fceb087`, `f4ac0fa`, `c4855bc`, `9cd7a80`. Ready for approval: `agent-skills`, `roles-and-permissions`, `later-releases`; the other five are fixed but not re-reviewed. `validate` 0 errors, 25 warnings.
+  3. `mcp_servers` live note: done in `de154c3` (architecture §10); the interactive session stays not checked live.
+  4. Several `specplane` entries: done; one usable entry passes, all dead stops and names each status (`d2f7da3`, spec `6ffed6f`); 642 pass / 0 fail.
+  5. R7 and R42.2 audits: in progress.
+  - Running `bun test <file>` inside a Claude session fails 2 adapter-claude tests ("an LLM role cannot answer a request") because of the session's environment; `npm test` passes. Not a regression.
 
 ### Live rerun started and cloud session (2026-11-14, evening)
 
