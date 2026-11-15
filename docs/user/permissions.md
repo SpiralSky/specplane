@@ -29,7 +29,7 @@ After editing or deleting a role or rule, commit the change and run `role approv
 `role show` prints the current CLI role; `permissions` prints every permission with its mode per role in the active preset; `permissions <id>` prints the full documentation of one permission, including its steering text.
 
 <!-- note: llm-allow-approves -->
-**An LLM role with `allow` approves without confirmation.** If the active preset gives the LLM `allow` on `spec.approve`, an LLM approves specifications without asking you. Steering text asks an LLM to confirm first, but steering does not guarantee that it will. Use `request-user` wherever you need to confirm each approval; that is the default.
+**An LLM role with `allow` approves without confirmation.** If the active preset gives the LLM `allow` on `spec.approve.requirement`, `spec.approve.feature` or `spec.approve.architecture`, an LLM approves specifications of that type without asking you. Steering text asks an LLM to confirm first, but steering does not guarantee that it will. A preset or role file that still names the old single `spec.approve` permission has that line ignored with a `validate` warning, so the default mode applies. Use `request-user` wherever you need to confirm each approval; that is the default.
 
 ## Bypass guards
 
@@ -73,7 +73,7 @@ Choose a preset with `config set permissions.preset <id>`. The four defaults are
 | `feature-level-llm-control` | request-user | allow | allow | allow |
 | `full-llm-control` | allow | allow | allow | allow |
 
-The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve`, `config.change`, `plan.start`, `plan.resume`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
+The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`, `config.change`, `plan.start`, `plan.resume`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
 
 ### Custom presets
 
@@ -165,11 +165,27 @@ Does not allow: Creating or editing one.
 
 Commands: `harness spec delete`
 
-### `spec.approve`
+### `spec.approve.requirement`
 
-Allows: Approve specifications that are Awaiting Review.
+Allows: Approve requirement specifications that are Awaiting Review. Approving the requirements page is the user's decision.
 
-Does not allow: Editing a specification, or setting a status by hand (that is `override.status`).
+Does not allow: Editing a specification, or setting a status by hand (that is `override.status`). A group of specifications that cite each other needs the permission of each member's type.
+
+Commands: `spec approve`
+
+### `spec.approve.feature`
+
+Allows: Approve feature specifications that are Awaiting Review.
+
+Does not allow: Editing a specification, or setting a status by hand (that is `override.status`). A group of specifications that cite each other needs the permission of each member's type. It also approves decision records, by ID, and plans.
+
+Commands: `spec approve`, `decision approve`, `plan approve`
+
+### `spec.approve.architecture`
+
+Allows: Approve architecture specifications that are Awaiting Review.
+
+Does not allow: Editing a specification, or setting a status by hand (that is `override.status`). A group of specifications that cite each other needs the permission of each member's type.
 
 Commands: `spec approve`
 

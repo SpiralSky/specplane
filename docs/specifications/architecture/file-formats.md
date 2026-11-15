@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4, roles-and-permissions R43, roles-and-permissions R44.1, roles-and-permissions R49, roles-and-permissions R60]
-references: [architecture/reference-cli §8, architecture/reference-cli §12.4, roles-and-permissions R56.1, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, plan-execution R31.2, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R37.1, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6, architecture/reference-cli §12.1]
+references: [cli R16.1, harness R20.1, architecture/reference-cli §8, architecture/reference-cli §12.4, roles-and-permissions R56.1, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, plan-execution R31.2, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R37.1, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6, architecture/reference-cli §12.1]
 ---
 
 # File formats
@@ -463,7 +463,7 @@ Each standard permission has a stable lower-case dotted ID used in presets, stee
 | ID | Permission |
 |----|------------|
 | `spec.create.<type>`, `spec.edit.<type>`, `spec.delete.<type>` | `<type>` is `requirement`, `feature` or `architecture` |
-| `spec.approve` | Approve specifications |
+| `spec.approve.<type>` | Approve specifications of that type: `<type>` is `requirement`, `feature` or `architecture` (`cli R16.1`, `harness R20.1`). Decision records and plans are approved under `spec.approve.feature` |
 | `meta.read`, `meta.write` | Read, write specification metadata |
 | `meta.write.title`, `.authors`, `.references`, `.covers`, `.approval` | Granular metadata writes (`.approval` covers date and commit) |
 | `override.status`, `override.approver`, `override.approval-commit`, `override.test` | Protected overrides |
@@ -474,6 +474,8 @@ Each standard permission has a stable lower-case dotted ID used in presets, stee
 | `plan.budget`, `plan.resume`, `plan.softstop` | Budget, resume, soft stop |
 | `decision.add`, `decision.retrieve`, `decision.edit`, `decision.delete` | Later release |
 | `config.change` | Change configuration, including `permissions.preset` |
+
+The single permission `spec.approve` that earlier releases had no longer exists (`cli R16.1`). A preset or role file that still names it is not malformed: the key is ignored, so the default mode of that role applies and authority never grows, and `validate` warns "unknown permission `spec.approve`; use spec.approve.requirement, spec.approve.feature or spec.approve.architecture".
 
 There is no permission to run a plan step: a step needs only the permissions of the actions it performs, and the page names no separate one (`plan-execution R27.1`, `plan-execution R31.1`), so `plan step-done` has none and the code carries no `plan.step`. `plan.complete` also guards `plan merge` (assumption: the page has no separate merge permission). Sending a request and accepting one have no permission of their own (`roles-and-permissions R50`). Management and system permissions (`mgmt.*`, `system.*`) are later-release and not part of a preset.
 
@@ -507,7 +509,9 @@ roles:
       spec.create.architecture: allow
       spec.edit.architecture: allow
       spec.delete.architecture: allow
-      spec.approve: request-user
+      spec.approve.requirement: request-user
+      spec.approve.feature: request-user
+      spec.approve.architecture: request-user
       config.change: request-user
       info.retrieve: allow
       test.record: allow
@@ -697,7 +701,7 @@ Implements `verification R13`, `verification R13.1`.
 
 ```json
 {"ts":"2026-11-09T10:15:00Z","branch":"plan/x","actor":{"role":"standard-user","kind":"human","name":"spiralsky"},
- "model":null,"command":"spec approve","args":["feature/plans"],"permission":"spec.approve",
+ "model":null,"command":"spec approve","args":["feature/plans"],"permission":"spec.approve.feature",
  "outcome":"done","reason":null,"old":null,"new":null,"request":null}
 ```
 
@@ -870,7 +874,7 @@ The body has exactly the sections `## Decision` (what was decided, required), `#
 
 ### §14.2 Approval
 
-A record's approval is a notes-store record (`§13`) with subject `decision/D<n>` and the fingerprint `decision-v1:sha256:<hex>`: SHA-256 of the canonical JSON (`§4.2` rules) of `{frontmatter without authors, body}` with LF line ends. Lookup is by content like a spec's (`§13.2`), so approval survives rebase and an edit of any field except `authors` returns the record to Awaiting Review with reason `edited`; a record never approved has `never-approved`, and one not yet committed `not committed`. An approval record has no `cited` entries: a record depends on no other part. Approval needs committed content and the `spec.approve` permission; the approver is never invented. Reading and listing use the working-tree file with the status of the committed one.
+A record's approval is a notes-store record (`§13`) with subject `decision/D<n>` and the fingerprint `decision-v1:sha256:<hex>`: SHA-256 of the canonical JSON (`§4.2` rules) of `{frontmatter without authors, body}` with LF line ends. Lookup is by content like a spec's (`§13.2`), so approval survives rebase and an edit of any field except `authors` returns the record to Awaiting Review with reason `edited`; a record never approved has `never-approved`, and one not yet committed `not committed`. An approval record has no `cited` entries: a record depends on no other part. Approval needs committed content and the `spec.approve.<type>` permission of the specification's type (`spec.approve.feature` for a decision record); the approver is never invented. Reading and listing use the working-tree file with the status of the committed one.
 
 ### §14.3 Validation
 

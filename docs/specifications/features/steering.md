@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R22, R23, R51, R59, R59.1]
-references: [R13.1, R14, R16, R24, R27.1, R27.5, R35.1, R47, R52.3, R54, R61, plan-execution R27.1, plan-execution R27.5, requests R52, requests R52.3, roles-and-permissions R50, roles-and-permissions R57, harness R14, configuration R25, plans R28, R61.4, specifications R65]
+references: [cli R16.1, R13.1, R14, R16, R24, R27.1, R27.5, R35.1, R47, R52.3, R54, R61, plan-execution R27.1, plan-execution R27.5, requests R52, requests R52.3, roles-and-permissions R50, roles-and-permissions R57, harness R14, configuration R25, plans R28, R61.4, specifications R65]
 ---
 
 # Steering and Documentation
@@ -46,7 +46,7 @@ When an action is not simply allowed, the LLM needs to know which of three thing
 
 - **Permission is request user.** Send a request (`requests R52.3`) naming the one action. Do not do the action first.
 - **Permission is deny.** Do not do it and do not look for another way. Tell the user it was refused, and if the user's wishes depend on it, say so and leave the next move to them.
-- **The action is one the user runs through a command** (for example approval by a person, `R16`). Ask the user to run the command and say what it will do. Do not try to run it. LLM approval is not this case: when the user asks the LLM to approve, it follows its own `spec.approve` permission mode: allow approves, request user sends a request, deny refuses (`roles-and-permissions R57`).
+- **The action is one the user runs through a command** (for example approval by a person, `R16`). Ask the user to run the command and say what it will do. Do not try to run it. LLM approval is not this case: when the user asks the LLM to approve, it follows its own `spec.approve.requirement`, `spec.approve.feature` or `spec.approve.architecture` permission mode, by the type of the specification (`cli R16.1`): allow approves, request user sends a request, deny refuses (`roles-and-permissions R57`).
 - **Permission is allow.** Act directly, unless custom steering says to send a request or to ask the user to run a command first (`R59.1`, `R52.3`, `requests R52`). A role with allow that acts directly is not a failure of steering: steering is a guide and does not guarantee the LLM asks first.
 - **Blocked in a plan.** When a plan run meets a block, such as a restriction in its environment, the LLM decides whether to go on with work that is not blocked or to soft stop. By default: if useful work within the current step does not depend on the blocked action, send a non-blocking request and continue without skipping an unfinished step; if nothing useful is left to do without the block, or the block affects the whole plan, soft stop. A soft stop is allowed for LLM roles in all default presets (`R27.1`, `plan-execution R27.1`).
 

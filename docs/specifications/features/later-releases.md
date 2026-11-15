@@ -4,7 +4,7 @@ title: Later Releases
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-references: [harness, R14, R62.3, specifications R9, specifications R11, specifications R65, roles-and-permissions R50, roles-and-permissions R57, harness R14, configuration R25, requests R52, steering R59, R68, specifications R7]
+references: [cli R16.1, harness, R14, R62.3, specifications R9, specifications R11, specifications R65, roles-and-permissions R50, roles-and-permissions R57, harness R14, configuration R25, requests R52, steering R59, R68, specifications R7]
 covers: [R37, R37.1, R39, R39.1, R39.2, R39.3, R39.4, R66]
 ---
 
@@ -28,7 +28,7 @@ When the user discusses work with the LLM in the harness and makes a decision, t
 - A record can be corrected by editing it, or removed by deleting it. Editing and deleting are explicit actions, never a side effect of other work.
 - A record is not a specification. It does not define behaviour, is not checked by tests and is not part of coverage. Where a decision should bind the product, the user puts it in a specification. A record has an approval state of its own, by its ID (see below): a record the LLM stores is Awaiting Review until the user approves it, and the LLM still finds and shows it, with its state.
 - Records are part of the project and travel with it, so that every user and every LLM in the project sees the same decisions. Each is a file `.specplane/decisions/D<n>.md` with the format of `§14` of `file-formats`.
-- Approval is by ID (`approve D1`, `spec approve D1`, `decision approve D1`), of committed content, with the `spec.approve` permission of `roles-and-permissions R50`: the user approves, and the LLM can only send a request when its mode is request user. A change to a record's text, title, date or concerns returns it to Awaiting Review. Records and specifications are approved in separate commands.
+- Approval is by ID (`approve D1`, `spec approve D1`, `decision approve D1`), of committed content, with the `spec.approve.feature` permission (`cli R16.1`, `roles-and-permissions R50`): the user approves, and the LLM can only send a request when its mode is request user. A change to a record's text, title, date or concerns returns it to Awaiting Review. Records and specifications are approved in separate commands.
 - Commands: `decision add|list|show|edit|delete|approve` for people, the harness actions `decision.add`, `decision.retrieve`, `decision.edit` and `decision.delete`, and the harness command `/decision-new`, which writes a record from the user's description or from the decision the user has just stated, after searching the existing records for the topic. `decision list <topic>` and `decision.retrieve` rank records by how many words of the description they contain.
 - During `spec-assist`, when records are enabled and the user states a decision, the LLM searches first and stores the decision, context and reasons the user gave through `decision.retrieve` and `decision.add`, subject to their permissions. It never records its own suggestion; with records disabled it neither searches nor stores.
 - Validation checks every record's format (an error) and that each entry of `concerns` names an existing specification, plan or cite (a warning), only while records are on.

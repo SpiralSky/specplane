@@ -85,7 +85,7 @@ These are the standard permissions. The section named in the last column defines
 | Permission | What it controls | Defined in |
 |------------|------------------|------------|
 | Create, edit and delete specifications | Three separate permissions for each type of specification: requirement, feature and architecture | `R19.2` |
-| Approve specifications | A single permission; an LLM uses it when asked to approve | `R16.1`, `R20.1` |
+| Approve specifications | Three separate permissions, one for each type of specification (requirement, feature and architecture), each controlling whether a role can approve a specification of that type; an LLM uses them when asked to approve. A group needs the permission of each member's type, and decision records are approved under the feature permission | `R16.1`, `R20.1` |
 | Read and write specification metadata | A permission for reading, one for general writing, and granular ones for individual metadata | `R17.1` |
 | Override status, override approver, override approval commit, override test results | Four separate protected permissions; general metadata writing does not include them | `R17.2` |
 | Record a test result | Recording the result of a specification test | `R61.2`, `verification R61` |

@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R14, R18, R19, R19.1, R19.2, R20, R20.1, R21, R21.1, R26, R26.1, R26.2, R34, R35, R35.1, R38, R38.1, R47]
-references: [R4, R10, R11, R16, R22, R24, R27, R37, R61.1, R66, later-releases R37, later-releases R37.1, later-releases R66, requests R52, roles-and-permissions R50, roles-and-permissions R57, steering R51, steering R59, specifications R9, configuration R25, plans R30.1, specifications R11.3, roles-and-permissions]
+references: [cli R16.1, R4, R10, R11, R16, R22, R24, R27, R37, R61.1, R66, later-releases R37, later-releases R37.1, later-releases R66, requests R52, roles-and-permissions R50, roles-and-permissions R57, steering R51, steering R59, specifications R9, configuration R25, plans R30.1, specifications R11.3, roles-and-permissions]
 ---
 
 # Harness
@@ -105,7 +105,7 @@ An LLM never approves by editing a file; approval is recorded only through the a
 
 ### R20.1: Spec approval Permissions
 
-Spec approval has the modes allow, deny and request user.
+Each spec approval permission (`cli R16.1`) has the modes allow, deny and request user.
 
 - The user documentation (`R22`) states that an LLM role with allow approves without confirmation, and that steering does not guarantee the LLM asks first.
 - Where confirmation is needed, the role should use request user.

@@ -47,11 +47,11 @@ Test T1 (deterministic): approve a specification that cites an Awaiting Review s
 
 ### R16.1: Specification Approval Permissions
 
-Approving a specification has a single permission. It controls whether a role may approve, whatever the specification's type, from the CLI or from the harness.
+Approving a specification has one permission for each specification type: `spec.approve.requirement`, `spec.approve.feature` and `spec.approve.architecture`. Each controls whether a role may approve a specification of that type, from the CLI or from the harness.
 
-- It has the three modes (allow, request user, deny) as described in `roles-and-permissions R50`. In the default presets it is request user for the LLM role and allow for the Standard User (`roles-and-permissions R57`).
+- Each has the three modes (allow, request user, deny) as described in `roles-and-permissions R50`. In the default presets each is request user for the LLM role and allow for the Standard User (`roles-and-permissions R57`).
 - The permission does not change the checks in `R16`. A role with allow still cannot approve a specification that fails them.
-- The permission is needed for every specification in a group. A group is not approved if the role lacks the permission, and nothing is approved.
+- A group needs the permission of the type of every member. A group is not approved if the role lacks the permission for any member, and nothing is approved; if any member needs a request, one request is sent for the whole group. Decision records and plans are approved under the feature permission.
 - Approval is never part of another permission. Editing, creating or overriding metadata does not include it.
 
 Scenario: Given a role with deny for approving specifications, When it runs the approval command, Then nothing is approved and the output names the permission that refused.

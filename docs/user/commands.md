@@ -11,7 +11,7 @@ These are the commands a person types. An LLM does not run them: in a harness it
 A command that changes something checks the permission of your role first (see `permissions`). Reading information needs no permission for a person. Every command, reads included, is written to the audit log (see `verification`).
 
 <!-- note: group-approval -->
-**Group approval.** Specs that cite each other, directly or through other specs, are approved together in one `spec approve` command. The command warns you and lists the specs being approved together. It fails, and approves none of them, if any member cannot be approved, for example because it cites a part of a specification that no longer exists.
+**Group approval.** Specs that cite each other, directly or through other specs, are approved together in one `spec approve` command. The command warns you and lists the specs being approved together. A role approves the group only if it has the approval permission of each member's type (`spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`). It fails, and approves none of them, if any member cannot be approved, for example because it cites a part of a specification that no longer exists.
 
 Approving writes one approval record per spec into the git notes store (`refs/notes/specplane`); it creates no commit on your branch. Use `specplane sync` to share the records with a remote.
 
@@ -247,7 +247,7 @@ Delete a decision record. Needs `decision.delete`.
 
 `specplane decision approve [options] <ids...>`
 
-Approve decision records by ID, like `spec approve` (the two are the same command for IDs such as `D1`). Needs `spec.approve`; committed content only.
+Approve decision records by ID, like `spec approve` (the two are the same command for IDs such as `D1`). Needs `spec.approve.feature`; committed content only.
 
 ### `sync`
 
