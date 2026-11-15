@@ -1,6 +1,12 @@
 # Session handoff
 Updated 2026-11-14 after the first live rerun check and the push. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
+## Update 2026-11-15 (late)
+
+- `main` holds everything (fast-forwarded from `spec-edits-20261106`); notes synced to origin. `.mcp.json` (`e5c6dc8`) gives plain `claude` the `specplane` tools; the plugin is still needed for the request dialogue and push.
+- Removing `root:requests` from the `claude-integration` references (`bba3931`) did NOT reopen the spec: `spec.approve` reported it already approved. The earlier note that it needed re-approval was wrong. `harnesses.md` popup wording done (`dd45af4`).
+- Left: live checks only (spec-diff request and `Warning:`, two requests in one `/requests` run, `-p` run, real `$.ui.notify`, Codex), which the user runs where the LLM cannot.
+
 ## Active work: requests pane (2026-11-15)
 
 DONE 2026-11-15 (commits fd4d4f0..c5d6427, Handoff 3 in the record): `/requests` now opens the host's question dialogue and a request opens it on arrival; live-checked. Original problem: `/requests` was a text list, not the pane R52.1 asks for. The approach, units U0-U6 and per-session handoffs are in `docs/work-records/2026-11-15-requests-pane.md`; start there. First user action (U0): in the fixture with `--plugin-dir`, type `/requests accept 20261115T063745Z-ef5d` and report whether it ran as you.
