@@ -58,6 +58,10 @@ Scenario: Given a role with deny for approving specifications, When it runs the 
 
 Test T1 (deterministic): run the approval command with the permission set to each of the three modes and check that approval happens only for allow and that request user leaves a pending request.
 
+Scenario: Given a role with allow for feature and architecture approval and request user (or deny) for requirement approval, When it approves a feature or architecture specification, Then it is approved; When it approves a requirement specification, Then the approval is held or refused, naming `spec.approve.requirement`. When it approves a group mixing types and lacks the permission for one member's type, Then the whole group is refused or held, naming that permission.
+
+Test T2 (deterministic): with a role set as in the scenario, approve a group of a feature and an architecture specification with the architecture permission at deny and expect a refusal naming `spec.approve.architecture` and nothing approved, at request user expect one request for the group and nothing approved, and at allow expect both Approved (`packages/cli/src/spec/human.test.ts`, the test on groups of mixed types and the test above it on per-type modes).
+
 ## R17: Specification Metadata
 
 A person can read and change all aspects of a specification's metadata from the CLI: its title, authors, references and covered requirements as written in the file, and its status, the approver and the commit approved, and recorded test results as Specplane keeps them beside the commits (`specifications R9`, `specifications R10`, `specifications R11`).
