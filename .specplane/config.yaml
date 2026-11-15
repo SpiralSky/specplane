@@ -13,3 +13,5 @@ plans:
 # Maintainers edit the installed hooks by copying the templates over them (CLAUDE.md), so this guard stays off here.
 bypass_guards:
   hook_protect: off
+permissions:
+  preset: self-dev
