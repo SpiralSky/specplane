@@ -284,3 +284,31 @@ test("a failing prompt submit is logged and never thrown", opts, async () => {
   await new Promise(r => setTimeout(r, 10));
   assert.equal(logs.length, 1);
 });
+
+test("an accepted request whose action failed is reported as failed, and a transient failure lets the id retry", opts, async () => {
+  const m = await cmdsLoad();
+  const f = arrivalFakes("Accept");
+  const failing = { run: async (argv: string[]) => argv.includes("show") ? f.core.run(argv) : { exitCode: 1, stdout: "", stderr: "The request was accepted but the action could not be done, so it is marked failed: branch exists\n" } };
+  const note = await m.arrivalDialogue(created, f.ask, failing, f.log);
+  assert.match(note.line, /accepted but the action failed: The request was accepted but the action could not be done/);
+  assert.match(note.prompt, /was accepted by the user but the action failed: /);
+  const seen = new Set<string>();
+  const down = { run: async () => ({ exitCode: 1, stdout: "", stderr: "" }) };
+  await m.arrivalDialogue(created, f.ask, down, f.log, seen);
+  assert.equal(seen.has("r1"), false);
+  const n2 = await m.arrivalDialogue(created, f.ask, f.core, f.log, seen);
+  assert.ok(n2); assert.equal(seen.has("r1"), true);
+  const sk = new Set<string>();
+  await m.arrivalDialogue(created, arrivalFakes("Skip").ask, f.core, f.log, sk);
+  assert.equal(sk.has("r1"), true);
+});
+
+test("a throwing clock is logged and never thrown", opts, async () => {
+  const m = await chLoad();
+  const logs: string[] = [];
+  m.submitNote({ clock: { after: () => { throw new Error("x"); } }, ui: { log: (s: string) => logs.push(s) } }, "hello");
+  assert.equal(logs.length, 1);
+  const logs2: string[] = [];
+  m.submitNote({ clock: { after: (_: number, fn: () => void) => fn() }, prompt: { submit: () => { throw new Error("sync"); } }, ui: { log: (s: string) => logs2.push(s) } }, "hello");
+  assert.equal(logs2.length, 1);
+});

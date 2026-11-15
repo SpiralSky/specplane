@@ -70,10 +70,11 @@ test("the commands the plugin hands to the assistant are the ones the runner pas
 // ---- the /requests dialogue (claude-integration §3) ----
 const rec = (id: string, extra: Record<string, unknown> = {}) => ({ id, state: "pending", from: { role: "spec-writer" }, action: { command: "spec edit" }, reason: `why ${id}`, diff: null, ...extra });
 const listOut = (records: unknown[]) => ({ exitCode: 0, stdout: JSON.stringify({ ok: true, data: records }), stderr: "" });
-function fakes(records: unknown[], answers: Array<string | Error>) {
+const listOutOne = (record: unknown) => ({ exitCode: 0, stdout: JSON.stringify({ ok: true, data: record }), stderr: "" });
+function fakes(records: unknown[], answers: Array<string | Error>, shown: Record<string, unknown> = {}) {
   const calls: string[][] = [];
   const asked: Array<{ q: string; o: unknown }> = [];
-  const core = { run: async (argv: string[]) => { calls.push(argv); return argv.includes("--json") ? listOut(records) : { exitCode: 0, stdout: argv.at(-1) === "requests" ? "plain list\n" : `ok ${argv.at(-1)}\n`, stderr: "" }; } };
+  const core = { run: async (argv: string[]) => { calls.push(argv); if (argv.includes("show")) { const id = argv[argv.indexOf("show") + 1]!; return listOutOne(shown[id] ?? (records as Array<{ id: string }>).find(r => r.id === id)); } return argv.includes("--json") ? listOut(records) : { exitCode: 0, stdout: argv.at(-1) === "requests" ? "plain list\n" : `ok ${argv.at(-1)}\n`, stderr: "" }; } };
   const ask = { ask: async (q: string, o: unknown) => { asked.push({ q, o }); const a = answers.shift(); if (a instanceof Error || a === undefined) throw a ?? new Error("none"); return a; } };
   return { calls, asked, core, ask };
 }
@@ -84,7 +85,7 @@ test("/requests with no arguments opens a dialogue per pending request and runs 
   const f = fakes([rec("a1"), rec("b2", { state: "accepted" }), rec("c3"), rec("d4")], ["Accept", "Decline", "Skip"]);
   const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
   assert.deepEqual(f.calls[0], ["harness", "run", "--adapter", "claude", "requests", "list", "--json"]);
-  assert.deepEqual(f.calls.slice(1), [["harness", "run", "--adapter", "claude", "requests", "accept", "a1"], ["harness", "run", "--adapter", "claude", "requests", "decline", "c3"]]);
+  assert.deepEqual(f.calls.filter(c => !c.includes("--json")), [["harness", "run", "--adapter", "claude", "requests", "accept", "a1"], ["harness", "run", "--adapter", "claude", "requests", "decline", "c3"]]);
   assert.equal(f.asked.length, 3);
   assert.deepEqual(f.asked[0]!.o, { options: ["Accept", "Decline", "Skip"], header: "Request" });
   assert.match(f.asked[0]!.q, /spec-writer/); assert.match(f.asked[0]!.q, /spec edit/); assert.match(f.asked[0]!.q, /why a1/);
@@ -125,4 +126,31 @@ test("/requests with arguments keeps the text behaviour and opens no dialogue", 
   const out = await m.dispatch(await requestsCmd(), "accept a1", f.core, undefined, f.ask);
   assert.deepEqual(f.calls, [["harness", "run", "--adapter", "claude", "requests", "accept", "a1"]]);
   assert.equal(out.output.text, "ok a1"); assert.equal(f.asked.length, 0);
+});
+
+test("/requests shows the recomputed diff and a visible warning when the current diff is unavailable", opts, async () => {
+  const m = await load();
+  const f = fakes([rec("a1", { diff: "-stale\n+stale" }), rec("b2", { diff: "-stale" })], ["Skip", "Skip"], {
+    a1: rec("a1", { diff: "-fresh\n+fresh" }),
+    b2: rec("b2", { diff: null, warning: "Current diff unavailable: the proposed patch no longer applies." }),
+  });
+  await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
+  assert.match(f.asked[0]!.q, /^-fresh$/m); assert.doesNotMatch(f.asked[0]!.q, /stale/);
+  assert.match(f.asked[1]!.q, /^Warning: Current diff unavailable: the proposed patch no longer applies\.$/m);
+});
+
+test("a dismissed second dialogue keeps the first answer before the fallback list", opts, async () => {
+  const m = await load();
+  const f = fakes([rec("a1"), rec("b2")], ["Accept", new Error("dismissed")]);
+  const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
+  assert.equal(out.output.text, "ok a1\nplain list\nAnswer with /requests accept <id> or /requests decline <id>.");
+});
+
+test("the result line drops the warning count, strips control characters and keeps stdout and stderr apart", opts, async () => {
+  const m = await load();
+  const core = { run: async () => ({ exitCode: 0, stdout: "Accepted r1.\u001b[31m red\u0007\n3 warnings; run `specplane warnings`\n", stderr: "warning: x\n" }) };
+  const out = await m.runDialogue([rec("r1")], { ask: async () => "Accept" }, core);
+  assert.deepEqual(out, { lines: ["Accepted r1. red\nwarning: x"], done: true });
+  const only = await m.runDialogue([rec("r1")], { ask: async () => "Decline" }, { run: async () => ({ exitCode: 0, stdout: "0 warnings\n", stderr: "" }) });
+  assert.deepEqual(only.lines, ["Decline r1: done."]);
 });

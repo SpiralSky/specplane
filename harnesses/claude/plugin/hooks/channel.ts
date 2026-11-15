@@ -71,7 +71,11 @@ export async function startChannel($: EngineInterface, cwd: string): Promise<voi
 /** Tell the model what the user answered, as a prompt with no human authority, once this hook has let go of its turn. */
 export function submitNote($: EngineInterface, text: string): void {
   const fail = (): void => { try { $.ui.log('specplane: could not tell the assistant the answer; it is in the dialogue log', { to: 'transcript' }) } catch { /* nothing more to do */ } }
-  try { $.clock.after(PROMPT_DELAY_MS, () => { void $.prompt.submit({ text }).catch(fail) }) } catch { fail() }
+  try {
+    $.clock.after(PROMPT_DELAY_MS, () => {
+      try { void $.prompt.submit({ text }).catch(fail) } catch { fail() }
+    })
+  } catch { fail() }
 }
 
 export function registerChannel(on: Parameters<Register>[0]): void {
