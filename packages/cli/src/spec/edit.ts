@@ -106,7 +106,8 @@ export function specDiffText(root: string, specId: string, patch: string): strin
       fs.writeFileSync(path.join(tmp, "new", rel), fs.readFileSync(path.join(root, rel), "utf8"));
       run("git", ["apply", "-p2", "--whitespace=nowarn"], { cwd: path.join(tmp, "new"), input: patch });
       const proposed = fs.readFileSync(path.join(tmp, "new", rel), "utf8");
-      const commit = lastApprovalCommit(root, doc.id);
+      // A requirement file has no approval record and is always approved, so its baseline is HEAD, as in `spec-view`.
+      const commit = doc.layer === "requirement" ? "HEAD" : lastApprovalCommit(root, doc.id);
       let approved = "";
       if (commit) { try { approved = run("git", ["show", `${commit}:${rel}`], { cwd: root }); } catch { approved = ""; } }
       return makePatch(rel, approved, proposed);

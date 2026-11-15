@@ -173,6 +173,23 @@ test("spec edit under request user stores the patch, shows a diff against the la
   assert.match(d2, /^\+Other\.$/m);
 });
 
+test("a request-user edit of a requirement file shows only the changed lines against HEAD", () => {
+  const req = "---\nid: requirement/product-requirements\n---\n\n**R1: One**\nFirst text.\n\n**R2: Two**\nSecond text.\n";
+  const root = makeRepo({ "docs/requirements/product-requirements.md": req, ".specplane/config.yaml": `paths:\n  features: ${F}\n` });
+  sh(root, "init", "-q", "-b", "main");
+  sh(root, "config", "user.name", "Pat Person");
+  sh(root, "config", "user.email", "pat@example.com");
+  sh(root, "add", "-A");
+  sh(root, "commit", "-q", "-m", "init");
+  const r = editSpec(sctx(root), "requirement/product-requirements", req.replace("Second text.", "Changed text."));
+  assert.ok(r.ok && r.request, r.reasons.join());
+  const d = show(root, r.request!)!.diff!;
+  assert.match(d, /^-Second text\.$/m);
+  assert.match(d, /^\+Changed text\.$/m);
+  assert.ok(!/^\+First text\./m.test(d), "unchanged lines are not shown as added");
+  assert.equal(d.split("\n").filter((l) => /^[+-][^+-]/.test(l)).length, 2, "one deletion, one addition");
+});
+
 test("an accepted request whose action cannot be done is marked failed and is not retried", async () => {
   const root = repo();
   const r = editSpec(sctx(root), "feature/a", spec("a", "One."));
