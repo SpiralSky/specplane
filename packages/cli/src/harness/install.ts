@@ -357,6 +357,23 @@ export function installHarness(root: string, harness: string): InstallReport {
   return report;
 }
 
+/** Installed harnesses: recorded setups plus a Claude install detected by its hook. */
+function installedHarnesses(root: string): string[] {
+  const names = new Set(Object.keys(readStoreJson<Record<string, string[]>>(root, RECORD) ?? {}));
+  if (fs.existsSync(path.join(root, ".claude/hooks/specplane-cli-block.sh"))) names.add("claude");
+  return [...names].sort();
+}
+
+/** One note per installed harness that lacks push notifications; `notifications.push` then does nothing (`harness R35.1`, `requests R52.5`). */
+export function pushMissingNotes(root: string): string[] {
+  const out: string[] = [];
+  for (const h of installedHarnesses(root)) {
+    const adapter = getAdapter(h);
+    if (adapter && !adapter.capabilities(root).push) out.push(`\`notifications.push\` is set, but ${h} does not support push notifications, so no push notification is sent`);
+  }
+  return out;
+}
+
 /** Findings for validation (`harness` family): missing installed files, an older version, a stamp mismatch, marker problems. */
 export function inspectInstallation(root: string): HarnessFinding[] {
   const out: HarnessFinding[] = [];
@@ -404,5 +421,8 @@ export function inspectInstallation(root: string): HarnessFinding[] {
       out.push({ severity: "warning", file: h === "claude" ? ".claude/hooks/specplane-caller.sh" : h, message: `LLM role rule ${used.map((s) => s.rule.id).join(", ")} states subagent, agent_type or delegated, but ${h} cannot tell subagents apart for them${h === "claude" ? "; run \`specplane init --harness claude\` again to install the caller hook" : ""}` });
     }
   } catch { /* roles that cannot be read are reported by their own checks */ }
+  try {
+    if (loadSettings(root).config.values["notifications.push"] === true) for (const m of pushMissingNotes(root)) out.push({ severity: "warning", file: ".specplane/config.yaml", message: m });
+  } catch { /* an unreadable config is reported by the config checks */ }
   return out;
 }

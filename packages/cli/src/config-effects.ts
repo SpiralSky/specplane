@@ -8,6 +8,7 @@ import { HOOK_SETTINGS, STRICT_CHECK, hookFile, installHookSection, removeHookSe
 import { strictMeasureInWorkingTree } from "./perm/strict.js";
 import { applyOsSafeguards, relaxOsSafeguards } from "./perm/strict-os.js";
 import { steeringConfigEffect } from "./harness/steering.js";
+import { pushMissingNotes } from "./harness/install.js";
 
 export type EffectHandler = (root: string, key: string, old: unknown, next: unknown) => string[];
 
@@ -53,6 +54,7 @@ export function applyEffects(root: string, key: string, old: unknown, next: unkn
     handled = true;
   }
   if (!handled && key.startsWith("pre_commit.")) out.push(...preCommitEffect(root, key, next));
+  if (!handled && key === "notifications.push" && next === true) out.push(...pushMissingNotes(root));
   if (!handled && key.startsWith("strict_mode")) out.push(...strictEffect(root));
   return out;
 }
