@@ -223,3 +223,16 @@ test("validation does not warn about push for Claude Code, which claims the capa
   commit(root);
   assert.equal(has(), false);
 });
+
+test("validation warns about push for an installed Codex, and for Claude only if it lacked push (R35.1, R52.5)", async () => {
+  const root = repo();
+  const { writeStoreJson } = await import("../repo/store.js");
+  writeStoreJson(root, "harness-install.json", { codex: [] });
+  const file = path.join(root, ".specplane/config.yaml");
+  fs.writeFileSync(file, `${fs.readFileSync(file, "utf8")}\nnotifications:\n  push: true\n`);
+  commit(root);
+  const { inspectInstallation } = await import("./install.js");
+  const msgs = (): string[] => inspectInstallation(root).filter((f) => f.severity === "warning" && /notifications\.push/.test(f.message)).map((f) => f.message);
+  assert.equal(msgs().some((m) => /codex does not support push/.test(m)), true);
+  assert.equal(msgs().some((m) => /claude/.test(m)), false);
+});
