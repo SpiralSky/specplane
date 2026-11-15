@@ -9,7 +9,7 @@ Updated 2026-11-14 after the first live rerun check and the push. Read the first
 
 ## Live checks run by the LLM via tmux (2026-11-15, late)
 
-Results are items 9-13 in `harnesses/claude/host-evidence/2.1.322-requests-dialogue.txt`. Passed: two requests in one `/requests` run, the `Warning:` line, spec-diff display (plain, not red/green), Accept of a spec edit, `-p` fallback. Open findings: (1) `$.ui.notify` returned `isSent:false` and the user saw no notification (R52.5 unmet here; cause unknown); (2) a spec edit through `request_send` needs the internal `a/a/<path>` patch form, which a model cannot guess. Codex not run: a Codex session in the maintainers' repo was denied by the auto-mode classifier (marker stripping was authorized for the fixture only); the fixture is not a trusted Codex project. Fixture holds two stale pending requests (`...095847Z-f667`, `...100006Z-a64d`) and push set to on.
+Results are items 9-13 in `harnesses/claude/host-evidence/2.1.322-requests-dialogue.txt`. Passed: two requests in one `/requests` run, the `Warning:` line, spec-diff display (plain, not red/green), Accept of a spec edit, `-p` fallback. Open findings: (1) `$.ui.notify` returned `isSent:false` and the user saw no notification (R52.5 unmet here; cause unknown); (2) a spec edit through `request_send` needs the internal `a/a/<path>` patch form, which a model cannot guess. Codex then run in the trusted fixture (`harnesses/codex/host-evidence/0.169.0-interactive-check.txt`): tools load with no approval prompt, request flow and the push warning pass; adapter env, plan step and role rule still unchecked. Fixture holds two stale pending requests (`...095847Z-f667`, `...100006Z-a64d`) and push set to on.
 
 ## Active work: requests pane (2026-11-15)
 

@@ -1,0 +1,20 @@
+codex-cli 0.169.0, interactive session check, 2026-11-15
+(architecture/codex-integration)
+
+Driven by the main session through tmux in ~/projects/temp/specplane-fixture (trusted by the user in ~/.codex/config.toml),
+model gpt-6-luna, SPECPLANE_*/CLAUDE* stripped (user authorized fixture runs). The fixture was set up by
+`specplane init --harness codex` (committed), which wrote .codex/config.toml with default_tools_approval_mode = "approve".
+
+1. Interactive session, tools: the Specplane tools loaded and were callable; NO approval prompt appeared for any call
+   (role_show, docs_essentials, spec_edit, request_send). PASS. (Earlier evidence covered only `codex exec`.)
+2. role_show returned role llm. PASS.
+3. spec_edit on a feature spec (permission request-user): the model first passed only the new paragraph, and the core
+   refused it with "file does not start with a `---` frontmatter line" before reaching the permission check (a model
+   mistake). With the full file text the model sent a request: "Sent request <id> to the user: edit feature/greeting
+   Nothing was done ... (specplane requests accept <id>)". No dialogue or popup on Codex, as intended. PASS.
+4. The stored request shows a diff in `requests show` (the model's rewrite dropped two frontmatter lines, so the diff
+   showed them removed: model quality, not a product defect). PASS.
+5. notifications.push on: `warnings` says "notifications.push is set, but codex does not support push notifications, so no
+   push notification is sent". PASS.
+Not verified: SPECPLANE_ADAPTER reaching the server (the audit view shows role llm/unknown, no adapter field), a plan step,
+a role rule.
