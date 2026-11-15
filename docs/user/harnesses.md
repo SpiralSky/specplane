@@ -29,7 +29,7 @@ Steering and command instructions describe the same effective role that each act
 | Capability | Claude Code | Codex |
 |------------|-------------|-------|
 | Instructions on demand | supported | missing |
-| Push notifications | supported with the plugin loaded (Setup cannot tell whether it is); without the plugin, none is sent | missing |
+| Push notifications | supported with the plugin loaded (Setup cannot tell whether it is), but only when a client that raises plugin notifications is attached: in a plain terminal session the host reported the notification as not sent (checked on Claude Code 2.1.322), and the plugin then logs one line; without the plugin, none is sent | missing |
 | Subagents | supported | supported (checked with Codex 0.169.0) |
 | Viewing specifications (`spec-view`) | supported | missing |
 | Usage measurement | supported | missing |

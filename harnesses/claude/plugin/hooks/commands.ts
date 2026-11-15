@@ -208,6 +208,7 @@ export async function arrivalDialogue(replyText: string, ask: AskPort, core: Cor
         if (await wantsPush(rec, core)) {
           const sent = await push.notify(pushText(rec), { title: 'Specplane', key })
           pushed = !!sent?.isSent
+          if (!pushed) log('specplane: the host did not send the push notification (no client raised it); answer in the dialogue or with /requests.')
         }
       } catch (e) { log(cleanText(`specplane: the request notification failed: ${e instanceof Error ? e.message : String(e)}`)) }
     }

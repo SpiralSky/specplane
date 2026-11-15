@@ -314,7 +314,7 @@ test("a throwing clock is logged and never thrown", opts, async () => {
 });
 
 // ---- the push notification (requests R52.5) ----
-function pushFakes(cfg: { push?: unknown; perms?: unknown; state?: string; perm?: string[] }, ask: string | Error = "Accept", notifyFails = false) {
+function pushFakes(cfg: { push?: unknown; perms?: unknown; state?: string; perm?: string[] }, ask: string | Error = "Accept", notifyFails = false, isSent = true) {
   const f = arrivalFakes(ask);
   const record = { id: "r1", state: cfg.state ?? "pending", from: { role: "llm" }, action: { command: "spec edit" }, permissions: cfg.perm ?? ["spec.edit"], reason: "secret reason", diff: "-a\n+b" };
   const order: string[] = [];
@@ -326,7 +326,7 @@ function pushFakes(cfg: { push?: unknown; perms?: unknown; state?: string; perm?
   const sent: { text: string; opts: { title: string; key: string } }[] = [];
   const cancelled: string[] = [];
   const push = {
-    notify: async (text: string, opts: { title: string; key: string }) => { order.push("notify"); if (notifyFails) throw new Error("no channel"); sent.push({ text, opts }); return { isSent: true }; },
+    notify: async (text: string, opts: { title: string; key: string }) => { order.push("notify"); if (notifyFails) throw new Error("no channel"); sent.push({ text, opts }); return { isSent }; },
     cancel: async (k: string) => { order.push("cancel"); cancelled.push(k); },
   };
   const ask2 = { ask: async (q: string) => { order.push("ask"); return f.ask.ask(q); } };
@@ -372,4 +372,12 @@ test("push: a failing notification is logged and the dialogue still runs", opts,
   assert.equal(f.asked.length, 1);
   assert.ok(note);
   assert.ok(f.logs.some((l: string) => /notification failed/.test(l)));
+});
+
+test("push: when the host says it did not send, one line is logged and no cancel is attempted", opts, async () => {
+  const m = await cmdsLoad();
+  const f = pushFakes({ push: true }, "Accept", false, false);
+  await m.arrivalDialogue(created, f.ask, f.core, f.log, undefined, f.push);
+  assert.ok(f.logs.some((l: string) => /host did not send the push notification/.test(l)));
+  assert.deepEqual(f.cancelled, []);
 });

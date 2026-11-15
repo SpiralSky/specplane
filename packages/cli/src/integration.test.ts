@@ -19,7 +19,10 @@ test("validate on the specs-framework repository reports no format or requiremen
   try { out = sp("validate", "--json"); } catch (e) { out = (e as { stdout: string }).stdout; }
   const report = (JSON.parse(out) as { data: { findings: { severity: string; rule: string; message: string }[]; checked: string[] } }).data;
   // Every spec file and requirement file in the repository is checked; INFO.md is not a spec.
-  const specFiles = ["docs/specifications/architecture", "docs/specifications/features", "docs/requirements"]
+  // The registered subprojects (claude and codex) keep their specs under harnesses/<name>/specifications.
+  const specFiles = ["docs/specifications/architecture", "docs/specifications/features", "docs/requirements",
+    "harnesses/claude/specifications/architecture", "harnesses/claude/specifications/features",
+    "harnesses/codex/specifications/architecture", "harnesses/codex/specifications/features"]
     .flatMap((dir) => fs.readdirSync(path.join(repoRoot, dir)).filter((n) => n.endsWith(".md") && n !== "INFO.md"));
   assert.equal(report.checked.length, specFiles.length, "one entry per spec or requirement file");
   const errors = report.findings.filter((f) => f.severity === "error");
