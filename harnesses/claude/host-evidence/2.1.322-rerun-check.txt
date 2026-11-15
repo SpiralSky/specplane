@@ -1,0 +1,16 @@
+Live rerun check, 2026-11-15 (run by the user in a plain terminal; read afterwards from the fixture and Claude's transcript)
+Host: Claude Code 2.1.322. Fixture: ~/projects/temp/specplane-fixture at 9bc9357 (init --harness claude, no --plugin-dir). Plan 2026-11-14-rerun-check.
+
+Command: specplane plan approve <id> && ANTHROPIC_MODEL=haiku specplane harness run --adapter claude plan-start <id>
+
+Result: passed.
+- Plan approved, started on plan/2026-11-14-rerun-check, worktree created, session 51288475-a483-4060-87e9-f4b8b1d9552c opened by the adapter.
+- First message was /specplane-plan-step 2026-11-14-rerun-check: the bare skill name worked without the plugin (skill from the project install).
+- Model claude-haiku-5-5. Tools used: command_begin, config_get, plan_next, plan_step-done, plan_review (all mcp__specplane__, from .mcp.json), Bash x14, Agent x2 (the [parallel] group, one subagent per file), Write x2.
+- out/c.txt = "gamma\n", out/d.txt = "delta\n" (od -c). Handoff entry accepted by plan.step-done on the first call; progress.yaml: done [1].
+- Commits on the plan branch: c82e6db (start), b96d71f (step 1).
+
+Observations:
+- The pre-commit hook rejected two commit attempts: "step 1 has a done handoff entry but is not in the done list of progress.yaml". The model wrote the handoff entry before calling plan.step-done; the commit succeeded after step-done. Ordering quirk: the contract could say to call step-done before committing.
+- The plan status stayed in-progress (plan-finish not part of this check).
+- Not checked: the session log content (the guard blocks direct reads of the local store), the audit log, the /requests accept route (needs an interactive session).
