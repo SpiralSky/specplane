@@ -46,7 +46,7 @@ If U4 finds no hook, R52.4 stays partly unmet on Claude Code. That is a decision
 
 | Unit | State | Commit |
 |---|---|---|
-| U0 | in progress (read-only worker) | — |
+| U0 | done (findings below) | — |
 | U1 | not started | — |
 | U2 | not started (after U0 and U1) | — |
 | U3 | in progress (step-worker) | — |
@@ -71,3 +71,11 @@ Append one entry per session boundary, newest last: goal, repository state (bran
 
 - The user asked for as much work as possible before any user test. U0 became a read-only investigation; the only user step is U5, once, at the end. Insight: the interactive behaviour (`ui.ask` in an interactive session, accept running as the person) cannot be observed headless (`ui.ask` rejects in `-p`), so U5 stays a user check; U2/U4 are built defensively so a wrong guess degrades to the text list, never to a wrong action.
 - Next action: collect U0 and U3 results, then U1, U2, U4, U6 in that order.
+
+### U0 findings (read-only Sonnet worker, 2026-11-15; DTS = `packages/cli/dist/plugin/.claude-plugin/types/claude-code/index.d.ts`)
+
+- **`$.ui.ask`** (DTS:2472-2481, AskOptions DTS:692-705): options are 2-4 labels (fewer than two are padded with Yes/No), `header` at most 12 characters, `multiSelect` returns comma-joined labels, no question-length limit declared, rejects when dismissed and in a `-p` run. Nothing forbids calling it from a `command.run` hook, and nothing says it works there: **untested**, so U2 must catch a rejection and fall back to the text list. `asUser` exists only on `$.prompt.submit`.
+- **Actor of `requests accept` through `process.run`: the person, about 85% sure (inference, not run).** `handlers.ts:12` passes no `env`; the child inherits the host's environment (DTS:3722, 3827). `cliActor` (`packages/cli/src/perm/permissions.ts:199-205`) is `llm` only when `SPECPLANE_ACTOR=llm` and `bypass_guards.llm_marker` is on; `ops.ts:145` refuses only an LLM actor. The plugin sets the marker only on its session-server child. It changes if Claude Code itself is started with `SPECPLANE_ACTOR=llm` in its environment. U5 observes this directly.
+- **Arrival hook (R52.4): feasible.** No `tool.result` event, but the plugin already handles `tool.call` for its own tools (`channel.ts:68-95`) and sees the reply at `channel.ts:92-94`; a hook after `forward()` can inspect it, or register `classic.PostToolUse` (DTS:1295; fields `tool_name`, `tool_input`, `tool_response`). Tool name is `mcp__specplane__<name>`. Not inspecting the reply today.
+- **Machine-readable list exists:** `requests list|show|accept|decline` take `--json` (`cli.ts:121-124`); `harness run` also takes `--json` (`commands/harness.ts`), which the plugin does not pass (`commands.ts:68`). Record fields (`requests/store.ts:13-29`): `id`, `state`, `created`, `from{role,model,session}`, `permissions[]`, `action{command,params}`, `reason`, `base{branch,commit}`, `diff` (string or null), `plan`, `checkout`, `blocking`, `answer`. So the diff for a spec request is already in the record.
+- Effect on units: U2 uses `--json` (no text parsing, no new CLI work) and the record's `diff`; U4 is buildable (hook after `forward()` for the request-sending action).
