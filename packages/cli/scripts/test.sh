@@ -11,7 +11,8 @@
 #                   spins, so the run never ends (oven-sh/bun#34069, #47257; fixed by PR #44581).
 #                   Measured 2026-11-13 under CPU load: 1.3.14 stalled in 1 of 4 runs, 1.4.4 in 0 of 15.
 #                   When the watchdog fires the whole run is repeated under Node's test runner.
-#                   A Bun run that finishes, pass or fail, is reported as is.
+#                   A Bun run that finishes, pass or fail, is reported as is. With no Bun on PATH, the
+#                   run uses Node's test runner.
 #   bun             Bun only, still under the watchdog; a stall exits 124.
 #   node            Node's built-in test runner only (slower, never stalled so far).
 # SPECPLANE_TEST_BUN_DEADLINE: seconds before a Bun run counts as stalled (default 180;
@@ -69,7 +70,15 @@ if [ -z "$bun_bin" ] && [ "$runner" != node ]; then
     if bun_fixed "$("$candidate" --version 2>/dev/null)"; then bun_bin=$candidate; break; fi
   done
   IFS=$old_ifs
-  bun_bin="${bun_bin:-bun}"
+  if [ -z "$bun_bin" ]; then
+    # No Bun on PATH (a CI runner, a fresh machine): auto uses Node's test runner; an explicit `bun` is an error.
+    if [ "$runner" = auto ]; then
+      runner=node
+    else
+      echo "scripts/test.sh: SPECPLANE_TEST_RUNNER=bun but no bun was found on PATH (set SPECPLANE_TEST_BUN)." >&2
+      exit 2
+    fi
+  fi
 fi
 if [ "$runner" != node ] && ! bun_fixed "$("$bun_bin" --version 2>/dev/null)"; then
   echo "scripts/test.sh: $bun_bin is older than Bun 1.4.4 and can stall a parallel run (oven-sh/bun#34069); upgrade Bun or set SPECPLANE_TEST_BUN." >&2
