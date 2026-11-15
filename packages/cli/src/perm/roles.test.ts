@@ -3,8 +3,9 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { test } from "node:test";
-import { activePreset, cliRole, mode, osUserName, switchRole, type Actor, type Preset } from "./permissions.js";
+import { LEVELS, activePreset, cliRole, levelOf, mode, osUserName, switchRole, type Actor, type Preset } from "./permissions.js";
 import { PRESETS } from "./permissions.js";
+import { presetCreate } from "./preset-ops.js";
 import { resolveLlmRole } from "./llm-rules.js";
 import {
   mapUser, roleApprove, roleCreate, roleDelete, roleEdit, roleList, roleShow, ruleApprove, ruleCreate, ruleEdit, ruleDelete, ruleList, ruleShow, ruleTrust, unmapUser, type RoleCtx,
@@ -354,4 +355,48 @@ test("pending and approved deletions follow branch history, not the shared notes
   assert.equal(activePreset(root).customRoles, undefined, "no deletion when the branch never contained the file");
   assert.equal(ruleShow(root, "help").ok, false);
   assert.equal(resolveLlmRole(root, { agent_type: "explore" }), "llm");
+});
+
+test("R42.2 default levels: standard-user 10, llm 5, the Administrator above every assignable level, unknown 0", () => {
+  const preset = PRESETS[0];
+  assert.equal(LEVELS["standard-user"], 10);
+  assert.equal(LEVELS.llm, 5);
+  assert.ok(LEVELS.administrator > 99);
+  assert.equal(levelOf(preset, "standard-user"), 10);
+  assert.equal(levelOf(preset, "llm"), 5);
+  assert.ok(levelOf(preset, "administrator") > 99);
+  assert.equal(levelOf(preset, "ghost"), 0);
+});
+
+test("R42.2: role list and role show report the default levels", () => {
+  const root = repo();
+  const rows = roleList(root).data as Array<{ id: string; level: number | string }>;
+  assert.equal(rows.find((r) => r.id === "standard-user")?.level, 10);
+  assert.equal(rows.find((r) => r.id === "llm")?.level, 5);
+  assert.equal(rows.find((r) => r.id === "administrator")?.level, "above all");
+  const lines = roleList(root).lines;
+  assert.ok(lines.includes("standard-user  default  level 10  approved"));
+  assert.ok(lines.includes("llm  default  level 5  approved"));
+  assert.ok(lines.includes("administrator  default  level above all  approved"));
+  assert.match(roleShow(root, "standard-user").lines[0], /Management level: 10\./);
+  assert.match(roleShow(root, "llm").lines[0], /Management level: 5\./);
+  assert.match(roleShow(root, "administrator").lines[0], /Management level: above every assignable level\./);
+});
+
+test("R42.2: the level boundary is strict: a role at level 5 edits a role at 4 but not one at 5", () => {
+  const root = repo();
+  applied(root, "five", 5, ["role.manage=allow"]);
+  applied(root, "also-five", 5);
+  applied(root, "four", 4);
+  const actor = ctx(root, { role: "five", kind: "human", name: "Pat" });
+  assert.equal(roleEdit(actor, "four", { title: "Four" }).ok, true);
+  const refused = roleEdit(actor, "also-five", { title: "Five" });
+  assert.equal(refused.ok, false);
+  assert.match(refused.reasons[0], /management level \(5\) is not below the five level \(5\)/);
+});
+
+test("R42.2: a Standard User (10) may manage presets, an LLM (5) may not", () => {
+  const root = repo();
+  assert.equal(presetCreate(ctx(root), "lvl-test", { defaultMode: "deny" }).ok, true);
+  assert.equal(presetCreate(ctx(root, llm), "lvl-test2", { defaultMode: "deny" }).ok, false);
 });
