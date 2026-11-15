@@ -38,7 +38,7 @@ This is the maintainers' own file; Specplane never writes or ships a `CLAUDE.md`
 
 These apply to every session, including a cloud session that has only this repository. They are the maintainers' setup, not part of Specplane, and `.claude/agents/` and `.claude/skills/approach/` are not installed from the templates.
 
-- The main session runs Opus 5.5 (`model` in `.claude/settings.json`; do not use Fable 5.2, locally or in cloud sessions and routines) and only coordinates: it decides, writes briefs, checks results and keeps the progress record in `HANDOFF.md`.
+- The main session runs Opus 5.5 (`model` in `.claude/settings.json`; Fable 5.2 only occasionally when the user asks, never in cloud sessions or routines) and only coordinates: it decides, writes briefs, checks results and keeps the progress record in `HANDOFF.md`.
 - Write units go to `step-worker` (a whole unit that ends built, tested and committed) or `implementer` (one small specified change), both Sonnet. Run them one at a time. Lookups go to `Explore` or `researcher`, both Haiku, and may run in parallel. One `reviewer` pass (Sonnet) covers a large change at the end, not each unit. Do not use a general-purpose agent for code work.
 - For a lookup that takes one or two tool calls, work directly.
 - A brief is all a subagent has. Give it the goal and what done looks like, the unit text itself, the known files or `path:line` ranges, the decisions already made, the test commands (`npx tsc --noEmit -p .` in `packages/cli` before every build, then `npm test`), the commit conventions, and a report limit of 15 lines.
