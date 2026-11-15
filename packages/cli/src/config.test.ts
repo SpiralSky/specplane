@@ -152,8 +152,7 @@ test("this repository's own configuration is valid", () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
   const { findings, config } = loadSettings(root);
   // The maintainers turn `hook_protect` off on purpose (they edit the installed hooks by copying templates), which `validate` reports.
-  // TODO: drop the second exemption once the preset file names the per-type approval permissions (R16.1) instead of `spec.approve`.
-  assert.deepEqual(findings.filter((f) => !(f.key === "bypass_guards" && /`hook_protect` is off/.test(f.message)) && !(f.severity === "warning" && /unknown permission `spec.approve`/.test(f.message))), []);
+  assert.deepEqual(findings.filter((f) => !(f.key === "bypass_guards" && /`hook_protect` is off/.test(f.message))), []);
   assert.equal(config.plans.dir, "plans");
 });
 
