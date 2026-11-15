@@ -161,7 +161,7 @@ const created = JSON.stringify({ ok: true, request: "r1", findings: [] });
 test("a reply that created a request opens one dialogue and runs the answer", opts, async () => {
   const m = await cmdsLoad();
   const f = arrivalFakes("Accept");
-  await m.arrivalDialogue("request_send", created, f.ask, f.core, f.log);
+  await m.arrivalDialogue(created, f.ask, f.core, f.log);
   assert.equal(f.asked.length, 1); assert.match(f.asked[0]!, /spec-writer/); assert.match(f.asked[0]!, /\+b/);
   assert.deepEqual(f.calls[0], ["harness", "run", "--adapter", "claude", "requests", "show", "r1", "--json"]);
   assert.deepEqual(f.calls[1], ["harness", "run", "--adapter", "claude", "requests", "accept", "r1"]);
@@ -170,18 +170,30 @@ test("a reply that created a request opens one dialogue and runs the answer", op
 test("other replies and other tools open no dialogue", opts, async () => {
   const m = await cmdsLoad();
   const f = arrivalFakes("Accept");
-  await m.arrivalDialogue("spec_retrieve", created, f.ask, f.core, f.log);
-  await m.arrivalDialogue("request_send", JSON.stringify({ ok: false, findings: ["no"] }), f.ask, f.core, f.log);
-  await m.arrivalDialogue("request_send", "not json", f.ask, f.core, f.log);
+  await m.arrivalDialogue(JSON.stringify({ ok: true, findings: [] }), f.ask, f.core, f.log);
+  await m.arrivalDialogue(JSON.stringify({ ok: false, findings: ["no"] }), f.ask, f.core, f.log);
+  await m.arrivalDialogue("not json", f.ask, f.core, f.log);
   assert.equal(f.asked.length, 0); assert.deepEqual(f.calls, []);
 });
 
 test("a rejecting ask changes nothing and never throws", opts, async () => {
   const m = await cmdsLoad();
   const f = arrivalFakes(new Error("no UI"));
-  await m.arrivalDialogue("request_send", created, f.ask, f.core, f.log);
+  await m.arrivalDialogue(created, f.ask, f.core, f.log);
   assert.equal(f.asked.length, 1); assert.equal(f.calls.length, 1);
   const broken = { run: async () => { throw new Error("boom"); } };
-  await m.arrivalDialogue("request_send", created, f.ask, broken, f.log);
+  await m.arrivalDialogue(created, f.ask, broken, f.log);
   assert.match(f.logs.at(-1)!, /boom/);
+});
+
+test("a held write action reply (ok or not) opens one dialogue; a non-pending record opens none", opts, async () => {
+  const m = await cmdsLoad();
+  const f = arrivalFakes("Skip");
+  await m.arrivalDialogue(JSON.stringify({ ok: true, request: "r1", data: { command: "plan start" } }), f.ask, f.core, f.log);
+  await m.arrivalDialogue(JSON.stringify({ ok: false, request: "r1", findings: ["held"] }), f.ask, f.core, f.log);
+  assert.equal(f.asked.length, 2);
+  const done = { run: async () => ({ exitCode: 0, stdout: JSON.stringify({ ok: true, data: { id: "r1", state: "accepted" } }), stderr: "" }) };
+  const g = arrivalFakes("Accept");
+  await m.arrivalDialogue(created, g.ask, done, g.log);
+  assert.equal(g.asked.length, 0);
 });

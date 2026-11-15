@@ -115,19 +115,18 @@ async function pendingRequests(core: CorePort, signal?: AbortSignal): Promise<Re
   } catch { return null }
 }
 
-/** The id of the request a `request.send` reply says was created, else undefined. */
-export function createdRequestId(action: string, replyText: string): string | undefined {
-  if (action !== 'request_send' && action !== 'request.send') return undefined
+/** The id of the request a Specplane tool reply says was created (any action: `request_send` or a held write), else undefined. */
+export function createdRequestId(replyText: string): string | undefined {
   try {
-    const b = JSON.parse(replyText) as { ok?: unknown; request?: unknown }
-    return b.ok === true && typeof b.request === 'string' && b.request ? b.request : undefined
+    const b = JSON.parse(replyText) as { request?: unknown } | null
+    return b && typeof b.request === 'string' && b.request ? b.request : undefined
   } catch { return undefined }
 }
 
 /** The arrival dialogue: after a reply that created a request, ask about it. Never throws; the reply is not touched. */
-export async function arrivalDialogue(action: string, replyText: string, ask: AskPort, core: CorePort, log: (m: string) => void): Promise<void> {
+export async function arrivalDialogue(replyText: string, ask: AskPort, core: CorePort, log: (m: string) => void): Promise<void> {
   try {
-    const id = createdRequestId(action, replyText)
+    const id = createdRequestId(replyText)
     if (!id) return
     const r = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', 'show', id, '--json'])
     if (r.exitCode !== 0) return
