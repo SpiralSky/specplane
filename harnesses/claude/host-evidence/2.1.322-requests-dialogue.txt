@@ -1,0 +1,27 @@
+Requests dialogue live check, Claude Code 2.1.322, 2026-11-15
+Driven by the main session through tmux (detached session, 200x50) in ~/projects/temp/specplane-fixture, model Haiku,
+plugin loaded with --plugin-dir packages/cli/dist/plugin, SPECPLANE_* variables stripped by a launcher script (the user
+authorized stripping the LLM marker for this run). Code under test: commits 3023abe and 5bc8e3b.
+
+1. /requests (no arguments), pending request 20261115T063745Z-ef5d (plan start, from llm):
+   Opened the engine's question dialogue titled "Request": "Request <id> from llm: plan start", "Reason: ...", options
+   1 Accept, 2 Decline, 3 Skip, 4 Type something, 5 Chat about this (the last two are added by the host).
+   PASS. The text carried sender, action and reason; no diff (the request was not a spec change). A spec-change request
+   with a diff was NOT exercised.
+2. Decline: output "specplane: Declined 20261115T063745Z-ef5d. Nothing was changed." The core did not refuse it as an LLM
+   action, so the person's authority applied through process.run. PASS.
+3. Arrival dialogue, plugin-only tools (`claude --strict-mcp-config --plugin-dir ...`, so the .mcp.json server is off):
+   the model called plan_start; the reply created request 20261115T071238Z-c5ba; the same dialogue opened at once.
+   Accept: the core accepted it and ran the action, which failed for a reason of its own (branch
+   plan/2026-11-14-parallel-check already exists; the request is marked accepted-but-failed). So Accept acts as the person
+   and the accept route works end to end. PASS.
+4. FAIL (default install): in a session with both the plugin and the project's .mcp.json server (what `init --harness
+   claude` sets up), the model's plan_start call created request 20261115T071110Z-04a2 and NO dialogue opened and nothing
+   was logged to the transcript. The call is served by the MCP server, so the plugin's tool.call handler never sees the
+   reply. The arrival dialogue therefore works only when the plugin serves the tools.
+5. Observation: after an answered arrival dialogue the tool reply the model receives is unchanged (it still says the
+   request is pending), so the model told the user to approve a request that was already accepted. The accept result was
+   logged to the transcript as a line mixed into the model's turn.
+
+Not checked: a request carrying a spec diff (git-diff display, truncation), Skip, Esc dismissal, a -p run fallback, the
+text fallback line, a second pending request in the same /requests run, Windows.
