@@ -123,18 +123,37 @@ export function createdRequestId(replyText: string): string | undefined {
   } catch { return undefined }
 }
 
-/** The arrival dialogue: after a reply that created a request, ask about it. Never throws; the reply is not touched. */
-export async function arrivalDialogue(replyText: string, ask: AskPort, core: CorePort, log: (m: string) => void): Promise<void> {
+/** What the model is told after an answered arrival dialogue: a line for the reply, or a prompt where the reply cannot be changed. */
+export type ArrivalNote = { line: string; prompt: string }
+
+/**
+ * The arrival dialogue: after a reply that created a request, ask about it. Never throws; the reply text is not touched
+ * here. `seen` holds the request ids already shown, so a request reached by two routes opens one dialogue. Returns what
+ * to tell the model about the answer (Accept or Decline only), else undefined.
+ */
+export async function arrivalDialogue(replyText: string, ask: AskPort, core: CorePort, log: (m: string) => void, seen?: Set<string>): Promise<ArrivalNote | undefined> {
   try {
     const id = createdRequestId(replyText)
-    if (!id) return
+    if (!id) return undefined
+    if (seen?.has(id)) return undefined
+    seen?.add(id)
     const r = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', 'show', id, '--json'])
-    if (r.exitCode !== 0) return
+    if (r.exitCode !== 0) return undefined
     const rec = (JSON.parse(r.stdout) as { data?: RequestView | null }).data
-    if (!rec || rec.state !== 'pending') return
-    const lines = await runDialogue([rec], ask, core)
+    if (!rec || rec.state !== 'pending') return undefined
+    let answered = ''
+    const spy: AskPort = { ask: async (q, o) => { const a = await ask.ask(q, o); answered = String(a); return a } }
+    const lines = await runDialogue([rec], spy, core)
     if (lines) for (const l of lines) log(l)
-  } catch (e) { log(`specplane: the request dialogue failed: ${e instanceof Error ? e.message : String(e)}`) }
+    if (!lines || (answered !== 'Accept' && answered !== 'Decline')) return undefined
+    const verb = answered === 'Accept' ? 'accepted' : 'declined'
+    const result = (lines[0] ?? '').replace(/\s+/g, ' ').trim()
+    const short = result && result.length <= 200 ? result : ''
+    return {
+      line: `The user answered this request in the dialogue: ${verb}.${short ? ` ${short}` : ''}`,
+      prompt: `Specplane: request ${id} was ${verb} by the user${short ? ` (${short})` : ''}. Do not send it again.`,
+    }
+  } catch (e) { log(`specplane: the request dialogue failed: ${e instanceof Error ? e.message : String(e)}`); return undefined }
 }
 
 /** Run one typed command. Nothing here can call a model; a prompt is only returned for the host to submit. */

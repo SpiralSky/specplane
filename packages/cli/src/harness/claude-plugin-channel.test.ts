@@ -197,3 +197,90 @@ test("a held write action reply (ok or not) opens one dialogue; a non-pending re
   await m.arrivalDialogue(created, g.ask, done, g.log);
   assert.equal(g.asked.length, 0);
 });
+
+// ---- the arrival dialogue through the hook routes, and the answer line ----
+const chLoad = async (): Promise<any> => import(pathToFileURL(path.join(repo, "harnesses/claude/plugin/hooks/channel.ts")).href); // eslint-disable-line @typescript-eslint/no-explicit-any
+function hookFakes(answer: string | Error, id: string) {
+  const asked: string[] = [];
+  const logs: string[] = [];
+  const prompts: string[] = [];
+  const record = { id, state: "pending", from: { role: "llm" }, action: { command: "plan start" }, reason: "r" };
+  const $ = {
+    plugin: { root: "/p" },
+    ui: { ask: async (q: string) => { asked.push(q); if (answer instanceof Error) throw answer; return answer; }, log: (m: string) => logs.push(m) },
+    clock: { after: (_ms: number, fn: () => void) => fn() },
+    prompt: { submit: async (p: { text: string; asUser?: unknown }) => { if ("asUser" in p) throw new Error("human authority"); prompts.push(p.text); } },
+    process: { run: async (argv: string[]) => ({ exitCode: 0, stdout: argv.includes("show") ? JSON.stringify({ ok: true, data: record }) : "Accepted.\n", stderr: "" }) },
+  };
+  return { $, asked, logs, prompts };
+}
+async function handler(): Promise<(...a: unknown[]) => Promise<any>> { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const m = await chLoad();
+  const hs: Record<string, (...a: unknown[]) => Promise<unknown>> = {};
+  m.registerChannel((name: string, h: (...a: unknown[]) => Promise<unknown>) => { hs[name] = h; return { catch: () => undefined }; });
+  return hs["tool.call"] as never;
+}
+const mcpReply = (id: string) => ({ text: JSON.stringify({ ok: true, request: id, findings: [] }) });
+const nextOf = (r: unknown) => Object.assign(async () => r, { budget: { remainingMs: 1000 } });
+
+test("a call served by the MCP server opens one dialogue and a prompt without authority tells the model", opts, async () => {
+  const h = await handler();
+  const f = hookFakes("Accept", "m1");
+  const reply = mcpReply("m1");
+  const out = await h(f.$, { tool: "mcp__specplane__plan_start" }, nextOf(reply));
+  assert.equal(f.asked.length, 1);
+  assert.equal(out, reply); // the MCP server's reply is not rewritten; the model is told by a prompt instead
+  assert.deepEqual(f.prompts, ["Specplane: request m1 was accepted by the user (Accepted.). Do not send it again."]);
+  // the same request seen again (the other route) opens nothing and leaves the reply as it is
+  const again = await h(f.$, { tool: "mcp__specplane__plan_start" }, nextOf(reply));
+  assert.equal(f.asked.length, 1);
+  assert.equal(again, reply);
+});
+
+test("Decline is reported to the model; Skip and a rejecting ask leave the reply unchanged", opts, async () => {
+  const h = await handler();
+  const d = hookFakes("Decline", "m2");
+  await h(d.$, { tool: "mcp__specplane__x" }, nextOf(mcpReply("m2")));
+  assert.match(d.prompts[0]!, /request m2 was declined by the user/);
+  const s = hookFakes("Skip", "m3");
+  const rs = mcpReply("m3");
+  assert.equal(await h(s.$, { tool: "mcp__specplane__x" }, nextOf(rs)), rs);
+  assert.deepEqual(s.prompts, []);
+  const e = hookFakes(new Error("no UI"), "m4");
+  const re = mcpReply("m4");
+  assert.equal(await h(e.$, { tool: "mcp__specplane__x" }, nextOf(re)), re);
+  assert.deepEqual(e.prompts, []);
+});
+
+test("non-request replies, error replies and other tools open nothing", opts, async () => {
+  const h = await handler();
+  const f = hookFakes("Accept", "m5");
+  const plain = { text: JSON.stringify({ ok: true, findings: [] }) };
+  assert.equal(await h(f.$, { tool: "mcp__specplane__x" }, nextOf(plain)), plain);
+  const err = { isError: true, text: JSON.stringify({ request: "m5" }) };
+  assert.equal(await h(f.$, { tool: "mcp__specplane__x" }, nextOf(err)), err);
+  const other = mcpReply("m5");
+  assert.equal(await h(f.$, { tool: "mcp__other__x" }, nextOf(other)), other);
+  assert.equal(await h(f.$, { tool: "Read" }, nextOf(other)), other);
+  assert.equal(f.asked.length, 0);
+});
+
+test("the arrival dialogue returns the reply line for Accept, nothing for Skip, and one dialogue per id with a seen set", opts, async () => {
+  const m = await cmdsLoad();
+  const f = arrivalFakes("Accept");
+  const seen = new Set<string>();
+  const note = await m.arrivalDialogue(created, f.ask, f.core, f.log, seen);
+  assert.equal(note.line, "The user answered this request in the dialogue: accepted. Accepted r1.");
+  assert.equal(await m.arrivalDialogue(created, f.ask, f.core, f.log, seen), undefined);
+  assert.equal(f.asked.length, 1);
+  assert.equal(await m.arrivalDialogue(created, arrivalFakes("Skip").ask, f.core, f.log), undefined);
+});
+
+test("a failing prompt submit is logged and never thrown", opts, async () => {
+  const m = await chLoad();
+  const logs: string[] = [];
+  const $ = { clock: { after: (_: number, fn: () => void) => fn() }, prompt: { submit: async () => { throw new Error("x"); } }, ui: { log: (s: string) => logs.push(s) } };
+  m.submitNote($, "hello");
+  await new Promise(r => setTimeout(r, 10));
+  assert.equal(logs.length, 1);
+});
