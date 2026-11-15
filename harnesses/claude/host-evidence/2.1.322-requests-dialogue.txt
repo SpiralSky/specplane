@@ -45,3 +45,22 @@ Still not checked: a request with a spec diff, Skip, Esc, -p fallback, two pendi
    "Answer with /requests accept <id> or /requests decline <id>." (the fallback). PASS.
 Still not checked live: a request with a spec diff or the "Warning: ..." line, two pending requests answered in one run,
 a -p run. Left pending in the fixture: 20261115T071110Z-04a2 and 20261115T072820Z-8fe1.
+
+--- Later checks, 2026-11-15 (same method: tmux, Haiku, plugin plus .mcp.json, SPECPLANE_*/CLAUDE* stripped, fixture only,
+    user authorized; fixture got an approved spec feature/greeting) ---
+9. Two pending requests in one /requests run: the first dialogue opened, and after Decline the second opened; both were
+   declined and reported in one line each ("Declined <id>. Nothing was changed."). PASS.
+10. Spec-edit request, `Warning:` line: a patch with ordinary `a/docs/...` headers made the dialogue show "Warning: Current
+    diff unavailable: the proposed patch no longer applies to the destination text." although `git apply --check` accepts
+    the same patch. Cause: stored patches use the internal double-prefixed form (`a/a/<path>`, `b/b/<path>`, applied with
+    -p2, spec/edit.ts); a normal patch does not apply. PASS for the Warning line. FINDING: a model sending a spec edit
+    through request_send has no way to know that form; a refused spec_edit does not create the request itself.
+11. Spec-edit request with a patch in the internal form: the dialogue showed the diff in git diff style (`-`/`+` lines).
+    The dialogue text is plain bold white, not red/green (the colouring seen higher up was the model's tool-result
+    display). Accept applied the edit to the fixture's working tree as the person. PASS, but no colouring in the dialogue.
+12. -p run: request_send created the request, no dialogue, no crash; the reply gives the accept command. PASS.
+13. $.ui.notify (notifications.push on, committed in the fixture): a temporary debug log showed wantsPush=true and
+    notify returned {"isSent":false}; the user saw no desktop notification on two requests. The plugin called the host;
+    the host sent nothing. Cause unknown (possibly the host's push needs a setup this machine lacks). R52.5 is NOT met on
+    this setup. Not investigated: what the host needs for isSent to be true.
+Not checked: Skip's notification staying, because none was sent. Codex: not run (see the handoff).

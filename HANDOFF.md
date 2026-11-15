@@ -7,6 +7,10 @@ Updated 2026-11-14 after the first live rerun check and the push. Read the first
 - Removing `root:requests` from the `claude-integration` references (`bba3931`) did NOT reopen the spec: `spec.approve` reported it already approved. The earlier note that it needed re-approval was wrong. `harnesses.md` popup wording done (`dd45af4`).
 - Left: live checks only (spec-diff request and `Warning:`, two requests in one `/requests` run, `-p` run, real `$.ui.notify`, Codex), which the user runs where the LLM cannot.
 
+## Live checks run by the LLM via tmux (2026-11-15, late)
+
+Results are items 9-13 in `harnesses/claude/host-evidence/2.1.322-requests-dialogue.txt`. Passed: two requests in one `/requests` run, the `Warning:` line, spec-diff display (plain, not red/green), Accept of a spec edit, `-p` fallback. Open findings: (1) `$.ui.notify` returned `isSent:false` and the user saw no notification (R52.5 unmet here; cause unknown); (2) a spec edit through `request_send` needs the internal `a/a/<path>` patch form, which a model cannot guess. Codex not run: a Codex session in the maintainers' repo was denied by the auto-mode classifier (marker stripping was authorized for the fixture only); the fixture is not a trusted Codex project. Fixture holds two stale pending requests (`...095847Z-f667`, `...100006Z-a64d`) and push set to on.
+
 ## Active work: requests pane (2026-11-15)
 
 DONE 2026-11-15 (commits fd4d4f0..c5d6427, Handoff 3 in the record): `/requests` now opens the host's question dialogue and a request opens it on arrival; live-checked. Original problem: `/requests` was a text list, not the pane R52.1 asks for. The approach, units U0-U6 and per-session handoffs are in `docs/work-records/2026-11-15-requests-pane.md`; start there. First user action (U0): in the fixture with `--plugin-dir`, type `/requests accept 20261115T063745Z-ef5d` and report whether it ran as you.
