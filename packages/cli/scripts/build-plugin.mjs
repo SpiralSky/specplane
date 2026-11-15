@@ -28,7 +28,10 @@ for (const entry of ['assets/docs', 'assets/ai-docs', 'assets/steering', 'assets
   cpSync(path.join(pkg, entry), path.join(core, entry), { recursive: true });
 }
 // Production dependencies only, with their own dependencies, exactly as installed here.
-const listed = execFileSync('npm', ['ls', '--omit=dev', '--all', '--parseable'], { cwd: pkg, encoding: 'utf8' }).split('\n').filter(Boolean);
+// Run npm through the Node that is running this build when `npm run` told us where npm is: on Windows `npm` is a .cmd file
+// that execFileSync cannot start. Outside `npm run`, fall back to the plain command.
+const npmCli = process.env.npm_execpath && /npm-cli\.[cm]?js$/.test(process.env.npm_execpath) ? [process.execPath, [process.env.npm_execpath]] : ['npm', []];
+const listed = execFileSync(npmCli[0], [...npmCli[1], 'ls', '--omit=dev', '--all', '--parseable'], { cwd: pkg, encoding: 'utf8' }).split('\n').filter(Boolean);
 for (const dir of listed) {
   if (path.resolve(dir) === pkg) continue;
   const rel = path.relative(path.join(pkg, 'node_modules'), dir);
