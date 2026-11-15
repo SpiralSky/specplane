@@ -47,6 +47,21 @@ test("check requirement-ids --staged refuses a duplicate in the index and ignore
   } finally { rm(root); }
 });
 
+test("check requirement-ids --staged also checks a subproject's requirement files", () => {
+  const root = repo();
+  try {
+    write(root, { ".specplane/config.yaml": "subprojects:\n  - {name: sub, path: sub/one}\n", "sub/one/requirements/reqs.md": "**R1: A**\nx\n" });
+    git(root, "add", "-A");
+    git(root, "commit", "-qm", "subproject");
+    assert.equal(sp(root, ["check", "requirement-ids", "--staged"]).code, 0);
+    write(root, { "sub/one/requirements/reqs.md": "**R1: A**\nx\n\n**R1: B**\ny\n" });
+    git(root, "add", "sub/one/requirements/reqs.md");
+    const r = sp(root, ["check", "requirement-ids", "--staged"]);
+    assert.equal(r.code, 1, r.out + r.err);
+    assert.match(r.err + r.out, /sub\/one\/requirements\/reqs\.md:\d+: duplicate requirement ID R1/);
+  } finally { rm(root); }
+});
+
 test("check tests --staged runs the declared tests of staged architecture specs on the index", () => {
   const root = repo();
   try {

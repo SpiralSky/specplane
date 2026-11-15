@@ -23,8 +23,9 @@ export function checkRequirementIdsCommand(opts: { staged?: boolean }): CommandR
   const root = checkoutRoot();
   const { paths } = loadSpecPaths(root);
   const project = loadProject(indexSource(root), paths);
-  const duplicates = checkRequirementIds(project.requirements.files, project.requirements.central)
-    .filter((p) => p.message.startsWith("duplicate requirement ID"));
+  // IDs are unique per project, so each subproject's requirement files are checked on their own (`later-releases R39.3`).
+  const duplicates = [project, ...project.subprojects.values()].flatMap((p) =>
+    checkRequirementIds(p.requirements.files, p.requirements.central).filter((f) => f.message.startsWith("duplicate requirement ID")));
   const lines = duplicates.map((p) => `${p.file}${p.line !== undefined ? `:${p.line}` : ""}: ${p.message}`);
   if (!duplicates.length) lines.push("No duplicate requirement IDs in the staged changes.");
   return { ok: duplicates.length === 0, data: { duplicates }, lines, findings: duplicates.length ? lines : [] };
