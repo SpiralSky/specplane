@@ -1,0 +1,43 @@
+id: self-dev
+title: Specplane self development
+default_mode: deny
+roles:
+  standard-user:
+    default_mode: allow
+    modes:
+      override.approval-commit: deny
+      override.approver: deny
+      override.status: deny
+      override.test: deny
+  llm:
+    modes:
+      config.change: request-user
+      decision.add: request-user
+      decision.delete: request-user
+      decision.edit: request-user
+      decision.retrieve: allow
+      info.retrieve: allow
+      meta.read: allow
+      meta.write: deny
+      plan.abandon: request-user
+      plan.budget: request-user
+      plan.complete: request-user
+      plan.create: allow
+      plan.delete: request-user
+      plan.edit: allow
+      plan.meta.read: allow
+      plan.meta.write: deny
+      plan.resume: request-user
+      plan.softstop: allow
+      plan.start: request-user
+      spec.approve: allow
+      spec.create.architecture: allow
+      spec.create.feature: request-user
+      spec.create.requirement: request-user
+      spec.delete.architecture: allow
+      spec.delete.feature: request-user
+      spec.delete.requirement: request-user
+      spec.edit.architecture: allow
+      spec.edit.feature: request-user
+      spec.edit.requirement: request-user
+      test.record: allow
