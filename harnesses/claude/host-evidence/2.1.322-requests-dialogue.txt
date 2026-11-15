@@ -25,3 +25,15 @@ authorized stripping the LLM marker for this run). Code under test: commits 3023
 
 Not checked: a request carrying a spec diff (git-diff display, truncation), Skip, Esc dismissal, a -p run fallback, the
 text fallback line, a second pending request in the same /requests run, Windows.
+
+--- Re-check after 2a06663 (same method, default setup: plugin AND the project's .mcp.json server), 2026-11-15 ---
+6. The model's plan_start call created request 20261115T071951Z-5239 and the dialogue opened at once (the item 4 failure is
+   fixed). Accept: the core accepted it and ran the action, which failed for its own reason (the branch already exists).
+   PASS.
+7. The model learned the answer: after its turn ended, the plugin submitted a prompt ("Prompt from the specplane plugin":
+   "Specplane: request <id> was accepted by the user (...). Do not send it again."). The model then started checking the
+   branch with git. This is the MCP-route fallback (the reply itself is not rewritten there). PASS, but see 8.
+8. Blemishes seen: (a) the core's result text reaches the transcript and the note as "0 warnings�The request was
+   accepted ..." (a stray character between the "0 warnings" line and the message, and the "0 warnings" line is noise);
+   (b) the note makes the model run extra commands. Neither is wrong; both are polish.
+Still not checked: a request with a spec diff, Skip, Esc, -p fallback, two pending requests in one /requests run.
