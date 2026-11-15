@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: []
-references: [root:harness R34, root:harness R35, root:plan-execution R27, root:harness §2, root:steering R59, root:harness R47, root:harness R14, root:harness §3, root:verification R24, root:harness R18, root:harness R19, root:harness R20, root:harness R26, root:harness R35.1, root:plan-execution R31.2, root:plan-execution R27.4, root:plan-execution R27.5, root:plan-execution R27.6, root:plans R28]
+references: [root:harness R34, root:harness R35, root:plan-execution R27, root:harness §2, root:steering R59, root:harness R47, root:harness R14, root:harness §3, root:verification R24, root:harness R18, root:harness R19, root:harness R20, root:harness R26, root:harness R35.1, root:plan-execution R31.2, root:plan-execution R27.4, root:plan-execution R27.5, root:plan-execution R27.6, root:plans R28, root:later-releases R66, root:harness]
 ---
 
 # Claude Code integration
