@@ -3,6 +3,11 @@
 #   sh docs/demo/demo.sh
 # It needs `specplane` on your PATH, git and Node.js 22+. It changes nothing outside a temporary folder.
 set -e
+if [ -n "${SPECPLANE_ACTOR:-}" ]; then
+  echo "This shell is marked as an LLM session (SPECPLANE_ACTOR is set), so Specplane would turn the approval into a request." >&2
+  echo "Run the demo in a normal terminal window instead." >&2
+  exit 1
+fi
 pause() { sleep "${DEMO_PAUSE:-1.5}"; }
 run() { printf '\n$ %s\n' "$*"; pause; "$@"; pause; }
 
