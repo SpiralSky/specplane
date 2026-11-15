@@ -6,7 +6,7 @@ import { specDiffText } from "../spec/edit.js";
 import { requestContext, requestRoot } from "./checkout.js";
 import { actionFor } from "./actions.js";
 import { holdRequest, sentMessage } from "./hold.js";
-import { actionNeeds, InvalidRequestAction } from "./requirements.js";
+import { actionNeeds, InvalidRequestAction, requestPrecondition } from "./requirements.js";
 import { answerRequest, claimAnswer, listRequests, readRequest, RequestStateError, type RequestRecord } from "./store.js";
 
 /** Send, list, show, accept and decline (`feature/requests` R52, R52.1, R52.2; `architecture/reference-cli` §8). */
@@ -51,6 +51,8 @@ export function sendRequest(ctx: RequestCtx, i: SendInput): RequestResult {
     context = requestContext(ctx.root, i.plan);
     destination = destinationCtx(ctx, context.checkout ?? ctx.root);
     needs = actionNeeds(destination.root, i.command, i.params);
+    const never = requestPrecondition(destination.root, i.command, i.params);
+    if (never) throw new InvalidRequestAction(never);
   }
   catch (e) {
     if (e instanceof InvalidRequestAction || e instanceof RequestStateError) return { ok: false, lines: [], reasons: [e.message] };

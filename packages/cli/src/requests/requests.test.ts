@@ -489,3 +489,14 @@ test("legacy records remain visible, route verified plan context, and refuse amb
   assert.equal(readRequest(root, ambiguous.id)!.state, "pending");
   assert.ok((await declineRequest(user(root), ambiguous.id)).ok);
 });
+
+test("a request for a plan that does not exist is refused when sent, and no request is stored", () => {
+  const root = repo();
+  const full = preset("full-llm-control");
+  for (const command of ["plan start", "plan approve", "plan resume", "plan abandon"]) {
+    const r = sendRequest(sctx(root, "llm", full), { command, params: { id: "2026-1-14-no-such-plan" }, reason: "x" });
+    assert.ok(!r.ok, command);
+    assert.match(r.reasons[0], /Plan `2026-1-14-no-such-plan` does not exist/);
+  }
+  assert.equal(list(root).length, 0);
+});

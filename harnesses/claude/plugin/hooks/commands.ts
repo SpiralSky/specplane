@@ -222,7 +222,9 @@ export async function arrivalDialogue(replyText: string, ask: AskPort, core: Cor
     const verb = o.answer === 'Accept' ? 'accepted' : 'declined'
     const short = o.message && o.message.length <= 200 ? o.message : ''
     if (o.failed) {
-      const why = short || 'see the transcript'
+      // The core's text is a fixed sentence ("... marked failed and will not be retried: ") and then the reason; keep the reason.
+      const reason = o.message.replace(/^.*?marked failed and will not be retried:\s*/, '').trim()
+      const why = (reason && reason.length <= 400 ? reason : '') || short || 'see the transcript'
       return {
         line: `The user answered this request in the dialogue: ${verb}${o.answer === 'Accept' ? ' but the action failed' : ', but it failed'}: ${why}`,
         prompt: `Specplane: request ${id} was ${verb} by the user but the action failed: ${why}. Do not send it again.`,

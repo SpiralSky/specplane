@@ -381,3 +381,15 @@ test("push: when the host says it did not send, one line is logged and no cancel
   assert.ok(f.logs.some((l: string) => /host did not send the push notification/.test(l)));
   assert.deepEqual(f.cancelled, []);
 });
+
+test("a long failure message still gives the reason, not 'see the transcript'", opts, async () => {
+  const m = await cmdsLoad();
+  const f = arrivalFakes("Accept");
+  const reason = "Plan `2026-1-14-parallel-check` is not committed in docs/plans on `main`; commit it there first.";
+  const stderr = `The request was accepted but the action could not be done, so it is marked failed and will not be retried: ${reason}\n`;
+  const failing = { run: async (argv: string[]) => argv.includes("show") ? f.core.run(argv) : { exitCode: 1, stdout: "", stderr } };
+  const note = await m.arrivalDialogue(created, f.ask, failing, f.log);
+  assert.ok(stderr.length > 200);
+  assert.ok(note.line.endsWith(`the action failed: ${reason}`), note.line);
+  assert.match(note.prompt, new RegExp(`but the action failed: ${reason.replace(/[`.;]/g, "\\$&")}\\.`));
+});

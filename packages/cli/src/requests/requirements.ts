@@ -6,6 +6,8 @@ import { validateActionInput } from "../harness/actions.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject, findDoc } from "../spec/project.js";
 import { committedSource } from "../spec/source.js";
+import { findPlan } from "../plan/model.js";
+import { plansDir } from "../plan/ctx.js";
 
 /** Required permissions come from the action, never from request permission metadata (requests R52.2/R52.3). */
 export type ActionNeeds = (string | string[])[];
@@ -150,4 +152,19 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       requireText("id"); bool("force"); return [command === "plan abandon" ? "plan.abandon" : "plan.delete"];
     default: return invalid(`\`${command}\` is not an action that can be requested.`);
   }
+}
+
+const PLAN_COMMANDS = ["plan approve", "plan start", "plan stop", "plan resume", "plan retarget", "plan budget", "plan finish", "plan merge", "plan abandon", "plan delete"];
+
+/**
+ * A reason why a request can never succeed, found before it is stored: it names a plan that is not committed here. Checked
+ * after `actionNeeds`, so a malformed or denied request is still reported first. `plan start` with an explicit target is
+ * left to the accepting run, because that plan lives on another branch.
+ */
+export function requestPrecondition(root: string, command: string, params: unknown): string | null {
+  if (!PLAN_COMMANDS.includes(command) || !params || typeof params !== "object") return null;
+  const p = params as Record<string, unknown>;
+  if (typeof p.id !== "string" || (command === "plan start" && p.target !== undefined)) return null;
+  const dir = plansDir(root);
+  return findPlan(committedSource(root, "HEAD"), dir, p.id) ? null : `Plan \`${p.id}\` does not exist in ${dir} on the current branch; check the plan ID.`;
 }
