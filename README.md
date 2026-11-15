@@ -3,49 +3,88 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node.js 22+](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org/)
 
-**Specs, review and evidence for AI-assisted development: structured markdown that keeps agents on track.**
+**Write down what your project should do, get it reviewed, and keep your AI coding agents inside the lines.**
 
-Specplane is a set of file conventions, a reference CLI and agent-harness integrations. You write down what a project should do and how it is built. Specplane tracks, separately, what has been reviewed and approved, what is declared implemented, and what evidence exists. Plans are optional: they let an agent work through small steps on its own branch.
+Specplane is spec-driven development for projects where an AI agent writes some, or most, of the code. You keep your requirements and specifications as plain markdown in the repository. Specplane tracks who approved them, what has been built, and what evidence says it works. It works with [Claude Code](https://claude.com/claude-code) and Codex.
 
-> **Status:** v0.1.0, not published to npm. Install from source (see [Install](#install)). This repository uses Specplane to describe itself; its product requirements are in [`docs/requirements/product-requirements.md`](docs/requirements/product-requirements.md).
+## Why
 
-## What it does
+Anyone who has turned an agent loose on a repository knows the pattern. It does something plausible, and you find out later that it wasn't what you meant. A longer prompt doesn't fix that. A written description of what the project should do, one that you reviewed and the agent works from, does.
 
-- **Specs say what and how.** Requirements say what the product must do, feature specs describe behaviour, architecture specs describe the implementation. Each layer cites the one above.
-- **Approval is bound to content.** Status is computed, never written in the file. Change a spec, or a part it cites, and it returns to review with a reason. Approvals, test results and implementation records live in git notes, so they travel with `sync` and survive rebases.
-- **Roles and permissions decide who may do what.** A person is a Standard User or an Administrator; an agent is the LLM role. Four default presets set each permission to `allow`, `request-user` or `deny`. A `request-user` action becomes a request you accept or decline.
-- **Evidence is separate from declaration.** Tests declared in specs run on committed content; results bind to fingerprints and go stale when content changes. An architecture spec is marked implemented only when its checks pass.
-- **Agents use actions, not the CLI.** A harness serves the same operations to an LLM as an MCP server and blocks the model from running the CLI. People use the CLI and the harness's typed commands.
-- **Plans are optional.** A plan is a folder of steps run on branch `plan/<id>` with budgets, soft and hard stops, requests and a final review.
+That is all Specplane adds: a structure for that description, a record of who approved it, and a way to check that the code still matches it. There is no service to run and nothing hidden. The specs are markdown files in your repo, and the records live in git.
+
+## What you get
+
+- **Three layers of specs.** Requirements say what the product must do, feature specs describe behaviour, and architecture specs describe how it is built. Each layer cites the one above it.
+- **Approval that follows the content.** A spec's status is computed, never typed into the file. Change a spec, or something it cites, and it goes back to review with the reason. Approvals, test results and implementation records live in git notes, so they travel with `specplane sync` and survive rebases.
+- **Clear limits for the agent.** Every permission is `allow`, `request-user` or `deny`, set per role. When an agent hits a `request-user` action, it files a request and you accept or decline it. An agent uses the same operations through the harness (an MCP server) instead of running the CLI, and the harness blocks it from running the CLI itself.
+- **Evidence kept apart from claims.** Tests declared in a spec run against committed content. Results are tied to the spec's fingerprint and go stale when it changes. An architecture spec is only marked implemented once its checks pass.
+- **Plans, if you want them.** A plan is a folder of small steps that an agent works through on its own branch, with budgets, soft and hard stops, and a final review. Skip them if you only want the specs.
+
+## A quick look
+
+A feature spec is a markdown file with a little frontmatter:
+
+```markdown
+---
+id: feature/login
+title: Login
+authors:
+  - human: you
+    contribution: drafted
+covers: [R1]          # the requirement IDs this spec is about
+references: []
+---
+
+# Login
+
+A user signs in with an email address and a password.
+```
+
+Then:
+
+```sh
+specplane validate                # format, citations, requirement IDs, status
+specplane spec approve feature/login
+specplane spec list               # every spec with its effective status
+```
+
+Edit the spec later and it is back in review, with the reason shown, until you approve it again.
 
 ## Install
 
-Requirements: **Node.js 22+** and **git**. The `gh` CLI is optional, for pull requests.
+You need **Node.js 22+** and **git**. The `gh` CLI is optional and only used for pull requests.
+
+Specplane is not on npm yet, so install it from source:
 
 ```sh
-git clone <this-repo> specplane
+git clone https://github.com/SpiralSky/specplane.git
 cd specplane/packages/cli
 npm install
 npm run build
 npm install -g --prefix ~/.local .   # puts `specplane` on your PATH (if ~/.local/bin is on it)
 ```
 
-## Quick start
+Then, in your own project:
 
 ```sh
 cd your-project
-specplane init --harness claude   # or --harness codex; omit to skip the harness
-specplane validate                # format, citations, requirement IDs, status
-specplane spec list               # every spec with its effective status
-specplane spec approve feature/login
+specplane init --harness claude   # or --harness codex; leave it out to skip the harness
+specplane validate
 specplane warnings
 ```
 
-Run `specplane --help`, or read the bundled documentation offline with `specplane docs` and `specplane docs search <text>`.
+`specplane --help` lists every command. The full documentation also ships with the tool: `specplane docs` reads it offline and `specplane docs search <text>` searches it.
+
+## Working with an agent
+
+`specplane init --harness claude` sets up Claude Code: rules, skills, hooks and the Specplane MCP server. `specplane init --harness codex` sets up Codex with a skill, an `AGENTS.md` block and the same server. From then on the agent calls Specplane through the harness, and your permission settings decide what it may do on its own.
+
+When the agent needs your say-so, it files a request. In Claude Code, with the optional plugin, that opens an approve-or-decline dialogue right in the session, and it can ping your phone through Remote Control if you're away. In Codex, or without the plugin, you answer in a terminal with `specplane requests accept <id>`. What each harness supports is listed in [`harnesses`](docs/user/harnesses.md).
 
 ## Documentation
 
-The user documentation is written in [`docs/user/`](docs/user/) and shipped inside the package; `specplane docs` reads it. The package build (`npm run build` in `packages/cli`) copies it to `assets/docs/` with a manifest, checks that every command, permission, configuration key and mandatory note is covered, and derives a short essentials file for LLMs plus the searchable rest (`docs essentials`, `docs.search`).
+The user documentation lives in [`docs/user/`](docs/user/) and is bundled into the package, which is what `specplane docs` reads.
 
 | Topic | Contents |
 |-------|----------|
@@ -59,15 +98,25 @@ The user documentation is written in [`docs/user/`](docs/user/) and shipped insi
 | [`verification`](docs/user/verification.md) | Tests, implementation, warnings, audit, logs, CI |
 | [`harnesses`](docs/user/harnesses.md) | Claude Code and Codex support |
 
-## Continuous integration
+For CI, run `specplane validate --json` on the checked-out commit and fail the job on a non-zero exit. See [`verification`](docs/user/verification.md#continuous-integration).
 
-Run `specplane validate --json` on the checked-out commit; a non-zero exit fails the job. It reads committed content only and needs no permission, local store or harness. A project can also run `specplane test run --all` to execute the deterministic tests of its architecture specs.
+## Status
 
-## Harnesses
+Specplane is at v0.1.0. It works and it's tested, but it isn't published to npm and the details may still change. This repository uses Specplane to describe itself: its product requirements are in [`docs/requirements/product-requirements.md`](docs/requirements/product-requirements.md), and the feature and architecture specs are under `docs/specifications/`. If you try it, issues are welcome.
 
-`specplane init --harness claude` installs the Claude Code files under `.claude/` (rules, skills, hooks, settings merge) and the MCP server entry. `specplane init --harness codex` installs `.agents/skills/specplane/`, the managed block in `AGENTS.md` and a `[mcp_servers.specplane]` table in project `.codex/config.toml`. Each prints which capabilities that harness lacks; Specplane refuses an action that needs a missing capability instead of substituting a weaker one. Support per harness is listed in [`docs/user/harnesses.md`](docs/user/harnesses.md).
+## Developing Specplane
 
-## Repository layout
+```sh
+cd packages/cli && npm run build && sh scripts/test.sh   # build, then the full suite
+sh harnesses/claude/tests/hooks.test.sh                  # hook tests
+sh harnesses/claude/tests/check-sync.sh                  # .claude/ matches the templates
+node packages/cli/dist/cli.js validate                   # must report 0 errors
+```
+
+In this repository the Claude hook that blocks the CLI denies agents running the installed `specplane` name. Use `node packages/cli/dist/cli.js` there.
+
+<details>
+<summary>Repository layout</summary>
 
 ```
 .specplane/config.yaml          configuration (this repo uses Specplane on itself)
@@ -85,16 +134,7 @@ plans/                          plan records
 .claude/                        this repo's own installed copy of the Claude harness
 ```
 
-## Development
-
-```sh
-cd packages/cli && npm run build && sh scripts/test.sh   # build, then the full suite
-sh harnesses/claude/tests/hooks.test.sh                  # hook tests
-sh harnesses/claude/tests/check-sync.sh                  # .claude/ matches the templates
-node packages/cli/dist/cli.js validate                   # must report 0 errors
-```
-
-In this repository the Claude CLI-block hook denies agents running the installed `specplane` name; use `node packages/cli/dist/cli.js`.
+</details>
 
 ## License
 

@@ -37,3 +37,9 @@ Plans are optional. Use them when you want an agent to work through steps on its
 ## Where things live
 
 Specs and requirements are tracked files. Approvals, test results and implementation records are git notes under `refs/notes/specplane`; share them with `sync`. Requests, the audit log and test logs are local to your machine. Settings are in `.specplane/config.yaml` (see `configuration`).
+
+## Git hooks and sharing
+
+Specplane installs no git hook on its own. To catch problems at commit time, turn on the pre-commit checks you want: `specplane config set pre_commit.duplicate_requirement_ids on` refuses a commit that gives two requirements the same ID, and `pre_commit.tests` runs the deterministic tests of your architecture specs (see `configuration`). Setting one writes the hook for you.
+
+`git push` does not send approval records, because they are git notes. Run `specplane sync` after you approve something, before or after you push. A CI checkout does not fetch notes either; if you want CI to see approvals, add `git fetch origin refs/notes/specplane:refs/notes/specplane` to the job (see `verification`, "Continuous integration").
