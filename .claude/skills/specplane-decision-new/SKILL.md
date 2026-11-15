@@ -4,7 +4,7 @@ description: "Record a decision the user made, with its context, as a decision r
 argument-hint: "[what was decided]"
 disable-model-invocation: false
 ---
-<!-- Specplane command contract v0.1.0; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.1; source: architecture/agent-skills §7 -->
 # decision-new
 
 ## Purpose

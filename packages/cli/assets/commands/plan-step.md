@@ -1,4 +1,4 @@
-<!-- Specplane command contract v0.1.0; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.1; source: architecture/agent-skills §7 -->
 # plan-step
 
 ## Purpose

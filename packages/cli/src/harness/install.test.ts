@@ -9,7 +9,11 @@ import { runInit } from "../commands/init.js";
 import { makeRepo } from "../test-repo.js";
 import { renderSkill, SKILL_COMMANDS, skillPath } from "./claude-skills.js";
 import { SKILL_FILE as CODEX_SKILL_FILE } from "./codex-skills.js";
-import { claudeTemplateDir, inspectInstallation, installHarness, mergeSettings, splitBlock } from "./install.js";
+import { claudeTemplateDir, inspectInstallation, installHarness, mergeSettings, specplaneVersion, splitBlock } from "./install.js";
+
+// Installed headers carry the package version; tests read it instead of repeating the number.
+const V = specplaneVersion();
+const ver = (re: RegExp): RegExp => new RegExp(re.source.replace("v0\\.1\\.0", `v${V.replace(/\./g, "\\.")}`));
 
 function repo(files: Record<string, string> = {}): string {
   const root = makeRepo({ ".specplane/config.yaml": "paths:\n  requirements: docs/requirements\n", ...files });
@@ -27,7 +31,7 @@ test("installing twice changes nothing and text outside the block is byte-identi
   assert.ok(first.written.includes("AGENTS.md"));
   const afterFirst = read(root, "AGENTS.md");
   assert.ok(afterFirst.startsWith(mine));
-  assert.match(afterFirst, /<!-- specplane:begin v0\.1\.0 /);
+  assert.match(afterFirst, ver(/<!-- specplane:begin v0\.1\.0 /));
   const second = installHarness(root, "codex");
   assert.deepEqual(second.written, []);
   assert.ok(second.unchanged.includes("AGENTS.md"));
@@ -38,7 +42,7 @@ test("an update replaces only the text between the markers", () => {
   const root = repo({ "AGENTS.md": "before\n<!-- specplane:begin v0.0.1 — old -->\nstale\n<!-- specplane:end -->\nafter\n" });
   installHarness(root, "codex");
   const text = read(root, "AGENTS.md");
-  assert.ok(text.startsWith("before\n<!-- specplane:begin v0.1.0 "));
+  assert.ok(text.startsWith(`before\n<!-- specplane:begin v${V} `));
   assert.ok(text.endsWith("<!-- specplane:end -->\nafter\n"));
   assert.ok(!text.includes("stale"));
 });
@@ -64,7 +68,7 @@ test("an owned file gets a version header; an edited or foreign file is kept and
   const root = repo();
   installHarness(root, "claude");
   const rules = ".claude/rules/specplane.md";
-  assert.match(read(root, rules), /^<!-- specplane:file v0\.1\.0 stamp:[0-9a-f]{64} sha:[0-9a-f]{16} -->\n/);
+  assert.match(read(root, rules), ver(/^<!-- specplane:file v0\.1\.0 stamp:[0-9a-f]{64} sha:[0-9a-f]{16} -->\n/));
   assert.ok(installHarness(root, "claude").unchanged.includes(rules));
   fs.appendFileSync(path.join(root, rules), "my edit\n");
   const kept = installHarness(root, "claude");
@@ -109,9 +113,9 @@ test("validation reports a missing file, an older version, a stamp mismatch and 
   installHarness(root, "codex");
   assert.deepEqual(inspectInstallation(root), []);
   const rules = path.join(root, ".claude/rules/specplane.md");
-  fs.writeFileSync(rules, read(root, ".claude/rules/specplane.md").replace("v0.1.0", "v0.0.1"));
+  fs.writeFileSync(rules, read(root, ".claude/rules/specplane.md").replace(`v${V}`, "v0.0.1"));
   assert.match(inspectInstallation(root)[0].message, /written by Specplane 0\.0\.1/);
-  fs.writeFileSync(rules, read(root, ".claude/rules/specplane.md").replace("v0.0.1", "v0.1.0").replace(/stamp:[0-9a-f]{64}/, `stamp:${"0".repeat(64)}`));
+  fs.writeFileSync(rules, read(root, ".claude/rules/specplane.md").replace("v0.0.1", `v${V}`).replace(/stamp:[0-9a-f]{64}/, `stamp:${"0".repeat(64)}`));
   assert.match(inspectInstallation(root)[0].message, /steering stamp/);
   fs.rmSync(rules);
   assert.match(inspectInstallation(root)[0].message, /is missing/);
@@ -135,9 +139,9 @@ test("the Claude install writes skills with the header after the frontmatter, ex
   const report = installHarness(root, "claude");
   assert.ok(report.written.includes(".claude/skills/specplane-plan-step/SKILL.md"));
   const skill = read(root, ".claude/skills/specplane-plan-step/SKILL.md");
-  assert.match(skill, /^---\nname: specplane-plan-step\n[\s\S]*?\n---\n<!-- specplane:file v0\.1\.0 sha:[0-9a-f]{16} -->\n<!-- Specplane command contract/);
+  assert.match(skill, ver(/^---\nname: specplane-plan-step\n[\s\S]*?\n---\n<!-- specplane:file v0\.1\.0 sha:[0-9a-f]{16} -->\n<!-- Specplane command contract/));
   assert.equal(fs.statSync(path.join(root, ".claude/hooks/specplane-cli-block.sh")).mode & 0o111, 0o111);
-  assert.match(read(root, ".claude/hooks/specplane-cli-block.sh"), /^#!\/bin\/sh\n# specplane:file v0\.1\.0 sha:/);
+  assert.match(read(root, ".claude/hooks/specplane-cli-block.sh"), ver(/^#!\/bin\/sh\n# specplane:file v0\.1\.0 sha:/));
   const settings = JSON.parse(read(root, ".claude/settings.json"));
   assert.deepEqual(settings.permissions, undefined);
   assert.equal(settings.hooks.SessionStart.length, 2);
@@ -151,7 +155,7 @@ test("T2: every committed skill is the rendering of its packaged contract", () =
   for (const command of SKILL_COMMANDS) {
     const committed = fs.readFileSync(path.join(claudeTemplateDir(), skillPath(command)), "utf8");
     assert.equal(committed, renderSkill(command), `${command}: run scripts/build-claude-skills.mjs`);
-    assert.match(committed, /<!-- Specplane command contract v0\.1\.0;/);
+    assert.match(committed, ver(/<!-- Specplane command contract v0\.1\.0;/));
   }
   assert.match(renderSkill("approve"), /disable-model-invocation: true/);
   assert.match(renderSkill("validate"), /disable-model-invocation: false/);

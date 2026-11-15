@@ -10,7 +10,7 @@ import { codexLauncher } from "./adapter-codex.js";
 import { CAPABILITIES, getAdapter } from "./adapter.js";
 import "./adapters.js";
 import { CODEX_CONTRACTS, CODEX_WITHHELD, contractPath, renderCodexContract, renderCodexSkill, SKILL_FILE } from "./codex-skills.js";
-import { codexTemplateDir, inspectInstallation, installHarness, mergeTomlEntry } from "./install.js";
+import { codexTemplateDir, inspectInstallation, installHarness, mergeTomlEntry, specplaneVersion } from "./install.js";
 
 function repo(files: Record<string, string> = {}): string {
   const root = makeRepo({ ".specplane/config.yaml": "paths:\n  requirements: docs/requirements\n", ...files });
@@ -71,10 +71,10 @@ test("T2: an unbalanced block stops setup with no change", () => {
 test("T3: every contract file carries a version header and an older copy is reported", () => {
   const root = repo();
   installHarness(root, "codex");
-  for (const c of CODEX_CONTRACTS) assert.match(read(root, `.agents/skills/specplane/${contractPath(c)}`), /specplane:file v0\.1\.0 .*sha:[0-9a-f]{16}/, c);
+  for (const c of CODEX_CONTRACTS) assert.match(read(root, `.agents/skills/specplane/${contractPath(c)}`), new RegExp(`specplane:file v${specplaneVersion().replace(/\./g, "\\.")} .*sha:[0-9a-f]{16}`), c);
   assert.deepEqual(inspectInstallation(root), []);
   const f = ".agents/skills/specplane/contracts/validate.md";
-  fs.writeFileSync(path.join(root, f), read(root, f).replace("specplane:file v0.1.0", "specplane:file v0.0.1"));
+  fs.writeFileSync(path.join(root, f), read(root, f).replace(`specplane:file v${specplaneVersion()}`, "specplane:file v0.0.1"));
   assert.match(inspectInstallation(root)[0].message, /written by Specplane 0\.0\.1/);
 });
 
