@@ -7,6 +7,10 @@ Updated 2026-11-14 after the first live rerun check and the push. Read the first
 - Removing `root:requests` from the `claude-integration` references (`bba3931`) did NOT reopen the spec: `spec.approve` reported it already approved. The earlier note that it needed re-approval was wrong. `harnesses.md` popup wording done (`dd45af4`).
 - Left: live checks only (spec-diff request and `Warning:`, two requests in one `/requests` run, `-p` run, real `$.ui.notify`, Codex), which the user runs where the LLM cannot.
 
+## Release and the manager idea (2026-11-15, end of day)
+
+`specplane@0.1.1` is published on npm (published by hand: CI could not, because the npm account had no way to skip 2FA). CI publishing now uses npm trusted publishing (`4851f2a`): before the next release, configure it on npmjs.com (owner SpiralSky, repository specplane, workflow `specplane-publish.yml`; npm expires an unused setup after 2 days), then tag `v0.1.2`; delete the `NPM_TOKEN` secret and run `npm pkg fix` (bin path warning). The project-manager and budget-allocator idea is a separate project, `~/projects/ai-ml/steward` (design notes only); it is deliberately not part of Specplane.
+
 ## Request errors (2026-11-15, latest)
 
 A request for a plan that is not committed (a typo such as `2026-1-14-...`) is now refused when sent, with no request stored (`requestPrecondition`, `requests/requirements.ts`; reference-cli §8, re-approved with its group, notes `20f4025`). When an accepted action fails the plugin shows the core's reason; before, a reason over 200 characters became "see the transcript". 682 pass / 0 fail. Commits `aec55e9`, `47d945b`. Answering a request from the phone app: confirmed working by the user (audit shows the accept as the person).
