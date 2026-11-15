@@ -13,7 +13,8 @@ Updated 2026-11-14 after the first live rerun check and the push. Read the first
   2. Review of the 8 edited spec files: done; 9 findings fixed in `de154c3`, `fceb087`, `f4ac0fa`, `c4855bc`, `9cd7a80`. Ready for approval: `agent-skills`, `roles-and-permissions`, `later-releases`; the other five are fixed but not re-reviewed. `validate` 0 errors, 25 warnings.
   3. `mcp_servers` live note: done in `de154c3` (architecture §10); the interactive session stays not checked live.
   4. Several `specplane` entries: done; one usable entry passes, all dead stops and names each status (`d2f7da3`, spec `6ffed6f`); 642 pass / 0 fail.
-  5. R7 and R42.2 audits: in progress.
+  5. R7 and R42.2 audits: done. R42.2 has no gap; defaults and the strict boundary are now tested (`f3a9b1b`, 646 pass / 0 fail). R7 is audited against `file-formats` §12.4 (the page has no prefix rule). One conflict: §12.4 said a bare requirement cite in a subproject without requirement files falls back to root, while the code (`bc4452e`) and R39.3 require `root:`. The spec is fixed (`1cdd46a`); `validate` 0 errors, 25 warnings. Untested but matching: `claude:`-prefixed requirements-file cites, refusal of subproject names `root`/`file` (config.ts:226), `splitSpecId` with an unknown prefix.
+  6. Sampled audit of the remaining requirements: not started.
   - Running `bun test <file>` inside a Claude session fails 2 adapter-claude tests ("an LLM role cannot answer a request") because of the session's environment; `npm test` passes. Not a regression.
 
 ### Live rerun started and cloud session (2026-11-14, evening)
