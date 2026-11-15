@@ -20,6 +20,9 @@ function makeRepo(): { tmp: string; repo: string } {
   const repo = path.join(tmp, "main-checkout");
   fs.mkdirSync(repo);
   g(repo, "init", "-q", "-b", "main");
+  // The code under test runs plain `git`, so the identity must be in the repository, not only in `-c` flags (a CI runner has none globally).
+  g(repo, "config", "user.name", "t");
+  g(repo, "config", "user.email", "t@example.com");
   fs.writeFileSync(path.join(repo, "a.txt"), "base\n");
   g(repo, "add", "a.txt");
   g(repo, "commit", "-q", "-m", "init");
