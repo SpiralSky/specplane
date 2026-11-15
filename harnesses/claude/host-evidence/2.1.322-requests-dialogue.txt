@@ -68,4 +68,4 @@ Not checked: Skip's notification staying, because none was sent. Codex: not run 
     (`/remote-control`, Claude app Code tab), the app closed and the terminal not in use: the request notification arrived
     on the phone. It cannot be acted on (the person opens the session), as R52.5 intends. With the app open in the
     foreground it showed no notification, only the dialogue inside the app's session window. So item 13's isSent:false was
-    the detached tmux run (no Remote Control), not a plugin fault. PASS. Answering from the phone: pending, user to check.
+    the detached tmux run (no Remote Control), not a plugin fault. PASS. Answering from the phone app: confirmed by the user; the audit log shows the accept as the person.
