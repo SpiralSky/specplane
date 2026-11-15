@@ -1,5 +1,7 @@
 name: Specplane publish
-# Runs only when a version tag such as v0.1.0 is pushed.
+# Runs only when a version tag such as v0.1.2 is pushed. It publishes with npm trusted publishing (OIDC), so there is no
+# npm token: configure the trusted publisher once on npmjs.com (package settings: owner SpiralSky, repository specplane,
+# workflow file specplane-publish.yml). The package must exist already, and npm expires an unused configuration after 2 days.
 on:
   push:
     tags: ["v*"]
@@ -18,6 +20,9 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
+      - name: Use an npm that supports trusted publishing
+        run: npm install -g npm@11   # trusted publishing needs npm 11.5.1 or newer; Node 22 ships an older npm
+
       - name: Install and test
         working-directory: packages/cli
         run: |
@@ -26,6 +31,4 @@ jobs:
 
       - name: Publish
         working-directory: packages/cli
-        run: npm publish --provenance --access public   # prepack builds dist/
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public   # prepack builds dist/; the OIDC login and provenance are automatic
