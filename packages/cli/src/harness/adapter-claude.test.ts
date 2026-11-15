@@ -12,7 +12,7 @@ import { setBudget, startPlan } from "../plan/run.js";
 import { readRequest } from "../requests/store.js";
 import { sendRequest } from "../requests/ops.js";
 import { makeRepo } from "../test-repo.js";
-import { buildArgv, claudeLauncher, CLAUDE_RESOURCES, manualCommand, readUsage, reportsSpecplane, runPlanSession, sessionPrompt, type ClaudeDeps, type SessionProcess } from "./adapter-claude.js";
+import { buildArgv, claudeLauncher, CLAUDE_RESOURCES, deadSpecplaneServer, manualCommand, readUsage, reportsSpecplane, runPlanSession, sessionPrompt, type ClaudeDeps, type SessionProcess } from "./adapter-claude.js";
 import { runHarnessCommand, type SessionLauncher } from "./run.js";
 import "./adapters.js";
 
@@ -206,6 +206,11 @@ test("a listed specplane MCP server that failed or needs auth does not count; pe
     assert.equal(reportsSpecplane({ mcp_servers: [{ name: "specplane", status }], plugins: [{ name: "specplane" }] }), true, `${status} with plugin`);
   }
   for (const status of ["pending", "connected", "weird", undefined]) assert.equal(reportsSpecplane({ mcp_servers: [{ name: "specplane", status }] }), true, String(status));
+  // Several `specplane` entries: one usable entry passes; only all dead fails, naming each status once.
+  assert.equal(reportsSpecplane({ mcp_servers: [{ name: "specplane", status: "failed" }, { name: "specplane", status: "connected" }] }), true);
+  assert.equal(reportsSpecplane({ mcp_servers: [{ name: "specplane", status: "needs-auth" }, { name: "specplane", status: "failed" }] }), false);
+  assert.equal(deadSpecplaneServer({ mcp_servers: [{ name: "specplane", status: "failed" }, { name: "specplane", status: "connected" }] }), null);
+  assert.equal(deadSpecplaneServer({ mcp_servers: [{ name: "specplane", status: "needs-auth" }, { name: "specplane", status: "failed" }, { name: "specplane", status: "failed" }] }), "needs-auth, failed");
   const { ctx } = started();
   const f = fake();
   const p = runPlanSession(ctx, ID, f.deps);

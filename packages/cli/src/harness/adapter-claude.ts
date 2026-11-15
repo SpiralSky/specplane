@@ -52,11 +52,11 @@ const DISALLOWED_TOOLS = ["git push", "git reset --hard", "git clean", "sudo", "
 const DEAD_MCP_STATUS = ["failed", "needs-auth"];
 const specplaneServers = (ev: Record<string, unknown>): { status?: unknown }[] =>
   Array.isArray(ev.mcp_servers) ? (ev.mcp_servers as ({ name?: unknown; status?: unknown } | null)[]).filter((p): p is { status?: unknown } => p?.name === "specplane") : [];
-/** The status of a listed `specplane` MCP server that did not connect (`failed`, `needs-auth`), else null. */
+/** When every listed `specplane` MCP server did not connect (`failed`, `needs-auth`), their distinct statuses joined by `, `; else null. One usable entry is enough, since it gives the session the tools. */
 export function deadSpecplaneServer(ev: Record<string, unknown>): string | null {
   const s = specplaneServers(ev);
   if (s.length === 0 || s.some((e) => !DEAD_MCP_STATUS.includes(e.status as string))) return null;
-  return String(s[0].status);
+  return [...new Set(s.map((e) => String(e.status)))].join(", ");
 }
 /** Whether `system/init` lists the Specplane plugin or a `specplane` MCP server that is not `failed` or `needs-auth` (`claude-integration` §10). */
 export function reportsSpecplane(ev: Record<string, unknown>): boolean {
