@@ -30,7 +30,9 @@ roles:
       plan.resume: request-user
       plan.softstop: allow
       plan.start: request-user
-      spec.approve: allow
+      spec.approve.architecture: allow
+      spec.approve.feature: allow
+      spec.approve.requirement: request-user
       spec.create.architecture: allow
       spec.create.feature: request-user
       spec.create.requirement: request-user
