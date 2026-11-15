@@ -33,6 +33,7 @@ export const claudeAdapter: HarnessAdapter = {
     caps.subagents = true;
     caps.viewing = true; // `/spec-view` runs in the user-command runner with no model turn.
     caps["usage-measurement"] = true; // The session adapter reads usage from the host's rate limit event.
+    caps.push = true; // The plugin's `$.ui.notify` sends it (`claude-integration` §3); the adapter cannot tell whether the plugin is loaded, so a session without the plugin sends none.
     caps["session-opening"] = true; // `claude -p` in the plan checkout.
     // Blocking needs the installed pre-tool hook, so it is claimed only when that file is present.
     caps["command-blocking"] = !!root && fs.existsSync(path.join(root, ".claude/hooks/specplane-cli-block.sh"));

@@ -70,7 +70,7 @@ export const ANSWER_LINE = 'Answer with /requests accept <id> or /requests decli
 
 export interface RequestView {
   id: string; state?: string; reason?: string; diff?: string | null; warning?: string
-  from?: { role?: string }; action?: { command?: string }
+  from?: { role?: string }; action?: { command?: string }; permissions?: string[]
 }
 
 /** Control characters (and colour escapes) out of a core string; newlines stay, every other run of blanks collapses. */
@@ -154,6 +154,33 @@ export function createdRequestId(replyText: string): string | undefined {
   } catch { return undefined }
 }
 
+/** The host's push notification channel (`$.ui.notify` and `$.ui.cancelNotify`); `notify` resolves whether the notification was sent. */
+export interface PushPort {
+  notify(text: string, opts: { title: string; key: string }): Promise<{ isSent: boolean }>
+  cancel(key: string): Promise<unknown>
+}
+
+async function configValue(core: CorePort, key: string): Promise<unknown> {
+  const r = await core.run(['config', 'get', key, '--json'])
+  if (r.exitCode !== 0) return undefined
+  return (JSON.parse(r.stdout) as { data?: { value?: unknown } }).data?.value
+}
+
+/** Whether the settings ask for a push notification of this request: `notifications.push` on and, unless the list has `all`, one of its permissions in `notifications.push_permissions` (`root:requests R52.5`). */
+export async function wantsPush(rec: RequestView, core: CorePort): Promise<boolean> {
+  if ((await configValue(core, 'notifications.push')) !== true) return false
+  const list = await configValue(core, 'notifications.push_permissions')
+  const perms = Array.isArray(list) ? list.map(String) : ['all']
+  return perms.includes('all') || (rec.permissions ?? []).some(p => perms.includes(p))
+}
+
+/** The one short summary a notification carries: no diff, no reason, no way to answer (`root:requests R52.5`). */
+export function pushText(rec: RequestView): string {
+  const cmd = cleanText(rec.action?.command ?? 'an action').replace(/\n/g, ' ').slice(0, 80)
+  const from = cleanText(rec.from?.role ?? 'llm').replace(/\n/g, ' ').slice(0, 40)
+  return `Specplane: a request is waiting: ${cmd} (from ${from}). Open /requests to answer.`
+}
+
 /** What the model is told after an answered arrival dialogue: a line for the reply, or a prompt where the reply cannot be changed. */
 export type ArrivalNote = { line: string; prompt: string }
 
@@ -163,7 +190,7 @@ export type ArrivalNote = { line: string; prompt: string }
  * dialogue could not open (the core failed, the question was dismissed) is removed again so a later reply can retry.
  * Returns what to tell the model about the answer (Accept or Decline only), else undefined.
  */
-export async function arrivalDialogue(replyText: string, ask: AskPort, core: CorePort, log: (m: string) => void, seen?: Set<string>): Promise<ArrivalNote | undefined> {
+export async function arrivalDialogue(replyText: string, ask: AskPort, core: CorePort, log: (m: string) => void, seen?: Set<string>, push?: PushPort): Promise<ArrivalNote | undefined> {
   const id = createdRequestId(replyText)
   if (!id) return undefined
   if (seen?.has(id)) return undefined
@@ -173,8 +200,20 @@ export async function arrivalDialogue(replyText: string, ask: AskPort, core: Cor
     if (r.exitCode !== 0) { seen?.delete(id); return undefined }
     const rec = (JSON.parse(r.stdout) as { data?: RequestView | null }).data
     if (!rec || rec.state !== 'pending') return undefined
+    // The notification goes out before the dialogue, which blocks (and is rejected in a `-p` run).
+    const key = `specplane-request-${rec.id}`
+    let pushed = false
+    if (push) {
+      try {
+        if (await wantsPush(rec, core)) {
+          const sent = await push.notify(pushText(rec), { title: 'Specplane', key })
+          pushed = !!sent?.isSent
+        }
+      } catch (e) { log(cleanText(`specplane: the request notification failed: ${e instanceof Error ? e.message : String(e)}`)) }
+    }
     const outcomes: Outcome[] = []
     const { lines, done } = await runDialogue([rec], ask, core, undefined, outcomes)
+    if (pushed && outcomes[0]) { try { await push!.cancel(key) } catch { /* a notification that stays is harmless */ } }
     for (const l of lines) log(l)
     if (!done) seen?.delete(id)
     const o = outcomes[0]

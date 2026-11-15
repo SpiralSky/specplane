@@ -8,7 +8,7 @@ import {
 } from './core-channel'
 import type { Readiness } from './core-channel'
 import { arrivalDialogue } from './commands'
-import { bundledCore, hostAsk, PROMPT_DELAY_MS } from './handlers'
+import { bundledCore, hostAsk, hostPush, PROMPT_DELAY_MS } from './handlers'
 
 const CORE_ENTRY = 'core/dist/harness/session-server-main.js'
 const VERSION_FILE = '.claude-plugin/host-version.json'
@@ -92,7 +92,7 @@ export function registerChannel(on: Parameters<Register>[0]): void {
       try {
         const text = (r as { text?: unknown; isError?: unknown }).isError ? undefined : (r as { text?: unknown }).text
         if (typeof text !== 'string') return r
-        const note = await arrivalDialogue(text, hostAsk($), bundledCore($), m => $.ui.log(m, { to: 'transcript' }), shown)
+        const note = await arrivalDialogue(text, hostAsk($), bundledCore($), m => $.ui.log(m, { to: 'transcript' }), shown, hostPush($))
         if (note) submitNote($, note.prompt)
         return r
       } catch (err) { try { $.ui.log(`specplane: the arrival dialogue failed: ${String(err)}`, { to: 'debug' }) } catch { /* nothing more to do */ } return r }
@@ -124,7 +124,7 @@ export function registerChannel(on: Parameters<Register>[0]): void {
     let text = out.reply.text
     if (!out.reply.isError) {
       try {
-        const note = await arrivalDialogue(text, hostAsk($), bundledCore($), m => $.ui.log(m, { to: 'transcript' }), shown)
+        const note = await arrivalDialogue(text, hostAsk($), bundledCore($), m => $.ui.log(m, { to: 'transcript' }), shown, hostPush($))
         if (note) text = `${text}\n${note.line}`
       } catch { /* the reply stands */ }
     }

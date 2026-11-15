@@ -211,7 +211,7 @@ test("validation warns when a rule states the subagent and the Claude caller hoo
   assert.equal(has(), false);
 });
 
-test("validation warns when notifications.push is set and the installed harness lacks push (R35.1)", async () => {
+test("validation does not warn about push for Claude Code, which claims the capability with its plugin (R35.1, R52.5)", async () => {
   const root = repo();
   fs.mkdirSync(path.join(root, ".claude/hooks"), { recursive: true });
   fs.writeFileSync(path.join(root, ".claude/hooks/specplane-cli-block.sh"), "#!/bin/sh\n");
@@ -221,5 +221,5 @@ test("validation warns when notifications.push is set and the installed harness 
   const file = path.join(root, ".specplane/config.yaml");
   fs.writeFileSync(file, `${fs.readFileSync(file, "utf8")}\nnotifications:\n  push: true\n`);
   commit(root);
-  assert.equal(has(), true);
+  assert.equal(has(), false);
 });

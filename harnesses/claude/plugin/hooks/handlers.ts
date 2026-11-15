@@ -2,7 +2,7 @@
 // command.register, command.run, process.run, prompt.submit, clock.after and ui.log.
 import type { EngineInterface, Register } from 'claude-code'
 import { BUNDLED_CLI, dispatch, SLASH_COMMANDS } from './commands'
-import type { AskPort, CorePort, SlashCommand } from './commands'
+import type { AskPort, CorePort, PushPort, SlashCommand } from './commands'
 
 /** Runs the bundled core through the host's process API; the plugin has no shell. */
 export function bundledCore($: EngineInterface): CorePort {
@@ -18,6 +18,14 @@ export function bundledCore($: EngineInterface): CorePort {
 /** The host's question dialogue as a port; it rejects when dismissed or in a `-p` run. */
 export function hostAsk($: EngineInterface): AskPort {
   return { ask: (question, options) => $.ui.ask(question, Array.isArray(options) ? options : { options: options.options, ...(options.header ? { header: options.header } : {}) } as never) }
+}
+
+/** The host's push notification channel as a port (`root:requests R52.5`). */
+export function hostPush($: EngineInterface): PushPort {
+  return {
+    notify: async (text, o) => { const r = await $.ui.notify(text, { title: o.title, key: o.key }); return { isSent: r.isSent === true } },
+    cancel: key => $.ui.cancelNotify(key),
+  }
 }
 
 /** Names this module registered; a command.run for any other name passes through to its owner. */

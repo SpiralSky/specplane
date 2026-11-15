@@ -312,3 +312,64 @@ test("a throwing clock is logged and never thrown", opts, async () => {
   m.submitNote({ clock: { after: (_: number, fn: () => void) => fn() }, prompt: { submit: () => { throw new Error("sync"); } }, ui: { log: (s: string) => logs2.push(s) } }, "hello");
   assert.equal(logs2.length, 1);
 });
+
+// ---- the push notification (requests R52.5) ----
+function pushFakes(cfg: { push?: unknown; perms?: unknown; state?: string; perm?: string[] }, ask: string | Error = "Accept", notifyFails = false) {
+  const f = arrivalFakes(ask);
+  const record = { id: "r1", state: cfg.state ?? "pending", from: { role: "llm" }, action: { command: "spec edit" }, permissions: cfg.perm ?? ["spec.edit"], reason: "secret reason", diff: "-a\n+b" };
+  const order: string[] = [];
+  const core = { run: async (argv: string[]) => {
+    f.calls.push(argv);
+    if (argv[0] === "config") return { exitCode: 0, stdout: JSON.stringify({ data: { value: argv[2] === "notifications.push" ? (cfg.push ?? false) : (cfg.perms ?? ["all"]) } }), stderr: "" };
+    return { exitCode: 0, stdout: argv.includes("show") ? JSON.stringify({ ok: true, data: record }) : "Accepted r1.\n", stderr: "" };
+  } };
+  const sent: { text: string; opts: { title: string; key: string } }[] = [];
+  const cancelled: string[] = [];
+  const push = {
+    notify: async (text: string, opts: { title: string; key: string }) => { order.push("notify"); if (notifyFails) throw new Error("no channel"); sent.push({ text, opts }); return { isSent: true }; },
+    cancel: async (k: string) => { order.push("cancel"); cancelled.push(k); },
+  };
+  const ask2 = { ask: async (q: string) => { order.push("ask"); return f.ask.ask(q); } };
+  return { ...f, core, push, sent, cancelled, order, ask: ask2 };
+}
+
+test("push: one notification before the dialogue, short text only, cancelled after the answer", opts, async () => {
+  const m = await cmdsLoad();
+  const f = pushFakes({ push: true });
+  await m.arrivalDialogue(created, f.ask, f.core, f.log, undefined, f.push);
+  assert.equal(f.sent.length, 1);
+  assert.deepEqual(f.sent[0]!.opts, { title: "Specplane", key: "specplane-request-r1" });
+  assert.equal(f.sent[0]!.text, "Specplane: a request is waiting: spec edit (from llm). Open /requests to answer.");
+  assert.doesNotMatch(f.sent[0]!.text, /secret|\+b/);
+  assert.deepEqual(f.order, ["notify", "ask", "cancel"]);
+  assert.deepEqual(f.cancelled, ["specplane-request-r1"]);
+});
+
+test("push: nothing when off, when the permission is not listed, or when the record is not pending", opts, async () => {
+  const m = await cmdsLoad();
+  for (const cfg of [{ push: false }, { push: true, perms: ["spec.approve"] }, { push: true, state: "accepted" }]) {
+    const f = pushFakes(cfg);
+    await m.arrivalDialogue(created, f.ask, f.core, f.log, undefined, f.push);
+    assert.equal(f.sent.length, 0);
+  }
+  const g = pushFakes({ push: true, perms: ["spec.edit"] });
+  await m.arrivalDialogue(created, g.ask, g.core, g.log, undefined, g.push);
+  assert.equal(g.sent.length, 1);
+});
+
+test("push: sent even when the dialogue cannot open, and then not cancelled", opts, async () => {
+  const m = await cmdsLoad();
+  const f = pushFakes({ push: true }, new Error("no ask in -p"));
+  await m.arrivalDialogue(created, f.ask, f.core, f.log, undefined, f.push);
+  assert.equal(f.sent.length, 1);
+  assert.deepEqual(f.cancelled, []);
+});
+
+test("push: a failing notification is logged and the dialogue still runs", opts, async () => {
+  const m = await cmdsLoad();
+  const f = pushFakes({ push: true }, "Accept", true);
+  const note = await m.arrivalDialogue(created, f.ask, f.core, f.log, undefined, f.push);
+  assert.equal(f.asked.length, 1);
+  assert.ok(note);
+  assert.ok(f.logs.some((l: string) => /notification failed/.test(l)));
+});

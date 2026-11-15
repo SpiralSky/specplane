@@ -29,7 +29,7 @@ Steering and command instructions describe the same effective role that each act
 | Capability | Claude Code | Codex |
 |------------|-------------|-------|
 | Instructions on demand | supported | missing |
-| Push notifications | missing | missing |
+| Push notifications | supported with the plugin loaded (Setup cannot tell whether it is); without the plugin, none is sent | missing |
 | Subagents | supported | supported (checked with Codex 0.169.0) |
 | Viewing specifications (`spec-view`) | supported | missing |
 | Usage measurement | supported | missing |
