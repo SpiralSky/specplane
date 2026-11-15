@@ -21,6 +21,7 @@ Implements `codex-integration §2`, `codex-integration §3`.
 | `AGENTS.md` (one marked block) | generated | Standing instructions (`§2`) |
 | `.agents/skills/specplane/SKILL.md` and its folder | `harnesses/codex/templates/skills/specplane/` | Entry skill for all workflows (`§3`) |
 | `.agents/skills/specplane/contracts/` | `harnesses/codex/templates/contracts/` | Contract text for each command (`§3`) |
+| `.codex/config.toml` (one table) | built in the installer | The `[mcp_servers.specplane]` table (`specplane mcp`, `SPECPLANE_ADAPTER=codex`), added only when absent |
 
 - Installed only when the user names Codex at setup. Setup follows `root:architecture/repository-layout §5`: owned files carry a version header and are replaced on refresh; a customised file is kept and reported with its path.
 - Setup writes exactly one entry into Codex configuration: the registration of the Specplane MCP server (`§3`). It never writes any other Codex configuration, sandbox or approval settings, credentials, or other global files. It inspects each path component before writing and refuses a symbolic link in an installation path, naming it.
@@ -63,7 +64,7 @@ The adapter reports the model identity Codex exposes at the moment of a write, o
 
 ## §7 Testing
 
-- Test T1 (deterministic): setup into a temporary project creates the three paths of `§1`; a second setup changes nothing; an `AGENTS.md` with other text keeps it byte for byte outside the block; a symbolic link in an installation path is refused.
+- Test T1 (deterministic): setup into a temporary project creates the four paths of `§1` (`.codex/config.toml` with its `[mcp_servers.specplane]` table, tested in `codex.test.ts`); a second setup changes nothing; an `AGENTS.md` with other text keeps it byte for byte outside the block; a symbolic link in an installation path is refused.
 - Test T2 (deterministic): a begin marker without an end marker stops setup with no change.
 - Test T3 (deterministic): every contract file carries a version header; an older copy is reported as a warning (`root:architecture/agent-skills §9`).
 - Fake adapters do not certify Codex's real behaviour. Each surface needs a live check before its capabilities are claimed, with the user's approval.
