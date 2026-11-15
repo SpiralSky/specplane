@@ -298,7 +298,7 @@ Specifications can be approved by a command. This command will fail if any entry
 Specs that reference each other, directly or through other specs, are approved together in one command, which fails if any of them cannot be approved. Approval also fails while a spec references a part of a specification that no longer exists. Group approval should be documented (see `R22`), and the command should warn the user and list the specs being approved together.
 
 *R16.1: Specification Approval Permissions*
-Specification approval should have a single permission controlling whether a role can approve a specification
+Specification approval should have one permission per specification type (requirement, feature and architecture), each controlling whether a role can approve a specification of that type. This lets a role approve feature and architecture specifications without being able to approve requirements.
 
 **R17: CLI - Specification Metadata**
 The CLI should be able to change all aspects of specification metadata. This feature acts as an override. Changes should also appear in the audit log.
@@ -355,7 +355,7 @@ The harness should support spec approval via a command that takes a direct spec 
 An LLM can also be asked in natural language to approve a specification, e.g. "Plan Execution". It identifies the specification and then uses its own approval permission (see `R20.1`), under the same checks: allow approves it, request user sends a request, and deny refuses it.
 
 *R20.1: Spec approval Permissions*
-Spec approval should have allow, deny and request user permissions. The documentation (see `R22`) should note that an LLM role with allow approves without confirmation, and that steering does not guarantee it will ask first. Request user should be used where confirmation is required.
+Each spec approval permission (see `R16.1`) should have allow, deny and request user permissions. The documentation (see `R22`) should note that an LLM role with allow approves without confirmation, and that steering does not guarantee it will ask first. Request user should be used where confirmation is required.
 
 **R21: Spec Viewing (Optional, per harness)**
 If the harness supports it, add a command for the user to view specific specs directly. The change in the spec since last approval should be highlighted if it is a spec that has been changed.
