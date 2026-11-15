@@ -64,3 +64,8 @@ a -p run. Left pending in the fixture: 20261115T071110Z-04a2 and 20261115T072820
     the host sent nothing. Cause unknown (possibly the host's push needs a setup this machine lacks). R52.5 is NOT met on
     this setup. Not investigated: what the host needs for isSent to be true.
 Not checked: Skip's notification staying, because none was sent. Codex: not run (see the handoff).
+14. $.ui.notify re-check by the user in their own terminal (Konsole) with Remote Control connected to their phone
+    (`/remote-control`, Claude app Code tab), the app closed and the terminal not in use: the request notification arrived
+    on the phone. It cannot be acted on (the person opens the session), as R52.5 intends. With the app open in the
+    foreground it showed no notification, only the dialogue inside the app's session window. So item 13's isSent:false was
+    the detached tmux run (no Remote Control), not a plugin fault. PASS. Answering from the phone: pending, user to check.

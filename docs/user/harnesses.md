@@ -29,7 +29,7 @@ Steering and command instructions describe the same effective role that each act
 | Capability | Claude Code | Codex |
 |------------|-------------|-------|
 | Instructions on demand | supported | missing |
-| Push notifications | supported with the plugin loaded (Setup cannot tell whether it is), but the host must have a way to raise it: when it reports the notification as not sent the plugin logs one line (seen on Claude Code 2.1.322 in a detached tmux session; not yet checked in a terminal you are looking at); without the plugin, none is sent | missing |
+| Push notifications | supported with the plugin loaded (Setup cannot tell whether it is), the host raises it through its own push: it reached a phone with Remote Control connected (`/remote-control`) while the person was away from the session (checked on Claude Code 2.1.322), and it is informational only, so you open the session to answer; when the host reports the notification as not sent (a detached session with no Remote Control, or you are active at the terminal) the plugin logs one line; without the plugin, none is sent | missing |
 | Subagents | supported | supported (checked with Codex 0.169.0) |
 | Viewing specifications (`spec-view`) | supported | missing |
 | Usage measurement | supported | missing |
