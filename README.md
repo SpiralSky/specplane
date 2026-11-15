@@ -7,6 +7,8 @@
 
 Specplane is spec-driven development for projects where an AI agent writes some, or most, of the code. You keep your requirements and specifications as plain markdown in the repository. Specplane tracks who approved them, what has been built, and what evidence says it works. It works with [Claude Code](https://claude.com/claude-code) and Codex.
 
+Writing a spec is the easy part. What this adds is the memory around it: which version was approved, by whom, and whether the code and tests still match it. An agent can propose a change to a spec, but it can't quietly approve its own work.
+
 ## Why
 
 Anyone who has turned an agent loose on a repository knows the pattern. It does something plausible, and you find out later that it wasn't what you meant. A longer prompt doesn't fix that. A written description of what the project should do, one that you reviewed and the agent works from, does.
@@ -23,33 +25,24 @@ That is all Specplane adds: a structure for that description, a record of who ap
 
 ## A quick look
 
-A feature spec is a markdown file with a little frontmatter:
+A spec is a markdown file with a little frontmatter, and a requirement is a short marker in a requirements file. This is a real run of [`docs/demo/demo.sh`](docs/demo/demo.sh), trimmed:
 
-```markdown
----
-id: feature/login
-title: Login
-authors:
-  - human: you
-    contribution: drafted
-covers: [R1]          # the requirement IDs this spec is about
-references: []
----
+```console
+$ specplane spec list
+feature/login                     awaiting-review (never-approved)
+requirement/product-requirements  approved
 
-# Login
+$ specplane spec approve feature/login
+Approved feature/login as Demo (notes commit 583f96e).
 
-A user signs in with an email address and a password.
+# ...later, someone edits the spec and commits...
+
+$ specplane spec list
+feature/login                     awaiting-review (edited)
+requirement/product-requirements  approved
 ```
 
-Then:
-
-```sh
-specplane validate                # format, citations, requirement IDs, status
-specplane spec approve feature/login
-specplane spec list               # every spec with its effective status
-```
-
-Edit the spec later and it is back in review, with the reason shown, until you approve it again.
+Approval is tied to what you actually reviewed, so an edited spec stops counting as approved until someone approves the new text. That holds for an agent's edits too, and it's the whole point. Run `sh docs/demo/demo.sh` to watch it happen in a throwaway folder.
 
 ## Install
 

@@ -1,19 +1,31 @@
 {
   "name": "specplane",
   "version": "0.1.0",
-  "description": "Reference CLI for Specplane: spec-driven development with plans, worktrees, and CI-friendly validation",
+  "description": "Spec-driven development for AI coding agents: markdown specs, content-bound approval and evidence, plans, and Claude Code and Codex integration",
   "license": "Apache-2.0",
   "keywords": [
-    "specplane",
+    "spec-driven-development",
+    "specification",
     "specs",
-    "spec-driven",
-    "planning",
+    "ai-agents",
+    "ai-coding",
+    "agentic-coding",
+    "claude-code",
+    "codex",
+    "mcp",
     "cli",
-    "agents"
+    "requirements",
+    "approval",
+    "git"
   ],
   "repository": {
     "type": "git",
+    "url": "git+https://github.com/SpiralSky/specplane.git",
     "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/SpiralSky/specplane#readme",
+  "bugs": {
+    "url": "https://github.com/SpiralSky/specplane/issues"
   },
   "type": "module",
   "bin": {
