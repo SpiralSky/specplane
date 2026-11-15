@@ -94,7 +94,7 @@ Refines `root:plan-execution R27` and `root:plan-execution R31.2`.
 
 Refines `root:plan-execution R27`, `root:plan-execution R27.6` and `root:plans R28`.
 
-- A plan runs in its own worktree on its own branch, started by `/plan-start`. The user's directory is never switched. The command prints how to open a Claude Code session in the checkout; Claude does not move a running session there (assumption).
+- A plan runs in its own worktree on its own branch, started by `/plan-start`. The user's directory is never switched. The command launches the plan's session in the checkout through the session adapter, and only when launching is unavailable does it print why, with the command that opens a session there; Claude does not move a running session there (assumption).
 - A session in a plan checkout works on that plan only, one step at a time. Plans that are unrelated can run in several sessions at once.
 - A Claude Code session in the cloud follows the same rules. Plan execution is required on every supported harness (`root:harness R35.1`), so a cloud session must have the checkout, the Specplane files and the hooks it needs; if one is missing, Specplane says which and does not start the step. Files git does not track are absent in the cloud and the step handles that as the root spec says (`root:plan-execution R27`).
 - Each finished step is committed, and a cloud or remote session publishes it so the next session sees it (assumption).
