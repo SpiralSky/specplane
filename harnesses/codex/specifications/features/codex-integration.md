@@ -33,6 +33,7 @@ Refines `root:harness R14` and `root:harness R18`.
 
 - Every Specplane workflow is available to Codex as a skill the user starts by name or that Codex loads when it fits. The skill carries the same contract as in other harnesses: purpose, preconditions, steps, permissions and output (`root:harness R14`).
 - Codex runs a skill as a model turn. A command that should run without a model, such as showing plan status or approving a specification, therefore cannot be offered as a typed command in Codex unless the host provides native command handling, which has to be verified (`root:harness R18`, `root:harness R35.1`). Until then Specplane says so at setup and when the user tries the command. It does not substitute a model turn for the user's command, and it does not let the model approve on the user's behalf (`root:harness R20`).
+- The read-only `spec-review` workflow (`root:harness R38`) is one of these skills; Codex runs it as a model turn with the review restrictions of the harness.
 - The user's own terminal is not part of the harness: a person can always use the Specplane CLI there. Specplane may say that in its notice; the harness itself does not run the CLI for the user (`root:harness R47`).
 
 Scenario: Given Codex has no native commands on this surface, When the user asks for plan status, Then Specplane states the capability is missing and shows the answer through a read-only action or tells the user that the CLI in their own terminal gives it.
@@ -47,10 +48,12 @@ The model is told not to call the Specplane CLI. Whether Codex can also block a 
 
 Refines `root:plan-execution R27`, `root:plan-execution R27.6` and `root:plans R28`.
 
-- A plan run is one step at a time, in the plan's own checkout, from the existing Codex session. Codex does not start background sessions for Specplane in this release; asking for one is refused with the reason, and no other harness is used instead (`root:harness R35.1`).
-- Plan-start launches Codex in the checkout with `codex exec`; only if launching is unavailable does it say why and give the command that opens Codex there. A session that is not in the plan's checkout stops and names it.
+- A plan run is one step at a time, in the plan's own checkout, from the existing Codex session. Codex does not start background sessions for Specplane in this release: the launcher refuses to open one, and no other harness is used instead (`root:harness R35.1`).
+- Plan-start does not launch Codex, because launching `codex exec` is not verified for this setup: it says why and prints the command that opens Codex in the plan's checkout, for the user to run. A session that is not in the plan's checkout stops and names it.
 - A cloud session runs a step only when the checkout, the Specplane files and the shell tools it needs exist there. Otherwise Specplane names what is missing and does not start the step.
 - Gaps, requests and soft stops work as the root specs say. A budget the session cannot measure is reported when it is set, and not claimed to be enforced (`root:harness R35.1`).
+
+Scenario: Given a Codex setup, When the user runs plan-start, Then no session is opened and the command that opens Codex in the checkout is printed.
 
 Scenario: Given a Codex surface without the Specplane files, When the user asks to run a step, Then Specplane names the missing files and runs nothing.
 
@@ -65,5 +68,5 @@ Codex records the model it reports as the author of a spec it writes. If Codex e
 ## §7 What this release does not do
 
 - No typed commands that skip the model, unless verified (`§3`).
-- No viewing command (Codex lacks the viewing capability, `root:harness R35.1`) and no review command (later release in the root specs).
+- No viewing command (Codex lacks the viewing capability, `root:harness R35.1`)
 - No background sessions (`§5`).
