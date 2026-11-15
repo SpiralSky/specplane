@@ -12,9 +12,9 @@ roles:
   llm:
     modes:
       config.change: request-user
-      decision.add: request-user
-      decision.delete: request-user
-      decision.edit: request-user
+      decision.add: allow
+      decision.delete: allow
+      decision.edit: allow
       decision.retrieve: allow
       info.retrieve: allow
       meta.read: allow
@@ -34,12 +34,12 @@ roles:
       spec.approve.feature: allow
       spec.approve.requirement: request-user
       spec.create.architecture: allow
-      spec.create.feature: request-user
+      spec.create.feature: allow
       spec.create.requirement: request-user
       spec.delete.architecture: allow
-      spec.delete.feature: request-user
+      spec.delete.feature: allow
       spec.delete.requirement: request-user
       spec.edit.architecture: allow
-      spec.edit.feature: request-user
+      spec.edit.feature: allow
       spec.edit.requirement: request-user
       test.record: allow
