@@ -45,7 +45,7 @@ None. | - <text>
 ```
 
    At a budget soft stop reach a safe point, commit and write a partial entry; never wait open for a user answer.
-9. [code] `plan.step-done`: record the outcome after the handoff and at least one step commit; the action makes an entry-only commit if necessary and commits progress. If the harness records completion itself, do not call it twice. For a block or budget stop use `plan.softstop` with the reason and what must change; end the run.
+9. [code] `plan.step-done`: call it BEFORE committing the step, because the pre-commit hook validates the handoff entry and rejects the commit until `plan.step-done` has run. It records the outcome after the handoff and at least one step commit; the action makes an entry-only commit if necessary and commits progress. If the harness records completion itself, do not call it twice. For a block or budget stop use `plan.softstop` with the reason and what must change; end the run.
 10. [code] `plan.next`: repeat only for further selected steps after completing this one. After the last step use `plan.review` and the plan-finish contract, never automatic completion.
 
 ## Permissions and requests
