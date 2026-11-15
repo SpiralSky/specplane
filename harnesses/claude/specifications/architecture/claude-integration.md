@@ -21,6 +21,7 @@ Implements `claude-integration §2`, `claude-integration §3`, `claude-integrati
 | `.claude/rules/specplane.md` | `harnesses/claude/templates/rules/specplane.md` | Standing instructions (`§2`) |
 | `.claude/skills/specplane-<command>/SKILL.md` | `harnesses/claude/templates/skills/` | One skill per command contract (`§3`) |
 | `.claude/hooks/specplane-*.sh` (mode `0755`) | `harnesses/claude/templates/hooks/` | Hook programs (`§4`) |
+| `.claude/hooks/specplane-caller.sh` (mode `0755`) | `harnesses/claude/templates/hooks/specplane-caller.sh` | Caller record hook for the non-plugin route (`§4`, `§10`) |
 | `.claude/settings.json` | `harnesses/claude/templates/settings.json` | Hook and permission registration, merged (`§5`) |
 | `.mcp.json` (project root) | built in the installer, not a template | The `specplane` MCP server entry (`specplane mcp`, `SPECPLANE_ADAPTER=claude`), merged (`§10`) |
 
@@ -43,11 +44,22 @@ Each command contract of `root:architecture/agent-skills §7` is packaged as one
 
 `SKILL.md` has Claude Code frontmatter followed by the contract:
 
+```markdown
+---
+name: specplane-<command>
+description: "<one sentence: what it does and when to use it>"
+argument-hint: "<optional>"
+disable-model-invocation: <true|false>
+---
+<!-- Specplane command contract v<version>; source: architecture/agent-skills §7 -->
+# <command>
 
+<Purpose paragraph and the contract sections, in order.>
+```
 
 - The body is the contract text of `root:architecture/agent-skills §1`, filled with steering and documentation for the command (`root:architecture/agent-skills §3`). Skills never name a `specplane` command, only harness actions (`root:architecture/agent-skills §8`).
 - `[code]` steps are done by the harness actions; Claude does not reconstruct them. A typed command with no arguments runs its `[code]` steps through the user-command runner without a model turn (`root:harness R18`, `root:architecture/reference-cli §12.2`). This is done by a Claude Code plugin handler for slash commands (assumption); where it cannot be installed, setup says the command needs a model turn and refuses to pretend otherwise (`root:harness R35.1`).
-- `disable-model-invocation: true` for `approve`, `requests`, `spec-view`, `plan-start`, `plan-step`, `plan-finish`, `plan-abandon`, `plan-create` and `spec-draft-architecture`; `false` for `spec-assist`, `spec-review`, `validate`, `plan-status` and `verify` (assumption). The flag never grants a permission; the guard decides (`root:architecture/agent-skills §5`).
+- `disable-model-invocation: true` for `approve`, `requests`, `spec-view`, `plan-start`, `plan-step`, `plan-finish`, `plan-abandon`, `plan-create` and `spec-draft-architecture`; `false` for `spec-assist`, `spec-review`, `validate`, `plan-status`, `verify`, `decision-new` and `migrate` (assumption). The flag never grants a permission; the guard decides (`root:architecture/agent-skills §5`).
 - `approve`, `requests` and `spec-view` have no model: they are user-only commands. Claude Code reports the `viewing` capability because the plugin handler runs `spec-view` in the user-command runner.
 - The `description` of a skill that Claude may load on its own is the trigger text; the instruction delivery of `root:architecture/reference-cli §12.3` sends a pointer to the skill rather than its text, so the behaviour matches `root:harness R14`.
 - Claude Code shows `Read` as the way to read specs; the skills tell Claude to use one retrieval action per working set (`root:architecture/agent-skills §6`).
@@ -65,6 +77,7 @@ All hook scripts are POSIX `sh`, read the Claude Code hook JSON on stdin, need `
 | `specplane-compact.sh` | `SessionStart`, matcher `compact` | Tells core that the compaction epoch changed so instructions are delivered again (`root:architecture/reference-cli §12.3`) |
 | `specplane-pre-commit.sh` | `PreToolUse`, matcher `Bash` | For a `git commit`, runs validation through the core and exits 2 on errors; warnings do not block (assumption). Handles `git -C`, `git -c`, `cd x && git commit` and subshell forms; does not match `git commit-tree` or `echo commit` |
 | `specplane-bypass-guard.sh` | `PreToolUse`, matcher `Bash\|Write\|Edit\|MultiEdit\|NotebookEdit` | Guards against permission bypass (`root:roles-and-permissions R58`, `root:architecture/reference-cli §7.8`): denies a shell command that starts a headless session (`claude -p`, `claude --print`, `codex exec`; `headless_block`), that sets or unsets `SPECPLANE_*` identity variables or clears the environment (`env -i`, `env -u`; `marker_protect`), or that names the local store files or the approvals notes ref for a write (`store_protect`); denies a file tool write to the same store files (`store_protect`) and to `.claude/hooks/specplane-*` and `.claude/settings*.json` (`hook_protect`, also for a shell command). Each measure is read from `bypass_guards.<measure>` in `.specplane/config.yaml`; text that is not run is ignored as in the CLI block. The same hook carries strict mode (`root:roles-and-permissions R55.1`, `root:architecture/reference-cli §15`), read from `strict_mode.enabled` and `strict_mode.<measure>` in the same file (all off unless enabled): `edit_block` denies a file-tool write, and a shell write (redirect, `tee`, `sed -i`, `mv`, `rm`, `cp` onto, `git checkout` and similar), into the specification folders named by `paths.*` and the subprojects, `.specplane/decisions` and `.specplane/roles`; `git_commit_guard` denies `git commit --no-verify` or `-n`, `core.hooksPath` and writes to `.git/hooks`; `os_permissions` denies `chmod`, `chown`, `chgrp`, `chattr` and `setfacl` on the hooks, `.claude/settings.json`, `.git/hooks` and the store. The adapter claims `strict-mode` only when the installed copy of this hook mentions strict mode |
+| `specplane-caller.sh` | `PreToolUse`, matcher `mcp__specplane__.*` | Writes the per-call caller record for a tool call of a subagent and never decides a call (`root:architecture/reference-cli §12.1`, `§10`) |
 | `specplane-statusline.sh` | `statusLine` | Plan, step progress and what is waiting, in a plan checkout; empty elsewhere (assumption) |
 
 - The `Bash` hooks run side by side; a deny from any stops the call.
@@ -90,7 +103,13 @@ Implements `claude-integration §5`.
 
 When a step runs as a subagent, the `plan-step` skill starts it with the Agent tool as a fresh `general-purpose` subagent, never a `fork`, because a fork inherits the parent's context and defeats the clean per-step session:
 
-
+```
+Agent({
+  subagent_type: "general-purpose",
+  description: "Execute plan step NN: <title>",
+  prompt: "<the [llm] steps of the plan-step contract>\n\nPlan: <plan-id>, checkout: <path>\nStep file: <path>\nHANDOFF.md: <path>\nContext items: <resolved paths, with heading anchors>\nSession mode: unattended"
+})
+```
 
 - The prompt carries paths and cites, not file contents; the subagent retrieves its context itself (`root:architecture/agent-skills §6`).
 - The parent runs the contract's selection and checks first; the subagent runs the `[llm]` steps and the actions of steps 4 to 6 of `root:architecture/agent-skills §7.5` under the parent's role, and returns a short summary and the outcome. The parent calls no step-done action again (`root:architecture/agent-skills §7.5`).
@@ -129,7 +148,7 @@ Implements `claude-integration §3`.
 The harness actions of `root:architecture/reference-cli §12.1` reach Claude Code through one of two channels, both running the same action registry with the permission checks inside the core process, not in Claude Code.
 
 - **Plugin install: the mod-served channel.** The plugin's mod (`harnesses/claude/plugin/hooks/register.tsx`, QuickJS hook code) registers every action as its own tool, named `mcp__specplane__<action name>` with the underscore form of the MCP server (`spec.retrieve` is `mcp__specplane__spec_retrieve`, `toolName` in `harness/mcp.ts`), and serves each call by forwarding it to the session server of `root:architecture/reference-cli §12.8` over a Unix socket. The mod starts that server with `$.process.spawn` at `session.start`, reads its readiness line from the spawn stream and keeps draining the stream, registers the tools from the action list on that line (assumption: registration after the line is read), and asks it to shut down at `session.end`. Each call carries the identity the Claude Code engine gives: the agent ID (present only for a subagent), the agent type from `$.agent.list()`, the tool use ID and the session model from `$.session.model()`. Identity therefore does not come from the undocumented `_meta` field of the MCP route or from a record file, and the caller hook needs no part in it. The manifest sets no `SPECPLANE_ADAPTER` through an MCP declaration; the mod starts the server for the Claude adapter, so `plan.start` opens the plan session through the Claude session adapter of `§7`, as the typed `/plan-start` does.
-- **Without the plugin.** The MCP server (`core/dist/harness/mcp-main.js`) and the hook `specplane-caller.sh` (`§4`) stay for Codex and for a Claude project set up with `init --harness claude` without the plugin. There the identity is the per-call record of `root:architecture/reference-cli §12.1`. `init --harness claude` registers the server as the `specplane` entry of the project's `.mcp.json` (`command` `specplane`, `args` `["mcp"]`, `env` `SPECPLANE_ADAPTER=claude`), so a project without the plugin has the tools. Other servers and keys of the file are kept; an existing `specplane` entry that differs is kept and reported, not overwritten; invalid JSON leaves the file alone with a report; a symlinked path is refused as for every installed file; a repeat run changes nothing. The plugin stays an optional additional route; a session with both may list the tools twice. The headless session of `§7` starts only if its `system/init` reports the plugin or an MCP server named `specplane` whose `status`, if any, is not `failed` or `needs-auth`, and auto mode; otherwise the monitor stops it. The message says to run `init --harness claude` or install the plugin, or, for a listed `specplane` server that did not connect, names that status. The shape of the `mcp_servers` entries is from Claude Code's documented stream-json init message (not checked live). Claude Code may ask the user to approve a project `.mcp.json` server before it connects (assumption, not checked live).
+- **Without the plugin.** The MCP server (`core/dist/harness/mcp-main.js`) and the hook `specplane-caller.sh` (`§4`) stay for Codex and for a Claude project set up with `init --harness claude` without the plugin. There the identity is the per-call record of `root:architecture/reference-cli §12.1`. `init --harness claude` registers the server as the `specplane` entry of the project's `.mcp.json` (`command` `specplane`, `args` `["mcp"]`, `env` `SPECPLANE_ADAPTER=claude`), so a project without the plugin has the tools. Other servers and keys of the file are kept; an existing `specplane` entry that differs is kept and reported, not overwritten; invalid JSON leaves the file alone with a report; a symlinked path is refused as for every installed file; a repeat run changes nothing. The plugin stays an optional additional route; a session with both may list the tools twice. The headless session of `§7` starts only if its `system/init` reports the plugin or an MCP server named `specplane` whose `status`, if any, is not `failed` or `needs-auth`, and auto mode; otherwise the monitor stops it. The message says to run `init --harness claude` or install the plugin, or, for a listed `specplane` server that did not connect, names that status. The shape of the `mcp_servers` entries was checked live on 2026-11-14 in a fixture with Claude Code headless and Haiku, without `--plugin-dir`, after `init --harness claude`: `system/init` listed `{'name': 'specplane', 'status': 'connected', 'source': 'project'}` with 43 `mcp__specplane` tools and 16 skills, and `docs_essentials` returned text. Neither the user settings nor the fixture held an MCP approval, so a headless session loads the unapproved project server and init needs no `enabledMcpjsonServers`. An interactive session was not checked (not checked live). In an interactive session Claude Code may ask the user to approve a project `.mcp.json` server before it connects (assumption, not checked live).
 
 The plugin manifest no longer declares `mcpServers`, so the tools are not listed twice.
 
