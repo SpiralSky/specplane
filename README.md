@@ -48,7 +48,11 @@ Approval is tied to what you actually reviewed, so an edited spec stops counting
 
 You need **Node.js 22+** and **git**. The `gh` CLI is optional and only used for pull requests.
 
-Specplane is not on npm yet, so install it from source:
+```sh
+npm install -g specplane
+```
+
+Or build it from source, which is also how you work on Specplane itself:
 
 ```sh
 git clone https://github.com/SpiralSky/specplane.git
@@ -73,7 +77,7 @@ specplane warnings
 
 `specplane init --harness claude` sets up Claude Code: rules, skills, hooks and the Specplane MCP server. `specplane init --harness codex` sets up Codex with a skill, an `AGENTS.md` block and the same server. From then on the agent calls Specplane through the harness, and your permission settings decide what it may do on its own.
 
-When the agent needs your say-so, it files a request. In Claude Code, with the optional plugin, that opens an approve-or-decline dialogue right in the session, and it can ping your phone through Remote Control if you're away. In Codex, or without the plugin, you answer in a terminal with `specplane requests accept <id>`. What each harness supports is listed in [`harnesses`](docs/user/harnesses.md).
+When the agent needs your say-so, it files a request. In Claude Code, with the optional plugin, that opens an approve-or-decline dialogue right in the session, and it can ping your phone through Remote Control if you're away. The plugin lives in this repository and isn't part of the npm package, so you build it from source to use it (see [`harnesses`](docs/user/harnesses.md)). In Codex, or without the plugin, you answer in a terminal with `specplane requests accept <id>`. What each harness supports is listed in [`harnesses`](docs/user/harnesses.md).
 
 ## Documentation
 
@@ -95,7 +99,7 @@ For CI, run `specplane validate --json` on the checked-out commit and fail the j
 
 ## Status
 
-Specplane is at v0.1.0. It works and it's tested, but it isn't published to npm and the details may still change. This repository uses Specplane to describe itself: its product requirements are in [`docs/requirements/product-requirements.md`](docs/requirements/product-requirements.md), and the feature and architecture specs are under `docs/specifications/`. If you try it, issues are welcome.
+Specplane is at v0.1.1 and published on [npm](https://www.npmjs.com/package/specplane). It works and it's tested, but it's young and the details may still change. This repository uses Specplane to describe itself: its product requirements are in [`docs/requirements/product-requirements.md`](docs/requirements/product-requirements.md), and the feature and architecture specs are under `docs/specifications/`. If you try it, issues are welcome.
 
 ## Developing Specplane
 
