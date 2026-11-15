@@ -26,7 +26,11 @@ function docs(): PermDoc[] {
     add(`spec.edit.${t}`, `Change the body of a ${t} specification, which makes it Awaiting Review again.`, `Creating or deleting one, writing metadata, or approving it.`, ["harness spec edit", "spec reopen"]);
     add(`spec.delete.${t}`, `Delete a ${t} specification file.`, `Creating or editing one.`, ["harness spec delete"]);
   }
-  add("spec.approve", "Approve specifications that are Awaiting Review.", "Editing a specification, or setting a status by hand (that is `override.status`). It also approves decision records, by ID.", ["spec approve", "decision approve"]);
+  for (const t of TYPES) {
+    const requirement = t === "requirement" ? " Approving the requirements page is the user's decision." : "";
+    const decisions = t === "feature" ? " It also approves decision records, by ID, and plans." : "";
+    add(`spec.approve.${t}`, `Approve ${t} specifications that are Awaiting Review.${requirement}`, `Editing a specification, or setting a status by hand (that is \`override.status\`). A group of specifications that cite each other needs the permission of each member's type.${decisions}`, t === "feature" ? ["spec approve", "decision approve", "plan approve"] : ["spec approve"]);
+  }
   add("meta.read", "Read specification metadata.", "Writing any metadata.", ["spec meta get"]);
   add("meta.write", "Write any metadata piece that has a granular permission, other than the protected overrides.", "Status, approver and test results (the protected overrides) and the specification body.", ["spec meta set"]);
   for (const [p, label] of Object.entries(PIECES)) {

@@ -198,8 +198,38 @@ export interface ApproveOptions {
   ask?: (members: string[]) => Promise<boolean>;
 }
 
+/** The approval permission for a specification type (`R16.1`). */
+export const approvePermission = (layer: string): string => `spec.approve.${layer}`;
+
+/**
+ * Permissions a `spec approve` needs: that of each type among the named specifications and, for a group of specs that
+ * cite each other, each member's type (`R16.1`). Decision records need the feature permission. An ID that names nothing
+ * needs the feature permission too, so the command refuses it with its own message. `permOf` gives the permission to audit per ID.
+ */
+export function approvalNeeds(root: string, ids: string[], rev = "HEAD"): { needs: string[]; permOf: (id: string) => string } {
+  const fallback = approvePermission("feature");
+  const layers = new Map<string, string>();
+  const needs = new Set<string>();
+  try {
+    if (ids.some((i) => !isDecisionId(i)) && revCommit(root, rev)) {
+      const head = loadHead(root, rev);
+      const comp = components(head);
+      for (const id of ids) {
+        const doc = findSpec(head, id);
+        if (!doc) continue;
+        for (const m of comp.get(doc.id) ?? [doc.id]) { const d = findDoc(head, m); if (d) { needs.add(approvePermission(d.layer)); layers.set(m, d.layer); } }
+        layers.set(doc.id, doc.layer); layers.set(id, doc.layer);
+        needs.add(approvePermission(doc.layer));
+      }
+    }
+  } catch { /* the command reports the problem */ }
+  for (const id of ids) if (!layers.has(id)) needs.add(fallback);
+  return { needs: [...needs].sort(), permOf: (id) => (layers.has(id) ? approvePermission(layers.get(id)!) : fallback) };
+}
+
 export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions = {}): Promise<Result> {
-  const g = decide(ctx, ["spec.approve"], "Approving specifications", "spec approve", ids, { ids });
+  const { needs: approveNeeds, permOf } = approvalNeeds(ctx.root, ids, opts.ref ?? "HEAD");
+  const g = decide(ctx, approveNeeds, "Approving specifications", "spec approve", ids, { ids });
   if (g.kind !== "allow") return refusal(g);
   const name = ctx.actor.kind === "llm" ? ctx.actor.model || "unknown" : humanName(ctx);
   const by = ctx.actor.kind === "llm" ? { llm: name, "delegated-by": ctx.actor.delegatedBy || "unknown" } : { human: name };
@@ -229,7 +259,7 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   for (const m of [...memberIds]) if (findDoc(head, m)?.layer === "requirement") memberIds.delete(m);
   const members = [...memberIds].sort().map((m) => findDoc(head, m)!);
   if (reasons.length === 0 && members.length === 0 && named.length) {
-    for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "done", reason: "requirement file is always approved" });
+    for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: permOf(id), outcome: "done", reason: "requirement file is always approved" });
     return result({ ok: true, lines: [`${named.map((d) => d.id).join(", ")}: a requirement file is always approved and has no record. Nothing changed.`] });
   }
 
@@ -258,13 +288,13 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
     if (failed.length) reasons.push(`\`${doc.id}\` has a failed test result (${failed.join(", ")}) and cannot be approved.`);
   }
   if (reasons.length) {
-    for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "refused", reason: reasons.join(" | ") });
+    for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: permOf(id), outcome: "refused", reason: reasons.join(" | ") });
     return result({ ok: false, reasons });
   }
 
   const todo = members.filter((d) => effective.get(d.id)?.status !== "approved");
   if (todo.length === 0) {
-    for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "done", reason: "already approved" });
+    for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: permOf(id), outcome: "done", reason: "already approved" });
     return result({ ok: true, lines: [`Already approved: ${members.map((m) => m.id).join(", ")}. Nothing changed.`] });
   }
 
@@ -272,11 +302,11 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
     if (!opts.yes) {
       if (!opts.interactive || !opts.ask) {
         const r = ["Group approval needs confirmation: pass --yes, or run in a terminal. Nothing was approved.", `Group: ${members.map((m) => m.id).join(", ")}`];
-        for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "refused", reason: "group approval not confirmed" });
+        for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: permOf(id), outcome: "refused", reason: "group approval not confirmed" });
         return result({ ok: false, reasons: r });
       }
       if (!(await opts.ask(members.map((m) => m.id)))) {
-        for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "cancelled", reason: "group not confirmed" });
+        for (const id of ids) auditAll(ctx, { command: "spec approve", args: [id], permission: permOf(id), outcome: "cancelled", reason: "group not confirmed" });
         return result({ ok: false, lines: ["Not confirmed. Nothing was approved."] });
       }
     }
@@ -290,7 +320,7 @@ export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions
   });
   const commit = writeRecords(ctx, records, rev);
   for (const doc of todo) {
-    auditAll(ctx, { command: "spec approve", args: [doc.id], permission: "spec.approve", outcome: "done",
+    auditAll(ctx, { command: "spec approve", args: [doc.id], permission: permOf(doc.id), outcome: "done",
       old: { effective: effective.get(doc.id)?.status }, new: { status: "approved", by } });
   }
   const skipped = members.filter((m) => !todo.includes(m));

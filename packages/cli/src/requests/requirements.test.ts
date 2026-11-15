@@ -61,12 +61,12 @@ test("action needs are evaluated against current permissions, including deny and
 test("every supported command derives its own permission", () => {
   const root = repo();
   const cases: [string, Record<string, unknown>, ActionNeeds][] = [
-    ["spec approve", { ids: ["feature/a"] }, ["spec.approve"]],
+    ["spec approve", { ids: ["feature/a"] }, ["spec.approve.feature"]],
     ["config set", { key: "plans.dir", arg: "work" }, ["config.change"]],
     ["config set", { key: "plans.dir", new: "work", arg: null }, ["config.change"]],
     ["config unset", { key: "plans.dir" }, ["config.change"]],
     ["plan create", { words: ["test", "plan"] }, ["plan.create"]],
-    ["plan approve", { id: "p" }, ["spec.approve"]],
+    ["plan approve", { id: "p" }, ["spec.approve.feature"]],
     ["plan start", { id: "p" }, ["plan.start"]],
     ["plan stop", { id: "p" }, ["plan.softstop"]],
     ["plan resume", { id: "p" }, ["plan.resume"]],

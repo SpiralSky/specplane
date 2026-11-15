@@ -407,7 +407,7 @@ test("permissions: request-user sends a request, deny is refused, nothing runs, 
   // allowed for the LLM in the default preset: creating a plan; never completing or approving it
   const made = createPlan(mk(fx.root, "llm"), { words: ["llm", "made"] });
   assert.match(fs.readFileSync(path.join(fx.root, "plans", made.id, "PLAN.md"), "utf8"), /authors:\n {2}- llm: claude-sonnet-5-5/);
-  held(() => approvePlan(mk(fx.root, "llm"), made.id), /spec.approve/);
+  held(() => approvePlan(mk(fx.root, "llm"), made.id), /spec.approve.feature/);
   held(() => finishPlan(llm, ID, { complete: true }), /plan.complete/);
   held(() => abandonPlan(llm, ID), /plan.abandon/);
   held(() => deletePlan(llm, ID), /plan.delete/);
@@ -550,7 +550,7 @@ test("a blocking request soft stops the plan; answering it names the plan to res
   createPlan(fx.ctx, { words: ["export", "things"] });
   startPlan(fx.ctx, ID);
   const llm = mk(fx.root, "llm");
-  const sent = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve"], reason: "approve export", plan: ID, blocking: true });
+  const sent = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve.feature"], reason: "approve export", plan: ID, blocking: true });
   assert.ok(sent.ok);
   const pr = loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!;
   assert.equal(pr.status, "stopped");
@@ -562,7 +562,7 @@ test("a blocking request soft stops the plan; answering it names the plan to res
   assert.equal(res.answers[0].state, "declined");
   assert.equal(res.answers[0].note, "no thanks");
   // a non-blocking request does not stop the plan and is listed in the final review
-  const nb = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve"], reason: "later", plan: ID });
+  const nb = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve.feature"], reason: "later", plan: ID });
   assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.status, "in-progress");
   assert.deepEqual(reviewPlan(fx.ctx, ID).pendingRequests, [nb.request!.id]);
 });

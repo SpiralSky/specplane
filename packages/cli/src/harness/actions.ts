@@ -5,7 +5,7 @@ import { activePreset, guard, type Actor } from "../perm/permissions.js";
 import { resolveLlmRole, resolveSubagentRole } from "../perm/llm-rules.js";
 import { roleList, roleShow, ruleList } from "../perm/role-ops.js";
 import { listPermissions, describePermission } from "../perm/docs.js";
-import { approveSpecs, metaGet, type Ctx } from "../spec/human.js";
+import { approvalNeeds, approveSpecs, metaGet, type Ctx } from "../spec/human.js";
 import { prepareDecision, retrieveDecisions, writeDecision } from "../decisions/decisions.js";
 import { prepareSpecChange, specLayer, writeSpecification } from "../spec/write.js";
 import { headContext } from "../verify/implementation.js";
@@ -61,7 +61,7 @@ add("decision.delete", { id: str }, ["id"], ["decision.delete"], false, (c, p) =
 // Roles and LLM role rules are readable by the LLM (`R44.1`, `R54`); changing them is for people, through the CLI.
 add("role.list", {}, [], info, true, (c) => ({ roles: roleList(c.root), rules: ruleList(c.root) }));
 add("role.show", { id: str }, ["id"], info, true, (c, p) => roleShow(c.root, p.id));
-add("spec.approve", { ids: strings }, ["ids"], ["spec.approve"], false, (c, p) => approveSpecs(c, p.ids, { yes: true }));
+add("spec.approve", { ids: strings }, ["ids"], (p, root) => root ? approvalNeeds(root, p.ids).needs : ["spec.approve.feature"], false, (c, p) => approveSpecs(c, p.ids, { yes: true }));
 add("validate", { ids: strings }, [], info, true, (c, p) => { const r = validateProject(c.root, p); return { ...r, ok: r.counts.errors === 0 }; });
 add("warnings", { id: str }, [], info, true, (c, p) => { const all = [...collectWarnings(c.root), ...c.sessionWarnings]; return p.id ? narrowWarnings(all, p.id) : all; });
 add("coverage", {}, [], info, true, (c) => computeCoverage(headContext(c.root).project, loadSettings(c.root).config.values["coverage.requirement_only"] as string[]));
@@ -95,7 +95,7 @@ export function validateActionInput(id: string, input: unknown): HarnessAction {
 export async function acceptedRead(ctx: Ctx, id: string, input: unknown): Promise<unknown> {
   const action = validateActionInput(id, input);
   if (!action.readOnly) throw new Error("Only read actions use harness read requests.");
-  const g = guard(ctx.preset, ctx.actor, action.permissions(input as Input), id);
+  const g = guard(ctx.preset, ctx.actor, action.permissions(input as Input, ctx.root), id);
   if (g.kind !== "allow") throw new Error(`Reading ${id} requires allow.`);
   return action.handler({ ...ctx, sessionWarnings: [] }, input as Input);
 }
@@ -139,7 +139,7 @@ export function createActionRuntime(session: ActionSession) {
           throw new Error(`Spec review is read-only; ${id} is refused. Only storing user decision records is permitted.`);
         }
         const ctx: ActionContext = { root: session.root, actor, preset: activePreset(session.root), now: session.now, sessionWarnings, ...(session.measurable ? { measurable: session.measurable } : {}), ...(session.launcher ? { launcher: session.launcher } : {}), ...(session.adapter ? { adapter: session.adapter } : {}) };
-        permissions = action.permissions(p);
+        permissions = action.permissions(p, session.root);
         try { pruneAudit(ctx.root, loadSettings(ctx.root).config.auditRetention, { actor }); } catch { /* audit is best effort */ }
         const instructionCommand = id === "command.begin" ? p.command : command;
         reply.instructions = [...(instructionCommand ? [instructionCommand] : []), ...permissions].map((key) => deliver(session, key, { role: actor.role }));

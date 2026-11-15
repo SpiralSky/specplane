@@ -163,6 +163,21 @@ test("parsePreset validates shape", () => {
   assert.match(ok("- a\n").problems[0], /mapping/);
 });
 
+test("a preset naming the removed spec.approve ignores it with a warning and falls back to the default mode (R16.1)", () => {
+  const root = repo("permissions:\n  preset: old\n");
+  fs.mkdirSync(path.join(root, ".specplane/roles/presets"), { recursive: true });
+  fs.writeFileSync(path.join(root, presetFile("old")), "id: old\ndefault_mode: deny\nroles:\n  llm:\n    modes:\n      spec.approve: allow\n      spec.approve.feature: request-user\n");
+  commitAll(root);
+  const p = activePreset(root);
+  assert.equal(p.id, "old", "the preset still applies");
+  assert.equal(mode(p, "llm", "spec.approve.feature"), "request-user");
+  assert.equal(mode(p, "llm", "spec.approve.architecture"), "deny", "the legacy allow grants nothing");
+  const w = loadSettings(root).findings.filter((f) => /unknown permission `spec.approve`/.test(f.message));
+  assert.equal(w.length, 1);
+  assert.equal(w[0].severity, "warning");
+  assert.match(w[0].message, /spec\.approve\.requirement, spec\.approve\.feature or spec\.approve\.architecture/);
+});
+
 test("the preset commands run through the CLI", () => {
   const root = repo();
   const run = (...args: string[]) => spawnSync("node", [cli, ...args], { cwd: root, encoding: "utf8" });

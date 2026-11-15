@@ -246,7 +246,7 @@ function unifiedDiff(file: string, before: string | null, after: string | null):
 
 /* -------------------------------------------------------------- approval */
 
-/** Approve records by ID. Only committed content counts, as for specs. The caller has passed the `spec.approve` guard. */
+/** Approve records by ID. Only committed content counts, as for specs. The caller has passed the `spec.approve.feature` guard. */
 export function approveDecisions(ctx: Ctx, ids: string[], who: { name: string | null; by: Record<string, unknown> }): Result {
   const reasons: string[] = [];
   try { requireEnabled(ctx.root); } catch (e) { return result({ ok: false, reasons: [(e as Error).message] }); }
@@ -265,7 +265,7 @@ export function approveDecisions(ctx: Ctx, ids: string[], who: { name: string | 
     todo.push({ id, fingerprint: decisionFingerprint(committed)! });
   }
   if (reasons.length) {
-    for (const id of ids) audit(ctx.root, { command: "spec approve", args: [id], permission: "spec.approve", outcome: "refused", reason: reasons.join(" | "), request: ctx.request, actor: ctx.actor }, ctx.now);
+    for (const id of ids) audit(ctx.root, { command: "spec approve", args: [id], permission: "spec.approve.feature", outcome: "refused", reason: reasons.join(" | "), request: ctx.request, actor: ctx.actor }, ctx.now);
     return result({ ok: false, reasons });
   }
   if (!todo.length) return result({ ok: true, lines: [`Already approved: ${done.join(", ")}. Nothing changed.`] });
@@ -273,6 +273,6 @@ export function approveDecisions(ctx: Ctx, ids: string[], who: { name: string | 
   const at = ctx.now ?? new Date();
   appendRecords(ctx.root, headCommit(ctx.root)!, todo.map((t) => makeRecord("approval", `decision/${t.id}`, t.fingerprint, { by: who.by, date, cited: {} }, at)));
   const commit = notesTip(ctx.root);
-  for (const t of todo) audit(ctx.root, { command: "spec approve", args: [t.id], permission: "spec.approve", outcome: "done", request: ctx.request, actor: ctx.actor }, ctx.now);
+  for (const t of todo) audit(ctx.root, { command: "spec approve", args: [t.id], permission: "spec.approve.feature", outcome: "done", request: ctx.request, actor: ctx.actor }, ctx.now);
   return result({ ok: true, commit, written: todo.map((t) => t.id), lines: [`Approved ${todo.map((t) => t.id).join(", ")} as ${who.name}${commit ? ` (notes commit ${commit.slice(0, 7)})` : ""}.`, ...(done.length ? [`Already approved, left alone: ${done.join(", ")}.`] : [])] });
 }

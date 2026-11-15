@@ -76,16 +76,16 @@ test("role and command templates cover all five cases, hierarchy, secrets and no
 
 test("overall, target and context custom steering is appended in specificity order without replacing base", () => {
   const custom = [
-    { permission: "spec.approve", scope: "P1", text: "plan-specific" },
-    { permission: "spec.approve", scope: "feature", text: "type-specific" },
-    { permission: "spec.approve", scope: "all", text: "permission-general" },
+    { permission: "spec.approve.feature", scope: "P1", text: "plan-specific" },
+    { permission: "spec.approve.feature", scope: "feature", text: "type-specific" },
+    { permission: "spec.approve.feature", scope: "all", text: "permission-general" },
     { command: "approve", scope: "all", text: "command-specific" },
     { command: "*", scope: "all", text: "overall-general" },
-    { permission: "spec.approve", scope: "P2", text: "wrong-plan" },
+    { permission: "spec.approve.feature", scope: "P2", text: "wrong-plan" },
   ];
   const source = { ...input, custom };
-  assert.deepEqual(matchingCustom(source, { permission: "spec.approve" }, { specType: "feature", planId: "P1" }).map((c) => c.text), ["overall-general", "permission-general", "type-specific", "plan-specific"]);
-  const text = generatePermissionSteering(source, "spec.approve", { specType: "feature", planId: "P1" });
+  assert.deepEqual(matchingCustom(source, { permission: "spec.approve.feature" }, { specType: "feature", planId: "P1" }).map((c) => c.text), ["overall-general", "permission-general", "type-specific", "plan-specific"]);
+  const text = generatePermissionSteering(source, "spec.approve.feature", { specType: "feature", planId: "P1" });
   assert.match(text, /Do not bypass/);
   assert.match(text, /on conflict the more specific wins/);
   assert.match(text, /\[overall\]/);
@@ -93,7 +93,7 @@ test("overall, target and context custom steering is appended in specificity ord
   assert.ok(text.indexOf("permission-general") < text.indexOf("type-specific"));
   assert.ok(text.indexOf("type-specific") < text.indexOf("plan-specific"));
   assert.doesNotMatch(text, /wrong-plan|command-specific/);
-  assert.doesNotMatch(generatePermissionSteering(source, "spec.approve"), /type-specific|plan-specific|wrong-plan/);
+  assert.doesNotMatch(generatePermissionSteering(source, "spec.approve.feature"), /type-specific|plan-specific|wrong-plan/);
   assert.match(generateCommandSteering(source, "approve"), /command-specific/);
   const command = generateCommandSteering(source, "approve");
   assert.equal(command.split("overall-general").length - 1, 1);
@@ -165,14 +165,14 @@ test("config effects regenerate HEAD only; preset and custom changes stay inacti
 });
 
 test("CLI inspection and permission documentation expose the same complete LLM permission text", () => {
-  const root = repo('steering:\n  custom:\n    - command: "*"\n      text: Overall convention\n    - permission: spec.approve\n      text: Approval convention\n');
-  const expected = inspectSteering(root, "spec.approve");
-  const detail = describePermission(root, "spec.approve", "standard-user")!;
+  const root = repo('steering:\n  custom:\n    - command: "*"\n      text: Overall convention\n    - permission: spec.approve.feature\n      text: Approval convention\n');
+  const expected = inspectSteering(root, "spec.approve.feature");
+  const detail = describePermission(root, "spec.approve.feature", "standard-user")!;
   assert.equal(detail.readerMode, "allow");
   assert.ok(detail.lines.includes(expected.text));
   assert.match(expected.text, /Role: llm. Mode: request-user/);
   const cli = fileURLToPath(new URL("../cli.js", import.meta.url));
-  const output = capture(process.execPath, [cli, "steering", "spec.approve", "--json"], root, { ...process.env, SPECPLANE_AGENT: "", SPECPLANE_SESSION: "" });
+  const output = capture(process.execPath, [cli, "steering", "spec.approve.feature", "--json"], root, { ...process.env, SPECPLANE_AGENT: "", SPECPLANE_SESSION: "" });
   assert.equal(output.status, 0, output.stderr);
   assert.equal(JSON.parse(output.stdout).data.text, expected.text);
 });

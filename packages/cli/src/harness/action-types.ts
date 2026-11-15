@@ -16,7 +16,7 @@ export interface ActionContext extends Ctx {
 }
 export interface HarnessAction {
   id: string; inputSchema: Schema;
-  permissions: (input: Input) => string[];
+  permissions: (input: Input, root?: string) => string[];
   /** Read actions can be safely replayed by the human request runner. */
   readOnly: boolean;
   handler: (ctx: ActionContext, input: Input) => unknown | Promise<unknown>;

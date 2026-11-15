@@ -16,7 +16,7 @@ const inputs: RequiredInputs = collectRequiredInputs();
 const without = (docs: Map<string, string>, id: string, edit: (text: string) => string): Map<string, string> => new Map(docs).set(id, edit(docs.get(id)!));
 
 test('required inputs cover the catalog, settings, adapters and every command', () => {
-  assert.ok(inputs.permissions.includes('spec.approve') && inputs.settings.includes('audit.retention'));
+  assert.ok(inputs.permissions.includes('spec.approve.feature') && inputs.settings.includes('audit.retention'));
   assert.deepEqual(inputs.harnesses.sort(), ['claude', 'codex']);
   for (const c of ['spec approve', 'plan start', 'docs', 'docs search', 'docs essentials', 'test run', 'init', 'validate']) assert.ok(inputs.commands.includes(c), c);
 });
@@ -31,7 +31,7 @@ test('the check fails on a missing topic, command, permission, key, default, not
   const missing = new Map(docs); missing.delete('plans');
   fails(missing, /missing topic `plans`/);
   fails(without(docs, 'commands', t => t.replace('### `plan start`\n', '### `plan begin`\n')), /command `plan start`/);
-  fails(without(docs, 'permissions', t => t.replace('### `spec.approve`\n', '### `spec.accept`\n')), /permission `spec.approve`/);
+  fails(without(docs, 'permissions', t => t.replace('### `spec.approve.feature`\n', '### `spec.accept`\n')), /permission `spec.approve.feature`/);
   fails(without(docs, 'configuration', t => t.replace(/^\| `audit.retention` .*\n/m, '')), /key `audit.retention` is not documented/);
   fails(without(docs, 'configuration', t => t.replace(/^(\| `audit.retention` \| )[^|]*\|/m, '$1 |')), /key `audit.retention` is shown without its default/);
   for (const id of MANDATORY_NOTES) {

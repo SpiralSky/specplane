@@ -347,7 +347,7 @@ test("push: one notification before the dialogue, short text only, cancelled aft
 
 test("push: nothing when off, when the permission is not listed, or when the record is not pending", opts, async () => {
   const m = await cmdsLoad();
-  for (const cfg of [{ push: false }, { push: true, perms: ["spec.approve"] }, { push: true, state: "accepted" }]) {
+  for (const cfg of [{ push: false }, { push: true, perms: ["spec.approve.feature"] }, { push: true, state: "accepted" }]) {
     const f = pushFakes(cfg);
     await m.arrivalDialogue(created, f.ask, f.core, f.log, undefined, f.push);
     assert.equal(f.sent.length, 0);

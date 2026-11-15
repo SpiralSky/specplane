@@ -71,7 +71,7 @@ function createInner(ctx: PlanCtx, o: CreateOpts): { id: string; files: string[]
 
 /** Approve a plan: an `approval` record in the notes store for its `plan-v1` content (`file-formats` §5.2, §13). Only a person can. */
 export function approvePlan(ctx: PlanCtx, id: string): { commit: string | null; already: boolean } {
-  return guarded(ctx, "plan approve", [id], ["spec.approve"], "Approving a plan", () => approveInner(ctx, id));
+  return guarded(ctx, "plan approve", [id], ["spec.approve.feature"], "Approving a plan", () => approveInner(ctx, id));
 }
 
 function approveInner(ctx: PlanCtx, id: string): { commit: string | null; already: boolean } {

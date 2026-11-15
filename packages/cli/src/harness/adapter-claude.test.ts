@@ -268,7 +268,7 @@ test("without Claude Code on PATH the launcher refuses and names the exact comma
 test("answering a blocking request while a session is active resumes the plan and opens its session again", async () => {
   const { root, ctx } = started();
   const llm: PlanCtx = { ...ctx, actor: { role: "llm", kind: "llm", name: "claude", model: "claude-sonnet-5-5" } };
-  const sent = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve"], reason: "approve export", plan: ID, blocking: true });
+  const sent = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve.feature"], reason: "approve export", plan: ID, blocking: true });
   assert.ok(sent.ok);
   assert.equal(progress(root).status, "stopped");
   const calls: string[] = [];
@@ -321,7 +321,7 @@ test("typed accept of a plan.start request opens the plan's session once under o
 test("typed accept of a request that does not start a plan launches nothing", async () => {
   const { root, ctx } = started();
   const llm: PlanCtx = { ...ctx, actor: { role: "llm", kind: "llm", name: "claude", model: "claude-sonnet-5-5" } };
-  const sent = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve"], reason: "approve export" });
+  const sent = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve.feature"], reason: "approve export" });
   assert.ok(sent.ok && sent.request);
   const calls: string[] = [];
   const r = await inRoot(root, () => runHarnessCommand("requests", ["accept", sent.request!.id], root, { launcher: recorder(calls), adapter: "claude" }));

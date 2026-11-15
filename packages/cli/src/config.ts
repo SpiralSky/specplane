@@ -369,7 +369,7 @@ export function loadSettings(root: string): LoadResult {
     result.findings.push({ severity: "warning", key: CONFIG_PATH, message: `${CONFIG_PATH} differs from HEAD; the uncommitted change is ignored until it is committed` });
   }
   result.config.abs = resolvePaths(root, result.config, result.findings);
-  for (const f of customPresetFindings(root)) result.findings.push({ severity: "error", key: f.file, message: f.message });
+  for (const f of customPresetFindings(root)) result.findings.push({ severity: f.severity ?? "error", key: f.file, message: f.message });
   for (const f of bypassFindings(result.config.values["bypass_guards"] as Record<string, boolean> | undefined)) result.findings.push({ severity: "warning", key: "bypass_guards", message: f });
   for (const f of strictFindings(result.config.values["strict_mode.enabled"] === true, result.config.values["strict_mode"] as Record<string, boolean> | undefined)) result.findings.push({ severity: "warning", key: "strict_mode", message: f });
   for (const f of customRoleFindings(root)) result.findings.push({ severity: f.severity, key: f.file, message: f.message });

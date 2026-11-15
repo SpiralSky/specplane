@@ -13,7 +13,7 @@ export const STEERING_COMMANDS: Readonly<Record<string, readonly string[]>> = {
   "plan-step": ["info.retrieve", "spec.edit.requirement", "spec.edit.feature", "spec.edit.architecture", "test.record", "plan.softstop", "plan.resume", "plan.budget"],
   "plan-finish": ["info.retrieve", "plan.complete", "plan.edit"], "plan-status": ["info.retrieve"],
   validate: ["info.retrieve"], verify: ["info.retrieve", "test.record"],
-  approve: ["info.retrieve", "spec.approve"], requests: [], "spec-view": ["info.retrieve"], "decision-new": ["decision.retrieve", "decision.add"],
+  approve: ["info.retrieve", "spec.approve.requirement", "spec.approve.feature", "spec.approve.architecture"], requests: [], "spec-view": ["info.retrieve"], "decision-new": ["decision.retrieve", "decision.add"],
   "spec-review": ["info.retrieve", "decision.retrieve", "decision.add"],
   migrate: ["info.retrieve", "spec.create.requirement", "spec.create.feature", "spec.create.architecture", "decision.add"], "plan-abandon": ["info.retrieve", "plan.abandon", "plan.delete"],
 };
@@ -97,7 +97,7 @@ export function generatePermissionSteering(input: SteeringInputs, id: string, co
 export function generateCommandSteering(input: SteeringInputs, command: string, context: SteeringContext = {}, read: TemplateReader = readSteeringTemplate): string {
   if (!Object.hasOwn(STEERING_COMMANDS, command)) throw new Error(`Unknown steering command: ${command}`);
   const permissions = STEERING_COMMANDS[command].filter((id) =>
-    !context.specType || !id.startsWith("spec.") || id === "spec.approve" || id.endsWith(`.${context.specType}`),
+    !context.specType || !id.startsWith("spec.") || id.endsWith(`.${context.specType}`),
   );
   return stamp(input, [
     `Command: ${command}. Role: ${input.role}.`,

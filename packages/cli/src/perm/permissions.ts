@@ -32,7 +32,7 @@ export const CATALOG: readonly string[] = [
   "spec.create.requirement", "spec.create.feature", "spec.create.architecture",
   "spec.edit.requirement", "spec.edit.feature", "spec.edit.architecture",
   "spec.delete.requirement", "spec.delete.feature", "spec.delete.architecture",
-  "spec.approve", "meta.read", "meta.write",
+  "spec.approve.requirement", "spec.approve.feature", "spec.approve.architecture", "meta.read", "meta.write",
   ...GRANULAR_PIECES.map((p) => `meta.write.${p}`),
   ...PROTECTED, "test.record", "info.retrieve",
   "plan.meta.read", "plan.meta.write", ...PLAN_PIECES.map((p) => `plan.meta.write.${p}`), "plan.edit", "plan.create", "plan.delete", "plan.start", "plan.abandon", "plan.complete",
@@ -67,7 +67,7 @@ function llmModes(req: Mode, feat: Mode, arch: Mode, planEdit: Mode): Record<str
   }
   return {
     ...m,
-    "spec.approve": "request-user", "config.change": "request-user", "info.retrieve": "allow", "test.record": "allow",
+    "spec.approve.requirement": "request-user", "spec.approve.feature": "request-user", "spec.approve.architecture": "request-user", "config.change": "request-user", "info.retrieve": "allow", "test.record": "allow",
     "meta.read": "allow", "meta.write": "deny", "plan.meta.read": "allow", "plan.meta.write": "deny",
     "plan.create": planEdit, "plan.edit": planEdit, "plan.start": "request-user", "plan.resume": "request-user",
     "plan.abandon": "request-user", "plan.complete": "request-user", "plan.delete": "request-user", "plan.budget": "request-user",

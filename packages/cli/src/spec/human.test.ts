@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { makeRepo } from "../test-repo.js";
 import { guard, PRESETS, mode, DEFAULT_PRESET, type Actor } from "../perm/permissions.js";
 import { editKeys } from "./fm-edit.js";
-import { approveSpecs, metaGet, metaSet, overrideSpec, reopenSpec, type Ctx } from "./human.js";
+import { approvalNeeds, approveSpecs, metaGet, metaSet, overrideSpec, reopenSpec, type Ctx } from "./human.js";
 import { loadSpecPaths } from "./paths.js";
 import { loadProject } from "./project.js";
 import { readNotes } from "./notes.js";
@@ -30,7 +30,7 @@ const refs = (...r: string[]) => `references: [${r.join(", ")}]\n`;
 /** Temp git repository with the given specs committed. */
 function repo(specs: Record<string, string>): string {
   const files: Record<string, string> = {};
-  for (const [id, text] of Object.entries(specs)) files[`${F}/${id}.md`] = text;
+  for (const [id, text] of Object.entries(specs)) files[id.includes("/") ? `docs/specifications/${id}.md` : `${F}/${id}.md`] = text;
   const root = makeRepo(files);
   sh(root, "init", "-q", "-b", "main");
   sh(root, "config", "user.name", "Pat Person");
@@ -77,7 +77,7 @@ test("approve: records approver, fingerprint and cited map in the notes store; n
   const entries = audit(root).filter((e) => e.outcome === "done");
   assert.deepEqual(entries.map((e) => e.args), [["feature/b"], ["feature/a"]]);
   assert.equal(entries[0].actor.name, "Pat Person");
-  assert.equal(entries[0].permission, "spec.approve");
+  assert.equal(entries[0].permission, "spec.approve.feature");
 });
 
 test("approve: an unapproved reference fails and names it with its status", async () => {
@@ -187,17 +187,41 @@ test("approve: the permission has three modes; only allow approves", async () =>
   assert.ok(asked.request);
   assert.equal(effective(root, "a").status, "awaiting-review");
   const custom = structuredClone(DEFAULT_PRESET);
-  custom.llm.modes["spec.approve"] = "deny";
+  custom.llm.modes["spec.approve.feature"] = "deny";
   const denied = await approveSpecs({ ...llm("full-llm-control"), preset: custom }, ["feature/a"], { yes: true });
   assert.equal(denied.ok, false);
-  assert.match(denied.reasons.join(), /Refused.*`spec\.approve`/);
+  assert.match(denied.reasons.join(), /Refused.*`spec\.approve\.feature`/);
   assert.equal(effective(root, "a").status, "awaiting-review");
-  custom.llm.modes["spec.approve"] = "allow";
+  custom.llm.modes["spec.approve.feature"] = "allow";
   const allowed = await approveSpecs({ ...llm("full-llm-control"), preset: custom }, ["feature/a"], { yes: true });
   assert.equal(allowed.ok, true, allowed.reasons.join());
   assert.deepEqual(records(root, "a").at(-1)?.by, { llm: "unknown", "delegated-by": "unknown" });
   assert.equal(audit(root).filter((e) => e.outcome === "refused").length, 1);
   assert.equal(audit(root).filter((e) => e.outcome === "request-sent").length, 1);
+});
+
+test("approve: a group of mixed types needs the permission of each member's type; legacy spec.approve grants nothing", async () => {
+  const arch = `---\nid: architecture/x\ntitle: x\nauthors:\n  - human: someone\ncovers: []\nreferences: [feature/a R9]\n---\n\n# x\n\n## §1 Part\n\nText.\n`;
+  const root = repo({ a: fm("a", refs("architecture/x §1")), "architecture/x": arch });
+  const needs = approvalNeeds(root, ["feature/a"]);
+  assert.deepEqual(needs.needs, ["spec.approve.architecture", "spec.approve.feature"]);
+  assert.equal(needs.permOf("feature/a"), "spec.approve.feature");
+  assert.deepEqual(approvalNeeds(root, ["D1"]).needs, ["spec.approve.feature"]);
+  const llm = (modes: Record<string, string>): Ctx => {
+    const preset = structuredClone(DEFAULT_PRESET);
+    preset.llm.modes = { ...preset.llm.modes, ...modes } as typeof preset.llm.modes;
+    return { ...ctx(root), actor: { role: "llm", kind: "llm", name: "m" }, preset };
+  };
+  const denied = await approveSpecs(llm({ "spec.approve.feature": "allow", "spec.approve.architecture": "deny" }), ["feature/a"], { yes: true });
+  assert.equal(denied.ok, false);
+  assert.match(denied.reasons.join(), /Refused.*`spec\.approve\.architecture`/);
+  const asked = await approveSpecs(llm({ "spec.approve.feature": "allow", "spec.approve.architecture": "request-user" }), ["feature/a"], { yes: true });
+  assert.ok(asked.request, "one member needing a request holds the whole group");
+  assert.equal(effective(root, "a").status, "awaiting-review");
+  const done = await approveSpecs(llm({ "spec.approve.feature": "allow", "spec.approve.architecture": "allow" }), ["feature/a"], { yes: true });
+  assert.equal(done.ok, true, done.reasons.join());
+  assert.equal(effective(root, "a").status, "approved");
+  assert.deepEqual(audit(root).filter((e) => e.outcome === "done").map((e) => e.permission).sort(), ["spec.approve.architecture", "spec.approve.feature"]);
 });
 
 test("reopen: appends a reopen record, writes no commit or file edit, audits; re-approving the same content approves again", async () => {
@@ -358,13 +382,13 @@ test("override approval-commit changes only what is shown, not the status", asyn
 
 test("presets: Standard User holds everything except the three overrides; Administrator holds all; defaults deny", () => {
   for (const p of PRESETS) {
-    assert.equal(mode(p, "standard-user", "spec.approve"), "allow");
+    assert.equal(mode(p, "standard-user", "spec.approve.feature"), "allow");
     for (const o of ["override.status", "override.approver", "override.approval-commit", "override.test"]) {
       assert.equal(mode(p, "standard-user", o), "deny");
       assert.equal(mode(p, "llm", o), "deny");
       assert.equal(mode(p, "administrator", o), "allow");
     }
-    assert.equal(mode(p, "llm", "spec.approve"), "request-user");
+    assert.equal(mode(p, "llm", "spec.approve.feature"), "request-user");
     assert.equal(mode(p, "llm", "meta.write"), "deny");
     assert.equal(mode(p, "llm", "meta.write.title"), "deny");
   }

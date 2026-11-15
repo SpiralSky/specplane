@@ -1,6 +1,7 @@
 import { PLAN_PIECES } from "../perm/permissions.js";
 import { validateEditParams } from "../plan/edit.js";
 import { specLayer as writeLayer, validateSpecChange } from "../spec/write.js";
+import { approvalNeeds } from "../spec/human.js";
 import { validateActionInput } from "../harness/actions.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject, findDoc } from "../spec/project.js";
@@ -48,7 +49,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       try {
         const action = validateActionInput(requireText("id"), p.input);
         if (!action.readOnly) invalid("Only read actions use harness read requests.");
-        return action.permissions(p.input as Record<string, unknown>);
+        return action.permissions(p.input as Record<string, unknown>, root);
       } catch (e) { return invalid((e as Error).message); }
     }
     case "spec create":
@@ -76,7 +77,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       return ["test.record"];
     case "spec approve":
       if (!strings(p.ids) || !p.ids.length) invalid("`spec approve` needs a non-empty list of specification IDs.");
-      return ["spec.approve"];
+      return approvalNeeds(root, p.ids as string[]).needs;
     case "spec reopen": return [`spec.edit.${specLayer("id")}`];
     case "spec edit":
       if ("before" in p || "after" in p) {
@@ -125,7 +126,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       if (typeof p.value !== "string") invalid("`plan meta set` needs a string `value`.");
       return [[`plan.meta.write.${field}`, "plan.meta.write"]];
     }
-    case "plan approve": requireText("id"); return ["spec.approve"];
+    case "plan approve": requireText("id"); return ["spec.approve.feature"];
     case "plan start":
       requireText("id"); optional("target", text); bool("forceDeps"); return ["plan.start"];
     case "plan stop":

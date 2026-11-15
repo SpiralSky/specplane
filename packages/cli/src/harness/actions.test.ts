@@ -296,7 +296,7 @@ test("warnings.report lasts only for its runtime session; reads cannot dispatch 
 test("adapter command delivery includes the contract; LLM approvals never invent a human approver", async () => {
   const root = repo();
   const prior = DEFAULT_PRESET.llm.modes;
-  DEFAULT_PRESET.llm.modes = { ...prior, "spec.approve": "allow" };
+  DEFAULT_PRESET.llm.modes = { ...prior, "spec.approve.feature": "allow" };
   try {
     const r = await createActionRuntime({ root, id: "approval", reportsContext: true, command: "approve", model: "actual-model", delegatedBy: "Pat" }).call("spec.approve", { ids: ["feature/a"] });
     assert.equal(r.ok, true, r.findings.join());

@@ -66,7 +66,7 @@ test("the migrate prompt is configurable and its steering covers reading and cre
   assert.match(text, /Custom migrate prompt/);
   assert.match(text, /Permission: spec.create.feature/);
   assert.match(text, /Permission: info.retrieve/);
-  assert.doesNotMatch(text, /Permission: spec.approve/);
+  assert.doesNotMatch(text, /Permission: spec.approve.feature/);
   assert.match(text, /## Separation check/);
   assert.match(readContract("migrate"), /Awaiting Review/);
 });
@@ -102,17 +102,17 @@ test("spec-assist records only user decisions when enabled with decision permiss
   const text = assembleInstructions(repo(), "spec-assist").text;
   assert.match(text, /Permission: decision.retrieve/);
   assert.match(text, /Permission: decision.add/);
-  assert.doesNotMatch(text, /Permission: decision\.(edit|delete)|Permission: spec.approve/);
+  assert.doesNotMatch(text, /Permission: decision\.(edit|delete)|Permission: spec.approve.feature/);
 });
 
 test("permission keys carry their limits, role mode, custom steering and no-bypass text", () => {
-  const root = repo('steering:\n  custom:\n    - permission: spec.approve\n      text: Ask for review first\n');
+  const root = repo('steering:\n  custom:\n    - permission: spec.approve.feature\n      text: Ask for review first\n');
   for (const key of CATALOG) {
     const instruction = assembleInstructions(root, key);
     assert.ok(instruction.trusted);
     for (const part of [key, "Allows:", "Does not allow:", "Mode:", "Do not bypass"]) assert.ok(instruction.text.includes(part), key);
   }
-  assert.match(assembleInstructions(root, "spec.approve").text, /Ask for review first/);
+  assert.match(assembleInstructions(root, "spec.approve.feature").text, /Ask for review first/);
 });
 
 test("delivery persists per key and session, suppresses repeats, and resets at compaction", () => {

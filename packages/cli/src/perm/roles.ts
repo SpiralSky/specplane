@@ -6,7 +6,7 @@ import { dumpYaml, parseYaml } from "../yaml.js";
 import { readStoreJson, writeStoreJson } from "../repo/store.js";
 import { NotesView, byAtRid, type Subject } from "../spec/notes.js";
 import { committedSource } from "../spec/source.js";
-import { MODES } from "./presets.js";
+import { LEGACY_APPROVE, MODES, legacyApproveMessage } from "./presets.js";
 import type { CustomRoleDef, Mode } from "./permissions.js";
 
 /**
@@ -43,11 +43,11 @@ export function roleFingerprint(text: string): string | null {
   return `role-v1:sha256:${createHash("sha256").update(JSON.stringify(canon(raw))).digest("hex")}`;
 }
 
-export function parseRole(text: string, fileId: string, catalog: readonly string[], reservedIds: readonly string[]): { role: RoleFile | null; problems: string[] } {
-  const problems: string[] = [];
+export function parseRole(text: string, fileId: string, catalog: readonly string[], reservedIds: readonly string[]): { role: RoleFile | null; problems: string[]; warnings: string[] } {
+  const problems: string[] = [], warnings: string[] = [];
   let raw: unknown;
-  try { raw = parseYaml(text); } catch (e) { return { role: null, problems: [`not valid YAML: ${(e as Error).message.split("\n")[0]}`] }; }
-  if (!isMap(raw)) return { role: null, problems: ["must be a mapping"] };
+  try { raw = parseYaml(text); } catch (e) { return { role: null, problems: [`not valid YAML: ${(e as Error).message.split("\n")[0]}`], warnings }; }
+  if (!isMap(raw)) return { role: null, problems: ["must be a mapping"], warnings };
   const id = raw.id;
   if (typeof id !== "string" || !ROLE_ID.test(id)) problems.push("`id` must be a kebab-case name");
   else if (id !== fileId) problems.push(`\`id\` ${id} does not match the file name ${fileId}`);
@@ -61,13 +61,14 @@ export function parseRole(text: string, fileId: string, catalog: readonly string
   if (raw.modes !== undefined && raw.modes !== null) {
     if (!isMap(raw.modes)) problems.push("`modes` must be a mapping of permission to mode");
     else for (const [k, m] of Object.entries(raw.modes)) {
-      if (!catalog.includes(k)) problems.push(`permission \`${k}\` does not exist`);
+      if (k === LEGACY_APPROVE) warnings.push(legacyApproveMessage(""));
+      else if (!catalog.includes(k)) problems.push(`permission \`${k}\` does not exist`);
       else if (typeof m !== "string" || !MODES.includes(m as Mode)) problems.push(`mode of \`${k}\` must be allow, request-user or deny`);
       else modes[k] = m as Mode;
     }
   }
-  if (problems.length) return { role: null, problems };
-  return { problems, role: { id: id as string, title: typeof raw.title === "string" ? raw.title : (id as string), level: level as number, defaultMode: dm as Mode, modes, text } };
+  if (problems.length) return { role: null, problems, warnings };
+  return { problems, warnings, role: { id: id as string, title: typeof raw.title === "string" ? raw.title : (id as string), level: level as number, defaultMode: dm as Mode, modes, text } };
 }
 
 export function serializeRole(r: CustomRoleDef): string {
@@ -121,6 +122,7 @@ export function readRoleFiles(root: string, source: "head" | "work", catalog: re
     const file = `${ROLES_DIR}/${f.name}`;
     try {
       const r = parseRole(f.read(), f.name.replace(/\.yaml$/, ""), catalog, reserved);
+      for (const w of r.warnings) findings.push({ file, severity: "warning", message: `role file ${file}: ${w}` });
       if (r.role) roles.push(r.role);
       else for (const p of r.problems) findings.push({ file, severity: "error", message: `role file ${file} is malformed: ${p}; ignored` });
     } catch (e) { findings.push({ file, severity: "error", message: `role file ${file} cannot be read: ${(e as Error).message}; ignored` }); }

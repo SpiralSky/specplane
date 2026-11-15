@@ -9,7 +9,7 @@ Approve specified IDs under the acting role and dependency checks (`harness R20`
 
 Configuration must be present at HEAD. Stop with the reason and no change if a precondition fails. The adapter checks required capabilities and refuses missing capabilities by name. Instruction loading on demand is preferred when supported; otherwise use instruction injection. Typed commands without arguments run only mechanical steps and start no model turn; arguments accompany this contract under the acting role. Plain-language requests use the LLM role, never the user role.
 
-The typed approval command is user-only and mechanical, taking exact IDs without interpreting words. Plain-language requests let the LLM resolve IDs and use its own spec.approve mode; never impersonate the user.
+The typed approval command is user-only and mechanical, taking exact IDs without interpreting words. Plain-language requests let the LLM resolve IDs and use its own `spec.approve.requirement`, `spec.approve.feature` or `spec.approve.architecture` mode (one per specification type, R16.1; a group needs each member's); never impersonate the user.
 
 ## Steps
 
@@ -19,7 +19,7 @@ The typed approval command is user-only and mechanical, taking exact IDs without
 
 ## Permissions and requests
 
-`config.get` needs no permission; retrieval uses `info.retrieve`; approval uses `spec.approve`. Allow does not guarantee the LLM asks first; use request-user when confirmation is required. Never accept a request or edit approval records by hand.
+`config.get` needs no permission; retrieval uses `info.retrieve`; approval uses the `spec.approve.requirement`, `spec.approve.feature` or `spec.approve.architecture` permission of each specification type (decision records and plans use the feature one; approving the requirements page is the user's decision). Allow does not guarantee the LLM asks first; use request-user when confirmation is required. Never accept a request or edit approval records by hand.
 
 Every action checks its permissions in code. Allow acts directly unless custom steering asks for a request first. Request-user sends the exact action through `request.send`, writes nothing first, and ends outside a plan with the pending request ID. Deny refuses, names the permission, and permits no retry by another tool, role or direct edit. The LLM cannot accept or decline requests or switch roles. Never edit approval or execution status into a file.
 

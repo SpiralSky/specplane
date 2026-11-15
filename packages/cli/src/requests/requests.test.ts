@@ -64,7 +64,7 @@ test("request user: the action is not done, one request is stored and audited; a
   const all = list(root);
   assert.equal(all.length, 1);
   assert.equal(all[0].state, "pending");
-  assert.deepEqual(all[0].permissions, ["spec.approve"]);
+  assert.deepEqual(all[0].permissions, ["spec.approve.feature"]);
   assert.equal(all[0].from.role, "llm");
   assert.equal(all[0].action.command, "spec approve");
   const sent = auditLog(root).find((e) => e.outcome === "request-sent")!;
@@ -106,7 +106,7 @@ test("accepting needs the permission of the action with mode allow, checked now;
   assert.ok(!res.ok);
   assert.match(res.reasons[0], /spec\.approve.*allow.*pending/s);
   assert.equal(readRequest(root, r.request!)!.state, "pending");
-  assert.ok(auditLog(root).some((e) => e.command === "requests accept" && e.outcome === "refused" && e.permission === "spec.approve"));
+  assert.ok(auditLog(root).some((e) => e.command === "requests accept" && e.outcome === "refused" && e.permission === "spec.approve.feature"));
   // an LLM role never accepts or declines
   const byLlm = await acceptRequest({ root, actor: actor("llm"), preset: PRESETS[3], now: NOW }, r.request!);
   assert.match(byLlm.reasons[0], /LLM role cannot accept/);
@@ -224,7 +224,7 @@ test("config set and metadata writes under request user", async () => {
 
 test("records are validated and answering is a compare-and-set", () => {
   const root = repo();
-  const rec = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve"], decidedBy: "spec.approve", command: "spec approve", params: { ids: ["feature/a"] }, reason: "r", now: NOW });
+  const rec = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve.feature"], decidedBy: "spec.approve.feature", command: "spec approve", params: { ids: ["feature/a"] }, reason: "r", now: NOW });
   assert.deepEqual(validateRecord(rec), []);
   assert.ok(validateRecord({ ...rec, state: "weird" }).includes("state"));
   assert.match(rec.id, /^20261110T120000Z-[0-9a-f]{4}$/);
@@ -241,8 +241,8 @@ test("the LLM cannot switch roles; a person can, and switching back needs nothin
 
 test("CLI: list, show, accept and decline work from the terminal", () => {
   const root = repo();
-  const a = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve"], decidedBy: "spec.approve", command: "spec approve", params: { ids: ["feature/a"] }, reason: "approve a" });
-  const b = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve"], decidedBy: "spec.approve", command: "spec approve", params: { ids: ["feature/b"] }, reason: "approve b" });
+  const a = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve.feature"], decidedBy: "spec.approve.feature", command: "spec approve", params: { ids: ["feature/a"] }, reason: "approve a" });
+  const b = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve.feature"], decidedBy: "spec.approve.feature", command: "spec approve", params: { ids: ["feature/b"] }, reason: "approve b" });
   const run = (...args: string[]) => spawnSync("node", [cli, "requests", ...args], { cwd: root, encoding: "utf8", env: ENV });
   const l = run("list");
   assert.equal(l.status, 0);
@@ -271,7 +271,7 @@ test("sending derives permissions from the action: empty, omitted and misleading
   const manual = preset("full-manual-editing");
   const patch = patchFor(root, "a", "Changed.");
   const denied = (permissions?: string[]) => sendRequest(sctx(root, "llm", manual), { command: "spec edit", params: { spec: "feature/a", patch }, permissions, reason: "x" });
-  for (const p of [[], undefined, ["spec.approve"], ["request.send"]]) {
+  for (const p of [[], undefined, ["spec.approve.feature"], ["request.send"]]) {
     const s = denied(p);
     assert.ok(!s.ok, `list ${JSON.stringify(p)} must not avoid the deny`);
     assert.match(s.reasons[0], /spec\.edit\.feature.*denied/);
@@ -305,7 +305,7 @@ test("accepting uses the permissions of the action, not the stored list; a refus
   assert.ok((await acceptRequest(user(root, DEFAULT_PRESET), rec.id)).ok);
   assert.match(read(root, "a"), /Changed\./);
   // an invalid stored record is refused, not run
-  const bad = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve"], decidedBy: "x", command: "spec edit", params: { spec: "feature/a" }, reason: "r", now: NOW });
+  const bad = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve.feature"], decidedBy: "x", command: "spec edit", params: { spec: "feature/a" }, reason: "r", now: NOW });
   const r2 = await acceptRequest(user(root), bad.id);
   assert.ok(!r2.ok);
   assert.equal(readRequest(root, bad.id)!.state, "pending");
@@ -327,7 +327,7 @@ test("applySpecEdit itself needs the edit permission with allow", () => {
 
 test("accept and decline share one claim: overlapping answers cannot contradict, and the action runs once", async () => {
   const root = repo();
-  const rec = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve"], decidedBy: "spec.approve", command: "spec approve", params: { ids: ["feature/a"] }, reason: "r", now: NOW });
+  const rec = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve.feature"], decidedBy: "spec.approve.feature", command: "spec approve", params: { ids: ["feature/a"] }, reason: "r", now: NOW });
   const held = claimAnswer(root, rec.id); // an accept in progress
   try {
     const d = await declineRequest(user(root), rec.id);
@@ -357,7 +357,7 @@ test("failure cleanup: a failed action marks the request failed and leaves no cl
   assert.equal(readRequest(root, r.request!)!.state, "failed");
   assert.equal(fs.existsSync(lockFile(root, r.request!)), false);
   // permission refusal also releases the claim, so a later accept works
-  const rec = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve"], decidedBy: "x", command: "spec approve", params: { ids: ["feature/b"] }, reason: "r", now: NOW });
+  const rec = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve.feature"], decidedBy: "x", command: "spec approve", params: { ids: ["feature/b"] }, reason: "r", now: NOW });
   const deny: Preset = { ...DEFAULT_PRESET, standardUser: { defaultMode: "deny", modes: {} } };
   assert.ok(!(await acceptRequest(user(root, deny), rec.id)).ok);
   assert.equal(fs.existsSync(lockFile(root, rec.id)), false);
@@ -479,7 +479,7 @@ test("legacy records remain visible, route verified plan context, and refuse amb
   assert.equal(list(root).length, 1);
   assert.ok((await acceptRequest(user(root), held.request!)).ok);
   assert.match(read(wt, "a"), /Legacy/);
-  const ambiguous = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve"], decidedBy: "spec.approve", command: "spec approve", params: { ids: ["feature/a"] }, reason: "old" });
+  const ambiguous = holdRequest({ root, actor: actor("llm"), permissions: ["spec.approve.feature"], decidedBy: "spec.approve.feature", command: "spec approve", params: { ids: ["feature/a"] }, reason: "old" });
   const ambiguousFile = path.join(storeDir(root), "requests", `${ambiguous.id}.json`);
   const old = { ...ambiguous, plan: PLAN, checkout: undefined };
   fs.writeFileSync(ambiguousFile, JSON.stringify(old));
