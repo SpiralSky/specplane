@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: []
-references: [root:harness R34, root:harness R35, root:plan-execution R27, root:harness §2, root:steering R59, root:harness R47, root:harness R14, root:harness §3, root:verification R24, root:harness R18, root:harness R19, root:harness R20, root:harness R26, root:harness R35.1, root:plan-execution R31.2, root:plan-execution R27.4, root:plan-execution R27.5, root:plan-execution R27.6, root:plans R28, root:later-releases R66, root:harness]
+references: [root:harness R34, root:harness R35, root:plan-execution R27, root:harness §2, root:steering R59, root:harness R47, root:harness R14, root:harness §3, root:verification R24, root:harness R18, root:harness R19, root:harness R20, root:harness R26, root:harness R35.1, root:plan-execution R31.2, root:plan-execution R27.4, root:plan-execution R27.5, root:plan-execution R27.6, root:plans R28, root:roles-and-permissions R58, root:roles-and-permissions R55.1, root:later-releases R66, root:harness]
 ---
 
 # Claude Code integration
@@ -67,12 +67,20 @@ Test T1 (deterministic): type a no-argument command and check that no model turn
 
 Refines `root:harness R47`, `root:harness R14` and `root:harness R35.1`.
 
-Claude Code can run a program before or after one of its tool calls. Specplane uses this for four things:
+Claude Code can run a program before or after one of its tool calls. Specplane uses this for the following:
 
 - **No CLI for the model.** A shell command from Claude that runs the Specplane CLI is denied, with a message pointing to the harness actions. Commands typed by the user in their own terminal are not affected. The check is best effort; Specplane says so at setup (`root:harness R35.1`).
 - **Session context.** When a session starts in a plan checkout, Claude is told the plan and its next step, and to work only on that step.
 - **Compaction.** After Claude Code compacts the conversation, command instructions are sent again at their next use.
 - **Commit check (assumption).** A commit made by Claude is blocked while validation reports errors; warnings do not block.
+
+- **Bypass guard.** A shell command or file edit from Claude that would get around the permission rules is refused with a message: starting a headless Claude or Codex session, setting or clearing the Specplane identity variables, and writing to the local store or to the hook and settings files that enforce this (`root:roles-and-permissions R58`). Each measure can be turned off in the project configuration.
+- **Strict mode (off unless enabled).** When the project turns strict mode on, Claude's own edits to specifications, decision records and roles, commits that skip the commit check, and changes to file permissions are refused as well (`root:roles-and-permissions R55.1`).
+- **Caller record.** When a subagent calls a Specplane action, the hook records which subagent it was, so the audit trail names it; it never decides the call.
+
+Like the CLI block, the bypass guard and strict mode are best effort, and setup says so (`root:harness R35.1`).
+
+Scenario: Given Claude marked as an LLM tries to start the Specplane CLI through a nested headless session or to edit the Specplane store directly, When the hook checks it, Then the command is not run and Claude is told why it was refused.
 
 A status line in a plan checkout shows the plan, its step progress and what is waiting (assumption; registered only when the user has no status line). Hooks are registered in the project's Claude Code settings, which the user can also edit. Hooks that stay installed from an older Specplane keep running until the user removes them.
 

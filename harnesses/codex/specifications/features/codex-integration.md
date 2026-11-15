@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: []
-references: [root:harness R35, root:harness R35.1, root:harness §2, root:steering R59, root:harness R47, root:harness R34, root:harness R14, root:harness R18, root:harness R20, root:plan-execution R27, root:plan-execution R27.6, root:plans R28, root:harness R19.1]
+references: [root:harness R35, root:harness R35.1, root:harness §2, root:steering R59, root:harness R47, root:harness R34, root:harness R14, root:harness R18, root:harness R20, root:plan-execution R27, root:plan-execution R27.6, root:plans R28, root:harness R19.1, root:harness R38, root:plan-execution R31.2]
 ---
 
 # Codex integration
@@ -36,7 +36,7 @@ Refines `root:harness R14` and `root:harness R18`.
 - The read-only `spec-review` workflow (`root:harness R38`) is one of these skills; Codex runs it as a model turn with the review restrictions of the harness.
 - The user's own terminal is not part of the harness: a person can always use the Specplane CLI there. Specplane may say that in its notice; the harness itself does not run the CLI for the user (`root:harness R47`).
 
-Scenario: Given Codex has no native commands on this surface, When the user asks for plan status, Then Specplane states the capability is missing and shows the answer through a read-only action or tells the user that the CLI in their own terminal gives it.
+Scenario: Given Codex has no native commands on this surface, When the user asks for plan status, Then Specplane refuses, names the missing capability, and does not substitute a weaker answer (`root:harness R35.1`); the user's own terminal remains available to them, as stated above.
 
 ## §4 Not calling the CLI
 

@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [codex-integration §2, codex-integration §3, codex-integration §4, codex-integration §5, codex-integration §6]
-references: [root:architecture/reference-cli §12.1, root:architecture/agent-skills §1, root:architecture/agent-skills §9, codex-integration §1, root:architecture/repository-layout §5, root:architecture/agent-skills §2, root:architecture/reference-cli §12.6, root:architecture/agent-skills §3, root:architecture/agent-skills §8, root:harness R35.1, root:architecture/reference-cli §12.7, root:architecture/agent-skills §7.1]
+references: [root:architecture/reference-cli §12.1, root:architecture/agent-skills §1, root:architecture/agent-skills §9, codex-integration §1, root:architecture/repository-layout §5, root:architecture/agent-skills §2, root:architecture/reference-cli §12.6, root:architecture/agent-skills §3, root:architecture/agent-skills §8, root:harness R35.1, root:architecture/reference-cli §12.7, root:architecture/agent-skills §7.1, root:roles-and-permissions R55.1, root:roles-and-permissions R58]
 ---
 
 # Codex integration implementation
@@ -25,7 +25,7 @@ Implements `codex-integration §2`, `codex-integration §3`.
 
 - Installed only when the user names Codex at setup. Setup follows `root:architecture/repository-layout §5`: owned files carry a version header and are replaced on refresh; a customised file is kept and reported with its path.
 - Setup writes exactly one entry into Codex configuration: the registration of the Specplane MCP server (`§3`). It never writes any other Codex configuration, sandbox or approval settings, credentials, or other global files. It inspects each path component before writing and refuses a symbolic link in an installation path, naming it.
-- Skill discovery is by directory: Codex scans `.agents/skills` from the working directory up to the repository root, and duplicate skill names are not merged (assumption). A plugin copy of the same skill and the repository copy must not both be installed; setup refuses the second and says which exists.
+- Skill discovery is by directory: Codex scans `.agents/skills` from the working directory up to the repository root, and duplicate skill names are not merged (assumption). A plugin copy of the same skill and the repository copy must not both be installed; setup is meant to refuse the second and say which exists (assumption: the installer has no such check yet and no test covers it).
 
 ## §2 Standing instructions
 
@@ -54,7 +54,7 @@ The adapter installs a pre-tool check that uses core `isSpecplaneCommand` (`root
 
 Implements `codex-integration §5`.
 
-The plan-start contract has the integration launch the plan session in the checkout through its session adapter with `codex exec` (`root:harness R35.1`); only when the adapter reports the capability unavailable does it print the command that opens Codex there (assumption: `codex` started with the checkout as its working directory), shown as an error naming why. The plan-step contract begins by checking the branch `plan/<id>` and stops with the checkout path if the session is elsewhere.
+The plan-start contract does not launch Codex (`root:harness R35.1`): the Codex launcher (`codexLauncher.open` in `packages/cli/src/harness/adapter-codex.ts`) always refuses with a precondition error and starts no process, and the adapter claims no `session-opening` capability. Plan start therefore says why and prints the command that opens Codex in the checkout, `cd <dir> && codex` (assumption: `codex` started with the checkout as its working directory), for the user to run. The plan-step contract begins by checking the branch `plan/<id>` and stops with the checkout path if the session is elsewhere.
 
 ## §6 Model identity
 
