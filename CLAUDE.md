@@ -8,7 +8,7 @@ This is the maintainers' own file; Specplane never writes or ships a `CLAUDE.md`
 - Treat old specs, rules and code as reference. Adapt them where that makes development easier, or scrap them.
 - When an old rule or spec disagrees with the page, follow the page and mention the conflict. Do not stop, and do not reconcile old specs first.
 - Do not change the page's content unless the user asks. Show proposed text as a diff first.
-- Approvals stay with the user: the page sets spec approval to request user for LLM roles. Hooks that are still installed keep running until the user changes them.
+- Approvals: the user owns approval of `docs/requirements/product-requirements.md` only. For every other spec (feature and architecture) the LLM approves, through the Specplane commands and not by hand-editing metadata, after one separate-agent review of a large change. The user restated this on 2026-11-15; it covers this repo only. If a hook blocks an approval, stop and report. Hooks that are still installed keep running until the user changes them.
 
 ## Slash commands
 
