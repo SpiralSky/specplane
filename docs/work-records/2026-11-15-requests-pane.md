@@ -47,12 +47,12 @@ If U4 finds no hook, R52.4 stays partly unmet on Claude Code. That is a decision
 | Unit | State | Commit |
 |---|---|---|
 | U0 | done (findings below) | — |
-| U1 | not started | — |
-| U2 | not started (after U0 and U1) | — |
-| U3 | in progress (step-worker) | — |
-| U4 | not started | — |
-| U5 | not started | — |
-| U6 | not started | — |
+| U1 | done | fd4d4f0 |
+| U2 | done | 3023abe |
+| U3 | done | 018d665 |
+| U4 | done (with U2; widened in 5bc8e3b, MCP route and answer note in 2a06663) | 3023abe, 5bc8e3b, 2a06663 |
+| U5 | done by the main session through tmux; evidence file `harnesses/claude/host-evidence/2.1.322-requests-dialogue.txt` | 239b2f8, 3a3867d |
+| U6 | review done (reviewer, 5 defects), fixed | c5d6427 |
 
 U0 and U3 run first, together (U0 reads only).
 
@@ -79,3 +79,11 @@ Append one entry per session boundary, newest last: goal, repository state (bran
 - **Arrival hook (R52.4): feasible.** No `tool.result` event, but the plugin already handles `tool.call` for its own tools (`channel.ts:68-95`) and sees the reply at `channel.ts:92-94`; a hook after `forward()` can inspect it, or register `classic.PostToolUse` (DTS:1295; fields `tool_name`, `tool_input`, `tool_response`). Tool name is `mcp__specplane__<name>`. Not inspecting the reply today.
 - **Machine-readable list exists:** `requests list|show|accept|decline` take `--json` (`cli.ts:121-124`); `harness run` also takes `--json` (`commands/harness.ts`), which the plugin does not pass (`commands.ts:68`). Record fields (`requests/store.ts:13-29`): `id`, `state`, `created`, `from{role,model,session}`, `permissions[]`, `action{command,params}`, `reason`, `base{branch,commit}`, `diff` (string or null), `plan`, `checkout`, `blocking`, `answer`. So the diff for a spec request is already in the record.
 - Effect on units: U2 uses `--json` (no text parsing, no new CLI work) and the record's `diff`; U4 is buildable (hook after `forward()` for the request-sending action).
+
+### Handoff 3 — 2026-11-15 (built, live-checked, reviewed; waiting on the user)
+
+- Branch `spec-edits-20261106`, last commit `c5d6427` plus the evidence/handoff commit after it. `npm test` 669 pass / 0 fail; plugin test files under Bun 37 pass; hooks 209 pass; check-sync OK. Not pushed or merged.
+- Live (tmux, Claude Code 2.1.322, Haiku, `SPECPLANE_*` stripped by the user's authorization for the fixture run only): `/requests` dialogue, Accept, Decline and Skip as the person, Esc fallback, arrival dialogue on both routes (plugin-served and `.mcp.json`-served), answer note to the model. Details and blemishes in the evidence file.
+- Left as is: `test.record` holding several requests opens a dialogue only for the first (low). Not checked live: a spec-diff request and the Warning line, `-p` fallback, two requests answered in one `/requests` run. The fixture still holds two pending requests (`...071110Z-04a2`, `...072820Z-8fe1`).
+- `docs/user/harnesses.md` is not yet updated to say the arrival popup needs the plugin (works with `.mcp.json` too since 2a06663) — small docs unit left.
+- The user's remaining steps: approve the edited specs (`claude-integration`, `agent-skills`, and the earlier ones in `HANDOFF.md`), then merge or push; optionally decline the two fixture requests.

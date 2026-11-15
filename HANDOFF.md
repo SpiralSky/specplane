@@ -3,7 +3,7 @@ Updated 2026-11-14 after the first live rerun check and the push. Read the first
 
 ## Active work: requests pane (2026-11-15)
 
-Live check showed `/requests` is a text list, not the pane R52.1 asks for. The approach, units U0-U6 and per-session handoffs are in `docs/work-records/2026-11-15-requests-pane.md`; start there. First user action (U0): in the fixture with `--plugin-dir`, type `/requests accept 20261115T063745Z-ef5d` and report whether it ran as you.
+DONE 2026-11-15 (commits fd4d4f0..c5d6427, Handoff 3 in the record): `/requests` now opens the host's question dialogue and a request opens it on arrival; live-checked. Original problem: `/requests` was a text list, not the pane R52.1 asks for. The approach, units U0-U6 and per-session handoffs are in `docs/work-records/2026-11-15-requests-pane.md`; start there. First user action (U0): in the fixture with `--plugin-dir`, type `/requests accept 20261115T063745Z-ef5d` and report whether it ran as you.
 
 ## Next session: start here (2026-11-14, only user-gated work is left)
 

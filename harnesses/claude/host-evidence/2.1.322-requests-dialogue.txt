@@ -37,3 +37,11 @@ text fallback line, a second pending request in the same /requests run, Windows.
    accepted ..." (a stray character between the "0 warnings" line and the message, and the "0 warnings" line is noise);
    (b) the note makes the model run extra commands. Neither is wrong; both are polish.
 Still not checked: a request with a spec diff, Skip, Esc, -p fallback, two pending requests in one /requests run.
+
+--- After c5d6427 (review fixes), same method and setup, 2026-11-15 ---
+9. Skip in the arrival dialogue (request 20261115T072820Z-8fe1): the request stayed pending, no note was sent, the model
+   told the user to accept it. PASS.
+10. /requests with pending requests, then Esc on the first dialogue: the output was the text list followed by
+   "Answer with /requests accept <id> or /requests decline <id>." (the fallback). PASS.
+Still not checked live: a request with a spec diff or the "Warning: ..." line, two pending requests answered in one run,
+a -p run. Left pending in the fixture: 20261115T071110Z-04a2 and 20261115T072820Z-8fe1.
