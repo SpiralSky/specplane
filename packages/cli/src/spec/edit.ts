@@ -20,7 +20,7 @@ import type { Ctx, Result } from "./human.js";
 
 const result = (r: Partial<Result> & { ok: boolean }): Result => ({ lines: [], reasons: [], commit: null, warnings: [], written: [], ...r });
 
-/** Unified diff of `oldText` to `newText` for `rel`, applicable from the repository root with `git apply -p2`. */
+/** Unified diff of `oldText` to `newText` for `rel`, applicable from the repository root with `git apply -p2` (`patchStrip` also accepts an ordinary `-p1` diff). */
 export function makePatch(rel: string, oldText: string, newText: string): string {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "specplane-patch-"));
   try {
@@ -33,13 +33,21 @@ export function makePatch(rel: string, oldText: string, newText: string): string
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }
 
-/** Apply a patch made by `makePatch` to the working tree; throws when it no longer applies. */
+/**
+ * How many leading path parts `git apply` strips: 2 for a patch made by `makePatch` (`--- a/a/<path>`, `+++ b/b/<path>`),
+ * 1 for an ordinary `git diff` patch (`--- a/<path>`, `+++ b/<path>`) such as a model writes into a request.
+ */
+export function patchStrip(patch: string): "-p1" | "-p2" {
+  return /^--- a\/a\//m.test(patch) && /^\+\+\+ b\/b\//m.test(patch) ? "-p2" : "-p1";
+}
+
+/** Apply a patch made by `makePatch`, or an ordinary unified diff, to the working tree; throws when it no longer applies. */
 export function applyPatch(root: string, patch: string): void {
-  run("git", ["apply", "-p2", "--whitespace=nowarn"], { cwd: root, input: patch });
+  run("git", ["apply", patchStrip(patch), "--whitespace=nowarn"], { cwd: root, input: patch });
 }
 
 export function patchApplies(root: string, patch: string): boolean {
-  try { run("git", ["apply", "--check", "-p2", "--whitespace=nowarn"], { cwd: root, input: patch }); return true; } catch { return false; }
+  try { run("git", ["apply", "--check", patchStrip(patch), "--whitespace=nowarn"], { cwd: root, input: patch }); return true; } catch { return false; }
 }
 
 export interface SpecEditParams { spec: string; patch: string }
@@ -104,7 +112,7 @@ export function specDiffText(root: string, specId: string, patch: string): strin
       const rel = doc.file;
       fs.mkdirSync(path.dirname(path.join(tmp, "new", rel)), { recursive: true });
       fs.writeFileSync(path.join(tmp, "new", rel), fs.readFileSync(path.join(root, rel), "utf8"));
-      run("git", ["apply", "-p2", "--whitespace=nowarn"], { cwd: path.join(tmp, "new"), input: patch });
+      run("git", ["apply", patchStrip(patch), "--whitespace=nowarn"], { cwd: path.join(tmp, "new"), input: patch });
       const proposed = fs.readFileSync(path.join(tmp, "new", rel), "utf8");
       // A requirement file has no approval record and is always approved, so its baseline is HEAD, as in `spec-view`.
       const commit = doc.layer === "requirement" ? "HEAD" : lastApprovalCommit(root, doc.id);
