@@ -6,7 +6,7 @@ related: [harnesses, commands, permissions]
 
 # Harness commands
 
-These descriptions are packaged as the default command documentation. Custom instructions replace this documentation only; action checks and command procedures remain. Commands without arguments do not start a model turn. Typed approval by ID, spec viewing and the requests pane are user-only operations.
+These descriptions are packaged as the default command documentation. Custom instructions replace this documentation only; action checks and command procedures remain. Commands without arguments do not start a model turn. Typed approval by ID, spec viewing and the requests view are user-only operations.
 
 ## spec-assist
 
@@ -96,9 +96,9 @@ List what was migrated, what was left and what was uncertain, name any pending r
 
 ## requests
 
-Open the requests pane for the user, with no model turn (`requests R52.1`, `R52.2`, `R52.4`).
+Open the harness's interactive requests view for the user, with no model turn (`requests R52.1`, `R52.2`, `R52.4`).
 
-Show pending requests and their results in the pane; start no model turn.
+Show pending requests and their results in that view; start no model turn. In Claude Code, with the Specplane plugin, the view is the host's question dialogue: Accept, Decline or Skip for each pending request, with the diff from the last approved specification for a request that involves one. A new request opens the same dialogue while the session is active. Without the plugin, answer in a terminal outside the session.
 
 ## plan-abandon
 
