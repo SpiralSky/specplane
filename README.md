@@ -7,7 +7,7 @@
 
 Specplane is spec-driven development for projects where an AI agent writes some, or most, of the code. You keep your requirements and specifications as plain markdown in the repository. Specplane tracks who approved them, what has been built, and what evidence says it works. It works with [Claude Code](https://claude.com/claude-code) and Codex.
 
-Writing a spec is the easy part. What this adds is the memory around it: which version was approved, by whom, and whether the code and tests still match it. An agent can propose a change to a spec, but it can't quietly approve its own work.
+Writing a spec is the easy part. What this adds is the memory around it: which version was approved, by whom, and whether the code and tests still match it. You decide how much an agent may do on its own, from "ask me first" to "go ahead", and everything it does is recorded.
 
 ## Why
 
