@@ -327,6 +327,19 @@ export async function arrivalDialogue(replyText: string, ask: AskPort, core: Cor
   } catch (e) { seen?.delete(id); log(cleanText(`specplane: the request dialogue failed: ${e instanceof Error ? e.message : String(e)}`)); return undefined }
 }
 
+/**
+ * The refusal text when the LLM role has one of the command's required permissions as deny (`harness R71`), else
+ * undefined. A core that cannot answer does not block the turn: the LLM's own actions still check every permission.
+ */
+async function deniedRequirement(cmd: SlashCommand, core: CorePort, signal?: AbortSignal): Promise<string | undefined> {
+  try {
+    const r = await core.run(['harness', 'requires', cmd.name], signal)
+    if (r.exitCode !== 0) return undefined
+    const check = JSON.parse(r.stdout) as { denied?: string | null; message?: string | null }
+    return check.denied ? (check.message || `Refused: /${cmd.name} needs the \`${check.denied}\` permission, which the llm role does not have. No model turn started.`) : undefined
+  } catch { return undefined }
+}
+
 /** Run one typed command. Nothing here can call a model; a prompt is only returned for the host to submit. */
 export async function dispatch(cmd: SlashCommand, rawArgs: string, core: CorePort, signal?: AbortSignal, ask?: AskPort): Promise<CommandOutcome> {
   const args = splitArgs(rawArgs)
@@ -341,6 +354,9 @@ export async function dispatch(cmd: SlashCommand, rawArgs: string, core: CorePor
     }
   }
   if (cmd.modelWithArgs && args.length > 0) {
+    // R71: a required permission the LLM role has as deny refuses the command here, before any model turn.
+    const refused = await deniedRequirement(cmd, core, signal)
+    if (refused) return { output: { text: refused, exitCode: 1 } }
     return { output: { text: `/${cmd.name}: handing your arguments to the assistant.` }, prompt: skillPrompt(cmd.name, args) }
   }
   let r: CliResult
