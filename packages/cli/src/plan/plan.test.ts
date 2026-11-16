@@ -816,3 +816,36 @@ test("the plan meta commands run through the CLI", () => {
   assert.match(run("plan", "meta", "get", ID).stdout, /title: From the CLI/);
   assert.notEqual(run("plan", "meta", "set", ID, "status", "completed").status, 0);
 });
+
+/** Start a plan, drop its worktree and delete the main checkout's copy, so the plan lives only on `plan/<id>`. */
+function branchOnlyPlan(): { fx: Fx; wt: string } {
+  const fx = repo(); approvedPlan(fx);
+  const { path: wt } = startPlan(fx.ctx, ID);
+  sh(fx.root, "rm", "-rq", `plans/${ID}`);
+  sh(fx.root, "commit", "-q", "-m", "drop main copy");
+  sh(fx.root, "worktree", "remove", "--force", wt);
+  assert.equal(fs.existsSync(path.join(fx.root, "plans", ID)), false);
+  return { fx, wt };
+}
+
+test("plan edit recreates the worktree of a plan that lives only on its branch", () => {
+  const { fx } = branchOnlyPlan();
+  const r = editPlan(fx.ctx, ID, { changes: [{ path: "steps/02-second-step.md", before: step2, after: step2 + "\nBetter.\n" }] });
+  const wt = worktreeOf(fx.root, ID)!;
+  assert.ok(wt && fs.existsSync(wt));
+  assert.equal(sh(wt, "log", "-1", "--format=%s"), "docs(export-things): edit plan");
+  assert.equal(sh(fx.root, "rev-parse", `plan/${ID}`), sh(wt, "rev-parse", "HEAD"));
+  assert.equal(r.files.length, 1);
+});
+
+test("plan edit still says not found when the plan has neither a copy nor a branch", () => {
+  const fx = repo();
+  refused(() => editPlan(fx.ctx, ID, { changes: [{ path: "PLAN.md", before: "a", after: "b" }] }), /not found/);
+});
+
+test("plan resume recreates the worktree of a plan that lives only on its branch", () => {
+  const { fx } = branchOnlyPlan();
+  const res = resumePlan(fx.ctx, ID);
+  assert.equal(res.recreatedWorktree, true);
+  assert.ok(fs.existsSync(path.join(res.path, "plans", ID, "PLAN.md")));
+});

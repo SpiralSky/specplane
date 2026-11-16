@@ -198,6 +198,17 @@ export interface ResumeResult {
   answers: { request: string; state: string; action: string; reason: string; note: string | null; error?: string }[];
 }
 
+/** The plan's worktree, recreated from its branch when it is gone. */
+export function ensureWorktree(ctx: PlanCtx, id: string, branch: string = `plan/${id}`): string {
+  const existing = worktreeOf(ctx.root, id);
+  if (existing) return existing;
+  if (!branchExists(ctx.root, branch)) throw new PlanOpError(`Branch \`${branch}\` is gone; the plan cannot be resumed.`);
+  const wt = worktreePathFor(ctx.root, id);
+  git(ctx.root, ["worktree", "add", wt, branch]);
+  setWorktree(ctx.root, id, wt);
+  return wt;
+}
+
 export function resumePlan(ctx: PlanCtx, id: string): ResumeResult {
   return guarded(ctx, "plan resume", [id], ["plan.resume"], "Resuming a plan", () => {
     // The live copy is in the plan's worktree, or on the plan branch when the worktree is gone; this checkout's copy is stale.
@@ -213,15 +224,9 @@ export function resumePlan(ctx: PlanCtx, id: string): ResumeResult {
     if (!pr0.target_branch || !branchExists(ctx.root, pr0.target_branch)) {
       throw new PlanOpError(`The target branch ${pr0.target_branch ? `\`${pr0.target_branch}\` ` : ""}no longer exists; the plan stays stopped. Choose a new one with \`specplane plan retarget ${id} --target <branch>\`.`);
     }
-    let wt = worktreeOf(ctx.root, id);
-    let recreated = false;
-    if (!wt) {
-      if (!branchExists(ctx.root, branch)) throw new PlanOpError(`Branch \`${branch}\` is gone; the plan cannot be resumed.`);
-      wt = worktreePathFor(ctx.root, id);
-      git(ctx.root, ["worktree", "add", wt, branch]);
-      setWorktree(ctx.root, id, wt);
-      recreated = true;
-    }
+    const had = worktreeOf(ctx.root, id) !== null;
+    const wt = ensureWorktree(ctx, id, branch);
+    const recreated = !had;
     const rec = loadPlanAt(wt, id)!;
     const pr = rec.progress!;
     // An idle plan (clean end after a step, steps left) is not an unexpected end; resuming it starts a new selection (`R27.2`).

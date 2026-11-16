@@ -4,10 +4,11 @@ import { dumpYaml } from "../yaml.js";
 import { splitFrontmatter } from "../spec/frontmatter.js";
 import { loadSpecPaths } from "../spec/paths.js";
 import { loadProject } from "../spec/project.js";
-import { worktreeSource, type Source } from "../spec/source.js";
+import { committedSource, worktreeSource, type Source } from "../spec/source.js";
 import { planAuthor } from "./create.js";
-import { commitPaths, gitTry, guardedWith, PlanOpError, planSlug, requirePlan, type PlanCtx } from "./ctx.js";
-import { MAX_PLAN_ID, PLAN_ID_RE, STEP_FILE_RE, loadPlans, readPlan } from "./model.js";
+import { branchExists, commitPaths, gitTry, guardedWith, plansDir, worktreeOf, PlanOpError, planSlug, requirePlan, type PlanCtx } from "./ctx.js";
+import { MAX_PLAN_ID, PLAN_ID_RE, STEP_FILE_RE, findPlan, loadPlans, readPlan } from "./model.js";
+import { ensureWorktree } from "./run.js";
 import { validatePlanRecords } from "./validate.js";
 
 /** Paths are relative to the plan folder. `before: null` adds a file; `after: null` removes it. */
@@ -44,6 +45,11 @@ function assertOrdinaryPath(root: string, rel: string): void {
 export function editPlan(ctx: PlanCtx, id: string, o: EditPlanOpts): { commit: string; files: string[] } {
   validateEditParams(id, o.changes);
   return guardedWith({ id, changes: o.changes }, ctx, "plan edit", [id], ["plan.edit"], "Editing a plan", () => {
+    // A started plan whose worktree is gone lives only on its branch: recreate the worktree so the edit commits there.
+    if (!worktreeOf(ctx.root, id) && branchExists(ctx.root, `plan/${id}`)) {
+      const onBranch = findPlan(committedSource(ctx.root, `plan/${id}`), plansDir(ctx.root), id);
+      if (onBranch && !onBranch.legacy && onBranch.progress) ensureWorktree(ctx, id, onBranch.progress.branch ?? `plan/${id}`);
+    }
     const { root, rec } = requirePlan(ctx, id);
     if (rec.archived || ["completed", "abandoned"].includes(rec.progress!.status)) throw new PlanOpError("An archived or finished plan cannot be edited.");
     // Refuse rather than absorb existing edits into the command's commit, including untouched plan files.
