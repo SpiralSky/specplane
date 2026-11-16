@@ -1,4 +1,4 @@
-<!-- specplane:begin v0.1.0 — managed by `specplane init`; edits inside this block are overwritten -->
+<!-- specplane:begin v0.1.1 — managed by `specplane init`; edits inside this block are overwritten -->
 ## Specplane
 
 This repository uses Specplane. Before acting on specs or plans, read `.specplane/config.yaml` through the harness and resolve every path from it; never assume one.
@@ -6,7 +6,7 @@ Look up your steering for your role and follow it. Use the Specplane harness act
 Load the documentation essentials with `docs.essentials` at the start of a session; when you lack information, search the rest with `docs.search` instead of guessing.
 If the project has no Specplane configuration, do not apply Specplane rules.
 
-Steering stamp: e15ab8fe4c60a7a0104cdf78beb28213452f696e27b50cc9dad1f74a3ec63145
+Steering stamp: da86e038d98756411ef5f20df9b3690b94a863226a7881f4b16a1392fdbbb111
 <!-- specplane:end -->
 
 ## Requirements override everything
