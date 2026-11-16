@@ -204,6 +204,22 @@ test("selection pane: multiSelect, accept/decline of the selection, one by one, 
   assert.deepEqual(r, { lines: ["a1 could not be done: nope", "Accepted b2."], done: true });
 });
 
+test("a truncated request label ending in More… is not mistaken for the More option", opts, async () => {
+  const m = await load();
+  const long = `${"x".repeat(35)}More and a long tail`;
+  const recs = [rec("a1", { action: { command: long } }), ...["b2", "c3", "d4", "e5", "f6"].map(id => rec(id))];
+  const label = m.requestLabel(recs[0]);
+  assert.ok(label.endsWith("More…"));
+  const f = fakes(recs, [label, "Accept"]);
+  await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
+  assert.equal(f.asked.length, 2, "no second page");
+  assert.equal(f.asked[1]!.o && (f.asked[1]!.o as { header: string }).header, "Request");
+  // Selecting both the truncated label and More… does page on.
+  const g = fakes(recs, [`${label}, More…`, "d4: spec edit", "Skip", "Skip"]);
+  await m.dispatch(await requestsCmd(), "", g.core, undefined, g.ask);
+  assert.equal((g.asked[1]!.o as { options: string[] }).options[0], "d4: spec edit");
+});
+
 test("selection pane pages six pending requests: 3 plus More, selections kept across pages", opts, async () => {
   const m = await load();
   const recs = ["a1", "b2", "c3", "d4", "e5", "f6"].map(id => rec(id));

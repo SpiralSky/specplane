@@ -160,7 +160,19 @@ function requestDetail(r: RequestView, label: string): string {
 
 /** Which of `labels` a multi-select answer names. The answer format is unverified against a live host: the labels are expected comma-separated, so each label is looked for in the answer text. */
 export function selectedLabels(answer: string, labels: string[]): string[] {
-  return labels.filter(l => answer.includes(l))
+  return scanAnswer(answer, labels).picked
+}
+
+/** Matches labels longest first, cutting each match out of the text so a label that ends in another label (a truncated action ending in `More…`) cannot also select the shorter one. `rest` is what no label accounted for. */
+function scanAnswer(answer: string, labels: string[]): { picked: string[]; rest: string } {
+  let rest = answer
+  const picked = new Set<string>()
+  for (const l of [...new Set(labels)].sort((a, b) => b.length - a.length)) {
+    if (!rest.includes(l)) continue
+    picked.add(l)
+    rest = rest.split(l).join(' ')
+  }
+  return { picked: labels.filter(l => picked.has(l)), rest }
 }
 
 /**
@@ -183,9 +195,10 @@ export async function runSelectionPane(requests: RequestView[], ask: AskPort, co
     if (more) options.push(MORE_LABEL)
     let answer: string
     try { answer = await ask.ask(['Select requests to answer', ...page.map((r, k) => requestDetail(r, labels[k]!))].join('\n'), { options, header: 'Requests', multiSelect: true }) } catch { return fail }
-    const picked = selectedLabels(answer, labels)
+    const scan = scanAnswer(answer, more ? [...labels, MORE_LABEL] : labels)
+    const picked = scan.picked.filter(l => l !== MORE_LABEL)
     for (const l of picked) chosen.add(l)
-    const wantsMore = more && answer.includes(MORE_LABEL)
+    const wantsMore = more && scan.picked.includes(MORE_LABEL)
     if (!wantsMore) { if (!more && picked.length === 0 && chosen.size === 0) return fail; break }
     i += page.length
   }
