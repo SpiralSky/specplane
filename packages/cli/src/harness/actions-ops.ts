@@ -1,6 +1,7 @@
 import { allSpecs } from "../spec/project.js";
 import { configSet } from "../config-ops.js";
 import { loadSettings } from "../config.js";
+import { presetCreate, presetList, presetParamsEdits, presetShow } from "../perm/preset-ops.js";
 import { PreconditionError } from "../errors.js";
 import { docsSearch, loadEssentials } from "../docs/operations.js";
 import { REQUESTABLE_COMMANDS } from "../requests/actions.js";
@@ -44,6 +45,14 @@ export function registerOperationActions(add: Adder): void {
     return { ok: !rep.notRecorded, reasons: rep.notRecorded ? [rep.notRecorded] : [], request: rep.held[0]?.request, ...rep };
   });
   add("config.set", { key: str, value: { type: "string" } }, ["key", "value"], ["config.change"], false, (c, p) => configSet(base(c), p.key, p.value));
+  // Presets: the LLM reads them and may create one, never edit, delete or activate one (`roles-and-permissions R56.2`).
+  add("preset.list", {}, [], ["info.retrieve"], true, (c) => presetList(c.root));
+  add("preset.show", { id: str }, ["id"], ["info.retrieve"], true, (c, p) => presetShow(c.root, p.id));
+  const roleBody = { type: "object", additionalProperties: false, properties: { default_mode: { enum: ["allow", "request-user", "deny"] }, modes: { type: "object", additionalProperties: { enum: ["allow", "request-user", "deny"] } } } };
+  add("preset.create", { id: str, title: str, default_mode: { enum: ["allow", "request-user", "deny"] }, llm: roleBody, standard_user: roleBody }, ["id", "default_mode"], ["preset.create"], false, (c, p) => {
+    const { id, edits, problems } = presetParamsEdits(p);
+    return problems.length ? { ok: false, reasons: problems, lines: [], written: false } : presetCreate(base(c), id, edits);
+  });
   // Documentation needs no permission (U0, `reference-cli` §7.3 and §13.1), like `permissions.docs`.
   add("docs.search", { query: str }, ["query"], [], true, (_c, p) => docsSearch(p.query));
   // The always-loaded essentials (`steering R23`): what the session-start delivery of an adapter sends, for a harness or

@@ -35,7 +35,7 @@ const inputs: Record<string, Record<string, unknown>> = {
   "spec.create": { spec: "feature/new", text: text("feature/new") },
   "spec.edit": { spec: "feature/a", text: text().replace("Original", "Changed") },
   "spec.delete": { spec: "feature/a" }, "spec.approve": { ids: ["feature/a"] },
-  validate: {}, warnings: {}, coverage: {}, "config.get": {}, "permissions.docs": {}, "audit.read": {},
+  validate: {}, warnings: {}, coverage: {}, "config.get": {}, "permissions.docs": {}, "audit.read": {}, "preset.list": {}, "preset.show": { id: "full-llm-control" },
   "warnings.report": { text: "Layer mix", subject: "spec", why: "Review", ref: "feature/a" },
 };
 
@@ -48,6 +48,7 @@ test("spec-review refuses every project write before dispatch or request, even w
     ...inputs,
     "spec.implement": { spec: "feature/a" }, "test.run": { all: true },
     "test.record": { results: [{ test: "R1#T1", spec: "feature/a", kind: "intelligent", outcome: "passed", summary: "Checked" }] },
+    "preset.create": { id: "mine", default_mode: "deny" },
     "config.set": { key: "auto_warn", value: "true" },
     "request.send": { command: "spec approve", params: { ids: ["feature/a"] }, reason: "Approve" },
     "decision.edit": { id: "D1", decision: "Changed" }, "decision.delete": { id: "D1" },

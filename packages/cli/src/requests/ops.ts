@@ -5,11 +5,12 @@ import { COMMIT_LEAD } from "../uncommitted.js";
 import { activePreset, guard, type Actor, type Preset } from "../perm/permissions.js";
 import { requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { stopPlan } from "../plan/run.js";
+import { presetDraft, presetPreview } from "../perm/preset-ops.js";
 import { specDiffText } from "../spec/edit.js";
 import { requestContext, requestRoot } from "./checkout.js";
 import { actionFor, type ActionOutcome } from "./actions.js";
 import { holdRequest, sentMessage } from "./hold.js";
-import { actionNeeds, InvalidRequestAction, requestPrecondition } from "./requirements.js";
+import { acceptNeeds, actionNeeds, InvalidRequestAction, requestPrecondition } from "./requirements.js";
 import { answerRequest, claimAnswer, listRequests, readRequest, RequestStateError, type RequestRecord } from "./store.js";
 
 /** Send, list, show, accept and decline (`feature/requests` R52, R52.1, R52.2; `architecture/reference-cli` §8). */
@@ -71,7 +72,7 @@ export function sendRequest(ctx: RequestCtx, i: SendInput): RequestResult {
     audit(ctx.root, { command: i.command, args: [], permission: g.permission, outcome: "refused", reason: msg, actor: auditActor(ctx.actor) }, ctx.now);
     return { ok: false, lines: [], reasons: [msg] };
   }
-  const rec = holdRequest({ root: destination.root, actor: ctx.actor, permissions: g.permissions, decidedBy: g.permissions[0] ?? "request.send", command: i.command, params: i.params, reason: i.reason, plan: context.plan, blocking: !!i.blocking && !!context.plan, now: ctx.now, env: ctx.env });
+  const rec = holdRequest({ root: destination.root, actor: ctx.actor, permissions: g.permissions, decidedBy: g.permissions[0] ?? "request.send", command: i.command, params: i.params, reason: i.reason, diff: storedPreview(destination, i.command, i.params), plan: context.plan, blocking: !!i.blocking && !!context.plan, now: ctx.now, env: ctx.env });
   const lines = [sentMessage(rec)];
   if (i.blocking && context.plan) {
     try {
@@ -80,6 +81,13 @@ export function sendRequest(ctx: RequestCtx, i: SendInput): RequestResult {
     } catch (e) { lines.push(`The plan could not be stopped: ${(e as Error).message.split("\n")[0]}`); }
   }
   return { ok: true, lines, reasons: [], request: rec };
+}
+
+/** The preview a `preset create` request stores in `diff`, shown as stored (`reference-cli` §8); null for other requests. */
+function storedPreview(ctx: RequestCtx, command: string, params: unknown): string | null {
+  if (command !== "preset create") return null;
+  const { preset } = presetDraft(ctx.root, params);
+  return preset ? presetPreview(preset, ctx.preset).lines.join("\n") : null;
 }
 
 /* ------------------------------------------------------------------ list, show */
@@ -178,7 +186,7 @@ export async function acceptRequest(ctx: RequestCtx, id: string, note?: string, 
     let destination: RequestCtx;
     try {
       destination = destinationCtx(ctx, requestRoot(ctx.root, claim.record));
-      needs = actionNeeds(destination.root, claim.record.action.command, claim.record.action.params);
+      needs = acceptNeeds(destination.root, claim.record.action.command, claim.record.action.params);
     }
     catch (e) {
       if (e instanceof InvalidRequestAction || e instanceof RequestStateError) return refuse(ctx, rec, id, "requests accept", null, `Cannot accept: ${e.message} The request stays pending.`);

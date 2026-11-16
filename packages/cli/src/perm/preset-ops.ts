@@ -171,6 +171,47 @@ export function presetCreate(ctx: PresetCtx, id: string, e: Edits): PresetResult
   return { permission, ok: true, written: true, reasons: [], lines: [`Created preset \`${id}\` with default mode ${preset.defaultMode}.`, ...WRITTEN(id), `Activate it with \`specplane config set permissions.preset ${id}\`.`], data: { id, default_mode: preset.defaultMode, uncommitted: [presetFile(id)], commit: { scope: "preset", summary: `create ${id}` } } };
 }
 
+const PARAM_KEYS = ["id", "title", "default_mode", "llm", "standard_user"];
+const ROLE_PARAMS: [string, string][] = [["standard_user", "standard-user"], ["llm", "llm"]];
+
+/**
+ * The full preset a `preset create` request or harness action carries (`R56.2`): `id`, `title`, `default_mode`, and per role
+ * (`llm`, `standard_user`) an optional `default_mode` and a `modes` map. The `Edits` that make it, or the problems found.
+ */
+export function presetParamsEdits(params: unknown): { id: string; edits: Edits; problems: string[] } {
+  const problems: string[] = [];
+  const p = (params && typeof params === "object" && !Array.isArray(params) ? params : {}) as Record<string, unknown>;
+  for (const k of Object.keys(p)) if (!PARAM_KEYS.includes(k)) problems.push(`\`${k}\` is not a field of a preset create; a request only creates a preset, never edits, deletes or activates one`);
+  const id = typeof p.id === "string" ? p.id : "";
+  if (!PRESET_ID.test(id)) problems.push(`\`${id}\` is not a preset name; use lower-case words joined by hyphens`);
+  if (p.title !== undefined && (typeof p.title !== "string" || p.title.trim() === "")) problems.push("`title` must be a non-empty string");
+  if (typeof p.default_mode !== "string" || !MODES.includes(p.default_mode as Mode)) problems.push("`default_mode` is required and must be allow, request-user or deny");
+  const sets: string[] = [];
+  for (const [key, role] of ROLE_PARAMS) {
+    const body = p[key];
+    if (body === undefined) continue;
+    if (!body || typeof body !== "object" || Array.isArray(body)) { problems.push(`\`${key}\` must be an object with \`default_mode\` and \`modes\``); continue; }
+    const b = body as Record<string, unknown>;
+    for (const k of Object.keys(b)) if (k !== "default_mode" && k !== "modes") problems.push(`\`${key}.${k}\` is not a field; use \`default_mode\` and \`modes\``);
+    if (b.default_mode !== undefined) { if (typeof b.default_mode === "string") sets.push(`${role}:*=${b.default_mode}`); else problems.push(`\`${key}.default_mode\` must be a string`); }
+    if (b.modes !== undefined) {
+      if (!b.modes || typeof b.modes !== "object" || Array.isArray(b.modes)) problems.push(`\`${key}.modes\` must map permissions to modes`);
+      else for (const [perm, m] of Object.entries(b.modes)) { if (typeof m === "string") sets.push(`${role}:${perm}=${m}`); else problems.push(`\`${key}.modes.${perm}\` must be a mode string`); }
+    }
+  }
+  return { id, edits: { ...(typeof p.title === "string" ? { title: p.title } : {}), ...(typeof p.default_mode === "string" ? { defaultMode: p.default_mode } : {}), sets }, problems };
+}
+
+/** Why a preset create with these parameters can never succeed, before anything is stored (`R56.2`); the preset it would make otherwise. */
+export function presetDraft(root: string, params: unknown): { preset: Preset | null; problems: string[] } {
+  const { id, edits, problems } = presetParamsEdits(params);
+  if (problems.length) return { preset: null, problems };
+  if (PRESETS.some((p) => p.id === id) || findPreset(root, id, "work")) return { preset: null, problems: [`preset \`${id}\` already exists; a request only creates a new preset`] };
+  const draft = { standardUser: clone({ modes: {} }), llm: clone({ modes: {} }), defaultMode: "deny" as Mode, title: id as string };
+  const more = applyEdits(draft, edits);
+  return more.length ? { preset: null, problems: more } : { preset: { id, number: 0, custom: true, ...draft }, problems: [] };
+}
+
 export function presetEdit(ctx: PresetCtx, id: string, e: Edits): PresetResult {
   const args = [id];
   if (PRESETS.some((p) => p.id === id)) return fail([`preset \`${id}\` is a default preset and cannot be edited; \`specplane preset create <id> --from ${id}\` makes an editable copy`]);
