@@ -65,8 +65,9 @@ function reasonOf(r: CommandResult): string | null {
   return typeof f === "string" ? f.split("\n")[0] : null;
 }
 
-/** The auto-warn count of `reference-cli` §6.3: appended as the last text line, or `warningCount` in JSON. Never changes the status. */
+/** The auto-warn count of `reference-cli` §6.3: appended as the last text line, or `warningCount` in JSON. Never changes the status. `SPECPLANE_AUTO_WARN=off` skips it like the `auto_warn` setting does (for a harness's internal calls). */
 function autoWarn(root: string, spec: RunSpec, result: CommandResult): CommandResult {
+  if (process.env.SPECPLANE_AUTO_WARN === "off") return result;
   let on: boolean;
   try { on = loadSettings(root).config.autoWarn; } catch { return result; }
   if (!on) return result;

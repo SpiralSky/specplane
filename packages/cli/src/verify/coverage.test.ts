@@ -116,6 +116,50 @@ test("auto warn: last text line carries the count, JSON carries warning_count, a
   assert.equal("warning_count" in JSON.parse(run(off, "config", "get", "auto_warn", "--json").out), false);
 });
 
+test("auto warn: SPECPLANE_AUTO_WARN=off skips the collector, the line and the count", async () => {
+  const { runCommand } = await import("../commands/runner.js");
+  const root = repo({ "docs/requirements/product-requirements.md": REQ });
+  const cwd = process.cwd();
+  const chunks: string[] = [];
+  const write = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((s: string) => { chunks.push(String(s)); return true; }) as typeof process.stdout.write;
+  const prev = process.exitCode;
+  const prevEnv = process.env.SPECPLANE_AUTO_WARN;
+  let collected = false;
+  try {
+    process.env.SPECPLANE_AUTO_WARN = "off";
+    process.chdir(root);
+    await runCommand({ command: "validate", collect: () => { collected = true; return []; } }, () => ({ ok: true, lines: ["done"] }));
+  } finally {
+    process.stdout.write = write; process.chdir(cwd); process.exitCode = prev;
+    if (prevEnv === undefined) delete process.env.SPECPLANE_AUTO_WARN; else process.env.SPECPLANE_AUTO_WARN = prevEnv;
+  }
+  assert.equal(collected, false);
+  assert.equal(chunks.join(""), "done\n");
+});
+
+test("auto warn: SPECPLANE_AUTO_WARN=off skips the collector, the line and the count", async () => {
+  const { runCommand } = await import("../commands/runner.js");
+  const root = repo({ "docs/requirements/product-requirements.md": REQ });
+  const cwd = process.cwd();
+  const chunks: string[] = [];
+  const write = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((s: string) => { chunks.push(String(s)); return true; }) as typeof process.stdout.write;
+  const prev = process.exitCode;
+  const prevEnv = process.env.SPECPLANE_AUTO_WARN;
+  let collected = false;
+  try {
+    process.env.SPECPLANE_AUTO_WARN = "off";
+    process.chdir(root);
+    await runCommand({ command: "validate", collect: () => { collected = true; return []; } }, () => ({ ok: true, lines: ["done"] }));
+  } finally {
+    process.stdout.write = write; process.chdir(cwd); process.exitCode = prev;
+    if (prevEnv === undefined) delete process.env.SPECPLANE_AUTO_WARN; else process.env.SPECPLANE_AUTO_WARN = prevEnv;
+  }
+  assert.equal(collected, false);
+  assert.equal(chunks.join(""), "done\n");
+});
+
 test("auto warn: a collector failure prints `warnings unavailable` and keeps the status", async () => {
   const { runCommand } = await import("../commands/runner.js");
   const root = repo({ "docs/requirements/product-requirements.md": REQ });
