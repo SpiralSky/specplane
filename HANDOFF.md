@@ -1,6 +1,10 @@
 # Session handoff
 Updated 2026-11-16 after the requests usability fixes. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
+## Requests answered by permission (2026-11-16, night)
+
+The user said the requirements page already has the role system, so older wording that only a person may answer requests was outdated. Specs `59c63d7` (requests R52.2, reference-cli §8, roles-and-permissions), code `813af16`, `aaaeb93`, skills and templates `eecbf3d`; one reviewer pass, two findings fixed; 768 pass / 0 fail, hooks 209, check-sync OK. Approved as a group (15 specs, notes `043eb7f`). Rule: accepting and declining both need `allow` on the requested action's permission; the sender (same role id or same non-null session) cannot answer; the LLM has harness actions `request.accept` and `request.decline` (steering decides when). The default presets still leave approvals to the user because the LLM role is `request-user` there. The `/requests` command stays user-only. Still open: the six pending requests (three are mistaken `plan.resume` ones, decline them in `/requests`); release `0.1.2` (bump version, `npm pkg fix`, tag, push) waits for the user; `AGENTS.md` carries a stale steering-stamp warning in `validate` (run `init --harness claude`, user-run).
+
 ## Plan `2026-11-16-llm-preset-creation` merged (2026-11-16, evening)
 
 Merged into `main` (`5ca9548`, archived under `plans/archive/`): LLM preset creation (R56.2, `preset.create`), approving plans and decision records from the harness (R20.2, R70), `plan.retarget` split from `plan.resume` (R31.3), refusing denied commands before a model turn (R71, `Requires:` lines), and one review fix (`45066b4`, inherited Standard User modes on `preset create --from`). On `main`: 763 pass / 0 fail, hooks 209, check-sync OK, `validate` 0 errors.
