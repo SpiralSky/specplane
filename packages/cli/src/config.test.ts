@@ -178,6 +178,9 @@ test("config set and unset: the Standard User changes a setting, audited with ol
   const r = configSet(ctxFor(root), "auto_warn", "off");
   assert.ok(r.ok && r.written, r.reasons.join());
   assert.equal(fs.readFileSync(file(root), "utf8"), "# mine\nauto_warn: off\n");
+  assert.ok(r.lines.includes("Commit it to apply:"));
+  assert.ok(r.lines.includes('git add .specplane/config.yaml && git commit -m "config: set auto_warn"'));
+  assert.deepEqual((r.data as { uncommitted: string[] }).uncommitted, [".specplane/config.yaml"]);
   assert.equal(loadSettings(root).config.autoWarn, true, "the uncommitted change is ignored");
   commitAll(root);
   assert.equal(loadSettings(root).config.autoWarn, false);

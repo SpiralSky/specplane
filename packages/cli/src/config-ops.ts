@@ -7,6 +7,7 @@ import { readWorkingConfig } from "./config-source.js";
 import { CONFIG_PATH, checkValue, describeDefault, formatValue, listSettings, loadSettings, lookup, parseConfig, type Config, type Kind } from "./config.js";
 import { editConfig } from "./config-edit.js";
 import { findPreset, guard, type Actor, type Preset } from "./perm/permissions.js";
+import { commitLines } from "./uncommitted.js";
 import { holdRequest, sentMessage } from "./requests/hold.js";
 
 /**
@@ -115,10 +116,10 @@ function change(ctx: ConfigCtx, key: string, value: unknown | undefined, command
   if (next !== text) writeAtomic(file, next);
   const after = check.config.values[key] ?? null;
   audit(ctx.root, { ...entry, permission: "config.change", outcome: "done", old, new: after }, ctx.now);
-  const lines = [value === undefined ? `Removed \`${key}\`; the default (${formatValue(hit.def.def)}) applies.` : `Set \`${key}\` to ${formatValue(candidate)} (was ${formatValue(old)}).`, `Written to ${CONFIG_PATH}, not committed. It applies from the next command after it is committed; until then it is ignored.`];
+  const lines = [value === undefined ? `Removed \`${key}\`; the default (${formatValue(hit.def.def)}) applies.` : `Set \`${key}\` to ${formatValue(candidate)} (was ${formatValue(old)}).`, `Written to ${CONFIG_PATH}, not committed. It applies from the next command after it is committed; until then it is ignored.`, ...commitLines([CONFIG_PATH], value === undefined ? `config: unset ${key}` : `config: set ${key}`)];
   if (hit.def.later) lines.push("This setting belongs to a later release and has no effect yet.");
   lines.push(...applyEffects(ctx.root, key, old, after));
-  return { ok: true, lines, reasons: [], data: { key, old, new: after }, written: true };
+  return { ok: true, lines, reasons: [], data: { key, old, new: after, uncommitted: [CONFIG_PATH] }, written: true };
 }
 
 export function configSet(ctx: ConfigCtx, key: string, arg: string): ConfigResult {

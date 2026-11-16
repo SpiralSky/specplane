@@ -4,6 +4,7 @@ import { audit } from "../audit/log.js";
 import { readWorkingConfig } from "../config-source.js";
 import { loadSettings, parseConfig } from "../config.js";
 import { CATALOG, PRESETS, STANDARD_CATALOG, allPresets, findPreset, guard, levelOf, mode, type Actor, type Mode, type Preset } from "./permissions.js";
+import { commitLines } from "../uncommitted.js";
 import { MODES, PRESET_ID, PRESET_ROLES, presetFile, readCustomPresets, serializePreset } from "./presets.js";
 
 /**
@@ -103,7 +104,7 @@ function write(root: string, id: string, text: string): void {
   fs.renameSync(tmp, file);
 }
 
-const WRITTEN = (id: string): string => `Written to ${presetFile(id)}, not committed. It applies from the next command after it is committed; until then it is ignored.`;
+const WRITTEN = (id: string, verb = "create"): string[] => [`Written to ${presetFile(id)}, not committed. It applies from the next command after it is committed; until then it is ignored.`, ...commitLines([presetFile(id)], `preset: ${verb} ${id}`)];
 
 export function presetCreate(ctx: PresetCtx, id: string, e: Edits): PresetResult {
   const args = [id];
@@ -120,7 +121,7 @@ export function presetCreate(ctx: PresetCtx, id: string, e: Edits): PresetResult
   const preset: Preset = { id, number: 0, custom: true, ...draft };
   write(ctx.root, id, serializePreset(preset));
   record(ctx, "preset create", args, "done", null, { default_mode: preset.defaultMode, from: e.from ?? null });
-  return { ok: true, written: true, reasons: [], lines: [`Created preset \`${id}\` with default mode ${preset.defaultMode}.`, WRITTEN(id), `Activate it with \`specplane config set permissions.preset ${id}\`.`], data: { id, default_mode: preset.defaultMode } };
+  return { ok: true, written: true, reasons: [], lines: [`Created preset \`${id}\` with default mode ${preset.defaultMode}.`, ...WRITTEN(id), `Activate it with \`specplane config set permissions.preset ${id}\`.`], data: { id, default_mode: preset.defaultMode, uncommitted: [presetFile(id)] } };
 }
 
 export function presetEdit(ctx: PresetCtx, id: string, e: Edits): PresetResult {
@@ -138,7 +139,7 @@ export function presetEdit(ctx: PresetCtx, id: string, e: Edits): PresetResult {
   if (before === after) return { ok: true, written: false, reasons: [], lines: [`Preset \`${id}\` is unchanged.`], data: { id, changed: false } };
   write(ctx.root, id, after);
   record(ctx, "preset edit", [id, ...(e.sets ?? []), ...(e.unsets ?? [])], "done", { default_mode: found.defaultMode }, { default_mode: next.defaultMode });
-  return { ok: true, written: true, reasons: [], lines: [`Edited preset \`${id}\`.`, WRITTEN(id)], data: { id, changed: true } };
+  return { ok: true, written: true, reasons: [], lines: [`Edited preset \`${id}\`.`, ...WRITTEN(id, "edit")], data: { id, changed: true, uncommitted: [presetFile(id)] } };
 }
 
 export function presetDelete(ctx: PresetCtx, id: string): PresetResult {

@@ -37,6 +37,7 @@ test("a Standard User creates a preset that needs a default mode, and it applies
   assert.match(noDefault.reasons[0], /default mode/);
   const r = presetCreate(ctx(root), "careful", { defaultMode: "deny", sets: ["llm:spec.edit.feature=request-user", "standard-user:*=allow"] });
   assert.equal(r.ok, true);
+  assert.ok(r.lines.includes(`git add ${presetFile("careful")} && git commit -m "preset: create careful"`));
   assert.ok(fs.existsSync(path.join(root, presetFile("careful"))));
   assert.equal(allPresets(root).some((p) => p.id === "careful"), false, "uncommitted: ignored");
   commitAll(root);
