@@ -8,7 +8,7 @@ implements:
     commit: 8452119c8333abc1b8082ec707f2478cf724ced0
     mode: implements
   - spec: architecture/reference-cli
-    commit: 8452119c8333abc1b8082ec707f2478cf724ced0
+    commit: 52d59f6252d50ccedeeb1f706e1ee52f9e36ef76
     mode: implements
   - spec: architecture/file-formats
     commit: 8452119c8333abc1b8082ec707f2478cf724ced0
