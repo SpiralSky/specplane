@@ -20,16 +20,18 @@ roles:
       meta.read: allow
       meta.write: deny
       plan.abandon: request-user
-      plan.budget: request-user
-      plan.complete: request-user
+      plan.budget: allow
+      plan.complete: allow
       plan.create: allow
       plan.delete: request-user
       plan.edit: allow
       plan.meta.read: allow
       plan.meta.write: deny
-      plan.resume: request-user
+      plan.resume: allow
+      plan.retarget: allow
       plan.softstop: allow
-      plan.start: request-user
+      plan.start: allow
+      preset.create: request-user
       spec.approve.architecture: allow
       spec.approve.feature: allow
       spec.approve.requirement: request-user
