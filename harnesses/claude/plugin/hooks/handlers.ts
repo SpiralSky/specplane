@@ -4,14 +4,18 @@ import type { EngineInterface, Register } from 'claude-code'
 import { BUNDLED_CLI, dispatch, SLASH_COMMANDS } from './commands'
 import type { AskPort, CorePort, PushPort, SlashCommand } from './commands'
 
+/** Preload that turns the auto-warn count off for one `node` run (`reference-cli` §6.3). */
+const QUIET_PRELOAD = "data:text/javascript,process.env.SPECPLANE_AUTO_WARN='off'"
+
 /** Runs the bundled core through the host's process API; the plugin has no shell. */
 export function bundledCore($: EngineInterface): CorePort {
   return {
     async run(argv, signal) {
       if (signal?.aborted) return { exitCode: 130, stdout: '', stderr: 'cancelled' }
       // Calls that parse `--json` output never show the auto-warn count, so they skip its cost (`reference-cli` §6.3).
-      const quiet = argv.includes('--json') && (globalThis as { process?: { platform?: string } }).process?.platform !== 'win32' ? ['env', 'SPECPLANE_AUTO_WARN=off'] : []
-      const r = await $.process.run([...quiet, 'node', `${$.plugin.root}/${BUNDLED_CLI}`, ...argv], { timeoutMs: 120_000 })
+      // A data: preload sets the variable inside `node` itself, so it works on every platform without a shell or an `env` command.
+      const quiet = argv.includes('--json') ? ['--import', QUIET_PRELOAD] : []
+      const r = await $.process.run(['node', ...quiet, `${$.plugin.root}/${BUNDLED_CLI}`, ...argv], { timeoutMs: 120_000 })
       return { exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr }
     },
   }
