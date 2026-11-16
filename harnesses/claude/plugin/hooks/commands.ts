@@ -97,6 +97,14 @@ const COUNT_LINE = /^(\d+ warnings?(; run .*)?|warnings unavailable)$/
 const resultLines = (r: CliResult): string[] => cleanText(r.stdout).split('\n').filter(l => l && !COUNT_LINE.test(l)).concat(cleanText(r.stderr).split('\n').filter(Boolean))
 const asText = (r: CliResult): string => resultLines(r).join('\n')
 
+/** The core marks a written-but-uncommitted file with a `Commit it to apply:` line followed by the ready-to-run `git add ... && git commit ...` line (`packages/cli/src/uncommitted.ts`); the same paths are in `data.uncommitted` of a `--json` result. The notice for the summary, else undefined. */
+export function uncommittedNote(text: string): string | undefined {
+  const lines = text.split('\n')
+  const i = lines.findIndex(l => l.trim() === 'Commit it to apply:')
+  const cmd = i >= 0 ? lines[i + 1]?.trim() : undefined
+  return cmd && cmd.startsWith('git add ') ? `Not yet in effect: commit to apply.\n${cmd}` : undefined
+}
+
 /** One answered request: what the user chose and whether the core did it. */
 export interface Outcome { id: string; answer: 'Accept' | 'Decline'; failed: boolean; message: string }
 
@@ -116,6 +124,7 @@ export async function runDialogue(requests: RequestView[], ask: AskPort, core: C
       const res = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', answer === 'Accept' ? 'accept' : 'decline', r.id], signal)
       const text = asText(res)
       out.push(text || `${answer} ${r.id}: done.`)
+      if (answer === 'Accept' && res.exitCode === 0) { const note = uncommittedNote(text); if (note) out.push(note) }
       outcomes?.push({ id: r.id, answer, failed: res.exitCode !== 0 || /could not be done/.test(text), message: text.replace(/\n/g, ' ') })
     } catch (e) {
       const m = cleanText(`Could not ${answer.toLowerCase()} ${r.id}: ${e instanceof Error ? e.message : String(e)}`).replace(/\n/g, ' ')

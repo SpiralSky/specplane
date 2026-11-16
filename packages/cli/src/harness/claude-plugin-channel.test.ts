@@ -167,6 +167,17 @@ test("a reply that created a request opens one dialogue and runs the answer", op
   assert.deepEqual(f.calls[1], ["harness", "run", "--adapter", "claude", "requests", "accept", "r1"]);
 });
 
+test("an accepted write that is not committed adds a not-yet-in-effect line with the commit command", opts, async () => {
+  const m = await cmdsLoad();
+  const cmd = 'git add .specplane/config.yaml && git commit -m "config: set decisions.enabled"';
+  assert.equal(m.uncommittedNote("Accepted r1.\nCommit it to apply:\n" + cmd), "Not yet in effect: commit to apply.\n" + cmd);
+  assert.equal(m.uncommittedNote("Accepted r1."), undefined);
+  const f = arrivalFakes("Accept");
+  const core = { run: async (argv: string[]) => argv.includes("accept") ? { exitCode: 0, stdout: "Set x.\nCommit it to apply:\n" + cmd + "\n", stderr: "" } : f.core.run(argv) };
+  const r = await m.runDialogue([{ id: "r1", state: "pending", action: { command: "config set" } }], f.ask, core);
+  assert.ok(r.lines.some((l: string) => /Not yet in effect: commit to apply\.\ngit add /.test(l)));
+});
+
 test("other replies and other tools open no dialogue", opts, async () => {
   const m = await cmdsLoad();
   const f = arrivalFakes("Accept");
