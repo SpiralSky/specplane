@@ -43,3 +43,12 @@ SPECPLANE_*/CLAUDE* stripped in the tmux shell; the user said these are test run
 12. docs_search did not return the plan-step contract for "Codex plan-step contract" in two runs; command_begin
     delivers it. Not a defect in itself (the contract comes through command_begin), but a model that searches first
     stops. The fixture plan's handoff says step 01 is complete (2090a59) while progress.yaml shows it in progress.
+13. Item 11 explained: the fixture's plan branch was created before `init --harness codex` was committed on main, so the
+    plan worktree had no .codex/, .mcp.json or AGENTS.md and Codex loaded no Specplane tools. After the user's global
+    trust entry for the worktree (added 2026-11-16, ~/.codex/config.toml) AND merging main into the plan branch
+    (be5ec3c), `codex exec` in the worktree loaded the tools: command_begin and plan_next ran there. Whether the trust
+    entry alone was needed is not separated out. PASS for tool loading in a plan checkout.
+14. The same run called plan_resume (the plan is again soft-stopped after the accepted resume 442522d, cause not
+    found) and was refused: "Send a request naming this one action. Do not do it first; wait for acceptance." It sent
+    request 20261116T055305Z-2c90 and stopped. The plan step is still not completed on Codex; the repeat stop needs
+    looking at (a resume that does not stick) before another run.
