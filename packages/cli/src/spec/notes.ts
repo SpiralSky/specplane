@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { GitError } from "../errors.js";
 import { run } from "../git/exec.js";
+import { prefetchBlobs } from "./source.js";
 
 /**
  * Notes store (`architecture/file-formats` §13, `architecture/reference-cli` §5.5): records are JSON Lines in git
@@ -186,6 +187,7 @@ export class NotesView {
     let v = this.unchanged.get(key);
     if (v === undefined) {
       const hashes = this.touching(st.commit, s.paths);
+      prefetchBlobs(this.root, hashes.flatMap((h) => s.paths.map((p) => `${h}:${p}`)));
       v = hashes.every((h) => s.fingerprintAt(h) === st.rec.fingerprint);
       this.unchanged.set(key, v);
     }

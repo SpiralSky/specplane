@@ -17,6 +17,33 @@ export interface Source {
   listDirs(dir: string): string[];
 }
 
+const HEX40 = /^[0-9a-f]{40}$/;
+/** Blob text at a full commit id: immutable, so it is kept for the process. Key: `root \0 sha:path`; null when the file is absent. */
+const blobs = new Map<string, string | null>();
+
+/**
+ * Read `sha:path` blobs for many commits with one `git cat-file --batch` instead of one `git show` each. Only full
+ * commit ids are used, and only blobs are kept (a path that is a directory is left to the normal read).
+ */
+export function prefetchBlobs(root: string, refs: readonly string[]): void {
+  const want = [...new Set(refs)].filter((r) => HEX40.test(r.slice(0, 40)) && r[40] === ":" && !blobs.has(`${root}\0${r}`));
+  if (want.length < 2) return;
+  let out: Buffer;
+  try { out = run("git", ["cat-file", "--batch"], { cwd: root, input: want.join("\n") + "\n", binary: true }); } catch { return; }
+  let pos = 0;
+  for (const ref of want) {
+    const nl = out.indexOf(10, pos);
+    if (nl < 0) return;
+    const header = out.subarray(pos, nl).toString("utf8");
+    if (header.endsWith(" missing")) { blobs.set(`${root}\0${ref}`, null); pos = nl + 1; continue; }
+    const [, type, size] = header.split(" ");
+    const n = Number(size);
+    if (type === undefined || !Number.isInteger(n)) return;
+    if (type === "blob") blobs.set(`${root}\0${ref}`, out.subarray(nl + 1, nl + 1 + n).toString("utf8"));
+    pos = nl + 1 + n + 1;
+  }
+}
+
 const norm = (p: string) => p.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
 
 export function worktreeSource(root: string): Source {
@@ -49,7 +76,10 @@ export function committedSource(root: string, rev: string): Source {
     rev,
     read(file) {
       const f = norm(file);
-      if (!cache.has(f)) cache.set(f, git(["show", `${rev}:${f}`]));
+      if (!cache.has(f)) {
+        const pre = HEX40.test(rev) ? blobs.get(`${root}\0${rev}:${f}`) : undefined;
+        cache.set(f, pre !== undefined ? pre : git(["show", `${rev}:${f}`]));
+      }
       return cache.get(f) ?? null;
     },
     list(dir) {
