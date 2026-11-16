@@ -43,7 +43,7 @@ Test T1 (deterministic): run a command twice in one session on a harness that re
 When the user types a harness command, the harness runs it itself and passes arguments to the LLM only if there are any.
 
 - A command without arguments makes no LLM call. For example, a command that opens a pane or shows a status does not start a model turn.
-- A command with arguments passes only those arguments to the LLM, together with the instructions that belong to the command (`R14`).
+- A command with arguments passes only those arguments to the LLM, together with the instructions that belong to the command (`R14`), except a command that completes mechanically under the user's own role, such as approve (`R20`, `R70`), which starts no model turn.
 - The command runs under the role of the person who typed it. A person who types a command acts as themselves, not as the LLM (`roles-and-permissions R50`).
 - This does not limit what the LLM can do. An LLM can do what its own role allows by the same means, for example by being asked in plain language to approve a specification (`R20`). The command is a convenience for the user, not a gate in front of the action.
 
@@ -207,11 +207,11 @@ Test T1 (deterministic): an exact ID approves; an inexact name approves nothing 
 
 ## R71: Denied Commands Skip the Model
 
-Before a command starts a model turn, the harness checks the permissions the command cannot do anything without (its required permissions). If the LLM role has any of them as deny, the command is refused at once, naming the permission, with the same text the LLM would have received for the denial, and no model call is made. Allow and request user do not block the turn: the LLM can still act or send a request (`requests R52.3`). Permissions that only some uses of a command need are not required permissions and never trigger the refusal. A typed command that the user's own role can complete mechanically, such as approve with exact IDs (`R20`), runs under the user's permissions and starts no model turn at all (`R18`).
+Before a command starts a model turn, the harness checks the permissions the command cannot do anything without (its required permissions). If the LLM role has any of them as deny, the command is refused at once, naming the permission, with the same text the LLM would have received for the denial, and no model call is made. Allow and request user do not block the turn: the LLM can still act or send a request (`requests R52.3`). Permissions that only some uses of a command need are not required permissions and never trigger the refusal. The refusal is shown to the user as the command's output. Plain-language requests, which have no typed command, are out of scope: the LLM answers them under its own permissions as before. A typed command that the user's own role can complete mechanically, such as approve with exact IDs (`R20`), runs under the user's permissions and starts no model turn at all (`R18`).
 
-Scenario: Given `plan.start` is deny for the LLM role, When the user types the plan-start command with a plan ID, Then it is refused naming `plan.start` and no model turn starts.
+Scenario: Given `plan.abandon` is deny for the LLM role, When the user types the plan-abandon command with a plan ID, Then it is refused naming `plan.abandon` and no model turn starts.
 
-Scenario: Given `plan.start` is request user, When the user types the same command, Then the turn starts and the LLM sends the request.
+Scenario: Given `plan.abandon` is request user, When the user types the same command, Then the turn starts and the LLM sends the request.
 
 Scenario: Given `plan.create` is allow and `plan.edit` is deny, When the user types the plan-create command with arguments, Then the turn starts, because `plan.edit` is needed only for later edits.
 

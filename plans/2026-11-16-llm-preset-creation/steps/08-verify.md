@@ -1,6 +1,6 @@
 ---
 plan: 2026-11-16-llm-preset-creation
-step: 7
+step: 8
 title: Verify the whole change
 ---
 ## Goal

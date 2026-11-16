@@ -5,7 +5,7 @@ title: R70 typed approve lists matches for an inexact name
 ---
 ## Goal
 
-Make the typed approve command (CLI `approve`, harness `/approve`) approve nothing and list the closest IDs when a name is not an exact ID. Spec: `feature/harness` R70 and `architecture/agent-skills` "Required permissions" bullet (last sentence). Code: the approve command in `packages/cli/src/commands` (find where `Specification \`X\` not found. Known IDs:` is produced), and the Claude plugin command table in `harnesses/claude/plugin/hooks/commands.ts` (approve entry, `modelWithArgs: false`).
+Make the typed approve command (CLI `approve`, harness `/approve`) approve nothing and list the closest IDs when a name is not an exact ID. Spec: `feature/harness` R70 and `architecture/agent-skills` "Required permissions" bullet (last sentence). Code: the approve command in `packages/cli/src/commands` (`packages/cli/src/spec/human.ts` produces `Specification \`X\` not found. Known IDs:`), and the Claude plugin command table in `harnesses/claude/plugin/hooks/commands.ts` (approve entry, `modelWithArgs: false`).
 
 ## Acceptance criteria
 

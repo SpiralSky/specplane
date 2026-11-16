@@ -56,5 +56,6 @@ Implements `feature/roles-and-permissions` (R56.2 and the R56 and R57 edits) and
 03 Harness actions and the requestable preset create
 04 Show the preview in the request displays and update the docs
 05 R70: typed approve lists matches for an inexact name
-06 R71: refuse denied commands before the model turn
-07 Verify the whole change
+06 R71: Requires lines in the contracts
+07 R71: refuse denied commands before the model turn
+08 Verify the whole change
