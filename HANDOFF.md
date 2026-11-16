@@ -1,5 +1,13 @@
 # Session handoff
-Updated 2026-11-14 after the first live rerun check and the push. Read the first "Next session: start here" section; older sections are historical unless referenced below.
+Updated 2026-11-16 after the requests usability fixes. Read the first "Next session: start here" section; older sections are historical unless referenced below.
+
+## Requests usability fixes (2026-11-16)
+
+The three issues in the user's `issues.md` (from using 0.1.1 in `steward`) are fixed on `main`, 686 pass / 0 fail, hooks 209:
+- Slow `/requests`: `SPECPLANE_AUTO_WARN=off` skips the auto-warn scan; the plugin sets it on its internal `--json` calls (~2 s to ~0.4 s per call). Not on win32 (`env` prefix). `cd2e268`, `92daefb`, `a515e85`.
+- Uncommitted config/preset writes print `Commit it to apply:` and `git add -- :/<file> && git commit -m "..." -- :/<file>`, plus `data.uncommitted`; the `/requests` summary says "Not yet in effect". `76176cb`, `ed81cd3`, `8587fb3`, review fix `0b3c3ad`.
+- `/requests` with 2+ pending opens Accept all / Decline all / Go through one by one first. `e6282eb`, `dc9aa77`.
+Reviewed once; specs re-approved as a group (notes `35b9da6`). Not live-checked in Claude Code: the faster pane, the summary note, the bulk dialogue. Follow-ups: Windows opt-out; `collectWarnings` still spawns ~3,700 git processes on every user command.
 
 ## Update 2026-11-15 (late)
 
