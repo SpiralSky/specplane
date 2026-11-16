@@ -141,3 +141,27 @@ None.
 
 ### What the next step must know
 The line format is exactly `Requires: \`perm\`.` on its own line in Preconditions, one or more backticked permissions; the regex used by the test is `/^Requires: (.+)\.$/m` with backticked names extracted. `readContract(command)` and `COMMANDS` in `packages/cli/src/harness/instructions.ts` read the embedded contracts from `packages/cli/assets/commands/`. Step 07 should parse the same line from the built templates.
+
+## Step 07: R71 refuse denied commands before the model turn
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/harness/requires.ts`: `requiresOf` parses a contract's `Requires:` line; `checkRequires` returns each required permission with the LLM role's mode and, for the first deny, the standard `guard` refusal text plus "No model turn started."
+- `packages/cli/src/commands/harness.ts`: hidden read-only subcommand `specplane harness requires <command>` printing that check as JSON.
+- `harnesses/claude/plugin/hooks/commands.ts`: `dispatch` calls the check before the `modelWithArgs` branch and returns the refusal as the command output (exit code 1, no prompt). A core that errors or returns non-JSON does not block the turn.
+- `packages/cli/src/harness/requires.test.ts`, `packages/cli/src/harness/claude-plugin-commands.test.ts`: core tests and plugin-path tests for `plan-abandon` and `validate` (deny refuses, allow and request user start, a deny on a non-required permission and a command without a line start, a failing core starts); the old "no core call" test now expects only the requires call.
+- `docs/user/harnesses.md`: paragraph on the check.
+
+### Deviations from the step
+- The check reads the embedded contracts in `packages/cli/assets/commands/` through `readContract` instead of `dist/templates`; step 06's test keeps those equal to the templates. It is a separate hidden subcommand `harness requires`, not `harness run requires`, because `harness run` refuses anything outside the command list.
+
+### Gaps found
+- G6 (spec): `feature/harness` R71 T1 has no deterministic test declaration, so `test.record` refuses it ("no matching deterministic test or verdict declared"); the result is not recorded.
+
+### Open issues
+- `config.test.ts` "this repository's own configuration is valid" still fails (1 of 754, `headless_block` off), unrelated to this step.
+
+### What the next step must know
+tsc clean; `npm test` 753 pass, 1 fail (the config test above); `hooks.test.sh` 209 pass; `check-sync.sh` OK. Code commit 33adea5. Scratch files `step*.out` and `driver.log` in the worktree root are not to be committed.
