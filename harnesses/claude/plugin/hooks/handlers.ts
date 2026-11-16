@@ -9,7 +9,9 @@ export function bundledCore($: EngineInterface): CorePort {
   return {
     async run(argv, signal) {
       if (signal?.aborted) return { exitCode: 130, stdout: '', stderr: 'cancelled' }
-      const r = await $.process.run(['node', `${$.plugin.root}/${BUNDLED_CLI}`, ...argv], { timeoutMs: 120_000 })
+      // Calls that parse `--json` output never show the auto-warn count, so they skip its cost (`reference-cli` §6.3).
+      const quiet = argv.includes('--json') && (globalThis as { process?: { platform?: string } }).process?.platform !== 'win32' ? ['env', 'SPECPLANE_AUTO_WARN=off'] : []
+      const r = await $.process.run([...quiet, 'node', `${$.plugin.root}/${BUNDLED_CLI}`, ...argv], { timeoutMs: 120_000 })
       return { exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr }
     },
   }
