@@ -1,0 +1,13 @@
+{"version": 2, "width": 179, "height": 42, "timestamp": 1794747248, "env": {"SHELL": "/bin/bash", "TERM": "xterm-256color"}}
+[0.054932, "o", "\r\n$ specplane init\r\n"]
+[2.064138, "o", "Created .specplane/config.yaml with the default settings. Commit it: configuration is read from HEAD, so nothing is enforced until it is committed.\r\n"]
+[3.591012, "o", "\r\n$ specplane spec list\r\n"]
+[5.958224, "o", "feature/login                     awaiting-review (never-approved)\r\nrequirement/product-requirements  approved\r\n0 warnings\r\n"]
+[7.468589, "o", "\r\n$ specplane spec approve feature/login\r\n"]
+[10.266146, "o", "Approved feature/login as Demo (notes commit c1ea87c).\r\n0 warnings\r\n"]
+[11.77819, "o", "\r\n$ specplane spec list\r\n"]
+[14.492815, "o", "feature/login                     approved\r\nrequirement/product-requirements  approved\r\n0 warnings\r\n"]
+[16.004586, "o", "\r\n# Someone edits the spec...\r\n"]
+[17.513322, "o", "\r\n$ specplane spec list\r\n"]
+[20.207218, "o", "feature/login                     awaiting-review (edited)\r\nrequirement/product-requirements  approved\r\n0 warnings\r\n"]
+[21.71919, "o", "\r\n# ...so it is back in review until you approve the new text.\r\n"]

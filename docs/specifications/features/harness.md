@@ -4,8 +4,8 @@ title: Harness
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-covers: [R14, R18, R19, R19.1, R19.2, R20, R20.1, R21, R21.1, R26, R26.1, R26.2, R34, R35, R35.1, R38, R38.1, R47]
-references: [cli R16.1, R4, R10, R11, R16, R22, R24, R27, R37, R61.1, R66, later-releases R37, later-releases R37.1, later-releases R66, requests R52, roles-and-permissions R50, roles-and-permissions R57, steering R51, steering R59, specifications R9, configuration R25, plans R30.1, specifications R11.3, roles-and-permissions]
+covers: [R14, R18, R19, R19.1, R19.2, R20, R20.1, R21, R21.1, R26, R26.1, R26.2, R34, R35, R35.1, R38, R38.1, R47, R70, R71]
+references: [requests R52.3, cli R16.1, R4, R10, R11, R16, R22, R24, R27, R37, R61.1, R66, later-releases R37, later-releases R37.1, later-releases R66, requests R52, roles-and-permissions R50, roles-and-permissions R57, steering R51, steering R59, specifications R9, configuration R25, plans R30.1, specifications R11.3, roles-and-permissions]
 ---
 
 # Harness
@@ -194,6 +194,28 @@ Plan execution (`R27`) is required on every supported harness. Other capabilitie
 - When a harness cannot enforce a thing it was asked to enforce, for example a budget it cannot measure or blocking the CLI (`R47`), Specplane says so when it is set up and does not claim enforcement.
 
 Scenario: Given a harness cannot show a specification, When the user runs the view command, Then Specplane says the harness lacks the capability and does nothing else.
+
+## R70: Unresolved Approval Targets
+
+The typed approve command (`R20`) takes exact IDs. When a name is not an exact ID of a specification, plan or decision record, nothing is approved and no model turn starts (`R18`); the command lists the closest matching IDs, grouped by kind, and says to run it again with one of them. Matching is mechanical (a case-insensitive match of the words in the name against IDs and titles, best matches first, at most ten) and writes nothing. A name that matches nothing says so and lists nothing. When the user asks the LLM in plain language instead, it resolves the IDs itself and acts under its own approval permission (`R20`, `R20.1`): allow approves, request user sends a request, and deny refuses (`R71`).
+
+Scenario: Given the user types the approve command with `requirements`, When no ID is exactly `requirements`, Then nothing is approved, no model turn starts, and the ID of the requirements page is listed as a match.
+
+Scenario: Given the user types the approve command with the exact ID of the requirements page, When it runs, Then it approves under the user's permissions with no model turn.
+
+Test T1 (deterministic): an exact ID approves; an inexact name approves nothing and lists matches; a name that matches nothing lists none; none of these starts a model turn.
+
+## R71: Denied Commands Skip the Model
+
+Before a command starts a model turn, the harness checks the permissions the command cannot do anything without (its required permissions). If the LLM role has any of them as deny, the command is refused at once, naming the permission, with the same text the LLM would have received for the denial, and no model call is made. Allow and request user do not block the turn: the LLM can still act or send a request (`requests R52.3`). Permissions that only some uses of a command need are not required permissions and never trigger the refusal. A typed command that the user's own role can complete mechanically, such as approve with exact IDs (`R20`), runs under the user's permissions and starts no model turn at all (`R18`).
+
+Scenario: Given `plan.start` is deny for the LLM role, When the user types the plan-start command with a plan ID, Then it is refused naming `plan.start` and no model turn starts.
+
+Scenario: Given `plan.start` is request user, When the user types the same command, Then the turn starts and the LLM sends the request.
+
+Scenario: Given `plan.create` is allow and `plan.edit` is deny, When the user types the plan-create command with arguments, Then the turn starts, because `plan.edit` is needed only for later edits.
+
+Test T1 (deterministic): for each command with required permissions, a deny refuses before any model turn, and allow and request user start it; a deny on a permission that is not required starts it.
 
 ## §2 Standing instructions
 

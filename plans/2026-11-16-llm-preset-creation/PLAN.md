@@ -1,6 +1,6 @@
 ---
 id: plan/2026-11-16-llm-preset-creation
-title: LLM preset creation (R56.2)
+title: LLM preset creation (R56.2), approve suggestions (R70), denied-command short circuit (R71)
 authors:
   - llm: unknown
 implements:
@@ -11,10 +11,16 @@ implements:
     commit: 6214cdc2aee9c192e7c7ac076effe3ea93615cd3
     mode: implements
   - spec: architecture/file-formats
+    commit: COMMIT
+    mode: implements
+  - spec: feature/harness
+    commit: COMMIT
+    mode: implements
+  - spec: architecture/agent-skills
     commit: 6214cdc2aee9c192e7c7ac076effe3ea93615cd3
     mode: implements
 ---
-# LLM preset creation (R56.2)
+# LLM preset creation (R56.2), approve suggestions (R70), denied-command short circuit (R71)
 
 ## Goal
 
@@ -23,6 +29,7 @@ Let the LLM role create a permission preset under the new permission `preset.cre
 ## Scope
 
 - In: the `preset.create` permission and its defaults in all four default presets; `presetCreate` for an LLM actor; harness actions `preset.list`, `preset.show`, `preset.create`; a requestable `preset create` with a preview; display of the preview in `requests show`, the Claude `/requests` pane and the arrival dialogue; steering text; tests and user docs.
+- In (R70, R71): the typed approve command lists matching IDs for an inexact name and approves nothing; commands that start a model turn read a `Requires:` line from their contract and refuse at once when the LLM role has a required permission as deny.
 - Out: LLM editing or deleting presets, activating a preset (stays a `config set` request), custom roles, Codex-side dialogue (Codex has no popup).
 
 ## Specifications
@@ -34,6 +41,7 @@ Implements `feature/roles-and-permissions` (R56.2 and the R56 and R57 edits) and
 - `specplane permissions preset.create` documents the permission, and every default preset states request user for the LLM role.
 - Deny refuses and stores no request; allow writes an uncommitted preset that states modes only for the LLM role and none above the LLM role's own; request user stores a request holding the full preset and its preview, writes nothing until accepted, and an accept by a role without `role.manage` is refused.
 - A preset created this way is never active.
+- Typed approve with `requirements` approves nothing, starts no model turn and lists the matching ID; with an exact ID it approves under the user's permissions. A command whose required permission is deny for the LLM role is refused before any model turn; allow and request user start it.
 - `npx tsc --noEmit -p .` and `npm test` in `packages/cli` pass, `sh harnesses/claude/tests/hooks.test.sh` and `sh harnesses/claude/tests/check-sync.sh` pass, and `validate` reports no errors.
 
 ## Risks
@@ -47,4 +55,6 @@ Implements `feature/roles-and-permissions` (R56.2 and the R56 and R57 edits) and
 02 Core: presetCreate for the LLM actor and the preview
 03 Harness actions and the requestable preset create
 04 Show the preview in the request displays and update the docs
-05 Verify the whole change
+05 R70: typed approve lists matches for an inexact name
+06 R71: refuse denied commands before the model turn
+07 Verify the whole change
