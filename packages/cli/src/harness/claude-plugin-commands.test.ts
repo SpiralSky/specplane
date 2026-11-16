@@ -82,13 +82,14 @@ const requestsCmd = async () => (await load()).SLASH_COMMANDS.find((c: { name: s
 
 test("/requests with no arguments opens a dialogue per pending request and runs accept, decline, skip", opts, async () => {
   const m = await load();
-  const f = fakes([rec("a1"), rec("b2", { state: "accepted" }), rec("c3"), rec("d4")], ["Accept", "Decline", "Skip"]);
+  const f = fakes([rec("a1"), rec("b2", { state: "accepted" }), rec("c3"), rec("d4")], ["Go through one by one", "Accept", "Decline", "Skip"]);
   const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
   assert.deepEqual(f.calls[0], ["harness", "run", "--adapter", "claude", "requests", "list", "--json"]);
   assert.deepEqual(f.calls.filter(c => !c.includes("--json")), [["harness", "run", "--adapter", "claude", "requests", "accept", "a1"], ["harness", "run", "--adapter", "claude", "requests", "decline", "c3"]]);
-  assert.equal(f.asked.length, 3);
-  assert.deepEqual(f.asked[0]!.o, { options: ["Accept", "Decline", "Skip"], header: "Request" });
-  assert.match(f.asked[0]!.q, /spec-writer/); assert.match(f.asked[0]!.q, /spec edit/); assert.match(f.asked[0]!.q, /why a1/);
+  assert.equal(f.asked.length, 4);
+  assert.deepEqual(f.asked[0]!.o, { options: ["Accept all", "Decline all", "Go through one by one"], header: "Requests" });
+  assert.deepEqual(f.asked[1]!.o, { options: ["Accept", "Decline", "Skip"], header: "Request" });
+  assert.match(f.asked[1]!.q, /spec-writer/); assert.match(f.asked[1]!.q, /spec edit/); assert.match(f.asked[1]!.q, /why a1/);
   assert.match(out.output.text, /ok a1/); assert.match(out.output.text, /ok c3/); assert.match(out.output.text, /Skipped d4/);
 });
 
@@ -130,18 +131,18 @@ test("/requests with arguments keeps the text behaviour and opens no dialogue", 
 
 test("/requests shows the recomputed diff and a visible warning when the current diff is unavailable", opts, async () => {
   const m = await load();
-  const f = fakes([rec("a1", { diff: "-stale\n+stale" }), rec("b2", { diff: "-stale" })], ["Skip", "Skip"], {
+  const f = fakes([rec("a1", { diff: "-stale\n+stale" }), rec("b2", { diff: "-stale" })], ["Go through one by one", "Skip", "Skip"], {
     a1: rec("a1", { diff: "-fresh\n+fresh" }),
     b2: rec("b2", { diff: null, warning: "Current diff unavailable: the proposed patch no longer applies." }),
   });
   await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
-  assert.match(f.asked[0]!.q, /^-fresh$/m); assert.doesNotMatch(f.asked[0]!.q, /stale/);
-  assert.match(f.asked[1]!.q, /^Warning: Current diff unavailable: the proposed patch no longer applies\.$/m);
+  assert.match(f.asked[1]!.q, /^-fresh$/m); assert.doesNotMatch(f.asked[1]!.q, /stale/);
+  assert.match(f.asked[2]!.q, /^Warning: Current diff unavailable: the proposed patch no longer applies\.$/m);
 });
 
 test("a dismissed second dialogue keeps the first answer before the fallback list", opts, async () => {
   const m = await load();
-  const f = fakes([rec("a1"), rec("b2")], ["Accept", new Error("dismissed")]);
+  const f = fakes([rec("a1"), rec("b2")], ["Go through one by one", "Accept", new Error("dismissed")]);
   const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
   assert.equal(out.output.text, "ok a1\nplain list\nAnswer with /requests accept <id> or /requests decline <id>.");
 });
@@ -153,4 +154,40 @@ test("the result line drops the warning count, strips control characters and kee
   assert.deepEqual(out, { lines: ["Accepted r1. red\nwarning: x"], done: true });
   const only = await m.runDialogue([rec("r1")], { ask: async () => "Decline" }, { run: async () => ({ exitCode: 0, stdout: "0 warnings\n", stderr: "" }) });
   assert.deepEqual(only.lines, ["Decline r1: done."]);
+});
+
+test("bulk dialogue: Accept all, Decline all, one by one, single pending, one failure, deduplicated note", opts, async () => {
+  const m = await load();
+  const cmd = await requestsCmd();
+  const note = "Commit it to apply:\ngit add x.md && git commit -m y";
+  // Accept all of two: one list dialogue, each accepted, the note once.
+  const calls: string[][] = [];
+  const core = { run: async (argv: string[]) => { calls.push(argv); if (argv.includes("show") || argv.includes("--json")) return argv.includes("show") ? listOutOne(rec(argv.at(-2)!, argv.at(-2) === "b2" ? { diff: "-a\n+b" } : {})) : listOut([rec("a1"), rec("b2", { diff: "-a\n+b" })]); const id = argv.at(-1)!; return id === "c3" ? { exitCode: 1, stdout: "", stderr: "c3 could not be done: nope\n" } : { exitCode: 0, stdout: `Accepted ${id}.\n${note}\n`, stderr: "" }; } };
+  const asked: Array<{ q: string; o: unknown }> = [];
+  const mk = (answers: string[]) => ({ ask: async (q: string, o: unknown) => { asked.push({ q, o }); return answers.shift()!; } });
+  const out = await m.dispatch(cmd, "", core, undefined, mk(["Accept all"]));
+  assert.equal(asked.length, 1);
+  assert.deepEqual(asked[0]!.o, { options: ["Accept all", "Decline all", "Go through one by one"], header: "Requests" });
+  assert.match(asked[0]!.q, /- a1: spec edit from spec-writer\n- b2: spec edit from spec-writer \(spec change; diff in one-by-one\)/);
+  assert.deepEqual(calls.filter(c => !c.includes("--json")).map(c => c.slice(-2)), [["accept", "a1"], ["accept", "b2"]]);
+  assert.equal(out.output.text.split("Not yet in effect: commit to apply.").length - 1, 1);
+  assert.match(out.output.text, /Accepted a1\.[\s\S]*Accepted b2\./);
+  // Decline all.
+  const f = fakes([rec("a1"), rec("b2")], ["Decline all"]);
+  const d = await m.dispatch(cmd, "", f.core, undefined, f.ask);
+  assert.deepEqual(f.calls.filter(c => !c.includes("--json")).map(c => c.slice(-2)), [["decline", "a1"], ["decline", "b2"]]);
+  assert.equal(d.output.text, "ok a1\nok b2");
+  // One by one runs the per-request dialogue.
+  const g = fakes([rec("a1"), rec("b2")], ["Go through one by one", "Skip", "Skip"]);
+  const o = await m.dispatch(cmd, "", g.core, undefined, g.ask);
+  assert.equal(g.asked.length, 3); assert.match(o.output.text, /Skipped a1/);
+  // A single pending request skips the list dialogue.
+  const h = fakes([rec("a1")], ["Accept"]);
+  await m.dispatch(cmd, "", h.core, undefined, h.ask);
+  assert.equal(h.asked.length, 1); assert.deepEqual(h.asked[0]!.o, { options: ["Accept", "Decline", "Skip"], header: "Request" });
+  // One failure does not stop the others and its reason is listed.
+  const calls2: string[][] = [];
+  const core2 = { run: async (argv: string[]) => { calls2.push(argv); const id = argv.at(-1)!; return id === "a1" ? { exitCode: 1, stdout: "", stderr: "a1 could not be done: nope\n" } : { exitCode: 0, stdout: `Accepted ${id}.\n`, stderr: "" }; } };
+  const r = await m.runBulkDialogue([rec("a1"), rec("b2")], { ask: async () => "Accept all" }, core2);
+  assert.equal(calls2.length, 2); assert.deepEqual(r, { lines: ["a1 could not be done: nope", "Accepted b2."], done: true });
 });

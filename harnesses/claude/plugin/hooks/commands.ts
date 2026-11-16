@@ -120,19 +120,59 @@ export async function runDialogue(requests: RequestView[], ask: AskPort, core: C
     try { answer = await ask.ask(dialogueText(r), { options: [...DIALOGUE_LABELS], header: 'Request' }) } catch { return { lines: out, done: false } }
     if (answer !== 'Accept' && answer !== 'Decline' && answer !== 'Skip') return { lines: out, done: false }
     if (answer === 'Skip') { out.push(`Skipped ${r.id}; it stays pending.`); continue }
-    try {
-      const res = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', answer === 'Accept' ? 'accept' : 'decline', r.id], signal)
-      const text = asText(res)
-      out.push(text || `${answer} ${r.id}: done.`)
-      if (answer === 'Accept' && res.exitCode === 0) { const note = uncommittedNote(text); if (note) out.push(note) }
-      outcomes?.push({ id: r.id, answer, failed: res.exitCode !== 0 || /could not be done/.test(text), message: text.replace(/\n/g, ' ') })
-    } catch (e) {
-      const m = cleanText(`Could not ${answer.toLowerCase()} ${r.id}: ${e instanceof Error ? e.message : String(e)}`).replace(/\n/g, ' ')
-      out.push(m)
-      outcomes?.push({ id: r.id, answer, failed: true, message: m })
-    }
+    out.push(...await answerOne(r, answer, core, signal, outcomes))
   }
   return { lines: out, done: true }
+}
+
+/** Run Accept or Decline for one request through the core (as the person); returns its output lines (the uncommitted note after a good Accept) and records the outcome. */
+async function answerOne(r: RequestView, answer: 'Accept' | 'Decline', core: CorePort, signal?: AbortSignal, outcomes?: Outcome[]): Promise<string[]> {
+  const out: string[] = []
+  try {
+    const res = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', answer === 'Accept' ? 'accept' : 'decline', r.id], signal)
+    const text = asText(res)
+    out.push(text || `${answer} ${r.id}: done.`)
+    if (answer === 'Accept' && res.exitCode === 0) { const note = uncommittedNote(text); if (note) out.push(note) }
+    outcomes?.push({ id: r.id, answer, failed: res.exitCode !== 0 || /could not be done/.test(text), message: text.replace(/\n/g, ' ') })
+  } catch (e) {
+    const m = cleanText(`Could not ${answer.toLowerCase()} ${r.id}: ${e instanceof Error ? e.message : String(e)}`).replace(/\n/g, ' ')
+    out.push(m)
+    outcomes?.push({ id: r.id, answer, failed: true, message: m })
+  }
+  return out
+}
+
+export const BULK_LABELS = ['Accept all', 'Decline all', 'Go through one by one'] as const
+
+/** The text of the bulk dialogue: one line per pending request (id, action, sender); a spec change is marked because the bulk answer skips its diff. */
+export function bulkText(requests: RequestView[]): string {
+  const lines = [`${requests.length} requests are waiting:`]
+  for (const r of requests) {
+    const spec = typeof r.diff === 'string' && r.diff.trim() !== '' ? ' (spec change; diff in one-by-one)' : ''
+    lines.push(`- ${r.id}: ${cleanText(r.action?.command ?? 'unknown action').replace(/\n/g, ' ')} from ${cleanText(r.from?.role ?? 'unknown').replace(/\n/g, ' ')}${spec}`)
+  }
+  return lines.join('\n')
+}
+
+/**
+ * With two or more pending requests: one dialogue to accept all, decline all, or go one by one (`runDialogue`). Each
+ * request is answered in turn and a failure does not stop the rest; the uncommitted note appears once per distinct
+ * commit command. `done` is false when the dialogue was unavailable, dismissed or answered with something else.
+ */
+export async function runBulkDialogue(requests: RequestView[], ask: AskPort, core: CorePort, signal?: AbortSignal): Promise<{ lines: string[]; done: boolean }> {
+  let answer: string
+  try { answer = await ask.ask(bulkText(requests), { options: [...BULK_LABELS], header: 'Requests' }) } catch { return { lines: [], done: false } }
+  if (answer === 'Go through one by one') return runDialogue(requests, ask, core, signal)
+  if (answer !== 'Accept all' && answer !== 'Decline all') return { lines: [], done: false }
+  const verb = answer === 'Accept all' ? 'Accept' : 'Decline'
+  const lines: string[] = []
+  const notes = new Set<string>()
+  for (const r of requests) {
+    for (const l of await answerOne(r, verb, core, signal)) {
+      if (l.startsWith('Not yet in effect: commit to apply.\n')) notes.add(l); else lines.push(l)
+    }
+  }
+  return { lines: [...lines, ...notes], done: true }
 }
 
 /** The pending requests from `requests list --json`, each re-read with `requests show` (the list holds the diff stored at creation, `show` recomputes it). Null when the core did not give a usable list. */
@@ -253,7 +293,7 @@ export async function dispatch(cmd: SlashCommand, rawArgs: string, core: CorePor
     const pending = await pendingRequests(core, signal)
     if (pending && pending.length === 0) return { output: { text: 'No requests waiting.' } }
     if (pending) {
-      const { lines, done } = await runDialogue(pending, ask, core, signal)
+      const { lines, done } = pending.length >= 2 ? await runBulkDialogue(pending, ask, core, signal) : await runDialogue(pending, ask, core, signal)
       if (done) return { output: { text: lines.join('\n') } }
       const plain = await dispatch(cmd, rawArgs, core, signal)
       return { output: { ...plain.output, text: [...lines, plain.output.text, ANSWER_LINE].join('\n') } }
