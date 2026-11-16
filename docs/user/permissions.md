@@ -73,7 +73,7 @@ Choose a preset with `config set permissions.preset <id>`. The four defaults are
 | `feature-level-llm-control` | request-user | allow | allow | allow |
 | `full-llm-control` | allow | allow | allow | allow |
 
-The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`, `config.change`, `preset.create`, `plan.start`, `plan.resume`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
+The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`, `config.change`, `preset.create`, `plan.start`, `plan.resume`, `plan.retarget`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
 
 ### Custom presets
 
@@ -404,6 +404,16 @@ Allows: Resume a stopped plan.
 Does not allow: Starting a plan that never ran.
 
 Commands: `plan resume`
+
+### `plan.retarget`
+
+Allows: Change the target branch of a started plan, without resuming it.
+
+Does not allow: Resuming the plan.
+
+Commands: `plan retarget`
+
+Retargeting used to be guarded by `plan.resume`. It now has its own permission, so a role can be allowed to resume a plan without being allowed to change where its work merges. A custom preset that does not state `plan.retarget` takes the preset's default for it, so a custom preset that allowed a retarget through `plan.resume` now refuses it until it states `plan.retarget`.
 
 ### `plan.softstop`
 
