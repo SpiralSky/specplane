@@ -151,8 +151,9 @@ test("loadSpecPaths reads from the same loader", () => {
 test("this repository's own configuration is valid", () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
   const { findings, config } = loadSettings(root);
-  // The maintainers turn `hook_protect` off on purpose (they edit the installed hooks by copying templates), which `validate` reports.
-  assert.deepEqual(findings.filter((f) => !(f.key === "bypass_guards" && /`hook_protect` is off/.test(f.message))), []);
+  // The maintainers turn `hook_protect` off on purpose (they edit the installed hooks by copying templates), and `headless_block`
+  // off through an accepted request (8a5e); `validate` reports both.
+  assert.deepEqual(findings.filter((f) => !(f.key === "bypass_guards" && /`(hook_protect|headless_block)` is off/.test(f.message))), []);
   assert.equal(config.plans.dir, "plans");
 });
 
