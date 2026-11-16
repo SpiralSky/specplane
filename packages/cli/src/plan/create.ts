@@ -69,14 +69,17 @@ function createInner(ctx: PlanCtx, o: CreateOpts): { id: string; files: string[]
   return { id, files, commit };
 }
 
-/** Approve a plan: an `approval` record in the notes store for its `plan-v1` content (`file-formats` §5.2, §13). Only a person can. */
+/** Approve a plan: an `approval` record in the notes store for its `plan-v1` content (`file-formats` §5.2, §13). A person, or an LLM the preset allows to approve. */
 export function approvePlan(ctx: PlanCtx, id: string): { commit: string | null; already: boolean } {
   return guarded(ctx, "plan approve", [id], ["spec.approve.feature"], "Approving a plan", () => approveInner(ctx, id));
 }
 
 function approveInner(ctx: PlanCtx, id: string): { commit: string | null; already: boolean } {
-  const name = ctx.actor.kind === "human" ? humanName(ctx.root) ?? ctx.actor.name : null;
-  if (!name) throw new PlanOpError("Only a person can approve a plan; no human identity is available (set git user.name).");
+  // A person approves as themselves; an LLM the user allowed to approve records its model and who delegated, never a human name.
+  const llm = ctx.actor.kind === "llm";
+  const name = llm ? ctx.actor.model || "unknown" : humanName(ctx.root) ?? ctx.actor.name;
+  if (!name) throw new PlanOpError("Cannot tell who is approving the plan: set git `user.name`. The approver is never invented.");
+  const by = llm ? { llm: name, "delegated-by": ctx.actor.delegatedBy || "unknown" } : { human: name };
   const dir = plansDir(ctx.root);
   const file = `${dir}/${id}/PLAN.md`;
   const project = committedProject(ctx.root);
@@ -93,7 +96,7 @@ function approveInner(ctx: PlanCtx, id: string): { commit: string | null; alread
     if (r?.ok) cited[raw] = targetFingerprint(r.target);
   }
   const head = gitTry(ctx.root, ["rev-parse", "HEAD"])!.trim();
-  appendRecords(ctx.root, head, [makeRecord("approval", `plan/${id}`, fp, { by: { human: name }, date: today(ctx), cited }, ctx.now)]);
+  appendRecords(ctx.root, head, [makeRecord("approval", `plan/${id}`, fp, { by, date: today(ctx), cited }, ctx.now)]);
   const commit = notesTip(ctx.root);
   return { commit, already: false };
 }

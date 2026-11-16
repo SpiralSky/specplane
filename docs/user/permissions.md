@@ -73,7 +73,7 @@ Choose a preset with `config set permissions.preset <id>`. The four defaults are
 | `feature-level-llm-control` | request-user | allow | allow | allow |
 | `full-llm-control` | allow | allow | allow | allow |
 
-The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`, `config.change`, `plan.start`, `plan.resume`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
+The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`, `config.change`, `preset.create`, `plan.start`, `plan.resume`, `plan.retarget`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
 
 ### Custom presets
 
@@ -89,7 +89,7 @@ roles:
     modes: {spec.edit.architecture: request-user, info.retrieve: allow}
 ```
 
-Creating, editing and deleting a preset needs `config.change` as `allow` and a management level above every other role the preset applies to. The Standard User (10) is above the LLM role (5), so a person can manage presets; an LLM cannot, and a request cannot stand in for it. Activating a preset is a configuration change and still goes through a request for the LLM role. A malformed preset file is reported by `validate` and ignored; naming a preset that does not exist in `permissions.preset` is a malformed setting and the default preset applies. The active preset cannot be deleted.
+Creating, editing and deleting a preset needs `config.change` as `allow` and a management level above every other role the preset applies to. The Standard User (10) is above the LLM role (5), so a person can manage presets. An LLM cannot edit or delete presets, and a request cannot stand in for that; it may only create one, through `preset.create`, within the level rule (see `preset.create` below). A created preset is never active. Activating a preset is a configuration change and still goes through a request for the LLM role. A malformed preset file is reported by `validate` and ignored; naming a preset that does not exist in `permissions.preset` is a malformed setting and the default preset applies. The active preset cannot be deleted.
 
 ## The permissions
 
@@ -405,6 +405,16 @@ Does not allow: Starting a plan that never ran.
 
 Commands: `plan resume`
 
+### `plan.retarget`
+
+Allows: Change the target branch of a started plan, without resuming it.
+
+Does not allow: Resuming the plan.
+
+Commands: `plan retarget`
+
+Retargeting used to be guarded by `plan.resume`. It now has its own permission, so a role can be allowed to resume a plan without being allowed to change where its work merges. A custom preset that does not state `plan.retarget` takes the preset's default for it, so a custom preset that allowed a retarget through `plan.resume` now refuses it until it states `plan.retarget`.
+
 ### `plan.softstop`
 
 Allows: Stop a running plan after the current work.
@@ -453,6 +463,14 @@ Does not allow: Reading settings, which needs no permission.
 
 Commands: `config set`, `config unset`, `init`
 
+
+### `preset.create`
+
+Allows: Create a permission preset (`preset create`). Deny refuses; allow creates it directly within the level rule (the preset may state modes only for the LLM role, and none above the LLM role's own); request user sends the full preset with a preview that the user accepts or declines. A created preset is never active.
+
+Does not allow: Editing or deleting presets, or activating one (activation stays a `config set` request).
+
+Commands: `preset create`
 
 ### `role.manage`
 

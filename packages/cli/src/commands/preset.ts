@@ -6,7 +6,7 @@ import type { CommandResult } from "./runner.js";
 
 /** `preset list|show|create|edit|delete` (`architecture/reference-cli` §7.5). */
 
-const result = (r: PresetResult): CommandResult => ({ ok: r.ok, data: r.data ?? null, findings: r.reasons, lines: r.lines, permission: "config.change" });
+const result = (r: PresetResult): CommandResult => ({ ok: r.ok, data: r.data ?? null, findings: r.reasons, lines: r.lines, permission: r.permission ?? "config.change" });
 
 function write(fn: (c: { root: string; actor: ReturnType<typeof cliActor>; preset: ReturnType<typeof activePreset> }) => PresetResult): CommandResult {
   const root = checkoutRoot();

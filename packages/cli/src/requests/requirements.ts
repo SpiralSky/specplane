@@ -1,4 +1,5 @@
 import { PLAN_PIECES } from "../perm/permissions.js";
+import { presetDraft } from "../perm/preset-ops.js";
 import { validateEditParams } from "../plan/edit.js";
 import { specLayer as writeLayer, validateSpecChange } from "../spec/write.js";
 import { approvalNeeds } from "../spec/human.js";
@@ -110,6 +111,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       if (typeof p.arg !== "string" && !("new" in p)) invalid("`config set` needs `arg` or `new`.");
       return ["config.change"];
     case "config unset": requireText("key"); return ["config.change"];
+    case "preset create": requireText("id"); return ["preset.create"];
     case "plan create": {
       if (!strings(p.words)) invalid("`plan create` needs a list of words.");
       const words = (p.words as string[]).flatMap((w) => w.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
@@ -135,7 +137,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       requireText("id"); oneOf("kind", ["soft", "user", "hard", "failure"]);
       optional("reason", text); optional("needs", text); return ["plan.softstop"];
     case "plan resume": requireText("id"); return ["plan.resume"];
-    case "plan retarget": requireText("id"); requireText("target"); return ["plan.resume"];
+    case "plan retarget": requireText("id"); requireText("target"); return ["plan.retarget"];
     case "plan budget":
       requireText("id"); requireText("resource"); bool("remove");
       if (!p.remove && !(typeof p.soft === "number" && Number.isFinite(p.soft) && p.soft > 0 &&
@@ -154,6 +156,15 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
   }
 }
 
+/**
+ * What accepting needs, as opposed to what sending needs: accepting a `preset create` runs `presetCreate` as the accepting
+ * person, who needs `config.change` and `role.manage` (`R56`, `requests R52.2`); the sender is checked on `preset.create`.
+ */
+export function acceptNeeds(root: string, command: string, params: unknown): ActionNeeds {
+  const needs = actionNeeds(root, command, params);
+  return command === "preset create" ? ["config.change", "role.manage"] : needs;
+}
+
 const PLAN_COMMANDS = ["plan approve", "plan start", "plan stop", "plan resume", "plan retarget", "plan budget", "plan finish", "plan merge", "plan abandon", "plan delete"];
 
 /**
@@ -162,6 +173,10 @@ const PLAN_COMMANDS = ["plan approve", "plan start", "plan stop", "plan resume",
  * left to the accepting run, because that plan lives on another branch.
  */
 export function requestPrecondition(root: string, command: string, params: unknown): string | null {
+  if (command === "preset create") {
+    const { problems } = presetDraft(root, params);
+    return problems.length ? `The preset cannot be created: ${problems.join("; ")}.` : null;
+  }
   if (!PLAN_COMMANDS.includes(command) || !params || typeof params !== "object") return null;
   const p = params as Record<string, unknown>;
   if (typeof p.id !== "string" || (command === "plan start" && p.target !== undefined)) return null;

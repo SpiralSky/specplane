@@ -16,6 +16,13 @@ export function registerHarnessCommands(program: Command): void {
       process.stdout.write(`${JSON.stringify(guardConfig(process.cwd()))}\n`);
     });
   harness
+    .command("requires <command>", { hidden: true })
+    .description("Print a harness command's required permissions and the LLM role's mode for each as JSON (read-only, harness R71)")
+    .action(async (command: string) => {
+      const { checkRequiresAt } = await import("../harness/requires.js");
+      process.stdout.write(`${JSON.stringify(checkRequiresAt(checkoutRoot(), command))}\n`);
+    });
+  harness
     .command("run <command> [args...]")
     .description("Run a harness command as the person who typed it, with no model call (refuses anything outside the harness command list)")
     .allowUnknownOption()

@@ -1,0 +1,18 @@
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(docs/specifications/**) is not matched by file permission checks — only Edit(path) rules are. Use Edit(docs/specifications/**) instead (Edit rules cover all file-editing tools).
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(docs/work-records/**) is not matched by file permission checks — only Edit(path) rules are. Use Edit(docs/work-records/**) instead (Edit rules cover all file-editing tools).
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(HANDOFF.md) is not matched by file permission checks — only Edit(path) rules are. Use Edit(HANDOFF.md) instead (Edit rules cover all file-editing tools).
+Step 04 is done and recorded. The plan is at step 5 of 11, and I'm stopping here since this run covers one step.
+
+**What changed**
+- `packages/cli/src/requests/ops.ts`: the activation request (`config set permissions.preset <custom id>`) now stores the same preview in `diff` as a `preset create` request. I added a test for it in `preset-requests.test.ts`.
+- `docs/user/commands.md` and `docs/user/permissions.md`: the stale sentences now say an LLM can create a preset but not edit or delete one. Creation is direct under `allow` and goes through a request under `request-user`. The `preset.create` entry in `permissions.md` was already there from step 1.
+
+**Tests:** tsc is clean and `npm test` passes 722 with 0 failures; the build rebuilds the plugin. `check-sync.sh` passes, and `hooks.test.sh` passes 209 with 0 failures. The step is committed as `560f0b0`, followed by the `plan.step-done` commit `f8bda89`.
+
+**Deviations**
+- `requests show` and the Claude dialogue already print `diff` verbatim, so tasks 1 and 2 needed no code. I added no dedicated test for the pane text.
+- I did not edit the architecture spec `claude-integration.md`. I recorded it as gap G4 because spec edits must go through `spec.edit`.
+
+**Open issues**
+- I called `plan.resume` by mistake at the start, even though the handoff warned against it. That created request `20261116T094912Z-ef71`. Along with `20261116T074439Z-81fb` and `20261116T093954Z-baf1`, it can be declined.
+- `step3.out` and `step4.out` in the worktree root are scratch files and I left them uncommitted.

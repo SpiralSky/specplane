@@ -13,6 +13,10 @@ A command that changes something checks the permission of your role first (see `
 <!-- note: group-approval -->
 **Group approval.** Specs that cite each other, directly or through other specs, are approved together in one `spec approve` command. The command warns you and lists the specs being approved together. A role approves the group only if it has the approval permission of each member's type (`spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`). It fails, and approves none of them, if any member cannot be approved, for example because it cites a part of a specification that no longer exists.
 
+**Plans and decision records.** `spec approve`, the harness `spec.approve` action and the typed `approve` command also take plan IDs and decision record IDs. Each ID is resolved in order: a specification first, then a plan, then a decision record. Plans and decision records are approved under `spec.approve.feature`, a plan through `plan approve` (so a request sent to you reads `plan approve`). Name plans, decision records and specifications in separate commands; a command that mixes kinds approves nothing.
+
+**Typed approve and inexact names.** The typed `approve` command (the CLI `approve` and the harness `/approve`) approves only exact IDs. A name that is not an exact ID approves nothing and starts no model turn; it lists up to ten best matches, grouped by specification, plan and decision, matched case-insensitively on words in IDs and titles (`approve preset creation` finds `feature/preset-creation`). A name that matches nothing says so. The LLM `spec.approve` action resolves IDs itself and keeps the plain "not found" failure.
+
 Approving writes one approval record per spec into the git notes store (`refs/notes/specplane`); it creates no commit on your branch. Use `specplane sync` to share the records with a remote.
 
 ### `plan create`
@@ -25,7 +29,7 @@ Scaffold a plan named <today>-<two to four words>
 
 `specplane plan approve [options] <id>`
 
-Approve a plan (a person only; committed content)
+Approve a plan (committed content)
 
 ### `plan list`
 
@@ -307,7 +311,7 @@ Show the mode every role has for every permission in one preset, including what 
 
 `specplane preset create [options] <id>`
 
-Create a custom preset in `.specplane/roles/presets/<id>.yaml`. A preset states the default mode of every permission it does not list, so pass `--default-mode allow|request-user|deny`, or copy a preset with `--from <preset>` (the default presets can be copied). `--set <role>:<permission>=<mode>` sets one mode (repeatable); `<role>:*=<mode>` sets that role's default mode; the roles are `standard-user` and `llm`. `--title` gives a readable title. Needs `config.change` as `allow`, and a management level above every other role the preset applies to: the Standard User (10) may manage presets because the LLM role is 5, the LLM role may not, and the Administrator always may. The file is written but not committed; it applies after you commit it, and `config set permissions.preset <id>` then activates it.
+Create a custom preset in `.specplane/roles/presets/<id>.yaml`. A preset states the default mode of every permission it does not list, so pass `--default-mode allow|request-user|deny`, or copy a preset with `--from <preset>` (the default presets can be copied). `--set <role>:<permission>=<mode>` sets one mode (repeatable); `<role>:*=<mode>` sets that role's default mode; the roles are `standard-user` and `llm`. `--title` gives a readable title. Needs `config.change` as `allow`, and a management level above every other role the preset applies to: the Standard User (10) may manage presets because the LLM role is 5, and the Administrator always may. The LLM role may only create: with `preset.create` as `allow` it creates the preset directly, with `request-user` it sends the full preset and its preview as a request that you accept or decline, and in either case the preset may state modes only for the LLM role and none above the LLM role's own. Accepting the request needs `config.change` and `role.manage`. The file is written but not committed; it applies after you commit it, and `config set permissions.preset <id>` then activates it.
 
 ### `preset edit`
 

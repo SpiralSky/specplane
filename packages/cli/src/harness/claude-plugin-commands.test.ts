@@ -26,14 +26,61 @@ test("splitArgs keeps quoted text together", opts, async () => {
   assert.deepEqual(m.splitArgs(""), []);
 });
 
-test("a model command with arguments is handed to its skill, and no core call is made", opts, async () => {
+test("a model command with arguments is handed to its skill; the only core call is the required-permission check", opts, async () => {
   const m = await load();
   const calls: string[][] = [];
   const core = { run: async (argv: string[]) => { calls.push(argv); return { exitCode: 0, stdout: "", stderr: "" }; } };
   const cmd = m.SLASH_COMMANDS.find((c: { name: string }) => c.name === "spec-assist");
   const out = await m.dispatch(cmd, `"add a login spec"`, core);
   assert.equal(out.prompt, `Use the specplane-spec-assist skill. Arguments: ["add a login spec"]`);
-  assert.deepEqual(calls, []);
+  assert.deepEqual(calls, [["harness", "requires", "spec-assist"]]);
+});
+
+// ---- R71: a required permission denied to the LLM role refuses the command before any model turn ----
+async function requiresCase(command: string, modes: Record<string, string>) {
+  const { checkRequires } = await import("./requires.js");
+  const { DEFAULT_PRESET } = await import("../perm/permissions.js");
+  const preset = { ...DEFAULT_PRESET, llm: { ...DEFAULT_PRESET.llm, modes: { ...DEFAULT_PRESET.llm.modes, ...modes } } };
+  const m = await load();
+  const calls: string[][] = [];
+  const core = { run: async (argv: string[]) => { calls.push(argv); return argv[1] === "requires" ? { exitCode: 0, stdout: JSON.stringify(checkRequires(argv[2]!, preset as never)), stderr: "" } : { exitCode: 0, stdout: "ran", stderr: "" }; } };
+  const out = await m.dispatch(m.SLASH_COMMANDS.find((c: { name: string }) => c.name === command), "x", core);
+  return { out, calls };
+}
+
+test("R71: deny on a required permission refuses plan-abandon and validate with no model turn", opts, async () => {
+  for (const [command, permission] of [["plan-abandon", "plan.abandon"], ["validate", "info.retrieve"]] as const) {
+    const { out, calls } = await requiresCase(command, { [permission]: "deny" });
+    assert.equal(out.prompt, undefined, command);
+    assert.equal(out.output.exitCode, 1, command);
+    assert.match(out.output.text, new RegExp(`^Refused: /${command} needs the \`${permission.replace(".", "\\.")}\` permission, which the llm role does not have\. No model turn started\.$`), command);
+    assert.deepEqual(calls, [["harness", "requires", command]], command);
+  }
+});
+
+test("R71: allow and request user on a required permission start the turn", opts, async () => {
+  for (const [command, permission] of [["plan-abandon", "plan.abandon"], ["validate", "info.retrieve"]] as const) {
+    for (const mode of ["allow", "request-user"]) {
+      const { out } = await requiresCase(command, { [permission]: mode });
+      assert.equal(out.prompt, `Use the specplane-${command} skill. Arguments: ["x"]`, `${command} ${mode}`);
+    }
+  }
+});
+
+test("R71: a deny on a permission that is not required, or a command with no Requires line, starts the turn", opts, async () => {
+  const notRequired = await requiresCase("plan-create", { "plan.create": "allow", "plan.edit": "deny" });
+  assert.ok(notRequired.out.prompt);
+  const noLine = await requiresCase("spec-assist", { "spec.create.feature": "deny", "spec.edit.feature": "deny" });
+  assert.ok(noLine.out.prompt);
+});
+
+test("R71: a core that cannot answer the check does not block the turn", opts, async () => {
+  const m = await load();
+  const cmd = m.SLASH_COMMANDS.find((c: { name: string }) => c.name === "validate");
+  for (const run of [async () => ({ exitCode: 1, stdout: "", stderr: "unknown command" }), async () => { throw new Error("gone"); }]) {
+    const out = await m.dispatch(cmd, "x", { run });
+    assert.ok(out.prompt);
+  }
 });
 
 test("a command without arguments runs through the user-command runner with no prompt", opts, async () => {

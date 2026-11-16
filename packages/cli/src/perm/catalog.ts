@@ -55,12 +55,14 @@ function docs(): PermDoc[] {
   add("plan.complete", "Complete a plan, and merge it.", "Starting or abandoning it.", ["plan finish", "plan merge"]);
   add("plan.budget", "Set the budget of a plan.", "Anything else about the plan.", ["plan budget"]);
   add("plan.resume", "Resume a stopped plan.", "Starting a plan that never ran.", ["plan resume"]);
+  add("plan.retarget", "Change the target branch of a started plan, without resuming it.", "Resuming the plan.", ["plan retarget"]);
   add("plan.softstop", "Stop a running plan after the current work.", "Abandoning it.", ["plan stop"]);
   add("decision.add", "Add a decision record the user made.", "Editing or deleting one.", ["decision add"]);
   add("decision.retrieve", "Read decision records: list, search and show.", "Changing them.", ["decision list", "decision show"]);
   add("decision.edit", "Edit a decision record.", "Adding or deleting one.", ["decision edit"]);
   add("decision.delete", "Delete a decision record.", "Adding or editing one.", ["decision delete"]);
   add("config.change", "Change a setting, including the active preset (`permissions.preset`).", "Reading settings, which needs no permission.", ["config set", "config unset", "init"]);
+  add("preset.create", "Create a permission preset (`preset create`). Deny refuses; allow creates it directly within the level rule (the preset may state modes only for the LLM role, and none above the LLM role's own); request user sends the full preset with a preview that the user accepts or declines. A created preset is never active.", "Editing or deleting presets, or activating one (activation stays a `config set` request).", ["preset create"]);
   add("role.manage", "Management permission: create, edit, delete and approve custom roles, and change what a preset or a role allows, for roles whose management level is below the actor's. The actor may not give a mode more permissive than its own.", "Changing the actor's own role, or any role at an equal or higher level. It is never set by a preset, and a default mode never grants it. Request user does not apply: a role that has it only as request user is refused.", ["role create", "role edit", "role delete", "role approve", "preset create", "preset edit", "preset delete"]);
   add("role.map", "System permission: map operating system users and LLMs to roles (`role map`, `role rule ...`), for roles whose management level is below the actor's. The Administrator may also map users to the Administrator role.", "Mapping anyone to a role at an equal or higher level than the actor's (the Administrator is exempt for operating system users only), or approving a change. It is never set by a preset, and a default mode never grants it. Request user does not apply.", ["role map", "role unmap", "role rule create", "role rule edit", "role rule delete"]);
   return out;

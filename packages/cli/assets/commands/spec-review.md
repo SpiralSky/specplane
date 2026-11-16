@@ -11,7 +11,9 @@ Configuration must be present at HEAD. Stop with the reason and no change if a p
 
 Before reading or reviewing, call `command.begin` with `command: "spec-review"` to activate the session guard. If it fails, stop. The harness refuses write actions while review is active, even when the role allows them; only `decision.add` and its request path are permitted. Reads retain their permissions. The restriction survives context compaction and ends when the next command begins or the session ends. Begin any subsequent workflow with `command.begin` naming that command. Do not switch commands just to evade a review refusal.
 
-Review changes no file. If `info.retrieve` is deny, stop and say so. A role that may not edit a specification can still review it.
+Requires: `info.retrieve`.
+
+Review changes no file. `info.retrieve` must not be deny; if it is, stop and say so. A role that may not edit a specification can still review it.
 
 ## Steps
 

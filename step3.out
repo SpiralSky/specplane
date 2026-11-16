@@ -1,0 +1,18 @@
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(docs/specifications/**) is not matched by file permission checks — only Edit(path) rules are. Use Edit(docs/specifications/**) instead (Edit rules cover all file-editing tools).
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(docs/work-records/**) is not matched by file permission checks — only Edit(path) rules are. Use Edit(docs/work-records/**) instead (Edit rules cover all file-editing tools).
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(HANDOFF.md) is not matched by file permission checks — only Edit(path) rules are. Use Edit(HANDOFF.md) instead (Edit rules cover all file-editing tools).
+Step 3 (Harness actions and the requestable preset create) is done and recorded. `tsc` is clean and `npm test` shows 721 pass, 0 fail.
+
+**What changed**
+- **Harness actions:** `preset.list` and `preset.show` need `info.retrieve`. `preset.create` needs `preset.create`.
+- **Requests:** `preset create` is a requestable command, and sending one stores the preview in `diff`. The send is refused, and nothing is stored, when the preset is malformed, its ID already exists or belongs to a default preset, or it names an unknown permission or mode.
+- **Accepting:** it runs `presetCreate` as the accepter and checks `config.change` plus `role.manage`, while the sender is checked on `preset.create`. The file is returned uncommitted so `--commit` works.
+- **Tests:** new tests are in `packages/cli/src/requests/preset-requests.test.ts`. The action-count and read-only coverage tests are updated (46 actions).
+
+The code is in `8e891f1`, and `plan.step-done` committed the handoff and progress as `82861a8`. The next step is 04, Display.
+
+**Mistake to clean up:** I called `plan.resume` on a plan that wasn't stopped, and that sent a request, `20261116T093954Z-baf1`. A step-2 session made the same mistake, leaving `20261116T074439Z-81fb`. Both can be declined, and the handoff says so.
+
+The self-dev preset still has no `preset.create` line (G1 from step 1), so the LLM is denied in this repo.
+
+There's an untracked `step3.out` scratch file in the worktree root, which I didn't commit.

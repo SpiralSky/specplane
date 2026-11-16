@@ -1,0 +1,19 @@
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(docs/specifications/**) is not matched by file permission checks — only Edit(path) rules are. Use Edit(docs/specifications/**) instead (Edit rules cover all file-editing tools).
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(docs/work-records/**) is not matched by file permission checks — only Edit(path) rules are. Use Edit(docs/work-records/**) instead (Edit rules cover all file-editing tools).
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(HANDOFF.md) is not matched by file permission checks — only Edit(path) rules are. Use Edit(HANDOFF.md) instead (Edit rules cover all file-editing tools).
+Step 05 is done and recorded: typed `approve` now lists matches for an inexact name instead of failing with "Known IDs". `tsc` is clean and `npm test` passes (727 pass, 0 fail). Nothing was run against a live harness session.
+
+The code is in commit `9aca3b9`, and `plan.step-done` added the handoff commit `4a649dc`.
+
+- **Exact ID:** approves as before, with no model turn.
+- **Inexact name:** approves nothing and lists up to ten matches grouped by specification, plan and decision. Matching is case-insensitive on words in IDs and titles. Several arguments are joined into one name, so `preset creation` finds `feature/preset-creation`.
+- **No match:** it says so.
+- **LLM `spec.approve` action:** keeps the old "not found" failure, as the step asked.
+
+The new matcher is `packages/cli/src/spec/match.ts`, called from `specApproveHuman` in `packages/cli/src/commands/spec-human.ts`. That also covers `decision approve`. The new tests are in `packages/cli/src/spec/match.test.ts`, and `docs/user/commands.md` has a short paragraph on this behaviour.
+
+- **Gap G5:** an exact plan ID counts as exact in the typed command, but `approveSpecs` doesn't approve plans, so it still reports "not found" for one.
+- **Mistaken `plan.resume`:** I called it again by mistake, although the plan isn't stopped, and it sent another request. It can be declined, along with `20261116T074439Z-81fb`, `20261116T093954Z-baf1` and `20261116T094912Z-ef71`. I didn't capture the new request's ID: `plan.resume` returned `20261116T095503Z-5fdc`, but the handoff just says to see `requests`.
+- **Scratch files:** `step4.out` and `step5.out` are still uncommitted scratch files in the worktree root.
+
+Step 06 is next.

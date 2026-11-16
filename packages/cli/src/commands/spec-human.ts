@@ -7,6 +7,7 @@ import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, cliRole, guard, switchRole, type Actor } from "../perm/permissions.js";
 import { formatMigration, migrateStatus } from "../spec/migrate.js";
 import { syncNotes } from "../spec/sync.js";
+import { bestMatches, candidates, isExactId, matchListing } from "../spec/match.js";
 import { approveSpecs, metaGet, metaSet, overrideSpec, reopenSpec, type Ctx, type OverrideKind, type Result } from "../spec/human.js";
 
 /** Human CLI commands: approval, reopen, metadata and overrides (`architecture/reference-cli` §13). */
@@ -31,6 +32,13 @@ interface Common { commit?: boolean }
 
 export const specApproveHuman = async (ids: string[], opts: Common & { yes?: boolean; ref?: string }): Promise<CommandResult> => {
   const c = context();
+  // A name that is not an exact ID approves nothing and lists the closest IDs; no model turn is started (`harness R70`).
+  let all: ReturnType<typeof candidates> = [];
+  try { all = candidates(c.root, opts.ref ?? "HEAD"); } catch { /* approveSpecs reports the problem */ }
+  if (all.length && !ids.every((i) => isExactId(all, i))) {
+    const name = ids.join(" ");
+    return { ok: false, data: { written: [], commit: null }, findings: [], warnings: [], lines: matchListing(name, bestMatches(all, name)) };
+  }
   return result(await withStoreLockAsync(c.root, "commands", () => approveSpecs(c, ids, { yes: opts.yes, ref: opts.ref, interactive: !!process.stdin.isTTY && !!process.stdout.isTTY, ask: askYesNo })));
 };
 
