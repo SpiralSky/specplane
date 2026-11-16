@@ -8,9 +8,10 @@ import { configSet } from "../config-ops.js";
 import { loadSettings } from "../config.js";
 import { describePermission } from "./docs.js";
 import { PRESETS, activePreset, allPresets, mode, type Actor } from "./permissions.js";
-import { presetCreate, presetDelete, presetEdit, presetList, presetShow, type PresetCtx } from "./preset-ops.js";
+import { presetCreate, presetDelete, presetEdit, presetList, presetPreview, presetShow, type PresetCtx } from "./preset-ops.js";
 import { parsePreset, presetFile } from "./presets.js";
 import { CATALOG } from "./permissions.js";
+import { readAudit } from "../audit/read.js";
 import { makeRepo } from "../test-repo.js";
 
 /** Custom presets against `feature/roles-and-permissions` R56 and R56.1 and `architecture/reference-cli` §7.5. */
@@ -116,7 +117,8 @@ test("an LLM-role actor stays refused when a preset gives it config.change as al
   const open = { ...PRESETS[0], standardUser: { defaultMode: "allow" as const, modes: { "config.change": "request-user" as const } }, llm: { modes: { "config.change": "allow" as const } } };
   const r = presetCreate(ctx(root, llm, open), "p", { defaultMode: "deny" });
   assert.equal(r.ok, false);
-  assert.match(r.reasons[0], /role\.manage/);
+  assert.match(r.reasons[0], /preset\.create/);
+  assert.match(presetEdit(ctx(root, llm, open), "p", { defaultMode: "deny" }).reasons[0], /for people/);
   const q = presetCreate(ctx(root, person, open), "p", { defaultMode: "deny" });
   assert.equal(q.ok, false);
   assert.match(q.reasons[0], /cannot be sent as a request/);
@@ -206,4 +208,72 @@ test("delete reports the removed file for --commit, and git add/commit of that p
   for (const a of [["add", "--", `:/${f}`], ["commit", "-qm", "x", "--", `:/${f}`]]) assert.equal(spawnSync("git", a, { cwd: root }).status, 0);
   assert.equal(spawnSync("git", ["ls-tree", "HEAD", "--", f], { cwd: root, encoding: "utf8" }).stdout, "");
   assert.equal(spawnSync("git", ["status", "--porcelain", "--", f], { cwd: root, encoding: "utf8" }).stdout, "");
+});
+
+function llmWith(extra: Record<string, "allow" | "request-user" | "deny">, base = PRESETS[0]) {
+  return { ...base, llm: { ...base.llm, modes: { ...base.llm.modes, ...extra } } };
+}
+const auditText = (root: string): string => JSON.stringify(readAudit(root).entries);
+
+test("LLM preset.create: deny refuses and names the permission; allow writes the preset and audits preset.create", () => {
+  const root = repo();
+  const denied = presetCreate(ctx(root, llm, llmWith({ "preset.create": "deny" })), "d1", { defaultMode: "deny" });
+  assert.equal(denied.ok, false);
+  assert.match(denied.reasons[0], /preset\.create/);
+  assert.equal(denied.permission, "preset.create");
+  assert.equal(fs.existsSync(path.join(root, presetFile("d1"))), false);
+  const allowed = llmWith({ "preset.create": "allow" });
+  const r = presetCreate(ctx(root, llm, allowed), "a1", { defaultMode: "deny", sets: ["llm:meta.read=allow"] });
+  assert.equal(r.ok, true, r.reasons.join("; "));
+  assert.equal(r.permission, "preset.create");
+  assert.equal(fs.existsSync(path.join(root, presetFile("a1"))), true);
+  assert.match(auditText(root), /preset\.create/);
+  assert.equal(presetEdit(ctx(root, llm, allowed), "a1", { defaultMode: "allow" }).ok, false);
+  assert.equal(presetDelete(ctx(root, llm, allowed), "a1").ok, false);
+});
+
+test("LLM-created presets: a Standard User mode or default is refused", () => {
+  const root = repo();
+  const allowed = ctx(root, llm, llmWith({ "preset.create": "allow" }));
+  const r = presetCreate(allowed, "su1", { defaultMode: "deny", sets: ["standard-user:meta.read=deny"] });
+  assert.equal(r.ok, false);
+  assert.match(r.reasons[0], /Standard User/);
+  assert.equal(presetCreate(allowed, "su2", { defaultMode: "deny", sets: ["standard-user:*=deny"] }).ok, false);
+  assert.equal(fs.existsSync(path.join(root, presetFile("su1"))), false);
+});
+
+test("LLM-created presets: a mode above the LLM role's own is refused, defaults included", () => {
+  const root = repo();
+  const allowed = ctx(root, llm, llmWith({ "preset.create": "allow" }));
+  const up = presetCreate(allowed, "up1", { defaultMode: "deny", sets: ["llm:spec.edit.requirement=allow"] });
+  assert.equal(up.ok, false);
+  assert.match(up.reasons.join(" "), /spec\.edit\.requirement/);
+  const dflt = presetCreate(allowed, "up2", { defaultMode: "allow" });
+  assert.equal(dflt.ok, false);
+  assert.match(dflt.reasons.join(" "), /default mode allow/);
+  assert.equal(presetCreate(allowed, "up3", { defaultMode: "deny", sets: ["llm:*=allow"] }).ok, false);
+  assert.equal(presetCreate(allowed, "ok1", { defaultMode: "deny", sets: ["llm:spec.edit.requirement=deny"] }).ok, true);
+  assert.equal(fs.existsSync(path.join(root, presetFile("up1"))), false);
+  assert.match(auditText(root), /refused/);
+});
+
+test("presetPreview lists per-role modes, the default and what is more permissive than the active preset", () => {
+  const draft = { id: "pv", number: 0, custom: true as const, defaultMode: "deny" as const, standardUser: { modes: {} }, llm: { modes: { "spec.edit.requirement": "allow" as const } } };
+  const r = presetPreview(draft, PRESETS[0]);
+  assert.equal(r.ok, true);
+  assert.equal(r.written, false);
+  const show = presetShow(repo(), "full-llm-control").lines.slice(1, 2)[0];
+  assert.match(r.lines[1], /^permission +standard-user +llm$/);
+  assert.match(show, /^permission +standard-user +llm$/);
+  assert.match(r.lines[0], /default mode for unlisted permissions: deny/);
+  const data = r.data as { more_permissive: { role: string; permission: string }[] };
+  assert.ok(data.more_permissive.some((m) => m.role === "llm" && m.permission === "spec.edit.requirement"));
+  assert.ok(r.lines.some((l) => /llm spec\.edit\.requirement: allow \(now request-user\)/.test(l)));
+});
+
+test("a person's creation is unchanged and still audited under config.change", () => {
+  const root = repo();
+  const r = presetCreate(ctx(root, person), "peeps", { defaultMode: "allow", sets: ["standard-user:meta.read=allow", "llm:spec.edit.requirement=allow"] });
+  assert.equal(r.ok, true);
+  assert.equal(r.permission, "config.change");
 });

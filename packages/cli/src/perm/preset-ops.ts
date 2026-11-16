@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { audit } from "../audit/log.js";
 import { readWorkingConfig } from "../config-source.js";
 import { loadSettings, parseConfig } from "../config.js";
-import { CATALOG, PRESETS, STANDARD_CATALOG, allPresets, findPreset, guard, levelOf, mode, type Actor, type Mode, type Preset } from "./permissions.js";
+import { CATALOG, PRESETS, RANK, STANDARD_CATALOG, allPresets, findPreset, guard, levelOf, mode, type Actor, type Mode, type Preset } from "./permissions.js";
 import { commitLines } from "../uncommitted.js";
 import { MODES, PRESET_ID, PRESET_ROLES, presetFile, readCustomPresets, serializePreset } from "./presets.js";
 
@@ -14,7 +14,7 @@ import { MODES, PRESET_ID, PRESET_ROLES, presetFile, readCustomPresets, serializ
  */
 
 export interface PresetCtx { root: string; actor: Actor; preset: Preset; now?: Date }
-export interface PresetResult { ok: boolean; lines: string[]; reasons: string[]; data?: unknown; written: boolean }
+export interface PresetResult { ok: boolean; lines: string[]; reasons: string[]; data?: unknown; written: boolean; permission?: string }
 
 const fail = (reasons: string[]): PresetResult => ({ ok: false, lines: [], reasons, written: false });
 
@@ -35,20 +35,50 @@ export function presetList(root: string): PresetResult {
   };
 }
 
-export function presetShow(root: string, id: string): PresetResult {
-  const p = findPreset(root, id);
-  if (!p) return fail([`preset \`${id}\` does not exist; \`specplane preset list\` shows the presets`]);
+/** The one text layout of a preset, shared by `preset show` and the preview (`R56.2`): effective modes per role. */
+function layout(p: Preset): { lines: string[]; rows: { permission: string; "standard-user": Mode; llm: Mode }[] } {
   const rows = CATALOG.map((perm) => ({ permission: perm, "standard-user": mode(p, "standard-user", perm), llm: mode(p, "llm", perm) }));
   const width = Math.max(...rows.map((r) => r.permission.length));
   return {
-    ok: true, written: false, reasons: [],
+    rows,
     lines: [`${p.id} (${p.custom ? "custom" : "default"}); default mode for unlisted permissions: ${p.defaultMode}`, `${"permission".padEnd(width)}  ${"standard-user".padEnd(13)}  llm`, ...rows.map((r) => `${r.permission.padEnd(width)}  ${r["standard-user"].padEnd(13)}  ${r.llm}`)],
-    data: { id: p.id, kind: p.custom ? "custom" : "default", default_mode: p.defaultMode, permissions: rows },
   };
 }
 
-/** The refusal for an actor that may not manage presets, else `null`. */
-function mayManage(ctx: PresetCtx, describe: string): string | null {
+export function presetShow(root: string, id: string): PresetResult {
+  const p = findPreset(root, id);
+  if (!p) return fail([`preset \`${id}\` does not exist; \`specplane preset list\` shows the presets`]);
+  const { lines, rows } = layout(p);
+  return { ok: true, written: false, reasons: [], lines, data: { id: p.id, kind: p.custom ? "custom" : "default", default_mode: p.defaultMode, permissions: rows } };
+}
+
+/**
+ * What a preset would grant, before it is written or activated (`R56.2`): the `preset show` layout, the roles it applies to,
+ * its default mode, and the effective modes (stated modes and defaults) more permissive than `active` gives that role now.
+ */
+export function presetPreview(draft: Preset, active: Preset): PresetResult {
+  const { lines, rows } = layout(draft);
+  const more: { role: string; permission: string; mode: Mode; active: Mode }[] = [];
+  for (const r of rows) for (const role of PRESET_ROLES) {
+    const now = mode(active, role, r.permission);
+    if (RANK[r[role]] > RANK[now]) more.push({ role, permission: r.permission, mode: r[role], active: now });
+  }
+  const out = [...lines, `applies to: ${PRESET_ROLES.join(", ")}`, more.length ? `more permissive than ${active.id}:` : `more permissive than ${active.id}: none`, ...more.map((m) => `  ${m.role} ${m.permission}: ${m.mode} (now ${m.active})`)];
+  return { ok: true, written: false, reasons: [], lines: out, data: { id: draft.id, default_mode: draft.defaultMode, roles: PRESET_ROLES, permissions: rows, more_permissive: more } };
+}
+
+/**
+ * The refusal for an actor that may not manage presets, else `null`. People need `config.change` and `role.manage` and a
+ * level above every other role the preset applies to. The LLM role may only create, under `preset.create` (`R56.2`).
+ */
+function mayManage(ctx: PresetCtx, describe: string, action: "create" | "edit" | "delete" = "edit"): string | null {
+  if (ctx.actor.role === "llm") {
+    if (action !== "create") return `Refused: ${describe} is for people; the llm role has no permission to ${action} presets (R56.2).`;
+    const g = guard(ctx.preset, ctx.actor, ["preset.create"], describe);
+    if (g.kind === "deny") return g.message;
+    if (g.kind === "request") return `Refused: ${describe} needs \`preset.create\`, which is request user for this role; creation through a request is not available in the CLI. Set it to allow, or ask a person.`;
+    return null;
+  }
   const g = guard(ctx.preset, ctx.actor, ["config.change", "role.manage"], describe);
   if (g.kind === "deny") return g.message;
   if (g.kind === "request") return `Refused: ${describe} needs \`config.change\`, which is request user for this role; preset changes cannot be sent as a request. Ask a role that has it.`;
@@ -56,6 +86,18 @@ function mayManage(ctx: PresetCtx, describe: string): string | null {
   const above = PRESET_ROLES.filter((r) => r !== ctx.actor.role && levelOf(ctx.preset, r) >= own);
   if (above.length) return `Refused: ${describe} applies to ${above.join(", ")}, whose management level is not below the ${ctx.actor.role} level (${own}) (R56, R43).`;
   return null;
+}
+
+/** What an LLM-created preset may not state: Standard User modes, or an effective mode above the LLM role's own (`R56.2`, `R49`). */
+function llmCreateProblems(ctx: PresetCtx, draft: Preset, e: Edits): string[] {
+  const out: string[] = [];
+  const su = [...(e.sets ?? []).map((s) => s.slice(0, Math.max(s.lastIndexOf("="), 0) || s.length)), ...(e.unsets ?? [])].filter((s) => s.startsWith("standard-user:"));
+  if (su.length) out.push(`Refused: the llm role may state modes only for the llm role; ${su.map((s) => `\`${s}\``).join(", ")} sets one for the Standard User (R56.2, R56).`);
+  const ownDefault = ctx.preset.llm.defaultMode ?? ctx.preset.defaultMode ?? "deny";
+  if (RANK[draft.defaultMode] > RANK[ownDefault]) out.push(`Refused: default mode ${draft.defaultMode} is more permissive than the llm role's own default (${ownDefault}) in the active preset (R56.2, R49).`);
+  const above = CATALOG.filter((perm) => RANK[mode(draft, "llm", perm)] > RANK[mode(ctx.preset, "llm", perm)]);
+  if (above.length) out.push(`Refused: the preset gives the llm role more than it has in the active preset (${ctx.preset.id}) for ${above.join(", ")} (R56.2, R49).`);
+  return out;
 }
 
 type RoleBody = { defaultMode?: Mode; modes: Record<string, Mode> };
@@ -92,8 +134,8 @@ function applyEdits(p: { standardUser: RoleBody; llm: RoleBody; defaultMode: Mod
   return problems;
 }
 
-function record(ctx: PresetCtx, command: string, args: string[], outcome: "done" | "refused" | "failed", old: unknown, next: unknown, reason?: string): void {
-  audit(ctx.root, { command, args, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name, ...(ctx.actor.session ? { session: ctx.actor.session } : {}) }, permission: "config.change", outcome, ...(reason ? { reason } : {}), old: old ?? null, new: next ?? null }, ctx.now);
+function record(ctx: PresetCtx, command: string, args: string[], outcome: "done" | "refused" | "failed", old: unknown, next: unknown, reason?: string, permission = "config.change"): void {
+  audit(ctx.root, { command, args, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name, ...(ctx.actor.session ? { session: ctx.actor.session } : {}) }, permission, outcome, ...(reason ? { reason } : {}), old: old ?? null, new: next ?? null }, ctx.now);
 }
 
 function write(root: string, id: string, text: string): void {
@@ -109,8 +151,9 @@ const WRITTEN = (id: string, verb = "create"): string[] => [`Written to ${preset
 export function presetCreate(ctx: PresetCtx, id: string, e: Edits): PresetResult {
   const args = [id];
   if (!PRESET_ID.test(id)) return fail([`\`${id}\` is not a preset name; use lower-case words joined by hyphens`]);
-  const refused = mayManage(ctx, `creating preset \`${id}\``);
-  if (refused) { record(ctx, "preset create", args, "refused", null, null, refused); return fail([refused]); }
+  const permission = ctx.actor.role === "llm" ? "preset.create" : "config.change";
+  const refused = mayManage(ctx, `creating preset \`${id}\``, "create");
+  if (refused) { record(ctx, "preset create", args, "refused", null, null, refused, permission); return { ...fail([refused]), permission }; }
   if (PRESETS.some((p) => p.id === id) || findPreset(ctx.root, id, "work")) return fail([`preset \`${id}\` already exists; \`specplane preset edit\` changes a custom preset`]);
   const base = e.from === undefined ? undefined : findPreset(ctx.root, e.from, "work");
   if (e.from !== undefined && !base) return fail([`preset \`${e.from}\` does not exist; \`specplane preset list\` shows the presets`]);
@@ -119,9 +162,13 @@ export function presetCreate(ctx: PresetCtx, id: string, e: Edits): PresetResult
   const problems = applyEdits(draft, e);
   if (problems.length) return fail(problems);
   const preset: Preset = { id, number: 0, custom: true, ...draft };
+  if (ctx.actor.role === "llm") {
+    const more = llmCreateProblems(ctx, preset, e);
+    if (more.length) { record(ctx, "preset create", args, "refused", null, null, more.join(" "), permission); return { ...fail(more), permission }; }
+  }
   write(ctx.root, id, serializePreset(preset));
-  record(ctx, "preset create", args, "done", null, { default_mode: preset.defaultMode, from: e.from ?? null });
-  return { ok: true, written: true, reasons: [], lines: [`Created preset \`${id}\` with default mode ${preset.defaultMode}.`, ...WRITTEN(id), `Activate it with \`specplane config set permissions.preset ${id}\`.`], data: { id, default_mode: preset.defaultMode, uncommitted: [presetFile(id)], commit: { scope: "preset", summary: `create ${id}` } } };
+  record(ctx, "preset create", args, "done", null, { default_mode: preset.defaultMode, from: e.from ?? null }, undefined, permission);
+  return { permission, ok: true, written: true, reasons: [], lines: [`Created preset \`${id}\` with default mode ${preset.defaultMode}.`, ...WRITTEN(id), `Activate it with \`specplane config set permissions.preset ${id}\`.`], data: { id, default_mode: preset.defaultMode, uncommitted: [presetFile(id)], commit: { scope: "preset", summary: `create ${id}` } } };
 }
 
 export function presetEdit(ctx: PresetCtx, id: string, e: Edits): PresetResult {
@@ -144,7 +191,7 @@ export function presetEdit(ctx: PresetCtx, id: string, e: Edits): PresetResult {
 
 export function presetDelete(ctx: PresetCtx, id: string): PresetResult {
   if (PRESETS.some((p) => p.id === id)) return fail([`preset \`${id}\` is a default preset and cannot be deleted`]);
-  const refused = mayManage(ctx, `deleting preset \`${id}\``);
+  const refused = mayManage(ctx, `deleting preset \`${id}\``, "delete");
   if (refused) { record(ctx, "preset delete", [id], "refused", null, null, refused); return fail([refused]); }
   const file = path.join(ctx.root, presetFile(id));
   if (!fs.existsSync(file)) return fail([`preset \`${id}\` does not exist in the working tree; \`specplane preset list\` shows the presets`]);
