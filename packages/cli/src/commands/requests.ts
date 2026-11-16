@@ -1,7 +1,7 @@
 import type { CommandResult } from "./runner.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, type Actor } from "../perm/permissions.js";
-import { acceptRequest, declineRequest, formatRequest, list, show, type RequestCtx, type RequestResult } from "../requests/ops.js";
+import { acceptRequest, declineRequest, formatRequest, list, pendingFull, show, withSummary, type RequestCtx, type RequestResult } from "../requests/ops.js";
 import { manualSessionLines } from "../harness/manual-session.js";
 import { withStoreLockAsync } from "../repo/store.js";
 
@@ -13,15 +13,16 @@ function ctx(): RequestCtx {
   return { root, actor, preset: activePreset(root) };
 }
 
-export const requestsList = (root: string = checkoutRoot()): CommandResult => {
-  const all = list(root);
-  return { ok: true, data: all, lines: all.length ? all.map((r) => `${r.id}  ${r.state.padEnd(8)}  ${r.from.role}  ${r.action.command}  ${r.reason}`) : ["No requests."] };
+/** `full` lists only the pending requests, each with the details `show` gives (current diff included), in one call. */
+export const requestsList = (root: string = checkoutRoot(), full = false): CommandResult => {
+  const all = full ? pendingFull(root) : list(root).map(withSummary);
+  return { ok: true, data: all, lines: all.length ? all.map((r) => `${r.id}  ${r.state.padEnd(8)}  ${r.from.role}  ${r.summary}  ${r.reason}`) : [full ? "No pending requests." : "No requests."] };
 };
 
 export const requestsShow = (id: string, root: string = checkoutRoot()): CommandResult => {
   const rec = show(root, id);
   if (!rec) return { ok: false, findings: [`Request \`${id}\` not found.`] };
-  return { ok: true, data: rec, lines: [formatRequest(rec, !!process.stdout.isTTY).replace(/\n$/, "")] };
+  return { ok: true, data: withSummary(rec), lines: [formatRequest(rec, !!process.stdout.isTTY).replace(/\n$/, "")] };
 };
 
 function result(r: RequestResult): CommandResult {

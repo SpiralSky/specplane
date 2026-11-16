@@ -118,7 +118,7 @@ program
   .option("--json")
   .action((opts) => runCommand({ command: "audit", json: opts.json }, () => auditCommand(opts)));
 const requests = program.command("requests").description("The requests list: what an LLM asked you to approve (feature/requests)");
-requests.command("list", { isDefault: true }).description("List requests, pending first").option("--json").action((opts) => runCommand({ command: "requests list", json: opts.json }, () => requestsList()));
+requests.command("list", { isDefault: true }).description("List requests, pending first").option("--full", "pending requests only, each with the details show gives").option("--json").action((opts) => runCommand({ command: "requests list", json: opts.json }, () => requestsList(undefined, !!opts.full)));
 requests.command("show <id>").description("Show one request in full, with the change as a diff").option("--json").action((id: string, opts) => runCommand({ command: "requests show", args: [id], json: opts.json }, () => requestsShow(id)));
 requests.command("accept <id>").description("Accept a request: the action is done once, under your permission").option("--note <text>").option("--commit", "commit the config or preset file the action wrote, so it is in effect now").option("--json").action((id: string, opts) => runCommand({ command: "requests accept", args: [id], json: opts.json }, () => requestsAccept(id, opts.note, { commit: opts.commit })));
 requests.command("decline <id>").description("Decline a request: nothing changes").option("--note <text>").option("--json").action((id: string, opts) => runCommand({ command: "requests decline", args: [id], json: opts.json }, () => requestsDecline(id, opts.note)));

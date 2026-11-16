@@ -147,7 +147,7 @@ async function withArgs(root: string, command: string, args: string[], o: RunOpt
       const [sub, id, ...rest] = args;
       const commit = rest.includes("--commit");
       const note = rest.filter((w) => w !== "--commit");
-      if (sub === "list") return requestsList(root);
+      if (sub === "list") return requestsList(root, args.includes("--full"));
       if (!id) throw new UsageError("requests takes list, show <id>, accept <id> or decline <id>.");
       if (sub === "show") return requestsShow(id, root);
       if (sub === "accept" || sub === "decline") {

@@ -15,7 +15,7 @@ import { approveSpecs, metaSet, type Ctx } from "../spec/human.js";
 import { configSet, type ConfigCtx } from "../config-ops.js";
 import { makeRepo } from "../test-repo.js";
 import { RequestSent, holdRequest } from "./hold.js";
-import { acceptRequest, declineRequest, formatRequest, list, sendRequest, show, type RequestCtx } from "./ops.js";
+import { acceptRequest, declineRequest, formatRequest, list, pendingFull, sendRequest, show, summarizeAction, type RequestCtx } from "./ops.js";
 import { answerRequest, claimAnswer, readRequest, validateRecord } from "./store.js";
 import { storeDir } from "../repo/store.js";
 
@@ -564,4 +564,29 @@ test("harness run requests accept <id> --commit commits the file and keeps --com
   }
   assert.match(sh(root, "show", "--name-only", "--format=", "HEAD"), /\.specplane\/config\.yaml/);
   assert.equal(readRequest(root, id)!.answer!.note, "looks fine");
+});
+
+test("summarizeAction names the command with its salient arguments", () => {
+  assert.equal(summarizeAction("config set", { key: "decisions.enabled", arg: "on" }), "config set decisions.enabled on");
+  assert.equal(summarizeAction("config set", { key: "x", new: true }), "config set x true");
+  assert.equal(summarizeAction("config unset", { key: "x" }), "config unset x");
+  assert.equal(summarizeAction("plan start", { id: "2026-11-14-parallel-check" }), "plan start 2026-11-14-parallel-check");
+  assert.equal(summarizeAction("spec edit", { spec: "feature/greeting", patch: "@@ ..." }), "spec edit feature/greeting");
+  assert.equal(summarizeAction("spec approve", { ids: ["feature/a", "feature/b"] }), "spec approve feature/a,feature/b");
+  assert.equal(summarizeAction("spec meta set", { id: "feature/a", field: "covers", value: "x" }), "spec meta set feature/a covers x");
+  assert.equal(summarizeAction("harness read", {}), "harness read");
+});
+
+test("pendingFull gives every pending request with the details show gives, in one read", async () => {
+  const root = repo();
+  const r1 = editSpec(sctx(root), "feature/b", spec("b", "Other."));
+  const r2 = sendRequest(sctx(root), { command: "config set", params: { key: "decisions.enabled", arg: "on" }, reason: "why" });
+  assert.ok(r1.request && r2.request);
+  const done = await declineRequest(user(root), r2.request!.id);
+  const all = pendingFull(root);
+  assert.deepEqual(all.map((r) => r.id), [r1.request]);
+  assert.equal(all[0]!.summary, "spec edit feature/b");
+  assert.match(all[0]!.diff!, /^\+Other\.$/m);
+  assert.deepEqual(all[0], { ...show(root, r1.request!)!, summary: "spec edit feature/b" });
+  void done;
 });

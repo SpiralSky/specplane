@@ -86,6 +86,23 @@ export function sendRequest(ctx: RequestCtx, i: SendInput): RequestResult {
 
 export function list(root: string): RequestRecord[] { return listRequests(root); }
 
+/** A short one-line summary of a requested action: the command and its salient parameters (`config set decisions.enabled on`, `plan start <id>`, `spec edit <spec>`). */
+export function summarizeAction(command: string, params: Record<string, unknown> | undefined): string {
+  const p = params ?? {};
+  const one = (v: unknown): string | null => (typeof v === "string" || typeof v === "number" || typeof v === "boolean" ? String(v).replace(/\s+/g, " ").trim() : Array.isArray(v) ? v.map(String).join(",") : null);
+  const value = p.arg ?? p.new ?? p.value;
+  const parts = [p.key, command === "config set" ? value : undefined, p.spec, p.id, p.ids, command !== "config set" ? p.field : undefined, command !== "config set" ? p.value : undefined, p.args, p.words, p.kind]
+    .map(one).filter((x): x is string => !!x);
+  return [command, ...parts].join(" ");
+}
+
+/** The pending requests with their current details (as `show` gives them, diff included), each with its `summary`. */
+export function pendingFull(root: string): Array<RequestRecord & { warning?: string; summary: string }> {
+  return listRequests(root).filter((r) => r.state === "pending").map((r) => withSummary(show(root, r.id) ?? r));
+}
+
+export function withSummary<T extends RequestRecord>(rec: T): T & { summary: string } { return { ...rec, summary: summarizeAction(rec.action.command, rec.action.params) }; }
+
 /** The request with its diff recomputed against the current state (`requests R52.4`). */
 export function show(root: string, id: string): (RequestRecord & { warning?: string }) | null {
   const rec = readRequest(root, id);
