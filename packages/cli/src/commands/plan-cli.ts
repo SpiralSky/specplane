@@ -9,7 +9,7 @@ import { guarded, liveRoot, requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { abandonPlan, deletePlan, finishPlan, formatReview, mergePlan, reviewPlan } from "../plan/finish.js";
 import { resumePlan, retargetPlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
 import { planMetaGet, planMetaSet } from "../plan/meta.js";
-import { checkSelection, describePlan, listInfos, type PlanInfo } from "../plan/status.js";
+import { checkSelectionText, describePlan, listInfos, type PlanInfo } from "../plan/status.js";
 
 /** Human CLI commands for plans (`architecture/reference-cli` §11, §13.1). */
 
@@ -46,7 +46,7 @@ function run(command: string, args: string[], opts: { json?: boolean } | undefin
 
 function line(i: PlanInfo): string {
   const next = i.next ? `next ${pad(i.next.number)} ${i.next.title}${i.next.waiting ? ` (${i.next.waiting})` : ""}` : i.reviewPending ? "final review pending" : "";
-  const stop = i.stop?.reason ? ` [${i.stop.reason}]` : "";
+  const stop = i.stop?.reason ? ` [${i.stop.reason}]` : i.idle ? " [idle between steps]" : "";
   return `${i.id}  ${i.status}${i.archived ? " (archived)" : ""}${stop}  ${i.approval}  ${i.stepsDone}/${i.stepsTotal} steps  ${next}`.trimEnd();
 }
 
@@ -81,9 +81,9 @@ export function registerPlanCommands(program: Command): void {
       if (info.branch) out(`Branch ${info.branch}, target ${info.target}, checkout ${info.location}`);
     }));
 
-  plan.command("next <id>").description("Show the next step and check a selection (read-only)").option("--from <n>", "first step of a selection", (v) => Number(v)).option("--count <n>", "number of steps, or all", "1").option("--json")
+  plan.command("next <id>").description("Show the next step and check a selection (read-only)").option("--from <n>", "first step of a selection", (v) => Number(v)).option("--count <n>", "number of steps, or all", "1").option("--selection <s>", "next, a count, all or <first>..<last>").option("--json")
     .action((id: string, o) => run("next", [id], o, (ctx) => {
-      const res = read(ctx, "plan next", [id], () => { const { root, rec } = requirePlan(ctx, id); const info = describePlan(ctx, root, rec); return { info, sel: checkSelection(info, o.from ?? null, o.count === "all" ? "all" : Number(o.count)) }; });
+      const res = read(ctx, "plan next", [id], () => { const { root, rec } = requirePlan(ctx, id); const info = describePlan(ctx, root, rec); return { info, sel: checkSelectionText(info, o.selection, o.from ?? null, o.count === "all" ? "all" : Number(o.count)) }; });
       if (o.json) json({ next: res.info.next, selection: res.sel }); else { if (res.info.next) out(`Next step: ${pad(res.info.next.number)} ${res.info.next.title}${res.info.next.waiting ? ` (${res.info.next.waiting})` : ""}`); out(res.sel.message); }
       if (!res.sel.ok) failed = true;
     }));

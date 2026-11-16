@@ -4,7 +4,7 @@ import type { Subject } from "../spec/notes.js";
 import type { Project } from "../spec/project.js";
 import { computeStatus, recordState, StatusCtx } from "../spec/status.js";
 import { committedSource, headCommit, worktreeSource } from "../spec/source.js";
-import { plansConfig, commitPaths, gitTry, writeProgress, recoveredStop, runIsLive, committedProject, loadPlanAt, plansDir, type PlanCtx } from "./ctx.js";
+import { plansConfig, commitPaths, gitTry, writeProgress, recoveredStop, runIsLive, hasCleanEnd, PlanOpError, committedProject, loadPlanAt, plansDir, type PlanCtx } from "./ctx.js";
 import { stepTaskPlan, type TaskPlan } from "./tasks.js";
 import { findPlan, loadPlans, stepNumbers, stepTitle, type ExecStatus, type PlanRecord } from "./model.js";
 
@@ -62,6 +62,8 @@ export interface PlanInfo {
   stepsDone: number;
   steps: StepInfo[];
   next: StepInfo | null;
+  /** In progress with nothing working: the last session ended cleanly after a step and steps remain (`plans R29.1`). */
+  idle: boolean;
   /** Every step is done and the plan is waiting for the final review. */
   reviewPending: boolean;
   branch: string | null;
@@ -92,7 +94,8 @@ export function describePlan(ctx: PlanCtx, root: string, rec: PlanRecord): PlanI
   let status: string = pr?.status ?? "unknown";
   let stop = pr?.stop ? { ...pr.stop } : null;
   const reviewPending = status === "in-progress" && next === null && steps.length > 0;
-  if (status === "in-progress" && next !== null && !runIsLive(ctx.root, rec.id, ctx.now)) {
+  const idle = status === "in-progress" && next !== null && !pr?.stop && !runIsLive(ctx.root, rec.id, ctx.now) && hasCleanEnd(ctx.root, rec.id, pr?.session);
+  if (status === "in-progress" && next !== null && !idle && !runIsLive(ctx.root, rec.id, ctx.now)) {
     status = "stopped";
     stop = recoveredStop(ctx, rec.id, pr?.session);
     // Persist recovered hard stops only from pristine execution metadata; unrelated staging is kept intact.
@@ -106,19 +109,31 @@ export function describePlan(ctx: PlanCtx, root: string, rec: PlanRecord): PlanI
   const title = typeof rec.fm?.data?.title === "string" ? (rec.fm.data.title as string) : rec.id;
   return {
     id: rec.id, title, archived: rec.archived, legacy: rec.legacy, approval, stored: pr?.status ?? "", status, stop,
-    stepsTotal: steps.length, stepsDone: steps.filter((s) => s.done).length, steps, next, reviewPending,
+    stepsTotal: steps.length, stepsDone: steps.filter((s) => s.done).length, steps, next, idle, reviewPending,
     branch: pr?.branch ?? null, target: pr?.target_branch ?? null, location: root,
   };
 }
 
-/** Selection check: the first step must be the next step; a waiting step ends the selection (`plan-execution R27`). */
-export function checkSelection(info: PlanInfo, from: number | null, count: number | "all"): { ok: boolean; steps: StepInfo[]; message: string } {
+/** A selection as the launcher takes it: `next`, a count `N`, `all` or `<first>..<last>` (`reference-cli` §11.2). */
+export interface Selection { from: number | null; count: number | "all"; last: number | null }
+export function parseSelection(text: string | undefined): Selection {
+  const t = (text ?? "next").trim();
+  if (t === "next") return { from: null, count: 1, last: null };
+  if (t === "all") return { from: null, count: "all", last: null };
+  if (/^[1-9]\d*$/.test(t)) return { from: null, count: Number(t), last: null };
+  const m = /^(\d+)\.\.(\d+)$/.exec(t);
+  if (m && Number(m[1]) >= 1 && Number(m[2]) >= Number(m[1])) return { from: Number(m[1]), count: "all", last: Number(m[2]) };
+  throw new PlanOpError(`Selection \`${t}\` is not next, a count, all or <first>..<last>.`);
+}
+
+/** Selection check: the first step must be the next step; a waiting step ends the selection; a range ends at its last step (`plan-execution R27`). */
+export function checkSelection(info: PlanInfo, from: number | null, count: number | "all", last: number | null = null): { ok: boolean; steps: StepInfo[]; message: string } {
   const next = info.next;
   if (!next) return { ok: false, steps: [], message: "Every step is done; the final review is next." };
   if (from !== null && from !== next.number) {
     return { ok: false, steps: [], message: `Denied: step ${String(from).padStart(2, "0")} cannot run before step ${String(next.number).padStart(2, "0")} ${next.title}, which comes first.` };
   }
-  const todo = info.steps.filter((s) => !s.done);
+  const todo = info.steps.filter((s) => !s.done && (last === null || s.number <= last));
   const wanted = count === "all" ? todo : todo.slice(0, count);
   const out: StepInfo[] = [];
   for (const s of wanted) {
@@ -143,11 +158,18 @@ export function listInfos(ctx: PlanCtx, live: boolean, resolveRoot: (id: string)
 }
 
 function describeLegacy(rec: PlanRecord, root: string): PlanInfo {
-  return { id: rec.id, title: typeof rec.fm?.data?.title === "string" ? (rec.fm.data.title as string) : rec.id, archived: rec.archived, legacy: true, approval: "awaiting-review", stored: "", status: "legacy", stop: null, stepsTotal: 0, stepsDone: 0, steps: [], next: null, reviewPending: false, branch: null, target: null, location: root };
+  return { id: rec.id, title: typeof rec.fm?.data?.title === "string" ? (rec.fm.data.title as string) : rec.id, archived: rec.archived, legacy: true, approval: "awaiting-review", stored: "", status: "legacy", stop: null, idle: false, stepsTotal: 0, stepsDone: 0, steps: [], next: null, reviewPending: false, branch: null, target: null, location: root };
 }
 
 
 /** Tasks of step `n` and how they run under the configured parallelism on this harness (`plan-execution R31.2`). */
 export function stepTasks(ctx: PlanCtx, rec: PlanRecord, n: number, harness?: { name: string; subagents: boolean }): TaskPlan {
   return stepTaskPlan(rec.steps.find((s) => s.number === n), plansConfig(ctx.root).parallelism, harness?.subagents ?? false, harness?.name);
+}
+
+/** `checkSelection` for the launcher's one-argument form; without one, `from` and `count` apply. */
+export function checkSelectionText(info: PlanInfo, text: string | undefined, from: number | null, count: number | "all") {
+  if (text === undefined) return checkSelection(info, from, count);
+  const sel = parseSelection(text);
+  return checkSelection(info, sel.from, sel.count, sel.last);
 }

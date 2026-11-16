@@ -34,7 +34,8 @@ export interface PassToLlm { command: string; args: string[]; instructionKey: st
 export interface SessionLauncher {
   readonly name: string;
   newSessionId(): string;
-  open(ctx: PlanCtx, planId: string, o: { sessionId: string; resume: boolean }): string[];
+  /** `selection` is `next`, a count, `all` or `<first>..<last>`; a launcher that chains sessions holds it in memory only (`§11.3`, Continuation). */
+  open(ctx: PlanCtx, planId: string, o: { sessionId: string; resume: boolean; selection?: string }): string[];
 }
 /** `adapter` names the host the command runs for (`harness run --adapter`); a command that needs a capability it lacks is refused. */
 export interface RunOptions { launcher?: SessionLauncher; sessionId?: string; adapter?: string }
@@ -52,8 +53,8 @@ function planCtx(root: string, sessionId?: string): PlanCtx {
 }
 
 /** Open the session through the adapter; a refusal is an error result that still reports what already happened. */
-function openSession(ctx: PlanCtx, launcher: SessionLauncher, planId: string, sessionId: string, resume: boolean, done: string[]): CommandResult {
-  try { return { ok: true, lines: [...done, ...launcher.open(ctx, planId, { sessionId, resume })] }; }
+function openSession(ctx: PlanCtx, launcher: SessionLauncher, planId: string, sessionId: string, resume: boolean, done: string[], selection?: string): CommandResult {
+  try { return { ok: true, lines: [...done, ...launcher.open(ctx, planId, { sessionId, resume, ...(selection ? { selection } : {}) })] }; }
   catch (e) { return { ok: false, lines: done, findings: e instanceof PreconditionError ? e.reasons : [(e as Error).message] }; }
 }
 
@@ -74,7 +75,7 @@ function launchAccepted(root: string, o: RunOptions, planId: string, sessionId: 
 
 function describe(i: PlanInfo): string {
   const next = i.next ? `next ${pad(i.next.number)} ${i.next.title}${i.next.waiting ? ` (${i.next.waiting})` : ""}` : i.reviewPending ? "final review pending" : "no step left";
-  const stop = i.stop?.reason ? ` [${i.stop.reason}]` : "";
+  const stop = i.stop?.reason ? ` [${i.stop.reason}]` : i.idle ? " [idle between steps]" : "";
   return `${i.id}  ${i.status}${stop}  ${i.stepsDone}/${i.stepsTotal} steps  ${next}`;
 }
 
@@ -135,7 +136,7 @@ async function withArgs(root: string, command: string, args: string[], o: RunOpt
       const ctx = planCtx(root, sessionId);
       const r = startPlan(ctx, args[0]);
       const started = [`Started ${args[0]} on ${r.branch} (target ${r.target}).`, `Worktree: ${r.path}`];
-      return o.launcher ? openSession(ctx, o.launcher, args[0], sessionId!, false, started)
+      return o.launcher ? openSession(ctx, o.launcher, args[0], sessionId!, false, started, args[1])
         : { ok: true, lines: [...started, "No harness adapter opens the plan's session here; open one in the worktree and use plan-step."] };
     }
     case "spec-view": return specViewCommand(root, args[0], !!process.stdout.isTTY);

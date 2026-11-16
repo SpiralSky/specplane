@@ -10,7 +10,7 @@ import { readRequest } from "../requests/store.js";
 import { withStoreLockWait } from "../repo/store.js";
 import {
   PlanOpError, assertMeasurable, branchExists, clearRun, commitPaths, currentBranch, git, gitTry, guarded, guardedWith, isDirty, listWorktreePaths, loadPlanAt, mainRoot,
-  recoveredStop, planSlug, plansConfig, plansDir, requirePlan, revParse, setWorktree, worktreeOf, writeProgress, writeRun, type PlanCtx,
+  recoveredStop, hasCleanEnd, planSlug, plansConfig, plansDir, requirePlan, revParse, setWorktree, worktreeOf, writeProgress, writeRun, type PlanCtx,
 } from "./ctx.js";
 import { planApproval, specApproved } from "./status.js";
 import { planCycles } from "./validate.js";
@@ -224,7 +224,9 @@ export function resumePlan(ctx: PlanCtx, id: string): ResumeResult {
     }
     const rec = loadPlanAt(wt, id)!;
     const pr = rec.progress!;
-    const unexpected = pr.status === "in-progress";
+    // An idle plan (clean end after a step, steps left) is not an unexpected end; resuming it starts a new selection (`R27.2`).
+    const idle = pr.status === "in-progress" && !pr.stop && nextStep(rec) !== null && hasCleanEnd(ctx.root, id, pr.session);
+    const unexpected = pr.status === "in-progress" && !idle;
     const stop = pr.stop ?? (unexpected ? recoveredStop(ctx, id, pr.session) : null);
     const { stop: _s, ...rest } = pr;
     writeProgress(wt, rec, { ...rest, status: "in-progress", ...(session(ctx) ? { session: session(ctx)! } : {}) });

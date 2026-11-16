@@ -126,16 +126,26 @@ export function setWorktree(root: string, id: string, p: string | null): void {
 }
 
 export interface RunMarker { session: string | null; pid: number | null; heartbeat: string; hardStop?: { session: string; reason: string } }
+/** The run marker file after a clean end that finished a step: idle between steps for that session only (`reference-cli` §11.3). */
+export interface CleanEnd { session: string; ended: "clean" }
+const isCleanEnd = (m: unknown): m is CleanEnd => !!m && typeof m === "object" && (m as CleanEnd).ended === "clean" && typeof (m as CleanEnd).session === "string";
+export function writeCleanEnd(ctx: PlanCtx, id: string, session: string): void { writeStore(ctx.root, `runs/${id}.json`, { session, ended: "clean" } satisfies CleanEnd); }
+/** True when the run marker file holds a clean-end record for exactly `session`; a record for another session is ignored. */
+export function hasCleanEnd(root: string, id: string, session: string | undefined): boolean {
+  const m = readStore<unknown>(root, `runs/${id}.json`);
+  return !!session && isCleanEnd(m) && m.session === session;
+}
 export function writeRun(ctx: PlanCtx, id: string, session: string | null, pid: number | null = null, fresh = false): void {
-  const previous = fresh ? null : readStore<RunMarker>(ctx.root, `runs/${id}.json`);
+  const stored = fresh ? null : readStore<RunMarker | CleanEnd>(ctx.root, `runs/${id}.json`);
+  const previous = stored && !isCleanEnd(stored) ? stored : null;
   writeStore(ctx.root, `runs/${id}.json`, { session, pid, heartbeat: nowIso(ctx), ...(session && previous?.hardStop?.session === session ? { hardStop: previous.hardStop } : {}) } satisfies RunMarker);
 }
 export function clearRun(root: string, id: string): void { removeStore(root, `runs/${id}.json`); }
 
 /** A marker whose heartbeat is older than five minutes, or whose pid is dead on this machine, is no run (`reference-cli` §11.3). */
 export function runIsLive(root: string, id: string, now: Date = new Date()): boolean {
-  const m = readStore<RunMarker>(root, `runs/${id}.json`);
-  if (!m) return false;
+  const m = readStore<RunMarker | CleanEnd>(root, `runs/${id}.json`);
+  if (!m || isCleanEnd(m)) return false;
   if (now.getTime() - new Date(m.heartbeat).getTime() > 5 * 60_000) return false;
   if (typeof m.pid === "number") { try { process.kill(m.pid, 0); } catch { return false; } }
   return true;
@@ -143,14 +153,16 @@ export function runIsLive(root: string, id: string, now: Date = new Date()): boo
 
 /** Recovery context is durable before the stop commit, since a forced end can interrupt that commit. */
 export function logBudgetHardStop(ctx: PlanCtx, id: string, reason: string, resource: string): void {
-  const marker = readStore<RunMarker>(ctx.root, `runs/${id}.json`);
+  const stored = readStore<RunMarker | CleanEnd>(ctx.root, `runs/${id}.json`);
+  const marker = stored && !isCleanEnd(stored) ? stored : null;
   if (marker?.session) writeStore(ctx.root, `runs/${id}.json`, { ...marker, hardStop: { session: marker.session, reason } });
   audit(ctx.root, { command: "plan budget-hard-stop", args: [id, resource], permission: null, outcome: "done", reason,
     actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name, ...(marker?.session ? { session: marker.session } : {}) } }, ctx.now);
 }
 
 export function recoveredStop(ctx: PlanCtx, id: string, session: string | undefined): { kind: string; reason: string; needs: string } {
-  const marker = readStore<RunMarker>(ctx.root, `runs/${id}.json`);
+  const stored = readStore<RunMarker | CleanEnd>(ctx.root, `runs/${id}.json`);
+  const marker = stored && !isCleanEnd(stored) ? stored : null;
   const hard = session && marker?.session === session && marker.hardStop?.session === session && !runIsLive(ctx.root, id, ctx.now) ? marker.hardStop : null;
   return hard ? { kind: "hard", reason: hard.reason, needs: "resume the plan; check the stopped session log for partial work" }
     : { kind: "failure", reason: "session ended unexpectedly", needs: "resume the plan" };

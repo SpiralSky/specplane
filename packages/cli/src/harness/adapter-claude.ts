@@ -5,7 +5,9 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PreconditionError } from "../errors.js";
 import { checkBudget, type Usage } from "../plan/budget.js";
-import { clearRun, requirePlan, worktreeOf, writeRun, type PlanCtx } from "../plan/ctx.js";
+import { clearRun, requirePlan, worktreeOf, writeCleanEnd, writeRun, type PlanCtx } from "../plan/ctx.js";
+import { stopPlan } from "../plan/run.js";
+import { checkSelection, describePlan, parseSelection } from "../plan/status.js";
 import { storeDir } from "../repo/store.js";
 import type { SessionLauncher } from "./run.js";
 import { ACTOR_ENV, LLM_MARK, bypassGuardOn } from "../perm/bypass.js";
@@ -114,17 +116,61 @@ export interface ClaudeDeps {
 export type SessionOutcome = "completed" | "soft-stop" | "hard-stop" | "failed";
 export interface SessionResult { session: string; outcome: SessionOutcome; exitCode: number | null; notes: string[] }
 
-/**
- * Run the plan's session to its end and keep the plan record honest meanwhile. The monitor writes the run marker with the
- * process id at the start and at every heartbeat (`reference-cli` §11.3). At a soft stop it sends the budget instruction to
- * the session, waits for the turn that follows it, then records the soft stop; at a hard stop it records the stop first
- * (the budget check does), then ends the process. A clean end removes the marker; any other end leaves it to go stale.
- */
-export async function runPlanSession(ctx: PlanCtx, planId: string, deps: ClaudeDeps, o: { resume?: boolean; sessionId?: string } = {}): Promise<SessionResult> {
+function requireRunnable(ctx: PlanCtx, planId: string): string {
   const worktree = worktreeOf(ctx.root, planId);
   if (!worktree) throw new PreconditionError([`Plan \`${planId}\` has no worktree; start or resume it first.`]);
   const { rec } = requirePlan(ctx, planId);
   if (rec.progress?.status !== "in-progress") throw new PreconditionError([`Plan \`${planId}\` is ${rec.progress?.status ?? "not started"}, so no session was opened.`]);
+  return worktree;
+}
+
+/**
+ * Run the plan's sessions for a selection (`next`, a count, `all` or `<first>..<last>`; default `next`) and keep the plan
+ * record honest meanwhile. After every session exit it reads the plan first (`reference-cli` §11.3, Continuation): a
+ * recorded stop is kept and ends the chain; an error exit, or a clean exit that did not grow `done`, records a failure stop
+ * "step <n> not finished" and ends it; otherwise the run marker becomes the clean-end record and, while steps of the
+ * selection remain, a new session starts on the next step. The selection is held in memory only and checked before any
+ * session starts.
+ */
+export async function runPlanSession(ctx: PlanCtx, planId: string, deps: ClaudeDeps, o: { resume?: boolean; sessionId?: string; selection?: string } = {}): Promise<SessionResult> {
+  requireRunnable(ctx, planId);
+  const { root: liveRoot, rec: first } = requirePlan(ctx, planId);
+  const sel = parseSelection(o.selection);
+  const checked = checkSelection(describePlan(ctx, liveRoot, first), sel.from, sel.count, sel.last);
+  if (!checked.ok) throw new PreconditionError([checked.message]);
+  const selected = new Set(checked.steps.map((s) => s.number));
+  const notes: string[] = [];
+  let sessionId = o.sessionId;
+  let resume = o.resume;
+  for (;;) {
+    const before = requirePlan(ctx, planId).rec;
+    const startNext = describePlan(ctx, liveRoot, before).next?.number ?? null;
+    const doneBefore = before.progress?.done.length ?? 0;
+    const r = await runOneSession(ctx, planId, deps, { resume, sessionId });
+    notes.push(...r.notes);
+    if (r.outcome === "hard-stop") return { ...r, notes };
+    const after = requirePlan(ctx, planId).rec;
+    const pr = after.progress;
+    if (pr?.stop || pr?.status !== "in-progress") { clearRun(ctx.root, planId); return { ...r, notes }; }
+    const grew = (pr.done.length ?? 0) > doneBefore;
+    if (r.outcome === "failed" || r.outcome === "soft-stop" || !grew) {
+      clearRun(ctx.root, planId);
+      try { stopPlan(ctx, planId, { kind: "failure", reason: `step ${startNext ?? "?"} not finished`, needs: "resume the plan" }); }
+      catch (e) { notes.push(`The failure stop could not be recorded: ${(e as Error).message}`); }
+      return { ...r, notes };
+    }
+    const next = describePlan(ctx, liveRoot, after).next;
+    if (!next) { clearRun(ctx.root, planId); return { ...r, notes }; }
+    writeCleanEnd(ctx, planId, r.session);
+    if (!selected.has(next.number)) return { ...r, notes };
+    sessionId = (deps.newId ?? randomUUID)();
+    resume = false;
+  }
+}
+
+/** One session: the monitor writes the run marker with the process id at the start and at every heartbeat (`reference-cli` §11.3). At a soft stop it sends the budget instruction to the session, waits for the turn that follows it, then records the soft stop; at a hard stop it records the stop first (the budget check does), then ends the process. */
+async function runOneSession(ctx: PlanCtx, planId: string, deps: ClaudeDeps, o: { resume?: boolean; sessionId?: string }): Promise<SessionResult> {
+  const worktree = requireRunnable(ctx, planId);
 
   const session = o.sessionId ?? (deps.newId ?? randomUUID)();
   const notes: string[] = [];
@@ -217,10 +263,10 @@ export async function runPlanSession(ctx: PlanCtx, planId: string, deps: ClaudeD
   if (graceTimer) clearTimeout(graceTimer);
   let outcome: SessionOutcome;
   if (hardStopped) outcome = "hard-stop";
-  else if (softDone) { outcome = "soft-stop"; clearRun(ctx.root, planId); }
-  else if (exitCode === 0 && resultOk && initOk) { outcome = "completed"; clearRun(ctx.root, planId); }
+  else if (softDone) outcome = "soft-stop";
+  else if (exitCode === 0 && resultOk && initOk) outcome = "completed";
   else outcome = "failed";
-  if (outcome === "failed") notes.push("The session ended without a clean result; the plan's run marker goes stale and the next status read reports a failure stop.");
+  if (outcome === "failed") notes.push("The session ended without a clean result, so the plan is stopped with a failure.");
   return { session, outcome, exitCode, notes };
 }
 
@@ -260,6 +306,7 @@ export const claudeLauncher: SessionLauncher = {
   newSessionId: () => randomUUID(),
   open(ctx, planId, o) {
     const worktree = worktreeOf(ctx.root, planId) ?? "<the plan's worktree>";
+    if (o.selection) parseSelection(o.selection);
     if (!claudeAvailable()) {
       throw new PreconditionError([`Claude Code could not be run (\`claude --version\` failed), so the plan's session was not opened. Open it yourself: ${manualCommand(worktree, planId)}`]);
     }

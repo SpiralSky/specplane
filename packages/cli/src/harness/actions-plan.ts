@@ -6,7 +6,7 @@ import { abandonPlan, deletePlan, finishPlan, mergePlan, reviewPlan } from "../p
 import { resumePlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
 import "./adapters.js";
 import { getAdapter } from "./adapter.js";
-import { checkSelection, describePlan, listInfos, stepTasks } from "../plan/status.js";
+import { checkSelectionText, describePlan, listInfos, stepTasks } from "../plan/status.js";
 import { bool, str, strings, type ActionContext, type Adder } from "./action-types.js";
 
 /**
@@ -26,10 +26,10 @@ export function registerPlanActions(add: Adder): void {
     return { ok: true, ...editPlan(pc(c), p.id, { changes: p.changes }) };
   });
   add("plan.list", { live: bool }, [], ["info.retrieve"], true, (c, p) => ({ ok: true, plans: listInfos(pc(c), !!p.live, (planId) => liveRoot(pc(c), planId)) }));
-  add("plan.next", { ...id, from: { type: "integer", minimum: 1 }, count: { oneOf: [{ type: "integer", minimum: 1 }, { const: "all" }] } }, ["id"], ["info.retrieve"], true, (c, p) => {
+  add("plan.next", { ...id, from: { type: "integer", minimum: 1 }, count: { oneOf: [{ type: "integer", minimum: 1 }, { const: "all" }] }, selection: str }, ["id"], ["info.retrieve"], true, (c, p) => {
     const { root, rec } = requirePlan(pc(c), p.id);
     const info = describePlan(pc(c), root, rec);
-    const selection = checkSelection(info, p.from ?? null, p.count ?? 1);
+    const selection = checkSelectionText(info, p.selection, p.from ?? null, p.count ?? 1);
     // The next step's tasks and how they run: parallel groups need subagents on this harness (`plan-execution R31.2`).
     const host = c.adapter ? getAdapter(c.adapter) : undefined;
     const tasks = info.next ? stepTasks(pc(c), rec, info.next.number, { name: host?.name ?? "this harness", subagents: !!host?.capabilities(root).subagents }) : null;
@@ -42,13 +42,13 @@ export function registerPlanActions(add: Adder): void {
     (c, p) => ({ ok: true, ...stopPlan(pc(c), p.id, { kind: "soft", reason: p.reason, needs: p.needs }) }));
   // Like the typed `plan-start`, the action opens the plan's session through the adapter when the server was started
   // with one (`agent-skills` §7.4); without an adapter it only starts the plan and says so.
-  add("plan.start", { ...id, target: str, force_deps: strings }, ["id"], ["plan.start"], false, (c, p) => {
+  add("plan.start", { ...id, target: str, force_deps: strings, selection: str }, ["id"], ["plan.start"], false, (c, p) => {
     if (!c.launcher) return { ok: true, ...startPlan(pc(c), p.id, { target: p.target, forceDeps: p.force_deps }), session: null, note: "No harness adapter opens the plan's session here; open one in the worktree and use plan-step." };
     // The session ID is chosen first so the plan record, the run marker and the host session all name the same one.
     const sessionId = c.launcher.newSessionId();
     const ctx: PlanCtx = { ...pc(c), actor: { ...c.actor, session: sessionId }, env: { ...process.env, SPECPLANE_SESSION: sessionId } };
     const started = startPlan(ctx, p.id, { target: p.target, forceDeps: p.force_deps });
-    try { return { ok: true, ...started, session: sessionId, opened: c.launcher.open(ctx, p.id, { sessionId, resume: false }) }; }
+    try { return { ok: true, ...started, session: sessionId, opened: c.launcher.open(ctx, p.id, { sessionId, resume: false, ...(p.selection ? { selection: p.selection } : {}) }) }; }
     catch (e) { return { ok: false, reasons: e instanceof PreconditionError ? e.reasons : [(e as Error).message], ...started, session: null }; }
   });
   add("plan.resume", id, ["id"], ["plan.resume"], false, (c, p) => ({ ok: true, ...resumePlan(pc(c), p.id) }));
