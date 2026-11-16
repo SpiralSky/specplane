@@ -52,3 +52,12 @@ SPECPLANE_*/CLAUDE* stripped in the tmux shell; the user said these are test run
     found) and was refused: "Send a request naming this one action. Do not do it first; wait for acceptance." It sent
     request 20261116T055305Z-2c90 and stopped. The plan step is still not completed on Codex; the repeat stop needs
     looking at (a resume that does not stick) before another run.
+15. Explained items 10-14: a resumed plan counts as running only while its run marker's heartbeat is under five minutes
+    old (plan/ctx.ts runIsLive; plan/status.ts reports "stopped" otherwise), so the step has to start within five minutes
+    of the accepted resume. Not a defect.
+16. PASS, plan step on Codex: after the user accepted plan.resume and said "go", `codex exec` in the plan worktree ran
+    command_begin, docs_essentials, plan_next, plan_step-done and plan_review, and committed the step as 8e9004a
+    ("Verified out/a.txt contains alpha and ..."). out/a.txt and out/b.txt hold alpha and beta (they already existed from
+    an earlier run, so nothing was rewritten). plan_review reported no gaps, pending requests or unrun steps. One call
+    failed: specplane/spec_retrieve (reason not read); the model went on without it. The plan stays in progress; the
+    finish workflow was not run.
