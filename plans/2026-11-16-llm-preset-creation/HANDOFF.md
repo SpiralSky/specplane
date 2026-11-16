@@ -235,3 +235,25 @@ None new. G6 from step 06 is still open: `feature/harness` R71 T1 has no determi
 
 ### What the next step must know
 All checks pass: tsc is clean, `npm run build` passes, `npm test` is 762 of 762, `hooks.test.sh` is 209 passing, `check-sync.sh` is OK, and `validate` reports 0 errors. Every PLAN.md acceptance criterion has a passing test: `preset.create` in `perm/presets.test.ts`, `requests/preset-requests.test.ts` and `harness/actions.test.ts`; R70 in `spec/match.test.ts` and `harness/approve-plans.test.ts`; R71 in `harness/requires.test.ts`, `harness/requires-lines.test.ts` and `harness/claude-plugin-commands.test.ts`; R20.2 in `harness/approve-plans.test.ts`; R31.3 in `harness/actions-more.test.ts` and `requests/requirements.test.ts`. a024ef8 changed only plan continuation (idle, stop precedence, resume), which is step 11's scope. The test-fix commit is 443f088.
+
+## Step 11: Plan execution continues between steps and reports an idle plan correctly
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- No new code in this step. The work landed on `main` and reached this branch through the merges 5ab53d6 and 168534d: 9a33f58 (`plan/status.ts:97` idle for a matching clean-end record; `plan/ctx.ts` `writeCleanEnd` and `hasCleanEnd`; `plan/run.ts` resume accepts idle; `runPlanSession` chain in `harness/adapter-claude.ts` with an injectable spawn), 42092b4 (selection passed to the monitor; resume of stopped plans) and 749562d (`docs/user/plans.md`, `docs/user/harnesses.md`).
+- Verified against `feature/plan-execution` R27 (Status, Continuation, T3) and `architecture/reference-cli` §11.2 and §11.3 as approved at a024ef8; no deviation found.
+
+### Deviations from the step
+The step's code was written outside the plan run, on `main`, and merged in; this step checked and recorded it instead of writing it.
+
+### Gaps found
+- G7 (test-declaration): `feature/plan-execution` T3 (and T2) are prose lines without a `specplane-test` block, so `test.run --label T3` cannot run them and `test.record` cannot record them; the behaviour is covered by the chain tests in `packages/cli/src/harness/adapter-claude.test.ts` (from line 411).
+
+### Open issues
+- G6 from step 06 is still open (`feature/harness` R71 T1 has no declaration).
+- `claude:feature/claude-integration` and `codex:feature/codex-integration` remain awaiting review as outdated against R27; plan finish should re-check them.
+
+### What the next step must know
+This was the last step. tsc is clean, `npm run build` passes and `npm test` is 762 of 762. Running single test files straight from `src` with bun fails 4 CLI-through tests because they need the built `dist/cli.js`; always build first. Next is `plan.review` and the plan-finish flow.
