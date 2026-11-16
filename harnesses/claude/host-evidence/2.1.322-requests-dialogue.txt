@@ -69,3 +69,23 @@ Not checked: Skip's notification staying, because none was sent. Codex: not run 
     on the phone. It cannot be acted on (the person opens the session), as R52.5 intends. With the app open in the
     foreground it showed no notification, only the dialogue inside the app's session window. So item 13's isSent:false was
     the detached tmux run (no Remote Control), not a plugin fault. PASS. Answering from the phone app: confirmed by the user; the audit log shows the accept as the person.
+
+--- Live check 2026-11-16 (same method: tmux 200x50, Haiku, --plugin-dir packages/cli/dist/plugin built from 423815f,
+    SPECPLANE_*/CLAUDE* cleared by a launcher script with the user's authorization, fixture only) ---
+15. Three config-set requests sent by the fixture LLM through request_send; each arrival dialogue was answered Skip
+    ("Skipped <id>; it stays pending."). PASS.
+16. /requests with 7 pending: the multi-select pane "Select requests to answer" opened 3.6 s after Enter (7 core calls,
+    about 0.5 s each). Page 1 showed 3 requests plus "More…"; ticking only More… and submitting showed page 2 with the
+    remaining 4. The host adds "Type something", "Chat about this" and a "Review your answers / Submit answers" step.
+    PASS, but slow with many pending requests.
+17. Ticking two config-set requests on page 2: the host's multiSelect answer was recognised (the pane moved to "Answer
+    the 2 selected requests": Accept / Decline / Go through one by one / Cancel). Accept gave, per request,
+    "Accepted <id>. / Set <key> to <value> (was ...). / Committed .specplane/config.yaml (<sha>); in effect now." and
+    two separate commits in the fixture: `chore(config): set decisions.enabled (request 20261116T023318Z-af53)` and
+    `chore(config): set auto_warn (request 20261116T023325Z-0bdf)`, trailer `Specplane-Workflow: request`, working tree
+    clean. PASS.
+18. Ticking one request: went straight to the per-request dialogue (Accept / Decline / Skip); Decline gave "Declined
+    <id>. Nothing was changed." PASS.
+Findings: (a) labels and the arrival dialogue name only "config set", not the key and value, so several config
+requests are indistinguishable; (b) the pane's open time grows by about 0.5 s per pending request. Fixture left with
+auto_warn off and decisions.enabled on (committed) and stale pending requests f667, a64d, afc0, 7b74.
