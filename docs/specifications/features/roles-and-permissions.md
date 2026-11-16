@@ -4,7 +4,7 @@ title: Roles and Permissions
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-covers: [R42, R42.1, R42.2, R43, R44, R44.1, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R57, R58, R60]
+covers: [R42, R42.1, R42.2, R43, R44, R44.1, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R56.2, R57, R58, R60]
 references: [R16.1, R32, harness R35.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, requests R52.3, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64, architecture/file-formats §13]
 ---
 
@@ -99,6 +99,7 @@ These are the standard permissions. The section named in the last column defines
 | Change configuration | Any change to Specplane's configuration, including which preset is active | `R25.1`, `configuration R25` |
 | Validate, list warnings, show coverage, run tests, read the audit log | Read-only checks and reads; they use the information retrieval permission and have none of their own. Recording a test result is separate (`R61.2`) | `verification R12`, `verification R24`, `verification R13`, `verification R64` |
 | Mark an architecture specification implemented | No permission of its own: it needs the permission to record a test result, and for an LLM the setting `architecture.llm_may_mark_implemented` (`configuration R25`) | `verification R36.1` |
+| Creating a preset | The permission `preset.create`: request user for the LLM role in all default presets (`R56.2`). The Standard User and the Administrator create presets under `R56` | `R56.2`, `R56` |
 | Requests | Sending a request is always allowed to the LLM role. Accepting a request has no permission of its own: it uses the permission of the requested action | `R52`, `R52.2` |
 
 - Switching to the Administrator is not a permission of a role but a change of role, described with the role mapping in `R44`.
@@ -117,6 +118,7 @@ All four presets have these in common:
 - **Default mode.** Every permission that a preset does not state is deny (`R56.1`).
 - **Approval.** Approving specifications is request user for the LLM role.
 - **Configuration.** Changing configuration is request user for the LLM role.
+- **Preset creation.** Creating a preset (`preset.create`) is request user for the LLM role (`R56.2`).
 - **Always allowed for the LLM role:** information retrieval for all specifications, recording a test result (`R61.2`), reading specification metadata, sending requests, and the soft stop of a plan it runs (`R27.3`).
 - **Plans for the LLM role:** creating and editing plans are allowed in presets 1, 3 and 4 and request user in preset 2 (an assumption: the page says preset 2 enables only read-only and miscellaneous permissions, and a plan can contain steps that write specifications); starting, resuming, abandoning, completing and deleting plans and setting a plan budget are request user. The plan itself can still stop and resume as `plan-execution R27` describes.
 - **Metadata and decision records for the LLM role:** writing metadata is deny; retrieving decision records is allowed, and adding, editing and deleting them is request user.
@@ -147,19 +149,38 @@ A preset applies permissions to a group of roles, including the user and LLM rol
 
 - **Default presets.** The four default presets always exist and cannot be edited or deleted. The user chooses which one is active as a configuration change (`R25.1`).
 - **Custom presets.** Presets can be created, edited and deleted (`R56`). A custom preset applies modes to the roles that exist (the Standard User and the LLM role, `R42.1`), is stored in git so it follows branches like specifications (`R40`), and applies once committed, like configuration. The active preset cannot be deleted.
-- **Who may manage presets.** Creating, editing or deleting a preset needs the configuration permission and `role.manage`, both as allow (`R50`), and a management level above every other role the preset applies to (`R42.2`, `R43`). The management permission is `role.manage` (`R43`); the configuration permission is needed as well, because a preset is configuration (assumption). The management level is the actor's level (`R42.2`, `R49`), and the actor's own role does not count against it. The Standard User (10) therefore may manage presets, the LLM role (5) may not, since it has neither permission and the Standard User is above it, and the Administrator always may. A preset applies to the default roles only (the Standard User and the LLM role); a custom role carries its own modes (`R48`). Request user does not stand in for this: a role that has the permission only as request user is refused, because a request would let the LLM change what applies to the Standard User.
+- **Who may manage presets.** Creating, editing or deleting a preset needs the configuration permission and `role.manage`, both as allow (`R50`), and a management level above every other role the preset applies to (`R42.2`, `R43`). The management permission is `role.manage` (`R43`); the configuration permission is needed as well, because a preset is configuration (assumption). The management level is the actor's level (`R42.2`, `R49`), and the actor's own role does not count against it. The Standard User (10) therefore may manage presets, the LLM role (5) may not, since it has neither permission and the Standard User is above it, and the Administrator always may. A preset applies to the default roles only (the Standard User and the LLM role); a custom role carries its own modes (`R48`). Request user does not stand in for this: a role that has the permission only as request user is refused, because a request would let the LLM change what applies to the Standard User. The one exception is creating a preset, which the LLM role may send as a request under its own permission (`R56.2`); editing and deleting a preset stay with people.
 - **Activating.** Choosing a custom preset as active is a configuration change like any other (`configuration R25`), so the LLM role may send a request for it and the user decides.
 - **A preset's content.** Every preset states a default mode (`R56.1`) and may state a mode per permission, for each of the two roles, and a default mode per role. Unstated permissions take the role's default, then the preset's (`R42`). A malformed preset is reported by validation and ignored. A preset cannot share an ID with a default preset.
 
 Scenario: Given a Standard User, When they create a preset with default mode deny and make `spec.edit.feature` request user for the LLM role, Then the preset is stored uncommitted, and once it is committed and activated the LLM role needs the user's agreement to edit a feature specification.
 
-Scenario: Given the LLM role, When it tries to create, edit or delete a preset, Then the action is refused, even where the LLM role has the configuration permission as request user.
+Scenario: Given the LLM role, When it tries to edit or delete a preset, Then the action is refused, even where the LLM role has the configuration permission as request user. Creating a preset is governed by `R56.2`.
 
-Test T1 (deterministic): create, edit and delete a custom preset as Standard User and Administrator; expect each to succeed, the LLM role to be refused, the default presets to refuse edit and delete, the active preset to refuse delete, a preset without a default mode to be refused and a preset file with an unknown permission or mode to be reported and ignored.
+Test T1 (deterministic): create, edit and delete a custom preset as Standard User and Administrator; expect each to succeed, the LLM role to be refused edit and delete, the default presets to refuse edit and delete, the active preset to refuse delete, a preset without a default mode to be refused and a preset file with an unknown permission or mode to be reported and ignored.
 
 ### R56.1: Preset Default Permissions
 
 A preset also states the default mode for every permission it does not list. The default presets state deny.
+
+### R56.2: LLM Preset Creation
+
+The permission `preset.create` controls whether the LLM role can create a preset. Like every permission it has allow, request user and deny (`R52.3`), and it is request user for the LLM role in all four default presets (`R57`). The Standard User and the Administrator create presets under `R56` and are not affected.
+
+- **Deny.** The create action is refused with the permission named, and no request can be sent for it (`requests R52.3`).
+- **Request user.** The LLM sends a request that carries the full preset: its ID, title, default mode (`R56.1`) and every mode it states for each role. The request shows the user a preview before they answer, in the same layout as `preset show`: the permissions the preset sets for each role and the mode each one gets, the roles it applies to, its default mode, and which of those modes are more permissive than the active preset gives that role now. The preset is written only if the user accepts. The accepting role needs the configuration permission and `role.manage` as allow and a management level above every other role the preset applies to (`R56`, `R52.2`); the request does not make anyone else's check weaker.
+- **Allow.** The LLM creates the preset directly. The management level rule of `R56` still holds for the actor, so a preset the LLM creates may state modes only for the LLM role; a mode stated for the Standard User is refused. A mode more permissive than the LLM role's own in the active preset is refused as well (`R49`).
+- **Never active.** A preset the LLM role creates is not active and is not committed by Specplane. Activating it is a configuration change (`R56`), which the LLM role may send as a request and the user decides.
+- **Edit and delete.** These stay with people. There is no LLM permission for them in this version, and a request cannot carry them.
+- **Harness.** The harness lists and shows presets and creates them through the same operations as the CLI (`configuration R25`), so an LLM can read presets before it proposes one.
+
+Scenario: Given `preset.create` as request user, When the LLM sends a request to create a preset that sets `spec.edit.feature` to allow for the LLM role, Then the user sees the full preset and that this is more permissive than the active preset, and the preset exists only after they accept; it is not active until a separate request to activate it is accepted.
+
+Scenario: Given `preset.create` as deny, When the LLM role tries to create or request a preset, Then the action is refused and no request is stored.
+
+Scenario: Given `preset.create` as allow, When the LLM role creates a preset that states a mode for the Standard User, Then the action is refused for the level rule.
+
+Test T1 (deterministic): for each mode of `preset.create`, check deny (refused, no request), request user (a request with the full preset and a preview; nothing written until accepted; an accept by a role without `role.manage` refused; the preset not active afterwards) and allow (a preset for the LLM role written uncommitted; one stating a Standard User mode or a mode above the LLM role's own refused).
 
 ## R43: Role Management
 
