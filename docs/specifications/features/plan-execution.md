@@ -4,7 +4,7 @@ title: Plan Execution
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-covers: [R27, R27.1, R27.1.1, R27.2, R27.2.1, R27.3, R27.4, R27.5, R27.5.1, R27.5.2, R27.6, R31, R31.1, R31.2]
+covers: [R27, R27.1, R27.1.1, R27.2, R27.2.1, R27.3, R27.4, R27.5, R27.5.1, R27.5.2, R27.6, R31, R31.1, R31.2, R31.3]
 references: [R11, R18, R19.2, R24, R33, plans R28, plans R28.1, plans R29, plans R30, plans R30.1, plans §1, plans §2.1, plans §2.2, plans §3.1, plans §3.2, requests R52, steering R59, roles-and-permissions R57, configuration R25]
 ---
 
@@ -38,6 +38,14 @@ Plan management has one permission for each of: editing, creating, deleting, sta
 - Starting a plan checks both this permission and the start conditions (`R27.6`); neither replaces the other.
 
 Test T1 (deterministic): with the starting permission set to deny, ask for a plan to start and expect a refusal and no worktree.
+
+### R31.3: Plan retargeting
+
+A plan's target branch (the branch it merges into) can be changed from the harness as well as the CLI, including for a stopped plan whose target branch no longer exists (`§3`). Retargeting has its own permission, `plan.retarget`, with allow, request user and deny, so a role can be allowed to resume a plan without being allowed to change where its work merges. It is request user for the LLM role in all default presets (`roles-and-permissions R57`); a person with the permission runs `plan retarget` or the harness action directly. Retargeting does not resume the plan, and an unknown branch is refused.
+
+Scenario: Given a stopped plan whose target branch was deleted, When the LLM role asks to retarget it and `plan.retarget` is request user, Then a request is sent, and the plan keeps its stop until the user accepts and then resumes it.
+
+Test T1 (deterministic): with `plan.retarget` as deny, ask for a retarget and expect a refusal and no change to `progress.yaml`; as request user, expect a request and no change until it is accepted; resume permission alone does not allow a retarget.
 
 ### R31.2: Parallelism
 

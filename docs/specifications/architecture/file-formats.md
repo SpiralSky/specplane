@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 implements: [specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4, roles-and-permissions R43, roles-and-permissions R44.1, roles-and-permissions R49, roles-and-permissions R60]
-references: [cli R16.1, harness R20.1, architecture/reference-cli §8, architecture/reference-cli §12.4, roles-and-permissions R56.1, roles-and-permissions R56.2, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, plan-execution R31.2, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R37.1, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6, architecture/reference-cli §12.1]
+references: [plan-execution R31.3, cli R16.1, harness R20.1, architecture/reference-cli §8, architecture/reference-cli §12.4, roles-and-permissions R56.1, roles-and-permissions R56.2, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, plan-execution R31.2, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R37.1, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6, architecture/reference-cli §12.1]
 ---
 
 # File formats
@@ -472,6 +472,7 @@ Each standard permission has a stable lower-case dotted ID used in presets, stee
 | `plan.meta.read`, `plan.meta.write`, `plan.meta.write.<piece>` | Plan metadata; pieces are `title`, `.authors`, `.references`, `.implements` |
 | `plan.edit`, `plan.create`, `plan.delete`, `plan.start`, `plan.abandon`, `plan.complete` | Plan actions |
 | `plan.budget`, `plan.resume`, `plan.softstop` | Budget, resume, soft stop |
+| `plan.retarget` | Change the branch a plan merges into (`plan-execution R31.3`) |
 | `decision.add`, `decision.retrieve`, `decision.edit`, `decision.delete` | Later release |
 | `config.change` | Change configuration, including `permissions.preset` |
 | `preset.create` | Create a custom preset as the LLM role: allow, request user or deny (`roles-and-permissions R56.2`); a person creates presets under `config.change` and `role.manage` |
@@ -523,6 +524,7 @@ roles:
       plan.edit: allow
       plan.start: request-user
       plan.resume: request-user
+      plan.retarget: request-user
       plan.abandon: request-user
       plan.complete: request-user
       plan.delete: request-user

@@ -4,7 +4,7 @@ title: Harness
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-covers: [R14, R18, R19, R19.1, R19.2, R20, R20.1, R21, R21.1, R26, R26.1, R26.2, R34, R35, R35.1, R38, R38.1, R47, R70, R71]
+covers: [R14, R18, R19, R19.1, R19.2, R20, R20.1, R21, R21.1, R26, R26.1, R26.2, R34, R35, R35.1, R38, R38.1, R47, R70, R71, R20.2]
 references: [requests R52.3, cli R16.1, R4, R10, R11, R16, R22, R24, R27, R37, R61.1, R66, later-releases R37, later-releases R37.1, later-releases R66, requests R52, roles-and-permissions R50, roles-and-permissions R57, steering R51, steering R59, specifications R9, configuration R25, plans R30.1, specifications R11.3, roles-and-permissions]
 ---
 
@@ -102,6 +102,16 @@ The user can also ask the LLM in natural language to approve a specification, fo
 - Deny: the LLM refuses.
 
 An LLM never approves by editing a file; approval is recorded only through the approval action, which checks the role (`roles-and-permissions R57`).
+
+### R20.2: Approving Plans and Decision Records
+
+The typed approve command and a natural-language request to approve cover plans and decision records as well as specifications. An ID resolves to a specification, a plan or a decision record in that order of kind, and approval uses the same permission as feature specifications and the same checks as the CLI (`R16`, `cli R16.1`). For the LLM role, allow approves, request user sends a request (`requests R52`) and deny refuses. A name that is not an exact ID behaves as in `R70`.
+
+Scenario: Given a plan that is not approved, When the user types the approve command with its ID, Then the plan is approved under the user's permissions and no model turn starts.
+
+Scenario: Given `spec.approve.feature` is request user for the LLM role, When the user asks the LLM in plain language to approve a plan, Then a request is sent and the plan is approved only after the user accepts.
+
+Test T1 (deterministic): approve a plan and a decision record by exact ID through the typed command and the harness action in each of the three modes.
 
 ### R20.1: Spec approval Permissions
 

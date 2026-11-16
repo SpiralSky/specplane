@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R42, R42.1, R42.2, R43, R44, R44.1, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R56.2, R57, R58, R60]
-references: [R16.1, R32, harness R35.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, requests R52.3, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64, architecture/file-formats §13]
+references: [plan-execution R31.3, R16.1, R32, harness R35.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, requests R52.3, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64, architecture/file-formats §13]
 ---
 
 # Roles and Permissions
@@ -92,6 +92,7 @@ These are the standard permissions. The section named in the last column defines
 | Information retrieval | Reading specifications and other project information; viewing and review use it and have no permission of their own | `R26.2`, `R21`, `R38.1` |
 | Read and write plan metadata | Plan metadata through the CLI: `plan.meta.read`, `plan.meta.write` and `plan.meta.write.<piece>` | `R33.1` |
 | Edit, create, delete, start, abandon and complete plans | Six separate permissions | `R31.1`, `plan-execution R31.1` |
+| Retarget a plan | Changing the branch a plan merges into, from the CLI or the harness; request user for the LLM role in all default presets | `plan-execution R31.3` |
 | Set a plan budget | Setting or changing the budget of a plan | `R27.1.1`, `plan-execution R27.1.1` |
 | Resume a plan | Resuming a stopped plan | `R27.2.1`, `plan-execution R27.2.1` |
 | Soft stop a plan | The LLM stopping the plan it is running (`plan-execution R27.1`); no mode other than allow is needed by default | `R27.3` |
