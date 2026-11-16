@@ -121,7 +121,7 @@ export function presetCreate(ctx: PresetCtx, id: string, e: Edits): PresetResult
   const preset: Preset = { id, number: 0, custom: true, ...draft };
   write(ctx.root, id, serializePreset(preset));
   record(ctx, "preset create", args, "done", null, { default_mode: preset.defaultMode, from: e.from ?? null });
-  return { ok: true, written: true, reasons: [], lines: [`Created preset \`${id}\` with default mode ${preset.defaultMode}.`, ...WRITTEN(id), `Activate it with \`specplane config set permissions.preset ${id}\`.`], data: { id, default_mode: preset.defaultMode, uncommitted: [presetFile(id)] } };
+  return { ok: true, written: true, reasons: [], lines: [`Created preset \`${id}\` with default mode ${preset.defaultMode}.`, ...WRITTEN(id), `Activate it with \`specplane config set permissions.preset ${id}\`.`], data: { id, default_mode: preset.defaultMode, uncommitted: [presetFile(id)], commit: { scope: "preset", summary: `create ${id}` } } };
 }
 
 export function presetEdit(ctx: PresetCtx, id: string, e: Edits): PresetResult {
@@ -139,7 +139,7 @@ export function presetEdit(ctx: PresetCtx, id: string, e: Edits): PresetResult {
   if (before === after) return { ok: true, written: false, reasons: [], lines: [`Preset \`${id}\` is unchanged.`], data: { id, changed: false } };
   write(ctx.root, id, after);
   record(ctx, "preset edit", [id, ...(e.sets ?? []), ...(e.unsets ?? [])], "done", { default_mode: found.defaultMode }, { default_mode: next.defaultMode });
-  return { ok: true, written: true, reasons: [], lines: [`Edited preset \`${id}\`.`, ...WRITTEN(id, "edit")], data: { id, changed: true, uncommitted: [presetFile(id)] } };
+  return { ok: true, written: true, reasons: [], lines: [`Edited preset \`${id}\`.`, ...WRITTEN(id, "edit")], data: { id, changed: true, uncommitted: [presetFile(id)], commit: { scope: "preset", summary: `edit ${id}` } } };
 }
 
 export function presetDelete(ctx: PresetCtx, id: string): PresetResult {

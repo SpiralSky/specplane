@@ -203,6 +203,51 @@ test("an accepted request whose action cannot be done is marked failed and is no
   assert.match((await acceptRequest(user(root), r.request!)).reasons[0], /already failed/);
 });
 
+function configRequest(root: string, key: string, val: string): string {
+  const r = configSet({ root, actor: actor("llm"), preset: DEFAULT_PRESET, now: NOW }, key, val);
+  assert.ok(r.request, r.reasons.join());
+  return r.request!;
+}
+
+test("requests accept --commit commits only the written file, leaves other staged changes staged", async () => {
+  const root = repo();
+  const id = configRequest(root, "audit.retention", "30");
+  fs.writeFileSync(path.join(root, "other.txt"), "x\n");
+  sh(root, "add", "other.txt");
+  const acc = await acceptRequest(user(root), id, undefined, { commit: true });
+  assert.ok(acc.ok, acc.reasons.join());
+  assert.match(acc.lines.join("\n"), /Committed \.specplane\/config\.yaml \([0-9a-f]+\); in effect now\./);
+  assert.ok(!acc.lines.join("\n").includes("Commit it to apply"));
+  assert.equal(sh(root, "show", "--name-only", "--format=%B", "HEAD").includes("other.txt"), false);
+  assert.match(sh(root, "log", "-1", "--format=%B"), new RegExp(`^chore\\(config\\): set audit\\.retention \\(request ${id}\\)`));
+  assert.match(sh(root, "log", "-1", "--format=%B"), /Specplane-Workflow: request/);
+  assert.equal(sh(root, "diff", "--cached", "--name-only"), "other.txt");
+  assert.equal(sh(root, "status", "--porcelain", "--", ".specplane/config.yaml"), "");
+});
+
+test("requests accept --commit falls back to the hint when the commit fails; the accept stands", async () => {
+  const root = repo();
+  const id = configRequest(root, "audit.retention", "30");
+  fs.mkdirSync(path.join(root, ".git/hooks"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".git/hooks/pre-commit"), "#!/bin/sh\necho nope >&2\nexit 1\n", { mode: 0o755 });
+  const acc = await acceptRequest(user(root), id, undefined, { commit: true });
+  assert.ok(acc.ok);
+  assert.equal(readRequest(root, id)!.state, "accepted");
+  const text = acc.lines.join("\n");
+  assert.match(text, /Could not commit it: .*nope/);
+  assert.match(text, /Commit it to apply:/);
+  assert.match(text, /git add -- :\/\.specplane\/config\.yaml/);
+});
+
+test("requests accept without --commit leaves the file uncommitted with the hint", async () => {
+  const root = repo();
+  const id = configRequest(root, "audit.retention", "30");
+  const before = sh(root, "rev-parse", "HEAD");
+  const acc = await acceptRequest(user(root), id);
+  assert.match(acc.lines.join("\n"), /Commit it to apply:/);
+  assert.equal(sh(root, "rev-parse", "HEAD"), before);
+});
+
 test("config set and metadata writes under request user", async () => {
   const root = repo();
   const c: ConfigCtx = { root, actor: actor("llm"), preset: DEFAULT_PRESET, now: NOW };

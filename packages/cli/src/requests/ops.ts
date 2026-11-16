@@ -1,10 +1,13 @@
 import { audit } from "../audit/log.js";
+import { cliTrailers, formatMessage } from "../git/commit.js";
+import { run as git } from "../git/exec.js";
+import { COMMIT_LEAD } from "../uncommitted.js";
 import { activePreset, guard, type Actor, type Preset } from "../perm/permissions.js";
 import { requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { stopPlan } from "../plan/run.js";
 import { specDiffText } from "../spec/edit.js";
 import { requestContext, requestRoot } from "./checkout.js";
-import { actionFor } from "./actions.js";
+import { actionFor, type ActionOutcome } from "./actions.js";
 import { holdRequest, sentMessage } from "./hold.js";
 import { actionNeeds, InvalidRequestAction, requestPrecondition } from "./requirements.js";
 import { answerRequest, claimAnswer, listRequests, readRequest, RequestStateError, type RequestRecord } from "./store.js";
@@ -20,6 +23,10 @@ export interface RequestResult {
   request?: RequestRecord;
   /** Plan to resume after a blocking request was answered (`plan-execution R27.5.1`). */
   resume?: string;
+  /** Short hash of the commit `requests accept --commit` made of the written files; null when it had none to commit or failed. */
+  committed?: string | null;
+  /** Files the accepted action wrote that are still uncommitted. */
+  uncommitted?: string[];
 }
 
 const auditActor = (a: Actor) => ({ role: a.role, kind: a.kind, name: a.name, ...(a.session ? { session: a.session } : {}) });
@@ -141,7 +148,7 @@ function refuse(ctx: RequestCtx, rec: RequestRecord | null, id: string, command:
  * in force. A refusal leaves the request pending. The action then runs once as the accepter, with the request id in the
  * audit log.
  */
-export async function acceptRequest(ctx: RequestCtx, id: string, note?: string): Promise<RequestResult> {
+export async function acceptRequest(ctx: RequestCtx, id: string, note?: string, o: { commit?: boolean } = {}): Promise<RequestResult> {
   const rec = readRequest(ctx.root, id);
   if (!rec) return { ok: false, lines: [], reasons: [`Request \`${id}\` not found.`] };
   if (ctx.actor.kind === "llm") return refuse(ctx, rec, id, "requests accept", null, "Refused: an LLM role cannot accept a request; only the user can (roles-and-permissions R57).");
@@ -167,7 +174,7 @@ export async function acceptRequest(ctx: RequestCtx, id: string, note?: string):
     }
     const run = actionFor(claim.record.action.command);
     if (!run) return refuse(ctx, rec, id, "requests accept", null, `Cannot accept: \`${claim.record.action.command}\` is not an action this version can run.`);
-    let outcome: { ok: boolean; lines: string[]; reasons: string[] };
+    let outcome: ActionOutcome;
     try { outcome = await run({ ...destination, request: id }, claim.record.action.params); }
     catch (e) { outcome = { ok: false, lines: [], reasons: [(e as Error).message.split("\n")[0]] }; }
     const by = ctx.actor.name;
@@ -181,7 +188,24 @@ export async function acceptRequest(ctx: RequestCtx, id: string, note?: string):
     const done = claim.answer("accepted", { by, date: stamp(ctx), note: note ?? null });
     audit(ctx.root, { command: "requests accept", args: [id], permission, outcome: "done", request: id, actor: auditActor(ctx.actor) }, ctx.now);
     const resume = await resumeHint(ctx, done);
-    return { ok: true, lines: [`Accepted ${id}.`, ...outcome.lines, ...(resume ? [`Plan ${resume} was waiting for this answer; resume it with: specplane plan resume ${resume}`] : [])], reasons: [], request: done, resume };
+    let lines = outcome.lines;
+    let committed: string | null = null;
+    let uncommitted = outcome.uncommitted;
+    if (o.commit && uncommitted?.length) {
+      const message = formatMessage({ type: "chore", scope: outcome.commitFor?.scope ?? "specplane", summary: `${outcome.commitFor?.summary ?? "apply a request"} (request ${id})`, trailers: cliTrailers("request", "", ctx.env) });
+      try {
+        const specs = uncommitted.map((p) => `:/${p}`);
+        git("git", ["add", "--", ...specs], { cwd: destination.root });
+        git("git", ["commit", "-m", message, "--", ...specs], { cwd: destination.root });
+        committed = git("git", ["rev-parse", "--short", "HEAD"], { cwd: destination.root }).trim();
+        lines = [...lines.filter((l) => !/^Written to .*, not committed\./.test(l) && l !== COMMIT_LEAD && !l.startsWith("git add -- :/")), `Committed ${uncommitted.join(", ")} (${committed}); in effect now.`];
+        uncommitted = undefined;
+      } catch (e) {
+        const reason = (e as Error).message.split("\n").map((l) => l.trim()).filter(Boolean).slice(-1)[0] ?? "git failed";
+        lines = [...lines, `Could not commit it: ${reason}. The request is still accepted.`];
+      }
+    }
+    return { ok: true, committed, uncommitted, lines: [`Accepted ${id}.`, ...lines, ...(resume ? [`Plan ${resume} was waiting for this answer; resume it with: specplane plan resume ${resume}`] : [])], reasons: [], request: done, resume };
   } finally { claim.release(); }
 }
 

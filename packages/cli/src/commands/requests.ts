@@ -25,17 +25,17 @@ export const requestsShow = (id: string, root: string = checkoutRoot()): Command
 };
 
 function result(r: RequestResult): CommandResult {
-  return { ok: r.ok, data: { request: r.request ?? null, resume: r.resume ?? null }, findings: r.reasons, lines: r.lines };
+  return { ok: r.ok, data: { request: r.request ?? null, resume: r.resume ?? null, ...(r.committed !== undefined ? { committed: r.committed, uncommitted: r.uncommitted ?? [] } : {}) }, findings: r.reasons, lines: r.lines };
 }
 
 /**
  * `session` names the plan session a harness opens for an accepted `plan start` (the plan record names it). `manual: false`
  * means the caller opens the session itself; otherwise an accepted `plan start` prints how to open it by hand.
  */
-export const requestsAccept = async (id: string, note?: string, o: { session?: string; manual?: boolean } = {}): Promise<CommandResult> => {
+export const requestsAccept = async (id: string, note?: string, o: { session?: string; manual?: boolean; commit?: boolean } = {}): Promise<CommandResult> => {
   const c = ctx();
   if (o.session) c.actor = { ...c.actor, session: o.session };
-  const r = result(await withStoreLockAsync(c.root, "commands", () => acceptRequest(c, id, note)));
+  const r = result(await withStoreLockAsync(c.root, "commands", () => acceptRequest(c, id, note, { commit: o.commit })));
   const planId = planStartedBy(r);
   return r.ok && planId && o.manual !== false ? { ...r, lines: [...(r.lines ?? []), ...manualSessionLines(c.root, planId)] } : r;
 };

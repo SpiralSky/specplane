@@ -23,12 +23,16 @@ import { committedSource } from "../spec/source.js";
  */
 
 export interface ActionCtx { root: string; actor: Actor; preset: Preset; now?: Date; env?: NodeJS.ProcessEnv; request: string }
-export interface ActionOutcome { ok: boolean; lines: string[]; reasons: string[] }
+/** `uncommitted` lists the files the action wrote without committing; `commitFor` names the commit `requests accept --commit` makes of them. */
+export interface ActionOutcome { ok: boolean; lines: string[]; reasons: string[]; uncommitted?: string[]; commitFor?: { scope: string; summary: string } }
 
 type P = Record<string, any>;
 type Action = (ctx: ActionCtx, p: P) => Promise<ActionOutcome> | ActionOutcome;
 
-const fromResult = (r: { ok: boolean; lines: string[]; reasons: string[] }): ActionOutcome => ({ ok: r.ok, lines: r.lines, reasons: r.reasons });
+const fromResult = (r: { ok: boolean; lines: string[]; reasons: string[]; data?: unknown }): ActionOutcome => {
+  const d = r.data as { uncommitted?: string[]; commit?: { scope: string; summary: string } } | undefined;
+  return { ok: r.ok, lines: r.lines, reasons: r.reasons, ...(d?.uncommitted?.length ? { uncommitted: d.uncommitted, ...(d.commit ? { commitFor: d.commit } : {}) } : {}) };
+};
 const planCtx = (c: ActionCtx): PlanCtx => c;
 
 const ACTIONS: Record<string, Action> = {

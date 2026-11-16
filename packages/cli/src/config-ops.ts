@@ -119,7 +119,7 @@ function change(ctx: ConfigCtx, key: string, value: unknown | undefined, command
   const lines = [value === undefined ? `Removed \`${key}\`; the default (${formatValue(hit.def.def)}) applies.` : `Set \`${key}\` to ${formatValue(candidate)} (was ${formatValue(old)}).`, `Written to ${CONFIG_PATH}, not committed. It applies from the next command after it is committed; until then it is ignored.`, ...commitLines([CONFIG_PATH], value === undefined ? `config: unset ${key}` : `config: set ${key}`)];
   if (hit.def.later) lines.push("This setting belongs to a later release and has no effect yet.");
   lines.push(...applyEffects(ctx.root, key, old, after));
-  return { ok: true, lines, reasons: [], data: { key, old, new: after, uncommitted: [CONFIG_PATH] }, written: true };
+  return { ok: true, lines, reasons: [], data: { key, old, new: after, uncommitted: [CONFIG_PATH], commit: { scope: "config", summary: value === undefined ? `unset ${key}` : `set ${key}` } }, written: true };
 }
 
 export function configSet(ctx: ConfigCtx, key: string, arg: string): ConfigResult {
