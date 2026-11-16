@@ -28,9 +28,9 @@ test("all sixteen packaged contracts have versioned, ordered parts and action-on
     assert.ok(contract.startsWith(`<!-- Specplane command contract v${version};`), key);
     assert.deepEqual([...contract.replace(/^```[\s\S]*?^```$/gm, "").matchAll(/^## (.*)$/gm)].map((m) => m[1]), ["Purpose", "Preconditions", "Steps", "Permissions and requests", "Output"]);
     // `requests` is a fallback notice for sessions without the plugin: it calls no action and names the terminal CLI.
-    if (key === "requests") { assert.doesNotMatch(contract, /`config\.get`|request\.accept|request\.decline/); assert.match(contract, /`specplane requests accept <id>`/); continue; }
+    if (key === "requests") { assert.doesNotMatch(contract, /`config\.get`/); assert.match(contract, /`specplane requests accept <id>`/); continue; }
     assert.match(contract, /1\. \[code\] `config.get`/);
-    assert.doesNotMatch(contract, /`specplane\s|\b(?:npx|bunx)\s+specplane|request\.accept|request\.decline|role\.switch/);
+    assert.doesNotMatch(contract, /`specplane\s|\b(?:npx|bunx)\s+specplane|role\.switch/);
     for (const step of contract.matchAll(/^\d+\. (.*)$/gm)) assert.match(step[1], /^\[(code|llm)\]/);
     for (const part of ["Request-user", "Deny", "Allow", "docs.search", "no model turn"]) assert.ok(contract.includes(part), `${key}: ${part}`);
     assert.ok(commandDocumentation(key).trim());

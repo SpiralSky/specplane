@@ -43,7 +43,7 @@ const added = listActions().filter((a) => a.id in inputs);
 
 test("the remaining 21 actions are registered with strict schemas", () => {
   assert.equal(added.length, 21);
-  assert.equal(listActions().length, 47);
+  assert.equal(listActions().length, 49);
   assert.equal(added.filter((a) => a.id.startsWith("plan.")).length, 15);
   for (const a of listActions()) assert.equal((a.inputSchema as { additionalProperties: boolean }).additionalProperties, false, a.id);
 });
@@ -211,4 +211,21 @@ test("plan.retarget has its own permission: resume alone does not allow it, and 
     assert.match(progress(), /status: stopped/, "retargeting does not resume");
     assert.equal((await rt.call("plan.retarget", { id: PLAN, target: "nope" })).ok, false, "an unknown branch is refused");
   } finally { DEFAULT_PRESET.llm.modes = prior; }
+});
+
+test("request.accept and request.decline are registered and answer by permission", async () => {
+  const ids = listActions().map((a) => a.id);
+  assert.ok(ids.includes("request.accept") && ids.includes("request.decline"));
+  const root = repo();
+  const sent = await runtime(root).call("request.send", inputs["request.send"]);
+  assert.ok(sent.request);
+  // the sender's own session cannot answer
+  const same = await runtime(root).call("request.decline", { id: sent.request });
+  assert.equal(same.ok, false);
+  assert.match(same.findings.join(), /sender of a request cannot answer it/);
+  // another session under request-user lacks the permission
+  const lacking = await runtime(root, { id: "other-session" }).call("request.decline", { id: sent.request });
+  assert.equal(lacking.ok, false);
+  assert.match(lacking.findings.join(), /permission/);
+  assert.equal(readRequest(root, sent.request)!.state, "pending");
 });

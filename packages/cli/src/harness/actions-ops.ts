@@ -5,7 +5,7 @@ import { presetCreate, presetList, presetParamsEdits, presetShow } from "../perm
 import { PreconditionError } from "../errors.js";
 import { docsSearch, loadEssentials } from "../docs/operations.js";
 import { REQUESTABLE_COMMANDS } from "../requests/actions.js";
-import { sendRequest } from "../requests/ops.js";
+import { acceptRequest, declineRequest, sendRequest } from "../requests/ops.js";
 import { headCommit } from "../spec/source.js";
 import { findSpecId, headContext, implementSpec } from "../verify/implementation.js";
 import { recordResults, type RecordableResult } from "../verify/test-record.js";
@@ -62,4 +62,8 @@ export function registerOperationActions(add: Adder): void {
     const r = sendRequest(base(c), { command: p.command, params: p.params, reason: p.reason, plan: p.plan, blocking: p.blocking });
     return { ok: r.ok, reasons: r.reasons, lines: r.lines, request: r.request?.id };
   });
+  // Answering is decided by the answerer's permission for the requested action, checked inside the core (`requests R52.2`).
+  const answer = (c: ActionContext, r: Awaited<ReturnType<typeof acceptRequest>>) => ({ ok: r.ok, reasons: r.reasons, lines: r.lines, request: r.request?.id, ...(r.committed ? { committed: r.committed } : {}) });
+  add("request.accept", { id: str, note: str }, ["id"], [], false, async (c, p) => answer(c, await acceptRequest(base(c), p.id, p.note)));
+  add("request.decline", { id: str, note: str }, ["id"], [], false, async (c, p) => answer(c, await declineRequest(base(c), p.id, p.note)));
 }

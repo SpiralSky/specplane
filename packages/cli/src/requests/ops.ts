@@ -173,6 +173,13 @@ function refuse(ctx: RequestCtx, rec: RequestRecord | null, id: string, command:
   return { ok: false, lines: [], reasons: [msg], request: rec ?? undefined };
 }
 
+const SENDER_MSG = "The sender of a request cannot answer it.";
+
+/** The sender is the same role in the same session as recorded on the request (`requests R52.2`). */
+function isSender(ctx: RequestCtx, rec: RequestRecord): boolean {
+  return rec.from.role === ctx.actor.role && (rec.from.session ?? null) === (ctx.actor.session ?? null);
+}
+
 /**
  * Accept: one answer claim covers the whole lifecycle, so decline and a second accept fail fast. The accepting role must
  * hold every permission the action needs with `allow`, derived from the action and checked now against the permissions
@@ -182,7 +189,7 @@ function refuse(ctx: RequestCtx, rec: RequestRecord | null, id: string, command:
 export async function acceptRequest(ctx: RequestCtx, id: string, note?: string, o: { commit?: boolean } = {}): Promise<RequestResult> {
   const rec = readRequest(ctx.root, id);
   if (!rec) return { ok: false, lines: [], reasons: [`Request \`${id}\` not found.`] };
-  if (ctx.actor.kind === "llm") return refuse(ctx, rec, id, "requests accept", null, "Refused: an LLM role cannot accept a request; only the user can (roles-and-permissions R57).");
+  if (isSender(ctx, rec)) return refuse(ctx, rec, id, "requests accept", null, SENDER_MSG);
   let claim;
   try { claim = claimAnswer(ctx.root, id); }
   catch (e) { if (e instanceof RequestStateError) return { ok: false, lines: [], reasons: [e.message], request: rec }; throw e; }
@@ -244,11 +251,22 @@ export async function acceptRequest(ctx: RequestCtx, id: string, note?: string, 
   } finally { claim.release(); }
 }
 
-/** Decline: nothing else changes. A person only. */
+/** Decline: nothing else changes. Needs the same permission as accepting, and the sender cannot decline. */
 export async function declineRequest(ctx: RequestCtx, id: string, note?: string): Promise<RequestResult> {
   const rec = readRequest(ctx.root, id);
   if (!rec) return { ok: false, lines: [], reasons: [`Request \`${id}\` not found.`] };
-  if (ctx.actor.kind === "llm") return refuse(ctx, rec, id, "requests decline", null, "Refused: an LLM role cannot answer a request.");
+  if (isSender(ctx, rec)) return refuse(ctx, rec, id, "requests decline", null, SENDER_MSG);
+  if (rec.state === "pending") {
+    // A request whose action can no longer be resolved is judged on the permissions stored with it.
+    let needs: ReturnType<typeof acceptNeeds> = rec.permissions;
+    let destination = ctx;
+    try {
+      destination = destinationCtx(ctx, requestRoot(ctx.root, rec));
+      needs = acceptNeeds(destination.root, rec.action.command, rec.action.params);
+    } catch (e) { if (!(e instanceof InvalidRequestAction || e instanceof RequestStateError)) throw e; }
+    const g = guard(destination.preset, ctx.actor, needs, "Declining the request");
+    if (g.kind !== "allow") return refuse(ctx, rec, id, "requests decline", g.permission, `Cannot decline: the ${ctx.actor.role} role needs the \`${g.permission}\` permission with mode allow to answer this request, and does not have it. The request stays pending.`);
+  }
   let done: RequestRecord;
   try { done = answerRequest(ctx.root, id, "declined", { by: ctx.actor.name, date: stamp(ctx), note: note ?? null }); }
   catch (e) { if (e instanceof RequestStateError) return { ok: false, lines: [], reasons: [e.message], request: rec }; throw e; }

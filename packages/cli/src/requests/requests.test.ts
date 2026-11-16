@@ -39,7 +39,7 @@ function repo(): string {
   return root;
 }
 const actor = (role: Actor["role"], kind: Actor["kind"] = role === "llm" ? "llm" : "human"): Actor =>
-  kind === "llm" ? { role, kind, name: "claude", model: "claude-sonnet-5-5" } : { role, kind, name: "Pat Person" };
+  kind === "llm" ? { role, kind, name: "claude", model: "claude-sonnet-5-5" } : { role, kind, name: "Pat Person", ...(role === "llm" ? { session: "person-session" } : {}) };
 const NOW = new Date("2026-11-10T12:00:00Z");
 const sctx = (root: string, role: Actor["role"] = "llm", preset: Preset = DEFAULT_PRESET): Ctx & RequestCtx => ({ root, actor: actor(role), preset, now: NOW });
 const user = (root: string, preset: Preset = DEFAULT_PRESET): RequestCtx => ({ root, actor: actor("standard-user"), preset, now: NOW });
@@ -107,10 +107,16 @@ test("accepting needs the permission of the action with mode allow, checked now;
   assert.match(res.reasons[0], /spec\.approve.*allow.*pending/s);
   assert.equal(readRequest(root, r.request!)!.state, "pending");
   assert.ok(auditLog(root).some((e) => e.command === "requests accept" && e.outcome === "refused" && e.permission === "spec.approve.feature"));
-  // an LLM role never accepts or declines
-  const byLlm = await acceptRequest({ root, actor: actor("llm"), preset: PRESETS[3], now: NOW }, r.request!);
-  assert.match(byLlm.reasons[0], /LLM role cannot accept/);
-  assert.match((await declineRequest({ root, actor: actor("llm"), preset: PRESETS[3], now: NOW }, r.request!)).reasons[0], /cannot answer/);
+  // an LLM role other than the sender is answered by permission: with request-user it is refused, naming the permission
+  const other = { ...actor("llm"), session: "other-session" };
+  const byLlm = await acceptRequest({ root, actor: other, preset: PRESETS[3], now: NOW }, r.request!);
+  assert.match(byLlm.reasons[0], /spec\.approve.*allow.*pending/s);
+  const declined = await declineRequest({ root, actor: other, preset: PRESETS[3], now: NOW }, r.request!);
+  assert.match(declined.reasons[0], /Cannot decline.*spec\.approve.*allow.*pending/s);
+  // the sender (same role, same session) cannot answer, even with the permission
+  const allowAll: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "allow", modes: {} } };
+  assert.match((await acceptRequest({ root, actor: actor("llm"), preset: allowAll, now: NOW }, r.request!)).reasons[0], /sender of a request cannot answer it/);
+  assert.match((await declineRequest({ root, actor: actor("llm"), preset: allowAll, now: NOW }, r.request!)).reasons[0], /sender of a request cannot answer it/);
   assert.equal(readRequest(root, r.request!)!.state, "pending");
   // changing the active preset does not rewrite the record; the check uses the preset in force at accept time
   const denyAll: Preset = { ...DEFAULT_PRESET, standardUser: { defaultMode: "deny", modes: {} } };
@@ -600,4 +606,16 @@ test("pendingFull gives every pending request with the details show gives, in on
   assert.match(all[0]!.diff!, /^\+Other\.$/m);
   assert.deepEqual(all[0], { ...show(root, r1.request!)!, summary: "spec edit feature/b" });
   void done;
+});
+
+test("an LLM role with allow on the requested action accepts or declines a request sent by another actor", async () => {
+  const allowAll: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "allow", modes: {} } };
+  const root = repo();
+  const r = await approveSpecs(sctx(root), ["feature/a"]);
+  const other = { ...actor("llm"), session: "other-session" };
+  assert.ok((await acceptRequest({ root, actor: other, preset: allowAll, now: NOW }, r.request!)).ok);
+  assert.equal(readRequest(root, r.request!)!.state, "accepted");
+  const r2 = await approveSpecs(sctx(root), ["feature/b"]);
+  assert.ok((await declineRequest({ root, actor: other, preset: allowAll, now: NOW }, r2.request!)).ok);
+  assert.equal(readRequest(root, r2.request!)!.state, "declined");
 });

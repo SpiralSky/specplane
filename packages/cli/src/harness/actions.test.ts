@@ -51,6 +51,7 @@ test("spec-review refuses every project write before dispatch or request, even w
     "preset.create": { id: "mine", default_mode: "deny" },
     "config.set": { key: "auto_warn", value: "true" },
     "request.send": { command: "spec approve", params: { ids: ["feature/a"] }, reason: "Approve" },
+    "request.accept": { id: "20260101T000000Z-0000" }, "request.decline": { id: "20260101T000000Z-0000" },
     "decision.edit": { id: "D1", decision: "Changed" }, "decision.delete": { id: "D1" },
     "plan.create": { words: ["review", "plan"] },
     "plan.edit": { id: "P1", changes: [{ path: "PLAN.md", before: "old", after: "new" }] },
