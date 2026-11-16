@@ -152,5 +152,5 @@ export function presetDelete(ctx: PresetCtx, id: string): PresetResult {
   if (inUse) return fail([`preset \`${id}\` is the active preset (\`permissions.preset\`); change the setting first`]);
   fs.rmSync(file);
   record(ctx, "preset delete", [id], "done", { id }, null);
-  return { ok: true, written: true, reasons: [], lines: [`Deleted preset \`${id}\`.`, `Removed ${presetFile(id)}, not committed. The deletion applies after it is committed.`], data: { id } };
+  return { ok: true, written: true, reasons: [], lines: [`Deleted preset \`${id}\`.`, `Removed ${presetFile(id)}, not committed. The deletion applies after it is committed.`, ...commitLines([presetFile(id)], `preset: delete ${id}`)], data: { id, uncommitted: [presetFile(id)], commit: { scope: "preset", summary: `delete ${id}` } } };
 }

@@ -192,3 +192,18 @@ test("the preset commands run through the CLI", () => {
   assert.equal(fs.existsSync(path.join(root, presetFile("mine"))), false);
   assert.equal(run("preset", "delete", "full-manual-editing").status, 1);
 });
+
+test("delete reports the removed file for --commit, and git add/commit of that path records the deletion", () => {
+  const root = repo();
+  presetCreate(ctx(root), "gone", { defaultMode: "deny" });
+  commitAll(root);
+  const r = presetDelete(ctx(root), "gone");
+  assert.equal(r.ok, true);
+  const f = presetFile("gone");
+  assert.deepEqual((r.data as { uncommitted: string[] }).uncommitted, [f]);
+  assert.deepEqual((r.data as { commit: unknown }).commit, { scope: "preset", summary: "delete gone" });
+  assert.ok(r.lines.includes(`git add -- :/${f} && git commit -m "preset: delete gone" -- :/${f}`));
+  for (const a of [["add", "--", `:/${f}`], ["commit", "-qm", "x", "--", `:/${f}`]]) assert.equal(spawnSync("git", a, { cwd: root }).status, 0);
+  assert.equal(spawnSync("git", ["ls-tree", "HEAD", "--", f], { cwd: root, encoding: "utf8" }).stdout, "");
+  assert.equal(spawnSync("git", ["status", "--porcelain", "--", f], { cwd: root, encoding: "utf8" }).stdout, "");
+});
