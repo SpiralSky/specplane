@@ -1,6 +1,10 @@
 # Session handoff
 Updated 2026-11-16 after the requests usability fixes. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
+## Warnings cleanup and speed (2026-11-16, later)
+
+`validate` now reports 4 warnings, not 40 (0 errors). Removed in `e4c38a7`: 13 archived and 8 done legacy-format plans (history stays in git) and the generated `plans/PLANS.md`, whose command was removed in U12. Left on purpose: three unexecuted legacy plans (`2026-10-30-plan-conductor`, `2026-11-01-claude-delivery`, `2026-11-01-extension-conformance`, ready or blocked, no `progress.yaml`) and the `hook_protect` off warning (the user's setting). `AGENTS.md` block refreshed to 0.1.1; the 15 stale `.agents` warnings went away (`.agents/` is gitignored). `3d30a24` batches blob reads with `cat-file --batch` (`prefetchBlobs` in `spec/source.ts`); `warnings` is about 0.9 s with 86 git spawns (was 1.33 s and about 122). A persistent `cat-file` process was not done: Node has no safe synchronous bidirectional pipe. `issues.md` and `problems.md` were deleted by the user's request.
+
 ## Git call cache merged (2026-11-16)
 
 `perf/git-cache` (`4b48a46`, per-process cache of read-only git calls; `SPECPLANE_NO_GIT_CACHE=1` bypasses) merged into `main` at `8397c1b`; 700 pass / 0 fail. Also `7b734b9` batches the notes `git log` per start commit (warnings 1.33 s to 1.19 s; about 122 git spawns remain, not 3,700). Compile cache gave only ~40 ms and `cat-file --batch` was not done. `problems.md` and `issues.md` (untracked, the user's) are fully resolved/stale. Local branches already in `main` were deleted; the two plan branches (one worktree has uncommitted edits) and the backups remain. Other branches are stale or historical (see the session notes).
