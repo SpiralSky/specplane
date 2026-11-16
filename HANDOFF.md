@@ -1,6 +1,10 @@
 # Session handoff
 Updated 2026-11-16 after the requests usability fixes. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
+## Git call cache merged (2026-11-16)
+
+`perf/git-cache` (`4b48a46`, per-process cache of read-only git calls; `SPECPLANE_NO_GIT_CACHE=1` bypasses) merged into `main` at `8397c1b`; 700 pass / 0 fail. Other branches are stale or historical (see the session notes).
+
 ## Requests usability fixes (2026-11-16)
 
 The three issues in the user's `issues.md` (from using 0.1.1 in `steward`) are fixed on `main`, hooks 209:
@@ -8,7 +12,7 @@ The three issues in the user's `issues.md` (from using 0.1.1 in `steward`) are f
 - Uncommitted config/preset writes print `Commit it to apply:` and `git add -- :/<file> && git commit -m "..." -- :/<file>` for hand-run commands (`76176cb`, `0b3c3ad`). Per the user, accepting in the `/requests` pane commits the written file itself: `requests accept --commit` (`802362c`, `1f81263`, harness-run fix `4c5d7ba`), message `chore(config): set <key> (request <id>)`; on commit failure the accept stands and the hint shows. Preset changes cannot be requests, so in practice this covers config set/unset.
 - `/requests` with 2+ pending opens a multi-select pane (pages of 3 + `More…`), then Accept / Decline / one by one / Cancel; one selected goes to the per-request flow with diff (`e3229b6`, `349c239`). The host's multiSelect answer format is unverified; unrecognised answers fall back to the text list.
 - Labels show the action's arguments (`config set decisions.enabled on`) and the pane opens with one `requests list --json --full` call (`7f13f1b`, `547e6a3`, `b2ff675`).
-Reviewed twice; 696 pass / 0 fail. Live-checked in tmux on 2026-11-16 (evidence items 15-19 in `harnesses/claude/host-evidence/2.1.322-requests-dialogue.txt`): paging, multi-select answer parsing, commit on accept, single selection, labels, 0.8 s open with 5 pending. All pass. Follow-ups: Windows opt-out; `collectWarnings` still spawns ~3,700 git processes on every user command.
+Reviewed twice; 696 pass / 0 fail. Live-checked in tmux on 2026-11-16 (evidence items 15-19 in `harnesses/claude/host-evidence/2.1.322-requests-dialogue.txt`): paging, multi-select answer parsing, commit on accept, single selection, labels, 0.8 s open with 5 pending. All pass. Follow-ups: Windows opt-out (the plugin's `env SPECPLANE_AUTO_WARN=off` prefix does not exist on Windows; fix by passing `env` to the spawn instead); `collectWarnings` still spawns ~3,700 git processes on every user command.
 
 ## Update 2026-11-15 (late)
 
