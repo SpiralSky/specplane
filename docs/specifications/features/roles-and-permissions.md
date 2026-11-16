@@ -135,7 +135,7 @@ The presets differ in what the LLM role may do to specifications. Create, edit a
 
 - Preset 2 leaves the LLM with read-only work and the always-allowed items above. It cannot send a request to edit a specification, because editing is denied rather than request user.
 - Preset 1 is active when nothing else is chosen.
-- Whichever preset is active, a specification an LLM writes starts as Awaiting Review (`specifications R11`), and the LLM cannot approve it without the user's decision, because approval is request user. A role with allow for approval approves without a confirmation, and steering does not guarantee that the LLM asks first (`R20.1`).
+- Whichever preset is active, a specification an LLM writes starts as Awaiting Review (`specifications R11`), and in the default presets the LLM cannot approve it without the user's decision, because approval is request user there. A role with allow for approval approves without a confirmation, and steering does not guarantee that the LLM asks first (`R20.1`).
 - Presets apply the same way in the CLI and the harness.
 
 Scenario: Given the default preset, When the LLM is asked to rewrite a feature specification, Then a request is sent to the user and nothing is written until it is accepted.

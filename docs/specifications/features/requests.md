@@ -49,8 +49,10 @@ To accept a request, the role of the person accepting must have the permission t
 - The check is made at the moment of acceptance, against the permissions in force then (`roles-and-permissions §2`). Changing the active preset does not rewrite pending requests.
 - A role without the permission cannot accept the request. Acceptance fails, the user is told which permission is missing, and the request stays pending (`roles-and-permissions §2`).
 - The permission of the role to accept is the permission to do the action, not a separate "accept requests" permission. A role that holds the permission with mode `allow` may accept. A role whose own mode for it is `request user` or `deny` may not, because a user's request to the user would go nowhere.
-- Accepting never gives the LLM the permission. The action is done once, on the user's authority.
-- Approvals stay with a human: when the requested action is approving a specification, a plan or a decision, accepting needs a role that has the approval permission, and an LLM role cannot accept (`roles-and-permissions R57`).
+- Declining needs the same permission as accepting: a role may decline only a request whose action it could accept. A role without it cannot decline, and the request stays pending.
+- The role or actor that sent a request cannot answer it, whether it accepts or declines. Another role with the permission, normally the user's, answers it.
+- Accepting never gives the sender the permission. The action is done once, on the authority of the answering role.
+- Who answers is decided by permissions, not by whether the answerer is an LLM or a person. When the requested action is approving a specification, a plan or a decision, accepting needs a role whose approval permission is `allow` (`roles-and-permissions R57`); in the default presets that is the user's role, so approvals stay with the user there. Steering (`steering R59`) tells an LLM with such a role when to answer and when to leave a request to the user; it does not widen the permission.
 
 Test T1 (deterministic): with a role lacking the permission for the requested action, try to accept and expect failure with the request still pending; with a role holding it, expect success.
 
