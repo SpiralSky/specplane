@@ -96,3 +96,26 @@ Commit follows 4a125e0. tsc clean, `npm test` 721 pass, 0 fail. Requests of `pre
 
 ### What the next step must know
 tsc clean, `npm test` 722 pass, 0 fail (the build rebuilds the plugin); `harnesses/claude/tests/check-sync.sh` OK and `hooks.test.sh` 209 pass. `step3.out` and `step4.out` in the worktree root are untracked/modified scratch files; do not commit them. Do not call `plan.resume` unless the plan is stopped.
+
+## Step 05: R70 typed approve lists matches for an inexact name
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/spec/match.ts`: new mechanical matcher over the specification, plan and decision indexes (`candidates`, `isExactId`, `bestMatches` with at most ten results, `matchListing` grouped by kind).
+- `packages/cli/src/commands/spec-human.ts`: `specApproveHuman` (used by CLI `approve`, harness `/approve` and `decision approve`) approves nothing and prints the match listing when any argument is not an exact ID; multiple arguments are joined into one name (`preset creation`).
+- `packages/cli/src/spec/match.test.ts`: tests for exact, inexact, no match, multi-word names and the ten-match limit.
+- `docs/user/commands.md`: paragraph on typed approve and inexact names.
+
+### Deviations from the step
+- The "not found. Known IDs" failure in `spec/human.ts` is unchanged: it stays for the LLM `spec.approve` action and `approveSpecs`, which the typed path now bypasses before reaching it. No edit to `harnesses/claude/plugin/hooks/commands.ts` was needed, since the `approve` entry already runs `specApproveHuman` with no model turn.
+
+### Gaps found
+- G5 (code): an exact plan ID counts as exact for the typed command, but `approveSpecs` does not approve plans (they use `plan approve`), so it still reports "not found" for one.
+
+### Open issues
+- Request from `plan.resume` called by mistake again this step (see the request ID in `requests`); it can be declined along with the earlier ones.
+
+### What the next step must know
+tsc clean, `npm test` 727 pass, 0 fail. Code commit follows f8bda89. `step4.out` and `step5.out` in the worktree root are scratch files; do not commit them. Do not call `plan.resume` unless the plan is stopped.
