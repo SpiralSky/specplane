@@ -5,13 +5,13 @@ authors:
   - llm: unknown
 implements:
   - spec: feature/roles-and-permissions
-    commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
+    commit: be3ea67a09ea243e52a3bcf6ed862c5604466e88
     mode: implements
   - spec: architecture/reference-cli
-    commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
+    commit: be3ea67a09ea243e52a3bcf6ed862c5604466e88
     mode: implements
   - spec: architecture/file-formats
-    commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
+    commit: 6214cdc2aee9c192e7c7ac076effe3ea93615cd3
     mode: implements
   - spec: feature/harness
     commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
