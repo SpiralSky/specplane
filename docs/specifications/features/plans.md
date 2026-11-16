@@ -72,7 +72,7 @@ A plan changes to Awaiting Review when its content changes or when a part of a s
 A plan has an execution status, one of:
 
 - **Not started**: the plan exists and has not run.
-- **In progress**: a session is working on it, or it can continue from where it is.
+- **In progress**: a session is working on it, or it can continue from where it is. Between two sessions that ended cleanly, with steps left, it is shown as idle between steps (`plan-execution R27`); idle is a form of in progress, not a further status.
 - **Stopped**: the plan was halted, by the LLM through a soft stop, by the user, or by a failure, and has not been resumed (`plan-execution R27.1`).
 - **Completed**: the final review accepted it (`R28`).
 - **Abandoned**: the user decided it will not be done.
