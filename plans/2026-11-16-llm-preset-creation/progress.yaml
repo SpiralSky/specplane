@@ -2,6 +2,7 @@ status: in-progress
 target_branch: main
 start_commit: 6c3d984d4240cb6a52afc3f9d7af16214ab028a0
 branch: plan/2026-11-16-llm-preset-creation
-current_step: 1
-done: []
+current_step: 2
+done:
+  - 1
 session: b4bd5a35-b441-4206-9192-e62489f9c9e7
