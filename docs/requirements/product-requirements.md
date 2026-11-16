@@ -473,6 +473,11 @@ Presets simply apply permissions to roles and they can still be changed.
 *R56.1: Preset Default Permissions*
 Presets additionally define the default permission mode which will apply for all unspecified permission in the preset.
 
+*R56.2: LLM Preset Creation*
+A permission should exist that controls whether an LLM role can create a preset. It should have allow, request user and deny modes (see `R52.3`). With request user, the LLM sends a request containing the full preset, and the user is shown a preview of that preset before answering: the permissions it sets, the roles it applies to and its default permission mode (see `R56.1`). The preset is created only if the user accepts the request. Creating a preset does not make it the active preset. Accepting still requires the accepting role to have sufficient management permissions and management level (see `R56` and `R52.2`).
+
+Preset creation is request user for LLM roles in all default presets.
+
 **R57: Default Presets**
 The default permission presets are defined below. The default permission for unspecified permission will be deny for these default presets.
 *Note: Permissions are separate from role management permissions*
