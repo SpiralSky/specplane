@@ -34,6 +34,7 @@ Let the LLM role create a permission preset under the new permission `preset.cre
 - In: the `preset.create` permission and its defaults in all four default presets; `presetCreate` for an LLM actor; harness actions `preset.list`, `preset.show`, `preset.create`; a requestable `preset create` with a preview; display of the preview in `requests show`, the Claude `/requests` pane and the arrival dialogue; steering text; tests and user docs.
 - In (R70, R71): the typed approve command lists matching IDs for an inexact name and approves nothing; commands that start a model turn read a `Requires:` line from their contract and refuse at once when the LLM role has a required permission as deny.
 - In (R20.2, R31.3): approving plans and decision records from the harness (typed and plain language); the permission and harness action `plan.retarget`, moved off `plan.resume`.
+- In (R27): step 11 makes plan execution continue between steps and report an idle plan correctly; its specs are written by the main session after steps 1 to 10.
 - Out: LLM editing or deleting presets, activating a preset (stays a `config set` request), custom roles, Codex-side dialogue (Codex has no popup).
 
 ## Specifications
@@ -66,3 +67,4 @@ Implements `feature/roles-and-permissions` (R56.2 and the R56 and R57 edits) and
 08 Approve plans and decision records from the harness
 09 Plan retargeting permission and harness action
 10 Verify the whole change
+11 Plan execution: continue between steps and report an idle plan correctly
