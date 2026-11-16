@@ -29,7 +29,7 @@ Scaffold a plan named <today>-<two to four words>
 
 `specplane plan approve [options] <id>`
 
-Approve a plan (a person only; committed content)
+Approve a plan (committed content)
 
 ### `plan list`
 

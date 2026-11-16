@@ -63,7 +63,7 @@ export function registerPlanCommands(program: Command): void {
     .option("--reference <cite>", "cite the plan references (repeatable)", collect)
     .action((words: string[], o) => run("create", words, o, (ctx) => { const r = createPlan(ctx, { words, title: o.title, implements: o.implements, writes: o.writes, references: o.reference }); out(`Created plan ${r.id} (awaiting review). Approve it with: specplane plan approve ${r.id}`); }));
 
-  plan.command("approve <id>").description("Approve a plan (a person only; committed content)")
+  plan.command("approve <id>").description("Approve a plan (committed content)")
     .action((id: string) => run("approve", [id], undefined, (ctx) => { const r = approvePlan(ctx, id); out(r.already ? `Plan ${id} is already approved.` : `Approved plan ${id} (${r.commit?.slice(0, 12)}).`); }));
 
   plan.command("list").description("List plans with their statuses and next steps").option("--live", "read each started plan from its own checkout").option("--json")
