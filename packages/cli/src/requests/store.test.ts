@@ -139,3 +139,17 @@ test("Ajv rejects malformed nested fields and inconsistent answer/context record
   fs.writeFileSync(file, JSON.stringify({ ...rec, id: newRequestId() }));
   assert.equal(readRequest(root, id), null, "record cannot substitute a different filename ID");
 });
+
+test("a lock left by a dead process or an old empty lock is retaken, a live owner's lock is not", () => {
+  const { root, id, lock } = request();
+  fs.writeFileSync(lock, String(process.pid)); // this process is alive
+  assert.throws(() => claimAnswer(root, id), /being answered by another command/);
+  fs.writeFileSync(lock, "999999999"); // no such process
+  claimAnswer(root, id).release();
+  fs.writeFileSync(lock, ""); // legacy lock with no owner, fresh
+  assert.throws(() => claimAnswer(root, id), /being answered by another command/);
+  const old = new Date(Date.now() - 10 * 60 * 1000);
+  fs.utimesSync(lock, old, old); // legacy lock, old
+  claimAnswer(root, id).release();
+  assert.equal(fs.existsSync(lock), false);
+});

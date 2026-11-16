@@ -123,6 +123,34 @@ export interface AnswerClaim {
   release(): void;
 }
 
+/** A lock older than this with no owner process recorded is taken as left behind by a killed command. */
+const STALE_LOCK_MS = 5 * 60 * 1000;
+
+/** True when the lock file's owner is gone: its recorded process no longer exists, or (no pid recorded) it is old. */
+function lockIsStale(lock: string): boolean {
+  try {
+    const pid = Number(fs.readFileSync(lock, "utf8").trim());
+    if (Number.isInteger(pid) && pid > 0) {
+      try { process.kill(pid, 0); return false; } catch (e) { return (e as NodeJS.ErrnoException).code === "ESRCH"; }
+    }
+    return Date.now() - fs.statSync(lock).mtimeMs > STALE_LOCK_MS;
+  } catch { return false; }
+}
+
+/** Create the lock exclusively and record this process in it; a lock left by a dead process is removed once and retaken. */
+function openLock(lock: string): number {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const fd = fs.openSync(lock, "wx");
+      try { fs.writeSync(fd, String(process.pid)); } catch { /* the pid is only a hint for stale detection */ }
+      return fd;
+    } catch (e) {
+      if (attempt > 0 || (e as NodeJS.ErrnoException).code !== "EEXIST" || !lockIsStale(lock)) throw e;
+      fs.rmSync(lock, { force: true });
+    }
+  }
+}
+
 /**
  * Hold the same lock as a direct answer for the entire action and finalization. Callers must release in finally,
  * including when an action throws. Finalization uses this claim, rather than reacquiring the lock.
@@ -131,7 +159,7 @@ export function claimAnswer(root: string, id: string): AnswerClaim {
   fs.mkdirSync(dir(root), { recursive: true });
   const lock = `${file(root, id)}.lock`;
   let fd: number;
-  try { fd = fs.openSync(lock, "wx"); } catch { throw new RequestStateError(`Request \`${id}\` is being answered by another command.`); }
+  try { fd = openLock(lock); } catch { throw new RequestStateError(`Request \`${id}\` is being answered by another command.`); }
   let released = false;
   let answered = false;
   const release = (): void => {
