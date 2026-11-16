@@ -225,6 +225,17 @@ test("requests accept --commit commits only the written file, leaves other stage
   assert.equal(sh(root, "status", "--porcelain", "--", ".specplane/config.yaml"), "");
 });
 
+test("requests accept --commit keeps a long key within 72 characters by moving the request ID out of the subject", async () => {
+  const root = repo();
+  const id = configRequest(root, "bypass_guards.headless_block", "off");
+  const acc = await acceptRequest(user(root), id, undefined, { commit: true });
+  assert.ok(acc.ok, acc.reasons.join());
+  assert.match(acc.lines.join("\n"), /Committed \.specplane\/config\.yaml/);
+  const subject = sh(root, "log", "-1", "--format=%s");
+  assert.ok(subject.length <= 72, subject);
+  assert.match(sh(root, "log", "-1", "--format=%B"), new RegExp(id));
+});
+
 test("requests accept --commit falls back to the hint when the commit fails; the accept stands", async () => {
   const root = repo();
   const id = configRequest(root, "audit.retention", "30");

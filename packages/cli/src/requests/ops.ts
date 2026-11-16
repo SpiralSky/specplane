@@ -209,7 +209,11 @@ export async function acceptRequest(ctx: RequestCtx, id: string, note?: string, 
     let committed: string | null = null;
     let uncommitted = outcome.uncommitted;
     if (o.commit && uncommitted?.length) {
-      const message = formatMessage({ type: "chore", scope: outcome.commitFor?.scope ?? "specplane", summary: `${outcome.commitFor?.summary ?? "apply a request"} (request ${id})`, trailers: cliTrailers("request", "", ctx.env) });
+      const scope = outcome.commitFor?.scope ?? "specplane";
+      const base = outcome.commitFor?.summary ?? "apply a request";
+      // The request ID goes in the subject when it fits (72 characters), else in the body, so a long key never fails the commit.
+      const withId = [`${base} (request ${id})`, `${base} (${id})`].find((x) => `chore(${scope}): ${x}`.length <= 72);
+      const message = formatMessage({ type: "chore", scope, summary: withId ?? base, ...(withId ? {} : { body: `Request ${id}.` }), trailers: cliTrailers("request", "", ctx.env) });
       try {
         const specs = uncommitted.map((p) => `:/${p}`);
         git("git", ["add", "--", ...specs], { cwd: destination.root });
