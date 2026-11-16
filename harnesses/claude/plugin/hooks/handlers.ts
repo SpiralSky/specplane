@@ -19,7 +19,7 @@ export function bundledCore($: EngineInterface): CorePort {
 
 /** The host's question dialogue as a port; it rejects when dismissed or in a `-p` run. */
 export function hostAsk($: EngineInterface): AskPort {
-  return { ask: (question, options) => $.ui.ask(question, Array.isArray(options) ? options : { options: options.options, ...(options.header ? { header: options.header } : {}) } as never) }
+  return { ask: (question, options) => $.ui.ask(question, Array.isArray(options) ? options : { options: options.options, ...(options.header ? { header: options.header } : {}), ...(options.multiSelect ? { multiSelect: true } : {}) } as never) }
 }
 
 /** The host's push notification channel as a port (`root:requests R52.5`). */

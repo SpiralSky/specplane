@@ -142,33 +142,65 @@ async function answerOne(r: RequestView, answer: 'Accept' | 'Decline', core: Cor
   return out
 }
 
-export const BULK_LABELS = ['Accept all', 'Decline all', 'Go through one by one'] as const
+export const SELECT_LABELS = ['Accept', 'Decline', 'Go through one by one', 'Cancel'] as const
+export const MORE_LABEL = 'More…'
+const oneLine = (t: string): string => cleanText(t).replace(/\n/g, ' ')
 
-/** The text of the bulk dialogue: one line per pending request (id, action, sender); a spec change is marked because the bulk answer skips its diff. */
-export function bulkText(requests: RequestView[]): string {
-  const lines = [`${requests.length} requests are waiting:`]
-  for (const r of requests) {
-    const spec = typeof r.diff === 'string' && r.diff.trim() !== '' ? ' (spec change; diff in one-by-one)' : ''
-    lines.push(`- ${r.id}: ${cleanText(r.action?.command ?? 'unknown action').replace(/\n/g, ' ')} from ${cleanText(r.from?.role ?? 'unknown').replace(/\n/g, ' ')}${spec}`)
-  }
-  return lines.join('\n')
+/** The option label of one request in the selection pane: id and a shortened action (the id keeps it unique). */
+export function requestLabel(r: RequestView): string {
+  const action = oneLine(r.action?.command ?? 'unknown action')
+  return `${r.id}: ${action.length > 40 ? `${action.slice(0, 39)}…` : action}`
+}
+
+/** The detail line under the question for one request: sender, and a mark for a spec change (its diff shows only when answered alone). `AskOptions` here takes plain string labels, so the detail goes in the question text. */
+function requestDetail(r: RequestView, label: string): string {
+  const spec = typeof r.diff === 'string' && r.diff.trim() !== '' ? ' (spec change; diff shown when answered alone)' : ''
+  return `- ${label} from ${oneLine(r.from?.role ?? 'unknown')}${spec}`
+}
+
+/** Which of `labels` a multi-select answer names. The answer format is unverified against a live host: the labels are expected comma-separated, so each label is looked for in the answer text. */
+export function selectedLabels(answer: string, labels: string[]): string[] {
+  return labels.filter(l => answer.includes(l))
 }
 
 /**
- * With two or more pending requests: one dialogue to accept all, decline all, or go one by one (`runDialogue`). Each
- * request is answered in turn and a failure does not stop the rest; the uncommitted note appears once per distinct
- * commit command. `done` is false when the dialogue was unavailable, dismissed or answered with something else.
+ * With two or more pending requests: a multi-select pane (pages of up to 4 options; with more than 4 left, 3 requests
+ * plus `More…`, which keeps the selections and shows the next page). One selected request gets `runDialogue`; two or more
+ * get Accept / Decline / Go through one by one / Cancel. Each request is answered in turn and a failure does not stop the
+ * rest; the uncommitted note appears once per distinct commit command. `done` is false when the pane was unavailable,
+ * dismissed, empty or answered with something unrecognised (the caller falls back to the text list).
  */
-export async function runBulkDialogue(requests: RequestView[], ask: AskPort, core: CorePort, signal?: AbortSignal): Promise<{ lines: string[]; done: boolean }> {
+export async function runSelectionPane(requests: RequestView[], ask: AskPort, core: CorePort, signal?: AbortSignal): Promise<{ lines: string[]; done: boolean }> {
+  const fail = { lines: [] as string[], done: false }
+  const chosen = new Set<string>()
+  let i = 0
+  while (i < requests.length) {
+    const left = requests.length - i
+    const page = requests.slice(i, i + (left > 4 ? 3 : left))
+    const labels = page.map(requestLabel)
+    const options = [...labels]
+    const more = left > 4
+    if (more) options.push(MORE_LABEL)
+    let answer: string
+    try { answer = await ask.ask(['Select requests to answer', ...page.map((r, k) => requestDetail(r, labels[k]!))].join('\n'), { options, header: 'Requests', multiSelect: true }) } catch { return fail }
+    const picked = selectedLabels(answer, labels)
+    for (const l of picked) chosen.add(l)
+    const wantsMore = more && answer.includes(MORE_LABEL)
+    if (!wantsMore) { if (!more && picked.length === 0 && chosen.size === 0) return fail; break }
+    i += page.length
+  }
+  const selection = requests.filter(r => chosen.has(requestLabel(r)))
+  if (selection.length === 0) return fail
+  if (selection.length === 1) return runDialogue(selection, ask, core, signal)
   let answer: string
-  try { answer = await ask.ask(bulkText(requests), { options: [...BULK_LABELS], header: 'Requests' }) } catch { return { lines: [], done: false } }
-  if (answer === 'Go through one by one') return runDialogue(requests, ask, core, signal)
-  if (answer !== 'Accept all' && answer !== 'Decline all') return { lines: [], done: false }
-  const verb = answer === 'Accept all' ? 'Accept' : 'Decline'
+  try { answer = await ask.ask(`Answer the ${selection.length} selected requests`, { options: [...SELECT_LABELS], header: 'Requests' }) } catch { return fail }
+  if (answer === 'Cancel') return { lines: ['Cancelled; the selected requests stay pending.'], done: true }
+  if (answer === 'Go through one by one') return runDialogue(selection, ask, core, signal)
+  if (answer !== 'Accept' && answer !== 'Decline') return fail
   const lines: string[] = []
   const notes = new Set<string>()
-  for (const r of requests) {
-    for (const l of await answerOne(r, verb, core, signal)) {
+  for (const r of selection) {
+    for (const l of await answerOne(r, answer, core, signal)) {
       if (l.startsWith('Not yet in effect: commit to apply.\n')) notes.add(l); else lines.push(l)
     }
   }
@@ -293,7 +325,7 @@ export async function dispatch(cmd: SlashCommand, rawArgs: string, core: CorePor
     const pending = await pendingRequests(core, signal)
     if (pending && pending.length === 0) return { output: { text: 'No requests waiting.' } }
     if (pending) {
-      const { lines, done } = pending.length >= 2 ? await runBulkDialogue(pending, ask, core, signal) : await runDialogue(pending, ask, core, signal)
+      const { lines, done } = pending.length >= 2 ? await runSelectionPane(pending, ask, core, signal) : await runDialogue(pending, ask, core, signal)
       if (done) return { output: { text: lines.join('\n') } }
       const plain = await dispatch(cmd, rawArgs, core, signal)
       return { output: { ...plain.output, text: [...lines, plain.output.text, ANSWER_LINE].join('\n') } }

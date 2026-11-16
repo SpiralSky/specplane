@@ -82,14 +82,14 @@ const requestsCmd = async () => (await load()).SLASH_COMMANDS.find((c: { name: s
 
 test("/requests with no arguments opens a dialogue per pending request and runs accept, decline, skip", opts, async () => {
   const m = await load();
-  const f = fakes([rec("a1"), rec("b2", { state: "accepted" }), rec("c3"), rec("d4")], ["Go through one by one", "Accept", "Decline", "Skip"]);
+  const f = fakes([rec("a1"), rec("b2", { state: "accepted" }), rec("c3"), rec("d4")], ["a1: spec edit, c3: spec edit, d4: spec edit", "Go through one by one", "Accept", "Decline", "Skip"]);
   const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
   assert.deepEqual(f.calls[0], ["harness", "run", "--adapter", "claude", "requests", "list", "--json"]);
   assert.deepEqual(f.calls.filter(c => !c.includes("--json")), [["harness", "run", "--adapter", "claude", "requests", "accept", "a1", "--commit"], ["harness", "run", "--adapter", "claude", "requests", "decline", "c3"]]);
-  assert.equal(f.asked.length, 4);
-  assert.deepEqual(f.asked[0]!.o, { options: ["Accept all", "Decline all", "Go through one by one"], header: "Requests" });
-  assert.deepEqual(f.asked[1]!.o, { options: ["Accept", "Decline", "Skip"], header: "Request" });
-  assert.match(f.asked[1]!.q, /spec-writer/); assert.match(f.asked[1]!.q, /spec edit/); assert.match(f.asked[1]!.q, /why a1/);
+  assert.equal(f.asked.length, 5);
+  assert.deepEqual(f.asked[0]!.o, { options: ["a1: spec edit", "c3: spec edit", "d4: spec edit"], header: "Requests", multiSelect: true });
+  assert.deepEqual(f.asked[2]!.o, { options: ["Accept", "Decline", "Skip"], header: "Request" });
+  assert.match(f.asked[2]!.q, /spec-writer/); assert.match(f.asked[2]!.q, /spec edit/); assert.match(f.asked[2]!.q, /why a1/);
   assert.match(out.output.text, /ok a1/); assert.match(out.output.text, /ok c3/); assert.match(out.output.text, /Skipped d4/);
 });
 
@@ -131,18 +131,18 @@ test("/requests with arguments keeps the text behaviour and opens no dialogue", 
 
 test("/requests shows the recomputed diff and a visible warning when the current diff is unavailable", opts, async () => {
   const m = await load();
-  const f = fakes([rec("a1", { diff: "-stale\n+stale" }), rec("b2", { diff: "-stale" })], ["Go through one by one", "Skip", "Skip"], {
+  const f = fakes([rec("a1", { diff: "-stale\n+stale" }), rec("b2", { diff: "-stale" })], ["a1: spec edit, b2: spec edit", "Go through one by one", "Skip", "Skip"], {
     a1: rec("a1", { diff: "-fresh\n+fresh" }),
     b2: rec("b2", { diff: null, warning: "Current diff unavailable: the proposed patch no longer applies." }),
   });
   await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
-  assert.match(f.asked[1]!.q, /^-fresh$/m); assert.doesNotMatch(f.asked[1]!.q, /stale/);
-  assert.match(f.asked[2]!.q, /^Warning: Current diff unavailable: the proposed patch no longer applies\.$/m);
+  assert.match(f.asked[2]!.q, /^-fresh$/m); assert.doesNotMatch(f.asked[2]!.q, /stale/);
+  assert.match(f.asked[3]!.q, /^Warning: Current diff unavailable: the proposed patch no longer applies\.$/m);
 });
 
 test("a dismissed second dialogue keeps the first answer before the fallback list", opts, async () => {
   const m = await load();
-  const f = fakes([rec("a1"), rec("b2")], ["Go through one by one", "Accept", new Error("dismissed")]);
+  const f = fakes([rec("a1"), rec("b2")], ["a1: spec edit, b2: spec edit", "Go through one by one", "Accept", new Error("dismissed")]);
   const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
   assert.equal(out.output.text, "ok a1\nplain list\nAnswer with /requests accept <id> or /requests decline <id>.");
 });
@@ -156,38 +156,62 @@ test("the result line drops the warning count, strips control characters and kee
   assert.deepEqual(only.lines, ["Decline r1: done."]);
 });
 
-test("bulk dialogue: Accept all, Decline all, one by one, single pending, one failure, deduplicated note", opts, async () => {
+test("selection pane: multiSelect, accept/decline of the selection, one by one, cancel, single selection, nothing selected, single pending", opts, async () => {
   const m = await load();
   const cmd = await requestsCmd();
   const note = "Commit it to apply:\ngit add x.md && git commit -m y";
-  // Accept all of two: one list dialogue, each accepted, the note once.
   const calls: string[][] = [];
-  const core = { run: async (argv: string[]) => { calls.push(argv); if (argv.includes("show") || argv.includes("--json")) return argv.includes("show") ? listOutOne(rec(argv.at(-2)!, argv.at(-2) === "b2" ? { diff: "-a\n+b" } : {})) : listOut([rec("a1"), rec("b2", { diff: "-a\n+b" })]); const id = argv.filter((a) => a !== "--commit").at(-1)!; return id === "c3" ? { exitCode: 1, stdout: "", stderr: "c3 could not be done: nope\n" } : { exitCode: 0, stdout: `Accepted ${id}.\n${note}\n`, stderr: "" }; } };
+  const core = { run: async (argv: string[]) => { calls.push(argv); if (argv.includes("show")) return listOutOne(rec(argv.at(-1)!, argv.at(-1) === "b2" ? { diff: "-a\n+b" } : {})); if (argv.includes("--json")) return listOut([rec("a1"), rec("b2", { diff: "-a\n+b" }), rec("c3")]); const id = argv.filter((a) => a !== "--commit").at(-1)!; return { exitCode: 0, stdout: `Accepted ${id}.\n${note}\n`, stderr: "" }; } };
   const asked: Array<{ q: string; o: unknown }> = [];
   const mk = (answers: string[]) => ({ ask: async (q: string, o: unknown) => { asked.push({ q, o }); return answers.shift()!; } });
-  const out = await m.dispatch(cmd, "", core, undefined, mk(["Accept all"]));
-  assert.equal(asked.length, 1);
-  assert.deepEqual(asked[0]!.o, { options: ["Accept all", "Decline all", "Go through one by one"], header: "Requests" });
-  assert.match(asked[0]!.q, /- a1: spec edit from spec-writer\n- b2: spec edit from spec-writer \(spec change; diff in one-by-one\)/);
-  assert.deepEqual(calls.filter(c => !c.includes("--json")).map(c => c.slice(-3)), [["accept", "a1", "--commit"], ["accept", "b2", "--commit"]]);
+  const out = await m.dispatch(cmd, "", core, undefined, mk(["a1: spec edit, b2: spec edit", "Accept"]));
+  assert.equal(asked.length, 2);
+  assert.deepEqual(asked[0]!.o, { options: ["a1: spec edit", "b2: spec edit", "c3: spec edit"], header: "Requests", multiSelect: true });
+  assert.match(asked[0]!.q, /^Select requests to answer\n- a1: spec edit from spec-writer\n- b2: spec edit from spec-writer \(spec change; diff shown when answered alone\)/);
+  assert.equal(asked[1]!.q, "Answer the 2 selected requests");
+  assert.deepEqual(asked[1]!.o, { options: ["Accept", "Decline", "Go through one by one", "Cancel"], header: "Requests" });
+  assert.deepEqual(calls.filter(c => !c.includes("--json") && !c.includes("show")).map(c => c.slice(-3)), [["accept", "a1", "--commit"], ["accept", "b2", "--commit"]]);
   assert.equal(out.output.text.split("Not yet in effect: commit to apply.").length - 1, 1);
-  assert.match(out.output.text, /Accepted a1\.[\s\S]*Accepted b2\./);
-  // Decline all.
-  const f = fakes([rec("a1"), rec("b2")], ["Decline all"]);
+  // Decline of the selection.
+  const f = fakes([rec("a1"), rec("b2")], ["a1: spec edit, b2: spec edit", "Decline"]);
   const d = await m.dispatch(cmd, "", f.core, undefined, f.ask);
   assert.deepEqual(f.calls.filter(c => !c.includes("--json")).map(c => c.slice(-2)), [["decline", "a1"], ["decline", "b2"]]);
   assert.equal(d.output.text, "ok a1\nok b2");
-  // One by one runs the per-request dialogue.
-  const g = fakes([rec("a1"), rec("b2")], ["Go through one by one", "Skip", "Skip"]);
-  const o = await m.dispatch(cmd, "", g.core, undefined, g.ask);
-  assert.equal(g.asked.length, 3); assert.match(o.output.text, /Skipped a1/);
-  // A single pending request skips the list dialogue.
+  // One by one and cancel.
+  const g = fakes([rec("a1"), rec("b2")], ["a1: spec edit, b2: spec edit", "Go through one by one", "Skip", "Skip"]);
+  assert.match((await m.dispatch(cmd, "", g.core, undefined, g.ask)).output.text, /Skipped a1/);
+  const c = fakes([rec("a1"), rec("b2")], ["a1: spec edit, b2: spec edit", "Cancel"]);
+  await m.dispatch(cmd, "", c.core, undefined, c.ask);
+  assert.deepEqual(c.calls.filter(x => !x.includes("--json")), []);
+  // One selected request gets the per-request flow with its diff.
+  const s = fakes([rec("a1"), rec("b2")], ["b2: spec edit", "Accept"], { b2: rec("b2", { diff: "-x\n+y" }) });
+  await m.dispatch(cmd, "", s.core, undefined, s.ask);
+  assert.deepEqual(s.asked[1]!.o, { options: ["Accept", "Decline", "Skip"], header: "Request" }); assert.match(s.asked[1]!.q, /^\+y$/m);
+  assert.deepEqual(s.calls.filter(x => !x.includes("--json") && !x.includes("show")), [["harness", "run", "--adapter", "claude", "requests", "accept", "b2", "--commit"]]);
+  // Nothing selected, or an unrecognised answer: the text list.
+  for (const a of ["", "something else"]) {
+    const n = fakes([rec("a1"), rec("b2")], [a]);
+    const t = await m.dispatch(cmd, "", n.core, undefined, n.ask);
+    assert.equal(t.output.text, "plain list\nAnswer with /requests accept <id> or /requests decline <id>.");
+  }
+  // A single pending request skips the pane.
   const h = fakes([rec("a1")], ["Accept"]);
   await m.dispatch(cmd, "", h.core, undefined, h.ask);
   assert.equal(h.asked.length, 1); assert.deepEqual(h.asked[0]!.o, { options: ["Accept", "Decline", "Skip"], header: "Request" });
   // One failure does not stop the others and its reason is listed.
-  const calls2: string[][] = [];
-  const core2 = { run: async (argv: string[]) => { calls2.push(argv); const id = argv.filter((a) => a !== "--commit").at(-1)!; return id === "a1" ? { exitCode: 1, stdout: "", stderr: "a1 could not be done: nope\n" } : { exitCode: 0, stdout: `Accepted ${id}.\n`, stderr: "" }; } };
-  const r = await m.runBulkDialogue([rec("a1"), rec("b2")], { ask: async () => "Accept all" }, core2);
-  assert.equal(calls2.length, 2); assert.deepEqual(r, { lines: ["a1 could not be done: nope", "Accepted b2."], done: true });
+  const core2 = { run: async (argv: string[]) => { const id = argv.filter((a) => a !== "--commit").at(-1)!; return id === "a1" ? { exitCode: 1, stdout: "", stderr: "a1 could not be done: nope\n" } : { exitCode: 0, stdout: `Accepted ${id}.\n`, stderr: "" }; } };
+  const r = await m.runSelectionPane([rec("a1"), rec("b2")], { ask: async (q: string) => q.startsWith("Select") ? "a1: spec edit, b2: spec edit" : "Accept" }, core2);
+  assert.deepEqual(r, { lines: ["a1 could not be done: nope", "Accepted b2."], done: true });
+});
+
+test("selection pane pages six pending requests: 3 plus More, selections kept across pages", opts, async () => {
+  const m = await load();
+  const recs = ["a1", "b2", "c3", "d4", "e5", "f6"].map(id => rec(id));
+  const f = fakes(recs, ["b2: spec edit, More…", "e5: spec edit", "Decline"]);
+  const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
+  assert.deepEqual(f.asked[0]!.o, { options: ["a1: spec edit", "b2: spec edit", "c3: spec edit", "More…"], header: "Requests", multiSelect: true });
+  assert.deepEqual(f.asked[1]!.o, { options: ["d4: spec edit", "e5: spec edit", "f6: spec edit"], header: "Requests", multiSelect: true });
+  assert.equal(f.asked[2]!.q, "Answer the 2 selected requests");
+  assert.deepEqual(f.calls.filter(c => !c.includes("--json")).map(c => c.slice(-2)), [["decline", "b2"], ["decline", "e5"]]);
+  assert.equal(out.output.text, "ok b2\nok e5");
 });
