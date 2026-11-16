@@ -169,7 +169,7 @@ test("a reply that created a request opens one dialogue and runs the answer", op
 
 test("an accepted write that is not committed adds a not-yet-in-effect line with the commit command", opts, async () => {
   const m = await cmdsLoad();
-  const cmd = 'git add .specplane/config.yaml && git commit -m "config: set decisions.enabled"';
+  const cmd = 'git add -- :/.specplane/config.yaml && git commit -m "config: set decisions.enabled" -- :/.specplane/config.yaml';
   assert.equal(m.uncommittedNote("Accepted r1.\nCommit it to apply:\n" + cmd), "Not yet in effect: commit to apply.\n" + cmd);
   assert.equal(m.uncommittedNote("Accepted r1."), undefined);
   const f = arrivalFakes("Accept");
