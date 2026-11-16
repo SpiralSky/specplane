@@ -28,7 +28,7 @@ Decision records must be on (`decisions.enabled`); with them off, store and sear
 
 `config.get` needs no permission; searching uses `decision.retrieve`; storing uses `decision.add`. Editing or deleting a record is `decision.edit` or `decision.delete` and only on the user's explicit request.
 
-Every action checks its permissions in code. Allow acts directly unless custom steering asks for a request first. Request-user sends the exact action through `request.send`, writes nothing first, and ends outside a plan with the pending request ID. Deny refuses, names the permission, and permits no retry by another tool, role or direct edit. The LLM cannot accept or decline requests or switch roles. Never edit approval or execution status into a file.
+Every action checks its permissions in code. Allow acts directly unless custom steering asks for a request first. Request-user sends the exact action through `request.send`, writes nothing first, and ends outside a plan with the pending request ID. Deny refuses, names the permission, and permits no retry by another tool, role or direct edit. The LLM cannot switch roles. It answers a request (`request.accept`, `request.decline`) only when its own role has the permission of the requested action, it did not send the request, and steering says to; otherwise it leaves the request to the user. Never edit approval or execution status into a file.
 
 ## Output
 

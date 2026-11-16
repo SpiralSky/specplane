@@ -15,7 +15,7 @@ If you are reading this text, the Specplane plugin is not loaded: the interactiv
 
 ## Permissions and requests
 
-Call no action. Do not try to accept or decline any request, and do not use `request.send` for this. The LLM cannot accept or decline requests or switch roles. Never edit approval or execution status into a file.
+Call no action: this typed command only tells the user where the requests pane is. Answering requests is done through `request.accept` and `request.decline` outside this command. The LLM cannot switch roles. It answers a request (`request.accept`, `request.decline`) only when its own role has the permission of the requested action, it did not send the request, and steering says to; otherwise it leaves the request to the user. Never edit approval or execution status into a file.
 
 ## Output
 

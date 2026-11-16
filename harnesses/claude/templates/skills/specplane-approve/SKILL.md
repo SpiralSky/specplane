@@ -27,7 +27,7 @@ The typed approval command is user-only and mechanical, taking exact IDs without
 
 `config.get` needs no permission; retrieval uses `info.retrieve`; approval uses the `spec.approve.requirement`, `spec.approve.feature` or `spec.approve.architecture` permission of each specification type (decision records and plans use the feature one; approving the requirements page is the user's decision). Allow does not guarantee the LLM asks first; use request-user when confirmation is required. Never accept a request or edit approval records by hand.
 
-Every action checks its permissions in code. Allow acts directly unless custom steering asks for a request first. Request-user sends the exact action through `request.send`, writes nothing first, and ends outside a plan with the pending request ID. Deny refuses, names the permission, and permits no retry by another tool, role or direct edit. The LLM cannot accept or decline requests or switch roles. Never edit approval or execution status into a file.
+Every action checks its permissions in code. Allow acts directly unless custom steering asks for a request first. Request-user sends the exact action through `request.send`, writes nothing first, and ends outside a plan with the pending request ID. Deny refuses, names the permission, and permits no retry by another tool, role or direct edit. The LLM cannot switch roles. It answers a request (`request.accept`, `request.decline`) only when its own role has the permission of the requested action, it did not send the request, and steering says to; otherwise it leaves the request to the user. Never edit approval or execution status into a file.
 
 ## Output
 

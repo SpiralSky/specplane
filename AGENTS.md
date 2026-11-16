@@ -15,7 +15,7 @@ Steering stamp: da86e038d98756411ef5f20df9b3690b94a863226a7881f4b16a1392fdbbb111
 - Treat old specs, rules and code as reference. Adapt them where that makes development easier, or scrap them.
 - When an old rule or spec disagrees with the page, follow the page and mention the conflict. Do not stop, and do not reconcile old specs first.
 - Do not change the page's content unless the user asks. Show proposed text as a diff first.
-- Approvals stay with the user: the page sets spec approval to request user for LLM roles. Hooks that are still installed keep running until the user changes them.
+- Approvals stay with the user by default: the page sets spec approval to request user for LLM roles. Hooks that are still installed keep running until the user changes them.
 
 ## Routing plan requests
 
