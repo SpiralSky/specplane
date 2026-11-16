@@ -18,3 +18,16 @@ model gpt-6-luna, SPECPLANE_*/CLAUDE* stripped (user authorized fixture runs). T
    push notification is sent". PASS.
 Not verified: SPECPLANE_ADAPTER reaching the server (the audit view shows role llm/unknown, no adapter field), a plan step,
 a role rule.
+
+Rerun 2026-11-16 (main session through tmux, `codex exec -m gpt-6-luna -c model_reasoning_effort=low -s workspace-write`,
+SPECPLANE_*/CLAUDE* stripped in the tmux shell; the user said these are test runs and authorised the bypass):
+6. Adapter env: `warnings` returned "notifications.push is set, but codex does not support push notifications ...", so
+   SPECPLANE_ADAPTER=codex from .codex/config.toml reaches the server. The audit log carries no adapter field (the slice
+   read had four entries), so the warning text is the evidence. PASS.
+7. role_show returned role llm; role_list returned administrator, standard-user, llm. PASS.
+8. plan_list showed `2026-11-14-parallel-check` (approved, not-started); plan_next returned step 1 "Write files" with its
+   two parallel tasks and no refusal. PASS.
+9. Plan step: the model loaded the plan-step contract with docs_search and command_begin, found the plan soft-stopped and
+   needed plan.resume, which is request-user for the llm role. It sent request 20261116T052028Z-196a and stopped without
+   changing anything. This confirms the role rule is enforced on Codex and the request flow works. The step itself was
+   NOT run to completion: it waits for a person to accept that request in the fixture. PARTIAL.
