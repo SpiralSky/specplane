@@ -119,3 +119,25 @@ tsc clean, `npm test` 722 pass, 0 fail (the build rebuilds the plugin); `harness
 
 ### What the next step must know
 tsc clean, `npm test` 727 pass, 0 fail. Code commit follows f8bda89. `step4.out` and `step5.out` in the worktree root are scratch files; do not commit them. Do not call `plan.resume` unless the plan is stopped.
+
+## Step 06: R71 Requires lines in the contracts
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- `harnesses/claude/templates/skills/specplane-{plan-create,plan-abandon,plan-finish,validate,verify,spec-review}/SKILL.md`, `harnesses/codex/templates/contracts/*.md`, `packages/cli/assets/commands/*.md`: added `Requires:` lines in Preconditions (`plan.create`, `plan.abandon`, `plan.complete`, `info.retrieve` ×3) and the missing "must not be deny" sentences for plan-finish, verify and spec-review.
+- `.claude/skills/specplane-*/SKILL.md`: dogfood copies synced; `check-sync.sh` passes.
+- `packages/cli/src/harness/requires-lines.test.ts`: checks that a contract's `Requires:` line equals its "`X` must not be deny" sentences, and that exactly the six listed contracts have a line.
+
+### Deviations from the step
+None.
+
+### Gaps found
+None.
+
+### Open issues
+- `config.test.ts` "this repository's own configuration is valid" fails (1 of 747) because commit `d2071ae` set `bypass_guards.headless_block: off`; the test only tolerates the `hook_protect` warning. Not caused by this step; the test's allowance needs widening to `headless_block` too.
+
+### What the next step must know
+The line format is exactly `Requires: \`perm\`.` on its own line in Preconditions, one or more backticked permissions; the regex used by the test is `/^Requires: (.+)\.$/m` with backticked names extracted. `readContract(command)` and `COMMANDS` in `packages/cli/src/harness/instructions.ts` read the embedded contracts from `packages/cli/assets/commands/`. Step 07 should parse the same line from the built templates.

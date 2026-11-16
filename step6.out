@@ -1,0 +1,3 @@
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(docs/specifications/**) is not matched by file permission checks — only Edit(path) rules are. Use Edit(docs/specifications/**) instead (Edit rules cover all file-editing tools).
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(docs/work-records/**) is not matched by file permission checks — only Edit(path) rules are. Use Edit(docs/work-records/**) instead (Edit rules cover all file-editing tools).
+Permission allow rule (../../../specplane/.claude/settings.local.json): Write(HANDOFF.md) is not matched by file permission checks — only Edit(path) rules are. Use Edit(HANDOFF.md) instead (Edit rules cover all file-editing tools).
