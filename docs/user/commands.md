@@ -13,6 +13,8 @@ A command that changes something checks the permission of your role first (see `
 <!-- note: group-approval -->
 **Group approval.** Specs that cite each other, directly or through other specs, are approved together in one `spec approve` command. The command warns you and lists the specs being approved together. A role approves the group only if it has the approval permission of each member's type (`spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`). It fails, and approves none of them, if any member cannot be approved, for example because it cites a part of a specification that no longer exists.
 
+**Typed approve and inexact names.** The typed `approve` command (the CLI `approve` and the harness `/approve`) approves only exact IDs. A name that is not an exact ID approves nothing and starts no model turn; it lists up to ten best matches, grouped by specification, plan and decision, matched case-insensitively on words in IDs and titles (`approve preset creation` finds `feature/preset-creation`). A name that matches nothing says so. The LLM `spec.approve` action resolves IDs itself and keeps the plain "not found" failure.
+
 Approving writes one approval record per spec into the git notes store (`refs/notes/specplane`); it creates no commit on your branch. Use `specplane sync` to share the records with a remote.
 
 ### `plan create`
