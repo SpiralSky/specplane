@@ -15,6 +15,8 @@ Create an optional plan, or propose later changes to one (`plans R69`, `plan-exe
 
 Configuration must be present at HEAD. Stop with the reason and no change if a precondition fails. The adapter checks required capabilities and refuses missing capabilities by name. Instruction loading on demand is preferred when supported; otherwise use instruction injection. Typed commands without arguments run only mechanical steps and start no model turn; arguments accompany this contract under the acting role. Plain-language requests use the LLM role, never the user role.
 
+Requires: `plan.create`.
+
 `plan.create` must not be deny; later edits require `plan.edit`. No plan is required for ordinary work.
 
 ## Steps

@@ -9,7 +9,9 @@ Judge an architecture specification against its implementation and record eviden
 
 Configuration must be present at HEAD. Stop with the reason and no change if a precondition fails. The adapter checks required capabilities and refuses missing capabilities by name. Instruction loading on demand is preferred when supported; otherwise use instruction injection. Typed commands without arguments run only mechanical steps and start no model turn; arguments accompany this contract under the acting role. Plain-language requests use the LLM role, never the user role.
 
-Retrieve and test against committed state, ignoring pending implementation changes and explicitly noting a dirty tree. Marking implemented also requires architecture.llm_may_mark_implemented and the action permission.
+Requires: `info.retrieve`.
+
+`info.retrieve` must not be deny. Retrieve and test against committed state, ignoring pending implementation changes and explicitly noting a dirty tree. Marking implemented also requires architecture.llm_may_mark_implemented and the action permission.
 
 ## Steps
 

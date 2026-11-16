@@ -15,7 +15,9 @@ Present the final review and the user decision, with merging separate (`plan-exe
 
 Configuration must be present at HEAD. Stop with the reason and no change if a precondition fails. The adapter checks required capabilities and refuses missing capabilities by name. Instruction loading on demand is preferred when supported; otherwise use instruction injection. Typed commands without arguments run only mechanical steps and start no model turn; arguments accompany this contract under the acting role. Plain-language requests use the LLM role, never the user role.
 
-The user decides whether to complete or return for more work. Completion and merging need `plan.complete`; the contract never makes the decision for them.
+Requires: `plan.complete`.
+
+`plan.complete` must not be deny. The user decides whether to complete or return for more work. Completion and merging need it; the contract never makes the decision for them.
 
 ## Steps
 

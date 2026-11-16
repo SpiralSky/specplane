@@ -9,6 +9,8 @@ End a plan that will not be completed (`plan-execution §3`).
 
 Configuration must be present at HEAD. Stop with the reason and no change if a precondition fails. The adapter checks required capabilities and refuses missing capabilities by name. Instruction loading on demand is preferred when supported; otherwise use instruction injection. Typed commands without arguments run only mechanical steps and start no model turn; arguments accompany this contract under the acting role. Plain-language requests use the LLM role, never the user role.
 
+Requires: `plan.abandon`.
+
 `plan.abandon` must not be deny. The user confirms abandoning and chooses whether to force removal or keep a dirty worktree.
 
 ## Steps
