@@ -357,6 +357,9 @@ An LLM can also be asked in natural language to approve a specification, e.g. "P
 *R20.1: Spec approval Permissions*
 Each spec approval permission (see `R16.1`) should have allow, deny and request user permissions. The documentation (see `R22`) should note that an LLM role with allow approves without confirmation, and that steering does not guarantee it will ask first. Request user should be used where confirmation is required.
 
+*R20.2: Approving Plans and Decision Records*
+The typed approve command and a natural-language request to approve should also cover plans and decision records, not only specifications. Both resolve by ID in the same way, use the same approval permission as feature specifications, and run under the same checks as the CLI. For the LLM role, allow approves, request user sends a request and deny refuses. A command with a name that is not an exact ID behaves as in `R70`.
+
 **R21: Spec Viewing (Optional, per harness)**
 If the harness supports it, add a command for the user to view specific specs directly. The change in the spec since last approval should be highlighted if it is a spec that has been changed.
 
@@ -385,6 +388,9 @@ The user should be able to use the harness to manage, edit and create plans.
 
 *R31.1: Plan Management Permissions*
 Plan Management should have permissions for editing, creating, deleting, starting, abandoning and completing plans. Each permission should have 3 modes, allow, request user and deny.
+
+*R31.3: Plan Retargeting*
+The user should be able to change the branch a plan merges into, from the harness as well as the CLI, including for a stopped plan whose target branch no longer exists. Retargeting is plan management with the same three modes (`R31.1`) and is request user for LLM roles in all default presets.
 
 *R31.2: Parallelism*
 The user should be able to control how much parallelism is used in the plan steps. A parallel step contains multiple different tasks that do not depend on each other and require the harness to have subagents to execute the tasks in parallel.
