@@ -58,4 +58,5 @@ Implements `feature/roles-and-permissions` (R56.2 and the R56 and R57 edits) and
 05 R70: typed approve lists matches for an inexact name
 06 R71: Requires lines in the contracts
 07 R71: refuse denied commands before the model turn
-08 Verify the whole change
+08 Approve plans and decision records from the harness
+09 Verify the whole change
