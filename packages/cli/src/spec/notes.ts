@@ -139,6 +139,7 @@ export class NotesView {
   private tip: string | null | undefined;
   private reach = new Map<string, boolean>();
   private unchanged = new Map<string, boolean>();
+  private changes = new Map<string, Array<{ hash: string; files: string[] }> | null>();
   constructor(private root: string, private rev: string = "HEAD", private ref: string = NOTES_REF) {}
 
   get notes(): NotesIndex { return (this.index ??= readNotes(this.root, this.ref)); }
@@ -155,13 +156,36 @@ export class NotesView {
     return v;
   }
 
+  /** Commits after `from` that touch one of `paths` (a file or a directory), from one `git log` per start commit shared by every subject. */
+  private touching(from: string, paths: readonly string[]): string[] {
+    let all = this.changes.get(from);
+    if (all === undefined) {
+      const out = gitTry(this.root, ["log", "-m", "--format=%x01%H", "--name-only", "-z", `${from}..${this.rev}`]);
+      if (out === null) all = null;
+      else {
+        const seen = new Map<string, Set<string>>();
+        for (const chunk of out.split("\x01").slice(1)) {
+          const [hash, ...files] = chunk.split("\0").map((x) => x.replace(/^\n+/, "")).filter((x) => x !== "");
+          const set = seen.get(hash) ?? new Set<string>();
+          for (const f of files) set.add(f);
+          seen.set(hash, set);
+        }
+        all = [...seen].map(([hash, f]) => ({ hash, files: [...f] }));
+      }
+      this.changes.set(from, all);
+    }
+    if (all === null) return (gitTry(this.root, ["log", "--format=%H", `${from}..${this.rev}`, "--", ...paths]) ?? "").split("\n").filter(Boolean);
+    const hit = (f: string) => paths.some((p) => { const q = p.replace(/\/+$/, ""); return f === q || f.startsWith(q + "/"); });
+    return all.filter((c) => c.files.some(hit)).map((c) => c.hash);
+  }
+
   /** Rule 2 of `file-formats` §13.2: no commit after the attached one changed the subject's fingerprint. */
   private holds(s: Subject, st: Stored): boolean {
     if (!this.reachable(st.commit) || st.commit === this.revSha()) return true;
     const key = `${s.id}\0${st.commit}\0${st.rec.fingerprint}`;
     let v = this.unchanged.get(key);
     if (v === undefined) {
-      const hashes = (gitTry(this.root, ["log", "--format=%H", `${st.commit}..${this.rev}`, "--", ...s.paths]) ?? "").split("\n").filter(Boolean);
+      const hashes = this.touching(st.commit, s.paths);
       v = hashes.every((h) => s.fingerprintAt(h) === st.rec.fingerprint);
       this.unchanged.set(key, v);
     }
