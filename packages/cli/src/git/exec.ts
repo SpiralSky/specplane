@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { GitError } from "../errors.js";
+import { cachedGit } from "./cache.js";
 
 /**
  * Run `git` or `gh` with an argument array (never a shell string), returning stdout.
@@ -8,20 +9,24 @@ import { GitError } from "../errors.js";
 export function run(cmd: "git" | "gh", args: string[], opts: { cwd: string; input?: string | Buffer; binary: true; maxBuffer?: number }): Buffer;
 export function run(cmd: "git" | "gh", args: string[], opts: { cwd: string; input?: string | Buffer; binary?: false; maxBuffer?: number }): string;
 export function run(cmd: "git" | "gh", args: string[], opts: { cwd: string; input?: string | Buffer; binary?: boolean; maxBuffer?: number }): string | Buffer {
-  try {
-    return execFileSync(cmd, args, {
-      cwd: opts.cwd,
-      // Snapshot the caller's current environment. Some runtimes retain their
-      // startup environment when child options omit env, including an old PATH.
-      env: { ...process.env },
-      encoding: opts.binary ? "buffer" : "utf8",
-      maxBuffer: opts.maxBuffer ?? 64 * 1024 * 1024,
-      stdio: [opts.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
-      ...(opts.input === undefined ? {} : { input: opts.input }),
-    });
-  } catch (e) {
-    const err = e as { stderr?: Buffer | string; message?: string };
-    const stderr = (err.stderr ? err.stderr.toString() : "").trim() || err.message || "unknown error";
-    throw new GitError(`${cmd} ${args.join(" ")}`, stderr);
-  }
+  const compute = (): string | Buffer => {
+    try {
+      return execFileSync(cmd, args, {
+        cwd: opts.cwd,
+        // Snapshot the caller's current environment. Some runtimes retain their
+        // startup environment when child options omit env, including an old PATH.
+        env: { ...process.env },
+        encoding: opts.binary ? "buffer" : "utf8",
+        maxBuffer: opts.maxBuffer ?? 64 * 1024 * 1024,
+        stdio: [opts.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+        ...(opts.input === undefined ? {} : { input: opts.input }),
+      });
+    } catch (e) {
+      const err = e as { stderr?: Buffer | string; message?: string };
+      const stderr = (err.stderr ? err.stderr.toString() : "").trim() || err.message || "unknown error";
+      throw new GitError(`${cmd} ${args.join(" ")}`, stderr);
+    }
+  };
+  // Read-only git calls are cached per process; see ./cache.ts for the invalidation rules.
+  return cmd === "git" ? cachedGit(args, opts, compute) : compute();
 }
