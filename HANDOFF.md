@@ -5,9 +5,9 @@ Updated 2026-11-16 after the requests usability fixes. Read the first "Next sess
 
 The three issues in the user's `issues.md` (from using 0.1.1 in `steward`) are fixed on `main`, 686 pass / 0 fail, hooks 209:
 - Slow `/requests`: `SPECPLANE_AUTO_WARN=off` skips the auto-warn scan; the plugin sets it on its internal `--json` calls (~2 s to ~0.4 s per call). Not on win32 (`env` prefix). `cd2e268`, `92daefb`, `a515e85`.
-- Uncommitted config/preset writes print `Commit it to apply:` and `git add -- :/<file> && git commit -m "..." -- :/<file>`, plus `data.uncommitted`; the `/requests` summary says "Not yet in effect". `76176cb`, `ed81cd3`, `8587fb3`, review fix `0b3c3ad`.
-- `/requests` with 2+ pending opens Accept all / Decline all / Go through one by one first. `e6282eb`, `dc9aa77`.
-Reviewed once; specs re-approved as a group (notes `35b9da6`). Not live-checked in Claude Code: the faster pane, the summary note, the bulk dialogue. Follow-ups: Windows opt-out; `collectWarnings` still spawns ~3,700 git processes on every user command.
+- Uncommitted config/preset writes print `Commit it to apply:` and `git add -- :/<file> && git commit -m "..." -- :/<file>` for hand-run commands (`76176cb`, `0b3c3ad`). Per the user, accepting in the `/requests` pane commits the written file itself: `requests accept --commit` (`802362c`, `1f81263`, harness-run fix `4c5d7ba`), message `chore(config): set <key> (request <id>)`; on commit failure the accept stands and the hint shows. Preset changes cannot be requests, so in practice this covers config set/unset.
+- `/requests` with 2+ pending opens a multi-select pane (pages of 3 + `More…`), then Accept / Decline / one by one / Cancel; one selected goes to the per-request flow with diff (`e3229b6`, `349c239`). The host's multiSelect answer format is unverified; unrecognised answers fall back to the text list.
+Reviewed twice; specs re-approved as a group (notes `f0f93f3`). 693 pass / 0 fail. Not live-checked in Claude Code: the faster pane, commit on accept, the multi-select pane. Follow-ups: Windows opt-out; `collectWarnings` still spawns ~3,700 git processes on every user command.
 
 ## Update 2026-11-15 (late)
 
