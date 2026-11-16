@@ -510,3 +510,6 @@ Requirement IDs must be unique within the root project and within each subprojec
 
 *R39.4: Subproject Precedence*
 Root project requirements outrank subproject requirements. Within a subproject, `R65` applies.
+
+**R70: Unresolved Approval Targets**
+When the user runs a typed approve command with a name that is not an exact ID, the harness should not approve anything. Instead it should list the closest matching specification, plan and decision IDs and let the user pick one to approve. When the LLM is asked in plain language to approve something, it resolves the IDs itself and uses its own approval permission, sending a request where the permission is request user (`R52.3`).
