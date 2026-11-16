@@ -13,7 +13,7 @@ plans:
 # Maintainers edit the installed hooks by copying the templates over them (CLAUDE.md), so this guard stays off here.
 bypass_guards:
   hook_protect: off
-  headless_block: off
+  headless_block: on
 permissions:
   preset: self-dev
 decisions:
