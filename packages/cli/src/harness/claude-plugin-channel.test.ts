@@ -164,7 +164,7 @@ test("a reply that created a request opens one dialogue and runs the answer", op
   await m.arrivalDialogue(created, f.ask, f.core, f.log);
   assert.equal(f.asked.length, 1); assert.match(f.asked[0]!, /spec-writer/); assert.match(f.asked[0]!, /\+b/);
   assert.deepEqual(f.calls[0], ["harness", "run", "--adapter", "claude", "requests", "show", "r1", "--json"]);
-  assert.deepEqual(f.calls[1], ["harness", "run", "--adapter", "claude", "requests", "accept", "r1"]);
+  assert.deepEqual(f.calls[1], ["harness", "run", "--adapter", "claude", "requests", "accept", "r1", "--commit"]);
 });
 
 test("an accepted write that is not committed adds a not-yet-in-effect line with the commit command", opts, async () => {

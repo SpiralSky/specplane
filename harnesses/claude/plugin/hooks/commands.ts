@@ -97,7 +97,7 @@ const COUNT_LINE = /^(\d+ warnings?(; run .*)?|warnings unavailable)$/
 const resultLines = (r: CliResult): string[] => cleanText(r.stdout).split('\n').filter(l => l && !COUNT_LINE.test(l)).concat(cleanText(r.stderr).split('\n').filter(Boolean))
 const asText = (r: CliResult): string => resultLines(r).join('\n')
 
-/** The core marks a written-but-uncommitted file with a `Commit it to apply:` line followed by the ready-to-run `git add ... && git commit ...` line (`packages/cli/src/uncommitted.ts`); the same paths are in `data.uncommitted` of a `--json` result. The notice for the summary, else undefined. */
+/** The core marks a written-but-uncommitted file with a `Commit it to apply:` line followed by the ready-to-run `git add ... && git commit ...` line (`packages/cli/src/uncommitted.ts`); the same paths are in `data.uncommitted` of a `--json` result. Only a failed `requests accept --commit` leaves these lines (a successful one prints `Committed ... in effect now.`); the notice is for that fallback, else undefined. */
 export function uncommittedNote(text: string): string | undefined {
   const lines = text.split('\n')
   const i = lines.findIndex(l => l.trim() === 'Commit it to apply:')
@@ -129,7 +129,7 @@ export async function runDialogue(requests: RequestView[], ask: AskPort, core: C
 async function answerOne(r: RequestView, answer: 'Accept' | 'Decline', core: CorePort, signal?: AbortSignal, outcomes?: Outcome[]): Promise<string[]> {
   const out: string[] = []
   try {
-    const res = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', answer === 'Accept' ? 'accept' : 'decline', r.id], signal)
+    const res = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', ...(answer === 'Accept' ? ['accept', r.id, '--commit'] : ['decline', r.id])], signal)
     const text = asText(res)
     out.push(text || `${answer} ${r.id}: done.`)
     if (answer === 'Accept' && res.exitCode === 0) { const note = uncommittedNote(text); if (note) out.push(note) }
@@ -303,7 +303,9 @@ export async function dispatch(cmd: SlashCommand, rawArgs: string, core: CorePor
     return { output: { text: `/${cmd.name}: handing your arguments to the assistant.` }, prompt: skillPrompt(cmd.name, args) }
   }
   let r: CliResult
-  try { r = await core.run(['harness', 'run', '--adapter', 'claude', cmd.name, ...args], signal) } catch (e) {
+  // A typed `accept` is the person's accept too: the core commits the config or preset file it writes, so it is in effect at once.
+  const argv = cmd.name === 'requests' && args[0] === 'accept' && !args.includes('--commit') ? [...args, '--commit'] : args
+  try { r = await core.run(['harness', 'run', '--adapter', 'claude', cmd.name, ...argv], signal) } catch (e) {
     return { output: { text: `/${cmd.name} could not run the Specplane core: ${e instanceof Error ? e.message : String(e)}`, exitCode: 1 } }
   }
   const text = [r.stdout.trim(), r.stderr.trim()].filter(Boolean).join('\n') || `/${cmd.name}: done.`
