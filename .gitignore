@@ -3,8 +3,8 @@
 # build output
 packages/cli/dist/
 
-# dependencies
-node_modules/
+# dependencies (no trailing slash: a plan worktree links node_modules, and a link is not a directory)
+node_modules
 
 # OS
 .DS_Store
