@@ -513,3 +513,6 @@ Root project requirements outrank subproject requirements. Within a subproject, 
 
 **R70: Unresolved Approval Targets**
 When the user runs a typed approve command with a name that is not an exact ID, the harness should not approve anything. Instead it should list the closest matching specification, plan and decision IDs and let the user pick one to approve. When the LLM is asked in plain language to approve something, it resolves the IDs itself and uses its own approval permission, sending a request where the permission is request user (`R52.3`).
+
+**R71: Denied Commands Skip the Model**
+When a command would start a model turn, the harness should first check the permissions the command cannot do anything without. If the LLM role has any of them as deny, the harness refuses the command before the turn starts, names the denied permission, and spends no model call. A permission that is allow or request user does not block the turn, since the LLM can still act or send a request (`R52.3`). Permissions that only some uses of a command need do not trigger this refusal. A typed command that the user's own role can complete mechanically, such as approve with exact IDs, runs under the user's permissions and starts no model turn at all.
