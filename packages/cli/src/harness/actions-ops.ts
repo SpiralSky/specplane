@@ -63,7 +63,7 @@ export function registerOperationActions(add: Adder): void {
     return { ok: r.ok, reasons: r.reasons, lines: r.lines, request: r.request?.id };
   });
   // Answering is decided by the answerer's permission for the requested action, checked inside the core (`requests R52.2`).
-  const answer = (c: ActionContext, r: Awaited<ReturnType<typeof acceptRequest>>) => ({ ok: r.ok, reasons: r.reasons, lines: r.lines, request: r.request?.id, ...(r.committed ? { committed: r.committed } : {}) });
+  const answer = (c: ActionContext, r: Awaited<ReturnType<typeof acceptRequest>>) => ({ ok: r.ok, reasons: r.reasons, lines: r.lines, answered: r.request?.id, state: r.request?.state, ...(r.committed ? { committed: r.committed } : {}) });
   add("request.accept", { id: str, note: str }, ["id"], [], false, async (c, p) => answer(c, await acceptRequest(base(c), p.id, p.note)));
   add("request.decline", { id: str, note: str }, ["id"], [], false, async (c, p) => answer(c, await declineRequest(base(c), p.id, p.note)));
 }

@@ -175,9 +175,9 @@ function refuse(ctx: RequestCtx, rec: RequestRecord | null, id: string, command:
 
 const SENDER_MSG = "The sender of a request cannot answer it.";
 
-/** The sender is the same role in the same session as recorded on the request (`requests R52.2`). */
+/** The sender is the role that sent the request, or any actor in the session that sent it (`requests R52.2`). */
 function isSender(ctx: RequestCtx, rec: RequestRecord): boolean {
-  return rec.from.role === ctx.actor.role && (rec.from.session ?? null) === (ctx.actor.session ?? null);
+  return rec.from.role === ctx.actor.role || (!!rec.from.session && rec.from.session === ctx.actor.session);
 }
 
 /**

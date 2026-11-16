@@ -126,6 +126,7 @@ export function createActionRuntime(session: ActionSession) {
         ...(caller?.agentId ? { agentId: caller.agentId } : {}), // A subagent inherits the session's role unless a rule about the subagent itself overrides it (`R42.1`).
         role: caller?.agentId ? resolveSubagentRole(session.root, callFactors, factors) : resolveLlmRole(session.root, callFactors) };
       let permissions: string[] = [];
+      let answerOutcome: "done" | "refused" | "failed" | undefined;
       try {
         const action = validateActionInput(id, input);
         const p = input as Input;
@@ -155,7 +156,8 @@ export function createActionRuntime(session: ActionSession) {
           // Write cores prepare exact changes and create their own requests under request-user.
           const data = await action.handler(ctx, p);
           reply.data = data;
-          const r = data as { ok?: boolean; request?: string; reasons?: string[] } | null;
+          const r = data as { ok?: boolean; request?: string; reasons?: string[]; state?: string } | null;
+          if (id === "request.accept" || id === "request.decline") answerOutcome = r?.ok === false ? (r.state === "failed" ? "failed" : "refused") : "done";
           reply.ok = r?.ok !== false;
           reply.request = r?.request;
           reply.findings = r?.reasons ?? [];
@@ -165,7 +167,7 @@ export function createActionRuntime(session: ActionSession) {
         else reply.findings.push(e instanceof Error ? e.message : String(e));
       }
       audit(session.root, { command: id, args: [], permission: permissions[0] ?? null, actor,
-        outcome: reply.request ? "request-sent" : reply.ok ? "done" : "refused", reason: reply.findings[0], request: reply.request }, session.now);
+        outcome: answerOutcome ?? (reply.request ? "request-sent" : reply.ok ? "done" : "refused"), reason: reply.findings[0], request: reply.request }, session.now);
       if (loadSettings(session.root).config.autoWarn) {
         try { reply.warningCount = collectWarnings(session.root).length + sessionWarnings.length; } catch { reply.warningCount = null; }
       }

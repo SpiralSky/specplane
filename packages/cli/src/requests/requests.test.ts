@@ -39,7 +39,7 @@ function repo(): string {
   return root;
 }
 const actor = (role: Actor["role"], kind: Actor["kind"] = role === "llm" ? "llm" : "human"): Actor =>
-  kind === "llm" ? { role, kind, name: "claude", model: "claude-sonnet-5-5" } : { role, kind, name: "Pat Person", ...(role === "llm" ? { session: "person-session" } : {}) };
+  kind === "llm" ? { role, kind, name: "claude", model: "claude-sonnet-5-5" } : { role, kind, name: "Pat Person" };
 const NOW = new Date("2026-11-10T12:00:00Z");
 const sctx = (root: string, role: Actor["role"] = "llm", preset: Preset = DEFAULT_PRESET): Ctx & RequestCtx => ({ root, actor: actor(role), preset, now: NOW });
 const user = (root: string, preset: Preset = DEFAULT_PRESET): RequestCtx => ({ root, actor: actor("standard-user"), preset, now: NOW });
@@ -102,22 +102,32 @@ test("accepting needs the permission of the action with mode allow, checked now;
   const root = repo();
   const r = await approveSpecs(sctx(root), ["feature/a"]);
   // a role whose own mode is request-user (LLM table) held by a person cannot accept
-  const res = await acceptRequest({ root, actor: actor("llm", "human"), preset: DEFAULT_PRESET, now: NOW }, r.request!);
+  const res = await acceptRequest({ root, actor: { ...actor("standard-user"), role: "reviewer" }, preset: DEFAULT_PRESET, now: NOW }, r.request!);
   assert.ok(!res.ok);
   assert.match(res.reasons[0], /spec\.approve.*allow.*pending/s);
   assert.equal(readRequest(root, r.request!)!.state, "pending");
   assert.ok(auditLog(root).some((e) => e.command === "requests accept" && e.outcome === "refused" && e.permission === "spec.approve.feature"));
   // an LLM role other than the sender is answered by permission: with request-user it is refused, naming the permission
-  const other = { ...actor("llm"), session: "other-session" };
+  const other = { ...actor("llm"), role: "reviewer", session: "other-session" };
+  const sentBy = (role: string, session: string | null = null) => holdRequest({ root, actor: { ...actor("llm"), role, ...(session ? { session } : {}) }, permissions: ["spec.approve.feature"], decidedBy: "spec.approve.feature", command: "spec approve", params: { ids: ["feature/a"] }, reason: "r" }).id;
   const byLlm = await acceptRequest({ root, actor: other, preset: PRESETS[3], now: NOW }, r.request!);
   assert.match(byLlm.reasons[0], /spec\.approve.*allow.*pending/s);
   const declined = await declineRequest({ root, actor: other, preset: PRESETS[3], now: NOW }, r.request!);
   assert.match(declined.reasons[0], /Cannot decline.*spec\.approve.*allow.*pending/s);
-  // the sender (same role, same session) cannot answer, even with the permission
-  const allowAll: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "allow", modes: {} } };
-  assert.match((await acceptRequest({ root, actor: actor("llm"), preset: allowAll, now: NOW }, r.request!)).reasons[0], /sender of a request cannot answer it/);
-  assert.match((await declineRequest({ root, actor: actor("llm"), preset: allowAll, now: NOW }, r.request!)).reasons[0], /sender of a request cannot answer it/);
-  assert.equal(readRequest(root, r.request!)!.state, "pending");
+  // the sender cannot answer, even with the permission: same role, or the same non-null session
+  const allowAll: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "allow", modes: {} }, standardUser: { defaultMode: "allow", modes: {} } };
+  const sameRole = sentBy("llm", "s1");
+  for (const fn of [acceptRequest, declineRequest]) {
+    assert.match((await fn({ root, actor: { ...actor("llm"), session: "s2" }, preset: allowAll, now: NOW }, sameRole)).reasons[0], /sender of a request cannot answer it/);
+  }
+  const sameSession = sentBy("sender-role", "s1");
+  for (const fn of [acceptRequest, declineRequest]) {
+    assert.match((await fn({ root, actor: { ...actor("llm"), session: "s1" }, preset: allowAll, now: NOW }, sameSession)).reasons[0], /sender of a request cannot answer it/);
+  }
+  assert.equal(readRequest(root, sameRole)!.state, "pending");
+  assert.equal(readRequest(root, sameSession)!.state, "pending");
+  // a different role in a different session is allowed
+  assert.ok((await declineRequest({ root, actor: { ...actor("llm"), session: "s3" }, preset: allowAll, now: NOW }, sameSession)).ok);
   // changing the active preset does not rewrite the record; the check uses the preset in force at accept time
   const denyAll: Preset = { ...DEFAULT_PRESET, standardUser: { defaultMode: "deny", modes: {} } };
   assert.ok(!(await acceptRequest(user(root, denyAll), r.request!)).ok);
@@ -482,7 +492,7 @@ test("explicit send resolves destination HEAD and committed preset before permis
   sh(wt, "add", ".specplane/config.yaml");
   sh(wt, "commit", "-qm", "destination permissions");
   const held = holdRequest({ root: wt, actor: actor("llm"), permissions: ["spec.edit.feature"], decidedBy: "spec.edit.feature", command: "spec edit", params: { spec: "feature/a", patch: makePatch(`${F}/a.md`, read(wt, "a"), read(wt, "a").replace("Text.", "Denied.")) }, reason: "held" });
-  const denied = await acceptRequest({ root, actor: actor("llm", "human"), preset: PRESETS[3] }, held.id);
+  const denied = await acceptRequest({ root, actor: { ...actor("llm", "human"), role: "reviewer" }, preset: PRESETS[3] }, held.id);
   assert.equal(denied.ok, false);
   assert.match(denied.reasons.join(), /spec.edit.feature/);
   assert.equal(readRequest(root, held.id)!.state, "pending");
@@ -608,14 +618,14 @@ test("pendingFull gives every pending request with the details show gives, in on
   void done;
 });
 
-test("an LLM role with allow on the requested action accepts or declines a request sent by another actor", async () => {
+test("an LLM role with allow on the requested action accepts or declines a request sent by a different role", async () => {
   const allowAll: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "allow", modes: {} } };
   const root = repo();
-  const r = await approveSpecs(sctx(root), ["feature/a"]);
-  const other = { ...actor("llm"), session: "other-session" };
-  assert.ok((await acceptRequest({ root, actor: other, preset: allowAll, now: NOW }, r.request!)).ok);
-  assert.equal(readRequest(root, r.request!)!.state, "accepted");
-  const r2 = await approveSpecs(sctx(root), ["feature/b"]);
-  assert.ok((await declineRequest({ root, actor: other, preset: allowAll, now: NOW }, r2.request!)).ok);
-  assert.equal(readRequest(root, r2.request!)!.state, "declined");
+  const send = (id: string) => holdRequest({ root, actor: { ...actor("llm"), role: "other-role", session: "sender-session" }, permissions: ["spec.approve.feature"], decidedBy: "spec.approve.feature", command: "spec approve", params: { ids: [`feature/${id}`] }, reason: "r" }).id;
+  const a = send("a");
+  assert.ok((await acceptRequest({ root, actor: actor("llm"), preset: allowAll, now: NOW }, a)).ok);
+  assert.equal(readRequest(root, a)!.state, "accepted");
+  const b = send("b");
+  assert.ok((await declineRequest({ root, actor: actor("llm"), preset: allowAll, now: NOW }, b)).ok);
+  assert.equal(readRequest(root, b)!.state, "declined");
 });
