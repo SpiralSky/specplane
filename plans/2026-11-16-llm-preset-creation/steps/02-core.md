@@ -19,3 +19,9 @@ Make `presetCreate` (`packages/cli/src/perm/preset-ops.ts`) work for an LLM acto
 2. Apply the level and escalation checks to LLM-created presets on effective modes, defaults included (a default mode above the LLM role's own, or any Standard User default, is refused).
 3. Add `presetPreview` with one text layout shared with `preset show`.
 4. Write the tests.
+
+## Worker conventions (every step)
+
+- Work only in this plan's worktree. Run `npx tsc --noEmit -p .` in `packages/cli` before every `npm run build`, then `npm test` (it builds first). Run `sh harnesses/claude/tests/hooks.test.sh` and `sh harnesses/claude/tests/check-sync.sh` whenever hooks, templates or `.claude/` files change; `docs/user` edits must pass `npm run build` (`validate-docs.mjs`, `build-command-docs`).
+- Stage specific paths only (never `git add -A`; `demo.cast` is untracked). Commit messages follow `file-formats` §8 and end with the `Co-Authored-By` trailer given in the session context; add the `Specplane-Agent` and `Specplane-Session` trailers when those variables are set.
+- Record gaps in the step handoff (`plan step-done`), not in code comments.

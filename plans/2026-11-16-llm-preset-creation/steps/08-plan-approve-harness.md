@@ -5,7 +5,7 @@ title: Approve plans and decision records from the harness
 ---
 ## Goal
 
-Let the harness approve plans and decision records, which the CLI already does (`plan approve <id>`, requestable as `plan approve`, guarded by `spec.approve.feature`). Today the harness action `spec.approve` and the typed `/approve` command only resolve specification IDs, so approving a plan from a session fails with "Specification `<plan-id>` not found" even though the approve skill and the `spec.approve.feature` steering both say they approve plans and decision records. Code: `packages/cli/src/harness/actions.ts` (the `spec.approve` action), `packages/cli/src/commands/plan-cli.ts` (`plan approve`) and its core function, the typed approve path in `harnesses/claude/plugin/hooks/commands.ts`, and the match listing from step 5.
+Let the harness approve plans. The CLI already does (`plan approve <id>`, requestable as `plan approve`, guarded by `spec.approve.feature`), and `approveSpecs` in `packages/cli/src/spec/human.ts` already routes decision record IDs (`isDecisionId`, `approveDecisions`) and rejects mixing decisions with specifications. Plan IDs are the missing part: approving one from a session fails with "Specification `<plan-id>` not found". Resolution order is specification, then plan, then decision record (`architecture/reference-cli`, "Approving plans and decision records"); keep the mixed-ID rule. Code: `packages/cli/src/harness/actions.ts` (the `spec.approve` action), `approvePlan` in `packages/cli/src/plan/create.ts` (about line 73, takes a `PlanCtx`), `packages/cli/src/harness/run.ts` (`specApproveHuman`, about lines 110 and 131), `packages/cli/src/spec/human.ts`, and the matcher from step 5.
 
 ## Acceptance criteria
 
@@ -16,6 +16,12 @@ Let the harness approve plans and decision records, which the CLI already does (
 
 ## Tasks
 
-1. Route plan and decision IDs in the harness approve action to the existing approval functions.
+1. Route plan IDs in the harness approve action and in `specApproveHuman` to `approvePlan`; keep the decision path.
 2. Make the typed `/approve` resolve them too and reuse the step 5 matcher for inexact names.
 3. Write the tests and update `docs/user/commands.md`.
+
+## Worker conventions (every step)
+
+- Work only in this plan's worktree. Run `npx tsc --noEmit -p .` in `packages/cli` before every `npm run build`, then `npm test` (it builds first). Run `sh harnesses/claude/tests/hooks.test.sh` and `sh harnesses/claude/tests/check-sync.sh` whenever hooks, templates or `.claude/` files change; `docs/user` edits must pass `npm run build` (`validate-docs.mjs`, `build-command-docs`).
+- Stage specific paths only (never `git add -A`; `demo.cast` is untracked). Commit messages follow `file-formats` §8 and end with the `Co-Authored-By` trailer given in the session context; add the `Specplane-Agent` and `Specplane-Session` trailers when those variables are set.
+- Record gaps in the step handoff (`plan step-done`), not in code comments.
