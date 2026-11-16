@@ -89,3 +89,8 @@ Not checked: Skip's notification staying, because none was sent. Codex: not run 
 Findings: (a) labels and the arrival dialogue name only "config set", not the key and value, so several config
 requests are indistinguishable; (b) the pane's open time grows by about 0.5 s per pending request. Fixture left with
 auto_warn off and decisions.enabled on (committed) and stale pending requests f667, a64d, afc0, 7b74.
+19. Rerun after 7f13f1b..b2ff675 (same method, plugin rebuilt): the arrival dialogue read "Request <id> from llm: config
+    set audit.retention 60"; pane labels read e.g. "<id>: spec edit feature/greeting", "<id>: plan start
+    2026-1-14-parallel-check", "<id>: config set audit.retention 60". With 5 pending the pane opened 0.8 s after Enter
+    (one `requests list --json --full` call), against 3.6 s with 7 pending before. Decline of the test request:
+    "Declined <id>. Nothing was changed." PASS; findings (a) and (b) fixed.
