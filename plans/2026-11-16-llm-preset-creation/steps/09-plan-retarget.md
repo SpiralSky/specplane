@@ -1,0 +1,22 @@
+---
+plan: 2026-11-16-llm-preset-creation
+step: 9
+title: Plan retargeting permission and harness action
+---
+## Goal
+
+Add the permission `plan.retarget` and the harness action `plan.retarget`, and move retarget off `plan.resume`. Spec: `feature/plan-execution` R31.3, `architecture/reference-cli` ("Retarget" paragraph before "Active command"), `architecture/file-formats` (permission table and example preset). Code: `packages/cli/src/perm/catalog.ts`, the default presets in `packages/cli/src/perm/presets.ts` (request user for the LLM role in all four), the `retarget` core function in `packages/cli/src/plan/run.ts` and its CLI in `packages/cli/src/commands/plan-cli.ts`, `packages/cli/src/harness/actions-plan.ts` (`plan.resume` is the model), `packages/cli/src/requests/requirements.ts` (`plan retarget` currently needs `plan.resume`; it must need `plan.retarget`).
+
+## Acceptance criteria
+
+- `permissions plan.retarget` shows its documentation and the mode per default preset (request user for the LLM role).
+- A retarget needs `plan.retarget`; a role with only `plan.resume` is refused, and resuming does not retarget.
+- The harness `plan.retarget` works for a stopped plan whose target branch is gone, and the request form (`plan retarget`) needs `plan.retarget`.
+- Existing presets and tests that gave retarget under `plan.resume` are updated; custom presets that state `plan.resume` keep working (unstated `plan.retarget` takes the preset default).
+
+## Tasks
+
+1. Add the catalog entry and the four preset defaults.
+2. Switch the CLI, the core function and the request requirements to `plan.retarget`.
+3. Add the harness action and tests for allow, request user, deny and the resume-only refusal.
+4. Document it in `docs/user/permissions.md` and `docs/user/plans.md`.

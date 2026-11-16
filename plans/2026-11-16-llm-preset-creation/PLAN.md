@@ -1,26 +1,29 @@
 ---
 id: plan/2026-11-16-llm-preset-creation
-title: LLM preset creation (R56.2), approve suggestions (R70), denied-command short circuit (R71)
+title: LLM preset creation (R56.2), approval and retarget from the harness (R20.2, R31.3, R70), denied-command short circuit (R71)
 authors:
   - llm: unknown
 implements:
   - spec: feature/roles-and-permissions
-    commit: be3ea67a09ea243e52a3bcf6ed862c5604466e88
+    commit: 8452119c8333abc1b8082ec707f2478cf724ced0
     mode: implements
   - spec: architecture/reference-cli
-    commit: be3ea67a09ea243e52a3bcf6ed862c5604466e88
+    commit: 8452119c8333abc1b8082ec707f2478cf724ced0
     mode: implements
   - spec: architecture/file-formats
-    commit: 6214cdc2aee9c192e7c7ac076effe3ea93615cd3
+    commit: 8452119c8333abc1b8082ec707f2478cf724ced0
     mode: implements
   - spec: feature/harness
-    commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
+    commit: 8452119c8333abc1b8082ec707f2478cf724ced0
+    mode: implements
+  - spec: feature/plan-execution
+    commit: 8452119c8333abc1b8082ec707f2478cf724ced0
     mode: implements
   - spec: architecture/agent-skills
     commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
     mode: implements
 ---
-# LLM preset creation (R56.2), approve suggestions (R70), denied-command short circuit (R71)
+# LLM preset creation (R56.2), approval and retarget from the harness (R20.2, R31.3, R70), denied-command short circuit (R71)
 
 ## Goal
 
@@ -30,6 +33,7 @@ Let the LLM role create a permission preset under the new permission `preset.cre
 
 - In: the `preset.create` permission and its defaults in all four default presets; `presetCreate` for an LLM actor; harness actions `preset.list`, `preset.show`, `preset.create`; a requestable `preset create` with a preview; display of the preview in `requests show`, the Claude `/requests` pane and the arrival dialogue; steering text; tests and user docs.
 - In (R70, R71): the typed approve command lists matching IDs for an inexact name and approves nothing; commands that start a model turn read a `Requires:` line from their contract and refuse at once when the LLM role has a required permission as deny.
+- In (R20.2, R31.3): approving plans and decision records from the harness (typed and plain language); the permission and harness action `plan.retarget`, moved off `plan.resume`.
 - Out: LLM editing or deleting presets, activating a preset (stays a `config set` request), custom roles, Codex-side dialogue (Codex has no popup).
 
 ## Specifications
@@ -42,6 +46,7 @@ Implements `feature/roles-and-permissions` (R56.2 and the R56 and R57 edits) and
 - Deny refuses and stores no request; allow writes an uncommitted preset that states modes only for the LLM role and none above the LLM role's own; request user stores a request holding the full preset and its preview, writes nothing until accepted, and an accept by a role without `role.manage` is refused.
 - A preset created this way is never active.
 - Typed approve with `requirements` approves nothing, starts no model turn and lists the matching ID; with an exact ID it approves under the user's permissions. A command whose required permission is deny for the LLM role is refused before any model turn; allow and request user start it.
+- `/approve <plan-id>` and the harness `spec.approve` approve a plan and a decision record; `plan.retarget` guards retarget, and a role with only `plan.resume` cannot retarget.
 - `npx tsc --noEmit -p .` and `npm test` in `packages/cli` pass, `sh harnesses/claude/tests/hooks.test.sh` and `sh harnesses/claude/tests/check-sync.sh` pass, and `validate` reports no errors.
 
 ## Risks
@@ -59,4 +64,5 @@ Implements `feature/roles-and-permissions` (R56.2 and the R56 and R57 edits) and
 06 R71: Requires lines in the contracts
 07 R71: refuse denied commands before the model turn
 08 Approve plans and decision records from the harness
-09 Verify the whole change
+09 Plan retargeting permission and harness action
+10 Verify the whole change
