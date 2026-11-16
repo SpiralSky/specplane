@@ -55,6 +55,7 @@ function docs(): PermDoc[] {
   add("plan.complete", "Complete a plan, and merge it.", "Starting or abandoning it.", ["plan finish", "plan merge"]);
   add("plan.budget", "Set the budget of a plan.", "Anything else about the plan.", ["plan budget"]);
   add("plan.resume", "Resume a stopped plan.", "Starting a plan that never ran.", ["plan resume"]);
+  add("plan.retarget", "Change the target branch of a started plan, without resuming it.", "Resuming the plan.", ["plan retarget"]);
   add("plan.softstop", "Stop a running plan after the current work.", "Abandoning it.", ["plan stop"]);
   add("decision.add", "Add a decision record the user made.", "Editing or deleting one.", ["decision add"]);
   add("decision.retrieve", "Read decision records: list, search and show.", "Changing them.", ["decision list", "decision show"]);

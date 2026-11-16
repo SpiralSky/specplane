@@ -36,15 +36,15 @@ const inputs: Record<string, Record<string, unknown>> = {
   "request.send": { command: "spec approve", params: { ids: ["architecture/arch"] }, reason: "Please approve" },
   "plan.create": { words: ["some", "plan"] }, "plan.edit": { id: PLAN, changes: [{ path: "PLAN.md", before: "a", after: "b" }] },
   "plan.list": {}, "plan.next": { id: PLAN }, "plan.step-done": { id: PLAN, step: 1, outcome: "done" },
-  "plan.softstop": { id: PLAN }, "plan.start": { id: PLAN }, "plan.resume": { id: PLAN }, "plan.abandon": { id: PLAN }, "plan.delete": { id: PLAN },
+  "plan.softstop": { id: PLAN }, "plan.start": { id: PLAN }, "plan.resume": { id: PLAN }, "plan.retarget": { id: PLAN, target: "main" }, "plan.abandon": { id: PLAN }, "plan.delete": { id: PLAN },
   "plan.budget": { id: PLAN, resource: "tokens", soft: 80, hard: 90 }, "plan.review": { id: PLAN }, "plan.finish": { id: PLAN, complete: true }, "plan.merge": { id: PLAN, mode: "local" },
 };
 const added = listActions().filter((a) => a.id in inputs);
 
-test("the remaining 20 actions are registered with strict schemas", () => {
-  assert.equal(added.length, 20);
-  assert.equal(listActions().length, 46);
-  assert.equal(added.filter((a) => a.id.startsWith("plan.")).length, 14);
+test("the remaining 21 actions are registered with strict schemas", () => {
+  assert.equal(added.length, 21);
+  assert.equal(listActions().length, 47);
+  assert.equal(added.filter((a) => a.id.startsWith("plan.")).length, 15);
   for (const a of listActions()) assert.equal((a.inputSchema as { additionalProperties: boolean }).additionalProperties, false, a.id);
 });
 
@@ -172,5 +172,43 @@ test("plan.start opens the plan's session through the adapter, and reports a ref
     assert.equal(failed.ok, false);
     assert.match(failed.findings.join(), /open it yourself/);
     assert.match(String(run("git", ["branch", "--list", `plan/${PLAN}`], { cwd: root2 })), new RegExp(`plan/${PLAN}`), "the plan itself started before the launch was refused");
+  } finally { DEFAULT_PRESET.llm.modes = prior; }
+});
+
+test("plan.retarget has its own permission: resume alone does not allow it, and it does not resume (R31.3)", async () => {
+  const root = repo();
+  const prior = DEFAULT_PRESET.llm.modes;
+  const progress = () => {
+    const wt = run("git", ["worktree", "list", "--porcelain"], { cwd: root }).split("\n").filter((l) => l.startsWith("worktree ")).map((l) => l.slice(9)).find((w) => w !== root)!;
+    return fs.readFileSync(path.join(wt, "plans", PLAN, "progress.yaml"), "utf8");
+  };
+  const withModes = (m: Record<string, Mode>) => { DEFAULT_PRESET.llm.modes = { ...prior, "plan.create": "allow", "plan.start": "allow", "plan.softstop": "allow", ...m }; };
+  try {
+    withModes({ "plan.resume": "allow", "plan.retarget": "deny" });
+    const rt = runtime(root);
+    assert.equal((await rt.call("plan.create", { words: ["some", "plan"] })).ok, true);
+    approvePlan({ ...human(root) }, PLAN);
+    assert.equal((await rt.call("plan.start", { id: PLAN })).ok, true);
+    assert.equal((await rt.call("plan.softstop", { id: PLAN, reason: "pause" })).ok, true);
+    run("git", ["branch", "trunk"], { cwd: root });
+    const stopped = progress();
+    // Resume permission alone is not enough.
+    assert.equal((await rt.call("plan.retarget", { id: PLAN, target: "trunk" })).ok, false);
+    assert.equal(progress(), stopped, "a denied retarget changes nothing");
+    // Request user: a request is sent and nothing changes until accepted.
+    withModes({ "plan.resume": "allow", "plan.retarget": "request-user" });
+    const asked = await rt.call("plan.retarget", { id: PLAN, target: "trunk" });
+    assert.equal(asked.ok, true, asked.findings.join());
+    assert.ok(asked.request, "a request was sent");
+    assert.equal(progress(), stopped, "nothing changes until accepted");
+    assert.equal(readRequest(root, asked.request!)!.action.command, "plan retarget");
+    // Allow retargets a stopped plan whose target branch is gone, without resuming it.
+    run("git", ["branch", "-m", "main", "gone"], { cwd: root });
+    run("git", ["branch", "-m", "trunk", "main"], { cwd: root });
+    withModes({ "plan.resume": "deny", "plan.retarget": "allow" });
+    assert.equal((await rt.call("plan.retarget", { id: PLAN, target: "gone" })).ok, true);
+    assert.match(progress(), /target_branch: gone/);
+    assert.match(progress(), /status: stopped/, "retargeting does not resume");
+    assert.equal((await rt.call("plan.retarget", { id: PLAN, target: "nope" })).ok, false, "an unknown branch is refused");
   } finally { DEFAULT_PRESET.llm.modes = prior; }
 });

@@ -37,7 +37,7 @@ test("tools/list returns exactly one tool per action with its schema and no user
   const r = await rpc(server(repo()), "tools/list");
   const tools = r.result.tools as { name: string; inputSchema: { additionalProperties: boolean } }[];
   const actions = listActions();
-  assert.equal(tools.length, 46);
+  assert.equal(tools.length, 47);
   assert.deepEqual(tools.map((t) => t.name), actions.map((a) => toolName(a.id)));
   assert.equal(new Set(tools.map((t) => t.name)).size, tools.length);
   tools.forEach((t, i) => assert.deepEqual(t.inputSchema, actions[i].inputSchema));
@@ -96,7 +96,7 @@ test("the stdio entry point serves tools/list and tools/call with the adapter's 
   assert.equal(code, 0);
   const replies = out.trim().split("\n").map((l) => JSON.parse(l));
   assert.deepEqual(replies.map((r) => r.id), [1, 2, 3]);
-  assert.equal(replies[1].result.tools.length, 46);
+  assert.equal(replies[1].result.tools.length, 47);
   const requestId = JSON.parse(replies[2].result.content[0].text).request;
   assert.ok(requestId);
   const stored = readRequest(root, requestId)!;

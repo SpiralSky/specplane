@@ -3,7 +3,7 @@ import { createPlan } from "../plan/create.js";
 import { editPlan, validateEditParams } from "../plan/edit.js";
 import { liveRoot, requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { abandonPlan, deletePlan, finishPlan, mergePlan, reviewPlan } from "../plan/finish.js";
-import { resumePlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
+import { resumePlan, retargetPlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
 import "./adapters.js";
 import { getAdapter } from "./adapter.js";
 import { checkSelectionText, describePlan, listInfos, stepTasks } from "../plan/status.js";
@@ -52,6 +52,7 @@ export function registerPlanActions(add: Adder): void {
     catch (e) { return { ok: false, reasons: e instanceof PreconditionError ? e.reasons : [(e as Error).message], ...started, session: null }; }
   });
   add("plan.resume", id, ["id"], ["plan.resume"], false, (c, p) => ({ ok: true, ...resumePlan(pc(c), p.id) }));
+  add("plan.retarget", { ...id, target: str }, ["id", "target"], ["plan.retarget"], false, (c, p) => ({ ok: true, ...retargetPlan(pc(c), p.id, p.target) }));
   add("plan.abandon", { ...id, force: bool }, ["id"], ["plan.abandon"], false, (c, p) => ({ ok: true, ...abandonPlan(pc(c), p.id, { force: p.force }) }));
   add("plan.delete", { ...id, force: bool }, ["id"], ["plan.delete"], false, (c, p) => ({ ok: true, ...deletePlan(pc(c), p.id, { force: p.force }) }));
   add("plan.budget", { ...id, resource: str, soft: { type: "number", exclusiveMinimum: 0 }, hard: { type: "number", exclusiveMinimum: 0 }, remove: bool }, ["id", "resource"], ["plan.budget"], false,

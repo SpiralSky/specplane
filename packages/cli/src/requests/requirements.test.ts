@@ -70,7 +70,7 @@ test("every supported command derives its own permission", () => {
     ["plan start", { id: "p" }, ["plan.start"]],
     ["plan stop", { id: "p" }, ["plan.softstop"]],
     ["plan resume", { id: "p" }, ["plan.resume"]],
-    ["plan retarget", { id: "p", target: "main" }, ["plan.resume"]],
+    ["plan retarget", { id: "p", target: "main" }, ["plan.retarget"]],
     ["plan budget", { id: "p", resource: "tokens", soft: 80, hard: 100 }, ["plan.budget"]],
     ["plan budget", { id: "p", resource: "tokens", remove: true }, ["plan.budget"]],
     ["plan finish", { id: "p", complete: true }, ["plan.complete"]],
@@ -111,4 +111,15 @@ test("malformed parameters and unknown commands fail before an action can be aut
     ["arbitrary", {}], ["toString", {}],
   ];
   for (const [command, params] of cases) assert.throws(() => actionNeeds(root, command, params), InvalidRequestAction, command);
+});
+
+test("a role with only plan.resume is refused a retarget (R31.3)", () => {
+  const root = repo();
+  const needs = actionNeeds(root, "plan retarget", { id: "p", target: "main" });
+  const llm: Actor = { role: "llm", kind: "llm", name: "Agent" };
+  const onlyResume: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "deny", modes: { "plan.resume": "allow" } } };
+  assert.equal(guard(onlyResume, llm, actionNeeds(root, "plan resume", { id: "p" }), "resume").kind, "allow");
+  assert.equal(guard(onlyResume, llm, needs, "retarget").kind, "deny");
+  const both: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "deny", modes: { "plan.retarget": "allow" } } };
+  assert.equal(guard(both, llm, needs, "retarget").kind, "allow");
 });

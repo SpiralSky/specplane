@@ -55,7 +55,7 @@ test("spec-review refuses every project write before dispatch or request, even w
     "plan.create": { words: ["review", "plan"] },
     "plan.edit": { id: "P1", changes: [{ path: "PLAN.md", before: "old", after: "new" }] },
     "plan.step-done": { id: "P1", step: 1, outcome: "done" },
-    "plan.softstop": { id: "P1" }, "plan.start": { id: "P1" }, "plan.resume": { id: "P1" },
+    "plan.softstop": { id: "P1" }, "plan.start": { id: "P1" }, "plan.resume": { id: "P1" }, "plan.retarget": { id: "P1", target: "main" },
     "plan.abandon": { id: "P1" }, "plan.delete": { id: "P1" },
     "plan.budget": { id: "P1", resource: "tokens", soft: 80 },
     "plan.finish": { id: "P1", complete: true }, "plan.merge": { id: "P1", mode: "local" },

@@ -277,7 +277,7 @@ export function setBudget(ctx: PlanCtx, id: string, o: BudgetOpts): { commit: st
 }
 
 export function retargetPlan(ctx: PlanCtx, id: string, target: string): { commit: string } {
-  return guardedWith({ id, target }, ctx, "plan retarget", [id, target], ["plan.resume"], "Changing a plan's target branch", () => {
+  return guardedWith({ id, target }, ctx, "plan retarget", [id, target], ["plan.retarget"], "Changing a plan's target branch", () => {
     const { root, rec } = requirePlan(ctx, id);
     const pr = rec.progress!;
     if (!["in-progress", "stopped"].includes(pr.status)) throw new PlanOpError(`Plan \`${id}\` is ${pr.status}; only a started plan has a target.`);

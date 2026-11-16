@@ -137,7 +137,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       requireText("id"); oneOf("kind", ["soft", "user", "hard", "failure"]);
       optional("reason", text); optional("needs", text); return ["plan.softstop"];
     case "plan resume": requireText("id"); return ["plan.resume"];
-    case "plan retarget": requireText("id"); requireText("target"); return ["plan.resume"];
+    case "plan retarget": requireText("id"); requireText("target"); return ["plan.retarget"];
     case "plan budget":
       requireText("id"); requireText("resource"); bool("remove");
       if (!p.remove && !(typeof p.soft === "number" && Number.isFinite(p.soft) && p.soft > 0 &&
