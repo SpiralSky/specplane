@@ -675,7 +675,7 @@ One JSON file per request, in `requests/`. IDs are `<YYYYMMDDTHHMMSSZ>-<4 hex>`.
 }
 ```
 
-- `state` is `pending`, `accepted`, `declined` or `failed`. `failed` is an assumption beyond `requests §2`, which says only that an action that cannot be done is reported and does nothing: the request is then marked `failed` (accepted, but the plan is gone or the patch no longer applies), counts as answered and is not retried, so the list shows why nothing happened. `answer` is `{by, date, note}` once answered; `failed` adds `error`.
+- `state` is `pending`, `accepted`, `declined`, `cancelled` or `failed`. `failed` is an assumption beyond `requests §2`, which says only that an action that cannot be done is reported and does nothing: the request is then marked `failed` (accepted, but the plan is gone or the patch no longer applies), counts as answered and is not retried, so the list shows why nothing happened. `answer` is `{by, date, note}` once answered; `failed` adds `error`.
 - `plan` and `checkout` are set when the request was sent from a plan session; accepting runs the action in that plan's worktree, found from the plan record, and is refused naming the worktree if it no longer exists (`architecture/reference-cli §8`).
 - Legacy records without `checkout` remain readable. A legacy plan request whose base branch is `plan/<id>` uses that branch’s live registered worktree; ambiguous legacy plan context is refused pending decline and resend. Old plan-command records whose base is outside the plan branch used `plan` as an action target, so retain their original checkout behavior. New plan-command action targets do not imply execution context.
 - Requests never expire and stay in the list after answering (`requests R52.1`).

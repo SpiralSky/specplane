@@ -16,7 +16,7 @@ How requests behave inside a plan run (blocking and non-blocking, `R27.5`, `R27.
 
 ## §1 Terms
 
-- **Request:** a message from an LLM (or from a command run under an LLM role) to the user, naming one action and asking that it be done. It is pending until it is accepted or declined.
+- **Request:** a message from an LLM (or from a command run under an LLM role) to the user, naming one action and asking that it be done. It is pending until it is accepted, declined or cancelled.
 - **Requests list:** the single list of all requests, whether or not a session is active. It keeps pending requests until the user answers them.
 - **Accept:** the user approves the request, and the requested action is done. **Decline:** the user refuses it, and nothing changes.
 
@@ -27,7 +27,7 @@ A requests system exists so that LLMs can send requests to the user to approve. 
 - A request names the action that is asked for, who sent it, and why, in plain words. It is added to the requests list.
 - If there is no active session, for example when a plan runs in the background, the request still goes to the requests list. The user can accept it later, in a later session.
 - A request that is never answered stays pending. It does nothing by itself and does not expire.
-- A request that is declined, or never accepted, leaves everything as it was. The action is not done, in part or in full.
+- A request that is declined, cancelled or never accepted leaves everything as it was. The action is not done, in part or in full.
 - Accepting a request does the requested action once, as it was requested. If the situation has changed, for example a specification was edited after the request was sent, the user is shown the request against the current state, and the action is checked again when it is accepted (`R52.2`).
 
 Test T1 (deterministic): set a permission to `request user`, run the action as the LLM role, expect no change and one pending request; accept it as a role with the permission and expect the change; repeat and decline, expect no change.
@@ -39,7 +39,7 @@ Scenario: Given a permission set to `request user` and no active session, When a
 A command opens an interactive requests pane in the harness. In it the user can view all requests, open one to read it in full, and accept or decline it.
 
 - The pane shows pending requests first, and shows enough of each to decide: the sender, the action, and the reason. A request that involves a specification shows the difference as in `R52.4`.
-- Requests that were already answered are visible in the pane for context, marked as accepted or declined.
+- Requests that were already answered are visible in the pane for context, marked as accepted, declined or cancelled.
 - Like other harness commands, the harness runs the command itself and passes arguments to the LLM only if there are any (`R18`).
 
 ### R52.2: Requests Permissions
@@ -50,7 +50,8 @@ To accept a request, the role of the person accepting must have the permission t
 - A role without the permission cannot accept the request. Acceptance fails, the user is told which permission is missing, and the request stays pending (`roles-and-permissions §2`).
 - The permission of the role to accept is the permission to do the action, not a separate "accept requests" permission. A role that holds the permission with mode `allow` may accept. A role whose own mode for it is `request user` or `deny` may not, because a user's request to the user would go nowhere.
 - Declining needs the same permission as accepting: a role may decline only a request whose action it could accept. A role without it cannot decline, and the request stays pending.
-- The role or actor that sent a request cannot answer it, whether it accepts or declines. Another role with the permission, normally the user's, answers it.
+- There is no rule against the sender answering its own request: whichever role holds the permission may answer, so a role cannot gain anything by sending a request it could answer. Steering decides whether an LLM answers its own requests or leaves them to the user (`steering R59`).
+- The sender can cancel its own pending request, for example one sent by mistake or made stale by later work. A cancelled request does nothing and is shown as cancelled. Cancelling needs no permission beyond being the sender (the same role, or the same session). A role that is not the sender cancels a request only if it could decline it. A request that is no longer pending cannot be cancelled.
 - Accepting never gives the sender the permission. The action is done once, on the authority of the answering role.
 - Who answers is decided by permissions, not by whether the answerer is an LLM or a person. When the requested action is approving a specification, a plan or a decision, accepting needs a role whose approval permission is `allow` (`roles-and-permissions R57`); in the default presets that is the user's role, so approvals stay with the user there. Steering (`steering R59`) tells an LLM with such a role when to answer and when to leave a request to the user; it does not widen the permission.
 
