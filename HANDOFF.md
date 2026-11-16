@@ -1,6 +1,18 @@
 # Session handoff
 Updated 2026-11-16 after the requests usability fixes. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
+## Plan `2026-11-16-llm-preset-creation` merged (2026-11-16, evening)
+
+Merged into `main` (`5ca9548`, archived under `plans/archive/`): LLM preset creation (R56.2, `preset.create`), approving plans and decision records from the harness (R20.2, R70), `plan.retarget` split from `plan.resume` (R31.3), refusing denied commands before a model turn (R71, `Requires:` lines), and one review fix (`45066b4`, inherited Standard User modes on `preset create --from`). On `main`: 763 pass / 0 fail, hooks 209, check-sync OK, `validate` 0 errors.
+
+- Plan run continuation fixed on `main` first (specs `00e4a37`, `a024ef8`, approved; code `9a33f58`, `42092b4`, docs `749562d`): a clean end with steps left reads as idle between steps, and a selection (`next`, N, `all`, `<first>..<last>`) chains one session per step. Dogfooded: `specplane harness session <plan-id> --session <new-uuid> --selection all` ran steps 5 to 11 unattended. Headless sessions stay quiet until a step ends; check the session transcript, not the terminal.
+- `bypass_guards.headless_block` is back `on` (`1e434b6`); `hook_protect` stays `off` on purpose (maintainers copy templates over the hooks).
+- Plan worktree `node_modules` was committed as a symlink in step 1 (`549e260`); untracked in `a9550a3` and `.gitignore` now ignores `node_modules` without the trailing slash. Worth finding why the step commit staged it (a broad `git add` in a worker or in `plan step-done`).
+- Gap: `plan_edit` and `plan_resume` harness actions read the main checkout, so they cannot edit or resume a plan that lives only on its branch; step 11 could not be dropped and ran as a verify-only step.
+- Steering not yet changed (needs the user): `.specplane/roles/presets/self-dev.yaml` still has `plan.complete`, `plan.start`, `plan.resume`, `plan.budget` as `request-user` for the LLM, and does not state `plan.retarget` or `preset.create`. An LLM cannot edit a preset or grant itself more. Proposed: `plan.complete`, `plan.resume`, `plan.start`, `plan.retarget`, `plan.budget` to `allow`; `preset.create` to `request-user`; keep `plan.abandon` and `plan.delete` at `request-user`.
+- Six requests tied to this plan were still pending at the final review (`20261116T074439Z-81fb`, `...075442Z-e01e`, `...093954Z-baf1`, `...094912Z-ef71`, `...095503Z-5fdc`, `...095948Z-3adb`); not looked at.
+- The Specplane MCP server disconnected after the broken `node_modules` was repaired; reconnect it (`/mcp`) in a fresh session.
+
 ## Warnings cleanup and speed (2026-11-16, later)
 
 `validate` now reports 4 warnings, not 40 (0 errors). Removed in `e4c38a7`: 13 archived and 8 done legacy-format plans (history stays in git) and the generated `plans/PLANS.md`, whose command was removed in U12. Left on purpose: three unexecuted legacy plans (`2026-10-30-plan-conductor`, `2026-11-01-claude-delivery`, `2026-11-01-extension-conformance`, ready or blocked, no `progress.yaml`) and the `hook_protect` off warning (the user's setting). `AGENTS.md` block refreshed to 0.1.1; the 15 stale `.agents` warnings went away (`.agents/` is gitignored). `3d30a24` batches blob reads with `cat-file --batch` (`prefetchBlobs` in `spec/source.ts`); `warnings` is about 0.9 s with 86 git spawns (was 1.33 s and about 122). A persistent `cat-file` process was not done: Node has no safe synchronous bidirectional pipe. `issues.md` and `problems.md` were deleted by the user's request.
