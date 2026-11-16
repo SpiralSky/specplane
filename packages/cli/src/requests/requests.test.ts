@@ -545,3 +545,23 @@ test("a request for a plan that does not exist is refused when sent, and no requ
   }
   assert.equal(list(root).length, 0);
 });
+
+test("harness run requests accept <id> --commit commits the file and keeps --commit out of the note", async () => {
+  const root = repo();
+  const id = configRequest(root, "audit.retention", "30");
+  const { runHarnessCommand } = await import("../harness/run.js");
+  const cwd = process.cwd();
+  const savedActor = process.env.SPECPLANE_ACTOR;
+  delete process.env.SPECPLANE_ACTOR;
+  process.chdir(root);
+  try {
+    const r = await runHarnessCommand("requests", ["accept", id, "--commit", "looks", "fine"], root, { adapter: "claude" });
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.match((r.data as { committed: string }).committed, /^[0-9a-f]+$/);
+  } finally {
+    process.chdir(cwd);
+    if (savedActor !== undefined) process.env.SPECPLANE_ACTOR = savedActor;
+  }
+  assert.match(sh(root, "show", "--name-only", "--format=", "HEAD"), /\.specplane\/config\.yaml/);
+  assert.equal(readRequest(root, id)!.answer!.note, "looks fine");
+});

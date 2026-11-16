@@ -144,7 +144,9 @@ async function withArgs(root: string, command: string, args: string[], o: RunOpt
       return infos.length ? { ok: true, data: infos, lines: infos.map(describe) } : { ok: false, findings: [`Plan \`${args[0]}\` not found.`] };
     }
     case "requests": {
-      const [sub, id, ...note] = args;
+      const [sub, id, ...rest] = args;
+      const commit = rest.includes("--commit");
+      const note = rest.filter((w) => w !== "--commit");
       if (sub === "list") return requestsList(root);
       if (!id) throw new UsageError("requests takes list, show <id>, accept <id> or decline <id>.");
       if (sub === "show") return requestsShow(id, root);
@@ -153,7 +155,7 @@ async function withArgs(root: string, command: string, args: string[], o: RunOpt
         // record, the run marker and the host session name the same one. Without an adapter the accept prints how to open it.
         const startsPlan = sub === "accept" && o.launcher && showRequest(root, id)?.action.command === "plan start";
         const startSession = startsPlan ? o.launcher!.newSessionId() : undefined;
-        const answered = await (sub === "accept" ? requestsAccept(id, note.join(" ") || undefined, { session: startSession, manual: !o.launcher }) : requestsDecline(id, note.join(" ") || undefined));
+        const answered = await (sub === "accept" ? requestsAccept(id, note.join(" ") || undefined, { session: startSession, manual: !o.launcher, commit }) : requestsDecline(id, note.join(" ") || undefined));
         const started = startSession ? planStartedBy(answered) : null;
         if (started) return launchAccepted(root, o, started, startSession!, answered);
         // A blocking request answered while a session is active resumes the plan it stopped (`plan-execution R27.5`).
