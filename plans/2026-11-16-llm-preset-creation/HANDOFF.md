@@ -45,3 +45,30 @@ None.
 
 ### What the next step must know
 Commit f6054f9. tsc clean, `npm test` 706 pass, 0 fail. `presetCreate` accepts an LLM actor and returns `permission: "preset.create"` in `PresetResult`. `presetPreview(draft, activePreset)` returns per-role modes, default, roles and a more_permissive list, in the same text layout as `preset show`. The harness step must call it and send the request for the request-user case.
+
+## Step 03: Harness actions and the requestable preset create
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/harness/actions-ops.ts`: harness actions `preset.list` and `preset.show` (`info.retrieve`) and `preset.create` (`preset.create`), the last through `presetParamsEdits` and `presetCreate`.
+- `packages/cli/src/perm/preset-ops.ts`: `presetParamsEdits` (parameters to edits with problems) and `presetDraft` (refuses malformed parameters, an existing or default preset ID, unknown permissions or modes).
+- `packages/cli/src/requests/requirements.ts`: `preset create` in `actionNeeds` (`preset.create`), `requestPrecondition` uses `presetDraft`, new `acceptNeeds` (`config.change` plus `role.manage` for accepting).
+- `packages/cli/src/requests/ops.ts`: `sendRequest` stores the preview in `diff`; accept uses `acceptNeeds`; `show` already returns stored `diff` for non-spec requests.
+- `packages/cli/src/requests/actions.ts`: `preset create` accept action runs `presetCreate` as the accepter and returns the uncommitted file for `--commit`.
+- `packages/cli/src/requests/preset-requests.test.ts`: tests for send, malformed, existing ID, deny, accept, `--commit`, accept refusals, harness actions under each mode.
+- `packages/cli/src/harness/actions.test.ts`, `actions-more.test.ts`, `mcp.test.ts`: action counts (46) and coverage of the new actions.
+
+### Deviations from the step
+None.
+
+### Gaps found
+None.
+
+### Open issues
+- Request `20261116T093954Z-baf1` (plan.resume) was sent by mistake again while the plan was not stopped (also `20261116T074439Z-81fb` in step 2); both can be declined.
+- The self-dev preset still has no `preset.create` line (G1), so the LLM is denied in this repo.
+
+### What the next step must know
+Commit follows 4a125e0. tsc clean, `npm test` 721 pass, 0 fail. Requests of `preset create` store the full preview in `diff`; step 4 should reuse `storedPreview` in `requests/ops.ts` for the activation request. `step3.out` in the worktree root is an untracked scratch file; do not commit it. Do not call `plan.resume` unless the plan is stopped.
