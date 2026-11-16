@@ -20,3 +20,28 @@ None.
 
 ### What the next step must know
 `preset.create` exists in the catalog and is request-user for the LLM role in every default preset (Standard User allow by default). `node packages/cli/dist/cli.js permissions preset.create` shows it. `architecture/file-formats` already listed the permission. Tests: tsc clean, `npm test` 701 pass, 0 fail at commit 87c1e9e. The declared spec tests for `feature/roles-and-permissions` have no runnable definitions, so `test.run` records nothing. To exercise the LLM path in this repo, the self-dev preset denies `preset.create` (G1).
+
+## Step 02: Core presetCreate for the LLM actor
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/perm/preset-ops.ts`: `mayManage` takes an action; the LLM role is guarded on `preset.create` for create only (edit and delete always refused), people still need `config.change` plus `role.manage`. New `llmCreateProblems` refuses a stated Standard User mode, a default above the active LLM default and any effective LLM mode above the active LLM mode. The audit records `preset.create`. New exported `presetPreview(draft, active)`; show and preview share one `layout()` formatter.
+- `packages/cli/src/commands/preset.ts`: the command result uses `r.permission ?? "config.change"`.
+- `packages/cli/src/perm/presets.test.ts`: tests for deny, allow with audit, refused Standard User mode, refused escalation (stated, default, `llm:*`), preview, unchanged person behaviour.
+
+### Deviations from the step
+None.
+
+### Gaps found
+- G2 (spec): with `--from`, the base's Standard User body is copied unchanged and only Standard User modes the LLM states are refused; otherwise copying a default preset would always fail on the Standard User default of allow.
+- G3 (spec): Standard User effective modes from the preset default are bounded only through the draft-default check, not per permission.
+
+### Open issues
+- An LLM whose `preset.create` is request-user is refused in the CLI with a message that request creation is not available; sending the request is not implemented yet (harness step).
+- `presetPreview` is exported but not wired to any CLI command or create output yet.
+- Request `20261116T074439Z-81fb` (plan.resume) was sent by mistake while the plan was not stopped; it can be declined.
+
+### What the next step must know
+Commit f6054f9. tsc clean, `npm test` 706 pass, 0 fail. `presetCreate` accepts an LLM actor and returns `permission: "preset.create"` in `PresetResult`. `presetPreview(draft, activePreset)` returns per-role modes, default, roles and a more_permissive list, in the same text layout as `preset show`. The harness step must call it and send the request for the request-user case.
