@@ -35,11 +35,12 @@ export function registerHarnessCommands(program: Command): void {
     .description("Monitor a plan's Claude Code session: run it, keep the run marker, enforce budgets (started by plan-start, not by hand)")
     .requiredOption("--session <id>", "the session ID the plan record names")
     .option("--resume", "resume the session after a blocking request was answered")
-    .action(async (planId: string, opts: { session: string; resume?: boolean }) => {
+    .option("--selection <s>", "steps to run, one session each: next, a count, all or <first>..<last>")
+    .action(async (planId: string, opts: { session: string; resume?: boolean; selection?: string }) => {
       const adapter = await import("../harness/adapter-claude.js");
       const root = checkoutRoot();
       const ctx = { root, actor: cliActor(root), preset: activePreset(root) };
-      const r = await adapter.runPlanSession(ctx, planId, { spawn: adapter.nodeSpawnPort }, { sessionId: opts.session, resume: opts.resume });
+      const r = await adapter.runPlanSession(ctx, planId, { spawn: adapter.nodeSpawnPort }, { sessionId: opts.session, resume: opts.resume, selection: opts.selection });
       process.stdout.write(`${r.outcome} (session ${r.session}, exit ${r.exitCode})\n${r.notes.map((n) => `${n}\n`).join("")}`);
     });
   harness

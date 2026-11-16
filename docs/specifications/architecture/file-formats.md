@@ -688,7 +688,7 @@ One JSON file per request, in `requests/`. IDs are `<YYYYMMDDTHHMMSSZ>-<4 hex>`.
 
 Assumption: the files of the local store besides requests, the audit log and logs.
 
-- `runs/<plan-id>.json`: run marker `{"session": "<id>", "pid": 1234, "heartbeat": "2026-11-09T10:15:00Z"}`, kept up to date by the adapter while a session works and removed on a clean end.
+- `runs/<plan-id>.json`: run marker `{"session": "<id>", "pid": 1234, "heartbeat": "2026-11-09T10:15:00Z"}`, kept up to date by the adapter while a session works. On a clean end after a finished step the adapter replaces it with `{"session": "<id>", "ended": "clean"}`, which marks the plan idle between steps for that session only; in every other case it removes it.
 - `reviews/<plan-id>.json`: `{"target_branch": "main", "target_commit": "<hash>", "seen": "2026-11-09T10:15:00Z"}`, the target tip the final review was shown against.
 - `sessions/<session-id>.json`: `{"epoch": 0, "delivered": [{"key": "<instruction key>", "hash": "<sha256>"}]}`, the instruction texts already delivered in the session and the compaction epoch.
 - `role.json`: `{"role": "administrator", "user": "alice"}`, present only while the Administrator switch is on (`roles-and-permissions R44`); the switch counts only for the OS user named in `user` (a file without `user` counts for everyone, as in earlier versions).

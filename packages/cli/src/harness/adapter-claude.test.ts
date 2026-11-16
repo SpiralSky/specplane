@@ -7,8 +7,9 @@ import { test } from "node:test";
 import { PreconditionError } from "../errors.js";
 import { DEFAULT_PRESET, type Actor } from "../perm/permissions.js";
 import { createPlan } from "../plan/create.js";
-import { loadPlanAt, readStore, worktreeOf, type PlanCtx, type RunMarker } from "../plan/ctx.js";
-import { setBudget, startPlan } from "../plan/run.js";
+import { loadPlanAt, readStore, worktreeOf, writeStore, type PlanCtx, type RunMarker } from "../plan/ctx.js";
+import { resumePlan, setBudget, startPlan, stepDone, stopPlan } from "../plan/run.js";
+import { checkSelection, describePlan, parseSelection } from "../plan/status.js";
 import { readRequest } from "../requests/store.js";
 import { sendRequest } from "../requests/ops.js";
 import { makeRepo } from "../test-repo.js";
@@ -70,6 +71,18 @@ const usage = (u: number) => ({ type: "rate_limit_event", rate_limit_info: { uni
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const marker = (root: string) => readStore<RunMarker>(root, `runs/${ID}.json`);
 const progress = (root: string) => loadPlanAt(worktreeOf(root, ID)!, ID)!.progress!;
+const entry = (n: number, outcome = "done") => `\n## Step ${String(n).padStart(2, "0")}: Step ${n}\n\n**Date**: 2026-11-10\n**Outcome**: ${outcome}\n\n### What changed\n- \`f${n}.txt\`: work\n\n### Deviations from the step\nNone.\n\n### Gaps found\nNone.\n\n### Open issues\nNone.\n\n### What the next step must know\nNone.\n`;
+/** What a session does when it finishes step `n`: the handoff entry, then `plan step-done` under the session's own ID. */
+function finishStep(root: string, ctx: PlanCtx, n: number, session: string, outcome: "done" | "partial" = "done"): void {
+  fs.appendFileSync(path.join(worktreeOf(root, ID)!, "plans", ID, "HANDOFF.md"), entry(n, outcome));
+  stepDone({ ...ctx, env: { SPECPLANE_SESSION: session } }, ID, { step: n, outcome });
+}
+/** Steps 2..n added to the plan on its branch, so a plan has `n` steps. */
+function addSteps(root: string, n: number): void {
+  const wt = worktreeOf(root, ID)!;
+  for (let i = 2; i <= n; i++) fs.writeFileSync(path.join(wt, "plans", ID, "steps", `0${i}-step-${i}.md`), `---\nplan: ${ID}\nstep: ${i}\ntitle: Step ${i}\n---\n## Goal\n\nMore.\n`);
+  sh(wt, "add", "-A"); sh(wt, "commit", "-q", "-m", "more steps");
+}
 const sentText = (w: string): string => (JSON.parse(w) as { message: { content: string } }).message.content;
 
 test("usage is read per window in percent, an over-limit account reads as 100, other events as nothing", () => {
@@ -98,10 +111,11 @@ test("launch: argv, worktree, session environment, no bypass, prompt on stdin, h
   assert.ok(marker(root));
   f.emit(INIT); f.emit(RESULT);
   assert.ok(f.ended(), "stdin closes after the turn so the session ends");
+  finishStep(root, ctx, 1, "11111111-1111-4111-8111-111111111111");
   f.exit(0);
   const r = await run;
   assert.equal(r.outcome, "completed");
-  assert.equal(marker(root), null);
+  assert.equal(marker(root), null, "the only step is done, so nothing is idle");
   assert.ok(f.stopped());
   assert.equal(progress(root).status, "in-progress");
 });
@@ -166,12 +180,14 @@ test("without a budget readings never stop the session", async () => {
   const run = runPlanSession(ctx, ID, f.deps);
   f.emit(INIT); f.emit(usage(0.99));
   assert.equal(f.kills.length, 0);
-  f.emit(RESULT); f.exit(0);
+  f.emit(RESULT);
+  finishStep(root, ctx, 1, "11111111-1111-4111-8111-111111111111");
+  f.exit(0);
   assert.equal((await run).outcome, "completed");
   assert.equal(progress(root).status, "in-progress");
 });
 
-test("a session without the plugin is stopped, fails, and leaves its marker to go stale", async () => {
+test("a session without the plugin is stopped, fails, and records a failure stop", async () => {
   const { root, ctx } = started();
   const f = fake();
   const run = runPlanSession(ctx, ID, f.deps);
@@ -179,7 +195,9 @@ test("a session without the plugin is stopped, fails, and leaves its marker to g
   const r = await run;
   assert.equal(r.outcome, "failed");
   assert.ok(f.kills.includes("SIGTERM"));
-  assert.ok(marker(root));
+  assert.equal(marker(root), null);
+  assert.equal(progress(root).status, "stopped");
+  assert.deepEqual({ kind: progress(root).stop!.kind, reason: progress(root).stop!.reason }, { kind: "failure", reason: "step 1 not finished" });
   assert.ok(r.notes.some((n) => /did not report the Specplane plugin/.test(n)));
 });
 
@@ -388,4 +406,171 @@ test("accepting a plan.start request for a plan that is already started fails th
   assert.equal(r.ok, false);
   assert.deepEqual(calls, []);
   assert.equal(readRequest(root, id)!.state, "failed");
+});
+
+/* ------------------------------------------------------------------ continuation: the chain of sessions (`plan-execution R27`, `reference-cli` §11.3) */
+
+type Act = "step" | "partial" | "none" | "error" | "soft" | "user" | "hard" | "failure";
+interface Chain { deps: ClaudeDeps; ids: string[]; seen: { idle: boolean; status: string; marker: unknown }[] }
+/** A fake session per spawn: it answers its prompt by doing what `acts[i]` says, then ends like a real one (clean exit after the turn, or an error exit). */
+function chain(root: string, ctx: PlanCtx, acts: Act[]): Chain {
+  const c: Chain = { ids: [], seen: [], deps: undefined as unknown as ClaudeDeps };
+  c.deps = {
+    newId: () => `sess-${c.ids.length}`,
+    every: () => () => {},
+    spawn: (_argv, o) => {
+      const i = c.ids.length;
+      const session = o.env.SPECPLANE_SESSION!;
+      c.ids.push(session);
+      const wt = worktreeOf(root, ID)!;
+      const info = describePlan(ctx, wt, loadPlanAt(wt, ID)!);
+      c.seen.push({ idle: info.idle, status: String(info.status), marker: marker(root) });
+      let line: (l: string) => void = () => {};
+      let exit!: (c: number | null) => void;
+      const act = acts[i] ?? "none";
+      return {
+        pid: process.pid,
+        onLine: (cb) => { line = cb; },
+        exited: new Promise((r) => { exit = r; }),
+        write: () => {
+          queueMicrotask(() => {
+            line(JSON.stringify(INIT));
+            const next = describePlan(ctx, wt, loadPlanAt(wt, ID)!).next?.number ?? 1;
+            if (act === "step") finishStep(root, ctx, next, session);
+            else if (act === "partial") finishStep(root, ctx, next, session, "partial");
+            else if (act === "soft" || act === "user" || act === "hard" || act === "failure") stopPlan(ctx, ID, { kind: act, reason: `${act} stop` });
+            if (act === "error") exit(1); else line(JSON.stringify(RESULT));
+          });
+        },
+        endInput: () => exit(0),
+        kill: () => exit(null),
+      };
+    },
+  };
+  return c;
+}
+const stopOf = (root: string) => { const p = progress(root); return { status: p.status, kind: p.stop?.kind, reason: p.stop?.reason }; };
+const info = (root: string, ctx: PlanCtx) => { const wt = worktreeOf(root, ID)!; return describePlan(ctx, wt, loadPlanAt(wt, ID)!); };
+
+test("chain: 3 steps and one session per step; the plan is idle between sessions and nothing is left idle at the end", async () => {
+  const { root, ctx } = started();
+  addSteps(root, 3);
+  const c = chain(root, ctx, ["step", "step", "step"]);
+  await runPlanSession(ctx, ID, c.deps, { sessionId: "sess-0", selection: "all" });
+  assert.deepEqual(c.ids, ["sess-0", "sess-1", "sess-2"]);
+  assert.equal(c.seen[0].idle, false);
+  for (const i of [1, 2]) {
+    assert.deepEqual(c.seen[i], { idle: true, status: "in-progress", marker: { session: c.ids[i - 1], ended: "clean" } }, `idle after session ${i}`);
+  }
+  assert.equal(progress(root).done.length, 3);
+  assert.equal(marker(root), null);
+  assert.equal(info(root, ctx).idle, false);
+  assert.equal(info(root, ctx).reviewPending, true);
+});
+
+test("chain: the default selection is the next step, a count stops after N sessions and leaves the plan idle", async () => {
+  const { root, ctx } = started();
+  addSteps(root, 3);
+  const one = chain(root, ctx, ["step", "step"]);
+  await runPlanSession(ctx, ID, one.deps, { sessionId: "sess-0" });
+  assert.equal(one.ids.length, 1);
+  assert.deepEqual(marker(root), { session: "sess-0", ended: "clean" });
+  assert.equal(info(root, ctx).idle, true);
+  assert.equal(info(root, ctx).status, "in-progress");
+  const two = chain(root, ctx, ["step", "step", "step"]);
+  await runPlanSession(ctx, ID, two.deps, { sessionId: "sess-0b", selection: "2" });
+  assert.equal(two.ids.length, 2, "only step 02 and step 03 are left, so two sessions");
+  assert.equal(marker(root), null);
+});
+
+test("chain: a range ends at its last step and leaves the plan idle", async () => {
+  const { root, ctx } = started();
+  addSteps(root, 3);
+  const c = chain(root, ctx, ["step", "step", "step"]);
+  await runPlanSession(ctx, ID, c.deps, { sessionId: "sess-0", selection: "1..2" });
+  assert.equal(c.ids.length, 2);
+  assert.equal(progress(root).done.length, 2);
+  assert.equal(info(root, ctx).idle, true);
+  assert.deepEqual(marker(root), { session: c.ids[1], ended: "clean" });
+});
+
+test("a selection that does not start at the next step is refused before any session starts", async () => {
+  const { root, ctx } = started();
+  addSteps(root, 3);
+  const c = chain(root, ctx, ["step"]);
+  await assert.rejects(runPlanSession(ctx, ID, c.deps, { selection: "2..3" }), (e: Error) => e instanceof PreconditionError && /step 02 cannot run before step 01/.test(e.reasons.join()));
+  assert.equal(c.ids.length, 0);
+  assert.equal(marker(root)?.session ?? null, null);
+  assert.equal(checkSelection(info(root, ctx), 2, "all", 3).ok, false);
+  assert.deepEqual(parseSelection("2..3"), { from: 2, count: "all", last: 3 });
+  assert.deepEqual([parseSelection("next").count, parseSelection("4").count, parseSelection("all").count], [1, 4, "all"]);
+  assert.throws(() => parseSelection("3..2"));
+});
+
+for (const kind of ["soft", "user", "hard", "failure"] as const) {
+  test(`chain: a recorded ${kind} stop is kept, no clean-end record is written and the chain ends`, async () => {
+    const { root, ctx } = started();
+    addSteps(root, 3);
+    const c = chain(root, ctx, ["step", kind, "step"]);
+    await runPlanSession(ctx, ID, c.deps, { sessionId: "sess-0", selection: "all" });
+    assert.equal(c.ids.length, 2);
+    assert.deepEqual(stopOf(root), { status: "stopped", kind, reason: `${kind} stop` });
+    assert.equal(marker(root), null);
+    assert.equal(info(root, ctx).idle, false);
+  });
+}
+
+for (const [name, act] of [["an error exit", "error"], ["a clean exit with the step not done", "none"], ["a partial outcome", "partial"]] as const) {
+  test(`chain: ${name} records a failure stop "step 2 not finished" and does not start that step again`, async () => {
+    const { root, ctx } = started();
+    addSteps(root, 3);
+    const c = chain(root, ctx, ["step", act, "step"]);
+    await runPlanSession(ctx, ID, c.deps, { sessionId: "sess-0", selection: "all" });
+    assert.equal(c.ids.length, 2);
+    assert.deepEqual(stopOf(root), { status: "stopped", kind: "failure", reason: "step 2 not finished" });
+    assert.equal(marker(root), null);
+    assert.equal(progress(root).done.length, 1);
+  });
+}
+
+test("status: idle needs a clean-end record of the plan's own session, steps left and no stop", async () => {
+  const { root, ctx } = started();
+  addSteps(root, 2);
+  const c = chain(root, ctx, ["step"]);
+  await runPlanSession(ctx, ID, c.deps, { sessionId: "sess-0" });
+  assert.deepEqual({ s: info(root, ctx).status, idle: info(root, ctx).idle, stop: info(root, ctx).stop }, { s: "in-progress", idle: true, stop: null });
+  // a record of another session is ignored: the plan reads as an unexpected end
+  writeStore(root, `runs/${ID}.json`, { session: "someone-else", ended: "clean" });
+  assert.deepEqual({ s: info(root, ctx).status, idle: info(root, ctx).idle, reason: info(root, ctx).stop?.reason }, { s: "stopped", idle: false, reason: "session ended unexpectedly" });
+  // reading the status never rewrites progress.yaml
+  assert.equal(progress(root).status, "in-progress");
+  // a recorded stop is never idle, even with the right record
+  writeStore(root, `runs/${ID}.json`, { session: "sess-0", ended: "clean" });
+  stopPlan(ctx, ID, { kind: "soft", reason: "pause" });
+  assert.deepEqual({ s: info(root, ctx).status, idle: info(root, ctx).idle, kind: info(root, ctx).stop?.kind }, { s: "stopped", idle: false, kind: "soft" });
+});
+
+test("status: with no step left a clean-end record is not idle", async () => {
+  const { root, ctx } = started();
+  const c = chain(root, ctx, ["step"]);
+  await runPlanSession(ctx, ID, c.deps, { sessionId: "sess-0" });
+  writeStore(root, `runs/${ID}.json`, { session: "sess-0", ended: "clean" });
+  assert.equal(info(root, ctx).next, null);
+  assert.equal(info(root, ctx).idle, false);
+  assert.equal(info(root, ctx).status, "in-progress");
+});
+
+test("resume accepts an idle plan, reports no stop and replaces the clean-end record", async () => {
+  const { root, ctx } = started();
+  addSteps(root, 2);
+  const c = chain(root, ctx, ["step"]);
+  await runPlanSession(ctx, ID, c.deps, { sessionId: "sess-0" });
+  assert.equal(info(root, ctx).idle, true);
+  const r = resumePlan({ ...ctx, env: { SPECPLANE_SESSION: "sess-R" } }, ID);
+  assert.equal(r.stopped, null);
+  assert.equal(r.next!.number, 2);
+  assert.equal(progress(root).status, "in-progress");
+  assert.equal(marker(root)!.session, "sess-R");
+  assert.ok(marker(root)!.heartbeat);
+  assert.equal(info(root, ctx).idle, false);
 });
