@@ -16,6 +16,10 @@ import { loadProject, resolveCite, targetFingerprint, type Project, type SpecDoc
 import { currentResults, failedTests } from "./results.js";
 import { commitExists, committedSource, headCommit, worktreeSource } from "./source.js";
 import { approveDecisions, isDecisionId } from "../decisions/decisions.js";
+import { RequestSent } from "../requests/hold.js";
+import { approvePlan } from "../plan/create.js";
+import { loadPlans } from "../plan/model.js";
+import { plansDir } from "../plan/ctx.js";
 import { computeStatus, dependencyCites, specSubject, StatusCtx } from "./status.js";
 
 /**
@@ -227,7 +231,37 @@ export function approvalNeeds(root: string, ids: string[], rev = "HEAD"): { need
   return { needs: [...needs].sort(), permOf: (id) => (layers.has(id) ? approvePermission(layers.get(id)!) : fallback) };
 }
 
+/** The named IDs that are not specifications at `rev` but are plans there (resolution order: specification, plan, decision record). */
+function planIdsAmong(root: string, ids: string[], rev: string): string[] {
+  try {
+    if (!revCommit(root, rev)) return [];
+    const head = loadHead(root, rev);
+    const plans = new Set(loadPlans(committedSource(root, rev), plansDir(root)).map((p) => p.id));
+    return ids.filter((i) => !findSpec(head, i) && plans.has(i));
+  } catch { return []; }
+}
+
+/** Approve plans by ID through `plan approve`, which carries its own guard, request and audit (`spec.approve.feature`). */
+function approvePlansBy(ctx: Ctx, ids: string[]): Result {
+  const lines: string[] = [], reasons: string[] = [];
+  for (const id of ids) {
+    try {
+      const r = approvePlan(ctx, id);
+      lines.push(r.already ? `Plan ${id} is already approved. Nothing changed.` : `Approved plan ${id}${r.commit ? ` (notes commit ${r.commit.slice(0, 7)})` : ""}.`);
+    } catch (e) {
+      if (e instanceof RequestSent) return result({ ok: true, request: e.request.id, lines: [...lines, sentMessage(e.request)] });
+      reasons.push((e as Error).message);
+    }
+  }
+  return result({ ok: reasons.length === 0, lines, reasons });
+}
+
 export async function approveSpecs(ctx: Ctx, ids: string[], opts: ApproveOptions = {}): Promise<Result> {
+  const planIds = planIdsAmong(ctx.root, ids, opts.ref ?? "HEAD");
+  if (planIds.length) {
+    if (planIds.length !== ids.length) return result({ ok: false, reasons: ["Name plans, decision records and specifications in separate approve commands."] });
+    return approvePlansBy(ctx, planIds);
+  }
   const { needs: approveNeeds, permOf } = approvalNeeds(ctx.root, ids, opts.ref ?? "HEAD");
   const g = decide(ctx, approveNeeds, "Approving specifications", "spec approve", ids, { ids });
   if (g.kind !== "allow") return refusal(g);
