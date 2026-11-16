@@ -252,9 +252,23 @@ test("LLM-created presets: a mode above the LLM role's own is refused, defaults 
   assert.equal(dflt.ok, false);
   assert.match(dflt.reasons.join(" "), /default mode allow/);
   assert.equal(presetCreate(allowed, "up3", { defaultMode: "deny", sets: ["llm:*=allow"] }).ok, false);
-  assert.equal(presetCreate(allowed, "ok1", { defaultMode: "deny", sets: ["llm:spec.edit.requirement=deny"] }).ok, true);
+  const ok1 = presetCreate(allowed, "ok1", { defaultMode: "deny", sets: ["llm:spec.edit.requirement=deny"] }); assert.equal(ok1.ok, true, ok1.reasons.join(";"));
   assert.equal(fs.existsSync(path.join(root, presetFile("up1"))), false);
   assert.match(auditText(root), /refused/);
+});
+
+test("LLM-created presets: Standard User modes inherited from --from are held to the LLM role's own modes", () => {
+  const root = repo();
+  const allowed = ctx(root, llm, llmWith({ "preset.create": "allow", "spec.edit.requirement": "deny" }));
+  const mk = (id: string, m: "allow" | "deny") => assert.equal(presetCreate(ctx(root, admin), id, { defaultMode: "deny", sets: [`standard-user:spec.edit.requirement=${m}`] }).ok, true);
+  mk("su-wide", "allow");
+  mk("su-narrow", "deny");
+  const r = presetCreate(allowed, "c1", { from: "su-wide" });
+  assert.equal(r.ok, false);
+  assert.match(r.reasons.join(" "), /Standard User.*spec\.edit\.requirement/);
+  assert.equal(fs.existsSync(path.join(root, presetFile("c1"))), false);
+  const ok = presetCreate(allowed, "c2", { from: "su-narrow" });
+  assert.equal(ok.ok, true, ok.reasons.join("; "));
 });
 
 test("presetPreview lists per-role modes, the default and what is more permissive than the active preset", () => {

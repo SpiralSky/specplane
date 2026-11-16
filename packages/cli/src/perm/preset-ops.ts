@@ -95,6 +95,12 @@ function llmCreateProblems(ctx: PresetCtx, draft: Preset, e: Edits): string[] {
   if (su.length) out.push(`Refused: the llm role may state modes only for the llm role; ${su.map((s) => `\`${s}\``).join(", ")} sets one for the Standard User (R56.2, R56).`);
   const ownDefault = ctx.preset.llm.defaultMode ?? ctx.preset.defaultMode ?? "deny";
   if (RANK[draft.defaultMode] > RANK[ownDefault]) out.push(`Refused: default mode ${draft.defaultMode} is more permissive than the llm role's own default (${ownDefault}) in the active preset (R56.2, R49).`);
+  if (!su.length) {
+    const suDefault = draft.standardUser.defaultMode ?? draft.defaultMode;
+    const suAbove = STANDARD_CATALOG.filter((perm) => RANK[mode(draft, "standard-user", perm)] > RANK[mode(ctx.preset, "llm", perm)]);
+    if (RANK[suDefault] > RANK[ownDefault]) out.push(`Refused: the preset gives the Standard User default mode ${suDefault}, more than the llm role's own default (${ownDefault}) in the active preset (R56.2, R49).`);
+    if (suAbove.length) out.push(`Refused: the preset gives the Standard User more than the llm role has in the active preset (${ctx.preset.id}) for ${suAbove.join(", ")} (R56.2, R49).`);
+  }
   const above = CATALOG.filter((perm) => RANK[mode(draft, "llm", perm)] > RANK[mode(ctx.preset, "llm", perm)]);
   if (above.length) out.push(`Refused: the preset gives the llm role more than it has in the active preset (${ctx.preset.id}) for ${above.join(", ")} (R56.2, R49).`);
   return out;
