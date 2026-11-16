@@ -16,6 +16,6 @@ Make `presetCreate` (`packages/cli/src/perm/preset-ops.ts`) work for an LLM acto
 ## Tasks
 
 1. Let `mayManage` take the permission from the actor: `preset.create` for the LLM role on create, `config.change` plus `role.manage` for people; edit and delete stay refused for the LLM.
-2. Apply the level and escalation checks to LLM-created presets.
+2. Apply the level and escalation checks to LLM-created presets on effective modes, defaults included (a default mode above the LLM role's own, or any Standard User default, is refused).
 3. Add `presetPreview` with one text layout shared with `preset show`.
 4. Write the tests.
