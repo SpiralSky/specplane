@@ -213,3 +213,25 @@ None.
 
 ### What the next step must know
 tsc is clean. `npm test` has 761 passing and 1 failing (the config test above), and `npm run build` passes. The code commit is 722f872 and the docs commit is 5336e78. No templates or `.claude/` files changed, so check-sync and the hook tests were not rerun. The harness now has 47 actions.
+
+## Step 10: Verify the whole change
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/config.test.ts`: "this repository's own configuration is valid" now also accepts the `headless_block` off warning; the maintainers set that guard off through accepted request 8a5e, so the test was stale. This was the one failure carried since step 06.
+
+### Deviations from the step
+None.
+
+### Gaps found
+None new. G6 from step 06 is still open: `feature/harness` R71 T1 has no deterministic test declaration, so `test.record` cannot record it.
+
+### Open issues
+- `validate` lists 22 warnings and no errors. They are the two bypass guards set off on purpose, `.agents/skills/specplane/*` missing in this worktree (the path is in `.git/info/exclude`, so a worktree has no copy), three retired-format plans, and outdated references to `architecture/reference-cli`, `architecture/file-formats` and `feature/plan-execution` at a024ef8.
+- `claude:feature/claude-integration` and `codex:feature/codex-integration` are awaiting review because they are outdated against `plan-execution` R27, which step 11 changes.
+- `perm/presets.test.ts:102` is still named "the LLM role cannot create … presets". Its behaviour is right, because a direct LLM call under request user is refused, but the name now reads oddly next to `preset.create`.
+
+### What the next step must know
+All checks pass: tsc is clean, `npm run build` passes, `npm test` is 762 of 762, `hooks.test.sh` is 209 passing, `check-sync.sh` is OK, and `validate` reports 0 errors. Every PLAN.md acceptance criterion has a passing test: `preset.create` in `perm/presets.test.ts`, `requests/preset-requests.test.ts` and `harness/actions.test.ts`; R70 in `spec/match.test.ts` and `harness/approve-plans.test.ts`; R71 in `harness/requires.test.ts`, `harness/requires-lines.test.ts` and `harness/claude-plugin-commands.test.ts`; R20.2 in `harness/approve-plans.test.ts`; R31.3 in `harness/actions-more.test.ts` and `requests/requirements.test.ts`. a024ef8 changed only plan continuation (idle, stop precedence, resume), which is step 11's scope. The test-fix commit is 443f088.
