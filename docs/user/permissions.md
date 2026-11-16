@@ -73,7 +73,7 @@ Choose a preset with `config set permissions.preset <id>`. The four defaults are
 | `feature-level-llm-control` | request-user | allow | allow | allow |
 | `full-llm-control` | allow | allow | allow | allow |
 
-The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`, `config.change`, `plan.start`, `plan.resume`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
+The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`, `config.change`, `preset.create`, `plan.start`, `plan.resume`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
 
 ### Custom presets
 
@@ -453,6 +453,14 @@ Does not allow: Reading settings, which needs no permission.
 
 Commands: `config set`, `config unset`, `init`
 
+
+### `preset.create`
+
+Allows: Create a permission preset (`preset create`). Deny refuses; allow creates it directly within the level rule (the preset may state modes only for the LLM role, and none above the LLM role's own); request user sends the full preset with a preview that the user accepts or declines. A created preset is never active.
+
+Does not allow: Editing or deleting presets, or activating one (activation stays a `config set` request).
+
+Commands: `preset create`
 
 ### `role.manage`
 
