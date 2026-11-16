@@ -70,7 +70,7 @@ export const ANSWER_LINE = 'Answer with /requests accept <id> or /requests decli
 
 export interface RequestView {
   id: string; state?: string; reason?: string; diff?: string | null; warning?: string
-  from?: { role?: string }; action?: { command?: string }; permissions?: string[]
+  from?: { role?: string }; action?: { command?: string }; summary?: string; permissions?: string[]
 }
 
 /** Control characters (and colour escapes) out of a core string; newlines stay, every other run of blanks collapses. */
@@ -79,9 +79,14 @@ export function cleanText(s: string): string {
     .split('\n').map(l => l.replace(/ {2,}/g, ' ').trim()).filter(Boolean).join('\n')
 }
 
+/** The action with its arguments, one line: the core's `summary` (`config set decisions.enabled on`), else just the command. */
+export function actionText(r: RequestView): string {
+  return typeof r.summary === 'string' && r.summary.trim() !== '' ? r.summary : r.action?.command ?? 'unknown action'
+}
+
 /** The text of one dialogue: sender, action, reason, a warning when the current diff is unavailable, and the diff (`-`/`+` lines). */
 export function dialogueText(r: RequestView): string {
-  const lines = [`Request ${r.id} from ${r.from?.role ?? 'unknown'}: ${r.action?.command ?? 'unknown action'}`, `Reason: ${r.reason ?? ''}`]
+  const lines = [`Request ${r.id} from ${r.from?.role ?? 'unknown'}: ${actionText(r)}`, `Reason: ${r.reason ?? ''}`]
   if (typeof r.warning === 'string' && r.warning.trim() !== '') lines.push(`Warning: ${r.warning.trim()}`)
   if (typeof r.diff === 'string' && r.diff.trim() !== '') {
     const d = r.diff.replace(/\n$/, '').split('\n')
@@ -148,7 +153,7 @@ const oneLine = (t: string): string => cleanText(t).replace(/\n/g, ' ')
 
 /** The option label of one request in the selection pane: id and a shortened action (the id keeps it unique). */
 export function requestLabel(r: RequestView): string {
-  const action = oneLine(r.action?.command ?? 'unknown action')
+  const action = oneLine(actionText(r))
   return `${r.id}: ${action.length > 40 ? `${action.slice(0, 39)}…` : action}`
 }
 
@@ -220,23 +225,14 @@ export async function runSelectionPane(requests: RequestView[], ask: AskPort, co
   return { lines: [...lines, ...notes], done: true }
 }
 
-/** The pending requests from `requests list --json`, each re-read with `requests show` (the list holds the diff stored at creation, `show` recomputes it). Null when the core did not give a usable list. */
+/** The pending requests with their details (the diff recomputed as `requests show` does), from one core call: `requests list --json --full`. Null when the core did not give a usable list. */
 async function pendingRequests(core: CorePort, signal?: AbortSignal): Promise<RequestView[] | null> {
   try {
-    const r = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', 'list', '--json'], signal)
+    const r = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', 'list', '--json', '--full'], signal)
     if (r.exitCode !== 0) return null
     const data = (JSON.parse(r.stdout) as { data?: unknown }).data
     if (!Array.isArray(data)) return null
-    const pending = (data as RequestView[]).filter(x => x && x.state === 'pending')
-    const fresh: RequestView[] = []
-    for (const p of pending) {
-      try {
-        const s = await core.run(['harness', 'run', '--adapter', 'claude', 'requests', 'show', p.id, '--json'], signal)
-        const rec = s.exitCode === 0 ? (JSON.parse(s.stdout) as { data?: RequestView | null }).data : null
-        fresh.push(rec && rec.id === p.id ? rec : p)
-      } catch { fresh.push(p) }
-    }
-    return fresh
+    return (data as RequestView[]).filter(x => x && x.state === 'pending')
   } catch { return null }
 }
 
@@ -270,7 +266,7 @@ export async function wantsPush(rec: RequestView, core: CorePort): Promise<boole
 
 /** The one short summary a notification carries: no diff, no reason, no way to answer (`root:requests R52.5`). */
 export function pushText(rec: RequestView): string {
-  const cmd = cleanText(rec.action?.command ?? 'an action').replace(/\n/g, ' ').slice(0, 80)
+  const cmd = cleanText(typeof rec.summary === 'string' && rec.summary ? rec.summary : rec.action?.command ?? 'an action').replace(/\n/g, ' ').slice(0, 80)
   const from = cleanText(rec.from?.role ?? 'llm').replace(/\n/g, ' ').slice(0, 40)
   return `Specplane: a request is waiting: ${cmd} (from ${from}). Open /requests to answer.`
 }

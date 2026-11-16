@@ -74,7 +74,7 @@ const listOutOne = (record: unknown) => ({ exitCode: 0, stdout: JSON.stringify({
 function fakes(records: unknown[], answers: Array<string | Error>, shown: Record<string, unknown> = {}) {
   const calls: string[][] = [];
   const asked: Array<{ q: string; o: unknown }> = [];
-  const core = { run: async (argv: string[]) => { calls.push(argv); if (argv.includes("show")) { const id = argv[argv.indexOf("show") + 1]!; return listOutOne(shown[id] ?? (records as Array<{ id: string }>).find(r => r.id === id)); } return argv.includes("--json") ? listOut(records) : { exitCode: 0, stdout: argv.at(-1) === "requests" ? "plain list\n" : `ok ${argv.filter((a) => a !== "--commit").at(-1)}\n`, stderr: "" }; } };
+  const core = { run: async (argv: string[]) => { calls.push(argv); if (argv.includes("show")) { const id = argv[argv.indexOf("show") + 1]!; return listOutOne(shown[id] ?? (records as Array<{ id: string }>).find(r => r.id === id)); } if (argv.includes("--full")) return listOut((records as Array<{ id: string }>).map(r => shown[r.id] ?? r)); return argv.includes("--json") ? listOut(records) : { exitCode: 0, stdout: argv.at(-1) === "requests" ? "plain list\n" : `ok ${argv.filter((a) => a !== "--commit").at(-1)}\n`, stderr: "" }; } };
   const ask = { ask: async (q: string, o: unknown) => { asked.push({ q, o }); const a = answers.shift(); if (a instanceof Error || a === undefined) throw a ?? new Error("none"); return a; } };
   return { calls, asked, core, ask };
 }
@@ -84,7 +84,8 @@ test("/requests with no arguments opens a dialogue per pending request and runs 
   const m = await load();
   const f = fakes([rec("a1"), rec("b2", { state: "accepted" }), rec("c3"), rec("d4")], ["a1: spec edit, c3: spec edit, d4: spec edit", "Go through one by one", "Accept", "Decline", "Skip"]);
   const out = await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
-  assert.deepEqual(f.calls[0], ["harness", "run", "--adapter", "claude", "requests", "list", "--json"]);
+  assert.deepEqual(f.calls[0], ["harness", "run", "--adapter", "claude", "requests", "list", "--json", "--full"]);
+  assert.equal(f.calls.filter(c => c.includes("show") || (c.includes("list") && !c.includes("--full"))).length, 0);
   assert.deepEqual(f.calls.filter(c => !c.includes("--json")), [["harness", "run", "--adapter", "claude", "requests", "accept", "a1", "--commit"], ["harness", "run", "--adapter", "claude", "requests", "decline", "c3"]]);
   assert.equal(f.asked.length, 5);
   assert.deepEqual(f.asked[0]!.o, { options: ["a1: spec edit", "c3: spec edit", "d4: spec edit"], header: "Requests", multiSelect: true });
@@ -230,4 +231,18 @@ test("selection pane pages six pending requests: 3 plus More, selections kept ac
   assert.equal(f.asked[2]!.q, "Answer the 2 selected requests");
   assert.deepEqual(f.calls.filter(c => !c.includes("--json")).map(c => c.slice(-2)), [["decline", "b2"], ["decline", "e5"]]);
   assert.equal(out.output.text, "ok b2\nok e5");
+});
+
+test("labels, question lines and the dialogue carry the action's arguments; opening the pane is one core call", opts, async () => {
+  const m = await load();
+  const recs = ["a1", "b2", "c3"].map((id, k) => rec(id, { summary: ["config set decisions.enabled on", "plan start 2026-11-14-parallel-check", "spec edit feature/greeting"][k] }));
+  const f = fakes(recs, ["a1: config set decisions.enabled on", "Skip"]);
+  await m.dispatch(await requestsCmd(), "", f.core, undefined, f.ask);
+  assert.deepEqual(f.asked[0]!.o, { options: ["a1: config set decisions.enabled on", "b2: plan start 2026-11-14-parallel-check", "c3: spec edit feature/greeting"], header: "Requests", multiSelect: true });
+  assert.match(f.asked[0]!.q, /^- b2: plan start 2026-11-14-parallel-check from spec-writer$/m);
+  assert.match(f.asked[1]!.q, /^Request a1 from spec-writer: config set decisions\.enabled on$/m);
+  assert.equal(f.calls.length, 1);
+  assert.deepEqual(m.actionText({ action: { command: "x" } }), "x");
+  const long = m.requestLabel(rec("z9", { summary: "config set " + "k".repeat(60) }));
+  assert.equal(long.length, "z9: ".length + 40); assert.ok(long.endsWith("…"));
 });
