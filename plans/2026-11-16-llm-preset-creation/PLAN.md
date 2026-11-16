@@ -5,19 +5,19 @@ authors:
   - llm: unknown
 implements:
   - spec: feature/roles-and-permissions
-    commit: 1674a5e8e948766ea092a6c8581afa4f15713314
+    commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
     mode: implements
   - spec: architecture/reference-cli
-    commit: 1674a5e8e948766ea092a6c8581afa4f15713314
+    commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
     mode: implements
   - spec: architecture/file-formats
-    commit: 1674a5e8e948766ea092a6c8581afa4f15713314
+    commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
     mode: implements
   - spec: feature/harness
-    commit: 1674a5e8e948766ea092a6c8581afa4f15713314
+    commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
     mode: implements
   - spec: architecture/agent-skills
-    commit: 1674a5e8e948766ea092a6c8581afa4f15713314
+    commit: 7eed2d9dbd80e18cb4a051568b720a9539c8808d
     mode: implements
 ---
 # LLM preset creation (R56.2), approve suggestions (R70), denied-command short circuit (R71)
