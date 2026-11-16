@@ -165,3 +165,26 @@ The line format is exactly `Requires: \`perm\`.` on its own line in Precondition
 
 ### What the next step must know
 tsc clean; `npm test` 753 pass, 1 fail (the config test above); `hooks.test.sh` 209 pass; `check-sync.sh` OK. Code commit 33adea5. Scratch files `step*.out` and `driver.log` in the worktree root are not to be committed.
+
+## Step 08: Approve plans and decision records from the harness
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/spec/human.ts`: `approveSpecs` resolves IDs that are not a specification at the ref but are in the plans index as plans and calls `approvePlan`, so the guard and request name are `plan approve` (`spec.approve.feature`); a sent request comes back as a Result with its ID. Mixing a plan with specifications or decision records is refused; the decision path is unchanged. This covers CLI `spec approve`, the harness `spec.approve` action and the typed `/approve` (`specApproveHuman`).
+- `packages/cli/src/plan/create.ts`: `approveInner` no longer refuses non-human actors; an LLM approval records `by: {llm, delegated-by}` as for specifications (needed for the allow case, `R52.3`/requirements line on plans and decision records).
+- `packages/cli/src/harness/approve-plans.test.ts`: harness action in allow, request-user (and accepting the request) and deny; decision approval; the three mixed-kind refusals; typed command with an exact plan and decision ID and the inexact-name listing including plans.
+- `docs/user/commands.md`, `packages/cli/src/commands/plan-cli.ts`: paragraph on plans and decision records (resolution order, mixing rule); dropped "a person only" from the `plan approve` help.
+
+### Deviations from the step
+- `approveInner` had to change to let an LLM with allow approve a plan; the step did not name it. The requirements page asks for exactly this behaviour.
+
+### Gaps found
+None. G5 from step 05 is fixed; `spec/match.ts` already listed plans and decision records.
+
+### Open issues
+- `config.test.ts` "this repository's own configuration is valid" still fails (1 of 757, `headless_block` off), unrelated to this step.
+
+### What the next step must know
+tsc clean; `npm test` 756 pass, 1 fail (the config test above); `npm run build` passes. Code commits f28595d and 3567112. The test shell sets `SPECPLANE_ACTOR=llm`, so tests that call `context()` for typed commands must clear and restore `SPECPLANE_*` variables (as `approve-plans.test.ts` does). Scratch files `step*.out` and `driver.log` in the worktree root are not to be committed.
