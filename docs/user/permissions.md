@@ -89,7 +89,7 @@ roles:
     modes: {spec.edit.architecture: request-user, info.retrieve: allow}
 ```
 
-Creating, editing and deleting a preset needs `config.change` as `allow` and a management level above every other role the preset applies to. The Standard User (10) is above the LLM role (5), so a person can manage presets; an LLM cannot, and a request cannot stand in for it. Activating a preset is a configuration change and still goes through a request for the LLM role. A malformed preset file is reported by `validate` and ignored; naming a preset that does not exist in `permissions.preset` is a malformed setting and the default preset applies. The active preset cannot be deleted.
+Creating, editing and deleting a preset needs `config.change` as `allow` and a management level above every other role the preset applies to. The Standard User (10) is above the LLM role (5), so a person can manage presets. An LLM cannot edit or delete presets, and a request cannot stand in for that; it may only create one, through `preset.create`, within the level rule (see `preset.create` below). A created preset is never active. Activating a preset is a configuration change and still goes through a request for the LLM role. A malformed preset file is reported by `validate` and ignored; naming a preset that does not exist in `permissions.preset` is a malformed setting and the default preset applies. The active preset cannot be deleted.
 
 ## The permissions
 

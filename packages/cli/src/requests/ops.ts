@@ -2,7 +2,7 @@ import { audit } from "../audit/log.js";
 import { cliTrailers, formatMessage } from "../git/commit.js";
 import { run as git } from "../git/exec.js";
 import { COMMIT_LEAD } from "../uncommitted.js";
-import { activePreset, guard, type Actor, type Preset } from "../perm/permissions.js";
+import { activePreset, findPreset, guard, type Actor, type Preset } from "../perm/permissions.js";
 import { requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { stopPlan } from "../plan/run.js";
 import { presetDraft, presetPreview } from "../perm/preset-ops.js";
@@ -83,8 +83,14 @@ export function sendRequest(ctx: RequestCtx, i: SendInput): RequestResult {
   return { ok: true, lines, reasons: [], request: rec };
 }
 
-/** The preview a `preset create` request stores in `diff`, shown as stored (`reference-cli` §8); null for other requests. */
+/** The preview a `preset create` request, or a `config set permissions.preset` request, stores in `diff`, shown as stored (`reference-cli` §8); null for other requests. */
 function storedPreview(ctx: RequestCtx, command: string, params: unknown): string | null {
+  if (command === "config set") {
+    const p = (params ?? {}) as Record<string, unknown>;
+    if (p.key !== "permissions.preset" || typeof p.arg !== "string") return null;
+    const target = findPreset(ctx.root, p.arg.trim());
+    return target ? presetPreview(target, ctx.preset).lines.join("\n") : null;
+  }
   if (command !== "preset create") return null;
   const { preset } = presetDraft(ctx.root, params);
   return preset ? presetPreview(preset, ctx.preset).lines.join("\n") : null;

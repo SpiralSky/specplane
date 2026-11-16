@@ -148,3 +148,22 @@ test("harness preset.create writes the file when preset.create is allow", async 
   assert.equal(r.ok, true, r.findings.join());
   assert.equal(fs.existsSync(path.join(root, presetFile("made"))), true);
 });
+
+test("an activation request stores the same preview of the named custom preset", () => {
+  const root = repo();
+  const created = send(root, good);
+  assert.equal(created.ok, true, created.reasons.join());
+  const dest = path.join(root, ".specplane/roles/presets");
+  fs.mkdirSync(dest, { recursive: true });
+  const preset: Preset = { ...DEFAULT_PRESET, id: "mine", title: "mine", defaultMode: "deny" } as Preset;
+  fs.writeFileSync(path.join(root, presetFile("mine")), serializePreset(preset));
+  sh(root, "add", "-A"); sh(root, "commit", "-q", "-m", "preset");
+  const r = sendRequest({ root, actor: llm, preset: DEFAULT_PRESET, now: NOW }, { command: "config set", params: { key: "permissions.preset", arg: "mine" }, reason: "activate" });
+  assert.equal(r.ok, true, r.reasons.join());
+  const rec = readRequest(root, r.request!.id)!;
+  assert.match(rec.diff!, /^mine \(custom\); default mode for unlisted permissions: deny/);
+  assert.match(rec.diff!, /more permissive than/);
+  assert.equal(show(root, rec.id)!.diff, rec.diff);
+  const other = sendRequest({ root, actor: llm, preset: DEFAULT_PRESET, now: NOW }, { command: "config set", params: { key: "decisions.enabled", arg: "on" }, reason: "x" });
+  assert.equal(readRequest(root, other.request!.id)!.diff, null);
+});

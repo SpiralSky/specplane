@@ -72,3 +72,27 @@ None.
 
 ### What the next step must know
 Commit follows 4a125e0. tsc clean, `npm test` 721 pass, 0 fail. Requests of `preset create` store the full preview in `diff`; step 4 should reuse `storedPreview` in `requests/ops.ts` for the activation request. `step3.out` in the worktree root is an untracked scratch file; do not commit it. Do not call `plan.resume` unless the plan is stopped.
+
+## Step 04: Show the preview and update the docs
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/requests/ops.ts`: `storedPreview` also covers `config set permissions.preset <custom id>`, so the activation request stores the same preview in `diff`.
+- `packages/cli/src/requests/preset-requests.test.ts`: test for the activation preview (stored, equal under `show`, null for other `config set` keys).
+- `docs/user/commands.md`: `preset create` no longer says the LLM role may not; it states the LLM may only create, directly under allow or through a request under request-user.
+- `docs/user/permissions.md`: the sentence on managing presets now carves out creation; the `preset.create` entry and the LLM permission list already existed from step 1.
+
+### Deviations from the step
+- Tasks 1 and 2 needed no code: `formatRequest` (`requests show`) and `dialogueText` in `harnesses/claude/plugin/hooks/commands.ts` already print `diff` verbatim, and step 3 stores the preview there. I did not add a dedicated test for the pane text.
+- Steering text had nothing stale to edit.
+
+### Gaps found
+- G4 (spec): `harnesses/claude/specifications/architecture/claude-integration.md` could say that the dialogue shows a stored preset preview in `diff`; not edited, since a spec edit must go through `spec.edit`.
+
+### Open issues
+- Request `20261116T094912Z-ef71` (plan.resume) was sent by mistake again while the plan was not stopped; it can be declined, along with `20261116T074439Z-81fb` and `20261116T093954Z-baf1`.
+
+### What the next step must know
+tsc clean, `npm test` 722 pass, 0 fail (the build rebuilds the plugin); `harnesses/claude/tests/check-sync.sh` OK and `hooks.test.sh` 209 pass. `step3.out` and `step4.out` in the worktree root are untracked/modified scratch files; do not commit them. Do not call `plan.resume` unless the plan is stopped.
