@@ -188,3 +188,28 @@ None. G5 from step 05 is fixed; `spec/match.ts` already listed plans and decisio
 
 ### What the next step must know
 tsc clean; `npm test` 756 pass, 1 fail (the config test above); `npm run build` passes. Code commits f28595d and 3567112. The test shell sets `SPECPLANE_ACTOR=llm`, so tests that call `context()` for typed commands must clear and restore `SPECPLANE_*` variables (as `approve-plans.test.ts` does). Scratch files `step*.out` and `driver.log` in the worktree root are not to be committed.
+
+## Step 09: Plan retargeting permission and harness action
+
+**Date**: 2026-11-16
+**Outcome**: done
+
+### What changed
+- `packages/cli/src/perm/catalog.ts`, `packages/cli/src/perm/permissions.ts`: new permission `plan.retarget`; request user for the LLM role in all four default presets (`llmModes()`); the standard user's default allow covers it as for `plan.resume`.
+- `packages/cli/src/plan/run.ts`, `packages/cli/src/requests/requirements.ts`: `retargetPlan` and the `plan retarget` request now need `plan.retarget` instead of `plan.resume`. The CLI and the request executor already call `retargetPlan`.
+- `packages/cli/src/harness/actions-plan.ts`: harness action `plan.retarget` (`id`, `target`).
+- Tests: `perm/permissions.test.ts`, `requests/requirements.test.ts` (resume-only role refused), `harness/actions-more.test.ts` (resume allowed with retarget denied is refused, request user sends a request without change, a stopped plan with a deleted target is retargeted with `plan.resume` denied and stays stopped, an unknown branch is refused), action counts in `harness/mcp.test.ts` and `harness/actions.test.ts`.
+- `docs/user/permissions.md`, `docs/user/plans.md`: the permission, its defaults, the harness action, and the note that a custom preset that allowed retarget through `plan.resume` must now state `plan.retarget`.
+
+### Deviations from the step
+None.
+
+### Gaps found
+None.
+
+### Open issues
+- `config.test.ts` "this repository's own configuration is valid" still fails (1 of 762, `headless_block` off), unrelated to this step.
+- `harness/steering.ts:13` lists the plan-step permissions and does not include `plan.retarget`. That is intended: a plan-step session does not retarget.
+
+### What the next step must know
+tsc is clean. `npm test` has 761 passing and 1 failing (the config test above), and `npm run build` passes. The code commit is 722f872 and the docs commit is 5336e78. No templates or `.claude/` files changed, so check-sync and the hook tests were not rerun. The harness now has 47 actions.
