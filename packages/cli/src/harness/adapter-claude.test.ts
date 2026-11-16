@@ -13,7 +13,7 @@ import { checkSelection, describePlan, parseSelection } from "../plan/status.js"
 import { readRequest } from "../requests/store.js";
 import { sendRequest } from "../requests/ops.js";
 import { makeRepo } from "../test-repo.js";
-import { buildArgv, claudeLauncher, CLAUDE_RESOURCES, deadSpecplaneServer, manualCommand, readUsage, reportsSpecplane, runPlanSession, sessionPrompt, type ClaudeDeps, type SessionProcess } from "./adapter-claude.js";
+import { buildArgv, claudeLauncher, monitorArgs, CLAUDE_RESOURCES, deadSpecplaneServer, manualCommand, readUsage, reportsSpecplane, runPlanSession, sessionPrompt, type ClaudeDeps, type SessionProcess } from "./adapter-claude.js";
 import { runHarnessCommand, type SessionLauncher } from "./run.js";
 import "./adapters.js";
 
@@ -573,4 +573,27 @@ test("resume accepts an idle plan, reports no stop and replaces the clean-end re
   assert.equal(marker(root)!.session, "sess-R");
   assert.ok(marker(root)!.heartbeat);
   assert.equal(info(root, ctx).idle, false);
+});
+
+test("the launcher's monitor arguments carry the session, resume and the selection", () => {
+  assert.deepEqual(monitorArgs(ID, { sessionId: "s1", resume: false, selection: "all" }), ["harness", "session", ID, "--session", "s1", "--selection", "all"]);
+  assert.deepEqual(monitorArgs(ID, { sessionId: "s1", resume: true }), ["harness", "session", ID, "--session", "s1", "--resume"]);
+});
+
+test("the hidden `harness session` command accepts --selection and --session", () => {
+  const r = spawnSync(process.execPath, [new URL("../cli.js", import.meta.url).pathname, "harness", "session", "--help"], { encoding: "utf8" });
+  assert.match(r.stdout + r.stderr, /--selection <s>/);
+  assert.match(r.stdout + r.stderr, /--session <id>/);
+});
+
+test("a selection on a stopped plan resumes it first and then chains the sessions", async () => {
+  const { root, ctx } = started();
+  addSteps(root, 2);
+  stopPlan(ctx, ID, { kind: "soft", reason: "pause" });
+  assert.equal(progress(root).status, "stopped");
+  const c = chain(root, ctx, ["step", "step"]);
+  await runPlanSession(ctx, ID, c.deps, { sessionId: "sess-0", selection: "all" });
+  assert.equal(c.ids.length, 2);
+  assert.equal(progress(root).done.length, 2);
+  assert.equal(progress(root).status, "in-progress");
 });

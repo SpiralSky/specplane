@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { PreconditionError } from "../errors.js";
 import { checkBudget, type Usage } from "../plan/budget.js";
 import { clearRun, requirePlan, worktreeOf, writeCleanEnd, writeRun, type PlanCtx } from "../plan/ctx.js";
-import { stopPlan } from "../plan/run.js";
+import { resumePlan, stopPlan } from "../plan/run.js";
 import { checkSelection, describePlan, parseSelection } from "../plan/status.js";
 import { storeDir } from "../repo/store.js";
 import type { SessionLauncher } from "./run.js";
@@ -133,6 +133,10 @@ function requireRunnable(ctx: PlanCtx, planId: string): string {
  * session starts.
  */
 export async function runPlanSession(ctx: PlanCtx, planId: string, deps: ClaudeDeps, o: { resume?: boolean; sessionId?: string; selection?: string } = {}): Promise<SessionResult> {
+  // A selection on a stopped plan continues it like `plan resume` (`reference-cli` §11.3); an idle plan is already in progress.
+  if (o.selection !== undefined && o.sessionId && requirePlan(ctx, planId).rec.progress?.status === "stopped") {
+    resumePlan({ ...ctx, actor: { ...ctx.actor, session: o.sessionId }, env: { ...(ctx.env ?? process.env), SPECPLANE_SESSION: o.sessionId } }, planId);
+  }
   requireRunnable(ctx, planId);
   const { root: liveRoot, rec: first } = requirePlan(ctx, planId);
   const sel = parseSelection(o.selection);
@@ -293,6 +297,11 @@ export function nodeSpawnPort(argv: string[], o: { cwd: string; env: NodeJS.Proc
   };
 }
 
+/** Arguments of the detached monitor process: `harness session <plan> --session <id> [--resume] [--selection <s>]`. */
+export function monitorArgs(planId: string, o: { sessionId: string; resume: boolean; selection?: string }): string[] {
+  return ["harness", "session", planId, "--session", o.sessionId, ...(o.resume ? ["--resume"] : []), ...(o.selection ? ["--selection", o.selection] : [])];
+}
+
 /** Where the monitor is started from; `specplane harness session` is its only entry. */
 function cliEntry(): string { return fileURLToPath(new URL("../cli.js", import.meta.url)); }
 
@@ -314,7 +323,7 @@ export const claudeLauncher: SessionLauncher = {
     fs.mkdirSync(logDir, { recursive: true });
     const log = fs.openSync(path.join(logDir, `${o.sessionId}.log`), "a");
     try {
-      const child = nodeSpawn(process.execPath, [cliEntry(), "harness", "session", planId, "--session", o.sessionId, ...(o.resume ? ["--resume"] : [])],
+      const child = nodeSpawn(process.execPath, [cliEntry(), ...monitorArgs(planId, o)],
         { cwd: ctx.root, detached: true, stdio: ["ignore", log, log], env: { ...process.env, SPECPLANE_MEASURABLE_RESOURCES: CLAUDE_RESOURCES.join(",") } });
       child.unref();
     } finally { fs.closeSync(log); }
