@@ -7,7 +7,7 @@ import * as path from "node:path";
 import { test } from "node:test";
 import { makeRepo } from "../test-repo.js";
 import { DEFAULT_PRESET, PRESETS, mode, type Actor, type Preset } from "../perm/permissions.js";
-import { acceptRequest, declineRequest, sendRequest } from "../requests/ops.js";
+import { acceptRequest, cancelRequest, declineRequest, sendRequest } from "../requests/ops.js";
 import { listRequests } from "../requests/store.js";
 import { checkBudget, evaluateBudget } from "./budget.js";
 import { validateProject } from "../verify/validate.js";
@@ -565,6 +565,23 @@ test("a blocking request soft stops the plan; answering it names the plan to res
   const nb = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve.feature"], reason: "later", plan: ID });
   assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.status, "in-progress");
   assert.deepEqual(reviewPlan(fx.ctx, ID).pendingRequests, [nb.request!.id]);
+});
+
+test("cancelling a blocking request names the plan to resume like decline, and the cancelled state and note are in the resume context", async () => {
+  const fx = repo({ config: "  start_conditions: off\n" });
+  createPlan(fx.ctx, { words: ["export", "things"] });
+  startPlan(fx.ctx, ID);
+  const llm = mk(fx.root, "llm");
+  const sent = sendRequest(llm, { command: "spec approve", params: { ids: ["feature/export"] }, permissions: ["spec.approve.feature"], reason: "approve export", plan: ID, blocking: true });
+  assert.ok(sent.ok);
+  assert.equal(loadPlanAt(worktreeOf(fx.root, ID)!, ID)!.progress!.stop!.reason, `waiting for request ${sent.request!.id}`);
+  const can = await cancelRequest({ root: fx.root, actor: actor("llm"), preset: DEFAULT_PRESET, now: fx.ctx.now }, sent.request!.id, "not needed");
+  assert.ok(can.ok, can.reasons.join());
+  assert.equal(can.resume, ID);
+  const res = resumePlan(fx.ctx, ID);
+  assert.equal(res.answers.length, 1);
+  assert.equal(res.answers[0].state, "cancelled");
+  assert.equal(res.answers[0].note, "not needed");
 });
 
 

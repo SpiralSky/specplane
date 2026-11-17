@@ -641,3 +641,25 @@ test("an LLM role with allow on the requested action accepts or declines a reque
   assert.ok((await declineRequest({ root, actor: actor("llm"), preset: allowAll, now: NOW }, b)).ok);
   assert.equal(readRequest(root, b)!.state, "declined");
 });
+
+test("the sender accepts its own request when its role holds allow on the action, by role or by the same non-null session", async () => {
+  const allowAll: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "allow", modes: {} } };
+  const root = repo();
+  const send = (role: string, session: string | null, id: string) => holdRequest({ root, actor: { ...actor("llm"), role, ...(session ? { session } : {}) }, permissions: ["spec.approve.feature"], decidedBy: "spec.approve.feature", command: "spec approve", params: { ids: [`feature/${id}`] }, reason: "r" }).id;
+  const byRole = send("llm", "s1", "a");
+  assert.ok((await acceptRequest({ root, actor: { ...actor("llm"), session: "s2" }, preset: allowAll, now: NOW }, byRole)).ok);
+  assert.equal(readRequest(root, byRole)!.state, "accepted");
+  const bySession = send("sender-role", "s1", "b");
+  assert.ok((await acceptRequest({ root, actor: { ...actor("llm"), session: "s1" }, preset: allowAll, now: NOW }, bySession)).ok);
+  assert.equal(readRequest(root, bySession)!.state, "accepted");
+});
+
+test("a null session never makes an actor the sender: cancel by another role without the decline permission is refused", async () => {
+  const root = repo();
+  const id = holdRequest({ root, actor: { ...actor("llm"), role: "sender-role" }, permissions: ["spec.approve.feature"], decidedBy: "spec.approve.feature", command: "spec approve", params: { ids: ["feature/a"] }, reason: "r" }).id;
+  assert.equal(readRequest(root, id)!.from.session ?? null, null);
+  const res = await cancelRequest({ root, actor: { ...actor("llm"), role: "reviewer" }, preset: PRESETS[3], now: NOW }, id);
+  assert.ok(!res.ok);
+  assert.match(res.reasons[0], /Cannot cancel.*spec\.approve/s);
+  assert.equal(readRequest(root, id)!.state, "pending");
+});
