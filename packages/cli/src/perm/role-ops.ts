@@ -25,12 +25,12 @@ const done = (lines: string[], data?: unknown, written = true): RoleResult => ({
 export interface RoleEdits { title?: string; level?: number; defaultMode?: string; sets?: string[]; unsets?: string[] }
 export interface RuleEdits { title?: string; role?: string; priority?: number; matches?: string[]; unmatches?: string[] }
 
-function record(ctx: RoleCtx, command: string, args: string[], permission: string, outcome: "done" | "refused", old: unknown, next: unknown, reason?: string): void {
+export function record(ctx: RoleCtx, command: string, args: string[], permission: string, outcome: "done" | "refused", old: unknown, next: unknown, reason?: string): void {
   audit(ctx.root, { command, args, actor: { role: ctx.actor.role, kind: ctx.actor.kind, name: ctx.actor.name, ...(ctx.actor.session ? { session: ctx.actor.session } : {}) }, permission, outcome, ...(reason ? { reason } : {}), old: old ?? null, new: next ?? null }, ctx.now);
 }
 
 /** The refusal when `ctx.actor` may not use `permission` (only `allow` counts: a request would let a lower role change what applies to a higher one). */
-function needs(ctx: RoleCtx, permission: "role.manage" | "role.map", describe: string): string | null {
+export function needs(ctx: RoleCtx, permission: "role.manage" | "role.map", describe: string): string | null {
   const g = guard(ctx.preset, ctx.actor, [permission], describe);
   if (g.kind === "deny") return g.message;
   if (g.kind === "request") return `Refused: ${describe} needs \`${permission}\`, which is request user for this role; it cannot be sent as a request. Ask a role that has it.`;
@@ -38,7 +38,7 @@ function needs(ctx: RoleCtx, permission: "role.manage" | "role.map", describe: s
 }
 
 /** Management levels (`R49`): the actor must be above each level, and cannot change its own role. */
-function above(ctx: RoleCtx, describe: string, levels: Array<[string, number]>): string | null {
+export function above(ctx: RoleCtx, describe: string, levels: Array<[string, number]>): string | null {
   const own = levelOf(ctx.preset, ctx.actor.role);
   for (const [name, level] of levels) {
     if (own <= level || name === ctx.actor.role) return `Refused: ${describe} concerns ${name}, whose management level (${level}) is not below the ${ctx.actor.role} level (${own})${name === ctx.actor.role ? "; a role cannot change its own permissions (R43)" : ""} (R49).`;
@@ -47,7 +47,7 @@ function above(ctx: RoleCtx, describe: string, levels: Array<[string, number]>):
 }
 
 /** The permissions in which the role is more permissive than the actor: a role cannot hand out what it does not hold. */
-function escalation(ctx: RoleCtx, def: CustomRoleDef): string[] {
+export function escalation(ctx: RoleCtx, def: CustomRoleDef): string[] {
   if (ctx.actor.role === "administrator") return [];
   const probe: Preset = { ...ctx.preset, customRoles: { ...ctx.preset.customRoles, [def.id]: def } };
   return CATALOG.filter((p) => RANK[mode(probe, def.id, p)] > RANK[mode(ctx.preset, ctx.actor.role, p)]);
@@ -88,7 +88,7 @@ export function roleShow(root: string, id: string): RoleResult {
   ], { id, level: def.level, state: a?.state ?? "pending", default_mode: def.defaultMode, modes: def.modes }, false);
 }
 
-function applyRoleEdits(d: { title: string; level: number; defaultMode: Mode; modes: Record<string, Mode> }, e: RoleEdits): string[] {
+export function applyRoleEdits(d: { title: string; level: number; defaultMode: Mode; modes: Record<string, Mode> }, e: RoleEdits): string[] {
   const problems: string[] = [];
   if (e.title !== undefined) { if (e.title.trim() === "") problems.push("`--title` must not be empty"); else d.title = e.title; }
   if (e.level !== undefined) { if (Number.isInteger(e.level) && e.level >= MIN_LEVEL && e.level <= MAX_LEVEL) d.level = e.level; else problems.push(`\`--level\` must be a whole number from ${MIN_LEVEL} to ${MAX_LEVEL}`); }
@@ -105,7 +105,7 @@ function applyRoleEdits(d: { title: string; level: number; defaultMode: Mode; mo
   return problems;
 }
 
-function writeFile(root: string, rel: string, text: string): void {
+export function writeFile(root: string, rel: string, text: string): void {
   const file = path.join(root, rel);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
@@ -219,7 +219,7 @@ export function ruleShow(root: string, id: string): RoleResult {
   return done([`${id}: gives ${s.rule.role}, priority ${s.rule.priority}, matches ${JSON.stringify(s.rule.match)}`, `state: ${s.state}; approved definition: ${s.approved}; role applies: ${s.roleApplies}; needs local trust: ${s.needsTrust}; trusted: ${s.trusted}`], s, false);
 }
 
-function applyRuleEdits(d: { title: string; role: string; priority: number; match: RuleDef["match"] }, e: RuleEdits): string[] {
+export function applyRuleEdits(d: { title: string; role: string; priority: number; match: RuleDef["match"] }, e: RuleEdits): string[] {
   const problems: string[] = [];
   if (e.title !== undefined) { if (e.title.trim() === "") problems.push("`--title` must not be empty"); else d.title = e.title; }
   if (e.role !== undefined) d.role = e.role;

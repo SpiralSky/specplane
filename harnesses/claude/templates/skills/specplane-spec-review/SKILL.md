@@ -4,7 +4,7 @@ description: "Review specifications read-only: problems, gaps, wording and quest
 argument-hint: "[spec id... | all]"
 disable-model-invocation: false
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # spec-review
 
 ## Purpose

@@ -235,6 +235,11 @@ Mapping operating system users is optional. When no mapping is configured, every
 *R44.1: Custom LLM role rules*
 Assigning custom roles to LLMs should be accessible to users, based on rules with factors such as defined subagents (some harnesses have specific subagents defined for tasks), current agent type, agent provider and other factors. This defaults to the LLM default role. For example, a higher level LLM role can be assigned to an LLM that reviews or manages the work of other LLMs.
 
+*R44.2: LLM Role Proposals*
+A permission should exist that controls whether an LLM role can propose a custom role, and an LLM role rule that assigns it (see `R44.1`). It should have allow, request user and deny modes (see `R52.3`), and is request user for LLM roles in all default presets. With request user, the LLM sends a request containing the full role: its permissions, its permission level and the LLM role rule that would assign it. The user is shown a preview of all of that before answering. Nothing is created unless the user accepts. Accepting still requires the accepting role to have sufficient management permissions and management level (see `R52.2`, `R48` and `R60`), and an LLM role rule that gives a role above the default LLM role must still be trusted locally before it applies (see `R48`).
+
+A proposed role cannot hold a permission mode more permissive than the proposing role's own for the same permission, and cannot be at a level equal to or higher than the proposing role's, unless the user explicitly marks that grant in the preview and accepts it. The preview names every such grant.
+
 **R60: Permissions for applying Custom Users**
 Administrators should be able to fully manage and edit the mapping from OS users to specplane roles. A custom permission type, System Permissions should exist granting the ability to manage and edit OS user -> role mappings along with LLM to role mappings. Roles with system permissions still have to obey permission levels: They cannot provide an OS user -> specplane role mapping to a role at an equal or higher level than them. This also applies to LLM mappings. Administrators are exempt from this limit for OS user mappings only.
 
@@ -330,6 +335,8 @@ To accept a request, the role must have the permission to do what is requested. 
 
 *R52.3: Request Permission Type*
 'Request User' in all sections refer to sending a request to the harness user via the Requests System. This permission type exists globally for all permissions along with allow and deny.
+
+Request User always means a person decides. It does not name a role or a subagent. Handing a decision to another LLM is done by giving that role `allow` through a custom role and an LLM role rule (see `R44.1`), and how information reaches a subagent is the harness's concern.
 
 A role with allow can still send a request or ask the user to run a command instead of acting, guided by steering (see `R59.1`). Without such steering, it acts directly.
 
@@ -522,3 +529,12 @@ When the user runs a typed approve command with a name that is not an exact ID, 
 
 **R71: Denied Commands Skip the Model**
 When a command would start a model turn, the harness should first check the permissions the command cannot do anything without. If the LLM role has any of them as deny, the harness refuses the command before the turn starts, names the denied permission, and spends no model call. A permission that is allow or request user does not block the turn, since the LLM can still act or send a request (`R52.3`). Permissions that only some uses of a command need do not trigger this refusal. A typed command that the user's own role can complete mechanically, such as approve with exact IDs, runs under the user's permissions and starts no model turn at all.
+
+**R72: Installed Files Follow the Package**
+When Specplane is updated, the files it installed into a project (harness rules, skills, hooks, the managed `AGENTS.md` block, command contracts) should not need `specplane init` to be run again by hand. At the start of a harness session, and whenever `validate` runs, Specplane should compare each installed file's version stamp with the running version.
+
+*R72.1: Safe Refresh*
+A file that still matches the content Specplane last wrote (its recorded hash) is refreshed automatically, and the harness reports in one short line which files changed. A file the user has edited is never overwritten: it is left as it is and listed with a warning that names the command to refresh it. Refreshing writes only Specplane's own installed files and never touches specs, requirements, configuration or role files.
+
+*R72.2: Same Result as Init*
+An automatic refresh produces the same files that `specplane init` would for the installed harness, and `init` stays available and safe to repeat.

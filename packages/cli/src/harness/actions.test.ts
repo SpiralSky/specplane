@@ -49,6 +49,7 @@ test("spec-review refuses every project write before dispatch or request, even w
     "spec.implement": { spec: "feature/a" }, "test.run": { all: true },
     "test.record": { results: [{ test: "R1#T1", spec: "feature/a", kind: "intelligent", outcome: "passed", summary: "Checked" }] },
     "preset.create": { id: "mine", default_mode: "deny" },
+    "role.propose": { role: { id: "mine", level: 3, default_mode: "deny" }, rule: { id: "mine-rule", match: { agent_type: "mine" } } },
     "config.set": { key: "auto_warn", value: "true" },
     "request.send": { command: "spec approve", params: { ids: ["feature/a"] }, reason: "Approve" },
     "request.accept": { id: "20260101T000000Z-0000" }, "request.decline": { id: "20260101T000000Z-0000" }, "request.cancel": { id: "20260101T000000Z-0000" },

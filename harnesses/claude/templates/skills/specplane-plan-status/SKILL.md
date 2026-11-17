@@ -4,7 +4,7 @@ description: "Show plans with live status and the next step. Use when the user a
 argument-hint: "[plan-id]"
 disable-model-invocation: false
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # plan-status
 
 ## Purpose

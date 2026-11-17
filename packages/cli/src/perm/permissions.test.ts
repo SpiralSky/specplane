@@ -10,7 +10,7 @@ const admin: Actor = { role: "administrator", kind: "human", name: "Pat" };
 
 test("every preset states a mode for each permission the LLM role has under R57, and denies the rest", () => {
   const stated = [
-    "spec.approve.requirement", "spec.approve.feature", "spec.approve.architecture", "config.change", "preset.create", "info.retrieve", "test.record", "meta.read", "meta.write", "plan.meta.read", "plan.meta.write", "plan.create", "plan.edit", "plan.start", "plan.resume", "plan.retarget",
+    "spec.approve.requirement", "spec.approve.feature", "spec.approve.architecture", "config.change", "preset.create", "role.propose", "info.retrieve", "test.record", "meta.read", "meta.write", "plan.meta.read", "plan.meta.write", "plan.create", "plan.edit", "plan.start", "plan.resume", "plan.retarget",
     "plan.abandon", "plan.complete", "plan.delete", "plan.budget", "plan.softstop", "decision.retrieve", "decision.add", "decision.edit", "decision.delete",
     ...["requirement", "feature", "architecture"].flatMap((t) => ["create", "edit", "delete"].map((a) => `spec.${a}.${t}`)),
   ];
@@ -23,7 +23,7 @@ test("every preset states a mode for each permission the LLM role has under R57,
 test("R57 common rules hold in all four presets", () => {
   for (const p of PRESETS) {
     for (const id of ["info.retrieve", "test.record", "meta.read", "plan.softstop"]) assert.equal(mode(p, "llm", id), "allow", `${p.id} ${id}`);
-    for (const id of ["spec.approve.requirement", "spec.approve.feature", "spec.approve.architecture", "config.change", "preset.create", "plan.start", "plan.resume", "plan.retarget", "plan.abandon", "plan.complete", "plan.delete", "plan.budget", "decision.add", "decision.edit", "decision.delete"]) {
+    for (const id of ["spec.approve.requirement", "spec.approve.feature", "spec.approve.architecture", "config.change", "preset.create", "role.propose", "plan.start", "plan.resume", "plan.retarget", "plan.abandon", "plan.complete", "plan.delete", "plan.budget", "decision.add", "decision.edit", "decision.delete"]) {
       assert.equal(mode(p, "llm", id), "request-user", `${p.id} ${id}`);
     }
     assert.equal(mode(p, "llm", "decision.retrieve"), "allow");

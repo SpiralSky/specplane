@@ -15,6 +15,7 @@ mkdir "$tmp/stubbin" "$tmp/proj" "$tmp/proj/.specplane" "$tmp/noconf" "$tmp/nosp
 cat > "$tmp/stubbin/specplane" <<'STUB'
 #!/bin/sh
 echo "$*" >> "${STUB_LOG:-/dev/null}"
+if [ "$1" = refresh-installed ]; then [ -n "${STUB_REFRESH:-}" ] && echo "$STUB_REFRESH"; exit 0; fi
 [ -n "${STUB_OUT:-}" ] && echo "$STUB_OUT"
 exit "${STUB_EXIT:-0}"
 STUB
@@ -179,6 +180,12 @@ EOJ
 rm -f "$tmp/log-ess"
 out=$(sce '{"session_id":"e1"}')
 [ "$out" = "ESSENTIALS TEXT" ] && grep -Fxq 'docs essentials' "$tmp/log-ess" && report "session: essentials delivered off a plan branch" 1 || report "session: essentials delivered off a plan branch ($out)" 0
+grep -Fxq 'refresh-installed' "$tmp/log-ess" && report "session: installed files refreshed at start" 1 || report "session: installed files refreshed at start" 0
+out=$(cd "$sc_repo" && PATH="$tmp/stubbin:$tmp/nospec" STUB_OUT="ESSENTIALS TEXT" STUB_REFRESH="REFRESHED LINE" CLAUDE_PROJECT_DIR="$sc_repo" sh "$hooks/specplane-session-context.sh" 2>/dev/null <<EOJ
+{"session_id":"e1b"}
+EOJ
+)
+case "$out" in *"REFRESHED LINE"*"ESSENTIALS TEXT"*) report "session: refresh line precedes essentials" 1 ;; *) report "session: refresh line precedes essentials ($out)" 0 ;; esac
 (cd "$sc_repo" && git checkout -q plan/x) >/dev/null 2>&1
 out=$(sce '{"session_id":"e2"}')
 case "$out" in "ESSENTIALS TEXT"*"Next step: 02 Second thing."*) report "session: essentials then plan context" 1 ;; *) report "session: essentials then plan context ($out)" 0 ;; esac

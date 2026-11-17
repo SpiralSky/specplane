@@ -6,12 +6,12 @@ related: [configuration, commands, harnesses]
 
 # Roles, permissions and presets
 
-Every action that changes something needs a permission. Each role has a mode for each permission: `allow` (done at once), `request-user` (the action becomes a request that a person accepts or declines, see `requests list`) or `deny`. The mode applies in the CLI and in the harness alike.
+Every action that changes something needs a permission. Each role has a mode for each permission: `allow` (done at once), `request-user` (the action becomes a request that a person accepts or declines, see `requests list`) or `deny`. Request user always means a person decides; a request never names a role or subagent as the answerer, and the sender (the same role or the same session, including an LLM) can always withdraw its own pending request with `requests cancel <id>` (harness action `request.cancel`), and any other role can cancel one only if it could decline it, meaning it has `allow` on the requested action's permission. The mode applies in the CLI and in the harness alike.
 
 ## Roles
 
 - **Administrator**: every permission, always `allow`. This is the role a person at the CLI uses when they switch to it with `role switch administrator`.
-- **Standard User**: `allow` for every permission except the four protected overrides, which are `deny`. The default CLI role.
+- **Standard User**: `allow` for every permission except the four protected overrides and `role.map`, which are `deny`. The default CLI role.
 - **LLM**: the role an agent in a harness has. Its modes come from the active preset.
 
 ## Custom roles and management
@@ -73,7 +73,7 @@ Choose a preset with `config set permissions.preset <id>`. The four defaults are
 | `feature-level-llm-control` | request-user | allow | allow | allow |
 | `full-llm-control` | allow | allow | allow | allow |
 
-The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`, `config.change`, `preset.create`, `plan.start`, `plan.resume`, `plan.retarget`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
+The columns cover create, edit and delete of the spec type together. In all four presets the LLM has `request-user` for `spec.approve.requirement`, `spec.approve.feature`, `spec.approve.architecture`, `config.change`, `preset.create`, `role.propose`, `plan.start`, `plan.resume`, `plan.retarget`, `plan.abandon`, `plan.complete`, `plan.delete` and `plan.budget`; `allow` for `info.retrieve`, `test.record`, `meta.read`, `plan.softstop`; and `deny` for `meta.write`, the granular `meta.write.*` and the override permissions.
 
 ### Custom presets
 
@@ -463,6 +463,14 @@ Does not allow: Reading settings, which needs no permission.
 
 Commands: `config set`, `config unset`, `init`
 
+
+### `role.propose`
+
+Allows: Propose a custom role together with the LLM role rule that would assign it. Deny refuses; request user and allow send the full role (permissions, level and rule) with a preview that the user accepts or declines, and nothing is created unless the user accepts. A proposed role cannot go above the proposing role's own modes or level unless the proposer marks that grant, which the preview shows as marked by the proposer; accepting the request accepts it. Accepting needs `allow` on both `role.manage` and `role.map` and a management level above the proposed role. A rule above the default LLM role still needs to be trusted locally.
+
+Does not allow: Creating, editing or deleting a role or rule directly, or trusting a rule.
+
+Commands: `role propose` (harness action `role.propose`; a request command, not listed under `role --help`). It is `request-user` by default in every preset, and a proposal is sent as a request that the user accepts or declines.
 
 ### `preset.create`
 

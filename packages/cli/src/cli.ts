@@ -13,6 +13,8 @@ import { mapCommand, mappingsCommand, roleApproveCommand, roleCreateCommand, rol
 import { presetCreateCommand, presetDeleteCommand, presetEditCommand, presetListCommand, presetShowCommand } from "./commands/preset.js";
 import { configGetCommand, configListCommand, configSetCommand, configUnsetCommand, permissionsCommand } from "./commands/config.js";
 import { roleShowHuman, roleSwitchHuman, specApproveHuman, specMetaGetHuman, specMetaSetHuman, specOverrideHuman, migrateStatusHuman, specReopenHuman, syncHuman } from "./commands/spec-human.js";
+import { checkoutRoot } from "./git/repo.js";
+import { refreshInstalled } from "./harness/refresh.js";
 import { docsCommand, docsEssentialsCommand, docsSearchCommand } from "./commands/docs.js";
 import { validateCommand } from "./commands/validate.js";
 import { warningsCommand } from "./commands/warnings.js";
@@ -187,6 +189,11 @@ docs
   // The parent also declares --json and consumes it wherever it appears.
   .action((words: string[], opts, command: Command) => docsSearchCommand(words, { json: Boolean(opts.json || command.parent?.opts().json) }));
 
+// The session-start refresh of installed files (`harness R72`); the Claude session hook calls it, so it prints one line or nothing.
+program
+  .command("refresh-installed", { hidden: true })
+  .description("Bring Specplane's installed harness files up to the running version (session hook)")
+  .action(() => { try { for (const l of refreshInstalled(checkoutRoot()).lines) process.stdout.write(`${l}\n`); } catch { /* a session start never fails on this */ } });
 program
   .command("validate [ids...]")
   .description("Validate the requirements and specs (format, cites, requirement IDs, status)")

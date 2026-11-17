@@ -462,7 +462,7 @@ Trust an approved rule on this machine. Only a rule that gives a role above the 
 
 `specplane role switch [options] <role>`
 
-administrator or standard-user
+Switch the CLI role to `administrator` or `standard-user`.
 
 ### `docs`
 
@@ -486,7 +486,7 @@ Search the bundled documentation
 
 `specplane validate [options] [ids...]`
 
-Validate the requirements and specs (format, cites, requirement IDs, status)
+Validate the requirements and specs (format, cites, requirement IDs, status). It also refreshes stale, unedited installed harness files and warns about edited ones (see `harnesses`).
 
 ### `warnings`
 
@@ -516,7 +516,7 @@ Refuse duplicate requirement IDs in the staged requirement files (reads the inde
 
 `specplane check tests --staged [--timeout <seconds>] [--json]`
 
-Run the deterministic tests of the architecture specs whose files are staged, on a copy of the index. Intelligent tests never run and nothing is recorded. The pre-commit hook runs it when `pre_commit.tests` is on; exit 1 names the spec and the failing test.
+Run the deterministic tests of every architecture spec that declares them, on a copy of the index, whenever anything is staged (code-only commits too); with nothing staged it does nothing. `--timeout` defaults to 120 seconds. Intelligent tests never run and nothing is recorded. The pre-commit hook runs it when `pre_commit.tests` is on; exit 1 names the spec and the failing test.
 
 ### `check strict`
 
@@ -528,5 +528,5 @@ Refuse a commit made by an LLM's process (marked with `SPECPLANE_ACTOR=llm`, see
 
 `specplane init [options]`
 
-Initialise Specplane in a repository
+Initialise Specplane in a repository. Safe to repeat; installed files also refresh on their own at session start and on `validate` (see `harnesses`). A hidden `refresh-installed` command, run by the Claude session hook, does the refresh.
 

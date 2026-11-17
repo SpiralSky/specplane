@@ -4,7 +4,7 @@ description: "Open the requests pane. Only the user runs this command."
 argument-hint: "[list | show <id> | accept <id> | decline <id>]"
 disable-model-invocation: true
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # requests
 
 ## Purpose

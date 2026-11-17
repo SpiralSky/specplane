@@ -4,7 +4,7 @@ description: "Judge an architecture specification against its implementation and
 argument-hint: "<architecture spec id>"
 disable-model-invocation: false
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # verify
 
 ## Purpose

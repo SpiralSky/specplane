@@ -4,7 +4,7 @@ description: "Show one specification with its status and what changed since its 
 argument-hint: "[spec id]"
 disable-model-invocation: true
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # spec-view
 
 ## Purpose

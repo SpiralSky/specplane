@@ -42,7 +42,7 @@ export function specplaneVersion(): string {
   return (JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string }).version;
 }
 
-const sha = (text: string): string => createHash("sha256").update(text).digest("hex").slice(0, 16);
+export const sha = (text: string): string => createHash("sha256").update(text).digest("hex").slice(0, 16);
 
 /** The fixed, short standing text of `harness §2`; the same for every harness. */
 export function standingText(stamp: string): string {
@@ -58,8 +58,9 @@ export function standingText(stamp: string): string {
   ].join("\n");
 }
 
-function beginMarker(version: string): string {
-  return `${BEGIN_PREFIX}v${version} — managed by \`specplane init\`; edits inside this block are overwritten -->`;
+/** The begin marker carries the version and a hash of the block body, so an edited block can be told from a stale one (`harness R72.1`). */
+export function beginMarker(version: string, body: string): string {
+  return `${BEGIN_PREFIX}v${version} sha:${sha(body)} — managed by \`specplane init\`; edits inside this block are overwritten -->`;
 }
 
 /** Where the Claude Code templates live: next to the compiled CLI when packaged, else the repository's own folder. */
@@ -139,7 +140,7 @@ const HEADER = /specplane:file v(\S+)(?: stamp:([0-9a-f]+))?(?: sha:([0-9a-f]+))
  * Split an owned file into its lead (a shebang or Markdown frontmatter, which must stay first), the header line and the
  * body. `hashed` is what the body hash covers: frontmatter is part of it, since a user's edit there is a customisation.
  */
-function splitHeader(text: string): { header: RegExpMatchArray | null; body: string; lead: string; hashed: string } {
+export function splitHeader(text: string): { header: RegExpMatchArray | null; body: string; lead: string; hashed: string } {
   let lead = "";
   let rest = text;
   if (rest.startsWith("#!")) { const i = rest.indexOf("\n") + 1; lead = i ? rest.slice(0, i) : rest; rest = i ? rest.slice(i) : ""; }
@@ -150,7 +151,7 @@ function splitHeader(text: string): { header: RegExpMatchArray | null; body: str
   return { header: m, body: rest, lead, hashed: lead.startsWith("---") ? lead + rest : rest };
 }
 
-function withHeader(file: string, content: string, version: string): string {
+export function withHeader(file: string, content: string, version: string): string {
   const stamp = content.match(/Steering stamp: ([0-9a-f]{64})/)?.[1] ?? null;
   const split = splitHeader(content);
   const header = headerFor(file, split.hashed, version, stamp);
@@ -158,7 +159,7 @@ function withHeader(file: string, content: string, version: string): string {
 }
 
 /** Refuse a target that is, or sits below, a symlink: setup never writes through one. */
-function refuseSymlinks(root: string, rel: string): void {
+export function refuseSymlinks(root: string, rel: string): void {
   let current = root;
   for (const part of rel.split("/")) {
     current = path.join(current, part);
@@ -188,7 +189,7 @@ export function splitBlock(file: string, text: string): BlockParts {
   };
 }
 
-function atomicWrite(file: string, content: string, mode?: number): void {
+export function atomicWrite(file: string, content: string, mode?: number): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;
   try { fs.writeFileSync(tmp, content, { flag: "wx" }); if (mode) fs.chmodSync(tmp, mode); fs.renameSync(tmp, file); } finally { fs.rmSync(tmp, { force: true }); }
@@ -334,7 +335,7 @@ export function installHarness(root: string, harness: string): InstallReport {
     } else {
       refuseSymlinks(root, plan.block.file);
       const abs = path.join(root, plan.block.file);
-      const block = `${beginMarker(version)}\n${plan.block.text}\n${END_MARKER}`;
+      const block = `${beginMarker(version, plan.block.text)}\n${plan.block.text}\n${END_MARKER}`;
       if (!fs.existsSync(abs)) pending.push({ rel: plan.block.file, content: `${block}\n`, kind: "block" });
       else {
         const current = fs.readFileSync(abs, "utf8");
@@ -358,7 +359,7 @@ export function installHarness(root: string, harness: string): InstallReport {
 }
 
 /** Installed harnesses: recorded setups plus a Claude install detected by its hook. */
-function installedHarnesses(root: string): string[] {
+export function installedHarnesses(root: string): string[] {
   const names = new Set(Object.keys(readStoreJson<Record<string, string[]>>(root, RECORD) ?? {}));
   if (fs.existsSync(path.join(root, ".claude/hooks/specplane-cli-block.sh"))) names.add("claude");
   return [...names].sort();

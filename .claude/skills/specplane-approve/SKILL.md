@@ -4,7 +4,7 @@ description: "Approve specifications, plans or decision records by ID. Only the 
 argument-hint: "<id>..."
 disable-model-invocation: true
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # approve
 
 ## Purpose

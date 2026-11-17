@@ -46,7 +46,7 @@ Approval is tied to what you actually reviewed, so an edited spec stops counting
 
 ## Install
 
-You need **Node.js 22+** and **git**. The `gh` CLI is optional and only used for pull requests.
+You need **Node.js 22+** and **git 2.32+**. The `gh` CLI is optional and only used for pull requests.
 
 ```sh
 npm install -g specplane
@@ -99,7 +99,7 @@ For CI, run `specplane validate --json` on the checked-out commit and fail the j
 
 ## Status
 
-Specplane is at v0.1.2 and published on [npm](https://www.npmjs.com/package/specplane). It works and it's tested, but it's young and the details may still change. This repository uses Specplane to describe itself: its product requirements are in [`docs/requirements/product-requirements.md`](docs/requirements/product-requirements.md), and the feature and architecture specs are under `docs/specifications/`. If you try it, issues are welcome.
+Specplane is published on [npm](https://www.npmjs.com/package/specplane). It works and it's tested, but it's young and the details may still change. This repository uses Specplane to describe itself: its product requirements are in [`docs/requirements/product-requirements.md`](docs/requirements/product-requirements.md), and the feature and architecture specs are under `docs/specifications/`. If you try it, issues are welcome.
 
 ## Developing Specplane
 

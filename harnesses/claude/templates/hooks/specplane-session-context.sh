@@ -66,9 +66,15 @@ plan_message() {
   printf '%s' "$msg"
 }
 ess=
+refreshed=
 if command -v specplane >/dev/null 2>&1; then
+  # Installed files follow the package (`harness R72`): a stale, unedited file is rewritten and one line says which.
+  refreshed=$(cd "$root" && specplane refresh-installed 2>/dev/null) || refreshed=
   ess=$(cd "$root" && specplane docs essentials 2>/dev/null) || ess=
 fi
+[ -n "$refreshed" ] && ess="${refreshed}${ess:+
+
+$ess}"
 plan=$(plan_message)
 text=$ess
 [ -n "$plan" ] && text="${text:+$text

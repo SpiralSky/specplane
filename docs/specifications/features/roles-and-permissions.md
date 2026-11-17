@@ -4,7 +4,7 @@ title: Roles and Permissions
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-covers: [R42, R42.1, R42.2, R43, R44, R44.1, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R56.2, R57, R58, R60]
+covers: [R42, R42.1, R42.2, R43, R44, R44.1, R44.2, R46, R48, R49, R50, R55, R55.1, R56, R56.1, R56.2, R57, R58, R60]
 references: [plan-execution R31.3, R16.1, R32, harness R35.1, R52, plan-execution R27, R17.1, R17.2, R19.2, R20.1, R21, R25.1, R26.2, R27.1.1, R27.2.1, R27.3, R31.1, R33.1, R37.1, R38.1, R40, R47, R51, R52.2, R52.3, R54, R59.1, R61.2, R63, plan-execution R27.1, plan-execution R27.1.1, plan-execution R27.2.1, plan-execution R31.1, requests R52, requests R52.3, steering R51, steering R59, configuration R25, specifications R11, verification R61, verification R12, verification R13, verification R24, verification R36.1, verification R64, architecture/file-formats §13]
 ---
 
@@ -100,6 +100,7 @@ These are the standard permissions. The section named in the last column defines
 | Change configuration | Any change to Specplane's configuration, including which preset is active | `R25.1`, `configuration R25` |
 | Validate, list warnings, show coverage, run tests, read the audit log | Read-only checks and reads; they use the information retrieval permission and have none of their own. Recording a test result is separate (`R61.2`) | `verification R12`, `verification R24`, `verification R13`, `verification R64` |
 | Mark an architecture specification implemented | No permission of its own: it needs the permission to record a test result, and for an LLM the setting `architecture.llm_may_mark_implemented` (`configuration R25`) | `verification R36.1` |
+| Proposing a role | The permission `role.propose`: request user for the LLM role in all default presets (`R44.2`) | `R44.2` |
 | Creating a preset | The permission `preset.create`: request user for the LLM role in all default presets (`R56.2`). The Standard User and the Administrator create presets under `R56` | `R56.2`, `R56` |
 | Requests | Sending a request is always allowed to the LLM role. Accepting a request has no permission of its own: it uses the permission of the requested action | `R52`, `R52.2` |
 
@@ -119,6 +120,7 @@ All four presets have these in common:
 - **Default mode.** Every permission that a preset does not state is deny (`R56.1`).
 - **Approval.** Approving specifications is request user for the LLM role.
 - **Configuration.** Changing configuration is request user for the LLM role.
+- **Role proposals.** Proposing a custom role and its LLM role rule (`role.propose`) is request user for the LLM role (`R44.2`).
 - **Preset creation.** Creating a preset (`preset.create`) is request user for the LLM role (`R56.2`).
 - **Always allowed for the LLM role:** information retrieval for all specifications, recording a test result (`R61.2`), reading specification metadata, sending requests, and the soft stop of a plan it runs (`R27.3`).
 - **Plans for the LLM role:** creating and editing plans are allowed in presets 1, 3 and 4 and request user in preset 2 (an assumption: the page says preset 2 enables only read-only and miscellaneous permissions, and a plan can contain steps that write specifications); starting, resuming, abandoning, completing and deleting plans and setting a plan budget are request user. The plan itself can still stop and resume as `plan-execution R27` describes.
@@ -245,6 +247,24 @@ The harness supplies the factors from the adapter's environment (`SPECPLANE_PROV
 Scenario: Given a rule that gives `reviewer` to the subagent `code-reviewer`, approved and trusted, When that subagent calls a harness action, Then the call is checked and audited under `reviewer`; any other LLM keeps the LLM role.
 
 Test T1 (deterministic): a rule applies only when approved, and when above the LLM role only when trusted; factors combine with AND; priority orders matches; a non-matching LLM has the default role; an LLM cannot create or trust a rule.
+
+### R44.2: LLM Role Proposals
+
+The permission `role.propose` controls whether an LLM role can propose a custom role together with the LLM role rule that would assign it (`R44.1`). Like every permission it has allow, request user and deny (`R52.3`), and it is request user for the LLM role in all four default presets (`R57`). The permission is not a way to create a role directly: nothing is created unless a person accepts.
+
+- **Deny.** The proposal is refused with the permission named, and no request can be sent for it (`requests R52.3`).
+- **Request user.** The LLM sends a request that carries the full role: its ID, title, permissions with their modes, its permission level (`R42.2`) and the LLM role rule that would assign it (`R44.1`). The request shows the user a preview of all of that before they answer, in the layout of `role show` and `role rule show`, plus the cap grants below. The role and the rule are written only if the user accepts. The proposing role is checked on `role.propose` when it sends the request. The accepting role is checked as for any custom role: it needs sufficient management permissions and a management level above the proposed role (`R52.2`, `R48`, `R60`). A rule that gives a role above the default LLM role still does not apply until the user has trusted it on this machine (`R48`); accepting the request does not trust it.
+- **Allow.** There is no direct creation in this version: `allow` on `role.propose` lets the LLM send the request without steering asking for it, and the user still decides. A person who wants an LLM to decide instead delegates it (`R52.3`).
+- **Cap.** A proposed role cannot hold a permission mode more permissive than the proposing role's own mode for the same permission, and cannot have a level equal to or higher than the proposing role's, unless the user explicitly marks that grant in the preview and accepts it. The preview names every such grant, so an unmarked grant above the cap is refused when the request is sent and again when it is accepted. The modes compared are effective modes, including the defaults that fill every unstated permission (`R56.1`).
+- **Harness.** The harness lists and shows roles and rules (reads under `info.retrieve`) and sends the proposal through the same operations as the CLI, so an LLM can read the existing roles before it proposes one.
+
+Scenario: Given `role.propose` as request user, When the LLM proposes a role that sets `spec.edit.feature` to allow where the LLM role has request user, Then the user sees the full role, its level, its rule and that grant named as above the proposer's own mode, and nothing exists until they accept and mark it.
+
+Scenario: Given `role.propose` as deny, When the LLM role tries to propose a role, Then the action is refused and no request is stored.
+
+Scenario: Given a proposed role at the proposer's own level, When the proposal is sent, Then the level is named in the preview as above the cap, and without the user's mark on it the proposal is refused.
+
+Test T1 (deterministic): for each mode of `role.propose`, check deny (refused, no request), request user (a request with the full role, rule and preview; nothing written until accepted; an accept by a role without sufficient permission or level refused; a rule above the default LLM role not applying until trusted) and allow (a request sent, still nothing written); a mode or level above the proposer's own refused unless marked.
 
 ## R60: Permissions for applying Custom Users
 

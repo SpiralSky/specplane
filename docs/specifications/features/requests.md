@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R52, R52.1, R52.2, R52.3, R52.4, R52.5]
-references: [plan-execution R27.1, R18, R27.5, R27.5.1, R27.5.2, R59.1, plan-execution R27.5, plan-execution R27.5.1, plan-execution R27.5.2, roles-and-permissions R50, roles-and-permissions R57, roles-and-permissions §2, steering R59, configuration R25]
+references: [plan-execution R27.1, R18, R27.5, R27.5.1, R27.5.2, R59.1, plan-execution R27.5, plan-execution R27.5.1, plan-execution R27.5.2, roles-and-permissions R44.1, roles-and-permissions R44.2, roles-and-permissions R50, roles-and-permissions R57, roles-and-permissions §2, steering R59, configuration R25]
 ---
 
 # Requests
@@ -64,6 +64,8 @@ Test T1 (deterministic): with a role lacking the permission for the requested ac
 - Under `request user` the action is not done. A request is sent and the action is done only if the user accepts it.
 - A role with allow may still send a request, or ask the user to run a command instead of acting, when steering says so (`R59.1`, `steering R59`). Without such steering, a role with allow acts directly.
 - A role with deny cannot send a request for that action. Deny is final; if the user wants the action, they change the permission or do it themselves.
+- `request user` always means a person decides. A request does not name a role or a subagent as the answerer. Handing a decision to another LLM is done by giving that role `allow` through a custom role and an LLM role rule (`roles-and-permissions R44.1`); how information reaches a subagent is the harness's concern.
+- A request may carry a role proposal, which shows the user the full role and its rule before they answer (`roles-and-permissions R44.2`).
 - Examples: with the Full Manual Editing preset, editing specifications is denied, so no request to edit a specification can be sent, and a plan step that needs one stops (`roles-and-permissions R57`, `plan-execution R27.1`). In the presets where the LLM role has `request user` for editing a type of specification, the edit is sent as a request.
 
 Test T1 (intelligent): read the default presets and check that every `request user` permission produces a request, that deny never does, and that allow produces one only when steering asks for it.

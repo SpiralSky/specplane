@@ -6,6 +6,8 @@ import * as path from "node:path";
 import { configSet, configUnset } from "../config-ops.js";
 import type { Actor, Preset } from "../perm/permissions.js";
 import { presetCreate, presetParamsEdits } from "../perm/preset-ops.js";
+import { roleProposeAccept } from "../perm/role-propose.js";
+import { readRequest } from "./store.js";
 import { approvePlan, createPlan } from "../plan/create.js";
 import { editPlan } from "../plan/edit.js";
 import { planMetaSet } from "../plan/meta.js";
@@ -64,6 +66,7 @@ const ACTIONS: Record<string, Action> = {
   "config set": (c, p) => fromResult(configSet(c, p.key, p.arg ?? String(p.new))),
   "config unset": (c, p) => fromResult(configUnset(c, p.key)),
   "preset create": (c, p) => { const { id, edits, problems } = presetParamsEdits(p); return problems.length ? { ok: false, lines: [], reasons: problems } : fromResult(presetCreate(c, id, edits)); },
+  "role propose": (c, p) => fromResult(roleProposeAccept(c, readRequest(c.root, c.request)?.from.role ?? "llm", p)),
   "plan create": (c, p) => { const r = createPlan(planCtx(c), { words: p.words, title: p.title, implements: p.implements, writes: p.writes, references: p.references }); return done(`Created plan ${r.id}.`); },
   "plan edit": (c, p) => { editPlan(planCtx(c), p.id, { changes: p.changes }); return done(`Edited plan ${p.id}.`); },
   "plan meta set": (c, p) => { planMetaSet(planCtx(c), p.id, p.field, p.value); return done(`Set ${p.field} of ${p.id}.`); },

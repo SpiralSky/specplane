@@ -4,8 +4,8 @@ title: File formats
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-implements: [specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4, roles-and-permissions R43, roles-and-permissions R44.1, roles-and-permissions R49, roles-and-permissions R60]
-references: [plan-execution R31.3, cli R16.1, harness R20.1, architecture/reference-cli §8, architecture/reference-cli §12.4, roles-and-permissions R56.1, roles-and-permissions R56.2, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, plan-execution R31.2, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R37.1, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6, architecture/reference-cli §12.1]
+implements: [harness R72, harness R72.1, roles-and-permissions R44.2, specifications R1, specifications R2, specifications R5, specifications R7, specifications R9, specifications R10, specifications R10.1, specifications R11, specifications R11.1, specifications R11.2, specifications R11.3, specifications R11.4, specifications R40, plans R28, plans R29, plans R29.1, plans R29.2, plans R30, plans §2, plans §2.1, plans §2.2, plans §3, configuration R25, configuration R25.1, roles-and-permissions R50, roles-and-permissions R56, roles-and-permissions R57, roles-and-permissions R44, roles-and-permissions R48, requests R52, requests R52.2, requests R52.4, verification R13, verification R13.1, verification R36.2, verification R61.1, verification R61.3, verification R61.4, cli R16, cli R17.2, plan-execution R27, plan-execution R27.2, plan-execution R27.4, roles-and-permissions R43, roles-and-permissions R44.1, roles-and-permissions R49, roles-and-permissions R60]
+references: [roles-and-permissions R44.2, plan-execution R31.3, cli R16.1, harness R20.1, architecture/reference-cli §8, architecture/reference-cli §12.4, roles-and-permissions R56.1, roles-and-permissions R56.2, verification §2.1, cli R17, plans R29.3, plan-execution R31.1, plan-execution R31.2, verification R32, verification R36.1, verification §3, roles-and-permissions R42.1, roles-and-permissions §2, configuration §2, requests §2, requests R52.1, plans §3.1, plan-execution R27.1, steering R59.1, later-releases R37, later-releases R37.1, later-releases R39.3, R11, R2, architecture/repository-layout §6, plan-execution R27.6, architecture/repository-layout, architecture/reference-cli, architecture/reference-cli §5.7, architecture/reference-cli §10.2, architecture/reference-cli §5.6, architecture/reference-cli §12.1]
 ---
 
 # File formats
@@ -476,6 +476,7 @@ Each standard permission has a stable lower-case dotted ID used in presets, stee
 | `decision.add`, `decision.retrieve`, `decision.edit`, `decision.delete` | Later release |
 | `config.change` | Change configuration, including `permissions.preset` |
 | `preset.create` | Create a custom preset as the LLM role: allow, request user or deny (`roles-and-permissions R56.2`); a person creates presets under `config.change` and `role.manage` |
+| `role.propose` | Propose a custom role and its LLM role rule as the LLM role: allow or request user send a request, deny refuses (`roles-and-permissions R44.2`); nothing is created unless a person accepts |
 
 The single permission `spec.approve` that earlier releases had no longer exists (`cli R16.1`). A preset or role file that still names it is not malformed: the key is ignored, so the default mode of that role applies and authority never grows, and `validate` warns "unknown permission `spec.approve`; use spec.approve.requirement, spec.approve.feature or spec.approve.architecture".
 
@@ -516,6 +517,7 @@ roles:
       spec.approve.architecture: request-user
       config.change: request-user
       preset.create: request-user
+      role.propose: request-user
       info.retrieve: allow
       test.record: allow
       meta.read: allow
@@ -802,6 +804,19 @@ Spec IDs are unique within a project, and a cite to another project is written `
 - Resolution: a cite without a project resolves in the citing spec's own project; `root:<cite>` resolves in the root project; `<name>:<cite>` in that subproject. An undeclared name is a resolution error. A cite to the root project names it (`root:<cite>`, R39.3), also in a subproject that has no requirement files; a bare cite in a subproject that resolves only in the root project is a validation error naming the qualified `root:<cite>` form.
 - Validation runs the `requirements`, `spec-format` and `cites` families inside each subproject; each finding carries the project name (the `project` field of the report), and the text report appends `project <name>` to the finding and prints one count line per project. The `subprojects` family reports a declared folder that is missing and, as a warning, a subproject requirement with the title of a root requirement but a different text (R39.4: the root requirement wins).
 - Approval status, the notes store, test and implementation records and coverage cover subproject specs by their qualified ID. A cite recorded in `cited` or listed in `references`, `covers` or `implements` is resolved in the project of the spec that holds it, so a spec in a subproject depends on a spec in another project through the cite `<name>:<cite>` and is held back (`unapproved-dependency`) until that spec is approved, as in one project. Approval groups (`§4.5`) follow cites across projects. A requirement or feature of a subproject is covered, and named in coverage, as `<name>:R<n>` or `<name>:feature/<slug>`; a cite covers the item in the project it points into, so a subproject feature spec can cover a root requirement. Validation scoped to spec IDs (`validate <ids>`) includes subproject specs: the format, cite, tests and status checks run for the named ones. The key that compares cites inside a subproject keeps `root:X` and `X` apart, since they name different projects there; in the root project they are the same. The harness spec-write path (`spec.create`, `spec.edit`, `spec.delete`) accepts the qualified ID: the file goes into the subproject's `requirements/`, `features/` or `architecture/` folder, the frontmatter `id` stays the local `<layer>/<slug>`, the permission is the one of the layer, and an undeclared project name is refused. A bare slug (given without a layer) that names a spec in the root and in a subproject, or in two subprojects, is refused as ambiguous and the error lists the qualified IDs.
+
+### §12.5 Installed-file stamps
+
+Files Specplane installs (`harness R72`) say which version wrote them and what content they had, so a later run can tell a stale file from an edited one. The header is chosen by file extension (`headerFor` in `packages/cli/src/harness/install.ts`) and is `specplane:file v<version> [stamp:<steering stamp>] sha:<hash>`, where `sha` is the hash of the content below the header (for a file with frontmatter, the frontmatter is part of it):
+
+| File type | Header |
+|-----------|--------|
+| `.md` | `<!-- specplane:file vX.Y.Z stamp:... sha:... -->` |
+| `.sh`, `.yaml`, `.yml`, `.py`, `.toml` | `# specplane:file vX.Y.Z stamp:... sha:...` |
+| `.json` | none; formats without comments carry no header, and merged settings files are changed only for Specplane's own entries |
+| managed block in a shared file (`AGENTS.md`) | `<!-- specplane:begin vX.Y.Z sha:... ... -->` and `<!-- specplane:end -->` |
+
+The `stamp` is the steering stamp (`§12.4` of reference-cli). A file that matches its recorded `sha` is unedited. The block marker records the version and the `sha` of the block body (`<!-- specplane:begin vX.Y.Z sha:... -->`), so that an edited block can be told from a stale one; a marker with no `sha`, written by an older version, is refreshed only if its body equals the standard text for the stamp it carries, and otherwise counts as edited. A file with no header was not written by Specplane and is kept.
 
 ## §13 Notes store and records
 

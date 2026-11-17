@@ -1,5 +1,7 @@
 import { PLAN_PIECES } from "../perm/permissions.js";
 import { presetDraft } from "../perm/preset-ops.js";
+import { parseProposal, proposalProblems } from "../perm/role-propose.js";
+import type { Actor, Preset } from "../perm/permissions.js";
 import { validateEditParams } from "../plan/edit.js";
 import { specLayer as writeLayer, validateSpecChange } from "../spec/write.js";
 import { approvalNeeds } from "../spec/human.js";
@@ -112,6 +114,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
       return ["config.change"];
     case "config unset": requireText("key"); return ["config.change"];
     case "preset create": requireText("id"); return ["preset.create"];
+    case "role propose": { const { problems } = parseProposal(p); if (problems.length) invalid(`Invalid role proposal: ${problems.join("; ")}.`); return ["role.propose"]; }
     case "plan create": {
       if (!strings(p.words)) invalid("`plan create` needs a list of words.");
       const words = (p.words as string[]).flatMap((w) => w.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
@@ -162,6 +165,7 @@ export function actionNeeds(root: string, command: string, params: unknown): Act
  */
 export function acceptNeeds(root: string, command: string, params: unknown): ActionNeeds {
   const needs = actionNeeds(root, command, params);
+  if (command === "role propose") return ["role.manage", "role.map"];
   return command === "preset create" ? ["config.change", "role.manage"] : needs;
 }
 
@@ -172,7 +176,11 @@ const PLAN_COMMANDS = ["plan approve", "plan start", "plan stop", "plan resume",
  * after `actionNeeds`, so a malformed or denied request is still reported first. `plan start` with an explicit target is
  * left to the accepting run, because that plan lives on another branch.
  */
-export function requestPrecondition(root: string, command: string, params: unknown): string | null {
+export function requestPrecondition(root: string, command: string, params: unknown, sender?: { actor: Actor; preset: Preset }): string | null {
+  if (command === "role propose" && sender) {
+    const problems = proposalProblems(root, sender.preset, sender.actor.role, params);
+    return problems.length ? `The role cannot be proposed: ${problems.join("; ")}.` : null;
+  }
   if (command === "preset create") {
     const { problems } = presetDraft(root, params);
     return problems.length ? `The preset cannot be created: ${problems.join("; ")}.` : null;
