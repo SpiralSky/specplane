@@ -29,11 +29,11 @@ This is the maintainers' own file; Specplane never writes or ships a `CLAUDE.md`
 
 ## Maintainers' conventions
 
-- The repo-root `HANDOFF.md` is the human session log; a plan's progress lives in `<plans.dir>/<plan-id>/HANDOFF.md`.
-- `.claude/` is the dogfood install of `harnesses/claude/templates/`; edit the templates and copy them over, then run `sh harnesses/claude/tests/check-sync.sh`.
+- The repo-root `HANDOFF.md` is the maintainer's local session log: it is gitignored and never committed or pushed, so keep it updated on disk only. A plan's progress lives in `<plans.dir>/<plan-id>/HANDOFF.md`.
+- `.claude/` is the maintainer-local dogfood install of `harnesses/claude/templates/`; it is gitignored and not tracked, so a fresh clone or cloud session does not have it (the maintainers' agents and the `approach` skill live only on the maintainer's machine). Edit the templates and copy them over, then run `sh harnesses/claude/tests/check-sync.sh`.
 - Hook tests: `sh harnesses/claude/tests/hooks.test.sh`.
 - Work on a branch, not `main`: one branch per coherent change, a PR for review (`gh pr create`), merge after review. Tags and pushes still wait for the user.
-- Commit regularly without being asked: after each coherent unit of work (a resolved question, a spec or plan edit, a passing fix) and before ending a session, so `main` is never left with a large uncommitted diff. Keep commits small and single-purpose, follow `file-formats` §8, and stage specific paths, not `git add -A` of the whole tree. Never push or rewrite history unless asked. Keep the repo-root `HANDOFF.md` "Current state" accurate in the same commit.
+- Commit regularly without being asked: after each coherent unit of work (a resolved question, a spec or plan edit, a passing fix) and before ending a session, so `main` is never left with a large uncommitted diff. Keep commits small and single-purpose, follow `file-formats` §8, and stage specific paths, not `git add -A` of the whole tree. Never push or rewrite history unless asked. Keep the repo-root `HANDOFF.md` "Current state" accurate on disk (it is not committed).
 
 ## Models and delegation
 

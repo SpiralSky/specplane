@@ -128,7 +128,6 @@ packages/cli/                   the reference CLI (TypeScript, Node 22+)
 harnesses/claude/               Claude Code specs, installed templates, plugin, tests
 harnesses/codex/                Codex specs and templates
 plans/                          plan records
-.claude/                        this repo's own installed copy of the Claude harness
 ```
 
 </details>
