@@ -1,11 +1,15 @@
 # Session handoff
-Updated 2026-11-16 after the requests usability fixes. Read the first "Next session: start here" section; older sections are historical unless referenced below.
+Updated 2026-11-17 after the 0.1.3 release. Read the first section; older sections are historical unless referenced below.
 
-## 0.1.3 in progress (2026-11-17, evening)
+## 0.1.3 released (2026-11-17, late)
 
-Branch `docs/requirements-roles-refresh` (cut from local `main`, so it also carries `26776a5` docs fixes and `424427a` the 0.1.3 version bump); `release/0.1.3` is an unused marker at `424427a`. Nothing is pushed and the `v0.1.3` tag was deleted (not yet created again). Push is blocked until the user runs `gh auth setup-git` (`gh` is logged in; git HTTPS is not).
+PR #1 and PR #2 are merged; `main` is `3dd6242` and tag `v0.1.3` points at it. The first publish run (on `8ddfc80`) failed with 0 test failures: `required.test.js` and `adapter-claude.test.js` hit the 120 s per-file limit of Node's test runner (CI has no Bun, 2 cores, 20-way concurrency; each file takes about 36 s alone). PR #2 (`90c75b4`) raised the limit to 420 s in `packages/cli/scripts/test.sh` (override `SPECPLANE_TEST_NODE_TIMEOUT`). The tag was deleted and re-created on the merge commit; the publish run passed and logged `+ specplane@0.1.3` with provenance. **To check:** `npm view specplane version --prefer-online` still showed `0.1.2` several minutes later; confirm `0.1.3` is listed (the upload may need approving on the npm package page).
 
-Done on the branch: requirements R44.2 (LLM role proposals, permission `role.propose`), R52.3 sentence, R72 (installed files refresh at session start and on `validate`); 18 specs approved as a group (notes `6a9a3b9`); R72 built (`7e0b1c7`, `43af130`, `05518d7`); `role.propose` built (`8160acf`, `e52f2b1`); review fixes (`2686ea7`, `c2107f4`); user docs updated and corrected after an audit. 798 pass / 0 fail, hooks 211, check-sync OK.
+The 314 npm downloads (294 on 2026-11-15, 20 on 11-16) are the first-publish spike, most likely mirrors and bots. Still open: delete the `NPM_TOKEN` secret in the GitHub settings; the list under "Left" below minus the release steps, which are done.
+
+## 0.1.3 work log (historical)
+
+Done on the branch `docs/requirements-roles-refresh` (merged as PR #1): requirements R44.2 (LLM role proposals, permission `role.propose`), R52.3 sentence, R72 (installed files refresh at session start and on `validate`); 18 specs approved as a group (notes `6a9a3b9`); R72 built (`7e0b1c7`, `43af130`, `05518d7`); `role.propose` built (`8160acf`, `e52f2b1`); review fixes (`2686ea7`, `c2107f4`); user docs updated and corrected after an audit. 798 pass / 0 fail, hooks 211, check-sync OK.
 
 Left: (1) a final read of the PR diff; (2) open the PR (`gh pr create`) after the user fixes push auth; merge after review; (3) tag `v0.1.3` on the merge commit and push (CI publishes; npmjs trusted publisher needs "allow npm publish"; the upload may need approving on the npm page); (4) delete the `NPM_TOKEN` secret; (5) the dogfood `.claude/` files are plain copies of the templates with no stamp, so `init` says "not written by Specplane" and keeps them and R72 never touches them; that is expected here, `check-sync.sh` keeps them current (no `init` run needed); (6) docs not audited line by line: `plans.md` lifecycle claims, `concepts.md` and `specification-format.md` behaviour, harnesses pre-check permission mapping; (7) known gaps: `validateCommand` still throws without git before the refresh guard; a proposed LLM role rule with a wildcard match and high priority is not called out in the preview. Dropped for now by the user: wiring `cancel` into the `/requests` pane, answering requests as a pattern.
 
