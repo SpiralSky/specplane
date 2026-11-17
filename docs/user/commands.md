@@ -355,6 +355,12 @@ Accept a request: the action is done once, under your permission
 
 Decline a request: nothing changes
 
+### `requests cancel`
+
+`specplane requests cancel [options] <id>`
+
+Cancel a pending request: nothing changes
+
 ### `role show`
 
 `specplane role show [options] [id]`

@@ -51,7 +51,7 @@ test("spec-review refuses every project write before dispatch or request, even w
     "preset.create": { id: "mine", default_mode: "deny" },
     "config.set": { key: "auto_warn", value: "true" },
     "request.send": { command: "spec approve", params: { ids: ["feature/a"] }, reason: "Approve" },
-    "request.accept": { id: "20260101T000000Z-0000" }, "request.decline": { id: "20260101T000000Z-0000" },
+    "request.accept": { id: "20260101T000000Z-0000" }, "request.decline": { id: "20260101T000000Z-0000" }, "request.cancel": { id: "20260101T000000Z-0000" },
     "decision.edit": { id: "D1", decision: "Changed" }, "decision.delete": { id: "D1" },
     "plan.create": { words: ["review", "plan"] },
     "plan.edit": { id: "P1", changes: [{ path: "PLAN.md", before: "old", after: "new" }] },
@@ -198,7 +198,7 @@ for (const action of listActions().filter((a) => specActions.has(a.id))) for (co
 
 test("schemas reject role injection, unknown fields and user-only action names", async () => {
   const r = runtime(repo());
-  for (const id of ["request.accept", "request.decline", "role.switch", "toString"]) assert.equal((await r.call(id, {})).ok, false);
+  for (const id of ["request.accept", "request.decline", "request.cancel", "role.switch", "toString"]) assert.equal((await r.call(id, {})).ok, false);
   for (const extra of [{ role: "administrator" }, { actor: { role: "administrator" } }, { status: "approved" }, { approval: {} }]) {
     assert.equal((await r.call("spec.create", { ...inputs["spec.create"], ...extra })).ok, false);
   }

@@ -157,7 +157,7 @@ export function createActionRuntime(session: ActionSession) {
           const data = await action.handler(ctx, p);
           reply.data = data;
           const r = data as { ok?: boolean; request?: string; reasons?: string[]; state?: string } | null;
-          if (id === "request.accept" || id === "request.decline") answerOutcome = r?.ok === false ? (r.state === "failed" ? "failed" : "refused") : "done";
+          if (id === "request.accept" || id === "request.decline" || id === "request.cancel") answerOutcome = r?.ok === false ? (r.state === "failed" ? "failed" : "refused") : "done";
           reply.ok = r?.ok !== false;
           reply.request = r?.request;
           reply.findings = r?.reasons ?? [];

@@ -5,7 +5,7 @@ import { presetCreate, presetList, presetParamsEdits, presetShow } from "../perm
 import { PreconditionError } from "../errors.js";
 import { docsSearch, loadEssentials } from "../docs/operations.js";
 import { REQUESTABLE_COMMANDS } from "../requests/actions.js";
-import { acceptRequest, declineRequest, sendRequest } from "../requests/ops.js";
+import { acceptRequest, cancelRequest, declineRequest, sendRequest } from "../requests/ops.js";
 import { headCommit } from "../spec/source.js";
 import { findSpecId, headContext, implementSpec } from "../verify/implementation.js";
 import { recordResults, type RecordableResult } from "../verify/test-record.js";
@@ -66,4 +66,5 @@ export function registerOperationActions(add: Adder): void {
   const answer = (c: ActionContext, r: Awaited<ReturnType<typeof acceptRequest>>) => ({ ok: r.ok, reasons: r.reasons, lines: r.lines, answered: r.request?.id, state: r.request?.state, ...(r.committed ? { committed: r.committed } : {}) });
   add("request.accept", { id: str, note: str }, ["id"], [], false, async (c, p) => answer(c, await acceptRequest(base(c), p.id, p.note)));
   add("request.decline", { id: str, note: str }, ["id"], [], false, async (c, p) => answer(c, await declineRequest(base(c), p.id, p.note)));
+  add("request.cancel", { id: str, note: str }, ["id"], [], false, async (c, p) => answer(c, await cancelRequest(base(c), p.id, p.note)));
 }

@@ -6,7 +6,7 @@ import { storeDir } from "../repo/store.js";
 
 /** Request records in the local store (`architecture/file-formats` §9.2, `architecture/reference-cli` §8). */
 
-export type RequestState = "pending" | "accepted" | "declined" | "failed";
+export type RequestState = "pending" | "accepted" | "declined" | "cancelled" | "failed";
 
 export interface RequestAnswer { by: string; date: string; note?: string | null; error?: string }
 
@@ -46,7 +46,7 @@ const date = { anyOf: [{ type: "string", format: "date-time" }, { type: "string"
 const object = (properties: Record<string, unknown>, required = Object.keys(properties)) => ({ type: "object", properties, required, additionalProperties: false });
 const schema = object({
   id: { type: "string", pattern: ID_RE.source },
-  state: { enum: ["pending", "accepted", "declined", "failed"] },
+  state: { enum: ["pending", "accepted", "declined", "cancelled", "failed"] },
   created: { type: "string", format: "date-time" },
   from: object({ role: text, model: nullableText, session: nullableText }, ["role"]),
   permissions: { type: "array", items: text, uniqueItems: true },

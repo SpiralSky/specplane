@@ -15,7 +15,7 @@ import { approveSpecs, metaSet, type Ctx } from "../spec/human.js";
 import { configSet, type ConfigCtx } from "../config-ops.js";
 import { makeRepo } from "../test-repo.js";
 import { RequestSent, holdRequest } from "./hold.js";
-import { acceptRequest, declineRequest, formatRequest, list, pendingFull, sendRequest, show, summarizeAction, type RequestCtx } from "./ops.js";
+import { acceptRequest, cancelRequest, declineRequest, formatRequest, list, pendingFull, sendRequest, show, summarizeAction, type RequestCtx } from "./ops.js";
 import { answerRequest, claimAnswer, readRequest, validateRecord } from "./store.js";
 import { storeDir } from "../repo/store.js";
 
@@ -114,20 +114,32 @@ test("accepting needs the permission of the action with mode allow, checked now;
   assert.match(byLlm.reasons[0], /spec\.approve.*allow.*pending/s);
   const declined = await declineRequest({ root, actor: other, preset: PRESETS[3], now: NOW }, r.request!);
   assert.match(declined.reasons[0], /Cannot decline.*spec\.approve.*allow.*pending/s);
-  // the sender cannot answer, even with the permission: same role, or the same non-null session
+  // the sender can answer when its own role holds the permission: same role, or the same non-null session
   const allowAll: Preset = { ...DEFAULT_PRESET, llm: { defaultMode: "allow", modes: {} }, standardUser: { defaultMode: "allow", modes: {} } };
   const sameRole = sentBy("llm", "s1");
-  for (const fn of [acceptRequest, declineRequest]) {
-    assert.match((await fn({ root, actor: { ...actor("llm"), session: "s2" }, preset: allowAll, now: NOW }, sameRole)).reasons[0], /sender of a request cannot answer it/);
-  }
+  assert.ok((await declineRequest({ root, actor: { ...actor("llm"), session: "s2" }, preset: allowAll, now: NOW }, sameRole)).ok);
   const sameSession = sentBy("sender-role", "s1");
-  for (const fn of [acceptRequest, declineRequest]) {
-    assert.match((await fn({ root, actor: { ...actor("llm"), session: "s1" }, preset: allowAll, now: NOW }, sameSession)).reasons[0], /sender of a request cannot answer it/);
-  }
-  assert.equal(readRequest(root, sameRole)!.state, "pending");
-  assert.equal(readRequest(root, sameSession)!.state, "pending");
-  // a different role in a different session is allowed
-  assert.ok((await declineRequest({ root, actor: { ...actor("llm"), session: "s3" }, preset: allowAll, now: NOW }, sameSession)).ok);
+  assert.ok((await declineRequest({ root, actor: { ...actor("llm"), session: "s1" }, preset: allowAll, now: NOW }, sameSession)).ok);
+  assert.equal(readRequest(root, sameRole)!.state, "declined");
+  assert.equal(readRequest(root, sameSession)!.state, "declined");
+  // cancel: the sender needs no permission; another role needs the decline permission; only pending requests cancel
+  const mine = sentBy("sender-role", "s1");
+  const cancelled = await cancelRequest({ root, actor: { ...actor("llm"), role: "sender-role", session: "s9" }, preset: PRESETS[3], now: NOW }, mine, "stale");
+  assert.ok(cancelled.ok, cancelled.reasons.join());
+  assert.equal(readRequest(root, mine)!.state, "cancelled");
+  assert.equal(readRequest(root, mine)!.answer?.note, "stale");
+  assert.ok(auditLog(root).some((e) => e.command === "requests cancel" && e.outcome === "done"));
+  const again = await cancelRequest({ root, actor: { ...actor("llm"), role: "sender-role" }, preset: allowAll, now: NOW }, mine);
+  assert.ok(!again.ok);
+  assert.match(again.reasons[0], /cancelled/);
+  const theirs = sentBy("sender-role", "s1");
+  const denied = await cancelRequest({ root, actor: { ...actor("llm"), role: "reviewer", session: "s5" }, preset: PRESETS[3], now: NOW }, theirs);
+  assert.ok(!denied.ok);
+  assert.match(denied.reasons[0], /Cannot cancel.*spec\.approve/s);
+  assert.equal(readRequest(root, theirs)!.state, "pending");
+  const byPermitted = await cancelRequest({ root, actor: { ...actor("llm"), session: "s5" }, preset: allowAll, now: NOW }, theirs);
+  assert.ok(byPermitted.ok, byPermitted.reasons.join());
+  assert.equal(readRequest(root, theirs)!.state, "cancelled");
   // changing the active preset does not rewrite the record; the check uses the preset in force at accept time
   const denyAll: Preset = { ...DEFAULT_PRESET, standardUser: { defaultMode: "deny", modes: {} } };
   assert.ok(!(await acceptRequest(user(root, denyAll), r.request!)).ok);

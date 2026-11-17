@@ -44,7 +44,7 @@ const added = listActions().filter((a) => a.id in inputs);
 
 test("the remaining 21 actions are registered with strict schemas", () => {
   assert.equal(added.length, 21);
-  assert.equal(listActions().length, 49);
+  assert.equal(listActions().length, 50);
   assert.equal(added.filter((a) => a.id.startsWith("plan.")).length, 15);
   for (const a of listActions()) assert.equal((a.inputSchema as { additionalProperties: boolean }).additionalProperties, false, a.id);
 });
@@ -214,9 +214,9 @@ test("plan.retarget has its own permission: resume alone does not allow it, and 
   } finally { DEFAULT_PRESET.llm.modes = prior; }
 });
 
-test("request.accept and request.decline answer by permission and audit their own outcome", async () => {
+test("request.accept, request.decline and request.cancel answer by permission and audit their own outcome", async () => {
   const ids = listActions().map((a) => a.id);
-  assert.ok(ids.includes("request.accept") && ids.includes("request.decline"));
+  assert.ok(ids.includes("request.accept") && ids.includes("request.decline") && ids.includes("request.cancel"));
   const root = repo();
   const send = (role: string) => holdRequest({ root, actor: { role, kind: "llm", name: "x", session: "sender-session" }, permissions: ["spec.approve.architecture"], decidedBy: "spec.approve.architecture", command: "spec approve", params: { ids: ["architecture/arch"] }, reason: "r" }).id;
   const outcomes = (command: string) => readAudit(root, {}).entries.filter((e) => e.command === command).map((e) => e.outcome);
@@ -230,13 +230,9 @@ test("request.accept and request.decline answer by permission and audit their ow
     assert.equal(refused.request, undefined);
     assert.deepEqual(outcomes("request.decline"), ["refused"]);
     assert.equal(readRequest(root, lacking)!.state, "pending");
-    // the sender's own session cannot answer even with the permission
+    // allow: the sender's own session may answer, and the answer is not audited as request-sent
     DEFAULT_PRESET.llm.modes = { ...prior, "spec.approve.architecture": "allow" };
-    const same = await runtime(root, { id: "sender-session" }).call("request.accept", { id: lacking });
-    assert.equal(same.ok, false);
-    assert.match(same.findings.join(), /sender of a request cannot answer it/);
-    // allow, different role and session: accept and decline succeed and are not audited as request-sent
-    const accepted = await runtime(root).call("request.accept", { id: lacking });
+    const accepted = await runtime(root, { id: "sender-session" }).call("request.accept", { id: lacking });
     assert.equal(accepted.ok, true, accepted.findings.join());
     assert.equal(accepted.request, undefined);
     assert.equal(readRequest(root, lacking)!.state, "accepted");
@@ -244,7 +240,16 @@ test("request.accept and request.decline answer by permission and audit their ow
     const declined = await runtime(root).call("request.decline", { id: second });
     assert.equal(declined.ok, true, declined.findings.join());
     assert.equal(readRequest(root, second)!.state, "declined");
-    assert.deepEqual(outcomes("request.accept"), ["refused", "done"]);
+    assert.deepEqual(outcomes("request.accept"), ["done"]);
     assert.deepEqual(outcomes("request.decline"), ["refused", "done"]);
+    // cancel: the sender withdraws its own request without a permission; it is audited by outcome
+    DEFAULT_PRESET.llm.modes = prior;
+    const third = send("other-role");
+    const cancelled = await runtime(root, { id: "sender-session" }).call("request.cancel", { id: third, note: "stale" });
+    assert.equal(cancelled.ok, true, cancelled.findings.join());
+    assert.equal(readRequest(root, third)!.state, "cancelled");
+    const again = await runtime(root, { id: "sender-session" }).call("request.cancel", { id: third });
+    assert.equal(again.ok, false);
+    assert.deepEqual(outcomes("request.cancel"), ["done", "refused"]);
   } finally { DEFAULT_PRESET.llm.modes = prior; }
 });

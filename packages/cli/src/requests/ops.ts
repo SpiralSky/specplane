@@ -173,8 +173,6 @@ function refuse(ctx: RequestCtx, rec: RequestRecord | null, id: string, command:
   return { ok: false, lines: [], reasons: [msg], request: rec ?? undefined };
 }
 
-const SENDER_MSG = "The sender of a request cannot answer it.";
-
 /** The sender is the role that sent the request, or any actor in the session that sent it (`requests R52.2`). */
 function isSender(ctx: RequestCtx, rec: RequestRecord): boolean {
   return rec.from.role === ctx.actor.role || (!!rec.from.session && rec.from.session === ctx.actor.session);
@@ -189,7 +187,6 @@ function isSender(ctx: RequestCtx, rec: RequestRecord): boolean {
 export async function acceptRequest(ctx: RequestCtx, id: string, note?: string, o: { commit?: boolean } = {}): Promise<RequestResult> {
   const rec = readRequest(ctx.root, id);
   if (!rec) return { ok: false, lines: [], reasons: [`Request \`${id}\` not found.`] };
-  if (isSender(ctx, rec)) return refuse(ctx, rec, id, "requests accept", null, SENDER_MSG);
   let claim;
   try { claim = claimAnswer(ctx.root, id); }
   catch (e) { if (e instanceof RequestStateError) return { ok: false, lines: [], reasons: [e.message], request: rec }; throw e; }
@@ -251,11 +248,10 @@ export async function acceptRequest(ctx: RequestCtx, id: string, note?: string, 
   } finally { claim.release(); }
 }
 
-/** Decline: nothing else changes. Needs the same permission as accepting, and the sender cannot decline. */
+/** Decline: nothing else changes. Needs the same permission as accepting. */
 export async function declineRequest(ctx: RequestCtx, id: string, note?: string): Promise<RequestResult> {
   const rec = readRequest(ctx.root, id);
   if (!rec) return { ok: false, lines: [], reasons: [`Request \`${id}\` not found.`] };
-  if (isSender(ctx, rec)) return refuse(ctx, rec, id, "requests decline", null, SENDER_MSG);
   if (rec.state === "pending") {
     // A request whose action can no longer be resolved is judged on the permissions stored with it.
     let needs: ReturnType<typeof acceptNeeds> = rec.permissions;
@@ -273,4 +269,30 @@ export async function declineRequest(ctx: RequestCtx, id: string, note?: string)
   audit(ctx.root, { command: "requests decline", args: [id], permission: null, outcome: "done", request: id, actor: auditActor(ctx.actor) }, ctx.now);
   const resume = await resumeHint(ctx, done);
   return { ok: true, lines: [`Declined ${id}. Nothing was changed.`, ...(resume ? [`Plan ${resume} was waiting for this answer; resume it with: specplane plan resume ${resume}`] : [])], reasons: [], request: done, resume };
+}
+
+/**
+ * Cancel: withdraw a pending request. The sender (same role, or same non-null session) may always cancel its own request;
+ * anyone else needs what declining needs. Nothing else changes (`requests R52.2`).
+ */
+export async function cancelRequest(ctx: RequestCtx, id: string, note?: string): Promise<RequestResult> {
+  const rec = readRequest(ctx.root, id);
+  if (!rec) return { ok: false, lines: [], reasons: [`Request \`${id}\` not found.`] };
+  if (rec.state !== "pending") return refuse(ctx, rec, id, "requests cancel", null, `Request \`${id}\` is ${rec.state}; only a pending request can be cancelled.`);
+  if (!isSender(ctx, rec)) {
+    let needs: ReturnType<typeof acceptNeeds> = rec.permissions;
+    let destination = ctx;
+    try {
+      destination = destinationCtx(ctx, requestRoot(ctx.root, rec));
+      needs = acceptNeeds(destination.root, rec.action.command, rec.action.params);
+    } catch (e) { if (!(e instanceof InvalidRequestAction || e instanceof RequestStateError)) throw e; }
+    const g = guard(destination.preset, ctx.actor, needs, "Cancelling the request");
+    if (g.kind !== "allow") return refuse(ctx, rec, id, "requests cancel", g.permission, `Cannot cancel: only the sender, or a role with the \`${g.permission}\` permission with mode allow, can cancel this request. The request stays pending.`);
+  }
+  let done: RequestRecord;
+  try { done = answerRequest(ctx.root, id, "cancelled", { by: ctx.actor.name, date: stamp(ctx), note: note ?? null }); }
+  catch (e) { if (e instanceof RequestStateError) return { ok: false, lines: [], reasons: [e.message], request: rec }; throw e; }
+  audit(ctx.root, { command: "requests cancel", args: [id], permission: null, outcome: "done", request: id, actor: auditActor(ctx.actor) }, ctx.now);
+  const resume = await resumeHint(ctx, done);
+  return { ok: true, lines: [`Cancelled ${id}. Nothing was changed.`, ...(resume ? [`Plan ${resume} was waiting for this answer; resume it with: specplane plan resume ${resume}`] : [])], reasons: [], request: done, resume };
 }

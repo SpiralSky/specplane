@@ -1,11 +1,11 @@
 import type { CommandResult } from "./runner.js";
 import { checkoutRoot } from "../git/repo.js";
 import { activePreset, cliActor, type Actor } from "../perm/permissions.js";
-import { acceptRequest, declineRequest, formatRequest, list, pendingFull, show, withSummary, type RequestCtx, type RequestResult } from "../requests/ops.js";
+import { acceptRequest, cancelRequest, declineRequest, formatRequest, list, pendingFull, show, withSummary, type RequestCtx, type RequestResult } from "../requests/ops.js";
 import { manualSessionLines } from "../harness/manual-session.js";
 import { withStoreLockAsync } from "../repo/store.js";
 
-/** `specplane requests [list|show|accept|decline]` (`architecture/reference-cli` §8, §13.1). */
+/** `specplane requests [list|show|accept|decline|cancel]` (`architecture/reference-cli` §8, §13.1). */
 
 function ctx(): RequestCtx {
   const root = checkoutRoot();
@@ -50,4 +50,9 @@ export function planStartedBy(r: CommandResult): string | null {
 export const requestsDecline = async (id: string, note?: string): Promise<CommandResult> => {
   const c = ctx();
   return result(await declineRequest(c, id, note));
+};
+
+export const requestsCancel = async (id: string, note?: string): Promise<CommandResult> => {
+  const c = ctx();
+  return result(await cancelRequest(c, id, note));
 };

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { specImplementCommand } from "./commands/spec-implement.js";
 import { reportError } from "./errors.js";
-import { requestsAccept, requestsDecline, requestsList, requestsShow } from "./commands/requests.js";
+import { requestsAccept, requestsCancel, requestsDecline, requestsList, requestsShow } from "./commands/requests.js";
 import { registerDecisionCommands } from "./commands/decision-cli.js";
 import { registerPlanCommands } from "./commands/plan-cli.js";
 import { registerHarnessCommands } from "./commands/harness.js";
@@ -122,6 +122,7 @@ requests.command("list", { isDefault: true }).description("List requests, pendin
 requests.command("show <id>").description("Show one request in full, with the change as a diff").option("--json").action((id: string, opts) => runCommand({ command: "requests show", args: [id], json: opts.json }, () => requestsShow(id)));
 requests.command("accept <id>").description("Accept a request: the action is done once, under your permission").option("--note <text>").option("--commit", "commit the config or preset file the action wrote, so it is in effect now").option("--json").action((id: string, opts) => runCommand({ command: "requests accept", args: [id], json: opts.json }, () => requestsAccept(id, opts.note, { commit: opts.commit })));
 requests.command("decline <id>").description("Decline a request: nothing changes").option("--note <text>").option("--json").action((id: string, opts) => runCommand({ command: "requests decline", args: [id], json: opts.json }, () => requestsDecline(id, opts.note)));
+requests.command("cancel <id>").description("Cancel a pending request: nothing changes").option("--note <text>").option("--json").action((id: string, opts) => runCommand({ command: "requests cancel", args: [id], json: opts.json }, () => requestsCancel(id, opts.note)));
 const role = program.command("role").description("Show or switch the CLI role; create, approve and map custom roles (feature/roles-and-permissions R43, R44, R48, R49, R60)");
 role.command("show [id]").description("Show the CLI role, or one role with its management level and permissions").option("--json").action((id: string | undefined, opts) => runCommand({ command: "role show", ...(id ? { args: [id] } : {}), json: opts.json }, () => (id ? roleDescribeCommand(id) : roleShowHuman())));
 role.command("list").description("List the default and custom roles with their management levels and approval state").option("--json").action((opts) => runCommand({ command: "role list", json: opts.json }, () => roleListCommand()));

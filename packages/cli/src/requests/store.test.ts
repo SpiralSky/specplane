@@ -58,6 +58,13 @@ test("declining first prevents a later accepting action", () => {
   assert.equal(fs.existsSync(lock), false);
 });
 
+test("a cancelled request is stored, parses, and cannot be answered again", () => {
+  const { root, id } = request();
+  answerRequest(root, id, "cancelled", answer);
+  assert.equal(readRequest(root, id)!.state, "cancelled");
+  assert.throws(() => claimAnswer(root, id), /already cancelled/);
+});
+
 test("an action failure can be finalized without reacquiring its claim and cannot be retried", async () => {
   const { root, id, lock } = request();
   const claim = claimAnswer(root, id);
