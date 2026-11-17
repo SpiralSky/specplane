@@ -1,6 +1,10 @@
 # Session handoff
 Updated 2026-11-16 after the requests usability fixes. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
+## Release 0.1.2 published (2026-11-17)
+
+`specplane@0.1.2` is on npm, published by CI from tag `v0.1.2` (`21e4d3d`) on the third attempt of the run. The first two failed with `403 OIDC permission denied` because the trusted publisher on npmjs.com needed "allow npm publish" (direct publish) ticked, and the first change was saved in a browser without 2FA. `main` and the notes ref are pushed. Still to do for the user: delete the `NPM_TOKEN` secret from the repository; `npm pkg fix` showed nothing to fix in a dry run.
+
 ## Next session: start here (2026-11-17)
 
 DONE: sender rule dropped and `request.cancel` added. Specs `647cef8`, `5cad383`, `b4e88d0`, approved as a group (notes `1b8938b`); code `8dbd256`, wording `4aadd28`, tests `58fdad4`; serious review done, findings fixed; 772 pass / 0 fail. Rule now: accept and decline need `allow` on the requested action's permission and the sender may answer its own request; the sender (same role id or same non-null session) or any role that could decline may cancel a pending request (`cancelled` state; a cancelled blocking request resumes the plan like a decline). Left on purpose: `harness run requests cancel` (the typed pane route) is not wired; the pane only offers Accept and Decline.
@@ -8,7 +12,7 @@ DONE: sender rule dropped and `request.cancel` added. Specs `647cef8`, `5cad383`
 Do these next, in order:
 1. **Reconnect the Specplane MCP server** (`/mcp`) so `request_accept`, `request_decline` and `request_cancel` load (`dist` was rebuilt; the running server is stale).
 2. **Clear the six stale requests** (`20261116T074439Z-81fb`, `...075442Z-e01e`, `...093954Z-baf1`, `...094912Z-ef71`, `...095503Z-5fdc`, `...095948Z-3adb`) with `request.cancel`. Three are mistaken `plan.resume` ones; read the other three first (no harness list action: use `specplane requests list` run by the user, or the `/requests` pane). The bypass hook (`bypass_guards.store_protect`) blocks reading the local store directly.
-3. **Release `0.1.2`** (user thinks trusted publishing is configured; unverified): bump `packages/cli/package.json` from 0.1.1, run `npm pkg fix`, commit, tag `v0.1.2`, push `main` and the tag (the workflow runs only on a `v*` tag and runs `npm test` first). `git push --dry-run` works. Pushing and tagging publish publicly: ask the user first. Then delete the `NPM_TOKEN` secret.
+3. **Release `0.1.2`: DONE (see above); the steps below are kept for `0.1.3`** (bump the stamps with the script used in `21e4d3d`, tag, push): bump `packages/cli/package.json` from 0.1.1, run `npm pkg fix`, commit, tag `v0.1.2`, push `main` and the tag (the workflow runs only on a `v*` tag and runs `npm test` first). `git push --dry-run` works. Pushing and tagging publish publicly: ask the user first. Then delete the `NPM_TOKEN` secret.
 4. **`AGENTS.md` steering-stamp warning** in `validate`: needs `specplane init --harness claude` (user-run; the CLI is blocked for the LLM).
 5. **Open product question:** whether a user should be able to answer requests as a pattern, and whether to wire cancel into the `/requests` pane.
 6. **Standing instruction:** Specplane's own rules must not constrain developing Specplane; take the practical route and say so (memory `specplane-rules-dont-bind-its-development`). Installed hooks still stop the LLM; report them. Note for hooks: the pre-commit hook validates the state before the Bash command runs, so edit a spec and commit it in separate calls.
