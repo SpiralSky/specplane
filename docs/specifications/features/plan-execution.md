@@ -5,7 +5,7 @@ authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
 covers: [R27, R27.1, R27.1.1, R27.2, R27.2.1, R27.3, R27.4, R27.5, R27.5.1, R27.5.2, R27.6, R31, R31.1, R31.2, R31.3]
-references: [R11, R18, R19.2, R24, R33, plans R28, plans R28.1, plans R29, plans R29.1, plans R30, plans R30.1, plans §1, plans §2.1, plans §2.2, plans §3.1, plans §3.2, requests R52, steering R59, roles-and-permissions R57, configuration R25]
+references: [R11, R18, R19.2, R24, R33, plans R28, plans R28.1, plans R29, plans R29.1, plans R30, plans R30.1, plans §1, plans §2.1, plans §2.2, plans §3.1, plans §3.2, requests R52, requests R52.2, steering R59, roles-and-permissions R57, configuration R25]
 ---
 
 # Plan Execution
