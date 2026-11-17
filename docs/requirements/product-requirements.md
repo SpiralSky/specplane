@@ -408,6 +408,15 @@ The user should be able to change the branch a plan merges into, from the harnes
 *R31.2: Parallelism*
 The user should be able to control how much parallelism is used in the plan steps. A parallel step contains multiple different tasks that do not depend on each other and require the harness to have subagents to execute the tasks in parallel.
 
+*R31.4: Plan Agents*
+The user can name, in configuration, which of the harness's own agent definitions runs a plan and which ones steps, tasks and the final review use as subagents (see `R28`). Model, effort and tools are set in those definitions, not in Specplane. A plan and each step can name different agents. Where the harness cannot use a named agent in that place, Specplane says so and refuses instead of ignoring it.
+
+*R31.5: Plan Review and Finish*
+The final review of a plan (see `R28`) can be given to a named agent. A rejected review sends the plan back to its steps, and after a configurable number of rejected rounds the decision goes to the user. Pushing, opening a pull request and merging after an accepted review are each a permission (see `R44`).
+
+*R31.6: Custom Launcher*
+The user can set, in configuration, a command template that starts plan sessions in place of the default, for example to open them in another terminal. Specplane fills in the plan's checkout, starts the command with the LLM marker set, and `validate` warns while a custom launcher is set.
+
 **R27: Plan Execution**
 The user should be able to use the harness to start a session that is accessible for reading and *potential* intervention by the user. The user should be able to control what steps to execute, or execute all steps at once. However, the harness should deny a selection that skips a step that has not been completed.
 
