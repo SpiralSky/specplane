@@ -37,6 +37,9 @@
   "files": [
     "dist",
     "!dist/**/*.test.js",
+    "!dist/**/*.test.d.ts",
+    "!dist/fixtures.d.ts",
+    "!dist/test-repo.d.ts",
     "!dist/fixtures.js",
     "!dist/test-repo.js",
     "!dist/plan/*-fixture.*",
