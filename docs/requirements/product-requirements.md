@@ -266,6 +266,9 @@ Steering should be used to keep LLM to follow rules. Apart from what is mentione
 *R59.1: Custom Steering*
 Users should be able to customise steering, overall and per command or permission. For example, when an LLM should send requests: only when the user asked for the change, or whenever it sees a possible improvement. Steering guides the LLM and does not change what its permissions allow.
 
+*R59.2: Overriding Steering*
+Steering can be set aside only through an explicit override command that the user runs, never by anything said in conversation. The command names the part of the steering it sets aside and lasts for one action or for the rest of the session. It uses the protected route, confirmation and audit record of temporary grants (see `R76`). It never changes what the LLM's permissions allow.
+
 ### General (Appears in both)
 **R12: Validation**
 There should be a way to validate specs. Validation covers all rules specifications should follow described elsewhere in the document.
