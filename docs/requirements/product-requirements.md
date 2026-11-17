@@ -312,7 +312,7 @@ The CLI should be able to change all aspects of specification metadata. This fea
 Specification metadata should have permissions whether a role can read, write metadata. A permission for general metadata management should exist for managing all metadata while granular permissions should exist per-metadata.
 
 *R17.2: Protected Metadata Overrides*
-Overriding status, who approved a spec or test results should each have their own permission, which general metadata management does not include. The Standard User and the Administrator have these permissions by default; the LLM role does not. An override asks for one confirmation, and is marked as one in the spec's metadata and in the audit log.
+Overriding a spec's status, its approval (who approved it and which commit) or its test results each needs its own permission. General metadata management does not include them. By default the Standard User and the Administrator have these permissions and the LLM role does not. Before an override is applied, the person running it confirms it once. Each override is marked as an override in the spec's metadata and in the audit log.
 
 **R33: CLI - Plan Management**
 The CLI should be able to manage plans by changing plan metadata.
@@ -538,3 +538,6 @@ A file that still matches the content Specplane last wrote (its recorded hash) i
 
 *R72.2: Same Result as Init*
 An automatic refresh produces the same files that `specplane init` would for the installed harness, and `init` stays available and safe to repeat.
+
+**R73: Rejecting Specifications**
+A role with the approval permission for a specification's type can reject it, with findings. A rejection is stored as a record like an approval, tied to the content that was rejected. A rejected specification stays Awaiting Review with the findings as the reason. After a rejection, an LLM can approve that specification only once its content has changed; the user can approve it at any time. Approvals and rejections record the role and, for an LLM, its agent type and model, and may carry findings. The same applies to a plan's final review (see `R28`).
