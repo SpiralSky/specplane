@@ -171,7 +171,7 @@ A request sent during a run is added to the requests list (`requests R52`) and i
 
 #### R27.5.1: Blocking requests
 
-A blocking request soft stops the plan (`R27.1`). It is shown with the stop reason. When the request is answered, the plan is resumed and the answer is part of what the new session reads (`R27.2`).
+A blocking request soft stops the plan (`R27.1`). It is shown with the stop reason. When the request is answered (accepted, declined or cancelled, `requests R52.2`), the plan is resumed and the answer is part of what the new session reads (`R27.2`).
 
 #### R27.5.2: Non-blocking requests
 
