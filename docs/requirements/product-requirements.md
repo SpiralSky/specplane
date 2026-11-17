@@ -483,6 +483,9 @@ Permission Presets should be creatable, editable and deletable. Permission prese
 
 Presets simply apply permissions to roles and they can still be changed.
 
+*R56.3: Presets with Roles and Rules*
+A preset can also include custom roles and LLM role rules (see `R44.1`), which apply while the preset is active. Roles and rules in a preset that ships with Specplane need no separate approval or local trust (see `R48`). Once edited, they follow `R48` like any custom role or rule.
+
 *R56.1: Preset Default Permissions*
 Presets additionally define the default permission mode which will apply for all unspecified permission in the preset.
 
@@ -495,7 +498,7 @@ Preset creation is request user for LLM roles in all default presets.
 The default permission presets are defined below. The default permission for unspecified permission will be deny for these default presets.
 *Note: Permissions are separate from role management permissions*
 
-Changing configuration is request user for LLM roles in all default presets. Protected metadata overrides (see `R17.2`) are not enabled for any role in default presets, including where users otherwise have all permissions.
+Changing configuration is request user for LLM roles in all default presets. Protected metadata overrides (see `R17.2`) are enabled for users and not for LLM roles in all default presets.
 
 Spec approval is request user for LLM roles in all default presets.
 
@@ -507,6 +510,8 @@ This preset disables all LLM editing permissions over all specifications while o
 This preset enables LLM editing permissions over feature and architectural specifications needing to request the user for editing requirement specifications. Users have all permissions enabled.
 4. Full LLM Control
 This preset enables LLM editing permissions over all specification types including the requirement specification. Users have all permissions enabled.
+5. Reviewer Approval
+Editing permissions as in Architecture-Level LLM Control. The default LLM role cannot approve or reject. A built-in reviewer role, given by a built-in rule to Specplane's reviewer subagent (see `R74`), approves and rejects feature and architecture specifications and plans. Requirement approval stays with the user. Where the harness cannot tell subagents apart, the preset says so and approvals stay with the user.
 
 ## Subprojects
 **R39: Subprojects**
@@ -541,3 +546,9 @@ An automatic refresh produces the same files that `specplane init` would for the
 
 **R73: Rejecting Specifications**
 A role with the approval permission for a specification's type can reject it, with findings. A rejection is stored as a record like an approval, tied to the content that was rejected. A rejected specification stays Awaiting Review with the findings as the reason. After a rejection, an LLM can approve that specification only once its content has changed; the user can approve it at any time. Approvals and rejections record the role and, for an LLM, its agent type and model, and may carry findings. The same applies to a plan's final review (see `R28`).
+
+**R74: Built-in Reviewer**
+Specplane installs a reviewer subagent definition for each supported harness, with instructions written to keep the review independent of the agent that did the work. The reviewer gathers the content under review and what it cites through Specplane itself rather than relying only on the requesting agent's description. The built-in rule matches this agent only while its definition is the one Specplane installed or one the user has approved, so another agent with the same name does not get the reviewer role.
+
+*R74.1: Configurable Reviewer*
+The user can edit or remove the reviewer definition, the reviewer role and its rule, like any other role, rule or installed file (see `R48` and `R72.1`). An edited definition keeps the reviewer role once the user approves the change. Specplane never restores a removed or edited part on its own.
