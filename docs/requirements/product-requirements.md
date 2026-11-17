@@ -552,3 +552,9 @@ Specplane installs a reviewer subagent definition for each supported harness, wi
 
 *R74.1: Configurable Reviewer*
 The user can edit or remove the reviewer definition, the reviewer role and its rule, like any other role, rule or installed file (see `R48` and `R72.1`). An edited definition keeps the reviewer role once the user approves the change. Specplane never restores a removed or edited part on its own.
+
+**R75: Project Setup**
+Setting up Specplane in a project should take one command run by the user, after which everything else can be done from the harness. Setup detects the installed harnesses and asks which to set up, asks which preset to use (see `R57`), creates the specification folders with an example requirement and feature specification, and offers to commit the configuration, since configuration applies only once committed. It makes approval records travel with the user's normal pushes and fetches, and names any step it cannot do itself, such as trusting the project in the harness. Each question has a default, and one option accepts every default without asking.
+
+*R75.1: No Terminal After Setup*
+After setup, every step a user needs to reach an approved specification should be available from the harness. Where the user must confirm an action, the harness asks for that confirmation itself instead of telling the user to run a command in a terminal.
