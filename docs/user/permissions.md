@@ -464,6 +464,14 @@ Does not allow: Reading settings, which needs no permission.
 Commands: `config set`, `config unset`, `init`
 
 
+### `role.propose`
+
+Allows: Propose a custom role together with the LLM role rule that would assign it. Deny refuses; request user and allow send the full role (permissions, level and rule) with a preview that the user accepts or declines, and nothing is created unless the user accepts. A proposed role cannot go above the proposing role's own modes or level unless the user marks that grant in the preview. A rule above the default LLM role still needs to be trusted locally.
+
+Does not allow: Creating, editing or deleting a role or rule directly, or trusting a rule.
+
+Commands: `role propose` (harness action `role.propose`)
+
 ### `preset.create`
 
 Allows: Create a permission preset (`preset create`). Deny refuses; allow creates it directly within the level rule (the preset may state modes only for the LLM role, and none above the LLM role's own); request user sends the full preset with a preview that the user accepts or declines. A created preset is never active.

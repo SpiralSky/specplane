@@ -100,6 +100,7 @@ These are the standard permissions. The section named in the last column defines
 | Change configuration | Any change to Specplane's configuration, including which preset is active | `R25.1`, `configuration R25` |
 | Validate, list warnings, show coverage, run tests, read the audit log | Read-only checks and reads; they use the information retrieval permission and have none of their own. Recording a test result is separate (`R61.2`) | `verification R12`, `verification R24`, `verification R13`, `verification R64` |
 | Mark an architecture specification implemented | No permission of its own: it needs the permission to record a test result, and for an LLM the setting `architecture.llm_may_mark_implemented` (`configuration R25`) | `verification R36.1` |
+| Proposing a role | The permission `role.propose`: request user for the LLM role in all default presets (`R44.2`) | `R44.2` |
 | Creating a preset | The permission `preset.create`: request user for the LLM role in all default presets (`R56.2`). The Standard User and the Administrator create presets under `R56` | `R56.2`, `R56` |
 | Requests | Sending a request is always allowed to the LLM role. Accepting a request has no permission of its own: it uses the permission of the requested action | `R52`, `R52.2` |
 
@@ -119,6 +120,7 @@ All four presets have these in common:
 - **Default mode.** Every permission that a preset does not state is deny (`R56.1`).
 - **Approval.** Approving specifications is request user for the LLM role.
 - **Configuration.** Changing configuration is request user for the LLM role.
+- **Role proposals.** Proposing a custom role and its LLM role rule (`role.propose`) is request user for the LLM role (`R44.2`).
 - **Preset creation.** Creating a preset (`preset.create`) is request user for the LLM role (`R56.2`).
 - **Always allowed for the LLM role:** information retrieval for all specifications, recording a test result (`R61.2`), reading specification metadata, sending requests, and the soft stop of a plan it runs (`R27.3`).
 - **Plans for the LLM role:** creating and editing plans are allowed in presets 1, 3 and 4 and request user in preset 2 (an assumption: the page says preset 2 enables only read-only and miscellaneous permissions, and a plan can contain steps that write specifications); starting, resuming, abandoning, completing and deleting plans and setting a plan budget are request user. The plan itself can still stop and resume as `plan-execution R27` describes.
