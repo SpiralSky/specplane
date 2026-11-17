@@ -227,6 +227,9 @@ The administrator user should have all permissions and be able to manage all oth
 **R58: Role Permission Bypass**
 Specplane should have configurable guardrails against permission bypass via starting headless sessions, such as running `claude -p` or the specplane CLI itself. One example is using environmental variables. Multiple preventative methods should be used and they should be all documented and configurable. The harness should be able to identify LLMs and subagents running and treat them as having their own specplane role so that specplane's LLM roles can be applied properly.
 
+*R58.1: The User's Own Commands*
+A command the user types into the harness's own shell, such as `!` in Claude Code, runs as the user, not as the LLM. Only commands the LLM starts, and the processes they start, are treated as the LLM's.
+
 **R44: Applying Custom Users**
 The configuration should allow users to apply custom specplane roles to Operating System users. Administrators or root accounts should optionally be able to switch to or log in as the administrator user. User who do not have a role for the operating system will be assigned the standard user (See `R42.1: Default Role Definitions`).
 
