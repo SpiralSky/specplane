@@ -4,7 +4,7 @@ description: "Start a plan: create its worktree and open its session."
 argument-hint: "<plan-id>"
 disable-model-invocation: true
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # plan-start
 
 ## Purpose

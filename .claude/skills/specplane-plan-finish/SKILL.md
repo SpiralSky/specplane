@@ -4,7 +4,7 @@ description: "Run the final review of a plan and decide whether it is complete."
 argument-hint: "[plan-id]"
 disable-model-invocation: true
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # plan-finish
 
 ## Purpose

@@ -1,4 +1,4 @@
-<!-- specplane:begin v0.1.2 — managed by `specplane init`; edits inside this block are overwritten -->
+<!-- specplane:begin v0.1.3 — managed by `specplane init`; edits inside this block are overwritten -->
 ## Specplane
 
 This repository uses Specplane. Before acting on specs or plans, read `.specplane/config.yaml` through the harness and resolve every path from it; never assume one.

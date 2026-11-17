@@ -3,7 +3,7 @@ name: specplane-validate
 description: "Check the specifications and show warnings and coverage. Use when the user asks to validate or check the specs."
 disable-model-invocation: false
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # validate
 
 ## Purpose

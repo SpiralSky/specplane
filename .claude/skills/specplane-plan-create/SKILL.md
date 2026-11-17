@@ -4,7 +4,7 @@ description: "Create a new plan from the specifications it implements."
 argument-hint: "<what the plan is for>"
 disable-model-invocation: true
 ---
-<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.3; source: architecture/agent-skills §7 -->
 # plan-create
 
 ## Purpose
