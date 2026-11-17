@@ -486,7 +486,7 @@ Search the bundled documentation
 
 `specplane validate [options] [ids...]`
 
-Validate the requirements and specs (format, cites, requirement IDs, status)
+Validate the requirements and specs (format, cites, requirement IDs, status). It also refreshes stale, unedited installed harness files and warns about edited ones (see `harnesses`).
 
 ### `warnings`
 
@@ -528,5 +528,5 @@ Refuse a commit made by an LLM's process (marked with `SPECPLANE_ACTOR=llm`, see
 
 `specplane init [options]`
 
-Initialise Specplane in a repository
+Initialise Specplane in a repository. Safe to repeat; installed files also refresh on their own at session start and on `validate` (see `harnesses`). A hidden `refresh-installed` command, run by the Claude session hook, does the refresh.
 
