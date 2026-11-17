@@ -4,7 +4,7 @@ title: Harness
 authors:
   - llm: claude-sonnet-5-5
     contribution: drafted
-covers: [R14, R18, R19, R19.1, R19.2, R20, R20.1, R21, R21.1, R26, R26.1, R26.2, R34, R35, R35.1, R38, R38.1, R47, R70, R71, R20.2]
+covers: [R14, R18, R19, R19.1, R19.2, R20, R20.1, R21, R21.1, R26, R26.1, R26.2, R34, R35, R35.1, R38, R38.1, R47, R70, R71, R72, R72.1, R72.2, R20.2]
 references: [requests R52.3, cli R16.1, R4, R10, R11, R16, R22, R24, R27, R37, R61.1, R66, later-releases R37, later-releases R37.1, later-releases R66, requests R52, roles-and-permissions R50, roles-and-permissions R57, steering R51, steering R59, specifications R9, configuration R25, plans R30.1, specifications R11.3, roles-and-permissions]
 ---
 
@@ -226,6 +226,26 @@ Scenario: Given `plan.abandon` is request user, When the user types the same com
 Scenario: Given `plan.create` is allow and `plan.edit` is deny, When the user types the plan-create command with arguments, Then the turn starts, because `plan.edit` is needed only for later edits.
 
 Test T1 (deterministic): for each command with required permissions, a deny refuses before any model turn, and allow and request user start it; a deny on a permission that is not required starts it.
+
+## R72: Installed Files Follow the Package
+
+When Specplane is updated, the files it installed into a project (harness rules, skills, hooks, the managed `AGENTS.md` block, command contracts) are brought up to date without a hand-run `specplane init`. At the start of a harness session, and whenever `validate` runs, Specplane compares each installed file's version stamp (`<!-- specplane:file vX.Y.Z sha:... -->`) with the running version. Only files for the harness that is installed are considered.
+
+### R72.1: Safe Refresh
+
+A file whose stamp is older and whose content still matches the hash Specplane recorded when it wrote it is refreshed, and the harness reports in one short line which files changed. A file the user has edited (its content no longer matches the recorded hash) is never overwritten: it is left as it is and listed with a warning that names the command to refresh it (`specplane init --harness <name>`, which a person runs). Refreshing writes only Specplane's own installed files, and the managed block of a shared file only between its markers; it never touches specifications, requirements, configuration or role files. A file that is missing is not recreated by a refresh; that is reported as before (`R34`).
+
+### R72.2: Same Result as Init
+
+An automatic refresh produces the same files `specplane init --harness <name>` would produce for the installed harness. `init` stays available and safe to repeat: running it on an up-to-date project changes nothing.
+
+Scenario: Given a rule file of an older version that nobody edited, When a harness session starts, Then the file is rewritten at the running version and one line names it.
+
+Scenario: Given a skill file of an older version that the user edited, When a session starts or `validate` runs, Then the file is unchanged and a warning lists it and names the refresh command.
+
+Scenario: Given an up-to-date project, When `init` runs twice, Then the second run changes no file.
+
+Test T1 (deterministic): a stale, unedited file is refreshed and reported; a stale, edited file is not written and is warned about; a current file is not touched; no spec, requirement, config or role file is ever written; the result of a refresh equals the result of `init` on a fresh install.
 
 ## §2 Standing instructions
 
