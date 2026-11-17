@@ -11,6 +11,7 @@ import { roleFile, ruleFile } from "./roles.js";
 import { createActionRuntime } from "../harness/actions.js";
 import { acceptRequest, declineRequest, formatRequest, sendRequest, list, show } from "../requests/ops.js";
 import { readRequest } from "../requests/store.js";
+import { storeDir } from "../repo/store.js";
 import { makeRepo } from "../test-repo.js";
 
 /** `role.propose` against `roles-and-permissions` R44.2, T1 (`architecture/reference-cli` §7.7 'Role proposals'). */
@@ -176,4 +177,49 @@ test("harness: role.propose sends a request under request user, refuses under de
   assert.equal(capped.ok, false);
   assert.match(capped.findings.join(), /marked/);
   assert.equal((await rt.call("role.propose", { role: good.role })).ok, false);
+});
+
+test("accepting applies the accepter's own escalation check: a limited accepter is refused and nothing is written; the administrator accepts", () => {
+  const root = repo();
+  const preset = activePreset(root);
+  const mid: Preset = { ...preset, customRoles: { mid: { id: "mid", title: "Mid", level: 6, defaultMode: "deny", modes: { "role.manage": "allow", "role.map": "allow" } } } };
+  const res = roleProposeAccept({ root, actor: { role: "mid", kind: "human", name: "Pat" }, preset: mid, now: NOW }, "llm", good);
+  assert.equal(res.ok, false);
+  assert.equal(res.written, false);
+  assert.match(res.reasons[0], /info\.retrieve.*cannot hand out what it lacks/);
+  absent(root, "helper", "helper-rule");
+  const ok = roleProposeAccept({ root, actor: admin, preset, now: NOW }, "llm", good);
+  assert.equal(ok.ok, true, ok.reasons.join());
+  assert.equal(fs.existsSync(path.join(root, roleFile("helper"))), true);
+});
+
+test("role and rule ids with odd characters or traversal are rejected and nothing is written", () => {
+  const root = repo();
+  const ids = ["../evil", "a/b", "a.b", "A", "a b", "a\nb", "-x", ""];
+  for (const id of ids) {
+    for (const p of [{ ...good, role: { ...good.role, id } }, { ...good, rule: { ...good.rule, id } }]) {
+      assert.equal(send(root, p).ok, false, JSON.stringify(id));
+      const res = roleProposeAccept({ root, actor: admin, preset: activePreset(root), now: NOW }, "llm", p);
+      assert.equal(res.ok, false, JSON.stringify(id));
+      assert.equal(res.written, false);
+    }
+  }
+  assert.equal(list(root).length, 0);
+  assert.equal(fs.existsSync(path.join(root, "evil.md")), false);
+  assert.equal(fs.existsSync(path.join(root, ".specplane", "roles")) && fs.readdirSync(path.join(root, ".specplane", "roles")).length > 0, false);
+});
+
+test("accept-time cap bypass: a stored request whose params omit `marked` is refused", async () => {
+  const root = repo();
+  const r = send(root, { ...wide, marked: ["spec.edit.feature"] });
+  assert.equal(r.ok, true, r.reasons.join());
+  const found = path.join(storeDir(root), "requests", `${r.request!.id}.json`);
+  const rec = JSON.parse(fs.readFileSync(found, "utf8"));
+  delete rec.action.params.marked;
+  fs.writeFileSync(found, JSON.stringify(rec));
+  const a = await acceptRequest(as(root, admin), r.request!.id);
+  assert.equal(a.ok, false);
+  assert.match(a.reasons.join(), /marked/);
+  assert.notEqual(readRequest(root, r.request!.id)!.state, "accepted");
+  absent(root, "wide", "wide-rule");
 });

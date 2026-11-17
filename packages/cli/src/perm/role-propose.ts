@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { BUILTIN_ROLES, CATALOG, RANK, levelOf, mode, type Actor, type CustomRoleDef, type Mode, type Preset } from "./permissions.js";
 import { aboveLlm } from "./llm-rules.js";
 import { ROLE_ID, readRoleFiles, readRuleFiles, roleFile, ruleFile, serializeRole, serializeRule, type RuleDef } from "./roles.js";
-import { above, applyRoleEdits, applyRuleEdits, needs, record, writeFile, type RoleCtx, type RoleResult } from "./role-ops.js";
+import { above, applyRoleEdits, escalation, applyRuleEdits, needs, record, writeFile, type RoleCtx, type RoleResult } from "./role-ops.js";
 
 /**
  * LLM role proposals (`feature/roles-and-permissions` R44.2; `architecture/reference-cli` §7.7 'Role proposals'). The LLM
@@ -118,6 +118,8 @@ export function roleProposeAccept(ctx: RoleCtx, proposer: Actor["role"], params:
   const describe = `accepting the proposal of role \`${role.id}\``;
   const refused = needs(ctx, "role.manage", describe) ?? needs(ctx, "role.map", describe) ?? above(ctx, describe, [[role.id, role.level]]);
   if (refused) { record(ctx, "role propose", [role.id], "role.manage", "refused", null, null, refused); return fail([refused]); }
+  const lacks = escalation(ctx, role);
+  if (lacks.length) { const bad = `Refused: ${describe} would give role \`${role.id}\` more than the ${ctx.actor.role} role holds for ${lacks.join(", ")}; a role cannot hand out what it lacks (R43).`; record(ctx, "role propose", [role.id], "role.manage", "refused", null, null, bad); return fail([bad]); }
   const more = proposalProblems(ctx.root, ctx.preset, proposer, params);
   if (more.length) { record(ctx, "role propose", [role.id], "role.manage", "refused", null, null, more.join(" ")); return fail(more); }
   writeFile(ctx.root, roleFile(role.id), serializeRole(role));

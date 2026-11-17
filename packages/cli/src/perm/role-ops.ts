@@ -47,7 +47,7 @@ export function above(ctx: RoleCtx, describe: string, levels: Array<[string, num
 }
 
 /** The permissions in which the role is more permissive than the actor: a role cannot hand out what it does not hold. */
-function escalation(ctx: RoleCtx, def: CustomRoleDef): string[] {
+export function escalation(ctx: RoleCtx, def: CustomRoleDef): string[] {
   if (ctx.actor.role === "administrator") return [];
   const probe: Preset = { ...ctx.preset, customRoles: { ...ctx.preset.customRoles, [def.id]: def } };
   return CATALOG.filter((p) => RANK[mode(probe, def.id, p)] > RANK[mode(ctx.preset, ctx.actor.role, p)]);
