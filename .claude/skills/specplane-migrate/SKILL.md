@@ -4,7 +4,7 @@ description: "Bring an existing project, including one in an older Specplane for
 argument-hint: "[what to migrate from]"
 disable-model-invocation: false
 ---
-<!-- Specplane command contract v0.1.1; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
 # migrate
 
 ## Purpose

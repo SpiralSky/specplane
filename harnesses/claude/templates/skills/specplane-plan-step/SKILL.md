@@ -4,7 +4,7 @@ description: "Execute the next selected steps of a plan, one at a time."
 argument-hint: "[plan-id]"
 disable-model-invocation: true
 ---
-<!-- Specplane command contract v0.1.1; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
 # plan-step
 
 ## Purpose

@@ -1,4 +1,4 @@
-<!-- Specplane command contract v0.1.1; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
 # approve
 
 ## Purpose

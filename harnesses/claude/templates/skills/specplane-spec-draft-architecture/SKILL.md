@@ -4,7 +4,7 @@ description: "Draft an architecture specification from feature specifications."
 argument-hint: "<feature spec id>..."
 disable-model-invocation: true
 ---
-<!-- Specplane command contract v0.1.1; source: architecture/agent-skills §7 -->
+<!-- Specplane command contract v0.1.2; source: architecture/agent-skills §7 -->
 # spec-draft-architecture
 
 ## Purpose
