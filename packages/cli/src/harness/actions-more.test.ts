@@ -44,7 +44,7 @@ const added = listActions().filter((a) => a.id in inputs);
 
 test("the remaining 21 actions are registered with strict schemas", () => {
   assert.equal(added.length, 21);
-  assert.equal(listActions().length, 50);
+  assert.equal(listActions().length, 51);
   assert.equal(added.filter((a) => a.id.startsWith("plan.")).length, 15);
   for (const a of listActions()) assert.equal((a.inputSchema as { additionalProperties: boolean }).additionalProperties, false, a.id);
 });
