@@ -1,9 +1,9 @@
 # Session handoff
 Updated 2026-11-16 after the requests usability fixes. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
-## Release 0.1.2 tagged, NOT yet visible on npm (2026-11-17)
+## Release 0.1.2 published (2026-11-17)
 
-Tag `v0.1.2` (`21e4d3d`) and `main` are pushed. The publish workflow succeeded on the third attempt (it printed `+ specplane@0.1.2` and signed provenance), but the registry still lists only `0.1.1` and `0.0.0-stage`, and `0.1.2` returns "version not found". The first two attempts failed with `403 OIDC permission denied` until the trusted publisher on npmjs.com got "allow npm publish" ticked (the first save was made in a browser without 2FA). Most likely the upload is held as a staged publish that needs approving on npmjs.com (the trusted publisher page says "npm stage publish is always allowed"); unverified, check the package page for a pending/staged version and approve it. If it is registry lag, `npm view specplane version` will show `0.1.2` soon. Still to do for the user: delete the `NPM_TOKEN` secret from the repository.
+`specplane@0.1.2` is on npm (tag `v0.1.2`, `21e4d3d`, published by CI with provenance). Two things to know for `0.1.3`: the trusted publisher on npmjs.com needs "allow npm publish" ticked (the first two attempts failed with `403 OIDC permission denied`; the setting must be saved in a browser with 2FA), and the upload appeared on the registry only after the user acted on npmjs.com (it showed `0.0.0-stage` and no `0.1.2` until then, likely a staged publish awaiting approval; check the package page after the workflow ends). Still to do for the user: delete the `NPM_TOKEN` secret from the repository.
 
 ## Next session: start here (2026-11-17)
 
