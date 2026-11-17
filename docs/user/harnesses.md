@@ -45,7 +45,7 @@ Codex claims only what has been checked live with a Codex build: subagents were 
 
 | Command | Claude Code | Codex |
 |---------|-------------|-------|
-| `spec-assist`, `spec-draft-architecture`, `plan-create`, `plan-start`, `plan-step`, `plan-finish`, `plan-status`, `validate`, `verify`, `plan-abandon` | typed command | skill with a contract |
+| `spec-assist`, `spec-draft-architecture`, `plan-create`, `plan-start`, `plan-step`, `plan-finish`, `plan-status`, `validate`, `verify`, `plan-abandon`, `decision-new`, `spec-review`, `migrate` | typed command | skill with a contract |
 | `approve`, `requests`, `spec-view` | typed command | not offered; run them in your own terminal |
 
 In Claude Code, a typed command that hands its arguments to the assistant first checks the permissions it cannot do anything without: `plan.create` for `plan-create`, `plan.abandon` for `plan-abandon`, `plan.complete` for `plan-finish`, and `info.retrieve` for `validate`, `verify` and `spec-review`. If the LLM role has one of them as deny, the command is refused at once with the denial text naming the permission, and no model turn starts. Allow and request user start the turn as usual. Other commands, whose permission depends on what they write, always start it. Codex has no typed commands, so this check does not apply there.

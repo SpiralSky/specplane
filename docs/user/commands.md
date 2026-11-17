@@ -462,7 +462,7 @@ Trust an approved rule on this machine. Only a rule that gives a role above the 
 
 `specplane role switch [options] <role>`
 
-administrator or standard-user
+Switch the CLI role to `administrator` or `standard-user`.
 
 ### `docs`
 
@@ -516,7 +516,7 @@ Refuse duplicate requirement IDs in the staged requirement files (reads the inde
 
 `specplane check tests --staged [--timeout <seconds>] [--json]`
 
-Run the deterministic tests of the architecture specs whose files are staged, on a copy of the index. Intelligent tests never run and nothing is recorded. The pre-commit hook runs it when `pre_commit.tests` is on; exit 1 names the spec and the failing test.
+Run the deterministic tests of every architecture spec that declares them, on a copy of the index, whenever anything is staged (code-only commits too); with nothing staged it does nothing. `--timeout` defaults to 120 seconds. Intelligent tests never run and nothing is recorded. The pre-commit hook runs it when `pre_commit.tests` is on; exit 1 names the spec and the failing test.
 
 ### `check strict`
 

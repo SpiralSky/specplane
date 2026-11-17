@@ -1,6 +1,14 @@
 # Session handoff
 Updated 2026-11-16 after the requests usability fixes. Read the first "Next session: start here" section; older sections are historical unless referenced below.
 
+## 0.1.3 in progress (2026-11-17, evening)
+
+Branch `docs/requirements-roles-refresh` (cut from local `main`, so it also carries `26776a5` docs fixes and `424427a` the 0.1.3 version bump); `release/0.1.3` is an unused marker at `424427a`. Nothing is pushed and the `v0.1.3` tag was deleted (not yet created again). Push is blocked until the user runs `gh auth setup-git` (`gh` is logged in; git HTTPS is not).
+
+Done on the branch: requirements R44.2 (LLM role proposals, permission `role.propose`), R52.3 sentence, R72 (installed files refresh at session start and on `validate`); 18 specs approved as a group (notes `6a9a3b9`); R72 built (`7e0b1c7`, `43af130`, `05518d7`); `role.propose` built (`8160acf`, `e52f2b1`); review fixes (`2686ea7`, `c2107f4`); user docs updated and corrected after an audit. 798 pass / 0 fail, hooks 211, check-sync OK.
+
+Left: (1) a final read of the PR diff; (2) open the PR (`gh pr create`) after the user fixes push auth; merge after review; (3) tag `v0.1.3` on the merge commit and push (CI publishes; npmjs trusted publisher needs "allow npm publish"; the upload may need approving on the npm page); (4) delete the `NPM_TOKEN` secret; (5) the dogfood install (`.claude/`, `AGENTS.md`) still has older stamps/no block `sha`: the user runs `specplane init --harness claude` once, after which R72 keeps it fresh; (6) docs not audited line by line: `plans.md` lifecycle claims, `concepts.md` and `specification-format.md` behaviour, harnesses pre-check permission mapping; (7) known gaps: `validateCommand` still throws without git before the refresh guard; a proposed LLM role rule with a wildcard match and high priority is not called out in the preview. Dropped for now by the user: wiring `cancel` into the `/requests` pane, answering requests as a pattern.
+
 ## Release 0.1.2 published (2026-11-17)
 
 `specplane@0.1.2` is on npm (tag `v0.1.2`, `21e4d3d`, published by CI with provenance). Two things to know for `0.1.3`: the trusted publisher on npmjs.com needs "allow npm publish" ticked (the first two attempts failed with `403 OIDC permission denied`; the setting must be saved in a browser with 2FA), and the upload appeared on the registry only after the user acted on npmjs.com (it showed `0.0.0-stage` and no `0.1.2` until then, likely a staged publish awaiting approval; check the package page after the workflow ends). Still to do for the user: delete the `NPM_TOKEN` secret from the repository.
