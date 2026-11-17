@@ -558,3 +558,6 @@ Setting up Specplane in a project should take one command run by the user, after
 
 *R75.1: No Terminal After Setup*
 After setup, every step a user needs to reach an approved specification should be available from the harness. Where the user must confirm an action, the harness asks for that confirmation itself instead of telling the user to run a command in a terminal.
+
+**R76: Temporary Grants**
+The user can grant an LLM a permission its role does not have, from inside the harness, for one action or for the rest of the session. The grant shows exactly what it allows, asks the user to confirm it once, expires on its own and is recorded in the audit log. Only the user can grant: an LLM cannot start, request or confirm a grant, and the harness must offer it through a route the LLM cannot use. Where a harness has no such route, it says so and the grant is not offered there.
