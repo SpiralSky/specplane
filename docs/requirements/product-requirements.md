@@ -211,7 +211,7 @@ Permissions for default roles are defined automatically within presets (see `R57
 
 *R42.1: Default Role Definitions*
 *Standard User*
-The standard user should be the default role for users using the CLI and agentic harness.
+The standard user should be the default role for users using the CLI and agentic harness. It has every permission by default, including the protected overrides (see `R17.2`) and the system permissions (see `R60`), so a single user never needs to switch roles. Setups with several users restrict it through a custom preset or custom roles.
 
 *LLM Role*
 LLM user should be the default role for LLMs in the harness. Subagents inherit parent LLM roles unless overridden by `R44.1`
@@ -226,6 +226,9 @@ The administrator user should have all permissions and be able to manage all oth
 
 **R58: Role Permission Bypass**
 Specplane should have configurable guardrails against permission bypass via starting headless sessions, such as running `claude -p` or the specplane CLI itself. One example is using environmental variables. Multiple preventative methods should be used and they should be all documented and configurable. The harness should be able to identify LLMs and subagents running and treat them as having their own specplane role so that specplane's LLM roles can be applied properly.
+
+*R58.1: The User's Own Commands*
+A command the user types into the harness's own shell, such as `!` in Claude Code, runs as the user, not as the LLM. Only commands the LLM starts, and the processes they start, are treated as the LLM's.
 
 **R44: Applying Custom Users**
 The configuration should allow users to apply custom specplane roles to Operating System users. Administrators or root accounts should optionally be able to switch to or log in as the administrator user. User who do not have a role for the operating system will be assigned the standard user (See `R42.1: Default Role Definitions`).
@@ -265,6 +268,9 @@ Steering should be used to keep LLM to follow rules. Apart from what is mentione
 
 *R59.1: Custom Steering*
 Users should be able to customise steering, overall and per command or permission. For example, when an LLM should send requests: only when the user asked for the change, or whenever it sees a possible improvement. Steering guides the LLM and does not change what its permissions allow.
+
+*R59.2: Overriding Steering*
+Steering can be set aside only through an explicit override command that the user runs, never by anything said in conversation. The command names the part of the steering it sets aside and lasts for one action or for the rest of the session. It uses the protected route, confirmation and audit record of temporary grants (see `R76`). It never changes what the LLM's permissions allow.
 
 ### General (Appears in both)
 **R12: Validation**
@@ -312,7 +318,7 @@ The CLI should be able to change all aspects of specification metadata. This fea
 Specification metadata should have permissions whether a role can read, write metadata. A permission for general metadata management should exist for managing all metadata while granular permissions should exist per-metadata.
 
 *R17.2: Protected Metadata Overrides*
-Overriding status, who approved a spec or test results should each have their own permission, which general metadata management does not include. Only the Administrator has these permissions by default, through having all permissions. An override is marked as one in the spec's metadata and in the audit log.
+Overriding a spec's status, its approval (who approved it and which commit) or its test results each needs its own permission. General metadata management does not include them. By default the Standard User and the Administrator have these permissions and the LLM role does not. Before an override is applied, the person running it confirms it once. Each override is marked as an override in the spec's metadata and in the audit log.
 
 **R33: CLI - Plan Management**
 The CLI should be able to manage plans by changing plan metadata.
@@ -402,6 +408,15 @@ The user should be able to change the branch a plan merges into, from the harnes
 *R31.2: Parallelism*
 The user should be able to control how much parallelism is used in the plan steps. A parallel step contains multiple different tasks that do not depend on each other and require the harness to have subagents to execute the tasks in parallel.
 
+*R31.4: Plan Agents*
+The user can name, in configuration, which of the harness's own agent definitions runs a plan and which ones steps, tasks and the final review use as subagents (see `R28`). Model, effort and tools are set in those definitions, not in Specplane. A plan and each step can name different agents. Where the harness cannot use a named agent in that place, Specplane says so and refuses instead of ignoring it.
+
+*R31.5: Plan Review and Finish*
+The final review of a plan (see `R28`) can be given to a named agent. A rejected review sends the plan back to its steps, and after a configurable number of rejected rounds the decision goes to the user. Pushing, opening a pull request and merging after an accepted review are each a permission (see `R44`).
+
+*R31.6: Custom Launcher*
+The user can set, in configuration, a command template that starts plan sessions in place of the default, for example to open them in another terminal. Specplane fills in the plan's checkout, starts the command with the LLM marker set, and `validate` warns while a custom launcher is set.
+
 **R27: Plan Execution**
 The user should be able to use the harness to start a session that is accessible for reading and *potential* intervention by the user. The user should be able to control what steps to execute, or execute all steps at once. However, the harness should deny a selection that skips a step that has not been completed.
 
@@ -483,6 +498,9 @@ Permission Presets should be creatable, editable and deletable. Permission prese
 
 Presets simply apply permissions to roles and they can still be changed.
 
+*R56.3: Presets with Roles and Rules*
+A preset can also include custom roles and LLM role rules (see `R44.1`), which apply while the preset is active. Roles and rules in a preset that ships with Specplane need no separate approval or local trust (see `R48`). Once edited, they follow `R48` like any custom role or rule.
+
 *R56.1: Preset Default Permissions*
 Presets additionally define the default permission mode which will apply for all unspecified permission in the preset.
 
@@ -495,7 +513,7 @@ Preset creation is request user for LLM roles in all default presets.
 The default permission presets are defined below. The default permission for unspecified permission will be deny for these default presets.
 *Note: Permissions are separate from role management permissions*
 
-Changing configuration is request user for LLM roles in all default presets. Protected metadata overrides (see `R17.2`) are not enabled for any role in default presets, including where users otherwise have all permissions.
+Changing configuration is request user for LLM roles in all default presets. Protected metadata overrides (see `R17.2`) are enabled for users and not for LLM roles in all default presets.
 
 Spec approval is request user for LLM roles in all default presets.
 
@@ -507,6 +525,8 @@ This preset disables all LLM editing permissions over all specifications while o
 This preset enables LLM editing permissions over feature and architectural specifications needing to request the user for editing requirement specifications. Users have all permissions enabled.
 4. Full LLM Control
 This preset enables LLM editing permissions over all specification types including the requirement specification. Users have all permissions enabled.
+5. Reviewer Approval
+Editing permissions as in Architecture-Level LLM Control. The default LLM role cannot approve or reject. A built-in reviewer role, given by a built-in rule to Specplane's reviewer subagent (see `R74`), approves and rejects feature and architecture specifications and plans. Requirement approval stays with the user. Where the harness cannot tell subagents apart, the preset says so and approvals stay with the user.
 
 ## Subprojects
 **R39: Subprojects**
@@ -538,3 +558,21 @@ A file that still matches the content Specplane last wrote (its recorded hash) i
 
 *R72.2: Same Result as Init*
 An automatic refresh produces the same files that `specplane init` would for the installed harness, and `init` stays available and safe to repeat.
+
+**R73: Rejecting Specifications**
+A role with the approval permission for a specification's type can reject it, with findings. A rejection is stored as a record like an approval, tied to the content that was rejected. A rejected specification stays Awaiting Review with the findings as the reason. After a rejection, an LLM can approve that specification only once its content has changed; the user can approve it at any time. Approvals and rejections record the role and, for an LLM, its agent type and model, and may carry findings. The same applies to a plan's final review (see `R28`).
+
+**R74: Built-in Reviewer**
+Specplane installs a reviewer subagent definition for each supported harness, with instructions written to keep the review independent of the agent that did the work. The reviewer gathers the content under review and what it cites through Specplane itself rather than relying only on the requesting agent's description. The built-in rule matches this agent only while its definition is the one Specplane installed or one the user has approved, so another agent with the same name does not get the reviewer role.
+
+*R74.1: Configurable Reviewer*
+The user can edit or remove the reviewer definition, the reviewer role and its rule, like any other role, rule or installed file (see `R48` and `R72.1`). An edited definition keeps the reviewer role once the user approves the change. Specplane never restores a removed or edited part on its own.
+
+**R75: Project Setup**
+Setting up Specplane in a project should take one command run by the user, after which everything else can be done from the harness. Setup detects the installed harnesses and asks which to set up, asks which preset to use (see `R57`), creates the specification folders with an example requirement and feature specification, and offers to commit the configuration, since configuration applies only once committed. It makes approval records travel with the user's normal pushes and fetches, and names any step it cannot do itself, such as trusting the project in the harness. Each question has a default, and one option accepts every default without asking.
+
+*R75.1: No Terminal After Setup*
+After setup, every step a user needs to reach an approved specification should be available from the harness. Where the user must confirm an action, the harness asks for that confirmation itself instead of telling the user to run a command in a terminal.
+
+**R76: Temporary Grants**
+The user can grant an LLM a permission its role does not have, from inside the harness, for one action or for the rest of the session. The grant shows exactly what it allows, asks the user to confirm it once, expires on its own and is recorded in the audit log. Only the user can grant: an LLM cannot start, request or confirm a grant, and the harness must offer it through a route the LLM cannot use. Where a harness has no such route, it says so and the grant is not offered there.
