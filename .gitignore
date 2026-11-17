@@ -1,4 +1,5 @@
-.claude/settings.local.json
+# the dogfood install of the harness templates: maintainer-local, not tracked
+.claude/
 
 # build output
 packages/cli/dist/
