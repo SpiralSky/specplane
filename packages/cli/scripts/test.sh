@@ -99,13 +99,14 @@ run_bun() {
 run_node() {
   fresh_tmp
   # Node takes globs, not directories: a directory argument means every test file under it.
-  # Its --test-timeout also bounds each whole file, so it is longer than Bun's per-test one.
+  # Its --test-timeout bounds each whole file, so it is longer than Bun's per-test one. 120 s was too short on
+  # a 2-core CI runner (v0.1.3 publish: two files that take ~36 s alone timed out under 20-way concurrency).
   first=1
   for arg in "$@"; do
     if [ "$first" -eq 1 ]; then set --; first=0; fi
     if [ -d "$arg" ]; then set -- "$@" "${arg%/}/**/*.test.js"; else set -- "$@" "$arg"; fi
   done
-  node --test --test-concurrency=20 --test-timeout=120000 "$@"
+  node --test --test-concurrency=20 --test-timeout="${SPECPLANE_TEST_NODE_TIMEOUT:-420000}" "$@"
 }
 
 if [ "$runner" = node ]; then
