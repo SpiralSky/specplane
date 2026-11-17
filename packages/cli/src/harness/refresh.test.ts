@@ -7,7 +7,7 @@ import { validateCommand } from "../commands/validate.js";
 import { makeRepo } from "../test-repo.js";
 import { skillPath, SKILL_COMMANDS } from "./claude-skills.js";
 import { installHarness, specplaneVersion } from "./install.js";
-import { refreshInstalled } from "./refresh.js";
+import { refreshInstalled, refreshNote } from "./refresh.js";
 
 const V = specplaneVersion();
 const RULES = ".claude/rules/specplane.md";
@@ -119,4 +119,59 @@ test("refresh never writes specs, requirements, config, settings or files it did
   refreshInstalled(root);
   const after = tree(root);
   for (const k of Object.keys(before)) if (k !== RULES) assert.equal(after[k], before[k], `${k} unchanged`);
+});
+
+test("a missing owned file is not recreated", () => {
+  const root = repo();
+  installHarness(root, "claude");
+  fs.rmSync(path.join(root, RULES));
+  const r = refreshInstalled(root);
+  assert.deepEqual(r.refreshed, []);
+  assert.equal(fs.existsSync(path.join(root, RULES)), false);
+});
+
+test("a header without a recorded hash is treated as edited: left alone and warned", () => {
+  const root = repo();
+  installHarness(root, "claude");
+  const noHash = read(root, RULES).replace(/ sha:[0-9a-f]+/, "").replace(`v${V}`, "v0.0.1");
+  fs.writeFileSync(path.join(root, RULES), noHash);
+  const r = refreshInstalled(root);
+  assert.deepEqual(r.refreshed, []);
+  assert.deepEqual(r.edited, [RULES]);
+  assert.match(r.lines.join("\n"), /Not refreshed/);
+  assert.equal(read(root, RULES), noHash);
+});
+
+test("a refresh that cannot write leaves refresh-installed and validate succeeding", () => {
+  const root = repo();
+  installHarness(root, "claude");
+  age(root, RULES);
+  const dir = path.join(root, path.dirname(RULES));
+  fs.chmodSync(dir, 0o555);
+  try {
+    const aged = read(root, RULES);
+    assert.doesNotThrow(() => refreshInstalled(root));
+    assert.doesNotThrow(() => validateCommand([], root));
+    assert.equal(read(root, RULES), aged);
+  } finally { fs.chmodSync(dir, 0o755); }
+  const bare = repo();
+  installHarness(bare, "claude");
+  age(bare, RULES);
+  fs.rmSync(path.join(bare, ".git"), { recursive: true, force: true });
+  assert.deepEqual(refreshNote(bare), {}, "without git the guarded callers report nothing");
+});
+
+test("strict os_permissions safeguards are applied after a refresh that only rewrote the AGENTS.md block", () => {
+  const root = makeRepo({ ".specplane/config.yaml": "paths:\n  requirements: docs/requirements\nstrict_mode:\n  enabled: on\n" });
+  const git = (...a: string[]): void => { assert.equal(spawnSync("git", a, { cwd: root, encoding: "utf8" }).status, 0); };
+  git("init", "-q"); git("config", "user.name", "T"); git("config", "user.email", "t@example.invalid");
+  git("add", ".specplane/config.yaml"); git("commit", "-qm", "config");
+  installHarness(root, "codex");
+  fs.mkdirSync(path.join(root, ".claude"), { recursive: true });
+  const settings = path.join(root, ".claude/settings.json");
+  fs.writeFileSync(settings, "{}\n");
+  fs.chmodSync(settings, 0o644);
+  age(root, "AGENTS.md");
+  assert.deepEqual(refreshInstalled(root).refreshed, ["AGENTS.md"]);
+  assert.equal(fs.statSync(settings).mode & 0o222, 0, "settings made read-only by the safeguard");
 });

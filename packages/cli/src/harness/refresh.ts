@@ -34,24 +34,24 @@ export function refreshInstalled(root: string): RefreshResult {
         result.refreshed.push(f.path); wrote = true;
       } catch { /* an unreadable or symlinked file is left alone; init reports it */ }
     }
-    if (plan.block) {
+    block: if (plan.block) {
       try {
-        if (!loadSettings(root).config.values["harness.install_block"]) continue;
+        if (!loadSettings(root).config.values["harness.install_block"]) break block;
         refuseSymlinks(root, plan.block.file);
         const abs = path.join(root, plan.block.file);
-        if (!fs.existsSync(abs)) continue;
+        if (!fs.existsSync(abs)) break block;
         const current = fs.readFileSync(abs, "utf8");
         const parts = splitBlock(plan.block.file, current);
-        if (parts.inner === null) continue;
+        if (parts.inner === null) break block;
         const [begin, ...rest] = parts.inner.split("\n");
         rest.pop(); // the end marker
         const body = rest.join("\n");
         const writtenVersion = begin.match(/ v(\S+)/)?.[1];
-        if (!writtenVersion || writtenVersion === version) continue;
+        if (!writtenVersion || writtenVersion === version) break block;
         const recorded = begin.match(/ sha:([0-9a-f]+)/)?.[1];
         // A marker from before hashes existed is refreshable only when its body is the standing text that was written then.
         const untouched = recorded ? recorded === sha(body) : body === standingText(body.match(/Steering stamp: ([0-9a-f]{64})/)?.[1] ?? "");
-        if (!untouched) { result.edited.push(plan.block.file); continue; }
+        if (!untouched) { result.edited.push(plan.block.file); break block; }
         const block = `${beginMarker(version, plan.block.text)}\n${plan.block.text}\n${END_MARKER}`;
         atomicWrite(abs, `${parts.before}${block}${parts.after}`);
         result.refreshed.push(plan.block.file); wrote = true;
