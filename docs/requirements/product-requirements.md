@@ -211,7 +211,7 @@ Permissions for default roles are defined automatically within presets (see `R57
 
 *R42.1: Default Role Definitions*
 *Standard User*
-The standard user should be the default role for users using the CLI and agentic harness.
+The standard user should be the default role for users using the CLI and agentic harness. It has every permission by default, including the protected overrides (see `R17.2`) and the system permissions (see `R60`), so a single user never needs to switch roles. Setups with several users restrict it through a custom preset or custom roles.
 
 *LLM Role*
 LLM user should be the default role for LLMs in the harness. Subagents inherit parent LLM roles unless overridden by `R44.1`
@@ -312,7 +312,7 @@ The CLI should be able to change all aspects of specification metadata. This fea
 Specification metadata should have permissions whether a role can read, write metadata. A permission for general metadata management should exist for managing all metadata while granular permissions should exist per-metadata.
 
 *R17.2: Protected Metadata Overrides*
-Overriding status, who approved a spec or test results should each have their own permission, which general metadata management does not include. Only the Administrator has these permissions by default, through having all permissions. An override is marked as one in the spec's metadata and in the audit log.
+Overriding status, who approved a spec or test results should each have their own permission, which general metadata management does not include. The Standard User and the Administrator have these permissions by default; the LLM role does not. An override asks for one confirmation, and is marked as one in the spec's metadata and in the audit log.
 
 **R33: CLI - Plan Management**
 The CLI should be able to manage plans by changing plan metadata.
