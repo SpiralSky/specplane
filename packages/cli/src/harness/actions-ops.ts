@@ -54,6 +54,16 @@ export function registerOperationActions(add: Adder): void {
     const { id, edits, problems } = presetParamsEdits(p);
     return problems.length ? { ok: false, reasons: problems, lines: [], written: false } : presetCreate(base(c), id, edits);
   });
+  // Role proposals: the LLM sends a role and its LLM role rule as a request; only a person who accepts writes them (`R44.2`).
+  const modeEnum = { enum: ["allow", "request-user", "deny"] };
+  add("role.propose", {
+    role: { type: "object", additionalProperties: false, required: ["id", "level", "default_mode"], properties: { id: str, title: str, level: { type: "integer" }, default_mode: modeEnum, modes: { type: "object", additionalProperties: modeEnum } } },
+    rule: { type: "object", additionalProperties: false, required: ["id", "match"], properties: { id: str, title: str, priority: { type: "integer" }, match: { type: "object" } } },
+    marked: { type: "array", items: str }, reason: str,
+  }, ["role", "rule"], ["role.propose"], false, (c, p) => {
+    const r = sendRequest(base(c), { command: "role propose", params: { role: p.role, rule: p.rule, ...(p.marked ? { marked: p.marked } : {}) }, reason: p.reason ?? `Proposal of role ${p.role?.id}` });
+    return { ok: r.ok, reasons: r.reasons, lines: r.lines, request: r.request?.id };
+  });
   // Documentation needs no permission (U0, `reference-cli` §7.3 and §13.1), like `permissions.docs`.
   add("docs.search", { query: str }, ["query"], [], true, (_c, p) => docsSearch(p.query));
   // The always-loaded essentials (`steering R23`): what the session-start delivery of an adapter sends, for a harness or

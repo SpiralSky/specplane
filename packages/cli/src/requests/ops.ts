@@ -6,6 +6,7 @@ import { activePreset, findPreset, guard, type Actor, type Preset } from "../per
 import { requirePlan, type PlanCtx } from "../plan/ctx.js";
 import { stopPlan } from "../plan/run.js";
 import { presetDraft, presetPreview } from "../perm/preset-ops.js";
+import { parseProposal, proposalPreview } from "../perm/role-propose.js";
 import { specDiffText } from "../spec/edit.js";
 import { requestContext, requestRoot } from "./checkout.js";
 import { actionFor, type ActionOutcome } from "./actions.js";
@@ -59,7 +60,7 @@ export function sendRequest(ctx: RequestCtx, i: SendInput): RequestResult {
     context = requestContext(ctx.root, i.plan);
     destination = destinationCtx(ctx, context.checkout ?? ctx.root);
     needs = actionNeeds(destination.root, i.command, i.params);
-    const never = requestPrecondition(destination.root, i.command, i.params);
+    const never = requestPrecondition(destination.root, i.command, i.params, { actor: ctx.actor, preset: destination.preset });
     if (never) throw new InvalidRequestAction(never);
   }
   catch (e) {
@@ -90,6 +91,10 @@ function storedPreview(ctx: RequestCtx, command: string, params: unknown): strin
     if (p.key !== "permissions.preset" || typeof p.arg !== "string") return null;
     const target = findPreset(ctx.root, p.arg.trim());
     return target ? presetPreview(target, ctx.preset).lines.join("\n") : null;
+  }
+  if (command === "role propose") {
+    const { proposal } = parseProposal(params);
+    return proposal ? proposalPreview(ctx.preset, ctx.actor.role, proposal).join("\n") : null;
   }
   if (command !== "preset create") return null;
   const { preset } = presetDraft(ctx.root, params);

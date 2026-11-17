@@ -36,7 +36,7 @@ export const CATALOG: readonly string[] = [
   ...GRANULAR_PIECES.map((p) => `meta.write.${p}`),
   ...PROTECTED, "test.record", "info.retrieve",
   "plan.meta.read", "plan.meta.write", ...PLAN_PIECES.map((p) => `plan.meta.write.${p}`), "plan.edit", "plan.create", "plan.delete", "plan.start", "plan.abandon", "plan.complete",
-  "plan.budget", "plan.resume", "plan.retarget", "plan.softstop", "decision.add", "decision.retrieve", "decision.edit", "decision.delete", "config.change", "preset.create",
+  "plan.budget", "plan.resume", "plan.retarget", "plan.softstop", "decision.add", "decision.retrieve", "decision.edit", "decision.delete", "config.change", "preset.create", "role.propose",
   ...ROLE_PERMISSIONS,
 ];
 /** The standard permissions: what a preset or a custom role's default mode can set. */
@@ -67,7 +67,7 @@ function llmModes(req: Mode, feat: Mode, arch: Mode, planEdit: Mode): Record<str
   }
   return {
     ...m,
-    "spec.approve.requirement": "request-user", "spec.approve.feature": "request-user", "spec.approve.architecture": "request-user", "config.change": "request-user", "preset.create": "request-user", "info.retrieve": "allow", "test.record": "allow",
+    "spec.approve.requirement": "request-user", "spec.approve.feature": "request-user", "spec.approve.architecture": "request-user", "config.change": "request-user", "preset.create": "request-user", "role.propose": "request-user", "info.retrieve": "allow", "test.record": "allow",
     "meta.read": "allow", "meta.write": "deny", "plan.meta.read": "allow", "plan.meta.write": "deny",
     "plan.create": planEdit, "plan.edit": planEdit, "plan.start": "request-user", "plan.resume": "request-user", "plan.retarget": "request-user",
     "plan.abandon": "request-user", "plan.complete": "request-user", "plan.delete": "request-user", "plan.budget": "request-user",
