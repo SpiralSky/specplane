@@ -6,7 +6,13 @@ related: [concepts, commands, harnesses]
 
 # Getting started
 
-Specplane needs Node.js 22 or later and git. Install from a source checkout:
+Specplane needs Node.js 22 or later and git 2.32 or later. Install from npm:
+
+```sh
+npm install -g specplane
+```
+
+Or install from a source checkout:
 
 ```sh
 cd packages/cli
@@ -22,6 +28,7 @@ cd your-project
 specplane init --harness claude   # notes refspecs and the Claude Code files (including the specplane entry in .mcp.json); or --harness codex
 specplane validate                # format, citations, requirement IDs, status
 specplane spec list               # every spec with its effective status
+# write docs/specifications/features/login.md first (steps 1-2 below), then:
 specplane spec approve feature/login
 specplane warnings
 ```

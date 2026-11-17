@@ -26,6 +26,7 @@ cd your-repo
 specplane init --harness claude   # or --harness codex; leave it out to skip the harness
 specplane validate                # format, citations, requirement IDs, status
 specplane spec list               # specs with their effective status
+# write docs/specifications/features/login.md first (see `specplane docs getting-started`), then:
 specplane spec approve feature/login
 specplane warnings
 ```
