@@ -65,9 +65,9 @@ export function refreshInstalled(root: string): RefreshResult {
 }
 
 /** The one short line a harness action adds to its result (`refreshed` names the files); nothing when no file changed. */
-export function refreshNote(root: string): { refreshed?: string[]; refreshNote?: string } {
+export function refreshNote(root: string): { refreshed?: string[]; refreshNote?: string; notRefreshed?: string[] } {
   try {
     const r = refreshInstalled(root);
-    return r.refreshed.length ? { refreshed: r.refreshed, refreshNote: r.lines[0] } : {};
+    return { ...(r.refreshed.length ? { refreshed: r.refreshed, refreshNote: r.lines[0] } : {}), ...(r.edited.length ? { notRefreshed: r.edited } : {}) };
   } catch { return {}; }
 }

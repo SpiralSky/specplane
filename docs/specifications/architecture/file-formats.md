@@ -816,7 +816,7 @@ Files Specplane installs (`harness R72`) say which version wrote them and what c
 | `.json` | none; formats without comments carry no header, and merged settings files are changed only for Specplane's own entries |
 | managed block in a shared file (`AGENTS.md`) | `<!-- specplane:begin vX.Y.Z sha:... ... -->` and `<!-- specplane:end -->` |
 
-The `stamp` is the steering stamp (`§12.4` of reference-cli). A file that matches its recorded `sha` is unedited. The block marker today records the version only; recording a `sha` of the block text is a change `harness R72.1` needs, so that an edited block can be told from a stale one (assumption). A file with no header was not written by Specplane and is kept.
+The `stamp` is the steering stamp (`§12.4` of reference-cli). A file that matches its recorded `sha` is unedited. The block marker records the version and the `sha` of the block body (`<!-- specplane:begin vX.Y.Z sha:... -->`), so that an edited block can be told from a stale one; a marker with no `sha`, written by an older version, is refreshed only if its body equals the standard text for the stamp it carries, and otherwise counts as edited. A file with no header was not written by Specplane and is kept.
 
 ## §13 Notes store and records
 

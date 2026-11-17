@@ -175,3 +175,11 @@ test("strict os_permissions safeguards are applied after a refresh that only rew
   assert.deepEqual(refreshInstalled(root).refreshed, ["AGENTS.md"]);
   assert.equal(fs.statSync(settings).mode & 0o222, 0, "settings made read-only by the safeguard");
 });
+
+test("an edited stale file is reported by the harness note and in the validate lines", () => {
+  const root = repo();
+  installHarness(root, "claude");
+  age(root, SKILL);
+  fs.writeFileSync(path.join(root, SKILL), `${read(root, SKILL)}\nMy own note.\n`);
+  assert.deepEqual(refreshNote(root), { notRefreshed: [SKILL] });
+});

@@ -11,5 +11,5 @@ export function validateCommand(ids: string[], root: string = checkoutRoot()): C
   let refresh: ReturnType<typeof refreshInstalled> = { refreshed: [], edited: [], lines: [] };
   try { refresh = refreshInstalled(root); } catch { /* a refresh failure never breaks validate */ }
   const report = validateProject(root, { ids });
-  return { ok: report.counts.errors === 0, data: report, findings: [], lines: [...refresh.refreshed.length ? refresh.lines.slice(0, 1) : [], ...formatReport(report).replace(/\n$/, "").split("\n")], permission: "info.retrieve" };
+  return { ok: report.counts.errors === 0, data: report, findings: [], lines: [...refresh.lines, ...formatReport(report).replace(/\n$/, "").split("\n")], permission: "info.retrieve" };
 }
