@@ -10,6 +10,7 @@ import { headCommit } from "../spec/source.js";
 import { findSpecId, headContext, implementSpec } from "../verify/implementation.js";
 import { recordResults, type RecordableResult } from "../verify/test-record.js";
 import { DEFAULT_TIMEOUT_SEC, runTests, type Selection } from "../verify/test-run.js";
+import { refreshNote } from "./refresh.js";
 import { bool, str, type ActionContext, type Adder, type Input } from "./action-types.js";
 
 /** Actions that verify, record, configure, document and ask (`architecture/reference-cli` §12.1). */
@@ -57,7 +58,7 @@ export function registerOperationActions(add: Adder): void {
   add("docs.search", { query: str }, ["query"], [], true, (_c, p) => docsSearch(p.query));
   // The always-loaded essentials (`steering R23`): what the session-start delivery of an adapter sends, for a harness or
   // a session that did not receive it.
-  add("docs.essentials", {}, [], [], true, () => ({ ok: true, essentials: loadEssentials() }));
+  add("docs.essentials", {}, [], [], true, (c) => ({ ok: true, essentials: loadEssentials(), ...refreshNote(c.root) }));
   add("request.send", { command: { enum: [...REQUESTABLE_COMMANDS] }, params: { type: "object" }, reason: str, plan: str, blocking: bool }, ["command", "params", "reason"], [], false, (c, p) => {
     const r = sendRequest(base(c), { command: p.command, params: p.params, reason: p.reason, plan: p.plan, blocking: p.blocking });
     return { ok: r.ok, reasons: r.reasons, lines: r.lines, request: r.request?.id };

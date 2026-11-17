@@ -10,6 +10,7 @@ import { prepareDecision, retrieveDecisions, writeDecision } from "../decisions/
 import { prepareSpecChange, specLayer, writeSpecification } from "../spec/write.js";
 import { headContext } from "../verify/implementation.js";
 import { computeCoverage } from "../verify/coverage.js";
+import { refreshNote } from "./refresh.js";
 import { validateProject } from "../verify/validate.js";
 import { collectWarnings, narrowWarnings, type Warning } from "../verify/warnings.js";
 import { listSpecViews } from "../commands/spec-read.js";
@@ -62,7 +63,7 @@ add("decision.delete", { id: str }, ["id"], ["decision.delete"], false, (c, p) =
 add("role.list", {}, [], info, true, (c) => ({ roles: roleList(c.root), rules: ruleList(c.root) }));
 add("role.show", { id: str }, ["id"], info, true, (c, p) => roleShow(c.root, p.id));
 add("spec.approve", { ids: strings }, ["ids"], (p, root) => root ? approvalNeeds(root, p.ids).needs : ["spec.approve.feature"], false, (c, p) => approveSpecs(c, p.ids, { yes: true }));
-add("validate", { ids: strings }, [], info, true, (c, p) => { const r = validateProject(c.root, p); return { ...r, ok: r.counts.errors === 0 }; });
+add("validate", { ids: strings }, [], info, true, (c, p) => { const note = refreshNote(c.root); const r = validateProject(c.root, p); return { ...r, ok: r.counts.errors === 0, ...note }; });
 add("warnings", { id: str }, [], info, true, (c, p) => { const all = [...collectWarnings(c.root), ...c.sessionWarnings]; return p.id ? narrowWarnings(all, p.id) : all; });
 add("coverage", {}, [], info, true, (c) => computeCoverage(headContext(c.root).project, loadSettings(c.root).config.values["coverage.requirement_only"] as string[]));
 add("config.get", { key: str }, [], info, true, (c, p) => configGet(c.root, p.key));
